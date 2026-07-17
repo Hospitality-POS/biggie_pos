@@ -150,7 +150,7 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
           payment_date: initialData.saleDate ? dayjs(initialData.saleDate) : dayjs(),
           payment_method: initialData.payments?.[0]?.method_id?.name || initialData.payment_method,
           commission_rate: initialData.commissionPercentage || initialData.commission_rate || 0,
-          status: initialData.status || 'pending',
+          status: initialData.status || 'reservation',
           salesAgent: initialData.salesAgent?._id || initialData.salesAgent,
           propertyManager: initialData.propertyManager?._id || initialData.propertyManager,
           notes: initialData.notes || '',
@@ -179,7 +179,7 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
           initial_payment: 100000,
           payment_plan: 'full_payment',
           commission_rate: 5,
-          status: 'pending',
+          status: 'reservation',
         });
         setSelectedPropertyId(null);
         setInstallments([]);
@@ -494,6 +494,8 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
       apartmentName: String(apartment?.apartmentName || ''),
       floor: String(floor?.name || ''),
       block: String(block?.name || ''),
+      listPrice: Number(values.list_price || 0),
+      discount: Number(values.discount || 0),
       salePrice: Number(values.sale_price || 0),
       initialPayment: Number(values.initial_payment || 0),
       paymentPlan: String(values.payment_plan || 'N/A'),
@@ -537,6 +539,58 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
     };
 
     await generateOfferLetterPDF(offerLetterData);
+  };
+
+  const handleDownloadClientStatement = async () => {
+    const values = form.getFieldsValue();
+    const client = customers?.find((c: any) => c._id === values.client_id);
+    const property = properties.find((p: any) => p._id === values.property_id);
+    const unit = property?.units?.find((u: any) => u._id === values.unit_id);
+    const apartment = unit?.apartments?.find((a: any) => a._id === values.apartment_id);
+
+    // Get floor and block info
+    const floor = propertyFloors.find((f: any) => f._id === unit?.floorId || f.tempId === unit?.floorId) || 
+                  property?.floors?.find((f: any) => f._id === unit?.floorId || f.tempId === unit?.floorId);
+    const block = property?.blocks?.find((b: any) => b._id === unit?.blockId || b.tempId === unit?.blockId);
+
+    const clientStatementData = {
+      saleCode: String(initialData?.saleCode || `SALE-${Date.now()}`),
+      client: {
+        name: String(client?.name || client?.customer_name || 'N/A'),
+        email: String(client?.email || ''),
+        phone: String(client?.phone || ''),
+        address: String(client?.address || ''),
+        addressObject: client?.address || null,
+      },
+      property: {
+        name: String(property?.name || 'N/A'),
+        propertyType: String(property?.propertyType || 'N/A'),
+      },
+      unit: {
+        name: String(unit?.name || 'N/A'),
+        unitNumber: String(unit?.unitNumber || apartment?.apartmentName || ''),
+        apartmentName: String(apartment?.apartmentName || ''),
+        floor: String(floor?.name || ''),
+        block: String(block?.name || ''),
+      },
+      list_price: Number(values.list_price || 0),
+      discount: Number(values.discount || 0),
+      sale_price: Number(values.sale_price || 0),
+      paymentTotals: initialData?.paymentTotals || {
+        totalPaid: 0,
+        depositPaid: Number(values.initial_payment || 0),
+        outstandingBalance: Number(values.sale_price || 0) - Number(values.initial_payment || 0),
+        paymentPercentage: 0,
+      },
+      paymentPlans: initialData?.paymentPlans || [],
+      payments: initialData?.payments || [],
+      sale_date: String(values.sale_date?.format('YYYY-MM-DD') || ''),
+      status: String(values.status || 'reservation'),
+    };
+
+    // Import the client statement PDF generator function
+    const { generateClientStatementPDF } = await import('@utils/clientStatementPDF');
+    await generateClientStatementPDF(clientStatementData);
   };
 
   const getUnitsForProperty = (propertyId: string) => {
@@ -1029,51 +1083,53 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
 
                     {installments.length > 0 && (
                       <div style={{ marginTop: 16 }}>
-                        {installments.map((installment, index) => (
-                          <Card
-                            key={installment.key}
-                            size="small"
-                            style={{ marginBottom: 8 }}
-                            title={`Installment ${index + 1}`}
-                            extra={
-                              <Button
-                                type="text"
-                                danger
-                                size="small"
-                                icon={<DeleteOutlined />}
-                                onClick={() => removeInstallment(installment.key)}
-                              />
-                            }
-                          >
-                            <Row gutter={16}>
-                              <Col span={12}>
-                                <label>Amount (KES)</label>
-                                <InputNumber
-                                  value={installment.amount}
-                                  onChange={(value) => updateInstallmentAmount(installment.key, value || 0)}
-                                  min={0}
-                                  style={{ width: '100%' }}
-                                  formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                                  parser={(value: string) => Number(value?.replace(/\$\s?|(,*)/g, '') || 0)}
+                        <div style={{ maxHeight: 400, overflowY: 'auto', paddingRight: 8 }}>
+                          {installments.map((installment, index) => (
+                            <Card
+                              key={installment.key}
+                              size="small"
+                              style={{ marginBottom: 8 }}
+                              title={`Installment ${index + 1}`}
+                              extra={
+                                <Button
+                                  type="text"
+                                  danger
+                                  size="small"
+                                  icon={<DeleteOutlined />}
+                                  onClick={() => removeInstallment(installment.key)}
                                 />
-                              </Col>
-                              <Col span={12}>
-                                <label>Due Date</label>
-                                <DatePicker
-                                  value={dayjs(installment.dueDate)}
-                                  onChange={(date) =>
-                                    updateInstallmentDueDate(
-                                      installment.key,
-                                      date?.format('YYYY-MM-DD') || dayjs().format('YYYY-MM-DD')
-                                    )
-                                  }
-                                  style={{ width: '100%' }}
-                                  format="YYYY-MM-DD"
-                                />
-                              </Col>
-                            </Row>
-                          </Card>
-                        ))}
+                              }
+                            >
+                              <Row gutter={16}>
+                                <Col span={12}>
+                                  <label>Amount (KES)</label>
+                                  <InputNumber
+                                    value={installment.amount}
+                                    onChange={(value) => updateInstallmentAmount(installment.key, value || 0)}
+                                    min={0}
+                                    style={{ width: '100%' }}
+                                    formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                                    parser={(value: string) => Number(value?.replace(/\$\s?|(,*)/g, '') || 0)}
+                                  />
+                                </Col>
+                                <Col span={12}>
+                                  <label>Due Date</label>
+                                  <DatePicker
+                                    value={dayjs(installment.dueDate)}
+                                    onChange={(date) =>
+                                      updateInstallmentDueDate(
+                                        installment.key,
+                                        date?.format('YYYY-MM-DD') || dayjs().format('YYYY-MM-DD')
+                                      )
+                                    }
+                                    style={{ width: '100%' }}
+                                    format="YYYY-MM-DD"
+                                  />
+                                </Col>
+                              </Row>
+                            </Card>
+                          ))}
+                        </div>
                         <Button
                           type="dashed"
                           icon={<PlusOutlined />}
@@ -1187,8 +1243,9 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
                   rules={[{ required: true, message: 'Please select status' }]}
                 >
                   <Select>
-                    <Option value="pending">Pending</Option>
-                    <Option value="active">Active</Option>
+                    <Option value="reservation">Reservation</Option>
+                    <Option value="agreement">Agreement</Option>
+                    <Option value="processing">Processing</Option>
                     <Option value="completed">Completed</Option>
                     <Option value="cancelled">Cancelled</Option>
                   </Select>
@@ -1212,6 +1269,15 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
                     style={{ marginRight: 8 }}
                   >
                     Download Offer Letter
+                  </Button>
+                )}
+                {can(PERMISSIONS.DALA_SALES_DOWNLOAD_OFFER_LETTER.key) && (
+                  <Button 
+                    icon={<DownloadOutlined />} 
+                    onClick={handleDownloadClientStatement}
+                    style={{ marginRight: 8 }}
+                  >
+                    Download Client Statement
                   </Button>
                 )}
                 <Button onClick={handleCancel} style={{ marginRight: 8 }}>
