@@ -721,32 +721,20 @@ export const generateOfferLetterPDF = async (data: OfferLetterData, returnAsData
     doc.addPage();
     yPos = 20;
   }
-  
+
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(rgb.r, rgb.g, rgb.b);
   doc.text('SCHEDULE 2', 15, yPos);
   yPos += 10;
-  
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(0, 0, 0);
-  doc.text('(Disbursements payable to our Lawyers directly)', 15, yPos);
-  yPos += 12;
-  
+
   // Schedule 2 Table
   const schedule2Headers = ['Description', 'Amount (KES)', 'Remarks'];
   const schedule2Rows = [
-    ['Legal Fees', '__________________', ''],
-    ['Stamp Duty', '__________________', ''],
-    ['Registration Fees', '__________________', ''],
-    ['Search Fees', '__________________', ''],
-    ['Other Disbursements', '__________________', ''],
-    ['', '', ''],
-    ['', '', ''],
-    ['', '', ''],
+    ['Minimum Stamp Duty on the Lease calculated at 4% of the purchase price (subject to assessment by the Government Land Valuer at the time the transfer is lodged for assessment + Bank Charges', 'TBA', ''],
+    ['TOTAL AMOUNT DUE', 'TBA', ''],
   ];
-  
+
   autoTable(doc, {
     startY: yPos,
     head: [schedule2Headers],
@@ -764,9 +752,9 @@ export const generateOfferLetterPDF = async (data: OfferLetterData, returnAsData
       cellPadding: 4,
     },
     columnStyles: {
-      0: { cellWidth: 60 },
-      1: { cellWidth: 50 },
-      2: { cellWidth: 60 },
+      0: { cellWidth: 120 },
+      1: { cellWidth: 30 },
+      2: { cellWidth: 30 },
     },
     didDrawPage: (data) => {
       if (data.cursor) {
@@ -774,7 +762,7 @@ export const generateOfferLetterPDF = async (data: OfferLetterData, returnAsData
       }
     },
   });
-  
+
   yPos = (doc as any).lastY || yPos + 80;
   yPos += 15;
   
@@ -799,16 +787,11 @@ export const generateOfferLetterPDF = async (data: OfferLetterData, returnAsData
   // Schedule 3 Table
   const schedule3Headers = ['Description', 'Amount (KES)', 'Remarks'];
   const schedule3Rows = [
-    ['Service Charge Deposit (3 months)', '__________________', ''],
-    ['Service Charge (3 months)', '__________________', ''],
-    ['Sinking Fund Contribution', '__________________', ''],
-    ['Utility Connection Fees', '__________________', ''],
-    ['Other Charges', '__________________', ''],
-    ['', '', ''],
-    ['', '', ''],
-    ['', '', ''],
+    ['Electricity Deposit and installation', 'TBA', ''],
+    ['Water deposit and installation', 'TBA', ''],
+    ['TOTAL AMOUNT', 'TBA', ''],
   ];
-  
+
   autoTable(doc, {
     startY: yPos,
     head: [schedule3Headers],
@@ -826,9 +809,9 @@ export const generateOfferLetterPDF = async (data: OfferLetterData, returnAsData
       cellPadding: 4,
     },
     columnStyles: {
-      0: { cellWidth: 60 },
-      1: { cellWidth: 50 },
-      2: { cellWidth: 60 },
+      0: { cellWidth: 80 },
+      1: { cellWidth: 30 },
+      2: { cellWidth: 70 },
     },
     didDrawPage: (data) => {
       if (data.cursor) {
