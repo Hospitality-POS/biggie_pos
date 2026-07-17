@@ -40,6 +40,7 @@ interface OfferLetterData {
     companyRegNo?: string;
     poBox?: string;
   };
+  hidePaymentPlans?: boolean;
   paymentPlans?: Array<{
     startDate?: string;
     endDate?: string;
@@ -564,7 +565,7 @@ export const generateOfferLetterPDF = async (data: OfferLetterData, returnAsData
   yPos += 15;
 
   // PAYMENT PLANS TABLE
-  if (data.paymentPlans && data.paymentPlans.length > 0) {
+  if (!data.hidePaymentPlans && data.paymentPlans && data.paymentPlans.length > 0) {
     if (yPos > maxY) {
       doc.addPage();
     yPos = 20;

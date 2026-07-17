@@ -16,9 +16,11 @@ import {
   Popconfirm,
   message,
   Modal,
+  Spin,
 } from 'antd';
 import moment from 'moment';
 import React, { useRef, useState } from 'react';
+import { printHtmlDirect } from '@utils/printHtmlDirect';
 
 const { Text, Title } = Typography;
 
@@ -41,6 +43,8 @@ interface PaymentRecord {
   processedBy?: any;
   createdAt?: string;
   updatedAt?: string;
+  propertyId?: any;
+  customerId?: any;
   sale?: {
     property?: {
       name?: string;
@@ -90,6 +94,18 @@ export const PaymentDrawer: React.FC<PaymentDrawerProps> = ({
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewImage, setPreviewImage] = useState('');
   const [previewTitle, setPreviewTitle] = useState('');
+  const [receiptPreviewVisible, setReceiptPreviewVisible] = useState(false);
+  const [receiptPreviewUrl, setReceiptPreviewUrl] = useState<string | null>(null);
+  const [receiptPreviewLoading, setReceiptPreviewLoading] = useState(false);
+
+  // Cleanup blob URL when component unmounts or URL changes
+  React.useEffect(() => {
+    return () => {
+      if (receiptPreviewUrl) {
+        URL.revokeObjectURL(receiptPreviewUrl);
+      }
+    };
+  }, [receiptPreviewUrl]);
 
   if (!record) return null;
 
@@ -229,15 +245,211 @@ export const PaymentDrawer: React.FC<PaymentDrawerProps> = ({
   };
 
   // Handle download functionality
-  const handleDownloadPDF = () => {
-    // TODO: Implement PDF generation/download
-    message.info('PDF download feature coming soon');
+  const handleDownloadPDF = async () => {
+    try {
+      const { generatePaymentReceiptPDF } = await import('@utils/paymentReceiptPDF');
+      const { fetchProperty } = await import('@services/dala');
+
+      // Fetch property details if property ID is available
+      let propertyDetails = record.propertyId || record.sale?.property;
+      const propertyId = (record.propertyId as any)?._id || (record.sale?.property as any)?._id;
+      if (propertyId) {
+        try {
+          const propertyData = await fetchProperty(propertyId);
+          const fetchedProperty = propertyData?.data || propertyData;
+          // Merge fetched data with original to preserve propertyType
+          propertyDetails = {
+            ...propertyDetails,
+            ...fetchedProperty,
+            propertyType: propertyDetails?.propertyType || fetchedProperty?.propertyType,
+          };
+        } catch (error) {
+          console.error('Error fetching property details:', error);
+        }
+      }
+
+      const receiptData = {
+        receiptNumber: record.receiptNumber || record.receiptNo || record._id || record.id,
+        receiptNo: record.receiptNumber || record.receiptNo || record._id || record.id,
+        amount: record.amount,
+        paymentDate: record.paymentDate,
+        paymentMethod: record.paymentMethod,
+        paymentType: (record as any).paymentType,
+        currency: (record as any).currency,
+        reference: record.reference || '85e347d4',
+        etimsRefNumber: record.etimsRefNumber,
+        notes: record.notes,
+        status: record.status,
+        saleCode: (record as any).saleId?.saleCode || (record as any).saleId?.sale_code,
+        unitId: (record as any).unitId?._id,
+        customer: record.customer || record.customerId,
+        property: propertyDetails,
+        processedBy: record.createdBy?.name || record.processedBy?.name,
+        createdAt: record.createdAt,
+      };
+
+      await generatePaymentReceiptPDF(receiptData);
+      message.success('Receipt downloaded successfully');
+    } catch (error) {
+      console.error('Error generating receipt PDF:', error);
+      message.error('Failed to download receipt');
+    }
+  };
+
+  // Handle preview functionality
+  const handlePreviewReceipt = async () => {
+    setReceiptPreviewLoading(true);
+    setReceiptPreviewVisible(true);
+    setReceiptPreviewUrl(null);
+
+    try {
+      const { generatePaymentReceiptPDF } = await import('@utils/paymentReceiptPDF');
+      const { fetchProperty } = await import('@services/dala');
+
+      // Fetch property details if property ID is available
+      let propertyDetails = record.propertyId || record.sale?.property;
+      const propertyId = (record.propertyId as any)?._id || (record.sale?.property as any)?._id;
+      if (propertyId) {
+        try {
+          const propertyData = await fetchProperty(propertyId);
+          const fetchedProperty = propertyData?.data || propertyData;
+          // Merge fetched data with original to preserve propertyType
+          propertyDetails = {
+            ...propertyDetails,
+            ...fetchedProperty,
+            propertyType: propertyDetails?.propertyType || fetchedProperty?.propertyType,
+          };
+        } catch (error) {
+          console.error('Error fetching property details:', error);
+        }
+      }
+
+      const receiptData = {
+        receiptNumber: record.receiptNumber || record.receiptNo || record._id || record.id,
+        receiptNo: record.receiptNumber || record.receiptNo || record._id || record.id,
+        amount: record.amount,
+        paymentDate: record.paymentDate,
+        paymentMethod: record.paymentMethod,
+        paymentType: (record as any).paymentType,
+        currency: (record as any).currency,
+        reference: record.reference || '85e347d4',
+        etimsRefNumber: record.etimsRefNumber,
+        notes: record.notes,
+        status: record.status,
+        saleCode: (record as any).saleId?.saleCode || (record as any).saleId?.sale_code,
+        unitId: (record as any).unitId?._id,
+        customer: record.customer || record.customerId,
+        property: propertyDetails,
+        processedBy: record.createdBy?.name || record.processedBy?.name,
+        createdAt: record.createdAt,
+      };
+
+      console.log('Generating receipt preview with data:', receiptData);
+      const pdfUrl = await generatePaymentReceiptPDF(receiptData, true);
+      console.log('Generated PDF URL:', pdfUrl);
+
+      if (pdfUrl && typeof pdfUrl === 'string') {
+        setReceiptPreviewUrl(pdfUrl);
+      } else {
+        console.error('Invalid PDF URL generated:', pdfUrl);
+        message.error('Failed to generate valid PDF preview');
+        setReceiptPreviewVisible(false);
+      }
+    } catch (error) {
+      console.error('Error generating receipt preview:', error);
+      message.error('Failed to generate receipt preview');
+      setReceiptPreviewVisible(false);
+    } finally {
+      setReceiptPreviewLoading(false);
+    }
   };
 
   // Handle print functionality
-  const handlePrintReceipt = () => {
-    // TODO: Implement print functionality
-    message.info('Print feature coming soon');
+  const handlePrintReceipt = async () => {
+    try {
+      const { fetchProperty } = await import('@services/dala');
+
+      // Fetch property details if property ID is available
+      let propertyDetails = record.propertyId || record.sale?.property;
+      const propertyId = (record.propertyId as any)?._id || (record.sale?.property as any)?._id;
+      if (propertyId) {
+        try {
+          const propertyData = await fetchProperty(propertyId);
+          const fetchedProperty = propertyData?.data || propertyData;
+          // Merge fetched data with original to preserve propertyType
+          propertyDetails = {
+            ...propertyDetails,
+            ...fetchedProperty,
+            propertyType: propertyDetails?.propertyType || fetchedProperty?.propertyType,
+          };
+        } catch (error) {
+          console.error('Error fetching property details:', error);
+        }
+      }
+
+      const paymentMethodDisplay = (() => {
+        switch (record.paymentMethod) {
+          case 'mpesa': return 'M-Pesa';
+          case 'bank_transfer': return 'Bank Transfer';
+          case 'cash': return 'Cash';
+          case 'cheque': return 'Cheque';
+          case 'card': return 'Card';
+          default: return record.paymentMethod || 'Unknown';
+        }
+      })();
+
+      const statusDisplay = (() => {
+        switch (record.status) {
+          case 'pending': return 'Pending';
+          case 'completed': return 'Completed';
+          case 'failed': return 'Failed';
+          case 'refunded': return 'Refunded';
+          default: return record.status || 'Unknown';
+        }
+      })();
+
+      const htmlContent = `
+        <div class="center header">PAYMENT RECEIPT</div>
+        <div class="center">Receipt No: ${record.receiptNumber || record.receiptNo || 'N/A'}</div>
+        <div class="border-top"></div>
+        <div class="center bold" style="font-size: 16px; margin: 10px 0;">KES ${record.amount.toLocaleString()}</div>
+        <div class="center">Payment Amount</div>
+        <div class="border-bottom"></div>
+        <table>
+          <tr><td class="bold">Payment Date:</td><td>${record.paymentDate ? moment(record.paymentDate).format('DD MMM YYYY') : 'N/A'}</td></tr>
+          <tr><td class="bold">Payment Method:</td><td>${paymentMethodDisplay}</td></tr>
+          <tr><td class="bold">Status:</td><td>${statusDisplay}</td></tr>
+          <tr><td class="bold">Reference:</td><td>${record.reference || '85e347d4'}</td></tr>
+        </table>
+        <div class="border-top"></div>
+        <div class="bold" style="margin: 8px 0;">Customer Details</div>
+        <table>
+          <tr><td class="bold">Name:</td><td>${record.customer?.name || record.customerId?.email || 'N/A'}</td></tr>
+          <tr><td class="bold">Phone:</td><td>${record.customer?.phone || record.customerId?.phone || 'N/A'}</td></tr>
+        </table>
+        ${propertyDetails ? `
+        <div class="border-top"></div>
+        <div class="bold" style="margin: 8px 0;">Property Details</div>
+        <table>
+          <tr><td class="bold">Property:</td><td>${propertyDetails.name || 'N/A'}</td></tr>
+          <tr><td class="bold">Type:</td><td>${propertyDetails.propertyType || 'N/A'}</td></tr>
+          <tr><td class="bold">Location:</td><td>${propertyDetails.location || 'N/A'}</td></tr>
+        </table>
+        ` : ''}
+        <div class="border-top"></div>
+        <div class="footer">
+          <div>Processed By: ${record.createdBy?.name || record.processedBy?.name || 'N/A'}</div>
+          <div>${moment().format('DD MMM YYYY HH:mm')}</div>
+          <div>Thank you for your payment!</div>
+        </div>
+      `;
+
+      printHtmlDirect(htmlContent, 80);
+      message.success('Receipt sent to printer');
+    } catch (error) {
+      console.error('Error printing receipt:', error);
+      message.error('Failed to print receipt');
+    }
   };
 
   const paymentIdentifier = record.receiptNo || record.receiptNumber || record._id || 'Unknown';
@@ -258,6 +470,12 @@ export const PaymentDrawer: React.FC<PaymentDrawerProps> = ({
           <Space size="large" direction="horizontal" className="flex justify-end">
             {record.status === 'completed' && (
               <>
+                <Button
+                  icon={<EyeOutlined />}
+                  onClick={handlePreviewReceipt}
+                >
+                  Preview Receipt
+                </Button>
                 <Button
                   type="primary"
                   icon={<DownloadOutlined />}
@@ -513,6 +731,53 @@ export const PaymentDrawer: React.FC<PaymentDrawerProps> = ({
           style={{ width: '100%' }}
           src={previewImage}
         />
+      </Modal>
+
+      {/* Receipt Preview Modal */}
+      <Modal
+        title="Receipt Preview"
+        open={receiptPreviewVisible}
+        onCancel={() => {
+          if (receiptPreviewUrl) {
+            URL.revokeObjectURL(receiptPreviewUrl);
+          }
+          setReceiptPreviewVisible(false);
+          setReceiptPreviewUrl(null);
+        }}
+        width="80%"
+        style={{ top: 20 }}
+        footer={[
+          <Button key="close" onClick={() => {
+            if (receiptPreviewUrl) {
+              URL.revokeObjectURL(receiptPreviewUrl);
+            }
+            setReceiptPreviewVisible(false);
+            setReceiptPreviewUrl(null);
+          }}>
+            Close
+          </Button>,
+          <Button
+            key="download"
+            type="primary"
+            icon={<DownloadOutlined />}
+            onClick={handleDownloadPDF}
+          >
+            Download PDF
+          </Button>,
+        ]}
+      >
+        {receiptPreviewLoading ? (
+          <div style={{ textAlign: 'center', padding: '50px' }}>
+            <Spin size="large" />
+            <div style={{ marginTop: 16 }}>Generating preview...</div>
+          </div>
+        ) : receiptPreviewUrl ? (
+          <iframe
+            src={receiptPreviewUrl}
+            style={{ width: '100%', height: '70vh', border: 'none' }}
+            title="Receipt Preview"
+          />
+        ) : null}
       </Modal>
     </>
   );
