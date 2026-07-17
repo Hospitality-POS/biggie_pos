@@ -150,16 +150,29 @@ export const generateOfferLetterPDF = async (data: OfferLetterData, returnAsData
   }
   
   try {
-    doc.addImage(tenantLogo, 'PNG', pageWidth - 40, 30, 25, 25);
+    doc.addImage(tenantLogo, 'PNG', 15, 30, 25, 25);
   } catch (error) {
     // If logo fails to load, draw a placeholder with brand color
     doc.setFillColor(rgb.r, rgb.g, rgb.b);
-    doc.circle(pageWidth - 27.5, 42.5, 12.5, 'F');
+    doc.circle(27.5, 42.5, 12.5, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(7);
-    doc.text('CHESTNUT', pageWidth - 27.5, 40, { align: 'center', baseline: 'middle' });
-    doc.text('CITY', pageWidth - 27.5, 45, { align: 'center', baseline: 'middle' });
+    doc.text('CHESTNUT', 27.5, 40, { align: 'center', baseline: 'middle' });
+    doc.text('CITY', 27.5, 45, { align: 'center', baseline: 'middle' });
   }
+  
+  // Contact Information - aligned to right
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(50, 50, 50);
+  const contactX = pageWidth - 15;
+  doc.text('Email: sales@chestnutcity.co.ke', contactX, 35, { align: 'right' });
+  doc.text('Number: 0759 300 300', contactX, 42, { align: 'right' });
+  doc.text('Website: www.chestnutcity.co.ke', contactX, 49, { align: 'right' });
+  doc.text('NANYUKI BUSINESS CENTER- 2nd floor – Room 202', contactX, 56, { align: 'right' });
+  
+  // Update yPos to start after contact information
+  yPos = 65;
   
   // To Section
   doc.setFontSize(11);
@@ -233,7 +246,7 @@ export const generateOfferLetterPDF = async (data: OfferLetterData, returnAsData
   doc.text(splitDevelopment, 15, yPos);
   yPos += splitDevelopment.length * 7 + 10;
   
-  const leaseText = `The Unit shall be sold on a long leasehold interest for a term of ${data.leaseTerm || 'Ninety-Nine (99) years less the last seven (7) days thereof'}. There shall be a Management Company that shall be established for purposes of managing the common areas and facilities within the development.`;
+  const leaseText = `The Unit shall be sold on a long leasehold interest for a term of ${data.leaseTerm || 'Ninety-Nine (99) years'}. There shall be a Management Company that shall be established for purposes of managing the common areas and facilities within the development.`;
   const splitLease = doc.splitTextToSize(leaseText, pageWidth - 30);
   doc.text(splitLease, 15, yPos);
   yPos += splitLease.length * 7 + 15;
@@ -332,7 +345,7 @@ export const generateOfferLetterPDF = async (data: OfferLetterData, returnAsData
   
   doc.text('5. Deposit/Commitment Fee', 15, yPos);
   yPos += 6;
-  const commitmentText = `Upon acceptance of this Offer Letter, the Purchaser shall pay a Commitment Fee of Kenya Shillings ${(data.initialPayment || 0).toLocaleString()} to the Vendor. The amount of the Commitment Fee shall be determined by the Purchase Price of the specific Unit selected by the Purchaser. The said commitment fee shall be refundable; however, any refund shall be subject to a deduction in respect of all processing charges and legal fees incurred in connection with the purchase of the property.`;
+  const commitmentText = 'Upon acceptance of this Offer Letter, the Purchaser shall pay a Commitment Fee of Kenya Shillings 100,000.00 (One Hundred Thousand Shillings Only) to the Vendor. The said commitment fee shall be refundable; however, if after Thirty (30) days purchaser does not proceed with the transaction and demands a refund of the commitment fee, the same shall be refunded less administrative fees.';
   const splitCommitment = doc.splitTextToSize(commitmentText, pageWidth - 30);
   if (yPos + splitCommitment.length * 7 > maxY) { doc.addPage(); yPos = 20; }
   doc.text(splitCommitment, 15, yPos);
@@ -394,7 +407,7 @@ export const generateOfferLetterPDF = async (data: OfferLetterData, returnAsData
   doc.text(splitDeposit, 15, yPos);
   yPos += splitDeposit.length * 7 + 8;
   
-  const commitmentComparison = `Where the Commitment Fee of KES ${(data.initialPayment || 0).toLocaleString()} paid pursuant to this Offer Letter is less than the required Ten Percent (10%) deposit, the Purchaser shall, upon execution of the Agreement for Sale within the fourteen (14) days as indicated herein, pay the balance necessary to constitute the full Ten Percent (10%) deposit based on the agreed Purchase Price of the Unit.`;
+  const commitmentComparison = `Where the Commitment Fee of Kenya Shillings 100,000.00 (One Hundred Thousand Shillings Only) paid pursuant to this Offer Letter is less than the required Ten Percent (10%) deposit, the Purchaser shall, upon execution of the Agreement for Sale within the Thirty (30) days as indicated herein, pay the balance necessary to constitute the full Ten Percent (10%) deposit based on the agreed Purchase Price of the Unit.`;
   const splitComparison = doc.splitTextToSize(commitmentComparison, pageWidth - 30);
   doc.text(splitComparison, 15, yPos);
   yPos += splitComparison.length * 7 + 8;
@@ -412,7 +425,7 @@ export const generateOfferLetterPDF = async (data: OfferLetterData, returnAsData
   
   doc.text('8. Agreement for Sale', 15, yPos);
   yPos += 6;
-  const agreementText = 'The Vendor\'s Advocates shall prepare a standard Agreement for Sale applicable to all purchasers within the development. The Purchaser shall execute the Agreement for Sale within fourteen (14) days of its presentation.';
+  const agreementText = 'The Vendor\'s Advocates shall prepare a standard Agreement for Sale applicable to all purchasers within the development. The Purchaser shall execute the Agreement for Sale within Thirty (30) days of its presentation.';
   const splitAgreement = doc.splitTextToSize(agreementText, pageWidth - 30);
   doc.text(splitAgreement, 15, yPos);
   yPos += splitAgreement.length * 7 + 8;
@@ -461,70 +474,54 @@ export const generateOfferLetterPDF = async (data: OfferLetterData, returnAsData
   doc.text(splitLegalCosts, 15, yPos);
   yPos += splitLegalCosts.length * 7 + 8;
   
-  // 12. Administrative & Handling Charges
+  // 12. Vendor's Advocates
   if (yPos > maxY) {
     doc.addPage();
     yPos = 20;
   }
   
-  doc.text('12. Administrative & Handling Charges;', 15, yPos);
-  yPos += 6;
-  doc.text('The Purchaser shall pay the Vendor\'s Advocates fees plus the attendant disbursements more specifically described under Schedule 2 below.', 15, yPos, { maxWidth: pageWidth - 30 });
-  yPos += 12;
-  
-  // 13. Vendor's Advocates
-  if (yPos > maxY) {
-    doc.addPage();
-    yPos = 20;
-  }
-  
-  doc.text('13. Vendor\'s Advocates;', 15, yPos);
+  doc.text('12. Vendor\'s Advocates;', 15, yPos);
   yPos += 6;
   const lawyerName = data.lawyerDetails?.name || 'Messrs. JASON & COMPANY ADVOCATES';
   const lawyerAddress = data.lawyerDetails?.address || '62 Lower Plains Road, P.O. Box 61850-00200 Nairobi';
   doc.text(`The vendor's Advocates are ${lawyerName}, ${lawyerAddress}.`, 15, yPos, { maxWidth: pageWidth - 30 });
   yPos += 12;
   
-  // 14. Management
+  // 13. Management
   if (yPos > maxY) {
     doc.addPage();
     yPos = 20;
   }
   
-  doc.text('14. Management;', 15, yPos);
+  doc.text('13. Management;', 15, yPos);
   yPos += 6;
   const managementText = 'The management of the common areas and other common amenities on the development shall be undertaken by a management corporation and after the registration of all the transfers/leases for the apartments on the development the Purchaser will receive a membership certificate in the management corporation.';
   const splitManagement = doc.splitTextToSize(managementText, pageWidth - 30);
   if (yPos + splitManagement.length * 7 > maxY) { doc.addPage(); yPos = 20; }
   doc.text(splitManagement, 15, yPos);
-  yPos += splitManagement.length * 7 + 8;
+  yPos += splitManagement.length * 7 + 12;
   
-  const serviceChargeText = `The purchaser shall also be required to pay 3 months service charge @ KES ${data.serviceCharge?.toLocaleString() || '__________________'} per month and an equivalent of 3 months service charge deposit. Payable to the management company or as otherwise directed by the Vendor.`;
-  const splitServiceCharge = doc.splitTextToSize(serviceChargeText, pageWidth - 30);
-  doc.text(splitServiceCharge, 15, yPos);
-  yPos += splitServiceCharge.length * 7 + 12;
-  
-  // 15. Cancellation Costs
+  // 14. Cancellation Costs
   if (yPos > maxY) {
     doc.addPage();
     yPos = 20;
   }
   
-  doc.text('15. Cancellation Costs:', 15, yPos);
+  doc.text('14. Cancellation Costs:', 15, yPos);
   yPos += 6;
-  const cancellationText = 'The Purchaser accepts that should he/she cancel the transaction after signing this Letter of Offer by both parties, or fails to sign the engrossed sale agreement within Seven (7) days of presentation, then Ten percent (10%) of the Purchase Price being the reimbursement of the cost for the Vendor for such failed transaction plus the vendor\'s advocates cost shall be forfeited by the purchaser to the vendor from the deposit paid and the balance shall be returned to the Purchaser within 30 days.';
+  const cancellationText = 'The Purchaser accepts that should he/she cancel the transaction after signing this Letter of Offer by both parties, or fails to sign the engrossed sale agreement within Seven (7) days of presentation, and offers no explanation or communication to the vendor, then, the commitment fee of Ksh One Hundred Thousand only (Ksh 100,000.00) shall be forfeited';
   const splitCancellation = doc.splitTextToSize(cancellationText, pageWidth - 30);
   if (yPos + splitCancellation.length * 7 > maxY) { doc.addPage(); yPos = 20; }
   doc.text(splitCancellation, 15, yPos);
   yPos += splitCancellation.length * 7 + 12;
   
-  // 16. Completion Date
+  // 15. Completion Date
   if (yPos > maxY) {
     doc.addPage();
     yPos = 20;
   }
   
-  doc.text('16. Completion Date', 15, yPos);
+  doc.text('15. Completion Date', 15, yPos);
   yPos += 6;
   const completionText = 'The Completion Date shall be the date on which the full Purchase Price (or such balance thereof as remains outstanding after application of the deposit and any mortgage, SACCO, or other financing proceeds) has been received by the Vendor and the Unit is ready for transfer and registration in the Purchaser\'s name.';
   const splitCompletion = doc.splitTextToSize(completionText, pageWidth - 30);
@@ -542,13 +539,13 @@ export const generateOfferLetterPDF = async (data: OfferLetterData, returnAsData
   doc.text(`The proposed completion date of the project is ${proposedDate}`, 15, yPos);
   yPos += 12;
   
-  // 17. Governing Law
+  // 16. Governing Law
   if (yPos > maxY) {
     doc.addPage();
     yPos = 20;
   }
   
-  doc.text('17. Governing Law', 15, yPos);
+  doc.text('16. Governing Law', 15, yPos);
   yPos += 6;
   doc.text('This Offer Letter shall be governed by and construed in accordance with the laws of the Republic of Kenya.', 15, yPos, { maxWidth: pageWidth - 30 });
   yPos += 15;
@@ -632,7 +629,7 @@ export const generateOfferLetterPDF = async (data: OfferLetterData, returnAsData
   doc.text(splitAcceptanceFull, 15, yPos);
   yPos += splitAcceptanceFull.length * 7 + 8;
   
-  const confirmText = `Kindly confirm your acceptance of this Letter of Offer by signing the duplicate copies of this offer and returning the same to us within seven (7) days of this Letter of Offer together with proof of payment of the Commitment Fee of KES ${(data.initialPayment || 0).toLocaleString()}.`;
+  const confirmText = 'Kindly confirm your acceptance of this Letter of Offer by signing the duplicate copies of this offer and returning the same to us within seven (7) days of this Letter of Offer together with proof of payment of the Commitment Fee of KES ____________________.';
   const splitConfirm = doc.splitTextToSize(confirmText, pageWidth - 30);
   if (yPos + splitConfirm.length * 7 > maxY) { doc.addPage(); yPos = 20; }
   doc.text(splitConfirm, 15, yPos);
@@ -660,11 +657,9 @@ export const generateOfferLetterPDF = async (data: OfferLetterData, returnAsData
   doc.text('CHESTNUT CITY LIMITED', 15, yPos);
   yPos += 20;
   
-  // SCHEDULE 1
-  if (yPos > maxY) {
-    doc.addPage();
-    yPos = 20;
-  }
+  // SCHEDULE 1 - Force new page to ensure clean layout
+  doc.addPage();
+  yPos = 20;
   
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
@@ -681,28 +676,32 @@ export const generateOfferLetterPDF = async (data: OfferLetterData, returnAsData
   yPos += 10;
   
   if (data.bankDetails) {
-    doc.text(`ACCOUNT NAME: ${data.bankDetails.accountName || 'CHESTNUT CITY LIMITED'}`, 15, yPos);
+    doc.text(`BANK: ${data.bankDetails.bankName || 'DIAMOND TRUST BANK'}`, 15, yPos);
     yPos += 8;
-    doc.text(`BANK NAME: ${data.bankDetails.bankName || 'Diamond Trust Bank'}`, 15, yPos);
+    doc.text(`NAME ACCOUNT: ${data.bankDetails.accountName || 'CHESTNUT CITY LIMITED'}`, 15, yPos);
     yPos += 8;
-    doc.text(`ACCOUNT NUMBER (KES): ${data.bankDetails.accountNumber || '0636875003'}`, 15, yPos);
+    doc.text(`NUMBER (KES) ACCOUNT: ${data.bankDetails.accountNumber || '0636875003'}`, 15, yPos);
     yPos += 8;
-    doc.text(`BRANCH CODE: ${data.bankDetails.branchCode || '096'}`, 15, yPos);
+    doc.text(`NUMBER USD BANK: ${data.bankDetails.accountNumber || '0636875003'}`, 15, yPos);
+    yPos += 8;
+    doc.text(`BRANCH CODE BRANCH ${data.bankDetails.branchCode || '096'}`, 15, yPos);
     yPos += 8;
     doc.text(`SWIFT CODE: ${data.bankDetails.swiftCode || 'DTKEKENA'}`, 15, yPos);
   } else {
     // Default bank details
-    doc.text('ACCOUNT NAME: CHESTNUT CITY LIMITED', 15, yPos);
+    doc.text('BANK: DIAMOND TRUST BANK', 15, yPos);
     yPos += 8;
-    doc.text('BANK NAME: Diamond Trust Bank', 15, yPos);
+    doc.text('NAME ACCOUNT: CHESTNUT CITY LIMITED', 15, yPos);
     yPos += 8;
-    doc.text('ACCOUNT NUMBER (KES): 0636875003', 15, yPos);
+    doc.text('NUMBER (KES) ACCOUNT: 0636875003', 15, yPos);
     yPos += 8;
-    doc.text('BRANCH CODE: 096', 15, yPos);
+    doc.text('NUMBER USD BANK: 0636875003', 15, yPos);
+    yPos += 8;
+    doc.text('BRANCH CODE BRANCH 096', 15, yPos);
     yPos += 8;
     doc.text('SWIFT CODE: DTKEKENA', 15, yPos);
   }
-  yPos += 12;
+  yPos += 20;
   
   // SCHEDULE 2
   if (yPos > maxY) {
@@ -714,11 +713,119 @@ export const generateOfferLetterPDF = async (data: OfferLetterData, returnAsData
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(rgb.r, rgb.g, rgb.b);
   doc.text('SCHEDULE 2', 15, yPos);
-  yPos += 8;
+  yPos += 10;
+  
   doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(0, 0, 0);
+  doc.text('(Disbursements payable to our Lawyers directly)', 15, yPos);
+  yPos += 12;
+  
+  // Schedule 2 Table
+  const schedule2Headers = ['Description', 'Amount (KES)', 'Remarks'];
+  const schedule2Rows = [
+    ['Legal Fees', '__________________', ''],
+    ['Stamp Duty', '__________________', ''],
+    ['Registration Fees', '__________________', ''],
+    ['Search Fees', '__________________', ''],
+    ['Other Disbursements', '__________________', ''],
+    ['', '', ''],
+    ['', '', ''],
+    ['', '', ''],
+  ];
+  
+  autoTable(doc, {
+    startY: yPos,
+    head: [schedule2Headers],
+    body: schedule2Rows,
+    theme: 'grid',
+    margin: { bottom: 40 },
+    headStyles: {
+      fillColor: [rgb.r, rgb.g, rgb.b],
+      textColor: 255,
+      fontStyle: 'bold',
+      fontSize: 9,
+    },
+    styles: {
+      fontSize: 8,
+      cellPadding: 4,
+    },
+    columnStyles: {
+      0: { cellWidth: 60 },
+      1: { cellWidth: 50 },
+      2: { cellWidth: 60 },
+    },
+    didDrawPage: (data) => {
+      if (data.cursor) {
+        (doc as any).lastY = data.cursor.y;
+      }
+    },
+  });
+  
+  yPos = (doc as any).lastY || yPos + 80;
+  yPos += 15;
+  
+  // SCHEDULE 3
+  if (yPos > maxY) {
+    doc.addPage();
+    yPos = 20;
+  }
+  
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(rgb.r, rgb.g, rgb.b);
+  doc.text('SCHEDULE 3', 15, yPos);
+  yPos += 10;
+  
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
   doc.setTextColor(0, 0, 0);
   doc.text('Pay to the property management company/corporation once incorporated', 15, yPos);
-  yPos += 20;
+  yPos += 12;
+  
+  // Schedule 3 Table
+  const schedule3Headers = ['Description', 'Amount (KES)', 'Remarks'];
+  const schedule3Rows = [
+    ['Service Charge Deposit (3 months)', '__________________', ''],
+    ['Service Charge (3 months)', '__________________', ''],
+    ['Sinking Fund Contribution', '__________________', ''],
+    ['Utility Connection Fees', '__________________', ''],
+    ['Other Charges', '__________________', ''],
+    ['', '', ''],
+    ['', '', ''],
+    ['', '', ''],
+  ];
+  
+  autoTable(doc, {
+    startY: yPos,
+    head: [schedule3Headers],
+    body: schedule3Rows,
+    theme: 'grid',
+    margin: { bottom: 40 },
+    headStyles: {
+      fillColor: [rgb.r, rgb.g, rgb.b],
+      textColor: 255,
+      fontStyle: 'bold',
+      fontSize: 9,
+    },
+    styles: {
+      fontSize: 8,
+      cellPadding: 4,
+    },
+    columnStyles: {
+      0: { cellWidth: 60 },
+      1: { cellWidth: 50 },
+      2: { cellWidth: 60 },
+    },
+    didDrawPage: (data) => {
+      if (data.cursor) {
+        (doc as any).lastY = data.cursor.y;
+      }
+    },
+  });
+  
+  yPos = (doc as any).lastY || yPos + 80;
+  yPos += 15;
   
   // ACCEPTANCE SIGNATURE SECTION
   if (yPos > maxY) {
