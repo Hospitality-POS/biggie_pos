@@ -1,6 +1,7 @@
 import React, { useRef, useState } from "react";
-import { Button, Modal, Spin, Typography, Tooltip } from "antd";
+import { Alert, Button, Modal, Spin, Typography, Tooltip } from "antd";
 import {
+  BankOutlined,
   CheckCircleOutlined,
   FilePdfOutlined,
   PrinterFilled,
@@ -118,6 +119,7 @@ const TemplateThumbnail: React.FC<{
     </div>
   </button>
 );
+};
 
 // ── Main component ─────────────────────────────────────────────────────────
 const InvoiceReprintModal: React.FC<InvoiceReprintModalProps> = ({
@@ -300,6 +302,32 @@ const InvoiceReprintModal: React.FC<InvoiceReprintModalProps> = ({
               </Text>
             </div>
           </div>
+
+          {/* ── Missing bank details notice ── */}
+          {(!sys.bank_details || sys.bank_details.filter(Boolean).length === 0) && !sys.Paybill_bs && !sys.Paybill_ac && (
+            <div style={{ padding: "0 20px 12px" }}>
+              <Alert
+                type="warning"
+                showIcon
+                icon={<BankOutlined />}
+                message="No bank / payment details configured"
+                description="Bank details won't appear on this invoice. Add them in System Setup so customers know how to pay."
+                action={
+                  <Button
+                    size="small"
+                    type="primary"
+                    icon={<BankOutlined />}
+                    onClick={() => {
+                      window.open("/system-setup?tab=bank-details", "_blank");
+                    }}
+                    style={{ borderRadius: 6 }}
+                  >
+                    Add Bank Details
+                  </Button>
+                }
+              />
+            </div>
+          )}
 
           {/* ── Preview panel ── */}
           <div style={{ padding: "0 20px 20px" }}>
