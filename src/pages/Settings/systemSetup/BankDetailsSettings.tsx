@@ -6,7 +6,6 @@ import {
   message,
   Popconfirm,
   Empty,
-  Tag,
   Typography,
   Row,
   Col,
@@ -16,7 +15,6 @@ import {
   BankOutlined,
   PlusOutlined,
   DeleteOutlined,
-  CheckCircleOutlined,
   EditOutlined,
 } from "@ant-design/icons";
 import {
@@ -29,97 +27,39 @@ import BankDetailsModal from "./BankDetailsModal";
 
 const { Text } = Typography;
 
-interface BankDetail {
-  _id?: string;
-  bank_name: string;
-  branch: string;
-  account_no: string;
-  account_name: string;
-  swift_code: string;
-  paybill_no: string;
-  is_primary: boolean;
-}
-
 const BankDetailsSettings: React.FC = () => {
   const queryClient = useQueryClient();
-  const [bankDetails, setBankDetails] = useState<BankDetail[]>([]);
+  const [bankDetails, setBankDetails] = useState<string[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
-  const [editBank, setEditBank] = useState<BankDetail | null>(null);
+  const [editIndex, setEditIndex] = useState<number | null>(null);
 
-  // Fetch existing system settings
   const { data: systemSettings, isLoading: isLoadingSettings } = useQuery({
     queryKey: ["systemSettings"],
     queryFn: fetchSystemSetupDetailsById,
     retry: false,
   });
 
-  // Load bank details from system settings
   useEffect(() => {
     if (systemSettings?.bank_details) {
-      // Handle both array and single object formats
       const banks = Array.isArray(systemSettings.bank_details)
-        ? systemSettings.bank_details
-        : [systemSettings.bank_details];
+        ? systemSettings.bank_details.filter((b: unknown) => typeof b === "string" && b.trim())
+        : [];
       setBankDetails(banks);
     }
   }, [systemSettings]);
 
-  // Open modal for adding new bank
   const openAddModal = () => {
-    setEditBank(null);
+    setEditIndex(null);
     setModalOpen(true);
   };
 
-  // Open modal for editing bank
-  const openEditModal = (bank: BankDetail) => {
-    setEditBank(bank);
+  const openEditModal = (index: number) => {
+    setEditIndex(index);
     setModalOpen(true);
   };
 
-  // Handle save from modal
-  const handleSaveBank = (bank: BankDetail) => {
-    if (editBank) {
-      // Update existing bank
-      setBankDetails(
-        bankDetails.map((b) =>
-          b._id === editBank._id || (b === editBank && !b._id) ? bank : b
-        )
-      );
-    } else {
-      // Add new bank
-      setBankDetails([...bankDetails, bank]);
-    }
-    setModalOpen(false);
-    setEditBank(null);
-  };
-
-  // Remove bank
-  const removeBank = (bank: BankDetail) => {
-    if (bankDetails.length === 1) {
-      message.warning("At least one bank must be configured");
-      return;
-    }
-    const newBanks = bankDetails.filter((b) => b !== bank);
-    // If we removed the primary bank, make the first remaining bank primary
-    if (bank.is_primary && newBanks.length > 0) {
-      newBanks[0].is_primary = true;
-    }
-    setBankDetails(newBanks);
-  };
-
-  // Set primary bank
-  const setPrimaryBank = (bank: BankDetail) => {
-    setBankDetails(
-      bankDetails.map((b) => ({
-        ...b,
-        is_primary: b === bank,
-      }))
-    );
-  };
-
-  // Save mutation
   const saveMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: { bank_details: string[] }) => {
       if (systemSettings?._id) {
         return updateSystemSetup({ _id: systemSettings._id, data });
       } else {
@@ -127,48 +67,34 @@ const BankDetailsSettings: React.FC = () => {
       }
     },
     onSuccess: () => {
-      message.success("Bank details saved successfully");
+      message.success("Bank details saved");
       queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
     },
-    onError: (error: any) => {
-      if (error?.response?.data?.error === "Only one bank can be marked as primary") {
-        message.error("Please select only one primary bank");
-      } else {
-        message.error("Failed to save bank details");
-      }
+    onError: () => {
+      message.error("Failed to save bank details");
     },
   });
 
-  // Handle save all
-  const handleSaveAll = async () => {
-    // Validate banks
-    for (let i = 0; i < bankDetails.length; i++) {
-      const bank = bankDetails[i];
-      if (!bank.bank_name) {
-        message.error(`Bank ${i + 1}: Bank name is required`);
-        return;
-      }
-      if (!bank.account_no) {
-        message.error(`Bank ${i + 1}: Account number is required`);
-        return;
-      }
-      if (!bank.account_name) {
-        message.error(`Bank ${i + 1}: Account name is required`);
-        return;
-      }
-    }
+  const persistBanks = (updated: string[]) => {
+    setBankDetails(updated);
+    saveMutation.mutate({ bank_details: updated });
+  };
 
-    // Ensure exactly one primary bank
-    const primaryCount = bankDetails.filter((b) => b.is_primary).length;
-    if (primaryCount === 0 && bankDetails.length > 0) {
-      bankDetails[0].is_primary = true;
+  const handleSave = (text: string) => {
+    let updated: string[];
+    if (editIndex !== null) {
+      updated = [...bankDetails];
+      updated[editIndex] = text;
+    } else {
+      updated = [...bankDetails, text];
     }
+    setModalOpen(false);
+    setEditIndex(null);
+    persistBanks(updated);
+  };
 
-    try {
-      await saveMutation.mutateAsync({ bank_details: bankDetails });
-    } catch (error) {
-      // Error handled in mutation
-    }
+  const removeBank = (index: number) => {
+    persistBanks(bankDetails.filter((_, i) => i !== index));
   };
 
   return (
@@ -181,16 +107,19 @@ const BankDetailsSettings: React.FC = () => {
           marginBottom: 16,
         }}
       >
-        <Text strong style={{ fontSize: 16 }}>
-          Bank Details
-        </Text>
+        <div>
+          <Text strong style={{ fontSize: 16 }}>Bank / Payment Details</Text>
+          <Text type="secondary" style={{ display: "block", fontSize: 12, marginTop: 2 }}>
+            Each block appears separately on printed invoices. Add one entry per bank or payment method.
+          </Text>
+        </div>
         <Button
           type="primary"
           icon={<PlusOutlined />}
           onClick={openAddModal}
           style={{ borderRadius: 6 }}
         >
-          Add Bank
+          Add Entry
         </Button>
       </div>
 
@@ -198,129 +127,83 @@ const BankDetailsSettings: React.FC = () => {
         <div style={{ textAlign: "center", padding: 40 }}>Loading...</div>
       ) : bankDetails.length === 0 ? (
         <Empty
-          description="No bank details configured"
+          description="No bank or payment details configured"
           image={Empty.PRESENTED_IMAGE_SIMPLE}
         >
+          <div style={{ marginBottom: 12 }}>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              Example entries:
+            </Text>
+            <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 8, flexWrap: "wrap" }}>
+              <div style={{ background: "#f8fafc", border: "1px dashed #cbd5e1", borderRadius: 6, padding: "8px 12px", fontFamily: "monospace", fontSize: 11, color: "#475569", whiteSpace: "pre", textAlign: "left" }}>
+                {"Equity Bank\nWestlands Branch\nAcc: 1234567890\nSwift: EQBLKENA"}
+              </div>
+              <div style={{ background: "#f8fafc", border: "1px dashed #cbd5e1", borderRadius: 6, padding: "8px 12px", fontFamily: "monospace", fontSize: 11, color: "#475569", whiteSpace: "pre", textAlign: "left" }}>
+                {"M-Pesa Paybill: 522522\nAccount No: 0712345678"}
+              </div>
+            </div>
+          </div>
           <Button type="primary" icon={<PlusOutlined />} onClick={openAddModal}>
-            Add First Bank
+            Add First Entry
           </Button>
         </Empty>
       ) : (
         <>
           <Row gutter={[16, 16]}>
-            {bankDetails.map((bank, index) => (
-              <Col xs={24} sm={12} lg={8} key={bank._id || index}>
+            {bankDetails.map((detail, index) => (
+              <Col xs={24} sm={12} lg={8} key={index}>
                 <Card
-                  style={{
-                    borderColor: bank.is_primary ? "#52c41a" : "#d9d9d9",
-                borderWidth: bank.is_primary ? 2 : 1,
-                height: "100%",
-              }}
+                  size="small"
+                  style={{ height: "100%", borderColor: "#e2e8f0" }}
                   extra={
                     <Space>
-                      {bank.is_primary && (
-                        <Tag color="success" icon={<CheckCircleOutlined />}>
-                          Primary
-                        </Tag>
-                      )}
-                      <Tooltip title="Edit bank">
+                      <Tooltip title="Edit">
                         <Button
                           size="small"
                           icon={<EditOutlined />}
-                          onClick={() => openEditModal(bank)}
+                          onClick={() => openEditModal(index)}
                         />
                       </Tooltip>
                       <Popconfirm
-                        title="Remove this bank?"
-                        description="Are you sure you want to remove this bank?"
-                        onConfirm={() => removeBank(bank)}
+                        title="Remove this entry?"
+                        onConfirm={() => removeBank(index)}
                         okText="Yes"
                         cancelText="No"
                       >
-                        <Button
-                          danger
-                          size="small"
-                          icon={<DeleteOutlined />}
-                          disabled={bankDetails.length === 1}
-                        />
+                        <Button danger size="small" icon={<DeleteOutlined />} />
                       </Popconfirm>
                     </Space>
                   }
-                >
-                  <div style={{ marginBottom: 12 }}>
+                  title={
                     <Space size="small">
-                      <BankOutlined style={{ color: "#1890ff", fontSize: 18 }} />
-                      <Text strong style={{ fontSize: 14 }}>
-                        {bank.bank_name || "Unnamed Bank"}
-                      </Text>
+                      <BankOutlined style={{ color: "#1890ff" }} />
+                      <Text style={{ fontSize: 12 }}>Entry {index + 1}</Text>
                     </Space>
-                  </div>
-
-                  {bank.branch && (
-                    <div style={{ marginBottom: 8 }}>
-                      <Text type="secondary" style={{ fontSize: 12 }}>
-                        Branch: {bank.branch}
-                      </Text>
-                    </div>
-                  )}
-
-                  <div style={{ marginBottom: 8 }}>
-                    <Text type="secondary" style={{ fontSize: 12 }}>
-                      Account: {bank.account_no || "Not set"}
-                    </Text>
-                  </div>
-
-                  {bank.account_name && (
-                    <div style={{ marginBottom: 8 }}>
-                      <Text type="secondary" style={{ fontSize: 12 }}>
-                        {bank.account_name}
-                      </Text>
-                    </div>
-                  )}
-
-                  {bank.swift_code && (
-                    <div style={{ marginBottom: 8 }}>
-                      <Text type="secondary" style={{ fontSize: 12 }}>
-                        SWIFT: {bank.swift_code}
-                      </Text>
-                    </div>
-                  )}
-
-                  {bank.paybill_no && (
-                    <div style={{ marginBottom: 8 }}>
-                      <Text type="secondary" style={{ fontSize: 12 }}>
-                        Paybill: {bank.paybill_no}
-                      </Text>
-                    </div>
-                  )}
-
-                  {!bank.is_primary && (
-                    <div style={{ marginTop: 12 }}>
-                      <Button
-                        type="link"
-                        size="small"
-                        onClick={() => setPrimaryBank(bank)}
-                        style={{ padding: 0 }}
-                      >
-                        Set as Primary
-                      </Button>
-                    </div>
-                  )}
+                  }
+                >
+                  <pre
+                    style={{
+                      margin: 0,
+                      fontFamily: "monospace",
+                      fontSize: 12,
+                      color: "#374151",
+                      whiteSpace: "pre-wrap",
+                      wordBreak: "break-word",
+                      lineHeight: 1.7,
+                    }}
+                  >
+                    {detail}
+                  </pre>
                 </Card>
               </Col>
             ))}
           </Row>
 
-          <div style={{ marginTop: 24, textAlign: "right" }}>
-            <Button
-              type="primary"
-              onClick={handleSaveAll}
-              loading={saveMutation.isPending}
-              style={{ borderRadius: 6, minWidth: 120 }}
-            >
-              Save Changes
-            </Button>
-          </div>
+          {saveMutation.isLoading && (
+            <div style={{ marginTop: 12, textAlign: "right", fontSize: 12, color: "#6b7280" }}>
+              Saving…
+            </div>
+          )}
         </>
       )}
 
@@ -328,11 +211,10 @@ const BankDetailsSettings: React.FC = () => {
         open={modalOpen}
         onClose={() => {
           setModalOpen(false);
-          setEditBank(null);
+          setEditIndex(null);
         }}
-        onSave={handleSaveBank}
-        editBank={editBank}
-        isOnlyBank={bankDetails.length === 0}
+        onSave={handleSave}
+        editValue={editIndex !== null ? bankDetails[editIndex] : null}
       />
     </div>
   );

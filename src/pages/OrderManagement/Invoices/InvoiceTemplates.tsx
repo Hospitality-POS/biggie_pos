@@ -146,16 +146,6 @@ export interface InvoiceForPrint {
     [key: string]: any;
 }
 
-export interface BankDetail {
-    _id?: string;
-    bank_name: string;
-    branch: string;
-    account_no: string;
-    account_name: string;
-    swift_code: string;
-    paybill_no: string;
-    is_primary: boolean;
-}
 
 export interface SystemDetails {
     BRAND_NAME1?: string;
@@ -167,7 +157,7 @@ export interface SystemDetails {
     Paybill_ac?: string;
     QR_Code?: string;
     tenant_logo?: { url?: string };
-    bank_details?: BankDetail[];
+    bank_details?: string[];
 }
 
 // ── Resolve counterparty ───────────────────────────────────────────────────
@@ -370,62 +360,49 @@ const BankDetailsBlock = ({
     borderColor?: string;
     accentColor?: string;
 }) => {
-    // Get primary bank from bank_details array
-    const primaryBank = sys.bank_details?.find((b) => b.is_primary);
-    
-    // Fallback to legacy Paybill fields if no bank_details
-    const useLegacy = !primaryBank && (sys.Paybill_bs || sys.Paybill_ac);
+    const banks = (sys.bank_details || []).filter(Boolean);
+    const useLegacy = banks.length === 0 && (sys.Paybill_bs || sys.Paybill_ac);
 
-    if (!primaryBank && !useLegacy) return null;
+    if (banks.length === 0 && !useLegacy) return null;
 
     return (
-        <div style={{ marginTop: 20, textAlign: "center" }}>
-            <div
-                style={{
-                    display: "inline-block",
-                    background: bgColor,
-                    border: `1px solid ${borderColor}`,
-                    borderRadius: 7,
-                    padding: "10px 14px",
-                    minWidth: 200,
-                }}
-            >
-                {primaryBank ? (
-                    <>
-                        <div style={{ fontSize: 10, color: C.subText, marginBottom: 4, fontWeight: 600, textTransform: "uppercase" }}>
-                            Bank Details
-                        </div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: accentColor, marginBottom: 2 }}>
-                            {primaryBank.bank_name}
-                        </div>
-                        {primaryBank.branch && (
-                            <div style={{ fontSize: 10, color: C.subText, marginBottom: 4 }}>
-                                {primaryBank.branch}
-                            </div>
-                        )}
-                        <div style={{ fontSize: 12, fontWeight: 600, color: C.darkText, marginBottom: 2 }}>
-                            A/C: {primaryBank.account_no}
-                        </div>
-                        {primaryBank.account_name && (
-                            <div style={{ fontSize: 10, color: C.subText, marginBottom: 4 }}>
-                                {primaryBank.account_name}
-                            </div>
-                        )}
-                        {primaryBank.paybill_no && (
-                            <div style={{ fontSize: 11, fontWeight: 600, color: accentColor }}>
-                                Paybill: {primaryBank.paybill_no}
-                            </div>
-                        )}
-                    </>
-                ) : (
-                    <>
-                        <div style={{ fontSize: 10, color: C.subText, marginBottom: 2 }}>Paybill / Account</div>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: accentColor }}>
-                            {sys.Paybill_bs} / {sys.Paybill_ac || "—"}
-                        </div>
-                    </>
-                )}
-            </div>
+        <div style={{ marginTop: 20, display: "flex", gap: 10, flexWrap: "wrap" }}>
+            {banks.map((bankText, i) => (
+                <div
+                    key={i}
+                    style={{
+                        background: bgColor,
+                        border: `1px solid ${borderColor}`,
+                        borderRadius: 7,
+                        padding: "10px 14px",
+                        flex: "1 1 180px",
+                        minWidth: 160,
+                    }}
+                >
+                    <div style={{ fontSize: 10, color: C.subText, marginBottom: 5, fontWeight: 600, textTransform: "uppercase" as const }}>
+                        Bank / Payment Details
+                    </div>
+                    <pre style={{ margin: 0, fontFamily: "inherit", fontSize: 12, whiteSpace: "pre-wrap", color: C.darkText, lineHeight: 1.7 }}>
+                        {bankText}
+                    </pre>
+                </div>
+            ))}
+            {useLegacy && (
+                <div
+                    style={{
+                        background: bgColor,
+                        border: `1px solid ${borderColor}`,
+                        borderRadius: 7,
+                        padding: "10px 14px",
+                        minWidth: 160,
+                    }}
+                >
+                    <div style={{ fontSize: 10, color: C.subText, marginBottom: 2 }}>Paybill / Account</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: accentColor }}>
+                        {sys.Paybill_bs} / {sys.Paybill_ac || "—"}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
@@ -485,30 +462,63 @@ const PaymentDetailsBlock = ({
                     const st = inv.digitax?.submission_status;
                     const qrUrl = inv.digitax?.etims_url || inv.digitax?.offline_url;
                     if (!inv.etr_enabled || !qrUrl || !(st === "Verified" || st === "COMPLETED")) return null;
+                    const dateTime = [inv.digitax?.sale_date, inv.digitax?.sale_time].filter(Boolean).join(" ");
+                    const cuInvoiceNo = inv.digitax?.serial_number && inv.digitax?.invoice_number
+                        ? `${inv.digitax.serial_number} / ${inv.digitax.invoice_number}`
+                        : inv.digitax?.serial_number || "—";
+                    const rows = [
+                        { label: "Date By SCU", value: dateTime || "—" },
+                        { label: "Control Unit Number", value: inv.digitax?.serial_number || "—" },
+                        { label: "Control Unit Invoice No.", value: cuInvoiceNo },
+                        { label: "Internal Data", value: inv.digitax?.internal_data || "—" },
+                        { label: "Receipt Signature", value: inv.digitax?.receipt_signature || "—" },
+                    ];
                     return (
-                        <div
-                            style={{
-                                flex: "1 1 120px",
-                                background: bgColor,
-                                border: `1px solid ${borderColor}`,
-                                borderRadius: 7,
-                                padding: "9px 12px",
-                                display: "flex",
-                                flexDirection: "column",
-                                alignItems: "center",
-                            }}
-                        >
-                            <div style={{ fontSize: 10, color: C.subText, marginBottom: 4 }}>Scan to Verify</div>
-                            <img
-                                src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(qrUrl)}`}
-                                alt="ETR QR Code"
-                                style={{ width: 80, height: 80, display: "block" }}
-                            />
-                            {inv.digitax?.serial_number && (
-                                <div style={{ fontSize: 9, color: C.subText, marginTop: 4, fontFamily: "monospace" }}>
-                                    CU: {inv.digitax.serial_number}
+                        <div style={{ width: "100%", marginTop: 20, paddingTop: 16, borderTop: `1px solid ${borderColor}` }}>
+                            {/* Row 1: KRA Logo */}
+                            <div style={{ marginBottom: 8 }}>
+                                <img
+                                    src="/kra.png"
+                                    alt="Kenya Revenue Authority"
+                                    style={{ height: 120, objectFit: "contain" }}
+                                />
+                            </div>
+
+                            {/* Row 2: SCU INFORMATION header */}
+                            <div style={{ fontSize: 13, fontWeight: 700, color: C.darkText, marginBottom: 12, letterSpacing: "0.3px" }}>
+                                SCU INFORMATION
+                            </div>
+
+                            {/* Row 3: QR code on left, data on right */}
+                            <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
+                                <div style={{ flexShrink: 0 }}>
+                                    <img
+                                        src={`https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=${encodeURIComponent(qrUrl)}`}
+                                        alt="ETR QR Code"
+                                        style={{ width: 130, height: 130, display: "block" }}
+                                    />
                                 </div>
-                            )}
+                                <div style={{ flex: 1 }}>
+                                    <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 11 }}>
+                                        <tbody>
+                                            {rows.map((row) => (
+                                                <tr key={row.label}>
+                                                    <td style={{ padding: "3px 12px 3px 0", color: C.darkText, whiteSpace: "nowrap", verticalAlign: "top", width: 1 }}>
+                                                        {row.label}
+                                                    </td>
+                                                    <td style={{ padding: "3px 8px", color: C.darkText, verticalAlign: "top", whiteSpace: "nowrap" }}>:</td>
+                                                    <td style={{ padding: "3px 0", color: C.darkText, fontFamily: "monospace", fontSize: 11, wordBreak: "break-all" }}>
+                                                        {row.value}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                    <div style={{ marginTop: 10, fontSize: 11, color: C.subText, fontStyle: "italic" }}>
+                                        Scan the QR code to connect with KRA and verify the document.
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     );
                 })()}
@@ -792,6 +802,7 @@ const Footer = ({ sys, borderColor = C.border, accentColor = C.primary }: { sys:
 
     return (
     <div
+        className="inv-footer"
         style={{
             marginTop: 24,
             borderTop: `2px solid ${borderColor}`,
@@ -1005,7 +1016,7 @@ export const Template1Classic = React.forwardRef<HTMLDivElement, SharedProps>(({
             <BankDetailsBlock sys={sys} accentColor={C.primary} />
             <Footer sys={sys} accentColor={C.primary} />
 
-            <style>{`@media print{@page{size:A4 portrait;margin:12mm}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}`}</style>
+            <style>{`@media print{@page{size:A4 portrait;margin:12mm}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}.inv-root{display:flex;flex-direction:column;min-height:273mm}.inv-body{display:flex;flex-direction:column;flex:1}.inv-footer{margin-top:auto!important}}`}</style>
         </div>
     );
 });
@@ -1022,6 +1033,7 @@ export const Template2SlatePro = React.forwardRef<HTMLDivElement, SharedProps>((
     return (
         <div
             ref={ref}
+            className="inv-root"
             style={{ fontFamily: "'Segoe UI', Roboto, sans-serif", color: C.darkText, background: "#fff", padding: 32, width: "100%", maxWidth: 730, boxSizing: "border-box" as const }}
         >
             {/* Header */}
@@ -1119,7 +1131,7 @@ export const Template2SlatePro = React.forwardRef<HTMLDivElement, SharedProps>((
                             : <strong>{inv.terms}</strong>
                         </div>
                     )}
-                    {inv.served_by && (
+                    {inv.served_by && !Array.isArray(inv.served_by) && inv.served_by.username && (
                         <div style={{ fontSize: 12, color: C.subText, marginTop: 3 }}>
                             Served by: {inv.served_by.username}
                         </div>
@@ -1133,7 +1145,7 @@ export const Template2SlatePro = React.forwardRef<HTMLDivElement, SharedProps>((
             <BankDetailsBlock sys={sys} accentColor={navy} />
             <Footer sys={sys} accentColor={navy} />
 
-            <style>{`@media print{@page{size:A4 portrait;margin:12mm}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}`}</style>
+            <style>{`@media print{@page{size:A4 portrait;margin:12mm}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}.inv-root{display:flex;flex-direction:column;min-height:273mm}.inv-body{display:flex;flex-direction:column;flex:1}.inv-footer{margin-top:auto!important}}`}</style>
         </div>
     );
 });
@@ -1149,6 +1161,7 @@ export const Template3Ocean = React.forwardRef<HTMLDivElement, SharedProps>(({ i
     return (
         <div
             ref={ref}
+            className="inv-root"
             style={{ fontFamily: "'Segoe UI', Roboto, sans-serif", color: C.darkText, background: "#fff", padding: 0, width: "100%", maxWidth: 730, boxSizing: "border-box" as const }}
         >
             {/* Gradient header */}
@@ -1178,7 +1191,7 @@ export const Template3Ocean = React.forwardRef<HTMLDivElement, SharedProps>(({ i
                 </div>
             </div>
 
-            <div style={{ padding: "22px 32px" }}>
+            <div className="inv-body" style={{ padding: "22px 32px" }}>
                 {/* Party + chips */}
                 <div style={{ display: "flex", gap: 20, marginBottom: 20, flexWrap: "wrap" as const }}>
                     <div style={{ flex: 1, minWidth: 160 }}>
@@ -1226,7 +1239,7 @@ export const Template3Ocean = React.forwardRef<HTMLDivElement, SharedProps>(({ i
                 <Footer sys={sys} borderColor="#bfdbfe" accentColor={C.blue} />
             </div>
 
-            <style>{`@media print{@page{size:A4 portrait;margin:12mm}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}`}</style>
+            <style>{`@media print{@page{size:A4 portrait;margin:12mm}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}.inv-root{display:flex;flex-direction:column;min-height:273mm}.inv-body{display:flex;flex-direction:column;flex:1}.inv-footer{margin-top:auto!important}}`}</style>
         </div>
     );
 });
@@ -1243,6 +1256,7 @@ export const Template4Minimal = React.forwardRef<HTMLDivElement, SharedProps>(({
     return (
         <div
             ref={ref}
+            className="inv-root"
             style={{
                 fontFamily: "'Georgia', 'Times New Roman', serif",
                 color: C.darkText,
@@ -1360,7 +1374,7 @@ export const Template4Minimal = React.forwardRef<HTMLDivElement, SharedProps>(({
             <BankDetailsBlock sys={sys} accentColor={charcoal} />
             <Footer sys={sys} accentColor={charcoal} />
 
-            <style>{`@media print{@page{size:A4 portrait;margin:14mm}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}`}</style>
+            <style>{`@media print{@page{size:A4 portrait;margin:14mm}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}.inv-root{display:flex;flex-direction:column;min-height:269mm}.inv-body{display:flex;flex-direction:column;flex:1}.inv-footer{margin-top:auto!important}}`}</style>
         </div>
     );
 });
@@ -1377,6 +1391,7 @@ export const Template5Forest = React.forwardRef<HTMLDivElement, SharedProps>(({ 
     return (
         <div
             ref={ref}
+            className="inv-root"
             style={{ fontFamily: "'Segoe UI', Roboto, sans-serif", color: C.darkText, background: "#fff", padding: 0, width: "100%", maxWidth: 730, boxSizing: "border-box" as const }}
         >
             {/* Header bar */}
@@ -1411,7 +1426,7 @@ export const Template5Forest = React.forwardRef<HTMLDivElement, SharedProps>(({ 
                 </div>
             </div>
 
-            <div style={{ padding: "22px 28px" }}>
+            <div className="inv-body" style={{ padding: "22px 28px" }}>
                 {/* Party cards */}
                 <div style={{ display: "flex", gap: 14, marginBottom: 20, flexWrap: "wrap" as const }}>
                     <div
@@ -1467,7 +1482,7 @@ export const Template5Forest = React.forwardRef<HTMLDivElement, SharedProps>(({ 
                 <Footer sys={sys} borderColor="#d1fae5" accentColor={forest} />
             </div>
 
-            <style>{`@media print{@page{size:A4 portrait;margin:12mm}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}`}</style>
+            <style>{`@media print{@page{size:A4 portrait;margin:12mm}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}.inv-root{display:flex;flex-direction:column;min-height:273mm}.inv-body{display:flex;flex-direction:column;flex:1}.inv-footer{margin-top:auto!important}}`}</style>
         </div>
     );
 });

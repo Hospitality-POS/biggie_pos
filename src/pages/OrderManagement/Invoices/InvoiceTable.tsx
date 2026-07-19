@@ -173,9 +173,12 @@ const MobileFilterDrawer: React.FC<{
           <RangePicker style={{ width: "100%", borderRadius: 8 }}
             presets={[
               { label: "Today", value: [dayjs().startOf("day"), dayjs().endOf("day")] },
+              { label: "Yesterday", value: [dayjs().subtract(1, "days").startOf("day"), dayjs().subtract(1, "days").endOf("day")] },
               { label: "This Week", value: [dayjs().startOf("week"), dayjs().endOf("week")] },
               { label: "This Month", value: [dayjs().startOf("month"), dayjs().endOf("month")] },
               { label: "Last Month", value: [dayjs().subtract(1, "month").startOf("month"), dayjs().subtract(1, "month").endOf("month")] },
+              { label: "This Quarter", value: [dayjs().startOf("quarter"), dayjs().endOf("quarter")] },
+              { label: "This Year", value: [dayjs().startOf("year"), dayjs().endOf("year")] },
             ]} />
         </Form.Item>
         <Form.Item name="order_no" label="Order / Quote No.">
@@ -1058,6 +1061,9 @@ const InvoicesTable = () => {
                 "This Week": [dayjs().startOf("week"), dayjs().endOf("week")],
                 "Last Week": [dayjs().subtract(1, "week").startOf("week"), dayjs().subtract(1, "week").endOf("week")],
                 "This Month": [dayjs().startOf("month"), dayjs().endOf("month")],
+                "Last Month": [dayjs().subtract(1, "month").startOf("month"), dayjs().subtract(1, "month").endOf("month")],
+                "This Quarter": [dayjs().startOf("quarter"), dayjs().endOf("quarter")],
+                "This Year": [dayjs().startOf("year"), dayjs().endOf("year")],
               },
             },
           },
