@@ -97,10 +97,16 @@ const RuleFormModal: React.FC<{
                 priority: editingRule.priority,
                 match_type: editingRule.match_type,
                 is_active: editingRule.is_active,
+                apply_to: editingRule.apply_to || "both",
+                transaction_handling: editingRule.transaction_handling || "recognized",
+                associate_accounts: editingRule.associate_accounts || "all_accounts",
+                associated_account_id: editingRule.associated_account_id,
                 action_account_id: editingRule.actions?.account_id,
                 action_category_label: editingRule.actions?.category_label,
                 action_payee_name: editingRule.actions?.payee_name,
                 action_exclude: editingRule.actions?.exclude,
+                action_record_type: editingRule.actions?.record_type,
+                action_target_account_id: editingRule.actions?.target_account_id,
             });
             setConditions(editingRule.conditions || [{}]);
         } else if (open) {
@@ -120,12 +126,18 @@ const RuleFormModal: React.FC<{
     const handleOk = async () => {
         const values = await form.validateFields();
         const acc = accounts.find((a: any) => a._id === values.action_account_id);
+        const targetAcc = values.action_target_account_id ? accounts.find((a: any) => a._id === values.action_target_account_id) : null;
+        const assocAcc = values.associated_account_id ? accounts.find((a: any) => a._id === values.associated_account_id) : null;
         onConfirm({
             shop_id: editingRule?.shop_id || "",
             name: values.name,
             priority: values.priority || 100,
             match_type: values.match_type || "all",
             is_active: values.is_active ?? true,
+            apply_to: values.apply_to || "both",
+            transaction_handling: values.transaction_handling || "recognized",
+            associate_accounts: values.associate_accounts || "all_accounts",
+            associated_account_id: values.associated_account_id,
             conditions: conditions.filter((c) => c.field && c.operator) as RuleCondition[],
             actions: {
                 account_id: values.action_account_id,
@@ -134,6 +146,10 @@ const RuleFormModal: React.FC<{
                 category_label: values.action_category_label,
                 payee_name: values.action_payee_name,
                 exclude: values.action_exclude || false,
+                record_type: values.action_record_type,
+                target_account_id: values.action_target_account_id,
+                target_account_code: targetAcc?.account_code,
+                target_account_name: targetAcc?.account_name,
             },
         });
     };
@@ -246,6 +262,55 @@ const RuleFormModal: React.FC<{
                 </Button>
 
                 <Divider orientation="left" plain>
+                    <Text type="secondary" style={{ fontSize: 12 }}>Apply To</Text>
+                </Divider>
+
+                <Row gutter={12}>
+                    <Col span={12}>
+                        <Form.Item name="apply_to" label="Transaction Direction" initialValue="both">
+                            <Select options={[
+                                { label: "Both (deposits & withdrawals)", value: "both" },
+                                { label: "Deposits (credit only)", value: "deposits" },
+                                { label: "Withdrawals (debit only)", value: "withdrawals" },
+                            ]} />
+                        </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                        <Form.Item name="transaction_handling" label="Apply To" initialValue="recognized">
+                            <Select options={[
+                                { label: "New/Uncategorized transactions", value: "recognized" },
+                                { label: "Re-apply to already categorized", value: "categorized" },
+                            ]} />
+                        </Form.Item>
+                    </Col>
+                </Row>
+
+                <Form.Item name="associate_accounts" label="Associate Accounts" initialValue="all_accounts">
+                    <Select options={[
+                        { label: "All Accounts", value: "all_accounts" },
+                        { label: "All Banks", value: "all_banks" },
+                        { label: "All Cards", value: "all_cards" },
+                        { label: "Custom (select specific)", value: "custom" },
+                    ]} />
+                </Form.Item>
+
+                <Form.Item noStyle shouldUpdate={(prev, curr) => prev.associate_accounts !== curr.associate_accounts}>
+                    {({ getFieldValue }) =>
+                        getFieldValue("associate_accounts") === "custom" ? (
+                            <Form.Item name="associated_account_id" label="Specific Account">
+                                <Select
+                                    placeholder="Select account..."
+                                    options={accountOptions}
+                                    showSearch
+                                    optionFilterProp="label"
+                                    allowClear
+                                />
+                            </Form.Item>
+                        ) : null
+                    }
+                </Form.Item>
+
+                <Divider orientation="left" plain>
                     <Text type="secondary" style={{ fontSize: 12 }}>Actions (when rule matches)</Text>
                 </Divider>
 
@@ -258,21 +323,57 @@ const RuleFormModal: React.FC<{
                         allowClear
                     />
                 </Form.Item>
+
                 <Row gutter={12}>
+                    <Col span={12}>
+                        <Form.Item name="action_record_type" label="Record As">
+                            <Select
+                                placeholder="Select type..."
+                                options={[
+                                    { label: "Income", value: "income" },
+                                    { label: "Expense", value: "expense" },
+                                    { label: "Transfer", value: "transfer" },
+                                    { label: "Refund", value: "refund" },
+                                ]}
+                                allowClear
+                            />
+                        </Form.Item>
+                    </Col>
                     <Col span={12}>
                         <Form.Item name="action_category_label" label="Category Label">
                             <Input placeholder="e.g. Office Supplies" />
                         </Form.Item>
                     </Col>
+                </Row>
+
+                <Form.Item noStyle shouldUpdate={(prev, curr) => prev.action_record_type !== curr.action_record_type}>
+                    {({ getFieldValue }) =>
+                        getFieldValue("action_record_type") === "transfer" ? (
+                            <Form.Item name="action_target_account_id" label="Target Account (for transfers)">
+                                <Select
+                                    placeholder="Select target account..."
+                                    options={accountOptions}
+                                    showSearch
+                                    optionFilterProp="label"
+                                    allowClear
+                                />
+                            </Form.Item>
+                        ) : null
+                    }
+                </Form.Item>
+
+                <Row gutter={12}>
                     <Col span={12}>
                         <Form.Item name="action_payee_name" label="Payee Name">
                             <Input placeholder="e.g. Safaricom" />
                         </Form.Item>
                     </Col>
+                    <Col span={12}>
+                        <Form.Item name="action_exclude" valuePropName="checked" label="Exclude">
+                            <Switch />
+                        </Form.Item>
+                    </Col>
                 </Row>
-                <Form.Item name="action_exclude" valuePropName="checked" label="Exclude matching transactions">
-                    <Switch />
-                </Form.Item>
             </Form>
         </Modal>
     );
