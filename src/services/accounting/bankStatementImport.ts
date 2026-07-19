@@ -17,6 +17,10 @@ export type ConditionField = "description" | "reference" | "amount" | "debit" | 
 export type ConditionOperator =
     | "contains" | "not_contains" | "starts_with" | "ends_with"
     | "regex" | "equals" | "gt" | "gte" | "lt" | "lte" | "between" | "is";
+export type ApplyTo = "deposits" | "withdrawals" | "both";
+export type TransactionHandling = "recognized" | "categorized";
+export type RecordType = "transfer" | "income" | "expense" | "refund" | null;
+export type AssociateAccounts = "all_accounts" | "all_banks" | "all_cards" | "custom";
 
 // ── Column Mapping ───────────────────────────────────────────────────────────
 
@@ -84,6 +88,10 @@ export interface RuleActions {
     tags?: string[];
     notes_template?: string;
     exclude?: boolean;
+    record_type?: RecordType;
+    target_account_id?: string;
+    target_account_code?: string;
+    target_account_name?: string;
 }
 
 export interface CategorizationRule {
@@ -95,6 +103,10 @@ export interface CategorizationRule {
     conditions: RuleCondition[];
     actions: RuleActions;
     apply_to_existing: boolean;
+    apply_to?: ApplyTo;
+    transaction_handling?: TransactionHandling;
+    associate_accounts?: AssociateAccounts;
+    associated_account_id?: string;
     shop_id: string;
     match_count: number;
     last_matched_at?: string;
@@ -112,6 +124,10 @@ export interface CategorizationRuleInput {
     conditions: RuleCondition[];
     actions: RuleActions;
     apply_to_existing?: boolean;
+    apply_to?: ApplyTo;
+    transaction_handling?: TransactionHandling;
+    associate_accounts?: AssociateAccounts;
+    associated_account_id?: string;
 }
 
 // ── Category Mapping ─────────────────────────────────────────────────────────
@@ -174,6 +190,10 @@ export interface RawTransaction {
     payee_id?: string;
     payee_name?: string;
     notes?: string;
+    record_type?: RecordType;
+    target_account_id?: string;
+    target_account_code?: string;
+    target_account_name?: string;
     matched_rule_id?: string;
     matched_rule_name?: string;
     matched_keyword?: string;
@@ -257,6 +277,8 @@ export interface GetImportByIdParams {
     status_filter?: TransactionStatus;
     page?: number;
     limit?: number;
+    date_from?: string;
+    date_to?: string;
 }
 
 export interface ImportStatementInput {
@@ -283,6 +305,10 @@ export interface CategorizeTransactionInput {
     payee_id?: string;
     payee_name?: string;
     notes?: string;
+    record_type?: RecordType;
+    target_account_id?: string;
+    target_account_code?: string;
+    target_account_name?: string;
 }
 
 export interface BulkCategorizeInput extends CategorizeTransactionInput {
@@ -818,6 +844,24 @@ export const excludeTransaction = async (id: string, txn_id: string, notes?: str
             message.error(axiosError.response.data.message);
         } else {
             message.error("Error excluding transaction");
+        }
+        throw error;
+    }
+};
+
+export const uncategorizeTransaction = async (id: string, txn_id: string) => {
+    try {
+        const response = await axiosInstance.patch(
+            `${BASE_URL}/accounting/bank-reconciliations/bank-imports/${id}/transactions/${txn_id}/uncategorize`
+        );
+        message.success("Transaction uncategorized");
+        return response.data as { transaction: RawTransaction };
+    } catch (error: unknown) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        if (axiosError?.response?.data?.message) {
+            message.error(axiosError.response.data.message);
+        } else {
+            message.error("Error uncategorizing transaction");
         }
         throw error;
     }

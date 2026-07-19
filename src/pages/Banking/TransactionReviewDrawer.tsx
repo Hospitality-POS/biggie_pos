@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import {
     Drawer, Table, Typography, Space, Tag, Button, Tooltip,
     Select, Popconfirm, Badge, Alert, Row, Col, Statistic,
-    Tabs, Progress, Divider, App, Modal, Form, Input,
+    Tabs, Progress, Divider, App, Modal, Form, Input, DatePicker,
 } from "antd";
 import {
     ThunderboltOutlined, CheckCircleOutlined, StopOutlined,
@@ -15,6 +15,7 @@ import {
     categorizeTransaction,
     bulkCategorize,
     excludeTransaction,
+    uncategorizeTransaction,
     pushToReconciliation,
     pushToJournalEntries,
     RawTransaction,
@@ -63,6 +64,8 @@ const CategorizeTxnModal: React.FC<CategorizeTxnModalProps> = ({
                 category_label: transaction.category_label || "",
                 payee_name: transaction.payee_name || "",
                 notes: transaction.notes || "",
+                record_type: transaction.record_type || undefined,
+                target_account_id: transaction.target_account_id || undefined,
             });
         } else {
             form.resetFields();
@@ -111,8 +114,41 @@ const CategorizeTxnModal: React.FC<CategorizeTxnModalProps> = ({
                         allowClear
                     />
                 </Form.Item>
-                <Form.Item name="category_label" label="Category Label">
-                    <Input placeholder="e.g. Office Supplies, Utilities..." />
+                <Row gutter={12}>
+                    <Col span={12}>
+                        <Form.Item name="record_type" label="Record As">
+                            <Select
+                                placeholder="Select type..."
+                                options={[
+                                    { label: "Income", value: "income" },
+                                    { label: "Expense", value: "expense" },
+                                    { label: "Transfer", value: "transfer" },
+                                    { label: "Refund", value: "refund" },
+                                ]}
+                                allowClear
+                            />
+                        </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                        <Form.Item name="category_label" label="Category Label">
+                            <Input placeholder="e.g. Office Supplies, Utilities..." />
+                        </Form.Item>
+                    </Col>
+                </Row>
+                <Form.Item noStyle shouldUpdate={(prev, curr) => prev.record_type !== curr.record_type}>
+                    {({ getFieldValue }) =>
+                        getFieldValue("record_type") === "transfer" ? (
+                            <Form.Item name="target_account_id" label="Target Account (for transfers)">
+                                <Select
+                                    placeholder="Select target account..."
+                                    options={accountOptions}
+                                    showSearch
+                                    optionFilterProp="label"
+                                    allowClear
+                                />
+                            </Form.Item>
+                        ) : null
+                    }
                 </Form.Item>
                 <Form.Item name="payee_name" label="Payee Name">
                     <Input placeholder="e.g. KPA, Safaricom..." />
@@ -141,16 +177,17 @@ const TransactionReviewDrawer: React.FC<Props> = ({
     const [pushModalOpen, setPushModalOpen] = useState(false);
     const [pushMode, setPushMode] = useState<"reconciliation" | "journal">("reconciliation");
     const [pushTarget, setPushTarget] = useState<string>("");
+    const [dateRange, setDateRange] = useState<[string, string] | null>(null);
 
     const importId = importRecord?._id;
 
-    const { data, isLoading, refetch } = useQuery({
-        queryKey: ["import-detail", importId, statusFilter, page],
+    const { data, isLoading } = useQuery({
+        queryKey: ["import-detail", importId, statusFilter, page, dateRange],
         queryFn: () =>
             getImportById(importId!, {
                 status_filter: statusFilter === "ALL" ? undefined : statusFilter,
-                page,
-                limit: 50,
+                page: dateRange ? 1 : page,
+                limit: dateRange ? 10000 : 50,
             }),
         enabled: open && !!importId,
         keepPreviousData: true,
@@ -170,15 +207,24 @@ const TransactionReviewDrawer: React.FC<Props> = ({
     }));
 
     const importDetail = data?.import;
-    const transactions = importDetail?.transactions || [];
+    const allTransactions = importDetail?.transactions || [];
     const totalTxns = data?.transaction_total || 0;
     const totalPages = data?.totalPages || 1;
+
+    // Client-side date filtering
+    const transactions = dateRange
+        ? allTransactions.filter((txn: RawTransaction) => {
+            const txnDate = dayjs(txn.transaction_date).format('YYYY-MM-DD');
+            return txnDate >= dateRange[0] && txnDate <= dateRange[1];
+        })
+        : allTransactions;
 
     useEffect(() => {
         if (!open) {
             setPage(1);
             setSelectedRowKeys([]);
             setStatusFilter("ALL");
+            setDateRange(null);
         }
     }, [open]);
 
@@ -202,6 +248,11 @@ const TransactionReviewDrawer: React.FC<Props> = ({
 
     const excludeMutation = useMutation({
         mutationFn: (txnId: string) => excludeTransaction(importId!, txnId),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["import-detail", importId] }),
+    });
+
+    const uncategorizeMutation = useMutation({
+        mutationFn: (txnId: string) => uncategorizeTransaction(importId!, txnId),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ["import-detail", importId] }),
     });
 
@@ -319,7 +370,7 @@ const TransactionReviewDrawer: React.FC<Props> = ({
             },
         },
         {
-            title: "Debit",
+            title: "Debit (Deposit)",
             dataIndex: "debit",
             width: 110,
             align: "right" as const,
@@ -333,7 +384,7 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                 ),
         },
         {
-            title: "Credit",
+            title: "Credit (Withdrawal)",
             dataIndex: "credit",
             width: 110,
             align: "right" as const,
@@ -357,7 +408,7 @@ const TransactionReviewDrawer: React.FC<Props> = ({
         {
             title: "Actions",
             key: "actions",
-            width: 120,
+            width: 150,
             fixed: "right" as const,
             render: (_: any, r: RawTransaction) => {
                 if (r.status === "Pushed") return null;
@@ -371,6 +422,15 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                                 disabled={r.status === "Excluded"}
                             />
                         </Tooltip>
+                        {r.status === "Categorized" && (
+                            <Tooltip title="Uncategorize">
+                                <Button
+                                    icon={<ReloadOutlined />}
+                                    size="small"
+                                    onClick={() => uncategorizeMutation.mutate(r._id)}
+                                />
+                            </Tooltip>
+                        )}
                         <Tooltip title={r.status === "Excluded" ? "Restore" : "Exclude"}>
                             <Button
                                 icon={<StopOutlined />}
@@ -525,16 +585,40 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                 )}
 
                 {/* ── Status Tabs ── */}
-                <Tabs
-                    activeKey={statusFilter}
-                    onChange={(k) => { setStatusFilter(k as any); setPage(1); }}
-                    size="small"
-                    style={{ marginBottom: 8 }}
-                    items={STATUS_TABS.map((s) => ({
-                        key: s,
-                        label: s === "ALL" ? "All" : s,
-                    }))}
-                />
+                <Row gutter={12} style={{ marginBottom: 8 }}>
+                    <Col span={16}>
+                        <Tabs
+                            activeKey={statusFilter}
+                            onChange={(k) => { setStatusFilter(k as any); setPage(1); }}
+                            size="small"
+                            items={STATUS_TABS.map((s) => ({
+                                key: s,
+                                label: s === "ALL" ? "All" : s,
+                            }))}
+                        />
+                    </Col>
+                    <Col span={8}>
+                        <DatePicker.RangePicker
+                            size="small"
+                            style={{ width: "100%" }}
+                            value={dateRange ? [dayjs(dateRange[0]), dayjs(dateRange[1])] : null}
+                            onChange={(dates) => {
+                                if (dates && dates[0] && dates[1]) {
+                                    setDateRange([dates[0].format("YYYY-MM-DD"), dates[1].format("YYYY-MM-DD")]);
+                                } else {
+                                    setDateRange(null);
+                                }
+                            }}
+                            onOk={(dates) => {
+                                if (dates && dates[0] && dates[1]) {
+                                    setDateRange([dates[0].format("YYYY-MM-DD"), dates[1].format("YYYY-MM-DD")]);
+                                    setPage(1);
+                                }
+                            }}
+                            allowClear
+                        />
+                    </Col>
+                </Row>
 
                 <Table
                     rowKey="_id"
