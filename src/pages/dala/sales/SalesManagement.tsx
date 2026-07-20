@@ -187,25 +187,31 @@ const SalesManagement: React.FC = () => {
     queryFn: () => fetchPropertySales(),
   });
 
-  const sales = (Array.isArray(data?.data) ? data.data : storeSales).map((sale: any) => ({
-    ...sale,
-    property_id: sale.property_id || sale.property?._id,
-    unit_id: sale.unit_id || sale.unitTypeID?._id,
-    sale_date: sale.sale_date || sale.saleDate,
-    sale_price: sale.sale_price || sale.salePrice || 0,
-    payment_plan: sale.payment_plan || sale.paymentPlanType,
-    deposit_paid: sale.deposit_paid || sale.initialPayment || sale.paymentTotals?.depositPaid || sale.deposit?.amount || 0,
-    commission_rate: sale.commission_rate || sale.commissionPercentage || 0,
-    commission_amount: sale.commission_amount || sale.commission || 0,
-    client: sale.client || sale.customer,
-    unit: sale.unit || sale.unitTypeID,
-    installments: sale.installments || sale.paymentSchedule || sale.paymentInstallments || [],
+  const sales = (Array.isArray(data?.data) ? data.data : storeSales).map((sale: any) => {
+    const salePrice = sale.sale_price || sale.salePrice || 0;
+    const commissionRate = sale.commission_rate || sale.commissionPercentage || 0;
+    const commissionAmount = sale.commission_amount || sale.commission?.amount || (salePrice * (commissionRate / 100));
+    
+    return {
+      ...sale,
+      property_id: sale.property_id || sale.property?._id,
+      unit_id: sale.unit_id || sale.unitTypeID?._id,
+      sale_date: sale.sale_date || sale.saleDate,
+      sale_price: salePrice,
+      payment_plan: sale.payment_plan || sale.paymentPlanType,
+      deposit_paid: sale.deposit_paid || sale.initialPayment || sale.paymentTotals?.depositPaid || sale.deposit?.amount || 0,
+      commission_rate: commissionRate,
+      commission_amount: commissionAmount,
+      client: sale.client || sale.customer,
+      unit: sale.unit || sale.unitTypeID,
+      installments: sale.installments || sale.paymentSchedule || sale.paymentInstallments || [],
     payments: sale.payments || [],
     paymentPlans: sale.paymentPlans || [],
     paymentTotals: sale.paymentTotals,
     deposit: sale.deposit,
     documents: sale.documents || sale.attachments || sale.saleDocuments || [],
-  }));
+    };
+  });
 
   const propertiesQuery = useQuery({
     queryKey: ['dala-properties'],

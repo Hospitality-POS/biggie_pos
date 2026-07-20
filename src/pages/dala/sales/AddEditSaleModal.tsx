@@ -82,6 +82,10 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
   const [isJointPurchase, setIsJointPurchase] = useState<boolean>(false);
   const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
 
+  // Commission split state
+  const [isCommissionSplit, setIsCommissionSplit] = useState<boolean>(false);
+  const [commissionSplits, setCommissionSplits] = useState<{ user: string; percentage: number }[]>([]);
+
   // Filter properties to only show sale properties
   const saleProperties = properties.filter((p: any) => {
     const purpose = String(p.purpose || '').toLowerCase();
@@ -186,6 +190,8 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
         setInstallments([]);
         setIsJointPurchase(false);
         setSelectedCustomers([]);
+        setIsCommissionSplit(false);
+        setCommissionSplits([]);
       }
       setCurrentStep(0);
     }
@@ -371,6 +377,29 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
     setInstallments(installments.filter((inst) => inst.key !== key));
   };
 
+  // Commission split handlers
+  const addCommissionSplit = () => {
+    setCommissionSplits([...commissionSplits, { user: '', percentage: 0 }]);
+  };
+
+  const updateCommissionSplit = (index: number, field: 'user' | 'percentage', value: string | number) => {
+    const updatedSplits = [...commissionSplits];
+    if (field === 'user') {
+      updatedSplits[index].user = value as string;
+    } else {
+      updatedSplits[index].percentage = value as number;
+    }
+    setCommissionSplits(updatedSplits);
+  };
+
+  const removeCommissionSplit = (index: number) => {
+    setCommissionSplits(commissionSplits.filter((_, i) => i !== index));
+  };
+
+  const getTotalSplitPercentage = () => {
+    return commissionSplits.reduce((sum, split) => sum + (split.percentage || 0), 0);
+  };
+
   const handleFileChange = ({ fileList: newFileList }: any) => {
     setFileList(newFileList);
   };
@@ -419,6 +448,42 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
         return false;
       }
 
+      // Validate commission splits if enabled
+      if (isCommissionSplit) {
+        if (commissionSplits.length === 0) {
+          message.error('Please add at least one commission split');
+          return false;
+        }
+        
+        const commissionRate = form.getFieldValue('commission_rate') || 0;
+        const totalSplitPercentage = getTotalSplitPercentage();
+        
+        if (Math.abs(totalSplitPercentage - commissionRate) > 0.01) {
+          message.error(`Commission split percentages (${totalSplitPercentage}%) must equal total commission percentage (${commissionRate}%)`);
+          return false;
+        }
+        
+        // Check for duplicate users
+        const userIds = commissionSplits.map(s => s.user);
+        const uniqueUserIds = new Set(userIds);
+        if (userIds.length !== uniqueUserIds.size) {
+          message.error('Cannot duplicate users in commission splits');
+          return false;
+        }
+        
+        // Validate each split has a user and valid percentage
+        for (const split of commissionSplits) {
+          if (!split.user) {
+            message.error('Each commission split must have a user assigned');
+            return false;
+          }
+          if (split.percentage <= 0 || split.percentage > 100) {
+            message.error('Each commission split percentage must be between 0 and 100');
+            return false;
+          }
+        }
+      }
+
       // Find selected apartment details
       let apartmentName = undefined;
       if (values.apartment_id && selectedUnit?.apartments) {
@@ -438,6 +503,7 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
         salesAgent: values.salesAgent,
         propertyManager: values.propertyManager,
         is_joint_purchase: isJointPurchase,
+        commissionSplits: isCommissionSplit ? commissionSplits : undefined,
       };
 
       // Handle customer vs customers based on joint purchase
@@ -461,6 +527,8 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
     setCurrentStep(0);
     setInstallments([]);
     setFileList([]);
+    setIsCommissionSplit(false);
+    setCommissionSplits([]);
     onCancel();
   };
 
@@ -1243,6 +1311,104 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
                     precision={2}
                   />
                 </Form.Item>
+
+                <Form.Item label="Split Commission">
+                  <Switch
+                    checked={isCommissionSplit}
+                    onChange={(checked) => {
+                      setIsCommissionSplit(checked);
+                      if (checked && commissionSplits.length === 0) {
+                        // Add primary sales agent as first split when enabling
+                        const primaryAgent = form.getFieldValue('salesAgent');
+                        if (primaryAgent) {
+                          setCommissionSplits([{ user: primaryAgent, percentage: form.getFieldValue('commission_rate') || 0 }]);
+                        } else {
+                          setCommissionSplits([{ user: '', percentage: 0 }]);
+                        }
+                      } else if (!checked) {
+                        setCommissionSplits([]);
+                      }
+                    }}
+                  />
+                  <span style={{ marginLeft: 8 }}>
+                    {isCommissionSplit ? 'Split Between Multiple Users' : 'Single Agent'}
+                  </span>
+                </Form.Item>
+
+                {isCommissionSplit && (
+                  <Card size="small" style={{ marginBottom: 16, backgroundColor: '#f0f5ff' }}>
+                    <div style={{ marginBottom: 12 }}>
+                      <Text strong>Commission Splits</Text>
+                      <Text type="secondary" style={{ marginLeft: 8 }}>
+                        (Total: {getTotalSplitPercentage()}% of {form.getFieldValue('commission_rate') || 0}%)
+                      </Text>
+                    </div>
+                    
+                    {commissionSplits.map((split, index) => (
+                      <Row gutter={16} key={index} style={{ marginBottom: 8 }}>
+                        <Col span={14}>
+                          <Select
+                            placeholder="Select user"
+                            value={split.user}
+                            onChange={(value) => updateCommissionSplit(index, 'user', value)}
+                            showSearch
+                            filterOption={(input, option) =>
+                              (option?.children as string)?.toLowerCase().includes(input.toLowerCase())
+                            }
+                            style={{ width: '100%' }}
+                          >
+                            {users?.map((user: any) => (
+                              <Option key={user._id} value={user._id}>
+                                {user.fullname || user.name} - {user.email}
+                              </Option>
+                            ))}
+                          </Select>
+                        </Col>
+                        <Col span={8}>
+                          <InputNumber
+                            placeholder="%"
+                            value={split.percentage}
+                            onChange={(value) => updateCommissionSplit(index, 'percentage', value || 0)}
+                            min={0}
+                            max={100}
+                            precision={2}
+                            style={{ width: '100%' }}
+                            formatter={(value) => `${value}%`}
+                            parser={(value) => value?.replace('%', '') as unknown as number}
+                          />
+                        </Col>
+                        <Col span={2}>
+                          <Button
+                            type="text"
+                            danger
+                            icon={<DeleteOutlined />}
+                            onClick={() => removeCommissionSplit(index)}
+                            disabled={commissionSplits.length === 1}
+                          />
+                        </Col>
+                      </Row>
+                    ))}
+                    
+                    <Button
+                      type="dashed"
+                      icon={<PlusOutlined />}
+                      onClick={addCommissionSplit}
+                      block
+                      style={{ marginTop: 8 }}
+                    >
+                      Add Split
+                    </Button>
+                    
+                    {Math.abs(getTotalSplitPercentage() - (form.getFieldValue('commission_rate') || 0)) > 0.01 && (
+                      <Alert
+                        message={`Split percentages (${getTotalSplitPercentage()}%) must equal commission rate (${form.getFieldValue('commission_rate') || 0}%)`}
+                        type="error"
+                        showIcon
+                        style={{ marginTop: 8 }}
+                      />
+                    )}
+                  </Card>
+                )}
 
                 <Form.Item
                   label="Status"

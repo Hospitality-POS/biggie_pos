@@ -115,6 +115,7 @@ const CommissionPaymentModal: React.FC<CommissionPaymentModalProps> = ({
   const [netAmount, setNetAmount] = useState(0);
   const [fileList, setFileList] = useState<any>([]);
   const [documentType, setDocumentType] = useState('receipt');
+  const [selectedPaidToUser, setSelectedPaidToUser] = useState<string | null>(null);
 
   useEffect(() => {
     if (sale && visible) {
@@ -130,6 +131,7 @@ const CommissionPaymentModal: React.FC<CommissionPaymentModalProps> = ({
         status: sale.commission?.status || 'pending',
         payments: sale.commission?.commissionPayments || [],
         accrued: accruedCommission,
+        commissionSplits: sale.commission?.commissionSplits || sale.commissionSplits || [],
       };
 
       const normalRemaining = commissionData.total - commissionData.paid;
@@ -142,6 +144,9 @@ const CommissionPaymentModal: React.FC<CommissionPaymentModalProps> = ({
       ).toFixed(2);
 
       setCommission(commissionData);
+
+      // Reset user selection when modal opens
+      setSelectedPaidToUser(null);
 
       const defaultAmount =
         commissionData.remaining > 0 ? commissionData.remaining : undefined;
@@ -218,9 +223,38 @@ const CommissionPaymentModal: React.FC<CommissionPaymentModalProps> = ({
     try {
       const values = await form.validateFields();
 
-      if (values.amount > commission.accrued - commission.paid) {
-        message.error('Payment amount cannot exceed accrued commission');
-        return;
+      // Validate commission splits
+      if (commission.commissionSplits && commission.commissionSplits.length > 0) {
+        if (!selectedPaidToUser) {
+          message.error('Please select a user to pay the commission to');
+          return;
+        }
+
+        // Calculate user's outstanding balance
+        const userSplit = commission.commissionSplits.find((split: any) => 
+          split.user?._id === selectedPaidToUser || split.user === selectedPaidToUser
+        );
+        
+        if (!userSplit) {
+          message.error('Selected user is not part of this commission split');
+          return;
+        }
+
+        const userTotalAmount = userSplit.amount || (commission.total * (userSplit.percentage / 100));
+        const userPaidAmount = commission.payments
+          .filter((payment: any) => payment.paidToUser === selectedPaidToUser)
+          .reduce((sum: number, payment: any) => sum + (payment.netAmount || payment.amount), 0);
+        const userOutstanding = userTotalAmount - userPaidAmount;
+
+        if (values.amount > userOutstanding) {
+          message.error(`Payment amount (KES ${values.amount.toLocaleString()}) exceeds user's outstanding balance (KES ${userOutstanding.toLocaleString()})`);
+          return;
+        }
+      } else {
+        if (values.amount > commission.accrued - commission.paid) {
+          message.error('Payment amount cannot exceed accrued commission');
+          return;
+        }
       }
 
       setLoading(true);
@@ -233,14 +267,15 @@ const CommissionPaymentModal: React.FC<CommissionPaymentModalProps> = ({
         netAmount: netAmount,
       } : undefined;
 
-      // Call payCommission with new API signature
+      // Call payCommission with new API signature including paidToUser
       await payCommission(
         sale._id,
         values.amount,
         values.notes || '',
         values.paymentMethod,
         values.reference || '',
-        withholdingTax
+        withholdingTax,
+        selectedPaidToUser || undefined
       );
       
       message.success(
@@ -251,6 +286,7 @@ const CommissionPaymentModal: React.FC<CommissionPaymentModalProps> = ({
 
       form.resetFields();
       setFileList([]);
+      setSelectedPaidToUser(null);
       onCancel();
       if (onSuccess) onSuccess();
     } catch (error: any) {
@@ -449,6 +485,60 @@ const CommissionPaymentModal: React.FC<CommissionPaymentModalProps> = ({
             />
           )}
           <Form form={form} layout="vertical">
+            {commission.commissionSplits && commission.commissionSplits.length > 0 && (
+              <Alert
+                message="Commission Split Payment"
+                description="This commission is split between multiple users. Please select which user to pay."
+                type="info"
+                showIcon
+                style={{ marginBottom: 16 }}
+              />
+            )}
+
+            {commission.commissionSplits && commission.commissionSplits.length > 0 ? (
+              <Form.Item
+                label="Pay To User"
+                rules={[{ required: true, message: 'Please select a user to pay' }]}
+              >
+                <Select
+                  placeholder="Select user to pay commission to"
+                  value={selectedPaidToUser}
+                  onChange={(value) => {
+                    setSelectedPaidToUser(value);
+                    // Update max amount based on user's outstanding balance
+                    const userSplit = commission.commissionSplits.find((split: any) => 
+                      split.user?._id === value || split.user === value
+                    );
+                    if (userSplit) {
+                      const userTotalAmount = userSplit.amount || (commission.total * (userSplit.percentage / 100));
+                      const userPaidAmount = commission.payments
+                        .filter((payment: any) => payment.paidToUser === value)
+                        .reduce((sum: number, payment: any) => sum + (payment.netAmount || payment.amount), 0);
+                      const userOutstanding = userTotalAmount - userPaidAmount;
+                      form.setFieldsValue({ amount: userOutstanding > 0 ? userOutstanding : undefined });
+                    }
+                  }}
+                >
+                  {commission.commissionSplits.map((split: any) => {
+                    const userId = split.user?._id || split.user;
+                    const userName = split.user?.name || split.user?.fullname || 'Unknown User';
+                    const userPercentage = split.percentage;
+                    const userAmount = split.amount || (commission.total * (userPercentage / 100));
+                    const userPaidAmount = commission.payments
+                      .filter((payment: any) => payment.paidToUser === userId)
+                      .reduce((sum: number, payment: any) => sum + (payment.netAmount || payment.amount), 0);
+                    const userOutstanding = userAmount - userPaidAmount;
+
+                    return (
+                      <Option key={userId} value={userId}>
+                        {userName} - {userPercentage}% (KES {userAmount.toLocaleString()}) - Outstanding: KES {userOutstanding.toLocaleString()}
+                      </Option>
+                    );
+                  })}
+                </Select>
+              </Form.Item>
+            ) : null}
+
             <Row gutter={16}>
               <Col span={12}>
                 <Form.Item
@@ -460,16 +550,6 @@ const CommissionPaymentModal: React.FC<CommissionPaymentModalProps> = ({
                       type: 'number',
                       min: 0.01,
                       message: 'Amount must be greater than 0',
-                    },
-                    {
-                      validator: (_: any, value: number) => {
-                        if (value > commission.accrued - commission.paid) {
-                          return Promise.reject(
-                            new Error('Amount exceeds available accrued commission'),
-                          );
-                        }
-                        return Promise.resolve();
-                      },
                     },
                   ]}
                   help={

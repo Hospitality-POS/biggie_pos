@@ -803,7 +803,7 @@ export const fetchCommissions = async (params?: {
   }
 };
 
-export const payCommission = async (saleId: string, amount: number, notes?: string, paymentMethod?: string, reference?: string, withholdingTax?: any) => {
+export const payCommission = async (saleId: string, amount: number, notes?: string, paymentMethod?: string, reference?: string, withholdingTax?: any, paidToUser?: string) => {
   try {
     const response = await axiosInstance.post(`${dalaUrl}/commissions/pay`, {
       saleId,
@@ -811,7 +811,8 @@ export const payCommission = async (saleId: string, amount: number, notes?: stri
       notes,
       paymentMethod,
       reference,
-      withholdingTax
+      withholdingTax,
+      paidToUser
     }, {
       headers: getDalaHeaders()
     });
