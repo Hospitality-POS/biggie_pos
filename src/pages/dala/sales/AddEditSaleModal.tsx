@@ -861,9 +861,12 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
                       value={selectedCustomers[0]}
                       onChange={(value) => setSelectedCustomers([value])}
                       showSearch
-                      filterOption={(input, option) =>
-                        (option?.children as string)?.toLowerCase().includes(input.toLowerCase())
-                      }
+                      filterOption={(input, option) => {
+                        const customer = customers?.find((c: any) => c._id === option?.value);
+                        if (!customer) return false;
+                        const searchText = `${customer.name || customer.customer_name} ${customer.email || ''} ${customer.phone || ''}`.toLowerCase();
+                        return searchText.includes(input.toLowerCase());
+                      }}
                     >
                       {customers?.map((customer: any) => (
                         <Option key={customer._id} value={customer._id}>

@@ -38,6 +38,7 @@ import {
     CodeOutlined,
     DollarOutlined,
     ToolOutlined,
+    SignatureOutlined,
 } from "@ant-design/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -284,6 +285,38 @@ const INTEGRATIONS = [
         tags: ["Base Suite", "Assets", "Maintenance", "Accounting"],
     },
     {
+        id: "esign",
+        name: "E-Signature",
+        category: "Document Management",
+        description: "Electronically sign documents with multiple signers using draw, upload, or type signatures.",
+        longDescription: "E-Signature allows you to electronically sign PDFs and images with three signature capture methods: draw, upload, or type. Support both self-signing and send-for-signing workflows with multiple signers. Track signing status in real-time and download signed documents with all signatures embedded.",
+        features: [
+            "Draw Signature (Canvas)",
+            "Upload Signature Image",
+            "Type Signature (Custom Fonts)",
+            "Self-Signing Workflow",
+            "Send-for-Signing (Multiple Signers)",
+            "Real-time Status Tracking",
+            "Signature Field Positioning",
+            "Document Preview",
+            "Signed Document Download",
+            "Audit Trail",
+        ],
+        benefits: [
+            "Faster document signing",
+            "No paper or printing needed",
+            "Secure and legally binding",
+            "Track signer progress",
+            "Automated workflow",
+            "Professional appearance",
+        ],
+        setupTime: "N/A",
+        status: "available",
+        icon: SignatureOutlined,
+        color: "#8b5cf6",
+        tags: ["Documents", "Signatures", "Auto-enabled"],
+    },
+    {
         id: "pesapal",
         name: "Pesapal",
         category: "Payment Processing",
@@ -498,7 +531,7 @@ const IntegrationCard: React.FC<{
 
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {isEnabled ? (
-                    integration.id === "asset_manager" ? (
+                    (integration.id === "asset_manager" || integration.id === "esign") ? (
                         <Button type="primary" block icon={<CheckCircleOutlined />} disabled style={{ borderRadius: 8, background: integration.color, borderColor: integration.color }}>
                             Enabled
                         </Button>
@@ -628,6 +661,7 @@ const DiscoverPage: React.FC = () => {
         if (id === "asset_manager") return "enabled"; // Auto-enabled
         if (id === "etims") return t.etims_config?.enabled === true ? "enabled" : "not_enabled";
         if (id === "pesapal") return t.use_pesapal === true || pesapalConfig?.data?.enabled === true ? "enabled" : "not_enabled";
+        if (id === "esign") return "enabled"; // Auto-enabled for all users
         return "not_enabled";
     };
 
