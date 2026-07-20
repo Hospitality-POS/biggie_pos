@@ -49,6 +49,7 @@ export const MODULES = {
     ACCOUNTING_BANK_STATEMENTS: "Accounting · Bank Statements",
     ACCOUNTING_RECONCILIATION: "Accounting · Bank Reconciliation",
     ACCOUNTING_REPORTS: "Accounting · Financial Reports",
+    ACCOUNTING_ASSETS: "Accounting · Asset Management",
     // ── CRM / Mteja module ───────────────────────────────────────────────────
     CRM_LEADS: "CRM · Leads",
     CRM_CAMPAIGNS: "CRM · Campaigns",
@@ -554,6 +555,51 @@ export const PERMISSIONS: Record<string, Permission> = {
     ACCOUNTING_DIGITAX_GENERATE_INVOICE: { key: "ACCOUNTING_DIGITAX_GENERATE_INVOICE", label: "Generate DigiTax Invoice", module: MODULES.ACCOUNTING_INVOICES, action: "create", moduleScope: "accounting" },
     ACCOUNTING_DIGITAX_VIEW_INVOICE_STATUS: { key: "ACCOUNTING_DIGITAX_VIEW_INVOICE_STATUS", label: "View DigiTax Invoice Status", module: MODULES.ACCOUNTING_INVOICES, action: "read", moduleScope: "accounting" },
     ACCOUNTING_DIGITAX_CANCEL_INVOICE: { key: "ACCOUNTING_DIGITAX_CANCEL_INVOICE", label: "Cancel DigiTax Invoice", module: MODULES.ACCOUNTING_INVOICES, action: "delete", moduleScope: "accounting" },
+
+    // ── Asset Management ────────────────────────────────────────────────────────
+
+    ACCOUNTING_ASSETS_VIEW: { key: "ACCOUNTING_ASSETS_VIEW", label: "View Asset Register", module: MODULES.ACCOUNTING_ASSETS, action: "read", moduleScope: "accounting" },
+    ACCOUNTING_ASSETS_VIEW_ONE: { key: "ACCOUNTING_ASSETS_VIEW_ONE", label: "View Asset Details", module: MODULES.ACCOUNTING_ASSETS, action: "read", moduleScope: "accounting" },
+    ACCOUNTING_ASSETS_CREATE: { key: "ACCOUNTING_ASSETS_CREATE", label: "Create Asset", module: MODULES.ACCOUNTING_ASSETS, action: "create", moduleScope: "accounting" },
+    ACCOUNTING_ASSETS_UPDATE: { key: "ACCOUNTING_ASSETS_UPDATE", label: "Update Asset", module: MODULES.ACCOUNTING_ASSETS, action: "update", moduleScope: "accounting" },
+    ACCOUNTING_ASSETS_DELETE: { key: "ACCOUNTING_ASSETS_DELETE", label: "Delete Asset", module: MODULES.ACCOUNTING_ASSETS, action: "delete", moduleScope: "accounting" },
+    ACCOUNTING_ASSETS_ASSIGN: { key: "ACCOUNTING_ASSETS_ASSIGN", label: "Assign Asset to Custodian", module: MODULES.ACCOUNTING_ASSETS, action: "special", moduleScope: "accounting" },
+    ACCOUNTING_ASSETS_RETURN: { key: "ACCOUNTING_ASSETS_RETURN", label: "Return Asset from Custodian", module: MODULES.ACCOUNTING_ASSETS, action: "special", moduleScope: "accounting" },
+    ACCOUNTING_ASSETS_TRANSFER: { key: "ACCOUNTING_ASSETS_TRANSFER", label: "Transfer Asset", module: MODULES.ACCOUNTING_ASSETS, action: "special", moduleScope: "accounting" },
+    ACCOUNTING_ASSETS_RETIRE: { key: "ACCOUNTING_ASSETS_RETIRE", label: "Retire Asset", module: MODULES.ACCOUNTING_ASSETS, action: "special", moduleScope: "accounting" },
+    ACCOUNTING_ASSETS_DISPOSE: { key: "ACCOUNTING_ASSETS_DISPOSE", label: "Dispose Asset", module: MODULES.ACCOUNTING_ASSETS, action: "special", moduleScope: "accounting" },
+    ACCOUNTING_ASSETS_REVALUE: { key: "ACCOUNTING_ASSETS_REVALUE", label: "Revalue Asset", module: MODULES.ACCOUNTING_ASSETS, action: "special", moduleScope: "accounting" },
+    ACCOUNTING_ASSETS_CALC_DEPRECIATION: { key: "ACCOUNTING_ASSETS_CALC_DEPRECIATION", label: "Calculate Depreciation", module: MODULES.ACCOUNTING_ASSETS, action: "special", moduleScope: "accounting" },
+    ACCOUNTING_ASSETS_VIEW_SUMMARY: { key: "ACCOUNTING_ASSETS_VIEW_SUMMARY", label: "View Asset Summary", module: MODULES.ACCOUNTING_ASSETS, action: "read", moduleScope: "accounting" },
+    ACCOUNTING_ASSETS_VIEW_REGISTER: { key: "ACCOUNTING_ASSETS_VIEW_REGISTER", label: "View Asset Register Report", module: MODULES.ACCOUNTING_ASSETS, action: "read", moduleScope: "accounting" },
+
+    ACCOUNTING_ASSET_REQUESTS_VIEW: { key: "ACCOUNTING_ASSET_REQUESTS_VIEW", label: "View Asset Requests", module: MODULES.ACCOUNTING_ASSETS, action: "read", moduleScope: "accounting" },
+    ACCOUNTING_ASSET_REQUESTS_VIEW_ONE: { key: "ACCOUNTING_ASSET_REQUESTS_VIEW_ONE", label: "View Asset Request Details", module: MODULES.ACCOUNTING_ASSETS, action: "read", moduleScope: "accounting" },
+    ACCOUNTING_ASSET_REQUESTS_CREATE: { key: "ACCOUNTING_ASSET_REQUESTS_CREATE", label: "Create Asset Request", module: MODULES.ACCOUNTING_ASSETS, action: "create", moduleScope: "accounting" },
+    ACCOUNTING_ASSET_REQUESTS_UPDATE: { key: "ACCOUNTING_ASSET_REQUESTS_UPDATE", label: "Update Asset Request", module: MODULES.ACCOUNTING_ASSETS, action: "update", moduleScope: "accounting" },
+    ACCOUNTING_ASSET_REQUESTS_APPROVE: { key: "ACCOUNTING_ASSET_REQUESTS_APPROVE", label: "Approve Asset Request", module: MODULES.ACCOUNTING_ASSETS, action: "special", moduleScope: "accounting" },
+    ACCOUNTING_ASSET_REQUESTS_REJECT: { key: "ACCOUNTING_ASSET_REQUESTS_REJECT", label: "Reject Asset Request", module: MODULES.ACCOUNTING_ASSETS, action: "special", moduleScope: "accounting" },
+    ACCOUNTING_ASSET_REQUESTS_ISSUE: { key: "ACCOUNTING_ASSET_REQUESTS_ISSUE", label: "Issue Assets for Request", module: MODULES.ACCOUNTING_ASSETS, action: "special", moduleScope: "accounting" },
+    ACCOUNTING_ASSET_REQUESTS_CANCEL: { key: "ACCOUNTING_ASSET_REQUESTS_CANCEL", label: "Cancel Asset Request", module: MODULES.ACCOUNTING_ASSETS, action: "special", moduleScope: "accounting" },
+    ACCOUNTING_ASSET_REQUESTS_VIEW_SUMMARY: { key: "ACCOUNTING_ASSET_REQUESTS_VIEW_SUMMARY", label: "View Request Summary", module: MODULES.ACCOUNTING_ASSETS, action: "read", moduleScope: "accounting" },
+
+    ACCOUNTING_ASSET_MAINTENANCE_VIEW: { key: "ACCOUNTING_ASSET_MAINTENANCE_VIEW", label: "View Maintenance Records", module: MODULES.ACCOUNTING_ASSETS, action: "read", moduleScope: "accounting" },
+    ACCOUNTING_ASSET_MAINTENANCE_VIEW_ONE: { key: "ACCOUNTING_ASSET_MAINTENANCE_VIEW_ONE", label: "View Maintenance Details", module: MODULES.ACCOUNTING_ASSETS, action: "read", moduleScope: "accounting" },
+    ACCOUNTING_ASSET_MAINTENANCE_CREATE: { key: "ACCOUNTING_ASSET_MAINTENANCE_CREATE", label: "Create Maintenance Record", module: MODULES.ACCOUNTING_ASSETS, action: "create", moduleScope: "accounting" },
+    ACCOUNTING_ASSET_MAINTENANCE_UPDATE: { key: "ACCOUNTING_ASSET_MAINTENANCE_UPDATE", label: "Update Maintenance Record", module: MODULES.ACCOUNTING_ASSETS, action: "update", moduleScope: "accounting" },
+    ACCOUNTING_ASSET_MAINTENANCE_START: { key: "ACCOUNTING_ASSET_MAINTENANCE_START", label: "Start Maintenance", module: MODULES.ACCOUNTING_ASSETS, action: "special", moduleScope: "accounting" },
+    ACCOUNTING_ASSET_MAINTENANCE_COMPLETE: { key: "ACCOUNTING_ASSET_MAINTENANCE_COMPLETE", label: "Complete Maintenance", module: MODULES.ACCOUNTING_ASSETS, action: "special", moduleScope: "accounting" },
+    ACCOUNTING_ASSET_MAINTENANCE_CANCEL: { key: "ACCOUNTING_ASSET_MAINTENANCE_CANCEL", label: "Cancel Maintenance", module: MODULES.ACCOUNTING_ASSETS, action: "special", moduleScope: "accounting" },
+    ACCOUNTING_ASSET_MAINTENANCE_VIEW_SCHEDULE: { key: "ACCOUNTING_ASSET_MAINTENANCE_VIEW_SCHEDULE", label: "View Maintenance Schedule", module: MODULES.ACCOUNTING_ASSETS, action: "read", moduleScope: "accounting" },
+
+    ACCOUNTING_ASSET_REPORTS_DEPRECIATION: { key: "ACCOUNTING_ASSET_REPORTS_DEPRECIATION", label: "View Depreciation Report", module: MODULES.ACCOUNTING_ASSETS, action: "read", moduleScope: "accounting" },
+    ACCOUNTING_ASSET_REPORTS_APPRECIATION: { key: "ACCOUNTING_ASSET_REPORTS_APPRECIATION", label: "View Appreciation Report", module: MODULES.ACCOUNTING_ASSETS, action: "read", moduleScope: "accounting" },
+    ACCOUNTING_ASSET_REPORTS_NBV: { key: "ACCOUNTING_ASSET_REPORTS_NBV", label: "View Net Book Value Report", module: MODULES.ACCOUNTING_ASSETS, action: "read", moduleScope: "accounting" },
+    ACCOUNTING_ASSET_REPORTS_AGING: { key: "ACCOUNTING_ASSET_REPORTS_AGING", label: "View Asset Aging Report", module: MODULES.ACCOUNTING_ASSETS, action: "read", moduleScope: "accounting" },
+    ACCOUNTING_ASSET_REPORTS_GAIN_LOSS: { key: "ACCOUNTING_ASSET_REPORTS_GAIN_LOSS", label: "View Gain/Loss Report", module: MODULES.ACCOUNTING_ASSETS, action: "read", moduleScope: "accounting" },
+    ACCOUNTING_ASSET_REPORTS_BY_LOCATION: { key: "ACCOUNTING_ASSET_REPORTS_BY_LOCATION", label: "View Assets by Location Report", module: MODULES.ACCOUNTING_ASSETS, action: "read", moduleScope: "accounting" },
+    ACCOUNTING_ASSET_REPORTS_BY_CUSTODIAN: { key: "ACCOUNTING_ASSET_REPORTS_BY_CUSTODIAN", label: "View Assets by Custodian Report", module: MODULES.ACCOUNTING_ASSETS, action: "read", moduleScope: "accounting" },
+    ACCOUNTING_ASSET_REPORTS_DISPOSALS: { key: "ACCOUNTING_ASSET_REPORTS_DISPOSALS", label: "View Disposal Report", module: MODULES.ACCOUNTING_ASSETS, action: "read", moduleScope: "accounting" },
 
     // ══════════════════════════════════════════════════════════════════════════
     // CRM / MTEJA MODULE  (moduleScope: "crm")

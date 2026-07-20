@@ -54,6 +54,7 @@ interface Tenant {
         payroll?: boolean;
         crm?: boolean;
         dala?: boolean;
+        asset?: boolean;
         etims?: boolean;
     };
     // VAT Configuration
@@ -728,6 +729,42 @@ export const syncEtims = async (id: string) => {
         return response.data;
     } catch (error: any) {
         const errorMessage = error?.response?.data?.error || "Failed to sync ETIMS";
+        message.error(errorMessage);
+        throw error;
+    }
+};
+
+// ============================================
+// ASSET MANAGER MODULE
+// ============================================
+
+export const enableAsset = async (id: string, data: EnableModuleData) => {
+    try {
+        const response = await axiosInstance.post(
+            `${tenantUrl}/${id}/enable-asset`,
+            data,
+            { headers: getPOSHeaders() }
+        );
+        await refreshTenantInStorage(id);
+        return response.data;
+    } catch (error: any) {
+        const errorMessage = error?.response?.data?.error || "Failed to enable Asset Manager";
+        message.error(errorMessage);
+        throw error;
+    }
+};
+
+export const disableAsset = async (id: string) => {
+    try {
+        const response = await axiosInstance.post(
+            `${tenantUrl}/${id}/disable-asset`,
+            {},
+            { headers: getPOSHeaders() }
+        );
+        await refreshTenantInStorage(id);
+        return response.data;
+    } catch (error: any) {
+        const errorMessage = error?.response?.data?.error || "Failed to disable Asset Manager";
         message.error(errorMessage);
         throw error;
     }

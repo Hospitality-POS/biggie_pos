@@ -152,15 +152,13 @@ function UsersMainSettings() {
           <TabContent><PermissionSettings /></TabContent>
         </ProCard.TabPane>
 
-        {/* Departments — visible when Mteja (CRM) is enabled */}
-        {mtejaEnabled && (
-          <ProCard.TabPane
-            key="departments"
-            tab={<TabLabel icon={<ApartmentOutlined />} label="Departments" color={C.purple} />}
-          >
-            <TabContent><Departments /></TabContent>
-          </ProCard.TabPane>
-        )}
+        {/* Departments */}
+        <ProCard.TabPane
+          key="departments"
+          tab={<TabLabel icon={<ApartmentOutlined />} label="Departments" color={C.purple} />}
+        >
+          <TabContent><Departments /></TabContent>
+        </ProCard.TabPane>
 
         {/* Bandu tabs */}
         {banduEnabled && (

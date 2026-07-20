@@ -27,15 +27,12 @@ import AdminCustomersList from "src/AdminDashboard/Customers/CustomerList";
 import TenantSettings from "src/AdminDashboard/Settings/TenantSettings";
 import DiscoverPage from "src/AdminDashboard/DiscoverPage";
 import PaymentCallback from "@components/payment/PaymentCallback";
-import { getPrimaryColor } from "@utils/getPrimaryColor";
 import PermissionRoute from "@components/PermissionRoute";
 import PrivacyPolicy from "@pages/Legal/PrivacyPolicy";
 import TermsAndConditions from "@pages/Legal/TermsAndConditions";
 
 // ─── Fallback spinners ────────────────────────────────────────────────────────
-const fullscreenSpin = (
-  <Spin size="large" fullscreen style={{ color: getPrimaryColor() }} />
-);
+const fullscreenSpin = <NubaLoader />;
 
 // ─── Page wrappers ────────────────────────────────────────────────────────────
 const adminPage = (Component: React.ComponentType) => (
@@ -124,6 +121,12 @@ const IncomePage = lazy(() => import("@pages/OrderManagement/IncomePage"));
 
 // ─── Currency ─────────────────────────────────────────────────────────────────
 const CurrencyPage = lazy(() => import("src/pages/Currency/CurrencyPage"));
+
+// ─── Asset Management ─────────────────────────────────────────────────────────
+const AssetRegisterPage = lazy(() => import("src/pages/AssetManagement/AssetRegisterPage"));
+const AssetRequestsPage = lazy(() => import("src/pages/AssetManagement/AssetRequestsPage"));
+const AssetMaintenancePage = lazy(() => import("src/pages/AssetManagement/AssetMaintenancePage"));
+const AssetReportsPage = lazy(() => import("src/pages/AssetManagement/AssetReportsPage"));
 
 // ─── CRM / Mteja Module ───────────────────────────────────────────────────────
 // All CRM pages are lazy-loaded and only reachable when hasMteja === true.
@@ -434,7 +437,15 @@ const routes = createBrowserRouter(
             element={guardedPage(IncomePage, "ACCOUNTING_INCOME_VIEW_HISTORY")} />
           <Route path="currencies" errorElement={<NotFound />}
             element={guardedPage(CurrencyPage, "ACCOUNTING_COA_VIEW")} />
-          
+          <Route path="assets" errorElement={<NotFound />}
+            element={guardedPage(AssetRegisterPage, "ACCOUNTING_ASSETS_VIEW")} />
+          <Route path="asset-requests" errorElement={<NotFound />}
+            element={guardedPage(AssetRequestsPage, "ACCOUNTING_ASSET_REQUESTS_VIEW")} />
+          <Route path="asset-maintenance" errorElement={<NotFound />}
+            element={guardedPage(AssetMaintenancePage, "ACCOUNTING_ASSET_MAINTENANCE_VIEW")} />
+          <Route path="asset-reports" errorElement={<NotFound />}
+            element={guardedPage(AssetReportsPage, "ACCOUNTING_ASSET_REPORTS_DEPRECIATION")} />
+
           </Route>
 
         {/* ── CRM / Mteja — shop level (/crm/...) ───────────────────────────
