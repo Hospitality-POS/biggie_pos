@@ -5,12 +5,14 @@ import {
   AccountBookOutlined,
   TeamOutlined,
   HomeOutlined,
+  AuditOutlined,
 } from "@ant-design/icons";
 import AdminReports from "src/AdminDashboard/ReportsPage/Reports";
 import AccountingReportsPage from "./AccountingReportsPage";
 import MtejaReports from "./MtejaReports";
 import BanduReports from "./BanduReports";
 import DalaReports from "../dala/reports/Reports";
+import AssetReportsPage from "src/pages/AssetManagement/AssetReportsPage";
 
 const { Text } = Typography;
 
@@ -82,6 +84,12 @@ const UnifiedReportsPage: React.FC = () => {
             label: "Pesa (Accounting)",
             icon: <AccountBookOutlined />,
             children: <AccountingReportsPage />,
+          },
+          {
+            key: "assets",
+            label: "Assets",
+            icon: <AuditOutlined />,
+            children: <AssetReportsPage />,
           },
         ]
       : []),
