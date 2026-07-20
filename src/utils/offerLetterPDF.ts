@@ -549,7 +549,12 @@ export const generateOfferLetterPDF = async (data: OfferLetterData, returnAsData
   doc.text(splitOption, 15, yPos);
   yPos += splitOption.length * 7 + 8;
   
-  const proposedDate = data.completionDate || '____________________';
+  // Calculate total months from payment plans
+  let totalMonths = 0;
+  if (data.paymentPlans && data.paymentPlans.length > 0) {
+    totalMonths = data.paymentPlans.reduce((sum: number, plan: any) => sum + (plan.numberOfInstallments || 0), 0);
+  }
+  const proposedDate = data.completionDate || `${totalMonths} months`;
   doc.text(`The proposed completion date of the project is ${proposedDate}`, 15, yPos);
   yPos += 12;
   
@@ -643,7 +648,8 @@ export const generateOfferLetterPDF = async (data: OfferLetterData, returnAsData
   doc.text(splitAcceptanceFull, 15, yPos);
   yPos += splitAcceptanceFull.length * 7 + 8;
   
-  const confirmText = 'Kindly confirm your acceptance of this Letter of Offer by signing the duplicate copies of this offer and returning the same to us within seven (7) days of this Letter of Offer together with proof of payment of the Commitment Fee of KES ____________________.';
+  const commitmentFee = data.initialPayment || '____________________';
+  const confirmText = `Kindly confirm your acceptance of this Letter of Offer by signing the duplicate copies of this offer and returning the same to us within seven (7) days of this Letter of Offer together with proof of payment of the Commitment Fee of KES ${typeof commitmentFee === 'number' ? commitmentFee.toLocaleString() : commitmentFee}.`;
   const splitConfirm = doc.splitTextToSize(confirmText, pageWidth - 30);
   if (yPos + splitConfirm.length * 7 > maxY) { doc.addPage(); yPos = 20; }
   doc.text(splitConfirm, 15, yPos);
