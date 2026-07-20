@@ -4,7 +4,6 @@ import {
     Button,
     Space,
     Typography,
-    Tabs,
     Upload,
     Input,
     Select,
@@ -16,8 +15,8 @@ import {
     Divider,
     Spin,
     Empty,
+    Switch,
     message,
-    Drawer,
     Image,
 } from "antd";
 import {
@@ -30,8 +29,8 @@ import {
     ExclamationCircleOutlined,
     UserOutlined,
     DownloadOutlined,
+    DeleteOutlined,
     SignatureOutlined,
-    FontColorsOutlined,
     LeftOutlined,
     RightOutlined,
 } from "@ant-design/icons";
@@ -95,6 +94,15 @@ interface Document {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const eSignService = {
+    // Fetches the document file as a blob URL (uses axiosInstance so auth headers are included)
+    getFileBlobUrl: async (documentId: string): Promise<string> => {
+        const response = await axiosInstance.get(
+            `${BASE_URL}/documents/${documentId}/signing/file`,
+            { responseType: "blob" }
+        );
+        return window.URL.createObjectURL(new Blob([response.data], { type: response.headers["content-type"] || "application/pdf" }));
+    },
+
     uploadDocument: async (file: File) => {
         const formData = new FormData();
         formData.append("file", file);
@@ -172,13 +180,6 @@ const eSignService = {
         return response.data;
     },
 
-    previewDocument: async (documentId: string) => {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/documents/${documentId}/preview`
-        );
-        return response.data;
-    },
-
     previewSignedDocument: async (documentId: string) => {
         const response = await axiosInstance.get(
             `${BASE_URL}/documents/${documentId}/signing/preview`
@@ -188,14 +189,45 @@ const eSignService = {
 
     downloadSignedDocument: async (documentId: string) => {
         const response = await axiosInstance.get(
-            `${BASE_URL}/documents/${documentId}/signing/download`
+            `${BASE_URL}/documents/${documentId}/signing/download`,
+            { responseType: 'blob' }
+        );
+        
+        // Extract filename from Content-Disposition header if available
+        const disposition = response.headers['content-disposition'] || '';
+        const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        const filename = match ? match[1].replace(/['"]/g, '') : `signed-document-${documentId}.pdf`;
+
+        // Create download link
+        const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', filename);
+        document.body.appendChild(link);
+        link.click();
+        
+        // Cleanup
+        link.remove();
+        window.URL.revokeObjectURL(url);
+    },
+
+    clearSignature: async (documentId: string) => {
+        const response = await axiosInstance.post(
+            `${BASE_URL}/documents/${documentId}/signing/clear`
+        );
+        return response.data;
+    },
+
+    deleteDocument: async (documentId: string) => {
+        const response = await axiosInstance.delete(
+            `${BASE_URL}/documents/${documentId}`
         );
         return response.data;
     },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SIGNATURE CANVAS COMPONENT
+// SIGNATURE CANVAS COMPONENT (DRAW)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const SignatureCanvas: React.FC<{
@@ -204,15 +236,41 @@ const SignatureCanvas: React.FC<{
 }> = ({ onSave, onCancel }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [isDrawing, setIsDrawing] = useState(false);
+    const [hasDrawn, setHasDrawn] = useState(false);
 
-    const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
-        setIsDrawing(true);
+    const drawBaseline = (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+        ctx.save();
+        ctx.strokeStyle = "#e0e0e0";
+        ctx.lineWidth = 1;
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        ctx.moveTo(24, h - 28);
+        ctx.lineTo(w - 24, h - 28);
+        ctx.stroke();
+        ctx.restore();
+    };
+
+    React.useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
+        drawBaseline(ctx, canvas.width, canvas.height);
+    }, []);
+
+    const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        ctx.strokeStyle = "#1a1a2e";
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
         ctx.beginPath();
         ctx.moveTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
+        setIsDrawing(true);
+        setHasDrawn(true);
     };
 
     const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -221,13 +279,15 @@ const SignatureCanvas: React.FC<{
         if (!canvas) return;
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
+        ctx.strokeStyle = "#1a1a2e";
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
         ctx.lineTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
         ctx.stroke();
     };
 
-    const stopDrawing = () => {
-        setIsDrawing(false);
-    };
+    const stopDrawing = () => setIsDrawing(false);
 
     const clearCanvas = () => {
         const canvas = canvasRef.current;
@@ -235,38 +295,37 @@ const SignatureCanvas: React.FC<{
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-    };
-
-    const saveSignature = () => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const data = canvas.toDataURL("image/png");
-        onSave(data);
+        drawBaseline(ctx, canvas.width, canvas.height);
+        setHasDrawn(false);
     };
 
     return (
-        <div style={{ textAlign: "center" }}>
-            <canvas
-                ref={canvasRef}
-                onMouseDown={startDrawing}
-                onMouseMove={draw}
-                onMouseUp={stopDrawing}
-                onMouseLeave={stopDrawing}
-                width={400}
-                height={150}
-                style={{
-                    border: "1px solid #d9d9d9",
-                    borderRadius: 8,
-                    cursor: "crosshair",
-                    background: "#fff",
-                }}
-            />
-            <div style={{ marginTop: 16, display: "flex", gap: 8, justifyContent: "center" }}>
-                <Button onClick={clearCanvas}>Clear</Button>
-                <Button onClick={onCancel}>Cancel</Button>
-                <Button type="primary" onClick={saveSignature}>
-                    Save Signature
-                </Button>
+        <div>
+            <div style={{ position: "relative", marginBottom: 16 }}>
+                <canvas
+                    ref={canvasRef}
+                    onMouseDown={startDrawing}
+                    onMouseMove={draw}
+                    onMouseUp={stopDrawing}
+                    onMouseLeave={stopDrawing}
+                    width={460}
+                    height={160}
+                    style={{ border: "1px solid #e8e8e8", borderRadius: 10, cursor: "crosshair", background: "#fafafa", display: "block", width: "100%" }}
+                />
+                {!hasDrawn && (
+                    <div style={{ position: "absolute", top: "42%", left: "50%", transform: "translate(-50%,-50%)", color: "#c0c0c0", pointerEvents: "none", fontSize: 14, whiteSpace: "nowrap" }}>
+                        Draw your signature here
+                    </div>
+                )}
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <Button size="small" type="text" onClick={clearCanvas} style={{ color: "#999" }}>↺ Clear</Button>
+                <Space>
+                    <Button onClick={onCancel}>Cancel</Button>
+                    <Button type="primary" onClick={() => { const c = canvasRef.current; if (c) onSave(c.toDataURL("image/png")); }} disabled={!hasDrawn}>
+                        Use Signature
+                    </Button>
+                </Space>
             </div>
         </div>
     );
@@ -276,48 +335,96 @@ const SignatureCanvas: React.FC<{
 // TYPE SIGNATURE COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
 
+const TYPE_FONTS = [
+    { label: "Script",  value: "'Brush Script MT', 'Segoe Script', cursive" },
+    { label: "Elegant", value: "'Palatino Linotype', Palatino, Georgia, serif" },
+    { label: "Clean",   value: "'Arial', sans-serif" },
+];
+
 const TypeSignature: React.FC<{
-    onSave: (data: string) => void;
+    onSave: (data: string, type: string) => void;
     onCancel: () => void;
 }> = ({ onSave, onCancel }) => {
-    const [signature, setSignature] = useState("");
-    const [font, setFont] = useState("cursive");
+    const [text, setText] = useState("");
+    const [selectedFont, setSelectedFont] = useState(TYPE_FONTS[0].value);
+    const [useInitials, setUseInitials] = useState(false);
 
-    const fonts = [
-        { label: "Cursive", value: "cursive" },
-        { label: "Serif", value: "serif" },
-        { label: "Sans-serif", value: "sans-serif" },
-    ];
+    const getInitials = (name: string) => {
+        return name
+            .split(" ")
+            .filter(Boolean)
+            .map((w) => w[0].toUpperCase())
+            .join("")
+            .slice(0, 4);
+    };
+
+    const displayText = useInitials ? getInitials(text) : text;
+
+    const handleSave = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = useInitials ? 200 : 400;
+        canvas.height = 100;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        const fontSize = useInitials ? 62 : 48;
+        ctx.font = `${useInitials ? "bold" : "italic"} ${fontSize}px ${selectedFont}`;
+        ctx.fillStyle = "#1a1a2e";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(displayText, canvas.width / 2, 54);
+        onSave(canvas.toDataURL("image/png"), useInitials ? "initials" : "type");
+    };
 
     return (
-        <div style={{ textAlign: "center" }}>
-            <Input
-                value={signature}
-                onChange={(e) => setSignature(e.target.value)}
-                placeholder="Type your signature"
-                size="large"
-                style={{
-                    fontFamily: font,
-                    fontSize: 24,
-                    textAlign: "center",
-                    marginBottom: 16,
-                }}
-            />
-            <Select
-                value={font}
-                onChange={setFont}
-                options={fonts}
-                style={{ width: 200, marginBottom: 16 }}
-            />
-            <div style={{ marginTop: 16, display: "flex", gap: 8, justifyContent: "center" }}>
-                <Button onClick={onCancel}>Cancel</Button>
+        <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+                <Input
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    placeholder="Type your full name"
+                    size="large"
+                    style={{ flex: 1, fontSize: 16 }}
+                    autoFocus
+                />
                 <Button
-                    type="primary"
-                    onClick={() => onSave(signature)}
-                    disabled={!signature}
+                    type={useInitials ? "primary" : "default"}
+                    onClick={() => setUseInitials(!useInitials)}
+                    style={{ whiteSpace: "nowrap" }}
                 >
-                    Save Signature
+                    {useInitials ? "Initials" : "Full Name"}
                 </Button>
+            </div>
+            {/* Font style cards */}
+            <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
+                {TYPE_FONTS.map((f) => (
+                    <div
+                        key={f.value}
+                        onClick={() => setSelectedFont(f.value)}
+                        style={{
+                            flex: 1,
+                            border: `2px solid ${selectedFont === f.value ? "#1890ff" : "#e8e8e8"}`,
+                            borderRadius: 8,
+                            padding: "10px 8px",
+                            cursor: "pointer",
+                            background: selectedFont === f.value ? "#e6f4ff" : "#fafafa",
+                            textAlign: "center",
+                            transition: "all 0.2s",
+                        }}
+                    >
+                        <div style={{ fontFamily: f.value, fontSize: useInitials ? 36 : 22, fontWeight: useInitials ? "bold" : "normal", color: "#1a1a2e", minHeight: 36, lineHeight: "36px" }}>
+                            {displayText || (useInitials ? "MK" : "Sample")}
+                        </div>
+                        <div style={{ fontSize: 11, color: "#999", marginTop: 4 }}>{f.label}</div>
+                    </div>
+                ))}
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <Space>
+                    <Button onClick={onCancel}>Cancel</Button>
+                    <Button type="primary" onClick={handleSave} disabled={!text.trim()}>
+                        Use {useInitials ? "Initials" : "Signature"}
+                    </Button>
+                </Space>
             </div>
         </div>
     );
@@ -334,27 +441,27 @@ const UploadSignature: React.FC<{
     const [fileList, setFileList] = useState<any[]>([]);
 
     const handleUpload = (info: any) => {
-        const { file } = info;
         const reader = new FileReader();
-        reader.onload = (e) => {
-            onSave(e.target?.result as string);
-        };
-        reader.readAsDataURL(file.originFileObj);
+        reader.onload = (e) => { onSave(e.target?.result as string); };
+        reader.readAsDataURL(info.file);
     };
 
     return (
-        <div style={{ textAlign: "center" }}>
-            <Upload
-                listType="picture-card"
+        <div>
+            <Upload.Dragger
                 fileList={fileList}
-                onChange={({ fileList }) => setFileList(fileList)}
-                customRequest={handleUpload}
+                onChange={({ fileList: fl }) => setFileList(fl)}
+                customRequest={({ file }) => handleUpload({ file })}
                 maxCount={1}
                 accept="image/*"
+                showUploadList={false}
+                style={{ marginBottom: 16 }}
             >
-                <Button icon={<UploadOutlined />}>Upload Signature</Button>
-            </Upload>
-            <div style={{ marginTop: 16, display: "flex", gap: 8, justifyContent: "center" }}>
+                <p style={{ fontSize: 32, marginBottom: 8 }}>🖼️</p>
+                <p style={{ fontWeight: 500 }}>Click or drag a signature image</p>
+                <p style={{ color: "#999", fontSize: 12 }}>PNG, JPG supported — transparent background works best</p>
+            </Upload.Dragger>
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
                 <Button onClick={onCancel}>Cancel</Button>
             </div>
         </div>
@@ -365,15 +472,22 @@ const UploadSignature: React.FC<{
 // SIGNATURE CAPTURE MODAL
 // ─────────────────────────────────────────────────────────────────────────────
 
+const SIG_TABS = [
+    { key: "draw",   icon: "✏️", label: "Draw" },
+    { key: "type",   icon: "Aa", label: "Type" },
+    { key: "upload", icon: "⬆️", label: "Upload" },
+];
+
 const SignatureCaptureModal: React.FC<{
     open: boolean;
     onClose: () => void;
     onSave: (data: string, type: string) => void;
-}> = ({ open, onClose, onSave }) => {
+    signerName?: string;
+}> = ({ open, onClose, onSave, signerName = "" }) => {
     const [activeTab, setActiveTab] = useState("draw");
 
-    const handleSave = (data: string) => {
-        onSave(data, activeTab);
+    const handleSave = (data: string, type: string) => {
+        onSave(data, type);
         onClose();
     };
 
@@ -381,43 +495,46 @@ const SignatureCaptureModal: React.FC<{
         <Modal
             open={open}
             onCancel={onClose}
-            title="Add Your Signature"
+            title={
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: 20 }}>✍️</span>
+                    <span style={{ fontWeight: 600, fontSize: 16 }}>Add Your Signature</span>
+                    {signerName && <span style={{ color: "#999", fontSize: 13, fontWeight: 400 }}>— {signerName}</span>}
+                </div>
+            }
             footer={null}
-            width={500}
+            width={560}
+            styles={{ body: { paddingTop: 8 } }}
         >
-            <Tabs
-                activeKey={activeTab}
-                onChange={setActiveTab}
-                items={[
-                    {
-                        key: "draw",
-                        label: (
-                            <span>
-                                <EditOutlined /> Draw
-                            </span>
-                        ),
-                        children: <SignatureCanvas onSave={handleSave} onCancel={onClose} />,
-                    },
-                    {
-                        key: "type",
-                        label: (
-                            <span>
-                                <FontColorsOutlined /> Type
-                            </span>
-                        ),
-                        children: <TypeSignature onSave={handleSave} onCancel={onClose} />,
-                    },
-                    {
-                        key: "upload",
-                        label: (
-                            <span>
-                                <UploadOutlined /> Upload
-                            </span>
-                        ),
-                        children: <UploadSignature onSave={handleSave} onCancel={onClose} />,
-                    },
-                ]}
-            />
+            {/* Tab selector */}
+            <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+                {SIG_TABS.map((tab) => (
+                    <div
+                        key={tab.key}
+                        onClick={() => setActiveTab(tab.key)}
+                        style={{
+                            flex: 1,
+                            textAlign: "center",
+                            padding: "10px 4px",
+                            borderRadius: 8,
+                            border: `2px solid ${activeTab === tab.key ? "#1890ff" : "#f0f0f0"}`,
+                            background: activeTab === tab.key ? "#e6f4ff" : "#fafafa",
+                            cursor: "pointer",
+                            transition: "all 0.18s",
+                        }}
+                    >
+                        <div style={{ fontSize: 18, lineHeight: "22px" }}>{tab.icon}</div>
+                        <div style={{ fontSize: 12, color: activeTab === tab.key ? "#1890ff" : "#666", marginTop: 2, fontWeight: activeTab === tab.key ? 600 : 400 }}>{tab.label}</div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Tab content */}
+            <div style={{ minHeight: 240 }}>
+                {activeTab === "draw"   && <SignatureCanvas onSave={handleSave} onCancel={onClose} />}
+                {activeTab === "type"   && <TypeSignature onSave={handleSave} onCancel={onClose} />}
+                {activeTab === "upload" && <UploadSignature onSave={handleSave} onCancel={onClose} />}
+            </div>
         </Modal>
     );
 };
@@ -431,18 +548,37 @@ const DocumentSigningInterface: React.FC<{
     onClose: () => void;
 }> = ({ document, onClose }) => {
     const [signatureModalOpen, setSignatureModalOpen] = useState(false);
-    const [signaturePosition, setSignaturePosition] = useState<{ x: number; y: number } | null>(null);
+    const [isDragging, setIsDragging] = useState(false);
+    const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+    const [displayPosition, setDisplayPosition] = useState<{ x: number; y: number }>({ x: 100, y: 100 });
+    const positionRef = useRef<{ x: number; y: number }>({ x: 100, y: 100 });
+    const isInitializedRef = useRef(false);
 
     const queryClient = useQueryClient();
 
+    // Initialize position from server data only once
+    React.useEffect(() => {
+        if (!isInitializedRef.current && document.signatures && document.signatures.length > 0) {
+            const lastSignature = document.signatures[document.signatures.length - 1];
+            if (lastSignature.position) {
+                console.log('Loading saved position from server:', lastSignature.position);
+                positionRef.current = { x: lastSignature.position.x, y: lastSignature.position.y };
+                setDisplayPosition(positionRef.current);
+                isInitializedRef.current = true;
+            }
+        }
+    }, []);
+
     const updatePositionMutation = useMutation({
-        mutationFn: ({ fieldId, position }: { fieldId: string; position: { x: number; y: number; page: number } }) =>
+        mutationFn: ({ fieldId, position }: { fieldId: string; position: { x: number; y: number; page: number; width: number; height: number } }) =>
             eSignService.updateSignatureField(document._id, fieldId, { position }),
-        onSuccess: () => {
+        onSuccess: (data) => {
+            console.log('Position update successful, backend response:', data);
             message.success("Signature position updated");
-            queryClient.invalidateQueries(["signing-status", document._id]);
+            // Don't invalidate queries to prevent position reset from server data
         },
         onError: (error: any) => {
+            console.error('Position update failed:', error);
             message.error(error.message || "Failed to update signature position");
         },
     });
@@ -450,7 +586,7 @@ const DocumentSigningInterface: React.FC<{
     const { data: status, isLoading } = useQuery({
         queryKey: ["signing-status", document._id],
         queryFn: () => eSignService.getSigningStatus(document._id),
-        refetchInterval: 5000,
+        refetchInterval: false, // Disable periodic refetch to prevent position reset
     });
 
     const submitMutation = useMutation({
@@ -479,8 +615,63 @@ const DocumentSigningInterface: React.FC<{
         submitMutation.mutate({
             signature_data: data,
             signature_type: type,
-            position: signaturePosition || { x: 100, y: 100, page: 1 },
+            position: { 
+                x: positionRef.current.x, 
+                y: positionRef.current.y, 
+                page: 1,
+                width: 200,
+                height: 50
+            },
         });
+    };
+
+    const handleMouseDown = (e: React.MouseEvent) => {
+        console.log('handleMouseDown called');
+        e.preventDefault();
+        setIsDragging(true);
+        const rect = e.currentTarget.getBoundingClientRect();
+        setDragOffset({
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top,
+        });
+    };
+
+    const handleContainerMouseMove = (e: React.MouseEvent) => {
+        if (!isDragging) return;
+        
+        const container = e.currentTarget;
+        const containerRect = container.getBoundingClientRect();
+        const x = e.clientX - containerRect.left - dragOffset.x;
+        const y = e.clientY - containerRect.top - dragOffset.y;
+        
+        console.log('Dragging to position:', { x, y });
+        positionRef.current = { x, y };
+        setDisplayPosition({ x, y });
+    };
+
+    const handleMouseUp = () => {
+        console.log('handleMouseUp called, isDragging:', isDragging, 'positionRef.current:', positionRef.current);
+        if (isDragging && positionRef.current) {
+            // Update signature field position via API if document has signatures
+            if (document.signatures && document.signatures.length > 0) {
+                const lastSignature = document.signatures[document.signatures.length - 1];
+                const positionToSend = { 
+                    x: positionRef.current.x, 
+                    y: positionRef.current.y, 
+                    page: 1,
+                    width: 200,
+                    height: 50
+                };
+                console.log('Sending position update to backend:', positionToSend);
+                updatePositionMutation.mutate({
+                    fieldId: lastSignature._id,
+                    position: positionToSend,
+                });
+            } else {
+                message.success(`Signature position: (${Math.round(positionRef.current.x)}, ${Math.round(positionRef.current.y)})`);
+            }
+        }
+        setIsDragging(false);
     };
 
     const handleDecline = () => {
@@ -583,6 +774,9 @@ const DocumentSigningInterface: React.FC<{
                     <div style={{ position: "relative", textAlign: "center" }}>
                         {document.attachments[0].file_type?.includes("pdf") ? (
                             <div
+                                onMouseMove={handleContainerMouseMove}
+                                onMouseUp={handleMouseUp}
+                                onMouseLeave={handleMouseUp}
                                 style={{
                                     padding: 40,
                                     border: "1px dashed #d9d9d9",
@@ -599,47 +793,32 @@ const DocumentSigningInterface: React.FC<{
                                 </div>
                                 {/* Draggable signature placeholder */}
                                 <div
-                                    draggable
-                                    onDragStart={(e) => {
-                                        e.dataTransfer.setData("text/plain", "signature");
-                                    }}
-                                    onDragEnd={(e) => {
-                                        const rect = e.currentTarget.parentElement?.getBoundingClientRect();
-                                        if (rect) {
-                                            const x = e.clientX - rect.left;
-                                            const y = e.clientY - rect.top;
-                                            setSignaturePosition({ x, y });
-                                            message.success(`Signature position: (${Math.round(x)}, ${Math.round(y)})`);
-
-                                            // Update signature field position via API if document has signatures
-                                            if (document.signatures && document.signatures.length > 0) {
-                                                const lastSignature = document.signatures[document.signatures.length - 1];
-                                                updatePositionMutation.mutate({
-                                                    fieldId: lastSignature._id,
-                                                    position: { x, y, page: 1 },
-                                                });
-                                            }
-                                        }
-                                    }}
+                                    onMouseDown={handleMouseDown}
                                     style={{
                                         position: "absolute",
-                                        left: signaturePosition?.x || 100,
-                                        top: signaturePosition?.y || 100,
+                                        left: displayPosition.x,
+                                        top: displayPosition.y,
                                         border: "2px dashed #1890ff",
                                         backgroundColor: "rgba(24, 144, 255, 0.2)",
                                         padding: "12px 24px",
                                         color: "#1890ff",
                                         fontSize: "14px",
-                                        cursor: "move",
+                                        cursor: isDragging ? "grabbing" : "grab",
                                         userSelect: "none",
                                         fontWeight: "bold",
+                                        zIndex: isDragging ? 1000 : 1,
                                     }}
                                 >
                                     📝 Drag to Position Signature
                                 </div>
                             </div>
                         ) : (
-                            <div style={{ position: "relative", display: "inline-block" }}>
+                            <div 
+                                onMouseMove={handleContainerMouseMove}
+                                onMouseUp={handleMouseUp}
+                                onMouseLeave={handleMouseUp}
+                                style={{ position: "relative", display: "inline-block" }}
+                            >
                                 <Image
                                     src={document.attachments[0].file_url}
                                     alt="Document"
@@ -647,40 +826,20 @@ const DocumentSigningInterface: React.FC<{
                                 />
                                 {/* Draggable signature placeholder */}
                                 <div
-                                    draggable
-                                    onDragStart={(e) => {
-                                        e.dataTransfer.setData("text/plain", "signature");
-                                    }}
-                                    onDragEnd={(e) => {
-                                        const rect = e.currentTarget.parentElement?.getBoundingClientRect();
-                                        if (rect) {
-                                            const x = e.clientX - rect.left;
-                                            const y = e.clientY - rect.top;
-                                            setSignaturePosition({ x, y });
-                                            message.success(`Signature position: (${Math.round(x)}, ${Math.round(y)})`);
-
-                                            // Update signature field position via API if document has signatures
-                                            if (document.signatures && document.signatures.length > 0) {
-                                                const lastSignature = document.signatures[document.signatures.length - 1];
-                                                updatePositionMutation.mutate({
-                                                    fieldId: lastSignature._id,
-                                                    position: { x, y, page: 1 },
-                                                });
-                                            }
-                                        }
-                                    }}
+                                    onMouseDown={handleMouseDown}
                                     style={{
                                         position: "absolute",
-                                        left: signaturePosition?.x || 100,
-                                        top: signaturePosition?.y || 100,
+                                        left: displayPosition.x,
+                                        top: displayPosition.y,
                                         border: "2px dashed #1890ff",
                                         backgroundColor: "rgba(24, 144, 255, 0.2)",
                                         padding: "12px 24px",
                                         color: "#1890ff",
                                         fontSize: "14px",
-                                        cursor: "move",
+                                        cursor: isDragging ? "grabbing" : "grab",
                                         userSelect: "none",
                                         fontWeight: "bold",
+                                        zIndex: isDragging ? 1000 : 1,
                                     }}
                                 >
                                     📝 Drag to Position Signature
@@ -735,32 +894,55 @@ const DocumentSigningInterface: React.FC<{
 
 const ESignPage: React.FC = () => {
     const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
-    const [signingDrawerOpen, setSigningDrawerOpen] = useState(false);
     const [initiateModalOpen, setInitiateModalOpen] = useState(false);
+    const [signCaptureModalOpen, setSignCaptureModalOpen] = useState(false);
+    // Draggable position for signing within preview
+    const [previewSignPos, setPreviewSignPos] = useState({ x: 100, y: 100 });
+    const [previewSignDragging, setPreviewSignDragging] = useState(false);
+    const [previewSignDragOffset, setPreviewSignDragOffset] = useState({ x: 0, y: 0 });
     const [workflowType, setWorkflowType] = useState<"self_sign" | "send_for_signing">("self_sign");
     const [signers, setSigners] = useState<Signer[]>([]);
     const [selectedDocForInitiate, setSelectedDocForInitiate] = useState<Document | null>(null);
     const [uploadModalOpen, setUploadModalOpen] = useState(false);
     const [previewModalOpen, setPreviewModalOpen] = useState(false);
     const [signatureFieldModalOpen, setSignatureFieldModalOpen] = useState(false);
+    const [signAllPages, setSignAllPages] = useState(false);
+    const [isSigningAllPages, setIsSigningAllPages] = useState(false);
     const [previewUrl, setPreviewUrl] = useState<string>("");
     const [previewType, setPreviewType] = useState<"url" | "images" | "original">("url");
+    const [previewIsPdf, setPreviewIsPdf] = useState<boolean>(false);
     const [previewPages, setPreviewPages] = useState<string[]>([]);
+    const previewBlobUrlRef = useRef<string>("");  // track blob URL for cleanup
     const [signatureFields, setSignatureFields] = useState<SignatureField[]>([]);
-    const [draggingField, setDraggingField] = useState<SignatureField | null>(null);
     const [editingSignatureIndex, setEditingSignatureIndex] = useState<number | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
+    // Mouse-based drag state for preview modal
+    const [previewDraggingIndex, setPreviewDraggingIndex] = useState<number | null>(null);
+    const [previewDragOffset, setPreviewDragOffset] = useState({ x: 0, y: 0 });
+    // Local position overrides - persists positions across renders without server refetch
+    const localPositionsRef = useRef<Record<string, { x: number; y: number }>>({});
+    // Ref to measure the rendered preview container for coordinate scaling
+    const previewContainerRef = useRef<HTMLDivElement>(null);
+
+    const getContainerSize = () => {
+        const rect = previewContainerRef.current?.getBoundingClientRect();
+        return { containerWidth: rect?.width ?? 0, containerHeight: rect?.height ?? 0 };
+    };
 
     const queryClient = useQueryClient();
 
     const updateSignaturePositionMutation = useMutation({
-        mutationFn: ({ fieldId, position }: { fieldId: string; position: { x: number; y: number; page: number } }) =>
-            eSignService.updateSignatureField(selectedDocument?._id || "", fieldId, { position }),
+        mutationFn: ({ fieldId, position }: { fieldId: string; position: { x: number; y: number; page: number; containerWidth?: number; containerHeight?: number } }) => {
+            console.log('Preview modal calling update API:', { fieldId, position });
+            return eSignService.updateSignatureField(selectedDocument?._id || "", fieldId, { position });
+        },
         onSuccess: (data, variables) => {
+            console.log('Preview modal update successful, backend response:', data);
             message.success("Signature position updated");
             // Use the returned document and signatures data from backend
             if (data.document) {
+                console.log('Updating selectedDocument from backend response:', data.document);
                 setSelectedDocument(data.document);
             } else if (data.signature) {
                 // Fallback: update only the specific signature if document not returned
@@ -804,6 +986,21 @@ const ESignPage: React.FC = () => {
         },
     });
 
+    const submitPreviewMutation = useMutation({
+        mutationFn: (data: { signature_data: string; signature_type: string; position: { x: number; y: number; page: number; width: number; height: number; containerWidth?: number; containerHeight?: number } }) =>
+            eSignService.submitSignature(selectedDocument?._id || "", data),
+        onSuccess: () => {
+            message.success("Signature submitted successfully");
+            setSignCaptureModalOpen(false);
+            queryClient.invalidateQueries(["documents"]);
+            // Re-fetch fresh document to show signature overlay
+            if (selectedDocument) handlePreviewSigned(selectedDocument);
+        },
+        onError: (error: any) => {
+            message.error(error.message || "Failed to submit signature");
+        },
+    });
+
     // Fetch documents from existing document service
     const { data: documents, isLoading } = useQuery({
         queryKey: ["documents"],
@@ -825,30 +1022,13 @@ const ESignPage: React.FC = () => {
         },
     });
 
-    const handlePreview = async (doc: Document) => {
-        // Use attachment URL directly as primary source
-        if (doc.attachments?.[0]?.file_url) {
-            setPreviewUrl(doc.attachments[0].file_url);
-            setPreviewModalOpen(true);
-            return;
-        }
-
-        // Fallback to API if no attachment URL
-        try {
-            const data = await eSignService.previewDocument(doc._id);
-            const url = data.preview_url || data.url;
-            setPreviewUrl(url);
-            setPreviewModalOpen(true);
-        } catch (error: any) {
-            message.error(error.message || "Failed to preview document");
-        }
-    };
-
     const handlePreviewSigned = async (doc: Document) => {
+        console.log('handlePreviewSigned called for document:', doc._id);
         // Fetch fresh document data to get latest signature positions
         try {
             const response = await axiosInstance.get(`${BASE_URL}/documents/${doc._id}`);
             const freshDoc = response.data;
+            console.log('Fresh document data:', freshDoc);
             setSelectedDocument(freshDoc);
 
             // Calculate total pages from signatures
@@ -860,22 +1040,18 @@ const ESignPage: React.FC = () => {
             }
             setCurrentPage(1);
 
+            // Determine if doc is a PDF
+            const isPdf = freshDoc.attachments?.[0]?.file_type === "application/pdf" ||
+                freshDoc.attachments?.[0]?.file_url?.toLowerCase().includes(".pdf") ||
+                freshDoc.name?.toLowerCase().includes(".pdf");
+            setPreviewIsPdf(!!isPdf);
+
             // Try preview API first
             try {
                 const data = await eSignService.previewSignedDocument(freshDoc._id);
 
-                // Handle different preview types
-                if (data.previewType === "original") {
-                    // Use original document URL
-                    const url = data.preview_url || data.url || freshDoc.attachments?.[0]?.file_url;
-                    if (url) {
-                        setPreviewType("url");
-                        setPreviewUrl(url);
-                        setPreviewModalOpen(true);
-                        return;
-                    }
-                } else if (data.previewType === "images" && data.pages && data.pages.length > 0 && !data.isPlaceholder) {
-                    // Use converted images (if not placeholders)
+                if (data.previewType === "images" && data.pages && data.pages.length > 0 && !data.isPlaceholder) {
+                    // Use converted images (not placeholders)
                     setPreviewType("images");
                     setPreviewPages(data.pages);
                     setPreviewUrl(data.pages[0]);
@@ -883,33 +1059,40 @@ const ESignPage: React.FC = () => {
                     setPreviewModalOpen(true);
                     return;
                 }
-
-                // Fallback to URL-based preview
-                const url = data.preview_url || data.url;
-                if (url) {
-                    setPreviewType("url");
-                    setPreviewUrl(url);
-                    setPreviewModalOpen(true);
-                    return;
-                }
-            } catch (error: any) {
+            } catch (error: unknown) {
                 console.error("Preview API failed:", error);
             }
 
-            // Fallback to attachment URL
+            // Fetch via proxy blob URL so auth headers are sent correctly
+            try {
+                // Revoke previous blob URL if any
+                if (previewBlobUrlRef.current) {
+                    window.URL.revokeObjectURL(previewBlobUrlRef.current);
+                }
+                const blobUrl = await eSignService.getFileBlobUrl(freshDoc._id);
+                previewBlobUrlRef.current = blobUrl;
+                setPreviewType("url");
+                setPreviewUrl(blobUrl);
+                setPreviewModalOpen(true);
+                return;
+            } catch (blobError: unknown) {
+                console.error("Blob fetch failed:", blobError);
+            }
+
+            // Last resort: use direct attachment URL
             if (freshDoc.attachments?.[0]?.file_url) {
                 setPreviewType("url");
                 setPreviewUrl(freshDoc.attachments[0].file_url);
                 setPreviewModalOpen(true);
-                return;
             }
-        } catch (error: any) {
-            message.error(error.message || "Failed to fetch document data");
+        } catch (error: unknown) {
+            message.error((error as Error)?.message || "Failed to fetch document data");
             // Fallback to original doc if fetch fails
             setSelectedDocument(doc);
             if (doc.attachments?.[0]?.file_url) {
                 setPreviewType("url");
                 setPreviewUrl(doc.attachments[0].file_url);
+                setPreviewIsPdf(doc.attachments[0].file_type === "application/pdf" || doc.attachments[0].file_url.toLowerCase().includes(".pdf"));
                 setPreviewModalOpen(true);
             }
         }
@@ -969,8 +1152,7 @@ const ESignPage: React.FC = () => {
     };
 
     const handleOpenSigning = (doc: Document) => {
-        setSelectedDocument(doc);
-        setSigningDrawerOpen(true);
+        handlePreviewSigned(doc);
     };
 
     const addSigner = () => {
@@ -1019,19 +1201,52 @@ const ESignPage: React.FC = () => {
                         renderItem={(doc: Document) => (
                             <List.Item
                                 actions={[
-                                    <Button
-                                        icon={<FileImageOutlined />}
-                                        onClick={() => handlePreview(doc)}
-                                    >
-                                        Preview
-                                    </Button>,
                                     doc.signing_workflow && doc.status === "signed" ? (
                                         <Button
                                             type="primary"
                                             icon={<DownloadOutlined />}
-                                            onClick={() => handlePreviewSigned(doc)}
+                                            onClick={() => eSignService.downloadSignedDocument(doc._id)}
                                         >
-                                            Preview Signed
+                                            Download
+                                        </Button>
+                                    ) : null,
+                                    <Button
+                                        danger
+                                        icon={<DeleteOutlined />}
+                                        onClick={() => {
+                                            Modal.confirm({
+                                                title: "Delete Document",
+                                                content: `Are you sure you want to delete "${doc.name}"? This cannot be undone.`,
+                                                okText: "Delete",
+                                                okButtonProps: { danger: true },
+                                                onOk: async () => {
+                                                    await eSignService.deleteDocument(doc._id);
+                                                    message.success("Document deleted");
+                                                    queryClient.invalidateQueries({ queryKey: ["documents"] });
+                                                },
+                                            });
+                                        }}
+                                    >
+                                        Delete
+                                    </Button>,
+                                    doc.signing_workflow && doc.status === "signed" ? (
+                                        <Button
+                                            danger
+                                            onClick={() => {
+                                                Modal.confirm({
+                                                    title: "Clear Signature & Re-sign",
+                                                    content: "This will erase the existing signature so you can re-sign at a new position. Continue?",
+                                                    okText: "Clear & Re-sign",
+                                                    okButtonProps: { danger: true },
+                                                    onOk: async () => {
+                                                        await eSignService.clearSignature(doc._id);
+                                                        message.success("Signature cleared. You can now re-sign.");
+                                                        queryClient.invalidateQueries({ queryKey: ["documents"] });
+                                                    },
+                                                });
+                                            }}
+                                        >
+                                            🧹 Re-sign
                                         </Button>
                                     ) : null,
                                     doc.signing_workflow ? (
@@ -1040,7 +1255,7 @@ const ESignPage: React.FC = () => {
                                             icon={<SignatureOutlined />}
                                             onClick={() => handleOpenSigning(doc)}
                                         >
-                                            {doc.status === "signed" ? "View" : "Sign"}
+                                            {doc.status === "signed" ? "Preview Signed" : "Sign / Preview"}
                                         </Button>
                                     ) : (
                                         <>
@@ -1135,7 +1350,35 @@ const ESignPage: React.FC = () => {
                     setCurrentPage(1);
                 }}
                 title="Document Preview"
-                footer={null}
+                footer={
+                    selectedDocument?.signing_workflow && selectedDocument.status !== "signed" ? (
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#888", fontSize: 12 }}>
+                                <span>📍 Click on the document to place your signature, then click Sign</span>
+                                {totalPages > 1 && (
+                                    <span style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: 16 }}>
+                                        <Switch
+                                            size="small"
+                                            checked={signAllPages}
+                                            onChange={setSignAllPages}
+                                        />
+                                        <span style={{ color: signAllPages ? "#1890ff" : "#888" }}>
+                                            Apply to all {totalPages} pages
+                                        </span>
+                                    </span>
+                                )}
+                            </div>
+                            <Button
+                                type="primary"
+                                icon={<SignatureOutlined />}
+                                onClick={() => setSignCaptureModalOpen(true)}
+                                loading={submitPreviewMutation.isLoading || isSigningAllPages}
+                            >
+                                {signAllPages && totalPages > 1 ? `Sign All ${totalPages} Pages` : "Sign Document"}
+                            </Button>
+                        </div>
+                    ) : null
+                }
                 width={1200}
                 style={{ top: 20 }}
             >
@@ -1145,7 +1388,7 @@ const ESignPage: React.FC = () => {
                             <Alert
                                 message={previewType === "images"
                                     ? "Drag signatures to reposition them on the document. Use page controls to navigate between pages."
-                                    : previewUrl.toLowerCase().includes(".pdf")
+                                    : previewIsPdf
                                     ? "For PDFs: Signatures are positioned relative to the page. Drag to reposition. Note: PDF preview has scroll limitations - signatures may not scroll perfectly with document content."
                                     : "Drag signatures to reposition them on the document. Use page controls to navigate between pages."}
                                 type="info"
@@ -1183,60 +1426,119 @@ const ESignPage: React.FC = () => {
                         </div>
                         {previewType === "images" ? (
                             // Image-based preview (converted PDF pages)
-                            <div style={{ position: "relative", display: "inline-block" }}>
+                            <div
+                                style={{ position: "relative", display: "inline-block", cursor: selectedDocument?.signing_workflow && selectedDocument.status !== "signed" ? "crosshair" : "default" }}
+                                onClick={(e) => {
+                                    if (previewDraggingIndex !== null || previewSignDragging) return;
+                                    if (selectedDocument?.signing_workflow && selectedDocument.status !== "signed") {
+                                        const rect = e.currentTarget.getBoundingClientRect();
+                                        setPreviewSignPos({
+                                            x: e.clientX - rect.left - 100,
+                                            y: e.clientY - rect.top - 18,
+                                        });
+                                    }
+                                }}
+                                onMouseMove={(e) => {
+                                    // Move sign position marker
+                                    if (previewSignDragging) {
+                                        const rect = e.currentTarget.getBoundingClientRect();
+                                        setPreviewSignPos({
+                                            x: e.clientX - rect.left - previewSignDragOffset.x,
+                                            y: e.clientY - rect.top - previewSignDragOffset.y,
+                                        });
+                                        return;
+                                    }
+                                    if (previewDraggingIndex === null) return;
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    const x = e.clientX - rect.left - previewDragOffset.x;
+                                    const y = e.clientY - rect.top - previewDragOffset.y;
+                                    const field = selectedDocument?.signatures?.[previewDraggingIndex];
+                                    if (field) {
+                                        localPositionsRef.current[field._id] = { x, y };
+                                        // Update local state for immediate visual feedback
+                                        if (selectedDocument?.signatures) {
+                                            const updated = selectedDocument.signatures.map((sig, i) =>
+                                                i === previewDraggingIndex ? { ...sig, position: { ...sig.position, x, y } } : sig
+                                            );
+                                            setSelectedDocument({ ...selectedDocument, signatures: updated });
+                                        }
+                                    }
+                                }}
+                                onMouseUp={() => {
+                                    setPreviewSignDragging(false);
+                                    if (previewDraggingIndex === null) return;
+                                    const field = selectedDocument?.signatures?.[previewDraggingIndex];
+                                    if (field) {
+                                        const pos = localPositionsRef.current[field._id];
+                                        if (pos) {
+                                            updateSignaturePositionMutation.mutate({
+                                                fieldId: field._id,
+                                                position: { x: pos.x, y: pos.y, page: currentPage, ...getContainerSize() },
+                                            });
+                                        }
+                                    }
+                                    setPreviewDraggingIndex(null);
+                                }}
+                                onMouseLeave={() => {
+                                    setPreviewSignDragging(false);
+                                    if (previewDraggingIndex !== null) {
+                                        const field = selectedDocument?.signatures?.[previewDraggingIndex];
+                                        if (field) {
+                                            const pos = localPositionsRef.current[field._id];
+                                            if (pos) {
+                                                updateSignaturePositionMutation.mutate({
+                                                    fieldId: field._id,
+                                                    position: { x: pos.x, y: pos.y, page: currentPage, ...getContainerSize() },
+                                                });
+                                            }
+                                        }
+                                        setPreviewDraggingIndex(null);
+                                    }
+                                }}
+                                ref={previewContainerRef}
+                            >
                                 <Image
                                     src={previewUrl}
                                     alt={`Page ${currentPage}`}
-                                    style={{ maxWidth: "100%", maxHeight: "80vh" }}
+                                    style={{ maxWidth: "100%", maxHeight: "80vh", display: "block" }}
                                     onError={() => {
                                         message.error("Failed to load page image. Falling back to original document.");
-                                        // Fallback to original document URL
                                         if (selectedDocument?.attachments?.[0]?.file_url) {
                                             setPreviewType("url");
-                                            setPreviewUrl(selectedDocument.attachments[0].file_url);
+                                            setPreviewUrl(eSignService.getFileProxyUrl(selectedDocument._id));
                                         }
                                     }}
                                 />
                                 {selectedDocument?.signatures?.map((field, index) => {
-                                    // Only show signatures for current page
                                     if (field.position.page !== currentPage) return null;
-
-                                    const posX = field.position.x === 0 ? 100 : field.position.x;
-                                    const posY = field.position.y === 0 ? 100 : field.position.y;
+                                    const savedPos = localPositionsRef.current[field._id];
+                                    const posX = savedPos?.x ?? (field.position.x === 0 ? 100 : field.position.x);
+                                    const posY = savedPos?.y ?? (field.position.y === 0 ? 100 : field.position.y);
                                     const isLocked = field.locked || false;
+                                    const isDraggingThis = previewDraggingIndex === index;
                                     return (
                                         <div
-                                            key={index}
-                                            draggable={!isLocked}
-                                            onDragStart={() => !isLocked && setEditingSignatureIndex(index)}
-                                            onDragEnd={(e) => {
+                                            key={field._id}
+                                            onMouseDown={(e) => {
                                                 if (isLocked) return;
-                                                const rect = e.currentTarget.parentElement?.getBoundingClientRect();
-                                                if (rect && selectedDocument.signatures) {
-                                                    const x = e.clientX - rect.left;
-                                                    const y = e.clientY - rect.top;
-                                                    message.success(`Signature position: (${Math.round(x)}, ${Math.round(y)}) on page ${currentPage}`);
-
-                                                    // Update via API - onSuccess will update local state
-                                                    updateSignaturePositionMutation.mutate({
-                                                        fieldId: field._id,
-                                                        position: { x, y, page: currentPage },
-                                                    });
-                                                }
-                                                setEditingSignatureIndex(null);
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                const rect = e.currentTarget.getBoundingClientRect();
+                                                setPreviewDragOffset({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+                                                setPreviewDraggingIndex(index);
                                             }}
                                             style={{
                                                 position: "absolute",
                                                 left: posX,
                                                 top: posY,
-                                                border: editingSignatureIndex === index ? "2px solid #1890ff" : isLocked ? "2px solid #faad14" : "2px solid #52c41a",
-                                                backgroundColor: editingSignatureIndex === index ? "rgba(24, 144, 255, 0.2)" : isLocked ? "rgba(250, 173, 20, 0.1)" : "rgba(82, 196, 26, 0.1)",
+                                                border: isDraggingThis ? "2px solid #1890ff" : isLocked ? "2px solid #faad14" : "2px solid #52c41a",
+                                                backgroundColor: isDraggingThis ? "rgba(24, 144, 255, 0.15)" : isLocked ? "rgba(250, 173, 20, 0.08)" : "rgba(82, 196, 26, 0.08)",
                                                 padding: "8px 16px",
-                                                color: isLocked ? "#faad14" : "#52c41a",
+                                                color: isDraggingThis ? "#1890ff" : isLocked ? "#faad14" : "#52c41a",
                                                 fontSize: "12px",
-                                                cursor: isLocked ? "not-allowed" : "move",
+                                                cursor: isLocked ? "not-allowed" : isDraggingThis ? "grabbing" : "grab",
                                                 userSelect: "none",
-                                                zIndex: 1000,
+                                                zIndex: isDraggingThis ? 1000 : 10,
                                             }}
                                         >
                                             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -1244,11 +1546,8 @@ const ESignPage: React.FC = () => {
                                                     <img
                                                         src={field.signature_image_url}
                                                         alt="Signature"
-                                                        style={{
-                                                            maxWidth: "150px",
-                                                            maxHeight: "50px",
-                                                            objectFit: "contain",
-                                                        }}
+                                                        draggable={false}
+                                                        style={{ maxWidth: "150px", maxHeight: "50px", objectFit: "contain" }}
                                                     />
                                                 ) : (
                                                     <span>✓ {field.signer_name}</span>
@@ -1257,15 +1556,14 @@ const ESignPage: React.FC = () => {
                                                     <Button
                                                         size="small"
                                                         type="text"
+                                                        onMouseDown={(e) => e.stopPropagation()}
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            // Get current position from state (not from field which might be stale)
-                                                            const currentSig = selectedDocument?.signatures?.find(s => s._id === field._id);
-                                                            const currentPosition = currentSig?.position || field.position;
+                                                            const pos = localPositionsRef.current[field._id] || field.position;
                                                             lockSignatureMutation.mutate({
                                                                 fieldId: field._id,
                                                                 locked: !isLocked,
-                                                                position: currentPosition,
+                                                                position: pos,
                                                             });
                                                         }}
                                                         title={isLocked ? "Unlock signature" : "Lock signature"}
@@ -1276,14 +1574,13 @@ const ESignPage: React.FC = () => {
                                                         size="small"
                                                         type="text"
                                                         danger
+                                                        onMouseDown={(e) => e.stopPropagation()}
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             Modal.confirm({
                                                                 title: "Delete Signature",
                                                                 content: "Are you sure you want to delete this signature?",
-                                                                onOk: () => {
-                                                                    deleteSignatureMutation.mutate(field._id);
-                                                                },
+                                                                onOk: () => deleteSignatureMutation.mutate(field._id),
                                                             });
                                                         }}
                                                         title="Delete signature"
@@ -1295,8 +1592,36 @@ const ESignPage: React.FC = () => {
                                         </div>
                                     );
                                 })}
+                                {/* Draggable position marker for signing (unsigned docs only) */}
+                                {selectedDocument?.signing_workflow && selectedDocument.status !== "signed" && (
+                                    <div
+                                        onMouseDown={(e) => {
+                                            e.preventDefault();
+                                            const rect = e.currentTarget.getBoundingClientRect();
+                                            setPreviewSignDragOffset({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+                                            setPreviewSignDragging(true);
+                                        }}
+                                        style={{
+                                            position: "absolute",
+                                            left: previewSignPos.x,
+                                            top: previewSignPos.y,
+                                            border: "2px dashed #1890ff",
+                                            backgroundColor: "rgba(24,144,255,0.15)",
+                                            padding: "10px 20px",
+                                            color: "#1890ff",
+                                            fontSize: "13px",
+                                            fontWeight: "bold",
+                                            cursor: previewSignDragging ? "grabbing" : "grab",
+                                            userSelect: "none",
+                                            zIndex: 50,
+                                            borderRadius: 4,
+                                        }}
+                                    >
+                                        📝 Sign Here — drag to reposition, or click elsewhere to move
+                                    </div>
+                                )}
                             </div>
-                        ) : previewUrl.toLowerCase().includes(".pdf") ? (
+                        ) : previewIsPdf ? (
                             // Fallback to iframe for PDF (if image conversion fails)
                             <div
                                 style={{
@@ -1306,133 +1631,158 @@ const ESignPage: React.FC = () => {
                                     border: "1px dashed #d9d9d9",
                                     backgroundColor: "#f5f5f5",
                                     overflow: "auto",
+                                    cursor: selectedDocument?.signing_workflow && selectedDocument.status !== "signed" ? "crosshair" : "default",
                                 }}
+                                onClick={(e) => {
+                                    if (previewDraggingIndex !== null) return;
+                                    if (selectedDocument?.signing_workflow && selectedDocument.status !== "signed") {
+                                        const rect = e.currentTarget.getBoundingClientRect();
+                                        const scrollTop = e.currentTarget.scrollTop;
+                                        const scrollLeft = e.currentTarget.scrollLeft;
+                                        setPreviewSignPos({
+                                            x: e.clientX - rect.left + scrollLeft - 100,
+                                            y: e.clientY - rect.top + scrollTop - 18,
+                                        });
+                                    }
+                                }}
+                                onMouseMove={(e) => {
+                                    if (previewDraggingIndex === null) return;
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    const scrollTop = e.currentTarget.scrollTop;
+                                    const scrollLeft = e.currentTarget.scrollLeft;
+                                    const x = e.clientX - rect.left + scrollLeft - previewDragOffset.x;
+                                    const y = e.clientY - rect.top + scrollTop - previewDragOffset.y;
+                                    const field = selectedDocument?.signatures?.[previewDraggingIndex];
+                                    if (field) {
+                                        localPositionsRef.current[field._id] = { x, y };
+                                        if (selectedDocument?.signatures) {
+                                            const updated = selectedDocument.signatures.map((sig, i) =>
+                                                i === previewDraggingIndex ? { ...sig, position: { ...sig.position, x, y } } : sig
+                                            );
+                                            setSelectedDocument({ ...selectedDocument, signatures: updated });
+                                        }
+                                    }
+                                }}
+                                onMouseUp={() => {
+                                    if (previewDraggingIndex === null) return;
+                                    const field = selectedDocument?.signatures?.[previewDraggingIndex];
+                                    if (field) {
+                                        const pos = localPositionsRef.current[field._id];
+                                        if (pos) {
+                                            updateSignaturePositionMutation.mutate({
+                                                fieldId: field._id,
+                                                position: { x: pos.x, y: pos.y, page: currentPage, ...getContainerSize() },
+                                            });
+                                        }
+                                    }
+                                    setPreviewDraggingIndex(null);
+                                }}
+                                onMouseLeave={() => {
+                                    if (previewDraggingIndex !== null) {
+                                        const field = selectedDocument?.signatures?.[previewDraggingIndex];
+                                        if (field) {
+                                            const pos = localPositionsRef.current[field._id];
+                                            if (pos) {
+                                                updateSignaturePositionMutation.mutate({
+                                                    fieldId: field._id,
+                                                    position: { x: pos.x, y: pos.y, page: currentPage, ...getContainerSize() },
+                                                });
+                                            }
+                                        }
+                                        setPreviewDraggingIndex(null);
+                                    }
+                                }}
+                                ref={previewContainerRef}
                             >
                                 <iframe
                                     src={previewUrl}
                                     style={{ width: "100%", height: "100%", border: "none", minHeight: "100%" }}
                                     title="PDF Preview"
                                 />
-                                {/* Signature overlay - positioned relative to scroll container */}
-                                <div
-                                    style={{
-                                        position: "absolute",
-                                        top: 0,
-                                        left: 0,
-                                        width: "100%",
-                                        height: "100%",
-                                        pointerEvents: "none",
-                                        overflow: "visible",
-                                    }}
-                                >
-                                    {selectedDocument?.signatures?.map((field, index) => {
-                                        // Only show signatures for current page
-                                        if (field.position.page !== currentPage) return null;
-
-                                        const posX = field.position.x === 0 ? 100 : field.position.x;
-                                        const posY = field.position.y === 0 ? 100 : field.position.y;
-                                        const isLocked = field.locked || false;
-                                        return (
-                                            <div
-                                                key={index}
-                                                draggable={!isLocked}
-                                                onDragStart={() => !isLocked && setEditingSignatureIndex(index)}
-                                                onDragEnd={(e) => {
-                                                    if (isLocked) return;
-                                                    const container = e.currentTarget.parentElement?.parentElement;
-                                                    if (container && selectedDocument.signatures) {
-                                                        const x = e.clientX - container.getBoundingClientRect().left + container.scrollLeft;
-                                                        const y = e.clientY - container.getBoundingClientRect().top + container.scrollTop;
-                                                        message.success(`Signature position: (${Math.round(x)}, ${Math.round(y)}) on page ${currentPage}`);
-
-                                                        // Update local state immediately for visual feedback
-                                                        const updatedSignatures = selectedDocument.signatures.map(sig =>
-                                                            sig._id === field._id
-                                                                ? { ...sig, position: { x, y, page: currentPage } }
-                                                                : sig
-                                                        );
-                                                        setSelectedDocument({ ...selectedDocument, signatures: updatedSignatures });
-
-                                                        // Update via API - will sync with backend response
-                                                        updateSignaturePositionMutation.mutate({
-                                                            fieldId: field._id,
-                                                            position: { x, y, page: currentPage },
-                                                        });
-                                                    }
-                                                    setEditingSignatureIndex(null);
-                                                }}
-                                                style={{
-                                                    position: "absolute",
-                                                    left: posX,
-                                                    top: posY,
-                                                    border: editingSignatureIndex === index ? "2px solid #1890ff" : isLocked ? "2px solid #faad14" : "2px solid #52c41a",
-                                                    backgroundColor: editingSignatureIndex === index ? "rgba(24, 144, 255, 0.2)" : isLocked ? "rgba(250, 173, 20, 0.1)" : "rgba(82, 196, 26, 0.1)",
-                                                    padding: "8px 16px",
-                                                    color: isLocked ? "#faad14" : "#52c41a",
-                                                    fontSize: "12px",
-                                                    cursor: isLocked ? "not-allowed" : "move",
-                                                    userSelect: "none",
-                                                    pointerEvents: "auto",
-                                                    zIndex: 1000,
-                                                }}
-                                            >
-                                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                                    {field.signature_image_url ? (
-                                                        <img
-                                                            src={field.signature_image_url}
-                                                            alt="Signature"
-                                                            style={{
-                                                                maxWidth: "150px",
-                                                                maxHeight: "50px",
-                                                                objectFit: "contain",
-                                                            }}
-                                                        />
-                                                    ) : (
-                                                        <span>✓ {field.signer_name}</span>
-                                                    )}
-                                                    <div style={{ display: "flex", gap: 4, marginLeft: 8 }}>
-                                                        <Button
-                                                            size="small"
-                                                            type="text"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                // Get current position from state (not from field which might be stale)
-                                                                const currentSig = selectedDocument?.signatures?.find(s => s._id === field._id);
-                                                                const currentPosition = currentSig?.position || field.position;
-                                                                lockSignatureMutation.mutate({
-                                                                    fieldId: field._id,
-                                                                    locked: !isLocked,
-                                                                    position: currentPosition,
-                                                                });
-                                                            }}
-                                                            title={isLocked ? "Unlock signature" : "Lock signature"}
-                                                        >
-                                                            {isLocked ? "🔓" : "🔒"}
-                                                        </Button>
-                                                        <Button
-                                                            size="small"
-                                                            type="text"
-                                                            danger
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                Modal.confirm({
-                                                                    title: "Delete Signature",
-                                                                    content: "Are you sure you want to delete this signature?",
-                                                                    onOk: () => {
-                                                                        deleteSignatureMutation.mutate(field._id);
-                                                                    },
-                                                                });
-                                                            }}
-                                                            title="Delete signature"
-                                                        >
-                                                            🗑️
-                                                        </Button>
-                                                    </div>
+                                {selectedDocument?.signatures?.map((field, index) => {
+                                    if (field.position.page !== currentPage) return null;
+                                    const savedPos = localPositionsRef.current[field._id];
+                                    const posX = savedPos?.x ?? (field.position.x === 0 ? 100 : field.position.x);
+                                    const posY = savedPos?.y ?? (field.position.y === 0 ? 100 : field.position.y);
+                                    const isLocked = field.locked || false;
+                                    const isDraggingThis = previewDraggingIndex === index;
+                                    return (
+                                        <div
+                                            key={field._id}
+                                            onMouseDown={(e) => {
+                                                if (isLocked) return;
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                const rect = e.currentTarget.getBoundingClientRect();
+                                                setPreviewDragOffset({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+                                                setPreviewDraggingIndex(index);
+                                            }}
+                                            style={{
+                                                position: "absolute",
+                                                left: posX,
+                                                top: posY,
+                                                border: isDraggingThis ? "2px solid #1890ff" : isLocked ? "2px solid #faad14" : "2px solid #52c41a",
+                                                backgroundColor: isDraggingThis ? "rgba(24, 144, 255, 0.15)" : isLocked ? "rgba(250, 173, 20, 0.08)" : "rgba(82, 196, 26, 0.08)",
+                                                padding: "8px 16px",
+                                                color: isDraggingThis ? "#1890ff" : isLocked ? "#faad14" : "#52c41a",
+                                                fontSize: "12px",
+                                                cursor: isLocked ? "not-allowed" : isDraggingThis ? "grabbing" : "grab",
+                                                userSelect: "none",
+                                                zIndex: isDraggingThis ? 1000 : 10,
+                                                pointerEvents: "auto",
+                                            }}
+                                        >
+                                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                                {field.signature_image_url ? (
+                                                    <img
+                                                        src={field.signature_image_url}
+                                                        alt="Signature"
+                                                        draggable={false}
+                                                        style={{ maxWidth: "150px", maxHeight: "50px", objectFit: "contain" }}
+                                                    />
+                                                ) : (
+                                                    <span>✓ {field.signer_name}</span>
+                                                )}
+                                                <div style={{ display: "flex", gap: 4, marginLeft: 8 }}>
+                                                    <Button
+                                                        size="small"
+                                                        type="text"
+                                                        onMouseDown={(e) => e.stopPropagation()}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            const pos = localPositionsRef.current[field._id] || field.position;
+                                                            lockSignatureMutation.mutate({
+                                                                fieldId: field._id,
+                                                                locked: !isLocked,
+                                                                position: pos,
+                                                            });
+                                                        }}
+                                                        title={isLocked ? "Unlock signature" : "Lock signature"}
+                                                    >
+                                                        {isLocked ? "🔓" : "🔒"}
+                                                    </Button>
+                                                    <Button
+                                                        size="small"
+                                                        type="text"
+                                                        danger
+                                                        onMouseDown={(e) => e.stopPropagation()}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            Modal.confirm({
+                                                                title: "Delete Signature",
+                                                                content: "Are you sure you want to delete this signature?",
+                                                                onOk: () => deleteSignatureMutation.mutate(field._id),
+                                                            });
+                                                        }}
+                                                        title="Delete signature"
+                                                    >
+                                                        🗑️
+                                                    </Button>
                                                 </div>
                                             </div>
-                                        );
-                                    })}
-                                </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         ) : (
                             <div style={{ position: "relative", display: "inline-block" }}>
@@ -1546,6 +1896,50 @@ const ESignPage: React.FC = () => {
                     </div>
                 )}
             </Modal>
+
+            {/* Signature capture modal triggered from preview */}
+            <SignatureCaptureModal
+                open={signCaptureModalOpen}
+                onClose={() => setSignCaptureModalOpen(false)}
+                signerName={selectedDocument?.signing_workflow?.signers?.[selectedDocument?.signing_workflow?.current_signer_index ?? 0]?.name ?? selectedDocument?.signing_workflow?.signers?.[0]?.name ?? ""}
+                onSave={async (data, type) => {
+                    const containerSize = getContainerSize();
+                    if (signAllPages && totalPages > 1 && selectedDocument) {
+                        setIsSigningAllPages(true);
+                        setSignCaptureModalOpen(false);
+                        try {
+                            for (let page = 1; page <= totalPages; page++) {
+                                await eSignService.submitSignature(selectedDocument._id, {
+                                    signature_data: data,
+                                    signature_type: type,
+                                    position: { x: previewSignPos.x, y: previewSignPos.y, page, width: 200, height: 50, ...containerSize },
+                                });
+                            }
+                            message.success(`Signature applied to all ${totalPages} pages`);
+                            queryClient.invalidateQueries({ queryKey: ["documents"] });
+                            handlePreviewSigned(selectedDocument);
+                        } catch {
+                            message.error("Failed to apply signature to some pages");
+                        } finally {
+                            setIsSigningAllPages(false);
+                            setSignAllPages(false);
+                        }
+                    } else {
+                        submitPreviewMutation.mutate({
+                            signature_data: data,
+                            signature_type: type,
+                            position: {
+                                x: previewSignPos.x,
+                                y: previewSignPos.y,
+                                page: currentPage,
+                                width: 200,
+                                height: 50,
+                                ...containerSize,
+                            },
+                        });
+                    }
+                }}
+            />
 
             {/* Signature field positioning modal */}
             <Modal
@@ -1697,20 +2091,6 @@ const ESignPage: React.FC = () => {
                 </Space>
             </Modal>
 
-            {/* Signing drawer */}
-            <Drawer
-                open={signingDrawerOpen}
-                onClose={() => setSigningDrawerOpen(false)}
-                title="Document Signing"
-                width={600}
-            >
-                {selectedDocument && (
-                    <DocumentSigningInterface
-                        document={selectedDocument}
-                        onClose={() => setSigningDrawerOpen(false)}
-                    />
-                )}
-            </Drawer>
         </div>
     );
 };
