@@ -563,6 +563,38 @@ const AgentExpandedRow: React.FC<AgentExpandedRowProps> = ({
             }
         },
         {
+            title: 'Commission Splits',
+            dataIndex: 'commissionSplits',
+            key: 'commissionSplits',
+            align: 'center' as const,
+            render: (_: any, record: AgentSaleDetails) => {
+                const commissionSplits = record.commission?.commissionSplits || record.commissionSplits;
+                
+                if (!commissionSplits || commissionSplits.length === 0) {
+                    return <Text type="secondary">Single Agent</Text>;
+                }
+
+                return (
+                    <Tooltip title={
+                        <div>
+                            {commissionSplits.map((split: any, index: number) => {
+                                const userName = split.user?.name || split.user?.fullname || 'Unknown';
+                                const percentage = split.percentage;
+                                const amount = split.amount || (parseFloat(record.commissionAmount) * (percentage / 100));
+                                return (
+                                    <div key={index}>
+                                        {userName}: {percentage}% (KES {amount.toLocaleString()})
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    }>
+                        <Tag color="blue">{commissionSplits.length} Split{commissionSplits.length > 1 ? 's' : ''}</Tag>
+                    </Tooltip>
+                );
+            }
+        },
+        {
             title: 'Actions',
             key: 'actions',
             align: 'center' as const,

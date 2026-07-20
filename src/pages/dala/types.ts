@@ -14,6 +14,7 @@ export interface Sale {
   commissionAmount?: number | string;
   commissionPaid?: number | string;
   commissionStatus?: string;
+  commissionSplits?: CommissionSplit[];
   property?: string;
   unit?: string;
   unitId?: string;
@@ -29,10 +30,16 @@ export interface Sale {
     rate?: number | string;
     status?: string;
     commissionPayments?: CommissionPayment[];
+    commissionSplits?: CommissionSplit[];
   };
   commissionPayments?: CommissionPayment[];
   agentId?: string;
   agent?: {
+    _id?: string;
+    name?: string;
+    email?: string;
+  };
+  salesAgent?: {
     _id?: string;
     name?: string;
     email?: string;
@@ -48,6 +55,12 @@ export interface Payment {
   method?: string;
 }
 
+export interface CommissionSplit {
+  user: string;
+  percentage: number;
+  amount?: number;
+}
+
 export interface CommissionPayment {
   _id?: string;
   amount: number;
@@ -57,6 +70,7 @@ export interface CommissionPayment {
   reference?: string;
   description?: string;
   notes?: string;
+  paidToUser?: string;
 }
 
 export interface User {
