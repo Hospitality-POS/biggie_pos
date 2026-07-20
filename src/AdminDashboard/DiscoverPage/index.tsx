@@ -37,6 +37,7 @@ import {
     PhoneOutlined,
     CodeOutlined,
     DollarOutlined,
+    ToolOutlined,
 } from "@ant-design/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -56,6 +57,8 @@ import {
     disableEtims,
     updateEtimsConfig,
     getCurrentTenantId,
+    enableAsset,
+    disableAsset,
 } from "@services/tenants";
 import pesapalApi from "@services/pesapalApi";
 
@@ -249,6 +252,36 @@ const INTEGRATIONS = [
         icon: AuditOutlined,
         color: C.indigo,
         tags: ["KRA", "Tax", "Compliance", "Test Mode"],
+    },
+    {
+        id: "asset_manager",
+        name: "Asset Manager",
+        category: "Asset Management",
+        description: "Complete asset tracking, maintenance scheduling, and depreciation management for your business equipment and infrastructure.",
+        longDescription: "Asset Manager by Base provides comprehensive tracking of all your business assets — from equipment and vehicles to IT infrastructure and facilities. Manage asset lifecycles, schedule maintenance, track depreciation, and generate detailed reports for accounting and compliance.",
+        features: [
+            "Asset Register & Catalog",
+            "Asset Requests & Approvals",
+            "Maintenance Scheduling",
+            "Depreciation Tracking",
+            "Asset Assignment & Transfer",
+            "Disposal & Write-off Management",
+            "Asset Reports & Analytics",
+            "Integration with Pesa by Base Accounting",
+        ],
+        benefits: [
+            "Complete asset visibility",
+            "Prevent costly breakdowns",
+            "Accurate depreciation for tax",
+            "Streamlined procurement workflow",
+            "Compliance-ready reporting",
+            "Reduced asset loss",
+        ],
+        setupTime: "5 minutes",
+        status: "available",
+        icon: ToolOutlined,
+        color: C.teal,
+        tags: ["Base Suite", "Assets", "Maintenance", "Accounting"],
     },
     {
         id: "pesapal",
@@ -465,9 +498,15 @@ const IntegrationCard: React.FC<{
 
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {isEnabled ? (
-                    <Button danger block icon={<PoweroffOutlined />} loading={disableLoading} onClick={onDisable} style={{ borderRadius: 8 }}>
-                        Disable
-                    </Button>
+                    integration.id === "asset_manager" ? (
+                        <Button type="primary" block icon={<CheckCircleOutlined />} disabled style={{ borderRadius: 8, background: integration.color, borderColor: integration.color }}>
+                            Enabled
+                        </Button>
+                    ) : (
+                        <Button danger block icon={<PoweroffOutlined />} loading={disableLoading} onClick={onDisable} style={{ borderRadius: 8 }}>
+                            Disable
+                        </Button>
+                    )
                 ) : (
                     <Button
                         type="primary" block
@@ -546,6 +585,7 @@ const DiscoverPage: React.FC = () => {
     const [mtejaModalOpen, setMtejaModalOpen] = useState(false);
     const [dalaModalOpen, setDalaModalOpen] = useState(false);
     const [etimsModalOpen, setEtimsModalOpen] = useState(false);
+    const [assetModalOpen, setAssetModalOpen] = useState(false);
     const [isUpdatingPesapal, setIsUpdatingPesapal] = useState(false);
 
     const [pesapalForm] = Form.useForm();
@@ -555,6 +595,7 @@ const DiscoverPage: React.FC = () => {
     const [mtejaForm] = Form.useForm();
     const [dalaForm] = Form.useForm();
     const [etimsForm] = Form.useForm();
+    const [assetForm] = Form.useForm();
 
     const queryClient = useQueryClient();
     const navigate = useNavigate();
@@ -584,6 +625,7 @@ const DiscoverPage: React.FC = () => {
         if (id === "relia_payroll") return t.modules?.payroll === true ? "enabled" : "not_enabled";
         if (id === "mteja") return t.modules?.crm === true ? "enabled" : "not_enabled";
         if (id === "dala") return t.modules?.dala === true ? "enabled" : "not_enabled";
+        if (id === "asset_manager") return "enabled"; // Auto-enabled
         if (id === "etims") return t.etims_config?.enabled === true ? "enabled" : "not_enabled";
         if (id === "pesapal") return t.use_pesapal === true || pesapalConfig?.data?.enabled === true ? "enabled" : "not_enabled";
         return "not_enabled";
@@ -701,6 +743,22 @@ const DiscoverPage: React.FC = () => {
         onError: (e: any) => notification.error({ message: "Failed to disable eTIMS", description: e.message, style: { borderRadius: 12 } }),
     });
 
+    const enableAssetMutation = useMutation({
+        mutationFn: (values: any) => enableAsset(tenantId, values),
+        onSuccess: () => {
+            setAssetModalOpen(false);
+            assetForm.resetFields();
+            triggerAppRefresh(queryClient, "Asset Manager enabled successfully");
+        },
+        onError: (e: any) => notification.error({ message: "Failed to enable Asset Manager", description: e.message, style: { borderRadius: 12 } }),
+    });
+
+    const disableAssetMutation = useMutation({
+        mutationFn: () => disableAsset(tenantId),
+        onSuccess: () => triggerAppRefresh(queryClient, "Asset Manager disabled"),
+        onError: (e: any) => notification.error({ message: "Failed to disable Asset Manager", description: e.message, style: { borderRadius: 12 } }),
+    });
+
     const handleEnable = (integration: (typeof INTEGRATIONS)[0]) => {
         if (getStatus(integration.id) === "enabled") {
             notification.info({ message: `${integration.name} is already enabled`, style: { borderRadius: 12 } });
@@ -711,6 +769,7 @@ const DiscoverPage: React.FC = () => {
         if (integration.id === "relia_payroll") { setBanduModalOpen(true); return; }
         if (integration.id === "mteja") { setMtejaModalOpen(true); return; }
         if (integration.id === "dala") { setDalaModalOpen(true); return; }
+        if (integration.id === "asset_manager") { setAssetModalOpen(true); return; }
         if (integration.id === "etims") { setEtimsModalOpen(true); return; }
         if (integration.id === "pesapal") { setPesapalModalOpen(true); setIsUpdatingPesapal(false); return; }
         notification.info({ message: "Coming soon", description: "This integration will be available soon.", style: { borderRadius: 12 } });
@@ -742,6 +801,11 @@ const DiscoverPage: React.FC = () => {
                 title: "Disable Dala by Base?",
                 content: "This will hide the property management, sales tracking, and rental features. All property and transaction data will be preserved.",
                 onOk: () => disableDalaMutation.mutateAsync(),
+            },
+            asset_manager: {
+                title: "Disable Asset Manager?",
+                content: "This will hide the asset register, maintenance scheduling, and depreciation tracking features. All asset data will be preserved.",
+                onOk: () => disableAssetMutation.mutateAsync(),
             },
             etims: {
                 title: "Disable eTIMS?",
@@ -817,6 +881,7 @@ const DiscoverPage: React.FC = () => {
                                     (integration.id === "relia_payroll" && enableBanduMutation.isPending) ||
                                     (integration.id === "mteja" && enableMtejaMutation.isPending) ||
                                     (integration.id === "dala" && enableDalaMutation.isPending) ||
+                                    (integration.id === "asset_manager" && enableAssetMutation.isPending) ||
                                     (integration.id === "etims" && enableEtimsMutation.isPending)
                                 }
                                 disableLoading={
@@ -825,6 +890,7 @@ const DiscoverPage: React.FC = () => {
                                     (integration.id === "relia_payroll" && disableBanduMutation.isPending) ||
                                     (integration.id === "mteja" && disableMtejaMutation.isPending) ||
                                     (integration.id === "dala" && disableDalaMutation.isPending) ||
+                                    (integration.id === "asset_manager" && disableAssetMutation.isPending) ||
                                     (integration.id === "etims" && disableEtimsMutation.isPending)
                                 }
                             />
@@ -1154,6 +1220,62 @@ const DiscoverPage: React.FC = () => {
                     <ModalFooter onCancel={() => { setEtimsModalOpen(false); etimsForm.resetFields(); }}
                         submitLabel="Enable eTIMS" loading={enableEtimsMutation.isPending}
                         cancelDisabled={enableEtimsMutation.isPending} color={C.indigo} icon={<CheckCircleOutlined />} />
+                </Form>
+            </Modal>
+
+            {/* Asset Manager Modal */}
+            <Modal open={assetModalOpen}
+                onCancel={() => { setAssetModalOpen(false); assetForm.resetFields(); }}
+                footer={null} style={{ top: 20 }} width="min(580px, 96vw)" destroyOnClose
+                title={<ModalTitle icon={<ToolOutlined />} color={C.teal} title="Enable Asset Manager" />}
+            >
+                <Form form={assetForm} layout="vertical" onFinish={v => enableAssetMutation.mutate(v)}
+                    initialValues={{ accept_terms: false, accept_charges: false }} style={{ paddingTop: 4 }}>
+                    <Alert
+                        message="Complete asset tracking, maintenance scheduling, and depreciation management for your business equipment and infrastructure."
+                        type="info" showIcon style={{ marginBottom: 14, borderRadius: 8 }}
+                    />
+                    <FormSection>
+                        <SectionLabel>Features Included</SectionLabel>
+                        <FeatureList
+                            items={[
+                                "Asset Register & Catalog",
+                                "Asset Requests & Approvals",
+                                "Maintenance Scheduling",
+                                "Depreciation Tracking",
+                                "Asset Assignment & Transfer",
+                                "Disposal & Write-off Management",
+                                "Asset Reports & Analytics",
+                                "Integration with Pesa by Base Accounting",
+                            ]}
+                            color={C.teal}
+                        />
+                    </FormSection>
+                    <div style={{ background: C.teal + "18", border: `1px solid ${C.teal}30`, borderRadius: 10, padding: "12px 14px", marginBottom: 14, display: "flex", alignItems: "center", gap: 10 }}>
+                        <PhoneOutlined style={{ color: C.teal, fontSize: 16, flexShrink: 0 }} />
+                        <div>
+                            <Text strong style={{ fontSize: 13, color: C.teal, display: "block" }}>Pricing available on request</Text>
+                            <Text style={{ fontSize: 12, color: C.subText }}>Contact our support team for a tailored quote.</Text>
+                        </div>
+                    </div>
+                    <FormSection>
+                        <SectionLabel>Agreement</SectionLabel>
+                        <Form.Item name="accept_terms" valuePropName="checked"
+                            rules={[{ validator: (_, v) => v ? Promise.resolve() : Promise.reject("Required") }]}
+                            style={{ marginBottom: 10 }}>
+                            <Checkbox style={{ fontSize: 12 }}>
+                                I accept the <a href="/terms" target="_blank" rel="noreferrer">terms and conditions</a>
+                            </Checkbox>
+                        </Form.Item>
+                        <Form.Item name="accept_charges" valuePropName="checked"
+                            rules={[{ validator: (_, v) => v ? Promise.resolve() : Promise.reject("Required") }]}
+                            style={{ marginBottom: 6 }}>
+                            <Checkbox style={{ fontSize: 12 }}>I acknowledge that additional charges may apply</Checkbox>
+                        </Form.Item>
+                    </FormSection>
+                    <ModalFooter onCancel={() => { setAssetModalOpen(false); assetForm.resetFields(); }}
+                        submitLabel="Enable Asset Manager" loading={enableAssetMutation.isPending}
+                        cancelDisabled={enableAssetMutation.isPending} color={C.teal} icon={<CheckCircleOutlined />} />
                 </Form>
             </Modal>
         </div>
