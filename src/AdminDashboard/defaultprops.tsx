@@ -82,7 +82,7 @@ const useAdminProLayoutNav = () => {
   ];
 
   // ── Dala (Real Estate) routes ─────────────────────────────────────────────
-  const dalaRoutes = [];
+  const dalaRoutes: Array<{ path: string; name: string; icon: React.ReactNode }> = [];
 
   // ── Help Center (always last) ─────────────────────────────────────────────
   const helpRoute = {

@@ -6,7 +6,7 @@ import {
   TeamOutlined, NotificationOutlined, AimOutlined, RiseOutlined,
   MedicineBoxOutlined, MessageOutlined, ArrowUpOutlined,
   AuditOutlined, BankOutlined, CustomerServiceOutlined, AccountBookOutlined,
-  ReconciliationOutlined, BuildOutlined,
+  ReconciliationOutlined, BuildOutlined, SignatureOutlined,
 } from "@ant-design/icons";
 import { useAppSelector } from "src/store";
 import React from "react";
@@ -266,6 +266,15 @@ const useProLayoutNav = () => {
     icon: <FileDoneOutlined />,
   };
 
+  // ── E-Signature route (accessible to Duka, Pesa, Dala, Mteja) ─────────────
+  const hasESignAccess = hasPOS || hasAccounting || hasDala || hasMteja;
+  const esignRoute = hasESignAccess ? {
+    path: p("/esign"),
+    name: "E-Signature",
+    icon: <SignatureOutlined />,
+    _bare: "/esign",
+  } : null;
+
   const currencyBarePath = hasAccounting ? "/accounting/currencies" : "/currencies";
   const currencyRoute = {
     path: p(currencyBarePath),
@@ -378,6 +387,7 @@ const useProLayoutNav = () => {
     ...((!hasMteja || !isMtejaOnly) ? [{ path: p("/customers"), name: getCustomerLabel(), icon: <UserOutlined />, _bare: "/customers" }] : []),
     { path: p("/reports"), name: "Reports", icon: <ApiFilled />, _bare: "/reports" },
     { ...documentRoute, _bare: "/documents" },
+    ...(esignRoute ? [esignRoute] : []),
     { path: p("/petty-cash"), name: "Petty Cash", icon: <WalletOutlined />, _bare: "/petty-cash" },
     { path: p("/refunds"), name: "Refunds", icon: <SwapOutlined />, _bare: "/refunds" },
     { path: p("/staff-management"), name: "Staff Management", icon: <TeamOutlined />, _bare: "/staff-management" },
@@ -407,6 +417,7 @@ const useProLayoutNav = () => {
     ...((!hasMteja || !isMtejaOnly) ? [{ path: p("/customers"), name: getCustomerLabel(), icon: <UserOutlined />, _bare: "/customers" }] : []),
     { path: p("/reports"), name: "Reports", icon: <ApiFilled />, _bare: "/reports" },
     { ...documentRoute, _bare: "/documents" },
+    ...(esignRoute ? [esignRoute] : []),
     { path: p("/staff-management"), name: "Staff Management", icon: <TeamOutlined />, _bare: "/staff-management" },
     { path: p("/Category-settings"), name: "Categories", icon: <ApartmentOutlined />, _bare: "/Category-settings" },
     { path: p("/table-settings"), name: "Tables", icon: <AppstoreOutlined />, _bare: "/table-settings" },
@@ -444,6 +455,7 @@ const useProLayoutNav = () => {
       { path: p("/system-setup"), name: "System Setup", icon: <SettingOutlined />, _bare: "/system-setup" },
       { path: p("/staff-management"), name: "Staff Management", icon: <TeamOutlined />, _bare: "/staff-management" },
       { ...documentRoute, _bare: "/documents" },
+      ...(esignRoute ? [esignRoute] : []),
       ...(!hasPOS ? [
         { path: p("/store"), name: "Services", icon: <FolderFilled />, _bare: "/store" },
         { path: p("/Category-settings"), name: "Categories", icon: <ApartmentOutlined />, _bare: "/Category-settings" },
@@ -473,6 +485,7 @@ const useProLayoutNav = () => {
       { path: p("/dala/rent-collection"), name: "Rent Collection", icon: <AccountBookOutlined />, _bare: "/dala/rent-collection" },
       { path: p("/dala/maintenance"), name: "Maintenance", icon: <BuildOutlined />, _bare: "/dala/maintenance" },
       { path: p("/staff-management"), name: "Staff Management", icon: <TeamOutlined />, _bare: "/staff-management" },
+      ...(esignRoute ? [esignRoute] : []),
     ];
 
     return routesBase

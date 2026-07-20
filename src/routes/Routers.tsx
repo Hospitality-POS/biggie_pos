@@ -93,6 +93,9 @@ const Notification = lazy(() => import("@pages/Notification/NotificationPage"));
 // ─── Document Center ──────────────────────────────────────────────────────────
 const DocumentCenter = lazy(() => import("@pages/Documents/DocumentCenter"));
 
+// ─── E-Signature ───────────────────────────────────────────────────────────────
+const ESignPage = lazy(() => import("@pages/ESign/ESignPage"));
+
 // ─── Omnichannel Inbox ────────────────────────────────────────────────────────
 const OmnichannelInboxPage = lazy(() => import("src/pages/OmniChannel/OmnichannelInboxPage"));
 const OAuthCallbackPage = lazy(() => import("src/pages/OmniChannel/OAuthCallbackPage"));
@@ -309,6 +312,9 @@ const routes = createBrowserRouter(
 
         <Route path="home-dashboard" errorElement={<NotFound />}
           element={guardedPage(UnifiedShopDashboardPage, "ORDERS_VIEW_DASHBOARD")} />
+
+        <Route path="esign" errorElement={<NotFound />}
+          element={guardedPage(ESignPage, "DOCUMENTS_VIEW")} />
 
         <Route path="store" errorElement={<NotFound />}
           element={guardedPage(MainStore, "PRODUCTS_VIEW")} />
