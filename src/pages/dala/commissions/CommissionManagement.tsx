@@ -26,40 +26,48 @@ const CommissionManagementContent: React.FC = () => {
   const salesData: Sale[] = React.useMemo(() => {
     if (!data?.data || !Array.isArray(data.data)) return [];
 
-    return data.data.map((sale: any) => ({
-      _id: sale._id,
-      id: sale._id,
-      saleCode: sale.saleCode || sale._id,
-      salePrice: sale.salePrice || sale.sale_price || 0,
-      amountPaid: sale.paymentTotals?.totalPaid || 0,
-      paymentTotals: sale.paymentTotals,
-      commissionPercentage: sale.commissionPercentage || sale.commission_rate || 0,
-      commissionAmount: sale.commissionAmount || sale.commission_amount || 0,
-      commissionPaid: sale.commission?.paid || 0,
-      commissionStatus: sale.commission?.status || sale.commission_status || 'pending',
-      property: sale.property?.name || sale.property?.propertyType || 'N/A',
-      unit: sale.unit?.name || sale.apartmentName,
-      unitId: sale.unit_id,
-      propertyId: sale.property_id,
-      status: sale.status,
-      createdAt: sale.sale_date || sale.created_at,
-      agentId: sale.salesAgent?._id,
-      agent: sale.salesAgent ? {
-        _id: sale.salesAgent._id,
-        name: sale.salesAgent.email || 'Unknown Agent',
-        email: sale.salesAgent.email,
-      } : undefined,
-      payments: sale.payments || [],
-      allPayments: sale.payments || [],
-      commission: {
-        _id: sale.commission?._id,
-        amount: sale.commission?.amount || sale.commission_amount || 0,
-        percentage: sale.commission?.percentage || sale.commission_rate || 0,
-        status: sale.commission?.status || sale.commission_status || 'pending',
-        paid: sale.commission?.paid || 0,
-        commissionPayments: sale.commission?.commissionPayments || [],
-      },
-    }));
+    return data.data.map((sale: any) => {
+      const salePrice = sale.salePrice || sale.sale_price || 0;
+      const commissionRate = sale.commissionPercentage || sale.commission_rate || 0;
+      const commissionAmount = sale.commissionAmount || sale.commission?.amount || (salePrice * (commissionRate / 100));
+      
+      return {
+        _id: sale._id,
+        id: sale._id,
+        saleCode: sale.saleCode || sale._id,
+        salePrice: salePrice,
+        amountPaid: sale.paymentTotals?.totalPaid || 0,
+        paymentTotals: sale.paymentTotals,
+        commissionPercentage: commissionRate,
+        commissionAmount: commissionAmount,
+        commissionPaid: sale.commission?.paid || 0,
+        commissionStatus: sale.commission?.status || sale.commission_status || 'pending',
+        commissionSplits: sale.commissionSplits || sale.commission?.commissionSplits || [],
+        property: sale.property?.name || sale.property?.propertyType || 'N/A',
+        unit: sale.unit?.name || sale.apartmentName,
+        unitId: sale.unit_id,
+        propertyId: sale.property_id,
+        status: sale.status,
+        createdAt: sale.sale_date || sale.created_at,
+        agentId: sale.salesAgent?._id,
+        agent: sale.salesAgent ? {
+          _id: sale.salesAgent._id,
+          name: sale.salesAgent.email || 'Unknown Agent',
+          email: sale.salesAgent.email,
+        } : undefined,
+        payments: sale.payments || [],
+        allPayments: sale.payments || [],
+        commission: {
+          _id: sale.commission?._id,
+          amount: commissionAmount,
+          percentage: commissionRate,
+          status: sale.commission?.status || sale.commission_status || 'pending',
+          paid: sale.commission?.paid || 0,
+          commissionPayments: sale.commission?.commissionPayments || [],
+          commissionSplits: sale.commissionSplits || sale.commission?.commissionSplits || [],
+        },
+      };
+    });
   }, [data]);
 
   // Extract unique agents from sales data
