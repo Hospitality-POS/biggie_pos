@@ -4,7 +4,7 @@ import {
     Form, Input, App, Space, Tooltip, Select,
 } from "antd";
 import {
-    ArrowUpOutlined, PlusOutlined, CheckCircleOutlined, StopOutlined, ReloadOutlined,
+    ArrowUpOutlined, PlusOutlined, CheckCircleOutlined, StopOutlined, ReloadOutlined, EditOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
@@ -117,6 +117,7 @@ function ExpensesPage() {
     const [page, setPage] = useState(1);
     const [modalOpen, setModalOpen] = useState(false);
     const [voidTarget, setVoidTarget] = useState<Expense | null>(null);
+    const [editTarget, setEditTarget] = useState<Expense | null>(null);
     const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
         dayjs().startOf("month"),
         dayjs().endOf("month"),
@@ -268,13 +269,26 @@ function ExpensesPage() {
             ) : <span style={{ color: C.subText, fontSize: 12 }}>—</span>,
         },
         {
-            title: "Actions", key: "actions", width: 110, fixed: "right" as const,
+            title: "Actions", key: "actions", width: 130, fixed: "right" as const,
             render: (_: any, row: Expense) => {
                 const isPending = row.status === "Pending" || row.status === "Draft";
                 const isApprovable = row.status === "Pending";
                 const isVoidable = row.status !== "Voided";
+                const isEditable = row.status === "Draft" || row.status === "Pending" || row.status === "Approved";
                 return (
                     <Space size={4}>
+                        {isEditable && (
+                            <Tooltip title="Edit expense">
+                                <Button
+                                    size="small"
+                                    icon={<EditOutlined />}
+                                    onClick={() => {
+                                        setEditTarget(row);
+                                        setModalOpen(true);
+                                    }}
+                                />
+                            </Tooltip>
+                        )}
                         {isApprovable && (
                             <Tooltip title="Approve & post to books">
                                 <Button
@@ -341,6 +355,8 @@ function ExpensesPage() {
                                     { label: "This Week", value: [dayjs().startOf("week"), dayjs().endOf("week")] },
                                     { label: "This Month", value: [dayjs().startOf("month"), dayjs().endOf("month")] },
                                     { label: "Last Month", value: [dayjs().subtract(1, "month").startOf("month"), dayjs().subtract(1, "month").endOf("month")] },
+                                    { label: "This Quarter", value: [dayjs().month(Math.floor(dayjs().month() / 3) * 3).startOf("month"), dayjs().month(Math.floor(dayjs().month() / 3) * 3 + 2).endOf("month")] },
+                                    { label: "This Year", value: [dayjs().startOf("year"), dayjs().endOf("year")] },
                                 ]}
                             />
                             <Select
@@ -367,7 +383,10 @@ function ExpensesPage() {
                             </Tooltip>
                             <Button
                                 type="primary" icon={<PlusOutlined />}
-                                onClick={() => setModalOpen(true)}
+                                onClick={() => {
+                                    setEditTarget(null);
+                                    setModalOpen(true);
+                                }}
                                 style={{ background: C.red, borderColor: C.red, borderRadius: 8, fontWeight: 600 }}
                             >
                                 Post Expense
@@ -401,9 +420,13 @@ function ExpensesPage() {
 
             <ManualIncomeModal
                 open={modalOpen}
-                onClose={() => setModalOpen(false)}
+                onClose={() => {
+                    setModalOpen(false);
+                    setEditTarget(null);
+                }}
                 onSuccess={refresh}
                 defaultTab="expense"
+                expenseToEdit={editTarget}
             />
 
             <VoidExpenseModal

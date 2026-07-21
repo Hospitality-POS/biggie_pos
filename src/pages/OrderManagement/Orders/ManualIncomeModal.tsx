@@ -8,7 +8,7 @@ import {
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getAllAccounts } from "@services/accounting/accounts";
-import { createExpense } from "@services/accounting/expense";
+import { createExpense, updateExpense } from "@services/accounting/expense";
 import { createBill, updateBill } from "@services/accounting/bill";
 import { fetchAllPaymentMethods } from "@services/paymentMethod";
 import { fetchAllSuppliers } from "@services/supplier";
@@ -27,13 +27,14 @@ interface Props {
     onSuccess?: () => void;
     defaultTab?: "expense" | "bill";
     billToEdit?: any;
+    expenseToEdit?: any;
 }
 
 const numFormatter = (v: any) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 const numParser = (v: any) => v!.replace(/,/g, "") as any;
 
 const ManualExpenseBillModal: React.FC<Props> = ({
-    open, onClose, onSuccess, defaultTab = "expense", billToEdit,
+    open, onClose, onSuccess, defaultTab = "expense", billToEdit, expenseToEdit,
 }) => {
     const [expenseForm] = Form.useForm();
     const [billForm] = Form.useForm();
@@ -72,6 +73,31 @@ const ManualExpenseBillModal: React.FC<Props> = ({
             });
         }
     }, [open, billToEdit, activeTab, billForm, functionalCurrency]);
+
+    // ── Populate form for expense editing ───────────────────────────────────────────
+    useEffect(() => {
+        if (open && expenseToEdit && activeTab === "expense") {
+            const line = expenseToEdit.expense_lines?.[0];
+            expenseForm.setFieldsValue({
+                expense_date: dayjs(expenseToEdit.expense_date),
+                reference: expenseToEdit.reference,
+                customer_id: expenseToEdit.customer_id?._id || expenseToEdit.customer_id,
+                supplier_id: expenseToEdit.supplier_id?._id || expenseToEdit.supplier_id,
+                description: line?.description || expenseToEdit.notes,
+                method_id: expenseToEdit.payment_method_id,
+                payment_account_id: typeof expenseToEdit.payment_account_id === 'object'
+                    ? expenseToEdit.payment_account_id._id
+                    : expenseToEdit.payment_account_id,
+                expense_account_id: typeof line?.account_id === 'object'
+                    ? line.account_id._id
+                    : line?.account_id,
+                amount: expenseToEdit.subtotal || line?.amount,
+                vat_amount: expenseToEdit.total_vat_amount || line?.vat_amount,
+                notes: expenseToEdit.notes,
+                currency: expenseToEdit.currency || functionalCurrency?.code || 'KES',
+            });
+        }
+    }, [open, expenseToEdit, activeTab, expenseForm, functionalCurrency]);
 
     // ── Tenant VAT config ─────────────────────────────────────────────────────
     // Get VAT config from localStorage for real-time updates
@@ -227,6 +253,21 @@ const ManualExpenseBillModal: React.FC<Props> = ({
             message.error(err?.response?.data?.message || "Failed to post expense"),
     });
 
+    const updateExpenseMutation = useMutation({
+        mutationFn: (data: any) => updateExpense(expenseToEdit!._id, data),
+        onSuccess: (res: any) => {
+            if (res?.warning) message.warning(res.warning);
+            expenseForm.resetFields();
+            queryClient.invalidateQueries({ queryKey: ["expenses"] });
+            queryClient.invalidateQueries({ queryKey: ["expense-summary"] });
+            queryClient.invalidateQueries({ queryKey: ["journal-entries"] });
+            onSuccess?.();
+            onClose();
+        },
+        onError: (err: any) =>
+            message.error(err?.response?.data?.message || "Failed to update expense"),
+    });
+
     const createBillMutation = useMutation({
         mutationFn: createBill,
         onSuccess: (res: any) => {
@@ -263,33 +304,62 @@ const ManualExpenseBillModal: React.FC<Props> = ({
         const netAmount = v.amount as number;
         const vatAmount = (v.vat_amount as number) || 0;
 
-        expenseMutation.mutate({
-            expense_date: v.expense_date?.toISOString(),
-            reference: v.reference || undefined,
-            customer_id: v.customer_id || undefined,
-            supplier_id: v.supplier_id || undefined,
-            expense_lines: [
-                {
-                    account_id: v.expense_account_id,
-                    description: v.description,
-                    amount: netAmount,
-                    vat_amount: vatAmount,
-                    vat_rate: vatAmount > 0
-                        ? parseFloat((vatAmount / netAmount).toFixed(4))
-                        : 0,
-                    vat_inclusive: false,
-                },
-            ],
-            // Direct COA account selected by user — no method lookup needed
-            payment_account_id: v.payment_account_id,
-            payment_method_id: v.method_id || undefined,
-            payment_method: v.method_id
-                ? (paymentMethods.find((m: any) => m._id === v.method_id)?.name || "Cash")
-                : "Cash",
-            notes: v.notes || undefined,
-            status: "Approved",
-            currency: v.currency || functionalCurrency?.code || "KES",
-        });
+        if (expenseToEdit) {
+            // Update existing expense
+            updateExpenseMutation.mutate({
+                expense_date: v.expense_date?.toISOString(),
+                reference: v.reference || undefined,
+                customer_id: v.customer_id || undefined,
+                supplier_id: v.supplier_id || undefined,
+                expense_lines: [
+                    {
+                        account_id: v.expense_account_id,
+                        description: v.description,
+                        amount: netAmount,
+                        vat_amount: vatAmount,
+                        vat_rate: vatAmount > 0
+                            ? parseFloat((vatAmount / netAmount).toFixed(4))
+                            : 0,
+                        vat_inclusive: false,
+                    },
+                ],
+                payment_account_id: v.payment_account_id,
+                payment_method: v.method_id
+                    ? (paymentMethods.find((m: any) => m._id === v.method_id)?.name || "Cash")
+                    : "Cash",
+                notes: v.notes || undefined,
+                currency: v.currency || functionalCurrency?.code || "KES",
+            });
+        } else {
+            // Create new expense
+            expenseMutation.mutate({
+                expense_date: v.expense_date?.toISOString(),
+                reference: v.reference || undefined,
+                customer_id: v.customer_id || undefined,
+                supplier_id: v.supplier_id || undefined,
+                expense_lines: [
+                    {
+                        account_id: v.expense_account_id,
+                        description: v.description,
+                        amount: netAmount,
+                        vat_amount: vatAmount,
+                        vat_rate: vatAmount > 0
+                            ? parseFloat((vatAmount / netAmount).toFixed(4))
+                            : 0,
+                        vat_inclusive: false,
+                    },
+                ],
+                // Direct COA account selected by user — no method lookup needed
+                payment_account_id: v.payment_account_id,
+                payment_method_id: v.method_id || undefined,
+                payment_method: v.method_id
+                    ? (paymentMethods.find((m: any) => m._id === v.method_id)?.name || "Cash")
+                    : "Cash",
+                notes: v.notes || undefined,
+                status: "Approved",
+                currency: v.currency || functionalCurrency?.code || "KES",
+            });
+        }
     };
 
     const handleBillSubmit = async () => {
@@ -349,7 +419,7 @@ const ManualExpenseBillModal: React.FC<Props> = ({
         onClose();
     };
 
-    const isLoading = expenseMutation.isPending || createBillMutation.isPending || updateBillMutation.isPending;
+    const isLoading = expenseMutation.isPending || updateExpenseMutation.isPending || createBillMutation.isPending || updateBillMutation.isPending;
 
     const handleTabChange = (key: string) => {
         if (key === "expense") billForm.resetFields();
@@ -370,9 +440,9 @@ const ManualExpenseBillModal: React.FC<Props> = ({
                             ? <ArrowUpOutlined style={{ color: "#ff4d4f" }} />
                             : <FileTextOutlined style={{ color: "#8b5cf6" }} />
                         }
-                        {activeTab === "expense" 
-                            ? "Post Expense" 
-                            : billToEdit ? "Edit Supplier Bill" : "Create Supplier Bill"
+                        {activeTab === "expense"
+                            ? (expenseToEdit ? "Edit Expense" : "Post Expense")
+                            : (billToEdit ? "Edit Supplier Bill" : "Create Supplier Bill")
                         }
                     </Space>
                 }
@@ -390,9 +460,9 @@ const ManualExpenseBillModal: React.FC<Props> = ({
                                 : { background: "#8b5cf6", borderColor: "#8b5cf6" }
                         }
                     >
-                        {activeTab === "expense" 
-    ? "Post Expense" 
-    : billToEdit ? "Update Bill" : "Create Bill"
+                        {activeTab === "expense"
+                            ? (expenseToEdit ? "Update Expense" : "Post Expense")
+                            : (billToEdit ? "Update Bill" : "Create Bill")
 }
                     </Button>,
                 ]}
@@ -517,6 +587,7 @@ const ManualExpenseBillModal: React.FC<Props> = ({
                                         showSearch
                                         placeholder="e.g. Cash on Hand, M-Pesa Float"
                                         optionFilterProp="label"
+                                        disabled={expenseToEdit?.status === "Approved"}
                                         options={allAccounts
                                             .filter((a: any) => a.account_type === "ASSET" && a.is_active)
                                             .map((a: any) => ({
@@ -541,6 +612,7 @@ const ManualExpenseBillModal: React.FC<Props> = ({
                                         placeholder="e.g. Rent, Utilities, Salaries"
                                         options={expenseAccountOptions}
                                         optionFilterProp="label"
+                                        disabled={expenseToEdit?.status === "Approved"}
                                         dropdownRender={accountDropdownRender}
                                     />
                                 </Form.Item>
@@ -566,6 +638,7 @@ const ManualExpenseBillModal: React.FC<Props> = ({
                                     <InputNumber
                                         style={{ width: "100%" }} min={0.01} precision={2}
                                         placeholder="0.00" formatter={numFormatter} parser={numParser}
+                                        disabled={expenseToEdit?.status === "Approved"}
                                     />
                                 </Form.Item>
                             </Col>
@@ -577,7 +650,7 @@ const ManualExpenseBillModal: React.FC<Props> = ({
                                 >
                                     <InputNumber
                                         style={{ width: "100%" }} min={0} precision={2}
-                                        placeholder="0.00" formatter={numFormatter} parser={numParser}
+                                        placeholder="0.00"
                                         readOnly
                                         disabled
                                     />
