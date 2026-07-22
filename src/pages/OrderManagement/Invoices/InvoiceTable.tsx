@@ -26,6 +26,8 @@ import ManualInvoiceModal from "./ManualInvoiceModal";
 import NoteDetailDrawer from "../../Notes/NoteDetailDrawer";
 import NoteFormDrawer from "../../Notes/NoteFormDrawer";
 import AccountFormDrawer from "@pages/ChartOfAccounts/AccountFormDrawer";
+import { getPermissionChecker } from "@utils/getPermissionChecker";
+import { PERMISSIONS } from "@utils/accessControl";
 import dayjs from "dayjs";
 
 const { Text } = Typography;
@@ -607,6 +609,9 @@ const InvoicesTable = () => {
   const user = storedUser ? JSON.parse(storedUser) : null;
   const isAdmin = user?.role === "admin";
 
+  // Permission checker for invoice creation
+  const can = getPermissionChecker();
+
   const [convertTarget, setConvertTarget] = useState<any>(null);
   const [payTarget, setPayTarget] = useState<any>(null);
   const [editTarget, setEditTarget] = useState<any>(null);
@@ -942,7 +947,13 @@ const InvoicesTable = () => {
           }}>
             <Text strong style={{ fontSize: 14, color: C.darkText }}>Invoices & Quotes</Text>
             <div style={{ display: "flex", gap: 8 }}>
-                            <Button size="small" icon={<FilterOutlined />} onClick={() => setFilterOpen(true)}
+              {hasPesa && can(PERMISSIONS.ACCOUNTING_INVOICE_CREATE.key) && (
+                <Button size="small" type="primary" icon={<FileDoneOutlined />} onClick={() => setManualModalOpen(true)}
+                  style={{ borderRadius: 8, background: C.primary, borderColor: C.primary }}>
+                  New
+                </Button>
+              )}
+              <Button size="small" icon={<FilterOutlined />} onClick={() => setFilterOpen(true)}
                 style={{ borderRadius: 8, borderColor: C.border }}>
                 Filter
               </Button>
@@ -1032,7 +1043,7 @@ const InvoicesTable = () => {
           optionRender: (_, __, dom) => [...dom],
         }}
         toolBarRender={() => [
-          ...(hasPesa ? [
+          ...(hasPesa && can(PERMISSIONS.ACCOUNTING_INVOICE_CREATE.key) ? [
             <Button
               key="new-invoice"
               type="primary"
