@@ -66,6 +66,7 @@ export interface InvoiceForPrint {
     created_by?: { username: string };
     customer_id?: {
         _id?: string;
+        company_name?: string;
         customer_name?: string;
         name?: string;
         phone?: string;
@@ -189,7 +190,7 @@ export const resolveParty = (inv: InvoiceForPrint) => {
     if (c && typeof c === "object") {
         return {
             label: "",
-            name: c.customer_name || c.name || "—",
+            name: c.company_name || c.customer_name || c.name || "—",
             phone: c.phone || c.customer_phone || "",
             email: c.email || c.customer_email || "",
             location: c.location || "",

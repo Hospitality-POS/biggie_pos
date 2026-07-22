@@ -270,7 +270,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
     }, [servicesData]);
 
     const customerOptions = (customersData || []).map((c: any) => ({
-        label: `${c.customer_name}${c.phone ? ` — ${c.phone}` : ""}`,
+        label: `${c.company_name || c.customer_name || "Unknown"}${c.phone ? ` — ${c.phone}` : ""}`,
         value: c._id,
     }));
 
@@ -519,6 +519,10 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
             message.warning("Fill in all line items — description and price are required");
             return;
         }
+        if (lines.some((l) => !l.account_id)) {
+            message.warning("Fill in all line items — Revenue Account is required");
+            return;
+        }
         saveMutation.mutate(
             buildPayload(values, docType === "quote" ? "Draft" : "Pending")
         );
@@ -641,9 +645,9 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
             render: (_: any, r: LineItem) => (
                 <Select
                     size="small" style={{ width: "100%" }}
-                    placeholder="Account (display only)"
+                    placeholder="Select Revenue Account *"
                     value={r.account_id || undefined}
-                    showSearch optionFilterProp="label" allowClear
+                    showSearch optionFilterProp="label"
                     onChange={(v) => updateLine(r.key, "account_id", v ?? "")}
                     options={revenueAccounts.map((a: any) => ({
                         label: `${a.account_code} ${a.account_name}`,
@@ -889,7 +893,22 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
                                 onChange={(value: string) => {
                                     const customer = customersData?.find((c: any) => c._id === value);
                                     form.setFieldValue("counterparty_kra_pin", customer?.kra_pin || "");
-                                    if (customer?.address) {
+                                    
+                                    // Check if customer is a company and show company details in billing address
+                                    if (customer?.entity_type === "company") {
+                                        const companyDetails = customer.company_name || customer.customer_name || "";
+                                        const address = customer.address || {};
+                                        form.setFieldsValue({
+                                            billing_address: {
+                                                use_customer_address: true,
+                                                street: companyDetails ? `${companyDetails}${address.street ? `, ${address.street}` : ""}` : (address.street || ""),
+                                                building: address.building || "",
+                                                city: address.city || "",
+                                                postal_code: address.postal_code || "",
+                                                country: address.country || "",
+                                            }
+                                        });
+                                    } else if (customer?.address) {
                                         form.setFieldsValue({
                                             billing_address: {
                                                 use_customer_address: true,
