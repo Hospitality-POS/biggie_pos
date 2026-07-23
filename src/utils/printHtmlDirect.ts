@@ -16,22 +16,22 @@ export const printHtmlDirect = (htmlContent: string, paperWidth: number = 80): v
         html, body {
           width: ${pageWidth};
           font-family: 'Courier New', Courier, monospace;
-          font-size: 12px;
+          font-size: 11px;
           color: #000;
         }
-        body { padding: 2px; }
+        body { padding: 1px; }
         @page { size: ${pageWidth} auto; margin: 0; }
         canvas { display: none; }
         table { width: 100%; border-collapse: collapse; }
-        td, th { padding: 2px 0; font-size: 10px; }
+        td, th { padding: 1px 0; font-size: 9px; }
         .center { text-align: center; }
         .right { text-align: right; }
         .bold { font-weight: bold; }
-        .border-top { border-top: 1px dashed #000; margin-top: 4px; padding-top: 4px; }
-        .border-bottom { border-bottom: 1px dashed #000; margin-bottom: 4px; padding-bottom: 4px; }
-        .header { font-size: 14px; font-weight: bold; margin-bottom: 8px; }
-        .footer { font-size: 10px; margin-top: 8px; }
-        .total-row { font-weight: bold; font-size: 11px; }
+        .border-top { border-top: 1px dashed #000; margin-top: 2px; padding-top: 2px; }
+        .border-bottom { border-bottom: 1px dashed #000; margin-bottom: 2px; padding-bottom: 2px; }
+        .header { font-size: 12px; font-weight: bold; margin-bottom: 4px; }
+        .footer { font-size: 9px; margin-top: 4px; }
+        .total-row { font-weight: bold; font-size: 10px; }
       </style>
     </head>
     <body>${htmlContent}</body>

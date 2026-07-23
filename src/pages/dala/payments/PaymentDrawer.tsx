@@ -56,6 +56,7 @@ interface PaymentRecord {
     name?: string;
     phone?: string;
     email?: string;
+    entity_type?: string;
   };
   paymentPlan?: {
     totalAmount?: number;
@@ -250,6 +251,18 @@ export const PaymentDrawer: React.FC<PaymentDrawerProps> = ({
       const { generatePaymentReceiptPDF } = await import('@utils/paymentReceiptPDF');
       const { fetchProperty } = await import('@services/dala');
 
+      // Get current logged-in user
+      let currentUserName = 'N/A';
+      try {
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
+          const user = JSON.parse(userStr);
+          currentUserName = user?.fullname || user?.name || user?.email || 'N/A';
+        }
+      } catch (error) {
+        console.error('Error parsing user from localStorage:', error);
+      }
+
       // Fetch property details if property ID is available
       let propertyDetails = record.propertyId || record.sale?.property;
       const propertyId = (record.propertyId as any)?._id || (record.sale?.property as any)?._id;
@@ -282,10 +295,17 @@ export const PaymentDrawer: React.FC<PaymentDrawerProps> = ({
         status: record.status,
         saleCode: (record as any).saleId?.saleCode || (record as any).saleId?.sale_code,
         unitId: (record as any).unitId?._id,
-        customer: record.customer || record.customerId,
+        unit: (record as any).unit || (record as any).saleId?.unitTypeID,
+        customer: {
+          ...record.customer,
+          ...record.customerId,
+          name: record.customer?.name || (record.customer as any)?.company_name || (record.customer as any)?.customer_name || record.customerId?.name || (record.customerId as any)?.company_name || (record.customerId as any)?.customer_name || record.customer?.email,
+        },
         property: propertyDetails,
-        processedBy: record.createdBy?.name || record.processedBy?.name,
+        processedBy: currentUserName,
         createdAt: record.createdAt,
+        updatedAt: record.updatedAt,
+        entityType: record.customer?.entity_type || (record as any).saleId?.customer?.entity_type,
       };
 
       await generatePaymentReceiptPDF(receiptData);
@@ -306,6 +326,18 @@ export const PaymentDrawer: React.FC<PaymentDrawerProps> = ({
       const { generatePaymentReceiptPDF } = await import('@utils/paymentReceiptPDF');
       const { fetchProperty } = await import('@services/dala');
 
+      // Get current logged-in user
+      let currentUserName = 'N/A';
+      try {
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
+          const user = JSON.parse(userStr);
+          currentUserName = user?.fullname || user?.name || user?.email || 'N/A';
+        }
+      } catch (error) {
+        console.error('Error parsing user from localStorage:', error);
+      }
+
       // Fetch property details if property ID is available
       let propertyDetails = record.propertyId || record.sale?.property;
       const propertyId = (record.propertyId as any)?._id || (record.sale?.property as any)?._id;
@@ -338,10 +370,17 @@ export const PaymentDrawer: React.FC<PaymentDrawerProps> = ({
         status: record.status,
         saleCode: (record as any).saleId?.saleCode || (record as any).saleId?.sale_code,
         unitId: (record as any).unitId?._id,
-        customer: record.customer || record.customerId,
+        unit: (record as any).unit || (record as any).saleId?.unitTypeID,
+        customer: {
+          ...record.customer,
+          ...record.customerId,
+          name: record.customer?.name || (record.customer as any)?.company_name || (record.customer as any)?.customer_name || record.customerId?.name || (record.customerId as any)?.company_name || (record.customerId as any)?.customer_name || record.customer?.email,
+        },
         property: propertyDetails,
-        processedBy: record.createdBy?.name || record.processedBy?.name,
+        processedBy: currentUserName,
         createdAt: record.createdAt,
+        updatedAt: record.updatedAt,
+        entityType: record.customer?.entity_type || (record as any).saleId?.customer?.entity_type,
       };
 
       console.log('Generating receipt preview with data:', receiptData);
@@ -368,6 +407,18 @@ export const PaymentDrawer: React.FC<PaymentDrawerProps> = ({
   const handlePrintReceipt = async () => {
     try {
       const { fetchProperty } = await import('@services/dala');
+
+      // Get current logged-in user
+      let currentUserName = 'N/A';
+      try {
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
+          const user = JSON.parse(userStr);
+          currentUserName = user?.fullname || user?.name || user?.email || 'N/A';
+        }
+      } catch (error) {
+        console.error('Error parsing user from localStorage:', error);
+      }
 
       // Fetch property details if property ID is available
       let propertyDetails = record.propertyId || record.sale?.property;
@@ -412,35 +463,43 @@ export const PaymentDrawer: React.FC<PaymentDrawerProps> = ({
         <div class="center header">PAYMENT RECEIPT</div>
         <div class="center">Receipt No: ${record.receiptNumber || record.receiptNo || 'N/A'}</div>
         <div class="border-top"></div>
-        <div class="center bold" style="font-size: 16px; margin: 10px 0;">KES ${record.amount.toLocaleString()}</div>
+        <div class="center bold" style="font-size: 14px; margin: 6px 0;">KES ${record.amount.toLocaleString()}</div>
         <div class="center">Payment Amount</div>
         <div class="border-bottom"></div>
         <table>
-          <tr><td class="bold">Payment Date:</td><td>${record.paymentDate ? moment(record.paymentDate).format('DD MMM YYYY') : 'N/A'}</td></tr>
-          <tr><td class="bold">Payment Method:</td><td>${paymentMethodDisplay}</td></tr>
-          <tr><td class="bold">Status:</td><td>${statusDisplay}</td></tr>
+          <tr><td class="bold">Payment Date:</td><td>${record.paymentDate ? moment(record.paymentDate).format('DD MMM YYYY') : 'N/A'}</td><td class="bold">Payment Method:</td><td>${paymentMethodDisplay}</td></tr>
+          <tr><td class="bold">Payment Type:</td><td>${(record as any).paymentType || 'N/A'}</td><td class="bold">Status:</td><td>${statusDisplay}</td></tr>
           <tr><td class="bold">Reference:</td><td>${record.reference || '85e347d4'}</td></tr>
         </table>
         <div class="border-top"></div>
-        <div class="bold" style="margin: 8px 0;">Customer Details</div>
+        <div class="bold" style="margin: 4px 0;">Customer Details</div>
         <table>
-          <tr><td class="bold">Name:</td><td>${record.customer?.name || record.customerId?.email || 'N/A'}</td></tr>
-          <tr><td class="bold">Phone:</td><td>${record.customer?.phone || record.customerId?.phone || 'N/A'}</td></tr>
+          <tr><td class="bold">Name:</td><td>${record.customer?.name || (record.customer as any)?.company_name || (record.customer as any)?.customer_name || record.customer?.email || 'N/A'}</td>${record.customer?.email ? `<td class="bold">Email:</td><td>${record.customer.email}</td>` : ''}</tr>
+          ${record.customer?.phone && String(record.customer.phone).length > 5 ? `<tr><td class="bold">Phone:</td><td>${record.customer.phone}</td>` : ''}${record.customer?.entity_type ? `<td class="bold">Entity Type:</td><td>${record.customer.entity_type}</td></tr>` : ''}
         </table>
         ${propertyDetails ? `
         <div class="border-top"></div>
-        <div class="bold" style="margin: 8px 0;">Property Details</div>
+        <div class="bold" style="margin: 4px 0;">Property Details</div>
         <table>
-          <tr><td class="bold">Property:</td><td>${propertyDetails.name || 'N/A'}</td></tr>
-          <tr><td class="bold">Type:</td><td>${propertyDetails.propertyType || 'N/A'}</td></tr>
+          <tr><td class="bold">Property:</td><td>${propertyDetails.name || 'N/A'}</td><td class="bold">Type:</td><td>${propertyDetails.propertyType || 'N/A'}</td></tr>
+          ${propertyDetails.description ? `<tr><td class="bold">Description:</td><td>${propertyDetails.description}</td>` : ''}${propertyDetails.category ? `<td class="bold">Category:</td><td>${propertyDetails.category}</td></tr>` : ''}
+          ${propertyDetails.purpose ? `<tr><td class="bold">Purpose:</td><td>${propertyDetails.purpose}</td>` : ''}${propertyDetails.status ? `<td class="bold">Status:</td><td>${propertyDetails.status}</td></tr>` : ''}
           <tr><td class="bold">Location:</td><td>${propertyDetails.location || 'N/A'}</td></tr>
+        </table>
+        ` : ''}
+        ${(record as any).unit?.unitNumber || (record as any).saleId?.unitTypeID?.unitNumber ? `
+        <div class="border-top"></div>
+        <div class="bold" style="margin: 4px 0;">Unit Details</div>
+        <table>
+          <tr><td class="bold">Unit Number:</td><td>${(record as any).unit?.unitNumber || (record as any).saleId?.unitTypeID?.unitNumber || 'N/A'}</td><td class="bold">Unit Name:</td><td>${(record as any).unit?.name || (record as any).saleId?.unitTypeID?.name || 'N/A'}</td></tr>
+          <tr><td class="bold">Unit Type:</td><td>${(record as any).unit?.unitType || (record as any).saleId?.unitTypeID?.unitType || 'N/A'}</td><td class="bold">Area:</td><td>${(record as any).unit?.areaSqm || (record as any).saleId?.unitTypeID?.areaSqm ? `${(record as any).unit?.areaSqm || (record as any).saleId?.unitTypeID?.areaSqm} ${(record as any).unit?.areaUnit || (record as any).saleId?.unitTypeID?.areaUnit || 'sqm'}` : 'N/A'}</td></tr>
+          <tr><td class="bold">Bedrooms:</td><td>${(record as any).unit?.bedrooms !== undefined ? (record as any).unit.bedrooms : (record as any).saleId?.unitTypeID?.bedrooms !== undefined ? (record as any).saleId.unitTypeID.bedrooms : 'N/A'}</td><td class="bold">Bathrooms:</td><td>${(record as any).unit?.bathrooms !== undefined ? (record as any).unit.bathrooms : (record as any).saleId?.unitTypeID?.bathrooms !== undefined ? (record as any).saleId.unitTypeID.bathrooms : 'N/A'}</td></tr>
+          <tr><td class="bold">Furnished:</td><td>${(record as any).unit?.furnished || (record as any).saleId?.unitTypeID?.furnished || 'N/A'}</td></tr>
         </table>
         ` : ''}
         <div class="border-top"></div>
         <div class="footer">
-          <div>Processed By: ${record.createdBy?.name || record.processedBy?.name || 'N/A'}</div>
-          <div>${moment().format('DD MMM YYYY HH:mm')}</div>
-          <div>Thank you for your payment!</div>
+          <div>Processed By: ${currentUserName} | ${moment().format('DD MMM YYYY HH:mm')} | Thank you for your payment!</div>
         </div>
       `;
 
@@ -523,46 +582,107 @@ export const PaymentDrawer: React.FC<PaymentDrawerProps> = ({
           {/* Property and Customer Section */}
           <Title level={5}>Property & Customer Details</Title>
           <Descriptions bordered size="small" column={1}>
-            {record.sale?.property && (
-              <>
-                <Descriptions.Item label="Property">
-                  {record.sale.property.name || 'N/A'}
-                </Descriptions.Item>
-                <Descriptions.Item label="Property Type">
-                  {record.sale.property.propertyType || 'N/A'}
-                </Descriptions.Item>
-                <Descriptions.Item label="Location">
-                  {record.sale.property.location?.address || 'N/A'}
-                </Descriptions.Item>
-              </>
-            )}
+            {(() => {
+              const propertyName = record.sale?.property?.name;
+              if (!propertyName) return null;
+              return (
+                <>
+                  <Descriptions.Item label="Property">
+                    {propertyName || 'N/A'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Property Type">
+                    {record.sale?.property?.propertyType || 'N/A'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Location">
+                    {record.sale?.property?.location?.address || 'N/A'}
+                  </Descriptions.Item>
+                </>
+              );
+            })()}
 
-            {record.customer && (
-              <>
-                <Descriptions.Item label="Customer Name">
-                  {record.customer.name || 'N/A'}
-                </Descriptions.Item>
-                <Descriptions.Item label="Customer Contact">
-                  {record.customer.phone || 'N/A'}
-                </Descriptions.Item>
-                <Descriptions.Item label="Customer Email">
-                  {record.customer.email || 'N/A'}
-                </Descriptions.Item>
-              </>
-            )}
+            {(() => {
+              const customerName = record.customer?.name;
+              if (!customerName) return null;
+              return (
+                <>
+                  <Descriptions.Item label="Customer Name">
+                    {customerName || 'N/A'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Customer Contact">
+                    {record.customer?.phone || 'N/A'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Customer Email">
+                    {record.customer?.email || 'N/A'}
+                  </Descriptions.Item>
+                </>
+              );
+            })()}
           </Descriptions>
 
           <Divider />
 
           {/* Payment Details Section */}
           <Title level={5}>Payment Information</Title>
-          <Descriptions bordered size="small" column={1}>
+          <Descriptions bordered size="small" column={2}>
+            <Descriptions.Item label="Payment Date">
+              {formatDate(record.paymentDate)}
+            </Descriptions.Item>
             <Descriptions.Item label="Payment Method">
               {getPaymentMethodDisplay(record.paymentMethod)}
             </Descriptions.Item>
-            <Descriptions.Item label="Transaction Reference">
-              {record.reference || record.transactionReference || 'N/A'}
+            <Descriptions.Item label="Payment Type">
+              {(record as any).paymentType || 'N/A'}
             </Descriptions.Item>
+            <Descriptions.Item label="Status">
+              {getStatusDisplay(record.status)}
+            </Descriptions.Item>
+            <Descriptions.Item label="Reference" span={2}>
+              {record.reference || 'N/A'}
+            </Descriptions.Item>
+          </Descriptions>
+
+          {/* Unit Details Section */}
+          {(() => {
+            const unitNumber = (record as any).unit?.unitNumber || (record as any).saleId?.unitTypeID?.unitNumber;
+            if (!unitNumber || typeof unitNumber !== 'string') return null;
+            return (
+              <>
+                <Divider />
+                <Title level={5}>Unit Details</Title>
+                <Descriptions bordered size="small" column={2}>
+                  <Descriptions.Item label="Unit Number">
+                    {unitNumber}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Unit Name">
+                    {String((record as any).unit?.name || (record as any).saleId?.unitTypeID?.name || 'N/A')}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Unit Type">
+                    {String((record as any).unit?.unitType || (record as any).saleId?.unitTypeID?.unitType || 'N/A')}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Area">
+                    {String((record as any).unit?.areaSqm || (record as any).saleId?.unitTypeID?.areaSqm
+                      ? `${(record as any).unit?.areaSqm || (record as any).saleId?.unitTypeID?.areaSqm} ${(record as any).unit?.areaUnit || (record as any).saleId?.unitTypeID?.areaUnit || 'sqm'}`
+                      : 'N/A')}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Bedrooms">
+                    {String((record as any).unit?.bedrooms !== undefined ? (record as any).unit.bedrooms : (record as any).saleId?.unitTypeID?.bedrooms !== undefined ? (record as any).saleId.unitTypeID.bedrooms : 'N/A')}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Bathrooms">
+                    {String((record as any).unit?.bathrooms !== undefined ? (record as any).unit.bathrooms : (record as any).saleId?.unitTypeID?.bathrooms !== undefined ? (record as any).saleId.unitTypeID.bathrooms : 'N/A')}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Furnished" span={2}>
+                    {String((record as any).unit?.furnished || (record as any).saleId?.unitTypeID?.furnished || 'N/A')}
+                  </Descriptions.Item>
+                </Descriptions>
+              </>
+            );
+          })()}
+
+          <Divider />
+
+          {/* Additional Payment Details */}
+          <Title level={5}>Additional Information</Title>
+          <Descriptions bordered size="small" column={1}>
             <Descriptions.Item label="Receipt Number">
               {record.receiptNo || record.receiptNumber || 'N/A'}
             </Descriptions.Item>

@@ -19,6 +19,8 @@ interface PaymentRecord {
   status?: string;
   paymentDate?: string;
   paymentMethod?: string;
+  paymentType?: string;
+  currency?: string;
   reference?: string;
   receiptNo?: string;
   receiptNumber?: string;
@@ -28,13 +30,23 @@ interface PaymentRecord {
     name?: string;
     phone?: string;
     email?: string;
+    entity_type?: string;
+    company_name?: string;
+    customer_name?: string;
+    address?: any;
   };
   sale?: {
-    property?: {
-      name?: string;
-    };
+    property?: any;
+    saleCode?: string;
   };
+  saleId?: any;
+  propertyId?: any;
+  customerId?: any;
+  unitId?: any;
+  unit?: any;
+  property?: any;
   createdAt?: string;
+  updatedAt?: string;
 }
 
 interface SalesPaymentsTabProps {
@@ -83,22 +95,34 @@ const SalesPaymentsTab: React.FC<SalesPaymentsTabProps> = ({
         status: payment.status,
         paymentDate: payment.paymentDate,
         paymentMethod: payment.paymentMethod,
+        paymentType: payment.paymentType,
+        currency: payment.currency,
         reference: payment.reference,
         receiptNo: payment.receiptNumber,
         receiptNumber: payment.receiptNumber,
         etimsRefNumber: payment.etimsRefNumber,
         notes: payment.notes,
         customer: {
-          name: payment.customer?.email || payment.customer?.phone || 'Unknown',
+          name: payment.customer?.name || payment.customer?.company_name || payment.customer?.customer_name || payment.customer?.email || 'Unknown',
           email: payment.customer?.email,
           phone: payment.customer?.phone,
+          entity_type: payment.customer?.entity_type,
+          company_name: payment.customer?.company_name,
+          customer_name: payment.customer?.customer_name,
+          address: payment.customer?.address,
         },
         sale: {
-          property: {
-            name: payment.propertyId?.name || payment.sale?.property?.name || payment.propertyName,
-          },
+          property: payment.sale?.property || payment.property,
+          saleCode: payment.saleId?.saleCode,
         },
+        saleId: payment.saleId,
+        propertyId: payment.propertyId,
+        customerId: payment.customerId,
+        unitId: payment.unitId,
+        unit: payment.unit || payment.saleId?.unitTypeID,
+        property: payment.property,
         createdAt: payment.createdAt,
+        updatedAt: payment.updatedAt,
       }));
       
       setPaymentsData(mappedPayments);
@@ -346,7 +370,7 @@ const SalesPaymentsTab: React.FC<SalesPaymentsTabProps> = ({
         <Table
           columns={columns}
           dataSource={filteredPayments}
-          rowKey={(record) => record._id || record.id || ''}
+          rowKey={(record) => record._id || record.id || 'temp-key'}
           loading={loading}
           pagination={{
             pageSize: 10,
