@@ -166,6 +166,11 @@ export const disposeAsset = async (id: string, data: { disposal_date: string; di
   return response.data;
 };
 
+export const deleteAsset = async (id: string) => {
+  const response = await request.delete(`/accounting/assets/${id}`);
+  return response.data;
+};
+
 export const revalueAsset = async (id: string, data: { new_value: number; reason: string }) => {
   const response = await request.post(`/accounting/assets/${id}/revalue`, data);
   return response.data;
