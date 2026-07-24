@@ -353,7 +353,12 @@ export const getAccountLedger = async (id: string, params: GetLedgerParams) => {
     try {
         const response = await axiosInstance.get(
             `${BASE_URL}/accounting/chart-of-accounts/${id}/ledger`,
-            { params }
+            { 
+                params: {
+                    ...params,
+                    t: Date.now() // Cache-busting timestamp
+                }
+            }
         );
         return response.data as AccountLedgerResponse;
     } catch (error) {
