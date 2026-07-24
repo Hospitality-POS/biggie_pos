@@ -30,6 +30,7 @@ import {
   RiseOutlined,
   PlusOutlined,
   MoreOutlined,
+  DeleteOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -146,6 +147,18 @@ const AssetRegisterPage = () => {
       form.resetFields();
       setCurrentStep(0);
     },
+    onError: (error: any) => {
+      const errorMessage = error?.response?.data?.message || error?.message || "Failed to create asset";
+      message.error(errorMessage);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => assetsApi.deleteAsset(id),
+    onSuccess: () => {
+      message.success("Asset deleted successfully");
+      queryClient.invalidateQueries({ queryKey: ["assets"] });
+    },
   });
 
   const handleModalSubmit = async () => {
@@ -173,9 +186,22 @@ const AssetRegisterPage = () => {
     returnMutation.mutate(asset._id);
   };
 
-  const openModal = (type: typeof modalType, asset: any) => {
+  const handleDelete = (asset: any) => {
+    Modal.confirm({
+      title: "Delete Asset",
+      content: `Are you sure you want to delete asset "${asset.asset_name}" (${asset.asset_no})? This action cannot be undone.`,
+      okText: "Delete",
+      okType: "danger",
+      cancelText: "Cancel",
+      onOk: () => {
+        deleteMutation.mutate(asset._id);
+      },
+    });
+  };
+
+  const openModal = (type: typeof modalType, asset?: any) => {
     setModalType(type);
-    setSelectedAsset(asset);
+    setSelectedAsset(asset || null);
     setModalVisible(true);
   };
 
@@ -304,6 +330,13 @@ const AssetRegisterPage = () => {
           icon: <RiseOutlined />,
           label: "Revalue",
           onClick: () => openModal("revalue", record),
+        });
+
+        menuItems.push({
+          key: "delete",
+          icon: <DeleteOutlined />,
+          label: "Delete",
+          onClick: () => handleDelete(record),
         });
 
         return (
