@@ -391,8 +391,8 @@ const ShopCard: React.FC<{
         </Button>
         <AddEditShopModal edit={true} actionRef={tableRef} data={record} />
         <Popconfirm title="Delete this shop?" description="This action cannot be undone."
-          onConfirm={() => onDelete(record._id)} okText="Delete" okButtonProps={{ danger: true }} cancelText="Cancel" placement="topRight">
-          <Button danger icon={<DeleteOutlined />} loading={deleting} style={{ borderRadius: 8 }}>Delete</Button>
+          onConfirm={() => onDelete(record._id)} okText="Delete" okButtonProps={{ danger: true }} cancelText="Cancel" placement="topRight" disabled>
+          <Button danger icon={<DeleteOutlined />} loading={deleting} style={{ borderRadius: 8 }} disabled>Delete</Button>
         </Popconfirm>
       </div>
     </Card>
@@ -617,9 +617,9 @@ const ShopManagementTable: React.FC = () => {
           <AddEditShopModal edit={true} actionRef={tableRef} data={record} />
           <Popconfirm title="Delete this shop?" description="This action cannot be undone."
             onConfirm={() => DeleteShopMutation.mutate(record._id)}
-            okText="Delete" okButtonProps={{ danger: true }} cancelText="Cancel">
+            okText="Delete" okButtonProps={{ danger: true }} cancelText="Cancel" disabled>
             <Tooltip title="Delete shop">
-              <Button danger size="small" icon={<DeleteOutlined />} style={{ borderRadius: 6, height: 28 }}>Delete</Button>
+              <Button danger size="small" icon={<DeleteOutlined />} style={{ borderRadius: 6, height: 28 }} disabled>Delete</Button>
             </Tooltip>
           </Popconfirm>
         </Space>

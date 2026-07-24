@@ -207,20 +207,75 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId }
         keepPreviousData: true,
     });
 
+    // Fetch all pages for summary statistics
+    const { data: allPagesData, isLoading: isLoadingAll } = useQuery({
+        queryKey: ["account-ledger-all", account?._id, from, to],
+        queryFn: async () => {
+            const allLedger: LedgerLine[] = [];
+            let currentPage = 1;
+            let hasMore = true;
+            
+            while (hasMore) {
+                const response = await getAccountLedger(account!._id, { 
+                    shop_id: shopId, 
+                    from, 
+                    to, 
+                    page: currentPage, 
+                    limit: 100 
+                });
+                allLedger.push(...response.ledger);
+                hasMore = currentPage < response.pagination.totalPages;
+                currentPage++;
+            }
+            
+            return allLedger;
+        },
+        enabled: open && !!account?._id,
+    });
+
     const ledger = data?.ledger || [];
     const pagination = data?.pagination || { total: 0, page: 1, totalPages: 1 };
 
-    const totalDebit = ledger.reduce((s, l) => s + (l.debit || 0), 0);
-    const totalCredit = ledger.reduce((s, l) => s + (l.credit || 0), 0);
-    const closing = ledger.length > 0 ? ledger[ledger.length - 1].balance : 0;
-    const totals = { totalDebit, totalCredit, closing };
+    // Calculate totals from all pages
+    const totalDebit = allPagesData?.reduce((s, l) => s + (l.debit || 0), 0) || 0;
+    const totalCredit = allPagesData?.reduce((s, l) => s + (l.credit || 0), 0) || 0;
+    const closing = allPagesData && allPagesData.length > 0 ? allPagesData[allPagesData.length - 1].balance : 0;
+    
+    // Calculate page totals for current page
+    const pageTotalDebit = ledger.reduce((s, l) => s + (l.debit || 0), 0);
+    const pageTotalCredit = ledger.reduce((s, l) => s + (l.credit || 0), 0);
+    const pageClosing = ledger.length > 0 ? ledger[ledger.length - 1].balance : 0;
 
     const handleExport = async (type: "excel" | "pdf") => {
         if (!account) return;
         setExporting(true);
         try {
-            if (type === "excel") await exportLedgerToExcel(ledger, account, dateRange, totals);
-            else await exportLedgerToPdf(ledger, account, dateRange, totals);
+            // Fetch all pages of ledger data
+            const allLedger: LedgerLine[] = [];
+            let currentPage = 1;
+            let hasMore = true;
+            
+            while (hasMore) {
+                const response = await getAccountLedger(account._id, { 
+                    shop_id: shopId, 
+                    from, 
+                    to, 
+                    page: currentPage, 
+                    limit: 100 
+                });
+                allLedger.push(...response.ledger);
+                hasMore = currentPage < response.pagination.totalPages;
+                currentPage++;
+            }
+            
+            // Calculate totals from all data
+            const totalDebit = allLedger.reduce((s, l) => s + (l.debit || 0), 0);
+            const totalCredit = allLedger.reduce((s, l) => s + (l.credit || 0), 0);
+            const closing = allLedger.length > 0 ? allLedger[allLedger.length - 1].balance : 0;
+            const allTotals = { totalDebit, totalCredit, closing };
+            
+            if (type === "excel") await exportLedgerToExcel(allLedger, account, dateRange, allTotals);
+            else await exportLedgerToPdf(allLedger, account, dateRange, allTotals);
         } finally {
             setExporting(false);
         }
@@ -418,17 +473,17 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId }
                                 </Table.Summary.Cell>
                                 <Table.Summary.Cell index={4} align="right">
                                     <Text strong style={{ color: "#cf1322" }}>
-                                        {totalDebit.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
+                                        {pageTotalDebit.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
                                     </Text>
                                 </Table.Summary.Cell>
                                 <Table.Summary.Cell index={5} align="right">
                                     <Text strong style={{ color: "#389e0d" }}>
-                                        {totalCredit.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
+                                        {pageTotalCredit.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
                                     </Text>
                                 </Table.Summary.Cell>
                                 <Table.Summary.Cell index={6} align="right">
-                                    <Text strong style={{ color: closing >= 0 ? "#1d39c4" : "#cf1322" }}>
-                                        {Math.abs(closing).toLocaleString("en-KE", { minimumFractionDigits: 2 })}
+                                    <Text strong style={{ color: pageClosing >= 0 ? "#1d39c4" : "#cf1322" }}>
+                                        {Math.abs(pageClosing).toLocaleString("en-KE", { minimumFractionDigits: 2 })}
                                     </Text>
                                 </Table.Summary.Cell>
                             </Table.Summary.Row>
