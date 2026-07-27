@@ -10,8 +10,7 @@ import {
 import {
     approveLeave, rejectLeave, cancelLeave, fetchLeaves,
     fetchLeaveBalance, Leave, LeaveBalance, LeaveStatus, LeaveType,
-} from "@services/hr/leave";
-import { useAppDispatch } from "src/store";
+} from "@services/bandu";
 
 const { Text } = Typography;
 
@@ -85,16 +84,16 @@ const TypeTag: React.FC<{ type: LeaveType }> = ({ type }) => (
 );
 
 // ── Balance pills ─────────────────────────────────────────────────────────────
-const BalanceRow: React.FC<{ staffId: string }> = ({ staffId }) => {
+const BalanceRow: React.FC<{ departmentId: string }> = ({ departmentId }) => {
     const [balances, setBalances] = useState<LeaveBalance[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetchLeaveBalance(staffId)
+        fetchLeaveBalance(departmentId, { year: new Date().getFullYear() })
             .then((d) => setBalances(d?.balances || []))
             .catch(() => { })
             .finally(() => setLoading(false));
-    }, [staffId]);
+    }, [departmentId]);
 
     if (loading) return <Skeleton active paragraph={false} style={{ marginTop: 8 }} />;
     if (!balances.length) return null;
@@ -130,7 +129,7 @@ const LeaveCard: React.FC<{
     const [rejectReason, setRejectReason] = useState("");
     const [showBalance, setShowBalance] = useState(false);
 
-    const staff = leave.staff_id;
+    const staff = leave.requested_by;
     const isPending = leave.status === "Pending";
     const isActing = actingId === leave._id;
 
@@ -248,7 +247,7 @@ const LeaveCard: React.FC<{
             >
                 {showBalance ? "Hide" : "Show"} leave balance
             </button>
-            {showBalance && <BalanceRow staffId={String((staff as any)?._id || staff)} />}
+            {showBalance && <BalanceRow departmentId={String((leave as any).department_id?._id || leave.department_id)} />}
 
             {/* ── Actions (Pending) ── */}
             {isPending && (
@@ -360,7 +359,6 @@ const StatCard: React.FC<{ label: string; value: number; color: string; bg: stri
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 const LeaveManagement: React.FC = () => {
-    const dispatch = useAppDispatch();
     const width = useWindowWidth();
     const isMobile = width < 768;
 
@@ -378,7 +376,7 @@ const LeaveManagement: React.FC = () => {
             if (statusFilter !== "All") params.status = statusFilter;
             if (typeFilter !== "All") params.leave_type = typeFilter;
             const data = await fetchLeaves(params);
-            setLeaves(data?.leaves || []);
+            setLeaves(Array.isArray(data) ? data : data?.leaves || []);
         } catch {
             message.error("Failed to load leave requests");
         } finally {
@@ -390,19 +388,22 @@ const LeaveManagement: React.FC = () => {
 
     const handleApprove = async (id: string) => {
         setActingId(id); setAction("approving");
-        try { await dispatch(approveLeave(id)).unwrap(); load(); }
+        try { await approveLeave(id); message.success("Leave approved successfully"); load(); }
+        catch (error) { /* Error handled by service */ }
         finally { setActingId(null); setAction(null); }
     };
 
     const handleReject = async (id: string, reason: string) => {
         setActingId(id); setAction("rejecting");
-        try { await dispatch(rejectLeave({ leaveId: id, rejection_reason: reason })).unwrap(); load(); }
+        try { await rejectLeave({ leaveId: id, rejection_reason: reason }); message.success("Leave rejected successfully"); load(); }
+        catch (error) { /* Error handled by service */ }
         finally { setActingId(null); setAction(null); }
     };
 
     const handleCancel = async (id: string) => {
         setActingId(id); setAction("cancelling");
-        try { await dispatch(cancelLeave(id)).unwrap(); load(); }
+        try { await cancelLeave(id); message.success("Leave cancelled successfully"); load(); }
+        catch (error) { /* Error handled by service */ }
         finally { setActingId(null); setAction(null); }
     };
 

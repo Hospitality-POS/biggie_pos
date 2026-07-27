@@ -4,24 +4,24 @@ import { ShopOutlined, DollarOutlined, CustomerServiceOutlined, TeamOutlined, Ho
 import DashboardAdminPage from "src/AdminDashboard/DashboardPage/DashboardPage";
 import AccountingDashboardPage from "src/pages/AccountingDashboard/AccountingDashboardPage";
 import MtejaDashboard from "src/pages/Dashboard/MtejaDashboard";
-import BanduHRDashboard from "src/pages/Report/BanduDashboard";
+import BanduHRDashboard from "src/pages/BanduHR/BanduHRDashboard";
 import UnifiedDalaDashboard from "src/pages/dala/UnifiedDalaDashboard";
 
 // ── Module activation checks ─────────────────────────────────────────────────────
 const getModuleFlags = () => {
   try {
     const stored = localStorage.getItem("tenant");
-    if (!stored) return { hasDuka: true, hasPesa: false, hasMteja: false, hasBandu: false, hasDala: false };
+    if (!stored) return { hasDuka: false, hasPesa: false, hasMteja: false, hasBandu: false, hasDala: false };
     const tenant = JSON.parse(stored);
     return {
       hasDuka: tenant?.pos_integration?.enabled === true,
       hasPesa: !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting),
       hasMteja: tenant?.modules?.crm === true,
-      hasBandu: tenant?.modules?.payroll === true,
+      hasBandu: tenant?.modules?.bandu_hr === true || tenant?.modules?.payroll === true, // Support both flags for backward compatibility
       hasDala: tenant?.modules?.dala === true,
     };
   } catch {
-    return { hasDuka: true, hasPesa: false, hasMteja: false, hasBandu: false, hasDala: false };
+    return { hasDuka: false, hasPesa: false, hasMteja: false, hasBandu: false, hasDala: false };
   }
 };
 
@@ -50,7 +50,7 @@ const UnifiedDashboardPage: React.FC = () => {
   console.log("[UnifiedDashboardPage] Module flags:", { hasDuka, hasPesa, hasMteja, hasBandu, hasDala });
 
   // Build tab items based on enabled modules
-  let tabItems = [
+  const tabItems = [
     ...(hasDuka
       ? [{
           key: "pos",
@@ -90,18 +90,6 @@ const UnifiedDashboardPage: React.FC = () => {
 
   console.log("[UnifiedDashboardPage] Tab items:", tabItems);
 
-  // Fallback: if no tabs, show Duka dashboard by default
-  if (tabItems.length === 0) {
-    console.log("[UnifiedDashboardPage] No tabs detected, using fallback Duka dashboard");
-    tabItems = [{
-      key: "pos",
-      label: <><ShopOutlined /> Duka</>,
-      children: <POSDashboardContent />,
-    }];
-  }
-
-  console.log("[UnifiedDashboardPage] Final tab items:", tabItems);
-
   // Set default tab based on available modules
   React.useEffect(() => {
     if (hasDuka) setActiveTab("pos");
@@ -110,6 +98,20 @@ const UnifiedDashboardPage: React.FC = () => {
     else if (hasBandu) setActiveTab("bandu");
     else if (hasDala) setActiveTab("dala");
   }, [hasDuka, hasPesa, hasMteja, hasBandu, hasDala]);
+
+  // Fallback: if no tabs, show message instead of defaulting to Duka
+  if (tabItems.length === 0) {
+    console.log("[UnifiedDashboardPage] No tabs detected, showing no modules message");
+    return (
+      <div style={{ padding: 48, textAlign: "center", color: "#64748b" }}>
+        <TeamOutlined style={{ fontSize: 48, marginBottom: 16, color: "#94a3b8" }} />
+        <div style={{ fontSize: 16, fontWeight: 500, marginBottom: 8 }}>No modules enabled</div>
+        <div style={{ fontSize: 14 }}>Please enable modules from the Discover page to view dashboards.</div>
+      </div>
+    );
+  }
+
+  console.log("[UnifiedDashboardPage] Final tab items:", tabItems);
 
   console.log("[UnifiedDashboardPage] Rendering tabs with activeTab:", activeTab);
 

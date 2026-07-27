@@ -189,7 +189,7 @@ interface ReseedResponse {
 // HELPER FUNCTIONS
 // ============================================
 
-const getUser = (): any => {
+export const getUser = (): any => {
     try {
         const userStr = localStorage.getItem("user");
         return userStr ? JSON.parse(userStr) : null;
