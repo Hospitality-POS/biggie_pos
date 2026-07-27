@@ -152,18 +152,38 @@ const INTEGRATIONS = [
     },
     {
         id: "relia_payroll",
-        name: "Bandu by Base",
+        name: "Bandu HR by Base",
         category: "Human Resource & Payroll",
-        description: "Automate salary calculations, payslips, statutory deductions, and HR management.",
-        longDescription: "Bandu by Base helps you manage employee payments, statutory compliance (NHIF, NSSF, PAYE), leave management, attendance tracking, and generate detailed reports seamlessly integrated with Pesa by Base.",
-        features: ["Leave Management", "Attendance Tracking", "Employee Database", "Shift Scheduling", "Integration with Pesa by Base"],
-        comingSoonFeatures: ["Payslip Generation", "NHIF/NSSF/PAYE Automation"],
-        benefits: ["Accurate payments", "Full compliance", "Reduced manual work", "Easy reporting", "HR efficiency"],
+        description: "Comprehensive HR management with employee records, leave, payroll, payslips, P9 forms, and statutory compliance.",
+        longDescription: "Bandu HR by Base is a complete human resource management system. Manage employee profiles and documents, handle leave applications and approvals, track attendance, process payroll with automatic statutory deductions (NHIF, NSSF, PAYE, Housing Levy), generate payslips and P9 tax forms, and access detailed HR reports — all seamlessly integrated with Pesa by Base for accounting.",
+        features: [
+            "Employee Management & Database",
+            "Employee Document Management",
+            "Leave Application & Approval Workflow",
+            "Department-based Leave Balances",
+            "Attendance Tracking & Clock In/Out",
+            "Payroll Generation & Processing",
+            "Payslip Generation & Distribution",
+            "P9 Forms (KRA Tax Forms)",
+            "Statutory Deductions (NHIF, NSSF, PAYE, Housing Levy)",
+            "HR Reports & Analytics",
+            "Integration with Pesa by Base Accounting",
+        ],
+        benefits: [
+            "Complete employee lifecycle management",
+            "Automated payroll with statutory compliance",
+            "Leave management with department controls",
+            "Real-time attendance tracking",
+            "Professional payslips and tax forms",
+            "Integrated accounting posting",
+            "Reduced manual HR work",
+            "Data-driven HR decisions",
+        ],
         setupTime: "5 minutes",
         status: "available",
         icon: FileProtectOutlined,
         color: C.orange,
-        tags: ["Base Suite", "Payroll", "HR"],
+        tags: ["Base Suite", "HR", "Payroll", "Leave", "Compliance"],
     },
     {
         id: "mteja",
@@ -655,7 +675,7 @@ const DiscoverPage: React.FC = () => {
         const t = tenantDetails.data;
         if (id === "relia_pos") return t.pos_integration?.enabled === true ? "enabled" : "not_enabled";
         if (id === "relia_accounting") return t.modules?.accounting === true ? "enabled" : "not_enabled";
-        if (id === "relia_payroll") return t.modules?.payroll === true ? "enabled" : "not_enabled";
+        if (id === "relia_payroll") return t.modules?.bandu_hr === true || t.modules?.payroll === true ? "enabled" : "not_enabled";
         if (id === "mteja") return t.modules?.crm === true ? "enabled" : "not_enabled";
         if (id === "dala") return t.modules?.dala === true ? "enabled" : "not_enabled";
         if (id === "asset_manager") return "enabled"; // Auto-enabled
@@ -1047,8 +1067,14 @@ const DiscoverPage: React.FC = () => {
                     <FormSection>
                         <SectionLabel>What's Included</SectionLabel>
                         <FeatureList
-                            items={["Leave & attendance management", "Employee database", "Shift scheduling", "Integration with Pesa by Base"]}
-                            comingSoonItems={["Payslip generation", "NHIF / NSSF / PAYE automation"]}
+                            items={[
+                                "Leave & attendance management",
+                                "Employee database",
+                                "Shift scheduling",
+                                "Integration with Pesa by Base",
+                                "Payslip generation",
+                                "NHIF / NSSF / PAYE automation",
+                            ]}
                             color={C.orange}
                         />
                     </FormSection>

@@ -151,6 +151,17 @@ const LeaseDetail = lazy(() => import("src/pages/dala/leases/LeaseDetail"));
 const RentCollection = lazy(() => import("src/pages/dala/rent/RentCollection"));
 const MaintenanceManagement = lazy(() => import("src/pages/dala/maintenance/MaintenanceManagement"));
 
+// ─── Bandu HR Module ───────────────────────────────────────────────────────────
+const BanduHRDashboard = lazy(() => import("src/pages/BanduHR/BanduHRDashboard"));
+const EmployeeManagement = lazy(() => import("src/pages/BanduHR/EmployeeManagement"));
+const LeaveApplication = lazy(() => import("src/pages/BanduHR/LeaveApplication"));
+const LeavePolicies = lazy(() => import("src/pages/BanduHR/LeavePolicies"));
+const LeaveCalendar = lazy(() => import("src/pages/BanduHR/LeaveCalendar"));
+const PayrollManagement = lazy(() => import("src/pages/BanduHR/PayrollManagement"));
+const AttendanceTracking = lazy(() => import("src/pages/BanduHR/AttendanceTracking"));
+const PayslipView = lazy(() => import("src/pages/BanduHR/PayslipView"));
+const LeaveApprovals = lazy(() => import("src/pages/BanduHR/LeaveApprovals"));
+
 // ─── Mteja guard ─────────────────────────────────────────────────────────────
 const getMtejaEnabled = (): boolean => {
   try {
@@ -191,6 +202,26 @@ const AdminDalaRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return <>{children}</>;
 };
 
+// ─── Bandu HR guard ─────────────────────────────────────────────────────────────
+const getBanduHREnabled = (): boolean => {
+  try {
+    const tenant = JSON.parse(localStorage.getItem("tenant") || "{}");
+    return tenant?.modules?.bandu_hr === true || tenant?.modules?.payroll === true; // Support both flags for backward compatibility
+  } catch {
+    return false;
+  }
+};
+
+const BanduHRRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  if (!getBanduHREnabled()) return <Navigate to="/home-dashboard" replace />;
+  return <>{children}</>;
+};
+
+const AdminBanduHRRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  if (!getBanduHREnabled()) return <Navigate to="/admin/dashboard" replace />;
+  return <>{children}</>;
+};
+
 // ─── CRM page wrapper — private + Mteja guard ────────────────────────────────
 const mtejaPage = (Component: React.ComponentType, permission: string) => (
   <MtejaRoute>
@@ -223,6 +254,23 @@ const dalaAdminPage = (Component: React.ComponentType, permission: string) => (
       {adminPage(Component)}
     </PermissionRoute>
   </AdminDalaRoute>
+);
+
+// ─── Bandu HR page wrapper — private + Bandu HR guard ───────────────────────────
+const banduHRPage = (Component: React.ComponentType, permission: string) => (
+  <BanduHRRoute>
+    <PermissionRoute permission={permission}>
+      {privatePage(Component)}
+    </PermissionRoute>
+  </BanduHRRoute>
+);
+
+const banduHRAdminPage = (Component: React.ComponentType, permission: string) => (
+  <AdminBanduHRRoute>
+    <PermissionRoute permission={permission}>
+      {adminPage(Component)}
+    </PermissionRoute>
+  </AdminBanduHRRoute>
 );
 
 // ─── Accounting layout wrapper ────────────────────────────────────────────────
@@ -498,6 +546,33 @@ const routes = createBrowserRouter(
             element={dalaPage(MaintenanceManagement, "DALA_MAINTENANCE_VIEW")} />
         </Route>
 
+        {/* ── Bandu HR — shop level (/hr/...) ─────────────────────────────────
+            ALL routes here require hasBanduHR === true (BanduHRRoute guard).
+            Leave Departments and Leave Approvals are ADMIN-ONLY and not included here.
+        ─────────────────────────────────────────────────────────────────── */}
+        <Route path="hr" element={<Outlet />}>
+          <Route index errorElement={<NotFound />}
+            element={banduHRPage(BanduHRDashboard, "BANDU_DASHBOARD_VIEW")} />
+          <Route path="dashboard" errorElement={<NotFound />}
+            element={banduHRPage(BanduHRDashboard, "BANDU_DASHBOARD_VIEW")} />
+          <Route path="employees" errorElement={<NotFound />}
+            element={banduHRPage(EmployeeManagement, "BANDU_EMPLOYEES_VIEW")} />
+          <Route path="leave" errorElement={<NotFound />}
+            element={banduHRPage(LeaveApplication, "BANDU_LEAVE_VIEW")} />
+          <Route path="leave-policies" errorElement={<NotFound />}
+            element={banduHRPage(LeavePolicies, "BANDU_LEAVE_POLICIES_VIEW")} />
+          <Route path="leave-calendar" errorElement={<NotFound />}
+            element={banduHRPage(LeaveCalendar, "BANDU_LEAVE_VIEW")} />
+          <Route path="leave-approvals" errorElement={<NotFound />}
+            element={banduHRPage(LeaveApprovals, "BANDU_LEAVE_APPROVALS_VIEW")} />
+          <Route path="payroll" errorElement={<NotFound />}
+            element={banduHRPage(PayrollManagement, "BANDU_PAYROLL_VIEW")} />
+          <Route path="attendance" errorElement={<NotFound />}
+            element={banduHRPage(AttendanceTracking, "BANDU_ATTENDANCE_VIEW")} />
+          <Route path="payslips" errorElement={<NotFound />}
+            element={banduHRPage(PayslipView, "BANDU_PAYSLIPS_VIEW")} />
+        </Route>
+
         <Route path="*" element={<NotFound />} />
       </Route>
 
@@ -718,6 +793,19 @@ const routes = createBrowserRouter(
             element={dalaAdminPage(RentCollection, "DALA_RENT_COLLECTION_VIEW")} />
           <Route path="maintenance" errorElement={<NotFound />}
             element={dalaAdminPage(MaintenanceManagement, "DALA_MAINTENANCE_VIEW")} />
+        </Route>
+
+        {/* ── Bandu HR — admin level (/admin/hr/...) ─────────────────────────
+            ADMIN-ONLY routes: Dashboard and Leave Approvals.
+            All gated behind AdminBanduHRRoute so non-Bandu HR tenants can't access.
+        ─────────────────────────────────────────────────────────────────── */}
+        <Route path="hr" element={<Outlet />}>
+          <Route index errorElement={<NotFound />}
+            element={banduHRAdminPage(BanduHRDashboard, "BANDU_DASHBOARD_VIEW")} />
+          <Route path="dashboard" errorElement={<NotFound />}
+            element={banduHRAdminPage(BanduHRDashboard, "BANDU_DASHBOARD_VIEW")} />
+          <Route path="leave-approvals" errorElement={<NotFound />}
+            element={banduHRAdminPage(LeaveApprovals, "BANDU_LEAVE_APPROVALS_VIEW")} />
         </Route>
 
         <Route path="*" element={<NotFound />} />

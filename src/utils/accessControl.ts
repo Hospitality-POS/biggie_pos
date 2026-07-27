@@ -37,8 +37,13 @@ export const MODULES = {
     UOM: "Units of Measure",
     USERS: "Users",
     // ── HR module ────────────────────────────────────────────────────────────
+    HR_DASHBOARD: "HR · Dashboard",
+    HR_EMPLOYEES: "HR · Employees",
     HR_LEAVE: "HR · Leave Management",
+    HR_LEAVE_POLICIES: "HR · Leave Policies",
     HR_ATTENDANCE: "HR · Attendance",
+    HR_PAYSLIPS: "HR · Payslips",
+    HR_LEAVE_APPROVALS: "HR · Leave Approvals",
     // ── Accounting module ────────────────────────────────────────────────────
     ACCOUNTING_DASHBOARD: "Accounting · Dashboard",
     ACCOUNTING_COA: "Accounting · Chart of Accounts",
@@ -430,8 +435,18 @@ export const PERMISSIONS: Record<string, Permission> = {
     // Visible / assignable only when tenant.modules.hr === true
     // ══════════════════════════════════════════════════════════════════════════
 
+    // ── HR Dashboard ─────────────────────────────────────────────────────────────
+    BANDU_DASHBOARD_VIEW: { key: "BANDU_DASHBOARD_VIEW", label: "View HR Dashboard", module: MODULES.HR_DASHBOARD, action: "read", moduleScope: "hr" },
+
+    // ── HR Employees ────────────────────────────────────────────────────────────
+    BANDU_EMPLOYEES_VIEW: { key: "BANDU_EMPLOYEES_VIEW", label: "View Employees", module: MODULES.HR_EMPLOYEES, action: "read", moduleScope: "hr" },
+    BANDU_EMPLOYEES_CREATE: { key: "BANDU_EMPLOYEES_CREATE", label: "Create Employee", module: MODULES.HR_EMPLOYEES, action: "create", moduleScope: "hr" },
+    BANDU_EMPLOYEES_UPDATE: { key: "BANDU_EMPLOYEES_UPDATE", label: "Update Employee", module: MODULES.HR_EMPLOYEES, action: "update", moduleScope: "hr" },
+    BANDU_EMPLOYEES_DELETE: { key: "BANDU_EMPLOYEES_DELETE", label: "Delete Employee", module: MODULES.HR_EMPLOYEES, action: "delete", moduleScope: "hr" },
+
+    // ── HR Leave Management ─────────────────────────────────────────────────────
+    BANDU_LEAVE_VIEW: { key: "BANDU_LEAVE_VIEW", label: "View Leave Requests", module: MODULES.HR_LEAVE, action: "read", moduleScope: "hr" },
     HR_LEAVE_APPLY: { key: "HR_LEAVE_APPLY", label: "Apply for Leave", module: MODULES.HR_LEAVE, action: "create", moduleScope: "hr" },
-    HR_LEAVE_VIEW: { key: "HR_LEAVE_VIEW", label: "View Leave Requests", module: MODULES.HR_LEAVE, action: "read", moduleScope: "hr" },
     HR_LEAVE_VIEW_ONE: { key: "HR_LEAVE_VIEW_ONE", label: "View Leave Request Details", module: MODULES.HR_LEAVE, action: "read", moduleScope: "hr" },
     HR_LEAVE_APPROVE: { key: "HR_LEAVE_APPROVE", label: "Approve Leave Request", module: MODULES.HR_LEAVE, action: "special", moduleScope: "hr" },
     HR_LEAVE_REJECT: { key: "HR_LEAVE_REJECT", label: "Reject Leave Request", module: MODULES.HR_LEAVE, action: "special", moduleScope: "hr" },
@@ -439,6 +454,15 @@ export const PERMISSIONS: Record<string, Permission> = {
     HR_LEAVE_VIEW_BALANCE: { key: "HR_LEAVE_VIEW_BALANCE", label: "View Leave Balance", module: MODULES.HR_LEAVE, action: "read", moduleScope: "hr" },
     HR_LEAVE_SEED_BALANCE: { key: "HR_LEAVE_SEED_BALANCE", label: "Seed / Reset Leave Entitlements", module: MODULES.HR_LEAVE, action: "special", moduleScope: "hr" },
 
+    // ── HR Leave Policies ─────────────────────────────────────────────────────────
+    BANDU_LEAVE_POLICIES_VIEW: { key: "BANDU_LEAVE_POLICIES_VIEW", label: "View Leave Policies", module: MODULES.HR_LEAVE_POLICIES, action: "read", moduleScope: "hr" },
+    BANDU_LEAVE_POLICIES_CREATE: { key: "BANDU_LEAVE_POLICIES_CREATE", label: "Create Leave Policy", module: MODULES.HR_LEAVE_POLICIES, action: "create", moduleScope: "hr" },
+    BANDU_LEAVE_POLICIES_UPDATE: { key: "BANDU_LEAVE_POLICIES_UPDATE", label: "Update Leave Policy", module: MODULES.HR_LEAVE_POLICIES, action: "update", moduleScope: "hr" },
+    BANDU_LEAVE_POLICIES_DELETE: { key: "BANDU_LEAVE_POLICIES_DELETE", label: "Delete Leave Policy", module: MODULES.HR_LEAVE_POLICIES, action: "delete", moduleScope: "hr" },
+    BANDU_LEAVE_POLICIES_INITIALIZE: { key: "BANDU_LEAVE_POLICIES_INITIALIZE", label: "Initialize Leave Balances", module: MODULES.HR_LEAVE_POLICIES, action: "special", moduleScope: "hr" },
+
+    // ── HR Attendance ────────────────────────────────────────────────────────────
+    BANDU_ATTENDANCE_VIEW: { key: "BANDU_ATTENDANCE_VIEW", label: "View Attendance", module: MODULES.HR_ATTENDANCE, action: "read", moduleScope: "hr" },
     HR_ATTENDANCE_CLOCK_IN: { key: "HR_ATTENDANCE_CLOCK_IN", label: "Clock In", module: MODULES.HR_ATTENDANCE, action: "special", moduleScope: "hr" },
     HR_ATTENDANCE_CLOCK_OUT: { key: "HR_ATTENDANCE_CLOCK_OUT", label: "Clock Out", module: MODULES.HR_ATTENDANCE, action: "special", moduleScope: "hr" },
     HR_ATTENDANCE_VIEW_STATUS: { key: "HR_ATTENDANCE_VIEW_STATUS", label: "View Today's Clock Status", module: MODULES.HR_ATTENDANCE, action: "read", moduleScope: "hr" },
@@ -447,6 +471,13 @@ export const PERMISSIONS: Record<string, Permission> = {
     HR_ATTENDANCE_VIEW_REPORT: { key: "HR_ATTENDANCE_VIEW_REPORT", label: "View Attendance Report", module: MODULES.HR_ATTENDANCE, action: "read", moduleScope: "hr" },
     HR_ATTENDANCE_EMAIL_REPORT: { key: "HR_ATTENDANCE_EMAIL_REPORT", label: "Email Attendance Report", module: MODULES.HR_ATTENDANCE, action: "special", moduleScope: "hr" },
     HR_ATTENDANCE_RECONCILE: { key: "HR_ATTENDANCE_RECONCILE", label: "Reconcile Attendance for a Date", module: MODULES.HR_ATTENDANCE, action: "special", moduleScope: "hr" },
+
+    // ── HR Payslips ───────────────────────────────────────────────────────────────
+    BANDU_PAYSLIPS_VIEW: { key: "BANDU_PAYSLIPS_VIEW", label: "View Payslips", module: MODULES.HR_PAYSLIPS, action: "read", moduleScope: "hr" },
+    BANDU_PAYSLIPS_GENERATE: { key: "BANDU_PAYSLIPS_GENERATE", label: "Generate Payslip", module: MODULES.HR_PAYSLIPS, action: "create", moduleScope: "hr" },
+
+    // ── HR Leave Approvals ────────────────────────────────────────────────────────
+    BANDU_LEAVE_APPROVALS_VIEW: { key: "BANDU_LEAVE_APPROVALS_VIEW", label: "View Leave Approvals", module: MODULES.HR_LEAVE_APPROVALS, action: "read", moduleScope: "hr" },
 
     // ══════════════════════════════════════════════════════════════════════════
     // ACCOUNTING MODULE  (moduleScope: "accounting")
