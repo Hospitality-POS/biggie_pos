@@ -2,6 +2,44 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import dayjs from 'dayjs';
 
+// Helper function to convert number to words
+const numberToWords = (num: number): string => {
+  if (num === 0) return 'Zero';
+  
+  const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+    'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+  
+  const convertLessThanThousand = (n: number): string => {
+    if (n === 0) return '';
+    if (n < 20) return ones[n] + ' ';
+    if (n < 100) return tens[Math.floor(n / 10)] + ' ' + ones[n % 10] + ' ';
+    return ones[Math.floor(n / 100)] + ' Hundred ' + convertLessThanThousand(n % 100);
+  };
+  
+  const convert = (n: number): string => {
+    if (n === 0) return '';
+    
+    let result = '';
+    
+    if (n >= 1000000) {
+      result += convertLessThanThousand(Math.floor(n / 1000000)) + 'Million ';
+      n %= 1000000;
+    }
+    
+    if (n >= 1000) {
+      result += convertLessThanThousand(Math.floor(n / 1000)) + 'Thousand ';
+      n %= 1000;
+    }
+    
+    result += convertLessThanThousand(n);
+    
+    return result.trim();
+  };
+  
+  return convert(num) + ' Shillings Only';
+};
+
 interface OfferLetterData {
   saleCode?: string;
   clientName?: string;
@@ -120,6 +158,15 @@ export const generateOfferLetterPDF = async (data: OfferLetterData, returnAsData
   };
   
   const rgb = hexToRgb(primaryColor);
+  
+  // Format the initial payment amount as currency with words for use throughout the document
+  const initialPaymentAmount = data.initialPayment || 0;
+  const formattedAmount = new Intl.NumberFormat('en-KE', { 
+    style: 'currency', 
+    currency: 'KES',
+    minimumFractionDigits: 2 
+  }).format(initialPaymentAmount);
+  const amountInWords = numberToWords(initialPaymentAmount);
   
   // LETTER OF OFFER header - place at top
   doc.setFontSize(16);
@@ -359,7 +406,7 @@ export const generateOfferLetterPDF = async (data: OfferLetterData, returnAsData
   
   doc.text('5. Deposit/Commitment Fee', 15, yPos);
   yPos += 6;
-  const commitmentText = 'Upon acceptance of this Offer Letter, the Purchaser shall pay a Commitment Fee of Kenya Shillings 100,000.00 (One Hundred Thousand Shillings Only) to the Vendor. The said commitment fee shall be refundable; however, if after Thirty (30) days purchaser does not proceed with the transaction and demands a refund of the commitment fee, the same shall be refunded less administrative fees.';
+  const commitmentText = `Upon acceptance of this Offer Letter, the Purchaser shall pay a Commitment Fee of ${formattedAmount} (${amountInWords}) to the Vendor. The said commitment fee shall be refundable; however, if after Thirty (30) days purchaser does not proceed with the transaction and demands a refund of the commitment fee, the same shall be refunded less administrative fees.`;
   const splitCommitment = doc.splitTextToSize(commitmentText, pageWidth - 30);
   if (yPos + splitCommitment.length * 7 > maxY) { doc.addPage(); yPos = 20; }
   doc.text(splitCommitment, 15, yPos);
@@ -421,7 +468,7 @@ export const generateOfferLetterPDF = async (data: OfferLetterData, returnAsData
   doc.text(splitDeposit, 15, yPos);
   yPos += splitDeposit.length * 7 + 8;
   
-  const commitmentComparison = `Where the Commitment Fee of Kenya Shillings 100,000.00 (One Hundred Thousand Shillings Only) paid pursuant to this Offer Letter is less than the required Ten Percent (10%) deposit, the Purchaser shall, upon execution of the Agreement for Sale within the Thirty (30) days as indicated herein, pay the balance necessary to constitute the full Ten Percent (10%) deposit based on the agreed Purchase Price of the Unit.`;
+  const commitmentComparison = `Where the Commitment Fee of ${formattedAmount} (${amountInWords}) paid pursuant to this Offer Letter is less than the required Ten Percent (10%) deposit, the Purchaser shall, upon execution of the Agreement for Sale within the Thirty (30) days as indicated herein, pay the balance necessary to constitute the full Ten Percent (10%) deposit based on the agreed Purchase Price of the Unit.`;
   const splitComparison = doc.splitTextToSize(commitmentComparison, pageWidth - 30);
   doc.text(splitComparison, 15, yPos);
   yPos += splitComparison.length * 7 + 8;
@@ -523,7 +570,7 @@ export const generateOfferLetterPDF = async (data: OfferLetterData, returnAsData
   
   doc.text('14. Cancellation Costs:', 15, yPos);
   yPos += 6;
-  const cancellationText = 'The Purchaser accepts that should he/she cancel the transaction after signing this Letter of Offer by both parties, or fails to sign the engrossed sale agreement within Seven (7) days of presentation, and offers no explanation or communication to the vendor, then, the commitment fee of Ksh One Hundred Thousand only (Ksh 100,000.00) shall be forfeited';
+  const cancellationText = `The Purchaser accepts that should he/she cancel the transaction after signing this Letter of Offer by both parties, or fails to sign the engrossed sale agreement within Seven (7) days of presentation, and offers no explanation or communication to the vendor, then, the commitment fee of ${formattedAmount} (${amountInWords}) shall be forfeited`;
   const splitCancellation = doc.splitTextToSize(cancellationText, pageWidth - 30);
   if (yPos + splitCancellation.length * 7 > maxY) { doc.addPage(); yPos = 20; }
   doc.text(splitCancellation, 15, yPos);
