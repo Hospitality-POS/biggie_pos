@@ -151,7 +151,7 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
           discount: initialData.discount || 0,
           payment_plan: initialData.paymentPlanType || initialData.payment_plan || 'full_payment',
           initial_payment_type: initialData.initialPaymentType || initialData.initial_payment_type || 'booking_fee',
-          initial_payment: initialData.initialPayment || initialData.initial_payment || 100000,
+          initial_payment: initialData.deposit?.amount || initialData.initialPayment || initialData.initial_payment || 100000,
           payment_date: initialData.saleDate ? dayjs(initialData.saleDate) : dayjs(),
           payment_method: initialData.payments?.[0]?.method_id?.name || initialData.payment_method,
           commission_rate: initialData.commissionPercentage || initialData.commission_rate || 0,
@@ -286,9 +286,10 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
 
   const handleInitialPaymentTypeChange = (value: string) => {
     setInitialPaymentType(value);
-    if (value === 'booking_fee') {
+    // Only set default for new sales, not when editing
+    if (value === 'booking_fee' && !edit) {
       form.setFieldsValue({ initial_payment: 100000 });
-    } else {
+    } else if (value !== 'booking_fee') {
       form.setFieldsValue({ initial_payment: undefined });
     }
   };
