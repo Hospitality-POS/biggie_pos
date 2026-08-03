@@ -2,11 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import * as pdfjsLib from "pdfjs-dist";
 import { Spin } from "antd";
 
-// Resolve worker from the installed package (Vite handles this via import.meta.url)
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-    "pdfjs-dist/build/pdf.worker.min.mjs",
-    import.meta.url
-).href;
+// Use CDN for PDF worker to ensure it works in both development and production
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
 const PDF_SCALE = 96 / 72; // render at 96 DPI so canvas px === screen px
 
