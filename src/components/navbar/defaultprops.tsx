@@ -611,6 +611,12 @@ const useProLayoutNav = () => {
 
   // ── Mteja-only tiles ──────────────────────────────────────────────────────
   const mtejaOnlyAppList = (isMtejaOnly) ? [
+    ...(can("ORDERS_VIEW_DASHBOARD") ? [{
+      icon: makeTile("#6c1c2c", ICONS.table),
+      title: "Dashboard",
+      desc: "Overview of your business performance and metrics.",
+      url: p("/home-dashboard"),
+    }] : []),
     ...(can("CUSTOMERS_VIEW") ? [{
       icon: makeTile("#6c1c2c", ICONS.mteja),
       title: "Mteja Dashboard",
@@ -642,6 +648,7 @@ const useProLayoutNav = () => {
 
   // ── Mteja-only routes ─────────────────────────────────────────────────────
   const mtejaOnlyRoutes = (isMtejaOnly) ? [
+    ...(can("ORDERS_VIEW_DASHBOARD") ? [{ path: p("/home-dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/home-dashboard" }] : []),
     ...mtejaDashboardRoute,
     ...mtejaCustomersRoute,
     ...mtejaConversationsRoute,
@@ -694,8 +701,21 @@ const useProLayoutNav = () => {
   // ════════════════════════════════════════════════════════════════════════════
   if (hasDala && !hasPOS && !hasAccounting && !hasMteja && !hasBandu) {
     return {
-      route: { path: "/", routes: dalaRoutes },
-      appList: [], // TODO: Add Dala app tiles
+      route: {
+        path: "/",
+        routes: groupFlatNav([
+          { path: p("/home-dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/home-dashboard" },
+          ...dalaRoutes,
+        ]),
+      },
+      appList: [
+        ...(can("ORDERS_VIEW_DASHBOARD") ? [{
+          icon: makeTile("#6c1c2c", ICONS.table),
+          title: "Dashboard",
+          desc: "Overview of your business performance and metrics.",
+          url: p("/home-dashboard"),
+        }] : []),
+      ], // TODO: Add Dala app tiles
     };
   }
 
@@ -837,6 +857,7 @@ const useProLayoutNav = () => {
       route: {
         path: "/",
         routes: groupFlatNav([
+          { path: p("/home-dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/home-dashboard" },
           ...dalaRoutes.map(({ _bare: _b, ...rest }: any) => rest),
           { path: p("/customers"), name: getCustomerLabel(), icon: <UserOutlined />, _bare: "/customers" },
           ...mtejaConversationsRoute.map(({ _bare: _b, ...rest }: any) => rest),
@@ -845,7 +866,27 @@ const useProLayoutNav = () => {
           { path: p("/reports"), name: "Reports", icon: <FileTextOutlined />, _bare: "/reports" },
         ]),
       },
-      appList: [...mtejaOnlyAppList], // TODO: Add Dala app tiles
+      appList: [
+        ...(can("ORDERS_VIEW_DASHBOARD") ? [{
+          icon: makeTile("#6c1c2c", ICONS.table),
+          title: "Dashboard",
+          desc: "Overview of your business performance and metrics.",
+          url: p("/home-dashboard"),
+        }] : []),
+        ...(can("CUSTOMERS_VIEW") ? [{
+          icon: makeTile("#06b6d4", ICONS.customers),
+          title: getCustomerLabel(),
+          desc: "Manage your customer relationships and subscriptions.",
+          url: p("/customers"),
+        }] : []),
+        ...(hasMteja && can("OMNICHANNEL_VIEW") ? [{
+          icon: makeTile("#7c3aed", ICONS.omnichannel),
+          title: "Conversations",
+          desc: "Manage WhatsApp, Messenger and Instagram conversations.",
+          url: p("/omnichannel"),
+        }] : []),
+        ...crmAppTiles,
+      ], // TODO: Add Dala app tiles
     };
   }
 
