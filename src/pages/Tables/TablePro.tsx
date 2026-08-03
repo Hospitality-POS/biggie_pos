@@ -421,7 +421,7 @@ export default function TablePro() {
   // ── Tab items ─────────────────────────────────────────────────────────────
   const generateTabItems = useMemo(() => {
     const dynamicTabs =
-      data?.map((item: any) => ({
+      data?.filter((item: any) => !item.isDisabled)?.map((item: any) => ({
         key: `${item._id}`,
         tab: "Table",
         label: (
@@ -445,7 +445,7 @@ export default function TablePro() {
                 alignItems: "start",
               }}
             >
-              {item.tables.map((T: any) => {
+              {item.tables.filter((T: any) => !T.isDisabled).map((T: any) => {
                 console.log(`🔍 [TablePro] Passing to TableCard: ${T.name}, isLocked=${T.isLocked}`);
                 return <TableCard key={T._id} item={T} openModal={handleOpen} />;
               })}

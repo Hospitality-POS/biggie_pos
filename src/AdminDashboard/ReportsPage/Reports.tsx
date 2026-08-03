@@ -218,6 +218,7 @@ const AdminReports: React.FC = () => {
   const [form] = Form.useForm();
   const [queryKey, setQueryKey] = useState<any>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [groupBy, setGroupBy] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const location = useLocation();
@@ -280,6 +281,7 @@ const AdminReports: React.FC = () => {
         startDate: startDate?.format("YYYY-MM-DD HH:mm") || "",
         endDate: endDate?.format("YYYY-MM-DD HH:mm") || "",
         servedBy, commission, locationId, shop_id,
+        groupBy: groupBy,
       });
       queryClient.invalidateQueries(["itemsales"]);
     }
@@ -364,7 +366,18 @@ const AdminReports: React.FC = () => {
               loading={salesLoading && !!queryKey}
               startDate={salesDateTimeRange[0]}
               endDate={salesDateTimeRange[1]}
-
+              initialGroupBy={groupBy}
+              onGroupByChange={(newGroupBy) => {
+                setGroupBy(newGroupBy);
+                // Refetch data with new groupBy parameter
+                if (queryKey) {
+                  setQueryKey({
+                    ...queryKey,
+                    groupBy: newGroupBy,
+                  });
+                  queryClient.invalidateQueries(["itemsales"]);
+                }
+              }}
             />
           </Form>
         );
