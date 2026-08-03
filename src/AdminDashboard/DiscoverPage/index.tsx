@@ -659,8 +659,8 @@ const DiscoverPage: React.FC = () => {
         queryFn: () => fetchTenantDetails(tenantId),
         enabled: !!tenantId,
         refetchOnWindowFocus: false,
-        staleTime: 0,
-        cacheTime: 0,
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        gcTime: 10 * 60 * 1000, // 10 minutes (cacheTime is deprecated in React Query v5)
     });
 
     const { data: pesapalConfig } = useQuery({
@@ -668,6 +668,8 @@ const DiscoverPage: React.FC = () => {
         queryFn: () => pesapalApi.getConfig(tenantId),
         enabled: !!tenantId,
         refetchOnWindowFocus: false,
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        gcTime: 10 * 60 * 1000, // 10 minutes
     });
 
     const getStatus = (id: string): "enabled" | "not_enabled" => {

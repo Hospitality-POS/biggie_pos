@@ -88,7 +88,7 @@ export const fetchTableUsequery = async (params: any) => {
   try {
     const response = await axiosInstance.get(
       `${tableUrl}/tables/unique-locatedAt`,
-      { params: { locationId: params.id } }
+      { params: { locationId: params.id, includeDisabled: "true" } }
     );
     let tables = response.data;
 
@@ -242,5 +242,70 @@ export const deleteTable = async (data: ParamsType) => {
     return response.data;
   } catch (error: any) {
     throw new Error("Error deleting table");
+  }
+};
+
+export const getAllTablesIncludeDisabled = async (data: ParamsType) => {
+  try {
+    const response = await axiosInstance.get(tableUrl, {
+      params: { name: data.name, locatedAt: data.locatedAt, includeDisabled: "true" },
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error("Error fetching tables");
+  }
+};
+
+export const getTableLocationIncludeDisabled = async (data: ParamsType) => {
+  try {
+    const url = `${tableUrl}/location/locations`;
+    const response = await axiosInstance.get(url, {
+      params: { name: data.name, includeDisabled: "true" },
+    });
+    console.log("🔍 [getTableLocationIncludeDisabled] API response:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error("🔍 [getTableLocationIncludeDisabled] Error:", error);
+    throw new Error("Error fetching table locations");
+  }
+};
+
+export const disableTable = async (id: string) => {
+  try {
+    const response = await axiosInstance.patch(`${tableUrl}/${id}/disable`);
+    return response.data;
+  } catch (error: any) {
+    if (error?.response?.status !== 403) message.error("Error disabling table");
+    throw new Error("Error disabling table");
+  }
+};
+
+export const enableTable = async (id: string) => {
+  try {
+    const response = await axiosInstance.patch(`${tableUrl}/${id}/enable`);
+    return response.data;
+  } catch (error: any) {
+    if (error?.response?.status !== 403) message.error("Error enabling table");
+    throw new Error("Error enabling table");
+  }
+};
+
+export const disableLocation = async (id: string) => {
+  try {
+    const response = await axiosInstance.patch(`${tableUrl}/locations/${id}/disable`);
+    return response.data;
+  } catch (error: any) {
+    if (error?.response?.status !== 403) message.error("Error disabling location");
+    throw new Error("Error disabling location");
+  }
+};
+
+export const enableLocation = async (id: string) => {
+  try {
+    const response = await axiosInstance.patch(`${tableUrl}/locations/${id}/enable`);
+    return response.data;
+  } catch (error: any) {
+    if (error?.response?.status !== 403) message.error("Error enabling location");
+    throw new Error("Error enabling location");
   }
 };

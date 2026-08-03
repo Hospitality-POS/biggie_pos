@@ -54,12 +54,19 @@ const C = {
 const fmt = (v: number) =>
   (v || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-function getCategoryTotal(orderItems: any[]): number {
+interface OrderItem {
+  total_amount?: number;
+  supplier_price?: number;
+  quantity?: number;
+  [key: string]: unknown;
+}
+
+function getCategoryTotal(orderItems: OrderItem[]): number {
   if (!Array.isArray(orderItems)) return 0;
   return orderItems.reduce((s, i) => s + Number(i.total_amount || 0), 0);
 }
 
-function getSupplierTotal(orderItems: any[]): number {
+function getSupplierTotal(orderItems: OrderItem[]): number {
   if (!Array.isArray(orderItems)) return 0;
   return orderItems.reduce((s, i) => s + Number(i.supplier_price || 0) * Number(i.quantity || 0), 0);
 }
@@ -74,13 +81,27 @@ function detectAvailableGroupings(startDate: string, endDate: string): GroupBy[]
 
 interface PeriodGroup {
   label: string;
-  data: any[];
+  data: CategoryData[];
   total: number;
   supplierTotal: number;
   commission: number;
 }
 
-function groupDataByPeriod(data: any[], groupBy: GroupBy, startDate: string, endDate: string): PeriodGroup[] {
+interface CategoryData {
+  orderItems?: OrderItem[];
+  commissionAmt?: number;
+  subscription_breakdown?: {
+    total_subscription_items?: number;
+    total_regular_items?: number;
+    subscription_items_value?: number;
+    regular_items_value?: number;
+    subscription_percentage?: string;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}
+
+function groupDataByPeriod(data: CategoryData[], groupBy: GroupBy, startDate: string, endDate: string): PeriodGroup[] {
   if (groupBy === "none" || !data.length) return [];
   const start = dayjs(startDate);
   const end = dayjs(endDate);
@@ -91,18 +112,18 @@ function groupDataByPeriod(data: any[], groupBy: GroupBy, startDate: string, end
     while (cur.isBefore(end) || cur.isSame(end, "day")) {
       const label = cur.format("ddd, MMM DD");
       const fraction = 1 / Math.max(1, end.diff(start, "day") + 1);
-      const slicedData = data.map((cat: any) => ({
+      const slicedData = data.map((cat: CategoryData) => ({
         ...cat,
-        orderItems: (cat.orderItems || []).map((oi: any) => ({
+        orderItems: (cat.orderItems || []).map((oi: OrderItem) => ({
           ...oi,
           quantity: Number(oi.quantity || 0) * fraction,
           total_amount: Number(oi.total_amount || 0) * fraction,
           supplier_price: Number(oi.supplier_price || 0),
         })),
       }));
-      const total = slicedData.reduce((s: number, c: any) => s + getCategoryTotal(c.orderItems), 0);
-      const supplierTotal = slicedData.reduce((s: number, c: any) => s + getSupplierTotal(c.orderItems), 0);
-      const commission = slicedData.reduce((s: number, c: any) => s + Number(c.commissionAmt || 0) * fraction, 0);
+      const total = slicedData.reduce((s: number, c: CategoryData) => s + getCategoryTotal(c.orderItems), 0);
+      const supplierTotal = slicedData.reduce((s: number, c: CategoryData) => s + getSupplierTotal(c.orderItems), 0);
+      const commission = slicedData.reduce((s: number, c: CategoryData) => s + Number(c.commissionAmt || 0) * fraction, 0);
       periods.push({ label, data: slicedData, total, supplierTotal, commission });
       cur = cur.add(1, "day");
     }
@@ -114,18 +135,18 @@ function groupDataByPeriod(data: any[], groupBy: GroupBy, startDate: string, end
       const label = `Week ${weekNum}: ${cur.format("MMM DD")} – ${weekEnd.format("MMM DD")}`;
       const totalDays = end.diff(start, "day") + 1;
       const fraction = 7 / totalDays;
-      const slicedData = data.map((cat: any) => ({
+      const slicedData = data.map((cat: CategoryData) => ({
         ...cat,
-        orderItems: (cat.orderItems || []).map((oi: any) => ({
+        orderItems: (cat.orderItems || []).map((oi: OrderItem) => ({
           ...oi,
           quantity: Number(oi.quantity || 0) * fraction,
           total_amount: Number(oi.total_amount || 0) * fraction,
           supplier_price: Number(oi.supplier_price || 0),
         })),
       }));
-      const total = slicedData.reduce((s: number, c: any) => s + getCategoryTotal(c.orderItems), 0);
-      const supplierTotal = slicedData.reduce((s: number, c: any) => s + getSupplierTotal(c.orderItems), 0);
-      const commission = slicedData.reduce((s: number, c: any) => s + Number(c.commissionAmt || 0) * fraction, 0);
+      const total = slicedData.reduce((s: number, c: CategoryData) => s + getCategoryTotal(c.orderItems), 0);
+      const supplierTotal = slicedData.reduce((s: number, c: CategoryData) => s + getSupplierTotal(c.orderItems), 0);
+      const commission = slicedData.reduce((s: number, c: CategoryData) => s + Number(c.commissionAmt || 0) * fraction, 0);
       periods.push({ label, data: slicedData, total, supplierTotal, commission });
       cur = cur.add(1, "week");
       weekNum++;
@@ -137,18 +158,18 @@ function groupDataByPeriod(data: any[], groupBy: GroupBy, startDate: string, end
       const daysInMonth = cur.daysInMonth();
       const totalDays = end.diff(start, "day") + 1;
       const fraction = daysInMonth / totalDays;
-      const slicedData = data.map((cat: any) => ({
+      const slicedData = data.map((cat: CategoryData) => ({
         ...cat,
-        orderItems: (cat.orderItems || []).map((oi: any) => ({
+        orderItems: (cat.orderItems || []).map((oi: OrderItem) => ({
           ...oi,
           quantity: Number(oi.quantity || 0) * fraction,
           total_amount: Number(oi.total_amount || 0) * fraction,
           supplier_price: Number(oi.supplier_price || 0),
         })),
       }));
-      const total = slicedData.reduce((s: number, c: any) => s + getCategoryTotal(c.orderItems), 0);
-      const supplierTotal = slicedData.reduce((s: number, c: any) => s + getSupplierTotal(c.orderItems), 0);
-      const commission = slicedData.reduce((s: number, c: any) => s + Number(c.commissionAmt || 0) * fraction, 0);
+      const total = slicedData.reduce((s: number, c: CategoryData) => s + getCategoryTotal(c.orderItems), 0);
+      const supplierTotal = slicedData.reduce((s: number, c: CategoryData) => s + getSupplierTotal(c.orderItems), 0);
+      const commission = slicedData.reduce((s: number, c: CategoryData) => s + Number(c.commissionAmt || 0) * fraction, 0);
       periods.push({ label, data: slicedData, total, supplierTotal, commission });
       cur = cur.add(1, "month");
     }
@@ -181,7 +202,7 @@ const SummaryCard: React.FC<{
 
 // ── Shared props ──────────────────────────────────────────────────────────────
 interface ReportProps {
-  data: any[];
+  data: CategoryData[];
   startDate: string;
   endDate: string;
   brandName: string;
@@ -204,8 +225,8 @@ const ThermalReceipt = forwardRef<HTMLDivElement, ReportProps>(({
     <div style={{ borderTop: "1px dashed #bbb", margin: "6px 0", ...style }} />
   );
 
-  const renderItems = (items: any[]) =>
-    items.map((oi: any, idx: number) => (
+  const renderItems = (items: OrderItem[]) =>
+    items.map((oi: OrderItem, idx: number) => (
       <div key={oi.id || idx} style={{ paddingLeft: 8, paddingTop: 3 }}>
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9.5, lineHeight: 1.4 }}>
           <span style={{ flex: 1, marginRight: 8 }}>×{Number(oi.quantity || 0).toFixed(1)} {oi.name || "Item"}</span>
@@ -220,7 +241,7 @@ const ThermalReceipt = forwardRef<HTMLDivElement, ReportProps>(({
       </div>
     ));
 
-  const renderCategory = (item: any, i: number) => {
+  const renderCategory = (item: CategoryData, i: number) => {
     const catTotal = getCategoryTotal(item.orderItems);
     return (
       <div key={item.id || i} style={{ marginBottom: 8 }}>
@@ -294,14 +315,14 @@ const ThermalReceipt = forwardRef<HTMLDivElement, ReportProps>(({
               <div style={{ textAlign: "center", fontWeight: 800, fontSize: 9.5, background: "#222", color: "#fff", padding: "2px 4px", marginBottom: 5, letterSpacing: "0.8px" }}>
                 {period.label.toUpperCase()}
               </div>
-              {period.data.map((item: any, i: number) => renderCategory(item, i))}
+              {period.data.map((item: CategoryData, i: number) => renderCategory(item, i))}
               {divider({ margin: "5px 0 3px" })}
               {renderTotalsBlock(period.total, period.supplierTotal, period.commission)}
               {divider({ margin: "6px 0 0" })}
             </div>
           ))
         ) : (
-          data.map((item: any, i: number) => renderCategory(item, i))
+          data.map((item: CategoryData, i: number) => renderCategory(item, i))
         )}
 
         {/* Grand totals */}
@@ -346,7 +367,7 @@ const A4Report = forwardRef<HTMLDivElement, ReportProps>(({
     verticalAlign: "middle",
   };
 
-  const renderItemTable = (items: any[]) => (
+  const renderItemTable = (items: OrderItem[]) => (
     <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
       <colgroup>
         <col style={{ width: "8%" }} />
@@ -363,7 +384,7 @@ const A4Report = forwardRef<HTMLDivElement, ReportProps>(({
         </tr>
       </thead>
       <tbody>
-        {items.map((oi: any, idx: number) => (
+        {items.map((oi: OrderItem, idx: number) => (
           <tr key={oi.id || idx} style={{ background: idx % 2 === 0 ? C.white : C.bg }}>
             <td style={{ ...tdBase, textAlign: "center", color: C.subText, fontWeight: 500 }}>
               {Number(oi.quantity || 0).toFixed(1)}
@@ -383,7 +404,7 @@ const A4Report = forwardRef<HTMLDivElement, ReportProps>(({
     </table>
   );
 
-  const renderCategoryBlock = (item: any, i: number) => {
+  const renderCategoryBlock = (item: CategoryData, i: number) => {
     const catTotal = getCategoryTotal(item.orderItems);
     return (
       <div key={item.id || i} style={{ marginBottom: 16, borderRadius: 6, overflow: "hidden", border: `1px solid ${C.border}` }}>
@@ -519,14 +540,14 @@ const A4Report = forwardRef<HTMLDivElement, ReportProps>(({
                   <span style={{ fontWeight: 700, fontSize: 12 }}>KES {fmt(period.total)}</span>
                 </div>
                 <div style={{ border: `1px solid ${C.border}`, borderTop: "none", borderRadius: "0 0 6px 6px", padding: "14px 14px 8px" }}>
-                  {period.data.map((item: any, i: number) => renderCategoryBlock(item, i))}
+                  {period.data.map((item: CategoryData, i: number) => renderCategoryBlock(item, i))}
                   {renderTotalsTable(period.total, period.supplierTotal, period.commission)}
                 </div>
               </div>
             ))
           ) : (
             <>
-              {data.map((item: any, i: number) => renderCategoryBlock(item, i))}
+              {data.map((item: CategoryData, i: number) => renderCategoryBlock(item, i))}
               {renderTotalsTable(overallTotal, overallSupplierTotal, totalCommission)}
             </>
           )}
@@ -617,20 +638,28 @@ const SendEmailModal: React.FC<{
 interface ItemSalesModalProps {
   open: boolean;
   onClose: () => void;
-  data: any;
+  data: ApiResponse | unknown;
   loading: boolean;
   startDate: string;
   endDate: string;
   customerName?: string | null;
+  onGroupByChange?: (groupBy: string | null) => void;
+  initialGroupBy?: string | null;
+}
+
+interface ApiResponse {
+  success?: boolean;
+  data?: unknown;
 }
 
 const ItemSalesModal: React.FC<ItemSalesModalProps> = ({
   open, onClose, data: rawData, loading, startDate, endDate, customerName = null,
+  onGroupByChange, initialGroupBy = null,
 }) => {
   const { BRAND_NAME1 } = useSystemDetails();
   const [printMode, setPrintMode] = useState<PrintMode>("thermal");
-  const [groupBy, setGroupBy] = useState<GroupBy>("none");
-  const [groupingEnabled, setGroupingEnabled] = useState(false);
+  const [groupBy, setGroupBy] = useState<GroupBy>((initialGroupBy as GroupBy) || "none");
+  const [groupingEnabled, setGroupingEnabled] = useState(!!initialGroupBy);
   const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [sending, setSending] = useState(false);
 
@@ -639,9 +668,34 @@ const ItemSalesModal: React.FC<ItemSalesModalProps> = ({
 
   const data = useMemo(() => {
     if (!rawData) return [];
-    if (rawData.success && Array.isArray(rawData.data)) return rawData.data;
-    if (Array.isArray(rawData)) return rawData;
-    if (rawData.data && Array.isArray(rawData.data)) return rawData.data;
+    
+    const apiData = rawData as ApiResponse;
+    
+    // Check if backend returned grouped data (has label, data, total structure)
+    if (apiData.success && Array.isArray(apiData.data)) {
+      // If the first item has 'label' and 'data' properties, it's grouped data from backend
+      if (apiData.data.length > 0 && (apiData.data[0] as PeriodGroup).label && (apiData.data[0] as PeriodGroup).data) {
+        return apiData.data as CategoryData[]; // Return grouped data as-is
+      }
+      return apiData.data as CategoryData[]; // Return ungrouped data
+    }
+    
+    if (Array.isArray(rawData)) {
+      // Check if it's grouped data
+      if (rawData.length > 0 && (rawData[0] as PeriodGroup).label && (rawData[0] as PeriodGroup).data) {
+        return rawData as CategoryData[]; // Return grouped data as-is
+      }
+      return rawData as CategoryData[]; // Return ungrouped data
+    }
+    
+    if (apiData.data && Array.isArray(apiData.data)) {
+      // Check if it's grouped data
+      if (apiData.data.length > 0 && (apiData.data[0] as PeriodGroup).label && (apiData.data[0] as PeriodGroup).data) {
+        return apiData.data as CategoryData[]; // Return grouped data as-is
+      }
+      return apiData.data as CategoryData[]; // Return ungrouped data
+    }
+    
     return [];
   }, [rawData]);
 
@@ -654,30 +708,72 @@ const ItemSalesModal: React.FC<ItemSalesModalProps> = ({
 
   const effectiveGroupBy: GroupBy = groupingEnabled ? groupBy : "none";
 
-  const periods = useMemo(
-    () => groupDataByPeriod(data, effectiveGroupBy, startDate, endDate),
-    [data, effectiveGroupBy, startDate, endDate]
-  );
+  // Check if data is already grouped from backend
+  const isBackendGrouped = useMemo(() => {
+    return data.length > 0 && 'label' in data[0] && 'data' in data[0] && 'total' in data[0] && typeof (data[0] as unknown as PeriodGroup).total === 'number';
+  }, [data]);
+
+  const periods = useMemo(() => {
+    // If data is already grouped from backend, use it directly
+    if (isBackendGrouped) {
+      // Filter out empty periods (days with no data)
+      return (data as unknown as PeriodGroup[]).filter((period: PeriodGroup) => 
+        period.data && period.data.length > 0 && period.total > 0
+      );
+    }
+    // Otherwise, apply client-side grouping
+    return groupDataByPeriod(data as CategoryData[], effectiveGroupBy, startDate, endDate);
+  }, [data, effectiveGroupBy, startDate, endDate, isBackendGrouped]);
 
   const { overallTotal, totalCommission } = useMemo(() => {
     let total = 0, commission = 0;
-    data.forEach((item: any) => {
-      total += getCategoryTotal(item.orderItems);
-      commission += Number(item.commissionAmt || 0);
-    });
+    
+    if (isBackendGrouped) {
+      // For backend-grouped data, sum up the totals from each period
+      data.forEach((period: PeriodGroup) => {
+        total += period.total || 0;
+        commission += period.commission || 0;
+      });
+    } else {
+      // For ungrouped data, calculate from items
+      data.forEach((item: CategoryData) => {
+        total += getCategoryTotal(item.orderItems);
+        commission += Number(item.commissionAmt || 0);
+      });
+    }
+    
     return { overallTotal: total, totalCommission: commission };
-  }, [data]);
+  }, [data, isBackendGrouped]);
 
-  const overallSupplierTotal = useMemo(
-    () => data.reduce((s: number, item: any) => s + getSupplierTotal(item.orderItems), 0),
-    [data]
-  );
+  const overallSupplierTotal = useMemo(() => {
+    if (isBackendGrouped) {
+      // For backend-grouped data, sum up supplier totals from each period
+      return data.reduce((s: number, period: PeriodGroup) => {
+        return s + period.data.reduce((ps: number, item: CategoryData) => ps + getSupplierTotal(item.orderItems), 0);
+      }, 0);
+    }
+    // For ungrouped data, calculate directly
+    return data.reduce((s: number, item: CategoryData) => s + getSupplierTotal(item.orderItems), 0);
+  }, [data, isBackendGrouped]);
 
   const grossProfit = overallTotal - overallSupplierTotal;
   const hasData = data.length > 0;
 
+  // When data is backend grouped, we need to flatten it for the report components
+  const reportData = useMemo(() => {
+    if (isBackendGrouped) {
+      // Flatten the grouped data into a single array of categories
+      const flattened: CategoryData[] = [];
+      (data as unknown as PeriodGroup[]).forEach((period: PeriodGroup) => {
+        flattened.push(...period.data);
+      });
+      return flattened;
+    }
+    return data as CategoryData[];
+  }, [data, isBackendGrouped]);
+
   const sharedProps: ReportProps = {
-    data, startDate, endDate, brandName: BRAND_NAME1,
+    data: reportData, startDate, endDate, brandName: BRAND_NAME1,
     overallTotal, overallSupplierTotal, totalCommission,
     customerName, groupBy: effectiveGroupBy, periods,
   };
@@ -686,7 +782,14 @@ const ItemSalesModal: React.FC<ItemSalesModalProps> = ({
   const printA4 = useReactToPrint({ content: () => a4Ref.current });
   const handlePrint = () => printMode === "thermal" ? printThermal() : printA4();
 
-  const canGroup = availableGroupings.length > 1;
+  const canGroup = availableGroupings.length > 1 && !isBackendGrouped;
+
+  const handleGroupByChange = (newGroupBy: GroupBy) => {
+    setGroupBy(newGroupBy);
+    if (onGroupByChange) {
+      onGroupByChange(newGroupBy === "none" ? null : newGroupBy as string);
+    }
+  };
 
   const handleSendEmail = async (values: SendEmailValues) => {
     setSending(true);
@@ -809,9 +912,13 @@ const ItemSalesModal: React.FC<ItemSalesModalProps> = ({
                       checked={groupingEnabled}
                       onChange={(v) => {
                         setGroupingEnabled(v);
-                        if (v && groupBy === "none") {
-                          const best = availableGroupings.find(g => g !== "none") ?? "none";
-                          setGroupBy(best);
+                        if (v) {
+                          // Always default to "day" when enabling grouping
+                          const dayOption = availableGroupings.find(g => g === "day") ?? availableGroupings.find(g => g !== "none") ?? "none";
+                          setGroupBy(dayOption);
+                          handleGroupByChange(dayOption);
+                        } else {
+                          handleGroupByChange("none");
                         }
                       }}
                     />
@@ -819,11 +926,21 @@ const ItemSalesModal: React.FC<ItemSalesModalProps> = ({
                       <Select
                         size="small"
                         value={groupBy}
-                        onChange={setGroupBy}
+                        onChange={(value: GroupBy) => {
+                          setGroupBy(value);
+                          handleGroupByChange(value);
+                        }}
                         options={groupByOptions.filter(o => o.value !== "none")}
                         style={{ width: 110 }}
                       />
                     )}
+                  </div>
+                )}
+                
+                {isBackendGrouped && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, borderLeft: `1px solid ${C.border}`, paddingLeft: 12 }}>
+                    <GroupOutlined style={{ color: C.primary, fontSize: 12 }} />
+                    <Text style={{ fontSize: 12, color: C.primary, fontWeight: 600 }}>Grouped by Day</Text>
                   </div>
                 )}
               </div>

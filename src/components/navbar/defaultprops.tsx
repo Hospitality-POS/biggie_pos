@@ -1,5 +1,5 @@
 import {
-  ApiFilled, AppstoreOutlined, ApartmentOutlined, BarChartOutlined, CalculatorFilled, DashboardOutlined,
+  ApiFilled, AppstoreOutlined, ApartmentOutlined, CalculatorFilled, DashboardOutlined,
   ExperimentOutlined, FileDoneOutlined, FileSearchOutlined, FileTextOutlined,
   FolderFilled, GlobalOutlined, HomeFilled, HomeOutlined, UserOutlined, SettingOutlined,
   SwapOutlined, UsergroupAddOutlined, WalletOutlined,
@@ -395,7 +395,6 @@ const useProLayoutNav = () => {
 
   // ── POS routes ────────────────────────────────────────────────────────────
   const posRoutesFullAccessBase = [
-    { path: p("/home-dashboard"), name: "Dashboard", icon: <BarChartOutlined />, _bare: "/home-dashboard" },
     { path: p("/tables"), name: homeRouteName, icon: homeRouteIcon, _bare: "/tables" },
     { path: p("/orders"), name: "Orders", icon: <CalculatorFilled />, _bare: "/orders" },
     ...(posMode !== "retail"
@@ -425,7 +424,6 @@ const useProLayoutNav = () => {
     .map(({ _bare: _b, ...rest }) => rest);
 
   const posRoutesStaffBase = [
-    { path: p("/home-dashboard"), name: "Dashboard", icon: <BarChartOutlined />, _bare: "/home-dashboard" },
     { path: p("/tables"), name: homeRouteName, icon: homeRouteIcon, _bare: "/tables" },
     { path: p("/orders"), name: "Orders", icon: <CalculatorFilled />, _bare: "/orders" },
     ...(posMode !== "retail"
@@ -455,7 +453,6 @@ const useProLayoutNav = () => {
   // ── Accounting routes ─────────────────────────────────────────────────────
   const buildAccountingRoutes = () => {
     const routesBase = [
-      { path: p("/accounting"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/home-dashboard" },
       { path: p("/orders"), name: "Invoices", icon: <FileTextOutlined />, _bare: "/orders" },
       { path: p("/accounting/sales-receipts"), name: "Sales Receipts", icon: <AccountBookOutlined />, _bare: "/accounting/sales-receipts" },
       { path: p("/accounting/expenses"), name: "Expenses", icon: <ArrowUpOutlined />, _bare: "/accounting/expenses" },
@@ -498,7 +495,6 @@ const useProLayoutNav = () => {
   // ── Dala routes ───────────────────────────────────────────────────────────
   const buildDalaRoutes = () => {
     const routesBase = [
-      { path: p("/home-dashboard"), name: "Dashboard", icon: <BarChartOutlined />, _bare: "/home-dashboard" },
       { path: p("/dala/properties"), name: "Portfolio", icon: <HomeOutlined />, _bare: "/dala/properties" },
       { path: p("/dala/property-types"), name: "Property Types", icon: <ApartmentOutlined />, _bare: "/dala/property-types" },
       { path: p("/dala/sales"), name: "Sales", icon: <ReconciliationOutlined />, _bare: "/dala/sales" },
@@ -520,7 +516,6 @@ const useProLayoutNav = () => {
   // ── Bandu routes ───────────────────────────────────────────────────────────
   const buildBanduRoutes = () => {
     const routesBase = [
-      { path: p("/home-dashboard"), name: "Dashboard", icon: <BarChartOutlined />, _bare: "/home-dashboard" },
       { path: p("/hr/employees"), name: "Employees", icon: <UserOutlined />, _bare: "/hr/employees" },
       { path: p("/hr/leave"), name: "Leave", icon: <CalendarOutlined />, _bare: "/hr/leave" },
       { path: p("/hr/leave-policies"), name: "Leave Policies", icon: <FileTextOutlined />, _bare: "/hr/leave-policies" },
@@ -729,7 +724,16 @@ const useProLayoutNav = () => {
   // ════════════════════════════════════════════════════════════════════════════
   if (hasAccounting && !hasPOS && !hasDala && !hasBandu) {
     const accRoutes = isAdminOrCashier ? accountingRoutes : accountingRoutesStaff;
-    return { route: { path: "/", routes: accRoutes }, appList: accountingAppList };
+    return {
+      route: {
+        path: "/",
+        routes: groupFlatNav([
+          { path: p("/home-dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/home-dashboard" },
+          ...accRoutes,
+        ]),
+      },
+      appList: accountingAppList,
+    };
   }
 
   // ════════════════════════════════════════════════════════════════════════════
@@ -743,12 +747,7 @@ const useProLayoutNav = () => {
         routes: groupFlatNav([
           { path: p("/home-dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/home-dashboard" },
           { path: p("/reports"), name: "Reports", icon: <FileTextOutlined />, _bare: "/reports" },
-          {
-            path: p("/accounting"),
-            name: "Accounting",
-            icon: <AccountBookOutlined />,
-            routes: accRoutes,
-          },
+          ...accRoutes,
           ...banduRoutes.map(({ _bare: _b, ...rest }: any) => rest),
         ]),
       },
@@ -768,12 +767,7 @@ const useProLayoutNav = () => {
           { path: p("/home-dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/home-dashboard" },
           { path: p("/reports"), name: "Reports", icon: <FileTextOutlined />, _bare: "/reports" },
           { path: p("/customers"), name: getCustomerLabel(), icon: <UserOutlined />, _bare: "/customers" },
-          {
-            path: p("/accounting"),
-            name: "Accounting",
-            icon: <AccountBookOutlined />,
-            routes: accRoutes,
-          },
+          ...accRoutes,
           ...banduRoutes.map(({ _bare: _b, ...rest }: any) => rest),
           ...mtejaConversationsRoute.map(({ _bare: _b, ...rest }: any) => rest),
           ...crmRoutes.map(({ _bare: _b, ...rest }: any) => rest),
@@ -928,12 +922,7 @@ const useProLayoutNav = () => {
         routes: groupFlatNav([
           { path: p("/home-dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/home-dashboard" },
           ...posRoutes,
-          {
-            path: p("/accounting"),
-            name: "Accounting",
-            icon: <AccountBookOutlined />,
-            routes: accRoutes,
-          },
+          ...accRoutes,
         ]),
       },
       appList: [...posAppList, ...accountingAppList],
@@ -951,12 +940,7 @@ const useProLayoutNav = () => {
         routes: groupFlatNav([
           { path: p("/home-dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/home-dashboard" },
           ...posRoutes,
-          {
-            path: p("/accounting"),
-            name: "Accounting",
-            icon: <AccountBookOutlined />,
-            routes: accRoutes,
-          },
+          ...accRoutes,
           ...banduRoutes.map(({ _bare: _b, ...rest }: any) => rest),
         ]),
       },
@@ -975,12 +959,7 @@ const useProLayoutNav = () => {
         routes: groupFlatNav([
           { path: p("/home-dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/home-dashboard" },
           ...posRoutes,
-          {
-            path: p("/accounting"),
-            name: "Accounting",
-            icon: <AccountBookOutlined />,
-            routes: accRoutes,
-          },
+          ...accRoutes,
           ...banduRoutes.map(({ _bare: _b, ...rest }: any) => rest),
           ...mtejaConversationsRoute.map(({ _bare: _b, ...rest }: any) => rest),
           ...crmRoutes.map(({ _bare: _b, ...rest }: any) => rest),
@@ -1057,12 +1036,7 @@ const useProLayoutNav = () => {
           { path: p("/home-dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/home-dashboard" },
           { path: p("/reports"), name: "Reports", icon: <FileTextOutlined />, _bare: "/reports" },
           ...(hasMteja ? [{ path: p("/customers"), name: getCustomerLabel(), icon: <UserOutlined />, _bare: "/customers" }] : []),
-          {
-            path: p("/accounting"),
-            name: "Accounting",
-            icon: <AccountBookOutlined />,
-            routes: accRoutes,
-          },
+          ...accRoutes,
           ...dalaRoutes.map(({ _bare: _b, ...rest }: any) => rest),
           // Mteja routes flattened — only when hasMteja
           ...(hasMteja ? mtejaConversationsRoute.map(({ _bare: _b, ...rest }: any) => rest) : []),
@@ -1084,12 +1058,7 @@ const useProLayoutNav = () => {
         routes: groupFlatNav([
           { path: p("/home-dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/home-dashboard" },
           { path: p("/reports"), name: "Reports", icon: <FileTextOutlined />, _bare: "/reports" },
-          {
-            path: p("/accounting"),
-            name: "Accounting",
-            icon: <AccountBookOutlined />,
-            routes: accRoutes,
-          },
+          ...accRoutes,
           ...dalaRoutes.map(({ _bare: _b, ...rest }: any) => rest),
           ...banduRoutes.map(({ _bare: _b, ...rest }: any) => rest),
         ]),
@@ -1110,12 +1079,7 @@ const useProLayoutNav = () => {
           { path: p("/home-dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/home-dashboard" },
           { path: p("/reports"), name: "Reports", icon: <FileTextOutlined />, _bare: "/reports" },
           { path: p("/customers"), name: getCustomerLabel(), icon: <UserOutlined />, _bare: "/customers" },
-          {
-            path: p("/accounting"),
-            name: "Accounting",
-            icon: <AccountBookOutlined />,
-            routes: accRoutes,
-          },
+          ...accRoutes,
           ...dalaRoutes.map(({ _bare: _b, ...rest }: any) => rest),
           ...banduRoutes.map(({ _bare: _b, ...rest }: any) => rest),
           ...mtejaConversationsRoute.map(({ _bare: _b, ...rest }: any) => rest),
@@ -1137,12 +1101,7 @@ const useProLayoutNav = () => {
         routes: groupFlatNav([
           { path: p("/home-dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/home-dashboard" },
           ...posRoutes,
-          {
-            path: p("/accounting"),
-            name: "Accounting",
-            icon: <AccountBookOutlined />,
-            routes: accRoutes,
-          },
+          ...accRoutes,
           ...dalaRoutes.map(({ _bare: _b, ...rest }: any) => rest),
         ]),
       },
@@ -1161,12 +1120,7 @@ const useProLayoutNav = () => {
         routes: groupFlatNav([
           { path: p("/home-dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/home-dashboard" },
           ...posRoutes,
-          {
-            path: p("/accounting"),
-            name: "Accounting",
-            icon: <AccountBookOutlined />,
-            routes: accRoutes,
-          },
+          ...accRoutes,
           ...dalaRoutes.map(({ _bare: _b, ...rest }: any) => rest),
           ...banduRoutes.map(({ _bare: _b, ...rest }: any) => rest),
         ]),
@@ -1186,12 +1140,7 @@ const useProLayoutNav = () => {
         routes: groupFlatNav([
           { path: p("/home-dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/home-dashboard" },
           ...posRoutes,
-          {
-            path: p("/accounting"),
-            name: "Accounting",
-            icon: <AccountBookOutlined />,
-            routes: accRoutes,
-          },
+          ...accRoutes,
           ...dalaRoutes.map(({ _bare: _b, ...rest }: any) => rest),
           ...banduRoutes.map(({ _bare: _b, ...rest }: any) => rest),
           ...mtejaConversationsRoute.map(({ _bare: _b, ...rest }: any) => rest),
@@ -1205,7 +1154,13 @@ const useProLayoutNav = () => {
   // ════════════════════════════════════════════════════════════════════════════
   // FALLBACK: unexpected combination
   // ════════════════════════════════════════════════════════════════════════════
-  const baseRoutes: any[] = hasPOS ? [...posRoutes] : [];
+  const baseRoutes: any[] = [];
+  // Add Dashboard first for all cases
+  baseRoutes.push({ path: p("/home-dashboard"), name: "Dashboard", icon: <DashboardOutlined /> });
+  
+  if (hasPOS) {
+    baseRoutes.push(...posRoutes);
+  }
   if (hasDala) {
     baseRoutes.push(...dalaRoutes.map(({ _bare: _b, ...rest }: any) => rest));
   }
@@ -1214,27 +1169,19 @@ const useProLayoutNav = () => {
   }
   if (hasAccounting) {
     const accRoutes = isAdminOrCashier ? accountingRoutes : accountingRoutesStaff;
-    baseRoutes.push({
-      path: p("/accounting"),
-      name: "Accounting",
-      icon: <AccountBookOutlined />,
-      routes: accRoutes,
-    });
+    baseRoutes.push(...accRoutes);
   }
   // Mteja routes flattened — only when hasMteja
   if (hasMteja) {
     baseRoutes.push(...mtejaConversationsRoute.map(({ _bare: _b, ...rest }: any) => rest));
     baseRoutes.push(...crmRoutes.map(({ _bare: _b, ...rest }: any) => rest));
   }
-  // Add Dashboard and Reports if not already present
+  // Add Reports if not already present (only for non-POS cases)
   if (!hasPOS) {
-    baseRoutes.unshift(
-      { path: p("/home-dashboard"), name: "Dashboard", icon: <DashboardOutlined /> },
-      { path: p("/reports"), name: "Reports", icon: <FileTextOutlined /> }
-    );
+    baseRoutes.push({ path: p("/reports"), name: "Reports", icon: <FileTextOutlined /> });
     // Add Customers if Mteja is enabled
     if (hasMteja) {
-      baseRoutes.splice(2, 0, { path: p("/customers"), name: getCustomerLabel(), icon: <UserOutlined /> });
+      baseRoutes.push({ path: p("/customers"), name: getCustomerLabel(), icon: <UserOutlined /> });
     }
   }
   return { route: { path: "/", routes: groupFlatNav(baseRoutes) }, appList: posAppList };

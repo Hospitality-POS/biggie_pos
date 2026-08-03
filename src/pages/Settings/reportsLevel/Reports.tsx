@@ -45,17 +45,6 @@ const C = {
   bg: "#f8fafc",
 };
 
-// ── Mobile hook ───────────────────────────────────────────────────────────────
-const useIsMobile = () => {
-  const [v, setV] = useState(window.innerWidth < 768);
-  useEffect(() => {
-    const h = () => setV(window.innerWidth < 768);
-    window.addEventListener("resize", h);
-    return () => window.removeEventListener("resize", h);
-  }, []);
-  return v;
-};
-
 // ── Tab config — each tab declares its required permission ────────────────────
 const TAB_CFG = [
   {
@@ -181,8 +170,8 @@ const useCustomerOptions = () => {
     networkMode: "always",
     enabled: !!shopId,
   });
-  const list = Array.isArray(data) ? data : (data as any)?.data ?? [];
-  return list.map((c: any) => ({ label: c.customer_name || c.name, value: c._id }));
+  const list = Array.isArray(data) ? data : (data as { data?: unknown })?.data ?? [];
+  return list.map((c: { customer_name?: string; name?: string; _id: string }) => ({ label: c.customer_name || c.name, value: c._id }));
 };
 
 const useLocationOptions = () => {
@@ -191,7 +180,7 @@ const useLocationOptions = () => {
     queryFn: () => getTableLocation({}),
     networkMode: "always",
   });
-  return (data ?? []).map((e: any) => ({ label: e.name, value: e._id }));
+  return (data ?? []).map((e: { name: string; _id: string }) => ({ label: e.name, value: e._id }));
 };
 
 // ── Shared field components ───────────────────────────────────────────────────
@@ -260,9 +249,19 @@ const Reports: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<string>(defaultTab);
   const [form] = Form.useForm();
-  const [queryKey, setQueryKey] = useState<any>(null);
+  const [queryKey, setQueryKey] = useState<{
+    startDate: string;
+    endDate: string;
+    servedBy?: string;
+    commission?: number;
+    locationId?: string;
+    shop_id?: string;
+    customer_id?: string;
+    groupBy?: string | null;
+  } | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<{ id: string; name: string } | null>(null);
+  const [groupBy, setGroupBy] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const userOptions = useUserOptions();
@@ -300,7 +299,14 @@ const Reports: React.FC = () => {
     enabled: !!localStorage.getItem("shopId"),
   });
 
-  const onFinish = async (values: any) => {
+  const onFinish = async (values: {
+    dateRange: any[];
+    servedBy?: string;
+    commission?: number;
+    locationId?: string;
+    shop_id?: string;
+    customerId?: string;
+  }) => {
     const { dateRange, servedBy, commission, locationId, shop_id, customerId } = values;
     const [startDate, endDate] = dateRange || [];
 
@@ -310,8 +316,8 @@ const Reports: React.FC = () => {
     ]);
 
     if (customerId) {
-      const list = Array.isArray(customersRaw) ? customersRaw : (customersRaw as any)?.data ?? [];
-      const found = list.find((c: any) => c._id === customerId);
+      const list = Array.isArray(customersRaw) ? customersRaw : (customersRaw as { data?: unknown })?.data ?? [];
+      const found = list.find((c: { _id: string; customer_name?: string; name?: string }) => c._id === customerId);
       setSelectedCustomer(found
         ? { id: customerId, name: found.customer_name || found.name }
         : { id: customerId, name: "Selected Customer" });
@@ -325,6 +331,7 @@ const Reports: React.FC = () => {
         endDate: endDate?.format("YYYY-MM-DD HH:mm") || "",
         servedBy, commission, locationId, shop_id,
         customer_id: customerId || undefined,
+        groupBy: groupBy, // Pass current groupBy state
       });
       queryClient.invalidateQueries(["itemsales"]);
     }
@@ -345,9 +352,10 @@ const Reports: React.FC = () => {
 
   const salesReportData = React.useMemo(() => {
     if (!itemSalesData) return [];
-    if ((itemSalesData as any).success && Array.isArray((itemSalesData as any).data)) return (itemSalesData as any).data;
-    if (Array.isArray(itemSalesData)) return itemSalesData;
-    if ((itemSalesData as any).data && Array.isArray((itemSalesData as any).data)) return (itemSalesData as any).data;
+    const apiData = itemSalesData as { success?: boolean; data?: unknown };
+    if (apiData.success && Array.isArray(apiData.data)) return apiData.data as unknown[];
+    if (Array.isArray(itemSalesData)) return itemSalesData as unknown[];
+    if (apiData.data && Array.isArray(apiData.data)) return apiData.data as unknown[];
     return [];
   }, [itemSalesData]);
 
@@ -411,7 +419,7 @@ const Reports: React.FC = () => {
                   <InputNumber
                     placeholder="0%" min={0} max={100}
                     formatter={(v) => `${v}%`}
-                    parser={(v) => v!.replace("%", "") as any}
+                    parser={(v) => v ? v.replace("%", "") : ""}
                     style={{ width: "100%", borderRadius: 8 }}
                   />
                 </Form.Item>
@@ -436,6 +444,18 @@ const Reports: React.FC = () => {
               startDate={salesDateTimeRange[0]}
               endDate={salesDateTimeRange[1]}
               customerName={selectedCustomer?.name || null}
+              initialGroupBy={groupBy}
+              onGroupByChange={(newGroupBy) => {
+                setGroupBy(newGroupBy);
+                // Refetch data with new groupBy parameter
+                if (queryKey) {
+                  setQueryKey({
+                    ...queryKey,
+                    groupBy: newGroupBy,
+                  });
+                  queryClient.invalidateQueries(["itemsales"]);
+                }
+              }}
             />
           </Form>
         );
