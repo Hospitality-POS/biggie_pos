@@ -2,6 +2,7 @@ import { FolderAddOutlined, HolderOutlined, SearchOutlined, ReloadOutlined, Down
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Empty, Input, Skeleton, Switch, Typography, Popconfirm, notification, Tooltip, message } from "antd";
 import React, { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { getAllProducts, editProduct } from "@services/products";
 import StoreProductCard from "@components/store/StoreProductCard";
 import StoreModal from "@components/MODALS/pro/StoreModal";
@@ -357,6 +358,7 @@ const ListProductRow: React.FC<{
 export default function MainStore() {
   const isMobile = useIsMobile();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const { user } = useAppSelector((state) => state.auth);
   const isAdmin = user?.role === "admin";
   const isManager = user?.role === "manager";
@@ -537,7 +539,25 @@ export default function MainStore() {
       <Text style={{ fontSize: 13, color: palette.subText, display: "block", marginBottom: 24 }}>
         Add your first product category and products to get started.
       </Text>
-      <StoreModal edit={false} onSuccess={() => queryClient.invalidateQueries({ queryKey: ["products"] })} />
+      <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+        <StoreModal edit={false} onSuccess={() => queryClient.invalidateQueries({ queryKey: ["products"] })} />
+        <ImportProductsModal onSuccess={() => { setRefreshKey(prev => prev + 1); }} />
+        <button
+          onClick={() => navigate("/Category-settings")}
+          style={{
+            display: "flex", alignItems: "center", gap: 5,
+            background: "#f0fdf4", border: "1px solid #bbf7d0",
+            borderRadius: 7, padding: "6px 12px",
+            fontSize: 12, fontWeight: 600, color: "#10b981",
+            cursor: "pointer",
+            transition: "all 0.15s",
+            whiteSpace: "nowrap",
+          }}
+        >
+          <FolderAddOutlined style={{ fontSize: 12 }} />
+          Manage Categories
+        </button>
+      </div>
     </div>
   );
 
