@@ -637,6 +637,7 @@ export const fetchPropertySales = async (params?: {
   property_id?: string;
   status?: string;
   agent_id?: string;
+  customer_id?: string;
   start_date?: string;
   end_date?: string;
 }) => {
@@ -648,6 +649,26 @@ export const fetchPropertySales = async (params?: {
     return response.data;
   } catch (error: any) {
     console.error("Failed to fetch property sales:", error);
+    throw error;
+  }
+};
+
+export const fetchSalesByCustomer = async (customerId: string, params?: {
+  page?: number;
+  limit?: number;
+  status?: string;
+}) => {
+  try {
+    const response = await axiosInstance.get(`${dalaUrl}/sales`, {
+      params: {
+        customer_id: customerId,
+        ...params,
+      },
+      headers: getDalaHeaders()
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error("Failed to fetch sales by customer:", error);
     throw error;
   }
 };

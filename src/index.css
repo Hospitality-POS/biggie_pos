@@ -99,3 +99,16 @@ input[type="checkbox" i]:active {
 .ant-pro-checkcard:hover .anticon {
   transform: scale(1.1);
 }
+
+/* Fix Select dropdown alignment issues */
+.ant-select-item-option-content {
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+}
+
+.ant-select-item-option-content > div {
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+}

@@ -77,6 +77,12 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
   // Initial payment state
   const [initialPaymentType, setInitialPaymentType] = useState<string>('booking_fee');
   const [fileList, setFileList] = useState<UploadFile[]>([]);
+  
+  // Discount calculation state
+  const [discountType, setDiscountType] = useState<'fixed' | 'percentage'>('fixed');
+  
+  // Initial payment calculation type state
+  const [initialPaymentCalcType, setInitialPaymentCalcType] = useState<'fixed' | 'percentage'>('fixed');
 
   // Joint purchase state
   const [isJointPurchase, setIsJointPurchase] = useState<boolean>(false);
@@ -152,6 +158,7 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
           payment_plan: initialData.paymentPlanType || initialData.payment_plan || 'full_payment',
           initial_payment_type: initialData.initialPaymentType || initialData.initial_payment_type || 'booking_fee',
           initial_payment: initialData.deposit?.amount || initialData.initialPayment || initialData.initial_payment || 100000,
+          initial_payment_input: initialData.deposit?.amount || initialData.initialPayment || initialData.initial_payment || 100000,
           payment_date: initialData.saleDate ? dayjs(initialData.saleDate) : dayjs(),
           payment_method: initialData.payments?.[0]?.method_id?.name || initialData.payment_method,
           commission_rate: initialData.commissionPercentage || initialData.commission_rate || 0,
@@ -160,6 +167,20 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
           propertyManager: initialData.propertyManager?._id || initialData.propertyManager,
           notes: initialData.notes || '',
         });
+        
+        // Set discount type and initial payment calc type (default to fixed for existing data)
+        setDiscountType(initialData.discountType || 'fixed');
+        setInitialPaymentCalcType(initialData.initialPaymentCalcType || 'fixed');
+        
+        // Clear discount percentage when editing
+        form.setFieldsValue({ discount_percentage: undefined });
+        
+        // If initial payment calc type is percentage, calculate the percentage from the amount
+        if (initialData.initialPaymentCalcType === 'percentage' && initialData.initialPayment) {
+          const salePrice = initialData.salePrice || initialData.sale_price || 0;
+          const percentage = salePrice > 0 ? (initialData.initialPayment / salePrice) * 100 : 0;
+          form.setFieldsValue({ initial_payment_input: percentage });
+        }
         setSelectedPropertyId(initialData.property?._id || initialData.property_id);
         
         // Restore installments from paymentPlans if they exist
@@ -182,9 +203,11 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
         form.setFieldsValue({
           initial_payment_type: 'booking_fee',
           initial_payment: 100000,
+          initial_payment_input: 100000,
           payment_plan: 'full_payment',
           commission_rate: 5,
           status: 'reservation',
+          discount_percentage: undefined,
         });
         setSelectedPropertyId(null);
         setInstallments([]);
@@ -192,6 +215,8 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
         setSelectedCustomers([]);
         setIsCommissionSplit(false);
         setCommissionSplits([]);
+        setDiscountType('fixed');
+        setInitialPaymentCalcType('fixed');
       }
       setCurrentStep(0);
     }
@@ -236,7 +261,12 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
       list_price: undefined,
       sale_price: undefined,
       discount: 0,
+      discount_percentage: undefined,
+      initial_payment: undefined,
+      initial_payment_input: undefined,
     });
+    setDiscountType('fixed');
+    setInitialPaymentCalcType('fixed');
   };
 
   const handleUnitChange = (value: string) => {
@@ -288,22 +318,66 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
     setInitialPaymentType(value);
     // Only set default for new sales, not when editing
     if (value === 'booking_fee' && !edit) {
-      form.setFieldsValue({ initial_payment: 100000 });
+      form.setFieldsValue({ initial_payment: 100000, initial_payment_input: 100000 });
     } else if (value !== 'booking_fee') {
-      form.setFieldsValue({ initial_payment: undefined });
+      form.setFieldsValue({ initial_payment: undefined, initial_payment_input: undefined });
     }
   };
 
   const handleDiscountChange = (value: number | null) => {
     const listPrice = form.getFieldValue('list_price') || 0;
-    const salePrice = listPrice - (value || 0);
-    form.setFieldsValue({ sale_price: salePrice > 0 ? salePrice : 0 });
+    const discountAmount = value || 0;
+    const salePrice = listPrice - discountAmount;
+    form.setFieldsValue({ 
+      sale_price: salePrice > 0 ? salePrice : 0,
+      discount_percentage: undefined // Clear percentage when manually changing discount
+    });
+  };
+  
+  const handleDiscountPercentageChange = (value: number | null) => {
+    const listPrice = form.getFieldValue('list_price') || 0;
+    const discountAmount = listPrice * ((value || 0) / 100);
+    const salePrice = listPrice - discountAmount;
+    form.setFieldsValue({ 
+      discount: discountAmount > 0 ? discountAmount : 0,
+      discount_percentage: value,
+      sale_price: salePrice > 0 ? salePrice : 0
+    });
   };
 
   const handleSalePriceChange = (value: number | null) => {
     const listPrice = form.getFieldValue('list_price') || 0;
     const discount = listPrice - (value || 0);
-    form.setFieldsValue({ discount: discount > 0 ? discount : 0 });
+    form.setFieldsValue({ 
+      discount: discount > 0 ? discount : 0,
+      discount_percentage: undefined // Clear percentage when manually changing sale price
+    });
+  };
+  
+  const handleDiscountTypeChange = (value: 'fixed' | 'percentage') => {
+    setDiscountType(value);
+    if (value === 'fixed') {
+      form.setFieldsValue({ discount_percentage: undefined });
+    }
+  };
+  
+  const handleInitialPaymentChange = (value: number | null) => {
+    const salePrice = form.getFieldValue('sale_price') || 0;
+    let initialPaymentAmount = 0;
+    
+    if (initialPaymentCalcType === 'percentage') {
+      initialPaymentAmount = salePrice * ((value || 0) / 100);
+      form.setFieldsValue({ 
+        initial_payment_input: value,
+        initial_payment: initialPaymentAmount > 0 ? initialPaymentAmount : 0
+      });
+    } else {
+      initialPaymentAmount = value || 0;
+      form.setFieldsValue({ 
+        initial_payment_input: value,
+        initial_payment: initialPaymentAmount > 0 ? initialPaymentAmount : 0
+      });
+    }
   };
 
   const calculatePaymentPlanDetails = () => {
@@ -456,7 +530,7 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
           return false;
         }
         
-        const commissionRate = form.getFieldValue('commission_rate') || 0;
+        const commissionRate = values.commission_rate || 0;
         const totalSplitPercentage = getTotalSplitPercentage();
         
         if (Math.abs(totalSplitPercentage - commissionRate) > 0.01) {
@@ -492,19 +566,23 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
         apartmentName = apartment?.apartmentName;
       }
 
+      // Remove discount_percentage and initial_payment_input from submission (only used for UI calculation)
+      const { discount_percentage, initial_payment_input, ...valuesWithoutHelpers } = values;
+
       const formattedValues = {
-        ...values,
-        sale_date: values.sale_date.format('YYYY-MM-DD'),
-        payment_date: values.payment_date ? values.payment_date.format('YYYY-MM-DD') : undefined,
-        apartment_id: values.apartment_id || undefined,
+        ...valuesWithoutHelpers,
+        sale_date: valuesWithoutHelpers.sale_date.format('YYYY-MM-DD'),
+        payment_date: valuesWithoutHelpers.payment_date ? valuesWithoutHelpers.payment_date.format('YYYY-MM-DD') : undefined,
+        apartment_id: valuesWithoutHelpers.apartment_id || undefined,
         apartment_name: apartmentName,
-        installments: values.payment_plan !== 'full_payment' ? installments : [],
-        commission_amount: (values.sale_price * (values.commission_rate || 0)) / 100,
-        paymentPlanType: values.payment_plan,
-        salesAgent: values.salesAgent,
-        propertyManager: values.propertyManager,
+        installments: valuesWithoutHelpers.payment_plan !== 'full_payment' ? installments : [],
+        commission_amount: (valuesWithoutHelpers.sale_price * (valuesWithoutHelpers.commission_rate || 0)) / 100,
+        paymentPlanType: valuesWithoutHelpers.payment_plan,
+        salesAgent: valuesWithoutHelpers.salesAgent,
+        propertyManager: valuesWithoutHelpers.propertyManager,
         is_joint_purchase: isJointPurchase,
         commissionSplits: isCommissionSplit ? commissionSplits : undefined,
+        initialPaymentCalcType: initialPaymentCalcType,
       };
 
       // Handle customer vs customers based on joint purchase
@@ -515,7 +593,7 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
         formattedValues.customer = selectedCustomers[0];
       }
       
-      onSubmit(formattedValues);
+      onSubmit(valuesToSubmit);
       return true;
     } catch (error) {
       message.error('Please check all fields');
@@ -566,12 +644,13 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
       apartmentName: String(apartment?.apartmentName || ''),
       floor: String(floor?.name || ''),
       block: String(block?.name || ''),
-      listPrice: Number(values.list_price || 0),
-      discount: Number(values.discount || 0),
-      salePrice: Number(values.sale_price || 0),
-      initialPayment: Number(values.initial_payment || 0),
-      paymentPlan: String(values.payment_plan || 'N/A'),
-      saleDate: String(values.sale_date?.format('YYYY-MM-DD') || ''),
+      listPrice: Number(formattedValues.list_price || 0),
+      discount: Number(formattedValues.discount || 0),
+      salePrice: Number(formattedValues.sale_price || 0),
+      initialPayment: Number(formattedValues.initial_payment || 0),
+      initialPaymentCalcType: String(initialPaymentCalcType || 'fixed'),
+      paymentPlan: String(formattedValues.payment_plan || 'N/A'),
+      saleDate: String(formattedValues.sale_date?.format('YYYY-MM-DD') || ''),
       salesAgent: String(salesAgent?.fullname || salesAgent?.name || 'N/A'),
       propertyManager: String(propertyManager?.fullname || propertyManager?.name || 'N/A'),
       hidePaymentPlans: hidePaymentPlans,
@@ -646,13 +725,13 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
         floor: String(floor?.name || ''),
         block: String(block?.name || ''),
       },
-      list_price: Number(values.list_price || 0),
-      discount: Number(values.discount || 0),
-      sale_price: Number(values.sale_price || 0),
+      list_price: Number(formattedValues.list_price || 0),
+      discount: Number(formattedValues.discount || 0),
+      sale_price: Number(formattedValues.sale_price || 0),
       paymentTotals: initialData?.paymentTotals || {
         totalPaid: 0,
-        depositPaid: Number(values.initial_payment || 0),
-        outstandingBalance: Number(values.sale_price || 0) - Number(values.initial_payment || 0),
+        depositPaid: Number(formattedValues.initial_payment || 0),
+        outstandingBalance: Number(formattedValues.sale_price || 0) - Number(formattedValues.initial_payment || 0),
         paymentPercentage: 0,
       },
       paymentPlans: initialData?.paymentPlans || [],
@@ -947,7 +1026,7 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
                 )}
 
                 <Row gutter={16}>
-                  <Col span={8}>
+                  <Col span={12}>
                     <Form.Item
                       label="List Price (KES)"
                       name="list_price"
@@ -960,7 +1039,7 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
                       />
                     </Form.Item>
                   </Col>
-                  <Col span={8}>
+                  <Col span={12}>
                     <Form.Item
                       label="Sale Price (KES)"
                       name="sale_price"
@@ -970,26 +1049,78 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
                         style={{ width: '100%' }}
                         min={0}
                         formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                        parser={(value: string) => value!.replace(/\$\s?|(,*)/g, '')}
+                        parser={(value) => value!.replace(/\$\s?|(,*)/g, '')}
                         onChange={handleSalePriceChange}
                       />
                     </Form.Item>
                   </Col>
+                </Row>
+                
+                <Row gutter={16} style={{ marginBottom: 16 }}>
                   <Col span={8}>
-                    <Form.Item
-                      label="Discount (KES)"
-                      name="discount"
-                    >
-                      <InputNumber
+                    <div>
+                      <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Discount Type:</Text>
+                      <Select
+                        value={discountType}
+                        onChange={handleDiscountTypeChange}
                         style={{ width: '100%' }}
-                        min={0}
-                        formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                        parser={(value: string) => value!.replace(/\$\s?|(,*)/g, '')}
-                        onChange={handleDiscountChange}
-                      />
-                    </Form.Item>
+                        size="small"
+                      >
+                        <Option value="fixed">Fixed (KES)</Option>
+                        <Option value="percentage">Percentage (%)</Option>
+                      </Select>
+                    </div>
+                  </Col>
+                  {discountType === 'percentage' && (
+                    <Col span={8}>
+                      <div>
+                        <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Percentage Value:</Text>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <InputNumber
+                            placeholder="%"
+                            min={0}
+                            max={100}
+                            formatter={(value) => `${value}%`}
+                            parser={(value) => value!.replace('%', '')}
+                            onChange={handleDiscountPercentageChange}
+                            style={{ width: 100 }}
+                            size="small"
+                          />
+                          {form.getFieldValue('list_price') && form.getFieldValue('discount_percentage') !== undefined && form.getFieldValue('discount_percentage') !== null && (
+                            <Text type="secondary" style={{ fontSize: 12 }}>
+                              = KES {((form.getFieldValue('list_price') * form.getFieldValue('discount_percentage')) / 100).toLocaleString()}
+                            </Text>
+                          )}
+                        </div>
+                      </div>
+                    </Col>
+                  )}
+                  <Col span={discountType === 'percentage' ? 8 : 16}>
+                    <div>
+                      <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Discount (KES):</Text>
+                      <Form.Item
+                        name="discount"
+                        style={{ marginBottom: 0 }}
+                      >
+                        <InputNumber
+                          style={{ width: '100%' }}
+                          min={0}
+                          formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                          parser={(value) => value!.replace(/\$\s?|(,*)/g, '')}
+                          onChange={handleDiscountChange}
+                          size="small"
+                        />
+                      </Form.Item>
+                    </div>
                   </Col>
                 </Row>
+                
+                <Form.Item
+                  name="discount_percentage"
+                  hidden
+                >
+                  <InputNumber />
+                </Form.Item>
 
                 <Form.Item
                   label="Sale Date"
@@ -1038,18 +1169,75 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
                     style={{ marginBottom: 16 }}
                   />
                 )}
-
+                
+                <Row gutter={16} style={{ marginBottom: 16 }}>
+                  <Col span={8}>
+                    <div>
+                      <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Calculation Type:</Text>
+                      <Select
+                        value={initialPaymentCalcType}
+                        onChange={setInitialPaymentCalcType}
+                        style={{ width: '100%' }}
+                        size="small"
+                      >
+                        <Option value="fixed">Fixed (KES)</Option>
+                        <Option value="percentage">Percentage (%)</Option>
+                      </Select>
+                    </div>
+                  </Col>
+                  {initialPaymentCalcType === 'percentage' && (
+                    <Col span={8}>
+                      <div>
+                        <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Percentage Value:</Text>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <InputNumber
+                            placeholder="%"
+                            min={0}
+                            max={100}
+                            formatter={(value) => `${value}%`}
+                            parser={(value) => value!.replace('%', '')}
+                            onChange={handleInitialPaymentChange}
+                            style={{ width: 100 }}
+                            size="small"
+                          />
+                          {form.getFieldValue('sale_price') && form.getFieldValue('initial_payment_input') && (
+                            <Text type="secondary" style={{ fontSize: 12 }}>
+                              = KES {((form.getFieldValue('sale_price') * form.getFieldValue('initial_payment_input')) / 100).toLocaleString()}
+                            </Text>
+                          )}
+                        </div>
+                      </div>
+                    </Col>
+                  )}
+                  <Col span={initialPaymentCalcType === 'percentage' ? 8 : 16}>
+                    <div>
+                      <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Initial Payment (KES):</Text>
+                      <Form.Item
+                        name="initial_payment"
+                        style={{ marginBottom: 0 }}
+                      >
+                        <InputNumber
+                          style={{ width: '100%' }}
+                          min={0}
+                          formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                          parser={(value: string) => value!.replace(/\$\s?|(,*)/g, '')}
+                          onChange={(value) => {
+                            if (initialPaymentCalcType === 'fixed') {
+                              form.setFieldsValue({ initial_payment_input: value });
+                            }
+                          }}
+                          size="small"
+                        />
+                      </Form.Item>
+                    </div>
+                  </Col>
+                </Row>
+                
                 <Form.Item
-                  label="Initial Payment Amount (KES)"
-                  name="initial_payment"
-                  rules={[{ required: true, message: 'Please enter initial payment amount' }]}
+                  name="initial_payment_input"
+                  hidden
                 >
-                  <InputNumber
-                    style={{ width: '100%' }}
-                    min={0}
-                    formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                    parser={(value: string) => value!.replace(/\$\s?|(,*)/g, '')}
-                  />
+                  <InputNumber />
                 </Form.Item>
 
                 <Form.Item

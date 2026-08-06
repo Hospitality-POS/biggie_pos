@@ -57,6 +57,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import AddEditSaleModal from './AddEditSaleModal';
 import SalesPaymentsTab from '../payments/SalesPaymentsTab';
+import PaymentModal from '../payments/PaymentModal';
 
 const { Search } = Input;
 const { Option } = Select;
@@ -84,11 +85,14 @@ const SalesManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [propertyFilter, setPropertyFilter] = useState('');
+  const [customerFilter, setCustomerFilter] = useState('');
+  const [saleCodeFilter, setSaleCodeFilter] = useState('');
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [editSale, setEditSale] = useState<any>(null);
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [selectedSale, setSelectedSale] = useState<any>(null);
+  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
   
   // Document management state
   const [documents, setDocuments] = useState<any[]>([]);
@@ -261,14 +265,44 @@ const SalesManagement: React.FC = () => {
     data: propertiesQuery.data,
   });
 
+  // Extract unique customers and sale codes for dropdowns
+  const uniqueCustomers = React.useMemo(() => {
+    const customers = new Map();
+    sales.forEach((sale) => {
+      const customer = sale.customer || sale.client;
+      if (customer && customer._id) {
+        customers.set(customer._id, {
+          _id: customer._id,
+          name: customer.name || customer.customer_name || customer.email || 'Unknown',
+        });
+      }
+    });
+    return Array.from(customers.values());
+  }, [sales]);
+
+  const uniqueSaleCodes = React.useMemo(() => {
+    const codes = new Set();
+    sales.forEach((sale) => {
+      if (sale.saleCode) {
+        codes.add(sale.saleCode);
+      }
+    });
+    return Array.from(codes).sort();
+  }, [sales]);
+
   const filteredSales = sales.filter((sale) => {
     const matchesSearch = !searchTerm || 
       sale.property?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       sale.unit?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      sale.client?.name?.toLowerCase().includes(searchTerm.toLowerCase());
+      sale.client?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      sale.saleCode?.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = !statusFilter || sale.status === statusFilter;
     const matchesProperty = !propertyFilter || sale.property_id === propertyFilter;
+    const matchesCustomer = !customerFilter || 
+      sale.customer?._id === customerFilter || 
+      sale.client?._id === customerFilter;
+    const matchesSaleCode = !saleCodeFilter || sale.saleCode === saleCodeFilter;
     
     let matchesDateRange = true;
     if (dateRange) {
@@ -276,7 +310,7 @@ const SalesManagement: React.FC = () => {
       matchesDateRange = saleDate.isAfter(dateRange[0]) && saleDate.isBefore(dateRange[1]);
     }
     
-    return matchesSearch && matchesStatus && matchesProperty && matchesDateRange;
+    return matchesSearch && matchesStatus && matchesProperty && matchesCustomer && matchesSaleCode && matchesDateRange;
   });
 
   const columns = [
@@ -287,29 +321,13 @@ const SalesManagement: React.FC = () => {
       render: (code: string) => <Text strong>{code || '-'}</Text>,
     },
     {
-      title: 'Sale Date',
+      title: 'Date',
       dataIndex: 'sale_date',
       key: 'sale_date',
       render: (date: string) => dayjs(date).format('DD MMM YYYY'),
     },
     {
-      title: 'Property',
-      dataIndex: ['property', 'name'],
-      key: 'property',
-      render: (name: string, record: any) => (
-        <Text strong>{name || record.property?.propertyType || record.property_id || '-'}</Text>
-      ),
-    },
-    {
-      title: 'Unit',
-      dataIndex: ['unit', 'name'],
-      key: 'unit',
-      render: (name: string, record: any) => (
-        <Text>{name || record.apartmentName || record.unit?.totalUnits || record.unit_id || '-'}</Text>
-      ),
-    },
-    {
-      title: 'Client',
+      title: 'Customer',
       dataIndex: ['client', 'name'],
       key: 'client',
       render: (name: string, record: any) => (
@@ -328,23 +346,12 @@ const SalesManagement: React.FC = () => {
       ),
     },
     {
-      title: 'List Price',
-      dataIndex: 'list_price',
-      key: 'list_price',
-      render: (price: number, record: any) => `KES ${(price || record.listPrice || 0).toLocaleString()}`,
-    },
-    {
-      title: 'Discount',
-      dataIndex: 'discount',
-      key: 'discount',
-      render: (discount: number, record: any) => {
-        const discountAmount = discount || record.discount || 0;
-        return discountAmount > 0 ? (
-          <Text type="danger">-KES {discountAmount.toLocaleString()}</Text>
-        ) : (
-          <Text type="secondary">KES 0</Text>
-        );
-      },
+      title: 'Property',
+      dataIndex: ['property', 'name'],
+      key: 'property',
+      render: (name: string, record: any) => (
+        <Text strong>{name || record.property?.propertyType || record.property_id || '-'}</Text>
+      ),
     },
     {
       title: 'Sale Price',
@@ -353,41 +360,55 @@ const SalesManagement: React.FC = () => {
       render: (price: number, record: any) => `KES ${(price || record.salePrice || 0).toLocaleString()}`,
     },
     {
-      title: 'Payment Plan',
-      dataIndex: 'payment_plan',
-      key: 'payment_plan',
-      render: (plan: string) => <Tag color="blue">{plan?.toUpperCase() || '-'}</Tag>,
-    },
-    {
-      title: 'Deposit',
-      dataIndex: 'deposit_paid',
-      key: 'deposit',
-      render: (deposit: number, record: any) => 
-        `KES ${(deposit || 0).toLocaleString()} (${record.sale_price ? (((deposit || 0) / record.sale_price) * 100).toFixed(1) : '0.0'}%)`,
-    },
-    {
-      title: 'Paid',
+      title: 'Payment Status',
       dataIndex: 'paymentTotals',
-      key: 'payment_percentage',
+      key: 'payment_status',
       render: (paymentTotals: any, record: any) => {
         const percentage = paymentTotals?.paymentPercentage ?? 0;
         const totalPaid = paymentTotals?.totalPaid ?? 0;
+        const balance = paymentTotals?.outstandingBalance ?? (record.sale_price - totalPaid);
+        const salePrice = record.sale_price || record.salePrice || 0;
+        
+        // Determine color based on payment percentage
+        let progressColor = '#ff4d4f'; // red for low payment
+        if (percentage >= 25) progressColor = '#faad14'; // orange
+        if (percentage >= 50) progressColor = '#1890ff'; // blue
+        if (percentage >= 75) progressColor = '#52c41a'; // green
+        if (percentage >= 100) progressColor = '#52c41a'; // green
+        
         return (
           <div>
-            <div>{percentage.toFixed(1)}%</div>
-            <Text type="secondary" style={{ fontSize: '12px' }}>
-              KES {(totalPaid || 0).toLocaleString()}
-            </Text>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ 
+                  height: 6, 
+                  backgroundColor: '#f0f0f0', 
+                  borderRadius: 3, 
+                  overflow: 'hidden',
+                  marginBottom: 4
+                }}>
+                  <div 
+                    style={{ 
+                      height: '100%', 
+                      width: `${Math.min(percentage, 100)}%`, 
+                      backgroundColor: progressColor,
+                      transition: 'width 0.3s ease'
+                    }} 
+                  />
+                </div>
+              </div>
+              <Text strong style={{ fontSize: 12, minWidth: 45, textAlign: 'right' }}>
+                {percentage.toFixed(0)}%
+              </Text>
+            </div>
+            <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>
+              <span style={{ color: '#52c41a' }}>Paid: KES {(totalPaid || 0).toLocaleString()}</span>
+              <span style={{ margin: '0 4px' }}>•</span>
+              <span style={{ color: '#ff4d4f' }}>Balance: KES {(balance || 0).toLocaleString()}</span>
+            </div>
           </div>
         );
       },
-    },
-    {
-      title: 'Commission',
-      dataIndex: 'commission_amount',
-      key: 'commission',
-      render: (commission: number, record: any) => 
-        `KES ${(commission || 0).toLocaleString()} (${record.commission_rate || 0}%)`,
     },
     {
       title: 'Status',
@@ -1180,13 +1201,22 @@ const SalesManagement: React.FC = () => {
           </Col>
           <Col>
             {activeTab === 'sales' && (
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={handleAddSale}
-              >
-                New Sale
-              </Button>
+              <Space>
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={handleAddSale}
+                >
+                  New Sale
+                </Button>
+                <Button
+                  type="primary"
+                  icon={<DollarOutlined />}
+                  onClick={() => setPaymentModalVisible(true)}
+                >
+                  Record Payment
+                </Button>
+              </Space>
             )}
           </Col>
         </Row>
@@ -1263,66 +1293,127 @@ const SalesManagement: React.FC = () => {
 
                 {/* Filters */}
                 <Card style={{ marginBottom: 24 }}>
-                  <Row gutter={[16, 16]} align="middle">
-                    <Col xs={24} sm={6}>
-                      <Search
-                        placeholder="Search sales..."
-                        prefix={<SearchOutlined />}
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        allowClear
-                      />
+                  <Row gutter={[12, 12]} align="middle">
+                    <Col xs={24} sm={5}>
+                      <div>
+                        <Text type="secondary" style={{ fontSize: 11, marginBottom: 4, display: 'block' }}>Search</Text>
+                        <Search
+                          placeholder="Search sales..."
+                          prefix={<SearchOutlined />}
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          allowClear
+                        />
+                      </div>
+                    </Col>
+                    <Col xs={24} sm={3}>
+                      <div>
+                        <Text type="secondary" style={{ fontSize: 11, marginBottom: 4, display: 'block' }}>Status</Text>
+                        <Select
+                          placeholder="Status"
+                          value={statusFilter}
+                          onChange={setStatusFilter}
+                          style={{ width: '100%' }}
+                          allowClear
+                        >
+                          <Option value="pending">Pending</Option>
+                          <Option value="deposit_paid">Deposit Paid</Option>
+                          <Option value="active">Active</Option>
+                          <Option value="completed">Completed</Option>
+                          <Option value="cancelled">Cancelled</Option>
+                        </Select>
+                      </div>
+                    </Col>
+                    <Col xs={24} sm={3}>
+                      <div>
+                        <Text type="secondary" style={{ fontSize: 11, marginBottom: 4, display: 'block' }}>Property</Text>
+                        <Select
+                          placeholder="Property"
+                          value={propertyFilter}
+                          onChange={setPropertyFilter}
+                          style={{ width: '100%' }}
+                          allowClear
+                        >
+                          {properties && properties.length > 0 && properties.map((property) => (
+                            <Option key={property._id} value={property._id}>
+                              {property.name}
+                            </Option>
+                          ))}
+                        </Select>
+                      </div>
+                    </Col>
+                    <Col xs={24} sm={3}>
+                      <div>
+                        <Text type="secondary" style={{ fontSize: 11, marginBottom: 4, display: 'block' }}>Customer</Text>
+                        <Select
+                          placeholder="Customer"
+                          value={customerFilter}
+                          onChange={setCustomerFilter}
+                          style={{ width: '100%' }}
+                          allowClear
+                          showSearch
+                          filterOption={(input, option) =>
+                            (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                          }
+                        >
+                          {uniqueCustomers.map((customer) => (
+                            <Option key={customer._id} value={customer._id} label={customer.name}>
+                              {customer.name}
+                            </Option>
+                          ))}
+                        </Select>
+                      </div>
+                    </Col>
+                    <Col xs={24} sm={3}>
+                      <div>
+                        <Text type="secondary" style={{ fontSize: 11, marginBottom: 4, display: 'block' }}>Sale Code</Text>
+                        <Select
+                          placeholder="Sale Code"
+                          value={saleCodeFilter}
+                          onChange={setSaleCodeFilter}
+                          style={{ width: '100%' }}
+                          allowClear
+                          showSearch
+                          filterOption={(input, option) =>
+                            (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                          }
+                        >
+                          {uniqueSaleCodes.map((code) => (
+                            <Option key={code} value={code} label={code}>
+                              {code}
+                            </Option>
+                          ))}
+                        </Select>
+                      </div>
                     </Col>
                     <Col xs={24} sm={4}>
-                      <Select
-                        placeholder="Filter by Status"
-                        value={statusFilter}
-                        onChange={setStatusFilter}
-                        style={{ width: '100%' }}
-                        allowClear
-                      >
-                        <Option value="pending">Pending</Option>
-                        <Option value="deposit_paid">Deposit Paid</Option>
-                        <Option value="active">Active</Option>
-                        <Option value="completed">Completed</Option>
-                        <Option value="cancelled">Cancelled</Option>
-                      </Select>
+                      <div>
+                        <Text type="secondary" style={{ fontSize: 11, marginBottom: 4, display: 'block' }}>Date Range</Text>
+                        <RangePicker
+                          placeholder={['Start Date', 'End Date']}
+                          value={dateRange}
+                          onChange={setDateRange}
+                          style={{ width: '100%' }}
+                        />
+                      </div>
                     </Col>
-                    <Col xs={24} sm={4}>
-                      <Select
-                        placeholder="Filter by Property"
-                        value={propertyFilter}
-                        onChange={setPropertyFilter}
-                        style={{ width: '100%' }}
-                        allowClear
-                      >
-                        {properties && properties.length > 0 && properties.map((property) => (
-                          <Option key={property._id} value={property._id}>
-                            {property.name}
-                          </Option>
-                        ))}
-                      </Select>
-                    </Col>
-                    <Col xs={24} sm={6}>
-                      <RangePicker
-                        placeholder={['Start Date', 'End Date']}
-                        value={dateRange}
-                        onChange={setDateRange}
-                        style={{ width: '100%' }}
-                      />
-                    </Col>
-                    <Col xs={24} sm={4}>
-                      <Button
-                        icon={<FilterOutlined />}
-                        onClick={() => {
-                          setSearchTerm('');
-                          setStatusFilter('');
-                          setPropertyFilter('');
-                          setDateRange(null);
-                        }}
-                      >
-                        Clear
-                      </Button>
+                    <Col xs={24} sm={3}>
+                      <div>
+                        <Text type="secondary" style={{ fontSize: 11, marginBottom: 4, display: 'block' }}>&nbsp;</Text>
+                        <Button
+                          icon={<FilterOutlined />}
+                          onClick={() => {
+                            setSearchTerm('');
+                            setStatusFilter('');
+                            setPropertyFilter('');
+                            setCustomerFilter('');
+                            setSaleCodeFilter('');
+                            setDateRange(null);
+                          }}
+                        >
+                          Clear
+                        </Button>
+                      </div>
                     </Col>
                   </Row>
                 </Card>
@@ -1330,13 +1421,15 @@ const SalesManagement: React.FC = () => {
                 {/* Sales Table */}
                 <Card
                   extra={
-                    <Button
-                      icon={<ReloadOutlined />}
-                      onClick={() => refetch()}
-                      loading={isFetching}
-                    >
-                      Refresh
-                    </Button>
+                    <Space>
+                      <Button
+                        icon={<ReloadOutlined />}
+                        onClick={() => refetch()}
+                        loading={isFetching}
+                      >
+                        Refresh
+                      </Button>
+                    </Space>
                   }
                 >
                   <Table
@@ -1379,6 +1472,16 @@ const SalesManagement: React.FC = () => {
         initialData={editSale}
         properties={propertiesQuery.data?.data || []}
         propertiesLoading={propertiesQuery.isLoading || propertiesQuery.isFetching}
+      />
+
+      {/* Record New Payment Modal */}
+      <PaymentModal
+        visible={paymentModalVisible}
+        onCancel={() => setPaymentModalVisible(false)}
+        onSuccess={() => {
+          refetch();
+          setPaymentModalVisible(false);
+        }}
       />
 
       {/* PDF Preview Modal */}
