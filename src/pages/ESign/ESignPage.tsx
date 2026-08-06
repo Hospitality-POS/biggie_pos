@@ -16,6 +16,7 @@ import {
     Empty,
     message,
     Image,
+    Radio,
 } from "antd";
 import {
     FilePdfOutlined,
@@ -34,6 +35,8 @@ import {
     AppstoreOutlined,
     UnorderedListOutlined,
     MailOutlined,
+    CopyOutlined,
+    SaveOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axiosInstance from "@services/request";
@@ -103,7 +106,64 @@ interface PendingMarker {
     type: "signature" | "initials" | "stamp";
     preloadedData?: string;   // existing signature_image_url — skip capture modal
     preloadedType?: string;
+    locked?: boolean;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LOCAL STORAGE FOR SIGNATURES & STAMPS
+// ─────────────────────────────────────────────────────────────────────────────
+
+const STORAGE_KEYS = {
+    SIGNATURES: 'esign_saved_signatures',
+    STAMPS: 'esign_saved_stamps',
+};
+
+const saveToStorage = (key: string, data: any) => {
+    try {
+        const existing = JSON.parse(localStorage.getItem(key) || '[]');
+        const updated = [...existing, data];
+        localStorage.setItem(key, JSON.stringify(updated));
+        message.success('Saved to library');
+    } catch (error) {
+        console.error('Failed to save to storage:', error);
+        message.error('Failed to save to library');
+    }
+};
+
+const updateInStorage = (key: string, id: string, updates: any) => {
+    try {
+        const existing = JSON.parse(localStorage.getItem(key) || '[]');
+        const updated = existing.map((item: any) => 
+            item.id === id ? { ...item, ...updates } : item
+        );
+        localStorage.setItem(key, JSON.stringify(updated));
+        message.success('Updated in library');
+    } catch (error) {
+        console.error('Failed to update storage:', error);
+        message.error('Failed to update library');
+    }
+};
+
+const getFromStorage = (key: string) => {
+    try {
+        return JSON.parse(localStorage.getItem(key) || '[]');
+    } catch (error) {
+        console.error('Failed to load from storage:', error);
+        return [];
+    }
+};
+
+const deleteFromStorage = (key: string, id: string) => {
+    try {
+        const existing = JSON.parse(localStorage.getItem(key) || '[]');
+        const updated = existing.filter((item: any) => item.id !== id);
+        localStorage.setItem(key, JSON.stringify(updated));
+        message.success('Removed from library');
+    } catch (error) {
+        console.error('Failed to delete from storage:', error);
+        message.error('Failed to remove from library');
+    }
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // API SERVICE
@@ -261,7 +321,8 @@ const eSignService = {
 const SignatureCanvas: React.FC<{
     onSave: (data: string) => void;
     onCancel: () => void;
-}> = ({ onSave, onCancel }) => {
+    onSaveToLibrary?: (data: string, type: string) => void;
+}> = ({ onSave, onCancel, onSaveToLibrary }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [isDrawing, setIsDrawing] = useState(false);
     const [hasDrawn, setHasDrawn] = useState(false);
@@ -350,7 +411,43 @@ const SignatureCanvas: React.FC<{
                 <Button size="small" type="text" onClick={clearCanvas} style={{ color: "#999" }}>↺ Clear</Button>
                 <Space>
                     <Button onClick={onCancel}>Cancel</Button>
-                    <Button type="primary" onClick={() => { const c = canvasRef.current; if (c) onSave(c.toDataURL("image/png")); }} disabled={!hasDrawn}>
+                    <Button type="primary" onClick={() => { 
+                        const c = canvasRef.current; 
+                        if (!c) return;
+                        const data = c.toDataURL("image/png");
+                        
+                        // If library option is available, ask what to do
+                        if (onSaveToLibrary) {
+                            Modal.confirm({
+                                title: "Signature Created",
+                                content: (
+                                    <div>
+                                        <p style={{ marginBottom: 16 }}>What would you like to do with this signature?</p>
+                                        <Radio.Group defaultValue="apply" id="draw-sig-action-group">
+                                            <Radio value="apply">Apply to document</Radio>
+                                            <Radio value="save">Save to library only</Radio>
+                                            <Radio value="both">Save to library and apply</Radio>
+                                        </Radio.Group>
+                                    </div>
+                                ),
+                                onOk: () => {
+                                    const radioGroup = document.getElementById('draw-sig-action-group') as any;
+                                    const action = radioGroup?.value || 'apply';
+                                    
+                                    if (action === 'save' || action === 'both') {
+                                        onSaveToLibrary(data, "draw");
+                                    }
+                                    
+                                    if (action === 'apply' || action === 'both') {
+                                        onSave(data);
+                                    }
+                                },
+                            });
+                        } else {
+                            // If no library option, just apply to document
+                            onSave(data);
+                        }
+                    }} disabled={!hasDrawn}>
                         Use Signature
                     </Button>
                 </Space>
@@ -377,7 +474,8 @@ const TypeSignature: React.FC<{
     onCancel: () => void;
     signerName?: string;
     mode?: "signature" | "initials";
-}> = ({ onSave, onCancel, signerName = "", mode = "signature" }) => {
+    onSaveToLibrary?: (data: string, type: string) => void;
+}> = ({ onSave, onCancel, signerName = "", mode = "signature", onSaveToLibrary }) => {
     const getInitials = (n: string) => n.split(" ").filter(Boolean).map(w => w[0].toUpperCase()).join("").slice(0, 3);
     const [text, setText] = useState(mode === "initials" ? getInitials(signerName) : signerName);
     const [selectedFont, setSelectedFont] = useState(TYPE_FONTS[0].value);
@@ -396,7 +494,39 @@ const TypeSignature: React.FC<{
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText(displayText, canvas.width / 2, canvas.height / 2);
-        onSave(canvas.toDataURL("image/png"), mode === "initials" ? "initials" : "type");
+        const data = canvas.toDataURL("image/png");
+        
+        // If library option is available, ask what to do
+        if (onSaveToLibrary) {
+            Modal.confirm({
+                title: "Signature Created",
+                content: (
+                    <div>
+                        <p style={{ marginBottom: 16 }}>What would you like to do with this signature?</p>
+                        <Radio.Group defaultValue="apply" id="type-sig-action-group">
+                            <Radio value="apply">Apply to document</Radio>
+                            <Radio value="save">Save to library only</Radio>
+                            <Radio value="both">Save to library and apply</Radio>
+                        </Radio.Group>
+                    </div>
+                ),
+                onOk: () => {
+                    const radioGroup = document.getElementById('type-sig-action-group') as any;
+                    const action = radioGroup?.value || 'apply';
+                    
+                    if (action === 'save' || action === 'both') {
+                        onSaveToLibrary(data, mode === "initials" ? "initials" : "type");
+                    }
+                    
+                    if (action === 'apply' || action === 'both') {
+                        onSave(data, mode === "initials" ? "initials" : "type");
+                    }
+                },
+            });
+        } else {
+            // If no library option, just apply to document
+            onSave(data, mode === "initials" ? "initials" : "type");
+        }
     };
 
     return (
@@ -473,12 +603,49 @@ const TypeSignature: React.FC<{
 const UploadSignature: React.FC<{
     onSave: (data: string) => void;
     onCancel: () => void;
-}> = ({ onSave, onCancel }) => {
+    onSaveToLibrary?: (data: string, type: string) => void;
+}> = ({ onSave, onCancel, onSaveToLibrary }) => {
     const [fileList, setFileList] = useState<any[]>([]);
+    const [uploadedData, setUploadedData] = useState<string | null>(null);
 
     const handleUpload = (info: any) => {
         const reader = new FileReader();
-        reader.onload = (e) => { onSave(e.target?.result as string); };
+        reader.onload = (e) => { 
+            const data = e.target?.result as string;
+            setUploadedData(data);
+            
+            // If library option is available, ask what to do
+            if (onSaveToLibrary) {
+                Modal.confirm({
+                    title: "Signature Uploaded",
+                    content: (
+                        <div>
+                            <p style={{ marginBottom: 16 }}>What would you like to do with this signature?</p>
+                            <Radio.Group defaultValue="apply" id="upload-sig-action-group">
+                                <Radio value="apply">Apply to document</Radio>
+                                <Radio value="save">Save to library only</Radio>
+                                <Radio value="both">Save to library and apply</Radio>
+                            </Radio.Group>
+                        </div>
+                    ),
+                    onOk: () => {
+                        const radioGroup = document.getElementById('upload-sig-action-group') as any;
+                        const action = radioGroup?.value || 'apply';
+                        
+                        if (action === 'save' || action === 'both') {
+                            onSaveToLibrary(data, "upload");
+                        }
+                        
+                        if (action === 'apply' || action === 'both') {
+                            onSave(data);
+                        }
+                    },
+                });
+            } else {
+                // If no library option, just apply to document
+                onSave(data);
+            }
+        };
         reader.readAsDataURL(info.file);
     };
 
@@ -498,7 +665,9 @@ const UploadSignature: React.FC<{
                 <p style={{ color: "#999", fontSize: 12 }}>PNG, JPG supported — transparent background works best</p>
             </Upload.Dragger>
             <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                <Button onClick={onCancel}>Cancel</Button>
+                <Space>
+                    <Button onClick={onCancel}>Cancel</Button>
+                </Space>
             </div>
         </div>
     );
@@ -511,15 +680,54 @@ const UploadSignature: React.FC<{
 const StampUpload: React.FC<{
     onSave: (data: string) => void;
     onCancel: () => void;
-}> = ({ onSave, onCancel }) => {
+    onSaveToLibrary?: (data: string, type: string) => void;
+}> = ({ onSave, onCancel, onSaveToLibrary }) => {
     const inputRef = React.useRef<HTMLInputElement>(null);
+    const [uploadedData, setUploadedData] = useState<string | null>(null);
+    
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = (ev) => onSave(ev.target?.result as string);
+        reader.onload = (ev) => {
+            const data = ev.target?.result as string;
+            setUploadedData(data);
+            
+            // Ask what to do with the uploaded stamp
+            if (onSaveToLibrary) {
+                Modal.confirm({
+                    title: "Stamp Uploaded",
+                    content: (
+                        <div>
+                            <p style={{ marginBottom: 16 }}>What would you like to do with this stamp?</p>
+                            <Radio.Group defaultValue="apply" id="stamp-action-group">
+                                <Radio value="apply">Apply to document</Radio>
+                                <Radio value="save">Save to library only</Radio>
+                                <Radio value="both">Save to library and apply</Radio>
+                            </Radio.Group>
+                        </div>
+                    ),
+                    onOk: () => {
+                        const radioGroup = document.getElementById('stamp-action-group') as any;
+                        const action = radioGroup?.value || 'apply';
+                        
+                        if (action === 'save' || action === 'both') {
+                            onSaveToLibrary(data, "stamp");
+                        }
+                        
+                        if (action === 'apply' || action === 'both') {
+                            onSave(data);
+                        }
+                    },
+                });
+            } else {
+                // If no library option, just apply to document
+                onSave(data);
+            }
+        };
         reader.readAsDataURL(file);
     };
+    
     return (
         <div style={{ textAlign: "center", padding: "24px 0" }}>
             <input ref={inputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleChange} />
@@ -555,15 +763,105 @@ const SIG_SUB_TABS = [
 const SignatureCaptureModal: React.FC<{
     open: boolean;
     onClose: () => void;
-    onSave: (data: string, type: string) => void;
+    onSave: (data: string, type: string, duplicateToAllPages?: boolean) => void;
     signerName?: string;
     defaultTab?: string;
-}> = ({ open, onClose, onSave, signerName = "", defaultTab = "signature" }) => {
+    onDuplicate?: (data: string, type: string) => void;
+    libraryOnly?: boolean; // If true, only save to library, don't apply to document
+    showSaveToLibraryOption?: boolean; // If true, show save to library as optional
+}> = ({ open, onClose, onSave, signerName = "", defaultTab = "signature", onDuplicate, libraryOnly = false, showSaveToLibraryOption = false }) => {
     const [fieldType, setFieldType] = useState(defaultTab);
     const [subTab, setSubTab] = useState("type");
-    React.useEffect(() => { if (open) { setFieldType(defaultTab); setSubTab("type"); } }, [open, defaultTab]);
+    const [showLibrary, setShowLibrary] = useState(false);
+    const [duplicateToAllPages, setDuplicateToAllPages] = useState(false);
+    const [libraryAction, setLibraryAction] = useState<'apply' | 'save' | 'both'>('apply');
+    React.useEffect(() => { if (open) { setFieldType(defaultTab); setSubTab("type"); setShowLibrary(false); setDuplicateToAllPages(false); setLibraryAction('apply'); } }, [open, defaultTab]);
 
-    const handleSave = (data: string, type: string) => { onSave(data, type); onClose(); };
+    const handleSave = (data: string, type: string) => { 
+        if (libraryOnly) {
+            // Only save to library, don't apply to document
+            handleSaveToLibrary(data, type);
+        } else {
+            onSave(data, type, duplicateToAllPages); 
+            onClose(); 
+        }
+    };
+
+    const handleSaveToLibrary = (data: string, type: string) => {
+        const storageKey = fieldType === 'stamp' ? STORAGE_KEYS.STAMPS : STORAGE_KEYS.SIGNATURES;
+        const defaultName = `${fieldType === 'stamp' ? 'Stamp' : 'Signature'} - ${new Date().toLocaleDateString()}`;
+        
+        // Ask for custom label and action
+        Modal.confirm({
+            title: "Save to Library",
+            content: (
+                <div>
+                    <p style={{ marginBottom: 8 }}>Enter a label for this {fieldType === 'stamp' ? 'stamp' : 'signature'}:</p>
+                    <Input
+                        id="library-label-input"
+                        defaultValue={defaultName}
+                        placeholder="Enter label"
+                        autoFocus
+                    />
+                    {!libraryOnly && (
+                        <div style={{ marginTop: 16 }}>
+                            <p style={{ marginBottom: 8 }}>What would you like to do?</p>
+                            <Radio.Group 
+                                value={libraryAction}
+                                onChange={(e) => setLibraryAction(e.target.value)}
+                            >
+                                <Radio value="apply">Apply to document</Radio>
+                                <Radio value="save">Save to library only</Radio>
+                                <Radio value="both">Save to library and apply</Radio>
+                            </Radio.Group>
+                        </div>
+                    )}
+                </div>
+            ),
+            onOk: () => {
+                const labelInput = document.getElementById('library-label-input') as HTMLInputElement;
+                const customName = labelInput?.value?.trim() || defaultName;
+                
+                const item = {
+                    id: Date.now().toString(),
+                    data,
+                    type,
+                    name: customName,
+                    createdAt: new Date().toISOString()
+                };
+                
+                const action = libraryOnly ? 'save' : libraryAction;
+                
+                if (action === 'save' || action === 'both') {
+                    saveToStorage(storageKey, item);
+                }
+                
+                if (action === 'apply' || action === 'both') {
+                    onSave(data, type, duplicateToAllPages);
+                    onClose();
+                } else if (action === 'save') {
+                    if (libraryOnly) {
+                        onClose();
+                    } else {
+                        message.success("Saved to library");
+                    }
+                }
+            },
+        });
+    };
+
+    const handleUseFromLibrary = (item: any) => {
+        handleSave(item.data, item.type);
+    };
+
+    const handleDeleteFromLibrary = (id: string) => {
+        const storageKey = fieldType === 'stamp' ? STORAGE_KEYS.STAMPS : STORAGE_KEYS.SIGNATURES;
+        deleteFromStorage(storageKey, id);
+    };
+
+    const libraryItems = fieldType === 'stamp' 
+        ? getFromStorage(STORAGE_KEYS.STAMPS) 
+        : getFromStorage(STORAGE_KEYS.SIGNATURES);
 
     return (
         <Modal
@@ -604,7 +902,7 @@ const SignatureCaptureModal: React.FC<{
             {fieldType === "signature" && (
                 <>
                     <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
-                        {SIG_SUB_TABS.map(st => (
+                        {!showLibrary && SIG_SUB_TABS.map(st => (
                             <button
                                 key={st.key}
                                 onClick={() => setSubTab(st.key)}
@@ -619,26 +917,485 @@ const SignatureCaptureModal: React.FC<{
                                 {st.label}
                             </button>
                         ))}
+                        {showLibrary && showSaveToLibraryOption && (
+                            <button
+                                onClick={() => setShowLibrary(false)}
+                                style={{
+                                    padding: "5px 14px",
+                                    border: `1.5px solid #d9d9d9`,
+                                    borderRadius: 20, background: "#fff",
+                                    color: "#555",
+                                    cursor: "pointer", fontSize: 12, fontWeight: 400,
+                                }}
+                            >
+                                ← Back to Creation
+                            </button>
+                        )}
+                        {showSaveToLibraryOption && (
+                            <button
+                                onClick={() => setShowLibrary(!showLibrary)}
+                                style={{
+                                    padding: "5px 14px",
+                                    border: `1.5px solid ${showLibrary ? "#1890ff" : "#d9d9d9"}`,
+                                    borderRadius: 20, background: showLibrary ? "#e6f4ff" : "#fff",
+                                    color: showLibrary ? "#1890ff" : "#555",
+                                    cursor: "pointer", fontSize: 12, fontWeight: showLibrary ? 600 : 400,
+                                    marginLeft: "auto",
+                                }}
+                            >
+                                📚 Library
+                            </button>
+                        )}
                     </div>
-                    <div style={{ minHeight: 240 }}>
-                        {subTab === "type"   && <TypeSignature onSave={handleSave} onCancel={onClose} signerName={signerName} mode="signature" />}
-                        {subTab === "draw"   && <SignatureCanvas onSave={(d) => handleSave(d, "draw")} onCancel={onClose} />}
-                        {subTab === "upload" && <UploadSignature onSave={(d) => handleSave(d, "upload")} onCancel={onClose} />}
-                    </div>
+                    
+                    {showLibrary && showSaveToLibraryOption ? (
+                        <div style={{ minHeight: 240, maxHeight: 300, overflowY: "auto" }}>
+                            {libraryItems.length === 0 ? (
+                                <div style={{ textAlign: "center", padding: 40, color: "#999" }}>
+                                    <div style={{ fontSize: 32, marginBottom: 8 }}>📚</div>
+                                    <p>No saved signatures yet</p>
+                                    <p style={{ fontSize: 12 }}>Create a signature and save it to your library</p>
+                                </div>
+                            ) : (
+                                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12 }}>
+                                    {libraryItems.map((item: any) => (
+                                        <div
+                                            key={item.id}
+                                            style={{
+                                                border: "1px solid #e8e8e8",
+                                                borderRadius: 8,
+                                                padding: 12,
+                                                position: "relative",
+                                                cursor: "pointer",
+                                                transition: "all 0.2s",
+                                            }}
+                                            onClick={() => handleUseFromLibrary(item)}
+                                            onMouseEnter={(e) => e.currentTarget.style.borderColor = "#1890ff"}
+                                            onMouseLeave={(e) => e.currentTarget.style.borderColor = "#e8e8e8"}
+                                        >
+                                            <img
+                                                src={item.data}
+                                                alt={item.name}
+                                                style={{ width: "100%", height: 60, objectFit: "contain", marginBottom: 8 }}
+                                            />
+                                            <div style={{ fontSize: 11, color: "#666", marginBottom: 8 }}>
+                                                {new Date(item.createdAt).toLocaleDateString()}
+                                            </div>
+                                            <div style={{ display: "flex", gap: 4 }}>
+                                                <Button
+                                                    size="small"
+                                                    type="primary"
+                                                    block
+                                                    onClick={(e) => { e.stopPropagation(); handleUseFromLibrary(item); }}
+                                                >
+                                                    Use
+                                                </Button>
+                                                <Button
+                                                    size="small"
+                                                    danger
+                                                    onClick={(e) => { e.stopPropagation(); handleDeleteFromLibrary(item.id); }}
+                                                >
+                                                    <DeleteOutlined />
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div style={{ minHeight: 240 }}>
+                            {subTab === "type"   && <TypeSignature onSave={handleSave} onCancel={onClose} onSaveToLibrary={showSaveToLibraryOption ? handleSaveToLibrary : undefined} signerName={signerName} mode="signature" />}
+                            {subTab === "draw"   && <SignatureCanvas onSave={(d) => handleSave(d, "draw")} onCancel={onClose} onSaveToLibrary={showSaveToLibraryOption ? handleSaveToLibrary : undefined} />}
+                            {subTab === "upload" && <UploadSignature onSave={(d) => handleSave(d, "upload")} onCancel={onClose} onSaveToLibrary={showSaveToLibraryOption ? handleSaveToLibrary : undefined} />}
+                        </div>
+                    )}
                 </>
             )}
 
             {/* Initials */}
             {fieldType === "initials" && (
                 <div style={{ minHeight: 240 }}>
-                    <TypeSignature onSave={handleSave} onCancel={onClose} signerName={signerName} mode="initials" />
+                    <TypeSignature onSave={handleSave} onCancel={onClose} onSaveToLibrary={showSaveToLibraryOption ? handleSaveToLibrary : undefined} signerName={signerName} mode="initials" />
                 </div>
             )}
 
             {/* Company Stamp */}
             {fieldType === "stamp" && (
-                <div style={{ minHeight: 240 }}>
-                    <StampUpload onSave={(d) => handleSave(d, "stamp")} onCancel={onClose} />
+                <>
+                    {showSaveToLibraryOption && (
+                        <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
+                            {showLibrary && (
+                                <button
+                                    onClick={() => setShowLibrary(false)}
+                                    style={{
+                                        padding: "5px 14px",
+                                        border: `1.5px solid #d9d9d9`,
+                                        borderRadius: 20, background: "#fff",
+                                        color: "#555",
+                                        cursor: "pointer", fontSize: 12, fontWeight: 400,
+                                    }}
+                                >
+                                    ← Back to Upload
+                                </button>
+                            )}
+                            <button
+                                onClick={() => setShowLibrary(!showLibrary)}
+                                style={{
+                                    padding: "5px 14px",
+                                    border: `1.5px solid ${showLibrary ? "#1890ff" : "#d9d9d9"}`,
+                                    borderRadius: 20, background: showLibrary ? "#e6f4ff" : "#fff",
+                                    color: showLibrary ? "#1890ff" : "#555",
+                                    cursor: "pointer", fontSize: 12, fontWeight: showLibrary ? 600 : 400,
+                                    marginLeft: "auto",
+                                }}
+                            >
+                                📚 Library
+                            </button>
+                        </div>
+                    )}
+                    
+                    {showLibrary && showSaveToLibraryOption ? (
+                        <div style={{ minHeight: 240, maxHeight: 300, overflowY: "auto" }}>
+                            {libraryItems.length === 0 ? (
+                                <div style={{ textAlign: "center", padding: 40, color: "#999" }}>
+                                    <div style={{ fontSize: 32, marginBottom: 8 }}>📚</div>
+                                    <p>No saved stamps yet</p>
+                                    <p style={{ fontSize: 12 }}>Upload a stamp and save it to your library</p>
+                                </div>
+                            ) : (
+                                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12 }}>
+                                    {libraryItems.map((item: any) => (
+                                        <div
+                                            key={item.id}
+                                            style={{
+                                                border: "1px solid #e8e8e8",
+                                                borderRadius: 8,
+                                                padding: 12,
+                                                position: "relative",
+                                                cursor: "pointer",
+                                                transition: "all 0.2s",
+                                            }}
+                                            onClick={() => handleUseFromLibrary(item)}
+                                            onMouseEnter={(e) => e.currentTarget.style.borderColor = "#1890ff"}
+                                            onMouseLeave={(e) => e.currentTarget.style.borderColor = "#e8e8e8"}
+                                        >
+                                            <img
+                                                src={item.data}
+                                                alt={item.name}
+                                                style={{ width: "100%", height: 60, objectFit: "contain", marginBottom: 8 }}
+                                            />
+                                            <div style={{ fontSize: 11, color: "#666", marginBottom: 8 }}>
+                                                {new Date(item.createdAt).toLocaleDateString()}
+                                            </div>
+                                            <div style={{ display: "flex", gap: 4 }}>
+                                                <Button
+                                                    size="small"
+                                                    type="primary"
+                                                    block
+                                                    onClick={(e) => { e.stopPropagation(); handleUseFromLibrary(item); }}
+                                                >
+                                                    Use
+                                                </Button>
+                                                <Button
+                                                    size="small"
+                                                    danger
+                                                    onClick={(e) => { e.stopPropagation(); handleDeleteFromLibrary(item.id); }}
+                                                >
+                                                    <DeleteOutlined />
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div style={{ minHeight: 240 }}>
+                            <StampUpload 
+                                onSave={(d) => handleSave(d, "stamp")} 
+                                onCancel={onClose} 
+                                onSaveToLibrary={showSaveToLibraryOption ? handleSaveToLibrary : undefined} 
+                            />
+                        </div>
+                    )}
+                </>
+            )}
+            
+            {/* Footer with duplicate option */}
+            <div style={{ 
+                borderTop: "1px solid #e8e8e8", 
+                paddingTop: 12, 
+                marginTop: 16,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center"
+            }}>
+                <label style={{ 
+                    display: "flex", 
+                    alignItems: "center", 
+                    gap: 8, 
+                    fontSize: 13, 
+                    color: "#666",
+                    cursor: "pointer"
+                }}>
+                    <input
+                        type="checkbox"
+                        checked={duplicateToAllPages}
+                        onChange={(e) => setDuplicateToAllPages(e.target.checked)}
+                        style={{ cursor: "pointer" }}
+                    />
+                    <span>Duplicate to all pages at same position</span>
+                </label>
+            </div>
+        </Modal>
+    );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STANDALONE LIBRARY MODAL
+// ─────────────────────────────────────────────────────────────────────────────
+
+const LibraryModal: React.FC<{
+    open: boolean;
+    onClose: () => void;
+    onSelect: (data: string, type: string, position?: { x: number; y: number }) => void;
+    onEnterPlacingMode: (item: any) => void;
+    onAddNew?: () => void;
+    type: "signature" | "stamp";
+}> = ({ open, onClose, onSelect, onEnterPlacingMode, onAddNew, type }) => {
+    const [editingItem, setEditingItem] = useState<any | null>(null);
+    const [editLabel, setEditLabel] = useState("");
+    const [libraryItems, setLibraryItems] = useState<any[]>([]);
+    
+    const storageKey = type === 'stamp' ? STORAGE_KEYS.STAMPS : STORAGE_KEYS.SIGNATURES;
+    
+    // Load library items when modal opens or type changes
+    React.useEffect(() => {
+        setLibraryItems(getFromStorage(storageKey));
+    }, [open, type, storageKey]);
+
+    const handleEdit = (item: any) => {
+        setEditingItem(item);
+        setEditLabel(item.name || "");
+    };
+
+    const handleSaveEdit = () => {
+        if (editingItem) {
+            updateInStorage(storageKey, editingItem.id, { name: editLabel });
+            setEditingItem(null);
+            setEditLabel("");
+            // Refresh library items
+            setLibraryItems(getFromStorage(storageKey));
+        }
+    };
+
+    const handleCancelEdit = () => {
+        setEditingItem(null);
+        setEditLabel("");
+    };
+
+    const handleDelete = (id: string) => {
+        Modal.confirm({
+            title: "Delete from Library",
+            content: "Are you sure you want to remove this item from your library?",
+            onOk: () => {
+                deleteFromStorage(storageKey, id);
+                // Refresh library items
+                setLibraryItems(getFromStorage(storageKey));
+            },
+        });
+    };
+
+    const handleUse = (item: any) => {
+        Modal.confirm({
+            title: "Place Signature/Stamp",
+            content: (
+                <div>
+                    <p>How would you like to place this {type}?</p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 16 }}>
+                        <Button 
+                            block 
+                            onClick={() => {
+                                onSelect(item.data, item.type);
+                                Modal.destroyAll();
+                            }}
+                        >
+                            📍 Place at center of current page
+                        </Button>
+                        <Button 
+                            block 
+                            onClick={() => {
+                                onEnterPlacingMode(item);
+                                Modal.destroyAll();
+                                onClose();
+                            }}
+                        >
+                            🖱️ Click to place on document
+                        </Button>
+                    </div>
+                </div>
+            ),
+            okText: "Cancel",
+            cancelText: null,
+            onOk: () => {},
+        });
+    };
+
+    return (
+        <Modal
+            open={open}
+            onCancel={onClose}
+            title={
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontWeight: 600, fontSize: 16 }}>
+                        {type === 'stamp' ? '🏢 Stamp Library' : '✍️ Signature Library'}
+                    </span>
+                </div>
+            }
+            footer={null}
+            width={700}
+            styles={{ body: { paddingTop: 0 } }}
+        >
+            {libraryItems.length === 0 ? (
+                <div style={{ textAlign: "center", padding: 60, color: "#999" }}>
+                    <div style={{ fontSize: 48, marginBottom: 16 }}>
+                        {type === 'stamp' ? '🏢' : '📚'}
+                    </div>
+                    <p style={{ fontSize: 16, marginBottom: 8 }}>
+                        No {type === 'stamp' ? 'stamps' : 'signatures'} in your library yet
+                    </p>
+                    <p style={{ fontSize: 13, marginBottom: 24 }}>
+                        Create a {type === 'stamp' ? 'stamp' : 'signature'} and save it to your library to access it here
+                    </p>
+                    {onAddNew && (
+                        <Button 
+                            type="primary" 
+                            icon={<UploadOutlined />}
+                            onClick={onAddNew}
+                            size="large"
+                        >
+                            Add New {type === 'stamp' ? 'Stamp' : 'Signature'}
+                        </Button>
+                    )}
+                </div>
+            ) : (
+                <div style={{ maxHeight: 500, overflowY: "auto" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 16, padding: "8px 0" }}>
+                        {libraryItems.map((item: any) => (
+                            <div
+                                key={item.id}
+                                style={{
+                                    border: "1px solid #e8e8e8",
+                                    borderRadius: 12,
+                                    padding: 16,
+                                    position: "relative",
+                                    cursor: "pointer",
+                                    transition: "all 0.2s",
+                                    background: "#fff",
+                                }}
+                                onClick={() => handleUse(item)}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.borderColor = "#1890ff";
+                                    e.currentTarget.style.boxShadow = "0 4px 12px rgba(24, 144, 255, 0.15)";
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.borderColor = "#e8e8e8";
+                                    e.currentTarget.style.boxShadow = "none";
+                                }}
+                            >
+                                <img
+                                    src={item.data}
+                                    alt={item.name}
+                                    style={{ 
+                                        width: "100%", 
+                                        height: 80, 
+                                        objectFit: "contain", 
+                                        marginBottom: 12,
+                                        background: "#fafafa",
+                                        borderRadius: 8,
+                                        padding: 8
+                                    }}
+                                />
+                                
+                                {editingItem?.id === item.id ? (
+                                    <div style={{ marginBottom: 12 }}>
+                                        <Input
+                                            value={editLabel}
+                                            onChange={(e) => setEditLabel(e.target.value)}
+                                            placeholder="Enter label"
+                                            size="small"
+                                            autoFocus
+                                            onPressEnter={handleSaveEdit}
+                                        />
+                                    </div>
+                                ) : (
+                                    <div style={{ 
+                                        fontSize: 13, 
+                                        fontWeight: 500, 
+                                        color: "#333", 
+                                        marginBottom: 8,
+                                        minHeight: 20,
+                                        display: "flex",
+                                        alignItems: "center"
+                                    }}>
+                                        {item.name || 'Untitled'}
+                                    </div>
+                                )}
+                                
+                                <div style={{ fontSize: 11, color: "#999", marginBottom: 12 }}>
+                                    {new Date(item.createdAt).toLocaleDateString()} • {item.type}
+                                </div>
+                                
+                                <div style={{ display: "flex", gap: 6 }}>
+                                    {editingItem?.id === item.id ? (
+                                        <>
+                                            <Button
+                                                size="small"
+                                                type="primary"
+                                                onClick={(e) => { e.stopPropagation(); handleSaveEdit(); }}
+                                                block
+                                            >
+                                                Save
+                                            </Button>
+                                            <Button
+                                                size="small"
+                                                onClick={(e) => { e.stopPropagation(); handleCancelEdit(); }}
+                                            >
+                                                Cancel
+                                            </Button>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Button
+                                                size="small"
+                                                type="primary"
+                                                block
+                                                onClick={(e) => { e.stopPropagation(); handleUse(item); }}
+                                            >
+                                                Use
+                                            </Button>
+                                            <Button
+                                                size="small"
+                                                onClick={(e) => { e.stopPropagation(); handleEdit(item); }}
+                                                title="Edit label"
+                                            >
+                                                ✏️
+                                            </Button>
+                                            <Button
+                                                size="small"
+                                                danger
+                                                onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
+                                                title="Delete"
+                                            >
+                                                🗑️
+                                            </Button>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             )}
         </Modal>
@@ -652,8 +1409,11 @@ const SignatureCaptureModal: React.FC<{
 const DocumentSigningInterface: React.FC<{
     document: Document;
     onClose: () => void;
-}> = ({ document, onClose }) => {
+    totalPages?: number;
+}> = ({ document, onClose, totalPages = 1 }) => {
     const [signatureModalOpen, setSignatureModalOpen] = useState(false);
+    const [libraryModalOpen, setLibraryModalOpen] = useState(false);
+    const [libraryType, setLibraryType] = useState<"signature" | "stamp">("signature");
     const [isDragging, setIsDragging] = useState(false);
     const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
     const [displayPosition, setDisplayPosition] = useState<{ x: number; y: number }>({ x: 100, y: 100 });
@@ -717,18 +1477,45 @@ const DocumentSigningInterface: React.FC<{
         },
     });
 
-    const handleSignatureSave = (data: string, type: string) => {
-        submitMutation.mutate({
-            signature_data: data,
-            signature_type: type,
-            position: { 
-                x: positionRef.current.x, 
-                y: positionRef.current.y, 
-                page: 1,
-                width: 200,
-                height: 50
-            },
-        });
+    const handleSignatureSave = (data: string, type: string, duplicateToAllPages: boolean = false) => {
+        const basePosition = { 
+            x: positionRef.current.x, 
+            y: positionRef.current.y, 
+            page: 1,
+            width: 200,
+            height: 50
+        };
+
+        if (duplicateToAllPages && totalPages > 1) {
+            // Submit for all pages with the same position
+            const positions = Array.from({ length: totalPages }, (_, i) => ({
+                ...basePosition,
+                page: i + 1
+            }));
+
+            let completed = 0;
+            positions.forEach((position, index) => {
+                setTimeout(() => {
+                    submitMutation.mutate({
+                        signature_data: data,
+                        signature_type: type,
+                        position,
+                    });
+                    completed++;
+                    if (completed === positions.length) {
+                        message.success(`Signature applied to all ${totalPages} pages at the same position`);
+                        // Refresh the document to show all signatures
+                        queryClient.invalidateQueries(["signing-status", document._id]);
+                    }
+                }, index * 500); // Stagger submissions
+            });
+        } else {
+            submitMutation.mutate({
+                signature_data: data,
+                signature_type: type,
+                position: basePosition,
+            });
+        }
     };
 
     const handleMouseDown = (e: React.MouseEvent) => {
@@ -962,12 +1749,17 @@ const DocumentSigningInterface: React.FC<{
             {!isComplete && (
                 <Space>
                     <Button
-                        type="primary"
                         icon={<SignatureOutlined />}
                         onClick={() => setSignatureModalOpen(true)}
                         loading={submitMutation.isLoading}
                     >
                         Sign Document
+                    </Button>
+                    <Button 
+                        icon={<AppstoreOutlined />}
+                        onClick={() => { setLibraryType("signature"); setLibraryModalOpen(true); }}
+                    >
+                        Signature Library
                     </Button>
                     <Button danger onClick={handleDecline} loading={declineMutation.isLoading}>
                         Decline
@@ -985,10 +1777,30 @@ const DocumentSigningInterface: React.FC<{
                 </Button>
             )}
 
+            <LibraryModal
+                open={libraryModalOpen}
+                onClose={() => setLibraryModalOpen(false)}
+                onSelect={(data, type) => {
+                    handleSignatureSave(data, type);
+                }}
+                onEnterPlacingMode={(item) => {
+                    // For DocumentSigningInterface, just use the signature directly
+                    handleSignatureSave(item.data, item.type);
+                }}
+                onAddNew={() => {
+                    setLibraryModalOpen(false);
+                    setSignatureModalOpen(true);
+                }}
+                type={libraryType}
+            />
+            
+            {/* Signature capture modal for DocumentSigningInterface */}
             <SignatureCaptureModal
                 open={signatureModalOpen}
                 onClose={() => setSignatureModalOpen(false)}
                 onSave={handleSignatureSave}
+                libraryOnly={false}
+                showSaveToLibraryOption={true}
             />
         </div>
     );
@@ -1034,6 +1846,12 @@ const ESignPage: React.FC = () => {
     const [shareEmails, setShareEmails] = useState<string[]>([]);
     const [shareMessage, setShareMessage] = useState("");
     const [shareLoading, setShareLoading] = useState(false);
+    const [libraryModalOpen, setLibraryModalOpen] = useState(false);
+    const [libraryType, setLibraryType] = useState<"signature" | "stamp">("signature");
+    const [editingLibraryItem, setEditingLibraryItem] = useState<any | null>(null);
+    const [editLabel, setEditLabel] = useState("");
+    const [placingMode, setPlacingMode] = useState(false);
+    const [placingItem, setPlacingItem] = useState<any | null>(null);
 
     const handleShare = async () => {
         if (!shareDocId || shareEmails.length === 0) {
@@ -1167,13 +1985,22 @@ const ESignPage: React.FC = () => {
             if (p !== field.position.page) pagesToAdd.push(p);
         }
         if (pagesToAdd.length === 0) { message.info("No other pages to copy to"); return; }
-        pagesToAdd.forEach(page => {
-            addSignatureFieldMutation.mutate({
-                signer_name: field.signer_name,
-                position: { x: field.position.x, y: field.position.y, page },
-            });
+        
+        let completed = 0;
+        pagesToAdd.forEach((page, index) => {
+            setTimeout(() => {
+                addSignatureFieldMutation.mutate({
+                    signer_name: field.signer_name,
+                    position: { x: field.position.x, y: field.position.y, page, width: field.position.width || 200, height: field.position.height || 50 },
+                });
+                completed++;
+                if (completed === pagesToAdd.length) {
+                    message.success(`Signature duplicated to ${pagesToAdd.length} page(s)`);
+                    // Refresh the document to show the new signatures
+                    if (selectedDocument) handlePreviewSigned(selectedDocument);
+                }
+            }, index * 300); // Stagger requests
         });
-        message.success(`Duplicating signature to ${pagesToAdd.length} page(s)`);
     };
 
     const addSidebarMarker = (type: PendingMarker["type"], imageUrl: string, sigType: string) => {
@@ -1677,6 +2504,16 @@ const ESignPage: React.FC = () => {
                     </div>
                 ) : previewUrl ? (
                     <div style={{ textAlign: "center" }}>
+                        {placingMode && (
+                            <Alert
+                                message="Click anywhere on the document to place the signature/stamp"
+                                type="warning"
+                                showIcon
+                                closable
+                                onClose={() => { setPlacingMode(false); setPlacingItem(null); }}
+                                style={{ marginBottom: 8 }}
+                            />
+                        )}
                         {selectedDocument?.signatures && selectedDocument.signatures.length > 0 && (
                             <Alert
                                 message={previewType === "images"
@@ -1714,14 +2551,53 @@ const ESignPage: React.FC = () => {
                             >
                                 Next Page
                             </Button>
+                            <div style={{ width: 1, height: 24, background: "#e8e8e8", margin: "0 8px" }} />
+                            <Button
+                                size="small"
+                                icon={<SignatureOutlined />}
+                                onClick={() => { setLibraryType("signature"); setLibraryModalOpen(true); }}
+                            >
+                                Signature Library
+                            </Button>
+                            <Button
+                                size="small"
+                                icon={<AppstoreOutlined />}
+                                onClick={() => { setLibraryType("stamp"); setLibraryModalOpen(true); }}
+                            >
+                                Stamp Library
+                            </Button>
                         </div>
                         {previewType === "images" ? (
                             // Image-based preview (converted PDF pages)
                             <div
-                                style={{ position: "relative", display: "inline-block", cursor: selectedDocument?.signing_workflow ? "crosshair" : "default" }}
+                                style={{ position: "relative", display: "inline-block", cursor: placingMode ? "crosshair" : (selectedDocument?.signing_workflow ? "crosshair" : "default") }}
                                 onClick={(e) => {
                                     if (hasDraggedRef.current) { hasDraggedRef.current = false; return; }
                                     if (activeDragRef.current || previewSignDragging) return;
+                                    
+                                    // Handle placing mode
+                                    if (placingMode && placingItem) {
+                                        const rect = e.currentTarget.getBoundingClientRect();
+                                        const x = e.clientX - rect.left - 100;
+                                        const y = e.clientY - rect.top - 18;
+                                        
+                                        setPendingMarkers(prev => [...prev, {
+                                            id: `pm-${Date.now()}`,
+                                            x: Math.max(10, x),
+                                            y: Math.max(10, y),
+                                            page: currentPage,
+                                            type: placingItem.type === 'stamp' ? 'stamp' : 'signature',
+                                            preloadedData: placingItem.data,
+                                            preloadedType: placingItem.type,
+                                        }]);
+                                        
+                                        setPlacingMode(false);
+                                        setPlacingItem(null);
+                                        message.success("Signature/stamp placed successfully");
+                                        return;
+                                    }
+                                    
+                                    // Normal workflow
                                     if (selectedDocument?.signing_workflow) {
                                         const rect = e.currentTarget.getBoundingClientRect();
                                         setPendingMarkers(prev => [...prev, {
@@ -1856,16 +2732,111 @@ const ESignPage: React.FC = () => {
                                         <div
                                             key={marker.id}
                                             onMouseDown={(e) => {
+                                                if (marker.locked) return;
                                                 e.preventDefault();
                                                 e.stopPropagation();
                                                 const rect = e.currentTarget.getBoundingClientRect();
                                                 activeDragRef.current = { type: 'pendingMarker', markerId: marker.id, offsetX: e.clientX - rect.left, offsetY: e.clientY - rect.top };
                                                 setPreviewSignDragging(true);
                                             }}
-                                            style={{ position: "absolute", left: marker.x, top: marker.y, border: `2px dashed ${mc}`, backgroundColor: `${mc}20`, padding: "6px 12px", color: mc, fontSize: "12px", fontWeight: "bold", cursor: "grab", userSelect: "none", zIndex: 50, borderRadius: 4, display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}
+                                            style={{ 
+                                                position: "absolute", 
+                                                left: marker.x, 
+                                                top: marker.y, 
+                                                border: marker.locked ? `2px solid #faad14` : `2px dashed ${mc}`, 
+                                                backgroundColor: marker.locked ? "rgba(250, 173, 20, 0.1)" : `${mc}20`, 
+                                                padding: marker.preloadedData ? "8px" : "6px 12px", 
+                                                color: marker.locked ? "#faad14" : mc, 
+                                                fontSize: "12px", 
+                                                fontWeight: "bold", 
+                                                cursor: marker.locked ? "not-allowed" : "grab", 
+                                                userSelect: "none", 
+                                                zIndex: 50, 
+                                                borderRadius: 4, 
+                                                display: "flex", 
+                                                alignItems: "center", 
+                                                gap: 6, 
+                                                whiteSpace: "nowrap",
+                                                flexWrap: "nowrap"
+                                            }}
                                         >
-                                            <span>{ml}</span>
-                                            <span onMouseDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); setPendingMarkers(prev => prev.filter(m => m.id !== marker.id)); }} style={{ cursor: "pointer", opacity: 0.7, fontSize: 14, lineHeight: 1 }}>×</span>
+                                            {marker.preloadedData ? (
+                                                <img 
+                                                    src={marker.preloadedData} 
+                                                    alt={marker.type}
+                                                    style={{ 
+                                                        maxWidth: "150px", 
+                                                        maxHeight: "50px", 
+                                                        objectFit: "contain",
+                                                        pointerEvents: "none"
+                                                    }} 
+                                                />
+                                            ) : (
+                                                <span>{ml}</span>
+                                            )}
+                                            <div style={{ display: "flex", gap: 4, marginLeft: 8 }}>
+                                                <Button
+                                                    size="small"
+                                                    type="text"
+                                                    style={{ fontSize: 16, padding: "2px 6px", height: "auto", lineHeight: 1 }}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setPendingMarkers(prev => prev.map(m => 
+                                                            m.id === marker.id ? { ...m, locked: !m.locked } : m
+                                                        ));
+                                                    }}
+                                                    title={marker.locked ? "Unlock" : "Lock"}
+                                                >
+                                                    {marker.locked ? "🔓" : "🔒"}
+                                                </Button>
+                                                <Button
+                                                    size="small"
+                                                    type="text"
+                                                    style={{ fontSize: 16, padding: "2px 6px", height: "auto", lineHeight: 1 }}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setPendingMarkers(prev => prev.filter(m => m.id !== marker.id));
+                                                    }}
+                                                    title="Remove"
+                                                >
+                                                    🗑️
+                                                </Button>
+                                                <Button
+                                                    size="small"
+                                                    type="text"
+                                                    style={{ fontSize: 16, padding: "2px 6px", height: "auto", lineHeight: 1 }}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        // Duplicate to other pages
+                                                        const pagesToAdd: number[] = [];
+                                                        for (let p = 1; p <= totalPages; p++) {
+                                                            if (p !== currentPage) pagesToAdd.push(p);
+                                                        }
+                                                        if (pagesToAdd.length === 0) { 
+                                                            message.info("No other pages to copy to"); 
+                                                            return; 
+                                                        }
+                                                        pagesToAdd.forEach((page, index) => {
+                                                            setTimeout(() => {
+                                                                setPendingMarkers(prev => [...prev, {
+                                                                    id: `pm-${Date.now()}`,
+                                                                    x: marker.x,
+                                                                    y: marker.y,
+                                                                    page,
+                                                                    type: marker.type,
+                                                                    preloadedData: marker.preloadedData,
+                                                                    preloadedType: marker.preloadedType,
+                                                                    locked: marker.locked,
+                                                                }]);
+                                                            }, index * 100);
+                                                        });
+                                                        message.success(`Duplicating to ${pagesToAdd.length} page(s)`);
+                                                    }}
+                                                    title="Duplicate to other pages"
+                                                >
+                                                    📋
+                                                </Button>
+                                            </div>
                                         </div>
                                     );
                                 })}
@@ -1877,11 +2848,35 @@ const ESignPage: React.FC = () => {
                                     position: "relative",
                                     display: "inline-block",
                                     boxShadow: "0 2px 12px rgba(0,0,0,0.15)",
-                                    cursor: selectedDocument?.signing_workflow ? "crosshair" : "default",
+                                    cursor: placingMode ? "crosshair" : (selectedDocument?.signing_workflow ? "crosshair" : "default"),
                                 }}
                                 onClick={(e) => {
                                     if (hasDraggedRef.current) { hasDraggedRef.current = false; return; }
                                     if (activeDragRef.current || previewSignDragging) return;
+                                    
+                                    // Handle placing mode
+                                    if (placingMode && placingItem) {
+                                        const rect = e.currentTarget.getBoundingClientRect();
+                                        const x = e.clientX - rect.left - 100;
+                                        const y = e.clientY - rect.top - 18;
+                                        
+                                        setPendingMarkers(prev => [...prev, {
+                                            id: `pm-${Date.now()}`,
+                                            x: Math.max(10, x),
+                                            y: Math.max(10, y),
+                                            page: currentPage,
+                                            type: placingItem.type === 'stamp' ? 'stamp' : 'signature',
+                                            preloadedData: placingItem.data,
+                                            preloadedType: placingItem.type,
+                                        }]);
+                                        
+                                        setPlacingMode(false);
+                                        setPlacingItem(null);
+                                        message.success("Signature/stamp placed successfully");
+                                        return;
+                                    }
+                                    
+                                    // Normal workflow
                                     if (selectedDocument?.signing_workflow) {
                                         const rect = e.currentTarget.getBoundingClientRect();
                                         setPendingMarkers(prev => [...prev, {
@@ -1953,6 +2948,7 @@ const ESignPage: React.FC = () => {
                                                     <Button
                                                         size="small"
                                                         type="text"
+                                                        style={{ fontSize: 18, padding: "2px 6px", height: "auto", lineHeight: 1 }}
                                                         onMouseDown={(e) => e.stopPropagation()}
                                                         onClick={(e) => {
                                                             e.stopPropagation();
@@ -1970,6 +2966,7 @@ const ESignPage: React.FC = () => {
                                                     <Button
                                                         size="small"
                                                         type="text"
+                                                        style={{ fontSize: 18, padding: "2px 6px", height: "auto", lineHeight: 1 }}
                                                         onMouseDown={(e) => e.stopPropagation()}
                                                         onClick={(e) => { e.stopPropagation(); handleDuplicateSignature(field); }}
                                                         title="Duplicate to other pages"
@@ -1981,6 +2978,7 @@ const ESignPage: React.FC = () => {
                                                         size="small"
                                                         type="text"
                                                         danger
+                                                        style={{ fontSize: 18, padding: "2px 6px", height: "auto", lineHeight: 1 }}
                                                         onMouseDown={(e) => e.stopPropagation()}
                                                         onClick={(e) => {
                                                             e.stopPropagation();
@@ -2006,16 +3004,111 @@ const ESignPage: React.FC = () => {
                                         <div
                                             key={marker.id}
                                             onMouseDown={(e) => {
+                                                if (marker.locked) return;
                                                 e.preventDefault();
                                                 e.stopPropagation();
                                                 const rect = e.currentTarget.getBoundingClientRect();
                                                 activeDragRef.current = { type: 'pendingMarker', markerId: marker.id, offsetX: e.clientX - rect.left, offsetY: e.clientY - rect.top };
                                                 setPreviewSignDragging(true);
                                             }}
-                                            style={{ position: "absolute", left: marker.x, top: marker.y, border: `2px dashed ${mc}`, backgroundColor: `${mc}20`, padding: "6px 12px", color: mc, fontSize: "12px", fontWeight: "bold", cursor: "grab", userSelect: "none", zIndex: 50, borderRadius: 4, display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}
+                                            style={{ 
+                                                position: "absolute", 
+                                                left: marker.x, 
+                                                top: marker.y, 
+                                                border: marker.locked ? `2px solid #faad14` : `2px dashed ${mc}`, 
+                                                backgroundColor: marker.locked ? "rgba(250, 173, 20, 0.1)" : `${mc}20`, 
+                                                padding: marker.preloadedData ? "8px" : "6px 12px", 
+                                                color: marker.locked ? "#faad14" : mc, 
+                                                fontSize: "12px", 
+                                                fontWeight: "bold", 
+                                                cursor: marker.locked ? "not-allowed" : "grab", 
+                                                userSelect: "none", 
+                                                zIndex: 50, 
+                                                borderRadius: 4, 
+                                                display: "flex", 
+                                                alignItems: "center", 
+                                                gap: 6, 
+                                                whiteSpace: "nowrap",
+                                                flexWrap: "nowrap"
+                                            }}
                                         >
-                                            <span>{ml}</span>
-                                            <span onMouseDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); setPendingMarkers(prev => prev.filter(m => m.id !== marker.id)); }} style={{ cursor: "pointer", opacity: 0.7, fontSize: 14, lineHeight: 1 }}>×</span>
+                                            {marker.preloadedData ? (
+                                                <img 
+                                                    src={marker.preloadedData} 
+                                                    alt={marker.type}
+                                                    style={{ 
+                                                        maxWidth: "150px", 
+                                                        maxHeight: "50px", 
+                                                        objectFit: "contain",
+                                                        pointerEvents: "none"
+                                                    }} 
+                                                />
+                                            ) : (
+                                                <span>{ml}</span>
+                                            )}
+                                            <div style={{ display: "flex", gap: 4, marginLeft: 8 }}>
+                                                <Button
+                                                    size="small"
+                                                    type="text"
+                                                    style={{ fontSize: 16, padding: "2px 6px", height: "auto", lineHeight: 1 }}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setPendingMarkers(prev => prev.map(m => 
+                                                            m.id === marker.id ? { ...m, locked: !m.locked } : m
+                                                        ));
+                                                    }}
+                                                    title={marker.locked ? "Unlock" : "Lock"}
+                                                >
+                                                    {marker.locked ? "🔓" : "🔒"}
+                                                </Button>
+                                                <Button
+                                                    size="small"
+                                                    type="text"
+                                                    style={{ fontSize: 16, padding: "2px 6px", height: "auto", lineHeight: 1 }}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setPendingMarkers(prev => prev.filter(m => m.id !== marker.id));
+                                                    }}
+                                                    title="Remove"
+                                                >
+                                                    🗑️
+                                                </Button>
+                                                <Button
+                                                    size="small"
+                                                    type="text"
+                                                    style={{ fontSize: 16, padding: "2px 6px", height: "auto", lineHeight: 1 }}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        // Duplicate to other pages
+                                                        const pagesToAdd: number[] = [];
+                                                        for (let p = 1; p <= totalPages; p++) {
+                                                            if (p !== currentPage) pagesToAdd.push(p);
+                                                        }
+                                                        if (pagesToAdd.length === 0) { 
+                                                            message.info("No other pages to copy to"); 
+                                                            return; 
+                                                        }
+                                                        pagesToAdd.forEach((page, index) => {
+                                                            setTimeout(() => {
+                                                                setPendingMarkers(prev => [...prev, {
+                                                                    id: `pm-${Date.now()}`,
+                                                                    x: marker.x,
+                                                                    y: marker.y,
+                                                                    page,
+                                                                    type: marker.type,
+                                                                    preloadedData: marker.preloadedData,
+                                                                    preloadedType: marker.preloadedType,
+                                                                    locked: marker.locked,
+                                                                }]);
+                                                            }, index * 100);
+                                                        });
+                                                        message.success(`Duplicating to ${pagesToAdd.length} page(s)`);
+                                                    }}
+                                                    title="Duplicate to other pages"
+                                                >
+                                                    📋
+                                                </Button>
+                                            </div>
                                         </div>
                                     );
                                 })}
@@ -2531,6 +3624,52 @@ const ESignPage: React.FC = () => {
                 </div>
             </Modal>
 
+        {/* ── Library Modal ── */}
+        <LibraryModal
+            open={libraryModalOpen}
+            onClose={() => setLibraryModalOpen(false)}
+            onSelect={(data, type, position) => {
+                // Add the selected signature/stamp as a pending marker
+                const el = previewContainerRef.current;
+                const cx = position?.x || (el ? el.clientWidth / 2 - 100 : 100);
+                const cy = position?.y || (el ? el.scrollTop + el.clientHeight / 2 - 25 : 100);
+                setPendingMarkers(prev => [...prev, {
+                    id: `pm-${Date.now()}`,
+                    x: Math.max(10, cx),
+                    y: Math.max(10, cy),
+                    page: currentPageRef.current,
+                    type: type === 'stamp' ? 'stamp' : 'signature',
+                    preloadedData: data,
+                    preloadedType: type,
+                }]);
+                setLibraryModalOpen(false);
+                message.success("Signature/stamp added to document - drag to position");
+            }}
+            onEnterPlacingMode={(item) => {
+                setPlacingItem(item);
+                setPlacingMode(true);
+                message.info("Click on the document to place the signature/stamp");
+            }}
+            onAddNew={() => {
+                setLibraryModalOpen(false);
+                setSignCaptureModalOpen(true);
+            }}
+            type={libraryType}
+        />
+        
+        {/* Signature capture modal for adding new signatures/stamps */}
+        <SignatureCaptureModal
+            open={signCaptureModalOpen}
+            onClose={() => setSignCaptureModalOpen(false)}
+            onSave={(data, type) => {
+                // This won't be called in library-only mode
+                setSignCaptureModalOpen(false);
+                // Reopen library to show the new item
+                setTimeout(() => setLibraryModalOpen(true), 100);
+            }}
+            defaultTab={libraryType === 'stamp' ? 'stamp' : 'signature'}
+            libraryOnly={true}
+        />
         </div>
     );
 };
