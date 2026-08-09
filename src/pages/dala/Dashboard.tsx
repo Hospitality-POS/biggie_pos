@@ -14,6 +14,7 @@ import {
   Tooltip,
   Button,
   App,
+  Empty,
 } from 'antd';
 import {
     HomeOutlined,
@@ -26,6 +27,7 @@ import {
     DashboardOutlined,
     BuildOutlined as ToolOutlined,
     WalletOutlined,
+    AlertOutlined,
 } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { fetchDalaDashboard } from '@services/dala';
@@ -166,7 +168,15 @@ const DalaDashboard: React.FC = () => {
             salesStats,
             leaseStats,
             rentalStats,
-            commissionStats,
+            commissionStats: {
+                ...commissionStats,
+                // Ensure backward compatibility with field names
+                paidCommission: commissionStats.paidCommissionAmount || commissionStats.paidCommission || 0,
+                pendingCommission: commissionStats.pendingCommissionAmount || commissionStats.pendingCommission || 0,
+                paidCount: commissionStats.paidCommissions || 0,
+                pendingCount: commissionStats.pendingCommissions || 0,
+                partialCount: commissionStats.partialCommissions || 0,
+            },
             maintenanceStats,
             totalProperties: source.totalProperties ?? summary.totalProperties ?? 0,
             totalUnits: source.totalUnits ?? summary.totalUnits ?? 0,
@@ -198,6 +208,8 @@ const DalaDashboard: React.FC = () => {
             recentLeases: source.recentLeases || [],
             recentRentPayments: source.recentRentPayments || [],
             recentMaintenanceTickets: source.recentMaintenanceTickets || [],
+            topAgents: source.topAgents || [],
+            paymentPlansDue: source.paymentPlansDue || { total: 0, totalBalance: 0, top5: [], all: [] },
             propertyTypes: source.propertyTypes || [
                 {
                     type: 'Available',
@@ -222,6 +234,12 @@ const DalaDashboard: React.FC = () => {
     });
 
     const dashboardData = normalizeDashboardData(data || dashboard);
+
+    // ── Extract payment plans due from dashboard data ─────────────────────────
+    const paymentPlansDue = dashboardData?.paymentPlansDue || {};
+    const paymentsDue = Array.isArray(paymentPlansDue?.top5) ? paymentPlansDue.top5 : [];
+    const totalPaymentDue = paymentPlansDue?.totalBalance || 0;
+    const totalPaymentCount = paymentPlansDue?.total || 0;
 
     // Extract real data from dashboard API response
     const revenueData = dashboardData?.revenueTrend || [
@@ -720,19 +738,19 @@ const DalaDashboard: React.FC = () => {
                                         Total Commission
                                     </Text>
                                     <Text strong style={{ fontSize: 20, color: "#8b5cf6" }}>
-                                        KES {fmtK(dashboardData?.totalCommission || 0)}
+                                        KES {fmtK(dashboardData?.commissionStats?.totalCommission || 0)}
                                     </Text>
                                     <div style={{ marginTop: 6, display: "flex", gap: 16 }}>
                                         <div>
                                             <Text style={{ fontSize: 10, color: "#64748b", display: "block" }}>Paid</Text>
                                             <Text style={{ fontSize: 12, color: "#10b981" }}>
-                                                KES {fmtK(dashboardData?.commissionStats?.paidCommission || 0)}
+                                                KES {fmtK(dashboardData?.commissionStats?.paidCommissionAmount || 0)}
                                             </Text>
                                         </div>
                                         <div>
                                             <Text style={{ fontSize: 10, color: "#64748b", display: "block" }}>Pending</Text>
                                             <Text style={{ fontSize: 12, color: "#f59e0b" }}>
-                                                KES {fmtK((dashboardData?.totalCommission || 0) - (dashboardData?.commissionStats?.paidCommission || 0))}
+                                                KES {fmtK(dashboardData?.commissionStats?.pendingCommissionAmount || 0)}
                                             </Text>
                                         </div>
                                     </div>
@@ -767,15 +785,15 @@ const DalaDashboard: React.FC = () => {
                             <Space direction="vertical" size={10} style={{ width: "100%" }}>
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "#f0fdf4", borderRadius: 8 }}>
                                     <Text style={{ fontSize: 12, color: "#64748b" }}>Paid Commissions</Text>
-                                    <Text strong style={{ color: "#10b981" }}>{dashboardData?.commissionStats?.paidCount || 0}</Text>
+                                    <Text strong style={{ color: "#10b981" }}>{dashboardData?.commissionStats?.paidCommissions || 0}</Text>
                                 </div>
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "#fff7ed", borderRadius: 8 }}>
                                     <Text style={{ fontSize: 12, color: "#64748b" }}>Pending Commissions</Text>
-                                    <Text strong style={{ color: "#f59e0b" }}>{dashboardData?.commissionStats?.pendingCount || 0}</Text>
+                                    <Text strong style={{ color: "#f59e0b" }}>{dashboardData?.commissionStats?.pendingCommissions || 0}</Text>
                                 </div>
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "#eff6ff", borderRadius: 8 }}>
                                     <Text style={{ fontSize: 12, color: "#64748b" }}>Partial Commissions</Text>
-                                    <Text strong style={{ color: "#3b82f6" }}>{dashboardData?.commissionStats?.partialCount || 0}</Text>
+                                    <Text strong style={{ color: "#3b82f6" }}>{dashboardData?.commissionStats?.partialCommissions || 0}</Text>
                                 </div>
                                 <div
                                     style={{
@@ -792,7 +810,7 @@ const DalaDashboard: React.FC = () => {
                                         Total Commissions
                                     </Text>
                                     <Text strong style={{ fontSize: 16, color: "#0f172a" }}>
-                                        {(dashboardData?.commissionStats?.paidCount || 0) + (dashboardData?.commissionStats?.pendingCount || 0) + (dashboardData?.commissionStats?.partialCount || 0)}
+                                        {(dashboardData?.commissionStats?.paidCommissions || 0) + (dashboardData?.commissionStats?.pendingCommissions || 0) + (dashboardData?.commissionStats?.partialCommissions || 0)}
                                     </Text>
                                 </div>
 
@@ -800,7 +818,7 @@ const DalaDashboard: React.FC = () => {
                                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", paddingTop: 4 }}>
                                     <Tooltip title="Commission payment rate">
                                         <div style={{ background: "#f5f3ff", borderRadius: 6, padding: "4px 10px", fontSize: 11 }}>
-                                            💳 {dashboardData?.totalCommission > 0 ? ((dashboardData?.commissionStats?.paidCommission || 0) / dashboardData?.totalCommission * 100).toFixed(1) : 0}% Paid
+                                            💳 {dashboardData?.commissionStats?.totalCommission > 0 ? ((dashboardData?.commissionStats?.paidCommissionAmount || 0) / dashboardData?.commissionStats?.totalCommission * 100).toFixed(1) : 0}% Paid
                                         </div>
                                     </Tooltip>
                                 </div>
@@ -811,7 +829,7 @@ const DalaDashboard: React.FC = () => {
                     <Col xs={24} lg={8}>
                         <ProCard title={<Text strong>Top Agents</Text>} bordered size="small">
                             <Space direction="vertical" size={10} style={{ width: "100%" }}>
-                                {dashboardData?.commissionStats?.topAgents?.slice(0, 3).map((agent: any, i: number) => (
+                                {dashboardData?.topAgents?.slice(0, 3).map((agent: any, i: number) => (
                                     <div
                                         key={i}
                                         style={{
@@ -825,18 +843,24 @@ const DalaDashboard: React.FC = () => {
                                         }}
                                     >
                                         <Space direction="vertical" size={0}>
-                                            <Text style={{ fontSize: 12, fontWeight: 600 }}>{agent.name || 'Agent'}</Text>
-                                            <Text style={{ fontSize: 10, color: "#94a3b8" }}>{agent.sales || 0} sales</Text>
+                                            <Text style={{ fontSize: 12, fontWeight: 600 }}>{agent.agentName || 'Unknown'}</Text>
+                                            <Text style={{ fontSize: 10, color: "#94a3b8" }}>{agent.totalSales || 0} sales</Text>
                                         </Space>
-                                        <Text
-                                            strong
-                                            style={{
-                                                fontSize: 13,
-                                                color: "#0f172a",
-                                            }}
-                                        >
-                                            KES {fmtK(agent.commission || 0)}
-                                        </Text>
+                                        <div style={{ textAlign: "right" }}>
+                                            <Text
+                                                strong
+                                                style={{
+                                                    fontSize: 13,
+                                                    color: "#0f172a",
+                                                    display: "block",
+                                                }}
+                                            >
+                                                KES {fmtK(agent.totalSalesValue || 0)}
+                                            </Text>
+                                            <Text style={{ fontSize: 10, color: "#10b981" }}>
+                                                {agent.conversionRate?.toFixed(1) || 0}% conv
+                                            </Text>
+                                        </div>
                                     </div>
                                 )) || (
                                     <Text type="secondary" style={{ fontSize: 12 }}>No agent data available</Text>
@@ -1190,6 +1214,130 @@ const DalaDashboard: React.FC = () => {
                                 pagination={false}
                                 size="small"
                                 locale={{ emptyText: "No recent rent payments" }}
+                            />
+                        </ProCard>
+                    </Col>
+                </Row>
+
+                {/* ── Section 6: Payment Plans Due ── */}
+                <Row gutter={[16, 16]} style={{ marginTop: 20, marginBottom: 20 }}>
+                    <Col xs={24} lg={8}>
+                        <ProCard
+                            title={<Text strong>Payment Plans Due</Text>}
+                            bordered
+                            size="small"
+                        >
+                            <Space direction="vertical" size={12} style={{ width: "100%" }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px", background: "#fef2f2", borderRadius: 8 }}>
+                                    <Text style={{ fontSize: 12, color: "#64748b" }}>Total Amount Due</Text>
+                                    <Text strong style={{ fontSize: 16, color: "#ef4444" }}>
+                                        KES {fmtK(totalPaymentDue)}
+                                    </Text>
+                                </div>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "#fef2f2", borderRadius: 8 }}>
+                                    <Text style={{ fontSize: 12, color: "#64748b" }}>Total Plans</Text>
+                                    <Text strong style={{ color: "#ef4444" }}>{totalPaymentCount}</Text>
+                                </div>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "#fff7ed", borderRadius: 8 }}>
+                                    <Text style={{ fontSize: 12, color: "#64748b" }}>Pending This Week</Text>
+                                    <Text strong style={{ color: "#f59e0b" }}>
+                                        {paymentsDue.filter((p: any) => p.dueDate && dayjs(p.dueDate).isSame(dayjs(), 'week')).length}
+                                    </Text>
+                                </div>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "#eff6ff", borderRadius: 8 }}>
+                                    <Text style={{ fontSize: 12, color: "#64748b" }}>Bank Transfer</Text>
+                                    <Text strong style={{ color: "#3b82f6" }}>
+                                        {paymentsDue.filter((p: any) => p.paymentMethod === "bank_transfer").length}
+                                    </Text>
+                                </div>
+                            </Space>
+                        </ProCard>
+                    </Col>
+
+                    <Col xs={24} lg={16}>
+                        <ProCard
+                            title={<Space><AlertOutlined style={{ color: "#ef4444" }} /><Text strong>Top 5 Payment Plans Due</Text><Tag color="warning">{totalPaymentCount} total</Tag></Space>}
+                            bordered
+                            size="small"
+                            bodyStyle={{ padding: 0 }}
+                        >
+                            <Table
+                                rowKey="_id"
+                                dataSource={paymentsDue}
+                                columns={[
+                                    {
+                                        title: "Client",
+                                        dataIndex: "customerName",
+                                        width: 140,
+                                        render: (v: string, record: any) => (
+                                            <Space direction="vertical" size={0}>
+                                                <Text style={{ fontSize: 12, fontWeight: 600 }}>{v || "N/A"}</Text>
+                                                <Text style={{ fontSize: 10, color: "#94a3b8" }}>{record.propertyName || "-"}</Text>
+                                            </Space>
+                                        ),
+                                    },
+                                    {
+                                        title: "Sale Code",
+                                        dataIndex: "saleCode",
+                                        width: 100,
+                                        render: (code: string) => (
+                                            <Text style={{ fontSize: 11, color: "#64748b" }}>{code || "-"}</Text>
+                                        ),
+                                    },
+                                    {
+                                        title: "Due Date",
+                                        dataIndex: "dueDate",
+                                        width: 90,
+                                        render: (date: string) => (
+                                            <Text style={{ fontSize: 11, color: "#64748b" }}>
+                                                {date ? dayjs(date).format("DD MMM") : "-"}
+                                            </Text>
+                                        ),
+                                    },
+                                    {
+                                        title: "Installment",
+                                        dataIndex: "installmentAmount",
+                                        align: "right" as const,
+                                        width: 110,
+                                        render: (v: number) => (
+                                            <Text strong style={{ fontSize: 12, color: "#ef4444" }}>
+                                                {fmtK(v)}
+                                            </Text>
+                                        ),
+                                    },
+                                    {
+                                        title: "Balance",
+                                        dataIndex: "balance",
+                                        align: "right" as const,
+                                        width: 110,
+                                        render: (v: number) => (
+                                            <Text style={{ fontSize: 12, color: "#64748b" }}>
+                                                {fmtK(v)}
+                                            </Text>
+                                        ),
+                                    },
+                                    {
+                                        title: "Status",
+                                        dataIndex: "status",
+                                        width: 90,
+                                        render: (status: string) => (
+                                            <Tag
+                                                style={{
+                                                    background: status === "active" ? "#f0fdf4" : "#fff7ed",
+                                                    color: status === "active" ? "#10b981" : "#f59e0b",
+                                                    border: "none",
+                                                    fontSize: 10,
+                                                    borderRadius: 4,
+                                                }}
+                                            >
+                                                {status?.toUpperCase() || "ACTIVE"}
+                                            </Tag>
+                                        ),
+                                    },
+                                ]}
+                                pagination={false}
+                                size="small"
+                                locale={{ emptyText: <Empty description="No payment plans due" style={{ padding: 20 }} /> }}
                             />
                         </ProCard>
                     </Col>

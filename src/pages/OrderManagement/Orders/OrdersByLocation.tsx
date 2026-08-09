@@ -1,30 +1,68 @@
-import React, { useState, useEffect } from "react";
-import { Card, Row, Col, Statistic, Typography, Select, DatePicker, Button, Space, Empty, Spin, Tag, Table, Modal } from "antd";
-import { EnvironmentOutlined, DollarOutlined, ShoppingCartOutlined, FilterOutlined, ReloadOutlined, FilePdfOutlined, DownloadOutlined } from "@ant-design/icons";
+import React, { useRef, useState, useEffect, useMemo } from "react";
+import {
+  Button,
+  DatePicker,
+  Empty,
+  Modal,
+  Select,
+  Space,
+  Spin,
+  Table,
+  Tag,
+  Tooltip,
+  Typography,
+} from "antd";
+import {
+  BarChartOutlined,
+  CalendarOutlined,
+  EnvironmentOutlined,
+  FileExcelOutlined,
+  FilePdfOutlined,
+  FilterOutlined,
+  ReloadOutlined,
+  ShoppingCartOutlined,
+  DollarOutlined,
+} from "@ant-design/icons";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip as RTooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+} from "recharts";
 import { getOrdersByLocation } from "@services/orders";
 import { fetchSystemSetupDetailsById } from "@services/systemsetup";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
-import { CSVLink } from "react-csv";
 import { useReactToPrint } from "react-to-print";
+import * as XLSX from "xlsx";
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 const { RangePicker } = DatePicker;
 
+// ── Palette ───────────────────────────────────────────────────────────────────
 const C = {
   primary: "#6c1c2c",
   primaryLight: "#f9f0f2",
   green: "#10b981",
+  greenLight: "#f0fdf4",
   blue: "#3b82f6",
+  blueLight: "#eff6ff",
   orange: "#f59e0b",
+  orangeLight: "#fffbeb",
   purple: "#8b5cf6",
+  purpleLight: "#faf5ff",
+  red: "#ef4444",
   subText: "#64748b",
   darkText: "#0f172a",
   border: "#e2e8f0",
   bg: "#f8fafc",
 };
 
+// ── Types ─────────────────────────────────────────────────────────────────────
 interface LocationData {
   country: string;
   county: string;
@@ -34,50 +72,400 @@ interface LocationData {
   order_count: number;
 }
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const fmt = (n: number) => n.toLocaleString("en-KE", { minimumFractionDigits: 0 });
+const fmtAmt = (n: number) => `KES ${fmt(n)}`;
+
+// ── Tiny KPI card ─────────────────────────────────────────────────────────────
+const KpiCard: React.FC<{
+  label: string; value: string; icon: React.ReactNode;
+  color: string; bg: string; border: string;
+}> = ({ label, value, icon, color, bg, border }) => (
+  <div style={{
+    flex: "1 1 140px",
+    background: bg,
+    border: `1px solid ${border}`,
+    borderLeft: `3px solid ${color}`,
+    borderRadius: 10,
+    padding: "12px 16px",
+    minWidth: 130,
+  }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+      <span style={{ color, fontSize: 13 }}>{icon}</span>
+      <Text style={{ fontSize: 10, color: C.subText, textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 700 }}>
+        {label}
+      </Text>
+    </div>
+    <Text strong style={{ fontSize: 18, color }}>{value}</Text>
+  </div>
+);
+
+// ── Inline mini-bar (used in table) ───────────────────────────────────────────
+const MiniBar: React.FC<{ value: number; max: number; color: string }> = ({ value, max, color }) => (
+  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+    <div style={{ flex: 1, height: 6, background: "#e2e8f0", borderRadius: 3 }}>
+      <div style={{
+        width: `${Math.max(2, (value / (max || 1)) * 100)}%`,
+        height: "100%",
+        background: color,
+        borderRadius: 3,
+        transition: "width 0.3s",
+      }} />
+    </div>
+    <Text style={{ fontSize: 12, color: C.subText, minWidth: 90, textAlign: "right" }}>
+      {fmtAmt(value)}
+    </Text>
+  </div>
+);
+
+// ── Report print template ─────────────────────────────────────────────────────
+const ReportDocument = React.forwardRef<HTMLDivElement, {
+  data: LocationData[];
+  filters: { from?: string; to?: string };
+  primaryColor: string;
+  businessName: string;
+  businessAddress: string;
+  logoUrl: string | null;
+  tenantInitial: string;
+}>(({ data, filters, primaryColor, businessName, businessAddress, logoUrl, tenantInitial }, ref) => {
+  const totalOrders   = data.reduce((s, l) => s + l.order_count, 0);
+  const totalRevenue  = data.reduce((s, l) => s + l.total_amount, 0);
+  const avgPerOrder   = totalOrders ? totalRevenue / totalOrders : 0;
+
+  return (
+    <div
+      ref={ref}
+      id="order-analysis-report"
+      style={{
+        fontFamily: "'Segoe UI', Arial, sans-serif",
+        color: "#0f172a",
+        background: "#fff",
+        padding: "32px 36px",
+        minWidth: 700,
+      }}
+    >
+      {/* Print-only styles */}
+      <style>{`
+        @media print {
+          @page { size: A4; margin: 16mm; }
+          body * { visibility: hidden; }
+          #order-analysis-report, #order-analysis-report * { visibility: visible; }
+          #order-analysis-report { position: absolute; inset: 0; padding: 0; }
+        }
+      `}</style>
+
+      {/* ── Header ── */}
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        borderBottom: `3px solid ${primaryColor}`, paddingBottom: 18, marginBottom: 20,
+      }}>
+        {/* Logo / initials */}
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          {logoUrl ? (
+            <img
+              src={logoUrl} alt="logo"
+              style={{ height: 60, maxWidth: 120, objectFit: "contain", borderRadius: 6 }}
+            />
+          ) : (
+            <div style={{
+              width: 54, height: 54, borderRadius: 10,
+              background: primaryColor, display: "flex",
+              alignItems: "center", justifyContent: "center",
+              color: "#fff", fontSize: 22, fontWeight: 700,
+            }}>
+              {tenantInitial}
+            </div>
+          )}
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "#0f172a" }}>{businessName}</div>
+            <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>{businessAddress}</div>
+          </div>
+        </div>
+
+        {/* Report label */}
+        <div style={{ textAlign: "right" }}>
+          <div style={{
+            display: "inline-block",
+            background: primaryColor, color: "#fff",
+            borderRadius: 6, padding: "4px 12px",
+            fontSize: 11, fontWeight: 700, letterSpacing: "0.8px",
+            textTransform: "uppercase", marginBottom: 4,
+          }}>
+            Order Analysis
+          </div>
+          <div style={{ fontSize: 12, color: "#64748b" }}>
+            {filters.from && filters.to
+              ? `${dayjs(filters.from).format("D MMM YYYY")} – ${dayjs(filters.to).format("D MMM YYYY")}`
+              : "All Time"}
+          </div>
+          <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>
+            Generated {dayjs().format("D MMM YYYY, h:mm A")}
+          </div>
+        </div>
+      </div>
+
+      {/* ── KPI strip ── */}
+      <div style={{ display: "flex", gap: 10, marginBottom: 22, flexWrap: "wrap" }}>
+        {[
+          { label: "Locations", value: String(data.length),      color: C.blue,   bg: C.blueLight   },
+          { label: "Total Orders",  value: fmt(totalOrders),     color: C.purple, bg: C.purpleLight  },
+          { label: "Revenue",       value: fmtAmt(totalRevenue), color: C.green,  bg: C.greenLight   },
+          { label: "Avg / Order",   value: fmtAmt(avgPerOrder),  color: C.orange, bg: C.orangeLight  },
+        ].map((k) => (
+          <div key={k.label} style={{
+            flex: "1 1 130px", padding: "12px 14px",
+            background: k.bg, borderRadius: 8,
+            border: `1px solid ${k.color}30`, borderLeft: `3px solid ${k.color}`,
+          }}>
+            <div style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 700, marginBottom: 4 }}>{k.label}</div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: k.color }}>{k.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Revenue bar chart ── */}
+      {data.length > 0 && (
+        <div style={{ marginBottom: 22 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: C.darkText, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            Revenue by Location
+          </div>
+          <ResponsiveContainer width="100%" height={160}>
+            <BarChart data={data.map((l) => ({ name: l.city || l.county, revenue: l.total_amount }))}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+              <YAxis tickFormatter={(v) => `KES ${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 10 }} />
+              <RTooltip formatter={(v: any) => [`KES ${fmt(Number(v))}`, "Revenue"]} />
+              <Bar dataKey="revenue" fill={primaryColor} radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* ── Location summary table ── */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{
+          fontSize: 12, fontWeight: 700, color: C.darkText, marginBottom: 10,
+          textTransform: "uppercase", letterSpacing: "0.5px",
+          paddingBottom: 6, borderBottom: `2px solid ${C.border}`,
+        }}>
+          Location Breakdown
+        </div>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+          <thead>
+            <tr style={{ background: primaryColor + "12" }}>
+              {["City", "County", "Country", "Orders", "Revenue", "Avg / Order"].map((h) => (
+                <th key={h} style={{
+                  padding: "7px 10px", textAlign: h === "Revenue" || h === "Avg / Order" || h === "Orders" ? "right" : "left",
+                  fontWeight: 700, color: "#0f172a", fontSize: 11,
+                  borderBottom: `2px solid ${primaryColor}30`,
+                }}>
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((loc, i) => (
+              <tr key={i} style={{ background: i % 2 === 0 ? "#fff" : C.bg }}>
+                <td style={{ padding: "7px 10px", fontWeight: 600 }}>{loc.city || "—"}</td>
+                <td style={{ padding: "7px 10px" }}>{loc.county || "—"}</td>
+                <td style={{ padding: "7px 10px" }}>{loc.country || "—"}</td>
+                <td style={{ padding: "7px 10px", textAlign: "right", fontWeight: 600 }}>{loc.order_count}</td>
+                <td style={{ padding: "7px 10px", textAlign: "right", color: C.green, fontWeight: 700 }}>
+                  {fmtAmt(loc.total_amount)}
+                </td>
+                <td style={{ padding: "7px 10px", textAlign: "right", color: C.orange }}>
+                  {fmtAmt(loc.order_count ? loc.total_amount / loc.order_count : 0)}
+                </td>
+              </tr>
+            ))}
+            {/* Total row */}
+            <tr style={{ background: primaryColor + "12", fontWeight: 800, borderTop: `2px solid ${primaryColor}30` }}>
+              <td colSpan={3} style={{ padding: "8px 10px", fontWeight: 800 }}>TOTAL</td>
+              <td style={{ padding: "8px 10px", textAlign: "right", fontWeight: 800 }}>{totalOrders}</td>
+              <td style={{ padding: "8px 10px", textAlign: "right", color: C.green, fontWeight: 800 }}>{fmtAmt(totalRevenue)}</td>
+              <td style={{ padding: "8px 10px", textAlign: "right", color: C.orange, fontWeight: 800 }}>{fmtAmt(avgPerOrder)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      {/* ── Orders grouped by location ── */}
+      <div>
+        <div style={{
+          fontSize: 12, fontWeight: 700, color: C.darkText, marginBottom: 12,
+          textTransform: "uppercase", letterSpacing: "0.5px",
+          paddingBottom: 6, borderBottom: `2px solid ${C.border}`,
+        }}>
+          Orders by Location
+        </div>
+
+        {data.map((loc, locIdx) => (
+          <div key={locIdx} style={{ marginBottom: 20, breakInside: "avoid" as any }}>
+            {/* Location group header */}
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              background: primaryColor + "12",
+              border: `1px solid ${primaryColor}25`,
+              borderRadius: "6px 6px 0 0",
+              padding: "8px 12px",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 13, color: primaryColor }}>📍</span>
+                <span style={{ fontWeight: 700, fontSize: 13, color: C.darkText }}>
+                  {loc.city || "—"}
+                </span>
+                <span style={{ fontSize: 11, color: C.subText }}>
+                  {[loc.county, loc.country].filter(Boolean).join(", ")}
+                </span>
+              </div>
+              <div style={{ display: "flex", gap: 16, fontSize: 11 }}>
+                <span>
+                  <span style={{ color: C.subText }}>Orders: </span>
+                  <strong style={{ color: C.blue }}>{loc.order_count}</strong>
+                </span>
+                <span>
+                  <span style={{ color: C.subText }}>Revenue: </span>
+                  <strong style={{ color: C.green }}>{fmtAmt(loc.total_amount)}</strong>
+                </span>
+                <span>
+                  <span style={{ color: C.subText }}>Avg: </span>
+                  <strong style={{ color: C.orange }}>{fmtAmt(loc.order_count ? loc.total_amount / loc.order_count : 0)}</strong>
+                </span>
+              </div>
+            </div>
+
+            {/* Orders table for this location */}
+            <table style={{
+              width: "100%", borderCollapse: "collapse", fontSize: 11,
+              border: `1px solid ${primaryColor}20`, borderTop: "none",
+              borderRadius: "0 0 6px 6px", overflow: "hidden",
+            }}>
+              <thead>
+                <tr style={{ background: "#f8fafc" }}>
+                  {["Order No", "Customer", "Phone", "Amount", "Type", "Status", "Date", "Served By"].map((h) => (
+                    <th key={h} style={{
+                      padding: "5px 8px",
+                      textAlign: h === "Amount" ? "right" : "left",
+                      fontWeight: 700, color: C.subText, fontSize: 10,
+                      borderBottom: `1px solid ${C.border}`,
+                    }}>
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {loc.orders.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} style={{ padding: "10px 12px", textAlign: "center", color: C.subText, fontSize: 11, fontStyle: "italic" }}>
+                      No orders
+                    </td>
+                  </tr>
+                ) : (
+                  loc.orders.map((order: any, i: number) => (
+                    <tr key={`${order.order_no}-${i}`} style={{ background: i % 2 === 0 ? "#fff" : "#fafbfc" }}>
+                      <td style={{ padding: "5px 8px", fontWeight: 700, fontFamily: "monospace", color: primaryColor, fontSize: 11 }}>
+                        {order.order_no}
+                      </td>
+                      <td style={{ padding: "5px 8px" }}>{order.customer_name || "—"}</td>
+                      <td style={{ padding: "5px 8px", color: C.subText }}>{order.customer_phone || "—"}</td>
+                      <td style={{ padding: "5px 8px", textAlign: "right", fontWeight: 700, color: C.green }}>
+                        KES {fmt(order.order_amount || 0)}
+                      </td>
+                      <td style={{ padding: "5px 8px" }}>{order.order_type || "—"}</td>
+                      <td style={{ padding: "5px 8px" }}>
+                        <span style={{
+                          background: order.status === "COMPLETED" ? "#dcfce7" : "#fef9c3",
+                          color: order.status === "COMPLETED" ? "#166534" : "#92400e",
+                          padding: "2px 6px", borderRadius: 4, fontSize: 10, fontWeight: 600,
+                        }}>
+                          {order.status}
+                        </span>
+                      </td>
+                      <td style={{ padding: "5px 8px", color: C.subText, whiteSpace: "nowrap" }}>
+                        {dayjs(order.createdAt).format("DD MMM YYYY HH:mm")}
+                      </td>
+                      <td style={{ padding: "5px 8px" }}>{order.served_by || "—"}</td>
+                    </tr>
+                  ))
+                )}
+                {/* Location subtotal row */}
+                {loc.orders.length > 1 && (
+                  <tr style={{ background: primaryColor + "08", borderTop: `1px solid ${primaryColor}20` }}>
+                    <td colSpan={3} style={{ padding: "5px 8px", fontWeight: 700, fontSize: 11 }}>
+                      Subtotal ({loc.order_count} orders)
+                    </td>
+                    <td style={{ padding: "5px 8px", textAlign: "right", fontWeight: 800, color: C.green }}>
+                      KES {fmt(loc.total_amount)}
+                    </td>
+                    <td colSpan={4} />
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Footer ── */}
+      <div style={{
+        marginTop: 28, paddingTop: 12,
+        borderTop: `1px solid ${C.border}`,
+        display: "flex", justifyContent: "space-between",
+        fontSize: 10, color: "#94a3b8",
+      }}>
+        <span>{businessName} — Confidential</span>
+        <span>Generated by BiggiePOS · {dayjs().format("D MMM YYYY")}</span>
+      </div>
+    </div>
+  );
+});
+ReportDocument.displayName = "ReportDocument";
+
+// ══════════════════════════════════════════════════════════════════════════════
+// MAIN COMPONENT
+// ══════════════════════════════════════════════════════════════════════════════
 const OrdersByLocation = () => {
   const primaryColor = usePrimaryColor();
+
   const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<LocationData[]>([]);
-  const [exportData, setExportData] = useState<any[]>([]);
-  const [printModalOpen, setPrintModalOpen] = useState(false);
-  const printRef = React.useRef<HTMLDivElement>(null);
-  const [tenant, setTenant] = useState<any>(null);
-  
-  // Fetch system settings for business name
+  const [data, setData]       = useState<LocationData[]>([]);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [tenant, setTenant]   = useState<any>(null);
+  const printRef = useRef<HTMLDivElement>(null);
+
+  const [filters, setFilters] = useState({
+    country: undefined as string | undefined,
+    county:  undefined as string | undefined,
+    city:    undefined as string | undefined,
+    from:    dayjs().startOf("month").format("YYYY-MM-DD") as string | undefined,
+    to:      dayjs().format("YYYY-MM-DD")                  as string | undefined,
+  });
+
+  // System settings (for business name / address)
   const { data: systemSettings } = useQuery({
     queryKey: ["systemsettings"],
     queryFn: fetchSystemSetupDetailsById,
-    retry: 3,
-    refetchInterval: 3000,
-  });
-  
-  const [filters, setFilters] = useState({
-    country: undefined as string | undefined,
-    county: undefined as string | undefined,
-    city: undefined as string | undefined,
-    from: dayjs().format("YYYY-MM-DD") as string | undefined,
-    to: dayjs().format("YYYY-MM-DD") as string | undefined,
+    staleTime: 5 * 60_000,
   });
 
+  const businessName = String(systemSettings?.name || tenant?.business_name || "Business");
+  const businessAddress =
+    typeof systemSettings?.address === "object"
+      ? [systemSettings.address.street, systemSettings.address.city, systemSettings.address.country]
+          .filter(Boolean).join(", ")
+      : String(systemSettings?.address || tenant?.address || "");
+  const logoUrl      = tenant?.tenant_logo?.url || null;
+  const tenantInitial = businessName.charAt(0).toUpperCase();
+
+  // ── Fetch ──────────────────────────────────────────────────────────────────
   const fetchData = async () => {
     setLoading(true);
     try {
       const result = await getOrdersByLocation(filters);
-      // Handle the API response structure which has grouped_by_location property
       setData(result?.grouped_by_location || []);
-      
-      // Prepare export data
-      const flatOrders = result?.grouped_by_location?.flatMap((location: LocationData) =>
-        location.orders.map((order: any) => ({
-          ...order,
-          country: location.country,
-          county: location.county,
-          city: location.city,
-        }))
-      ) || [];
-      setExportData(flatOrders);
-    } catch (error) {
-      console.error("Error fetching orders by location:", error);
+    } catch {
       setData([]);
     } finally {
       setLoading(false);
@@ -86,433 +474,435 @@ const OrdersByLocation = () => {
 
   useEffect(() => {
     fetchData();
-    // Load tenant data from localStorage
     const storedTenant = localStorage.getItem("tenant");
     if (storedTenant) {
-      setTenant(JSON.parse(storedTenant));
+      try { setTenant(JSON.parse(storedTenant)); } catch { /* ignore */ }
     }
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleFilterChange = (key: string, value: any) => {
-    setFilters((prev) => ({ ...prev, [key]: value }));
+  // ── Derived ────────────────────────────────────────────────────────────────
+  const totalOrders  = data.reduce((s, l) => s + l.order_count, 0);
+  const totalRevenue = data.reduce((s, l) => s + l.total_amount, 0);
+  const avgPerOrder  = totalOrders ? totalRevenue / totalOrders : 0;
+  const maxRevenue   = Math.max(...data.map((l) => l.total_amount), 1);
+
+  const countryOptions = useMemo(() => [...new Set(data.map((d) => d.country))].map((v) => ({ value: v, label: v })), [data]);
+  const countyOptions  = useMemo(() => [...new Set(data.map((d) => d.county))].map((v) => ({ value: v, label: v })), [data]);
+  const cityOptions    = useMemo(() => [...new Set(data.map((d) => d.city))].map((v) => ({ value: v, label: v })), [data]);
+
+  // ── Excel export ──────────────────────────────────────────────────────────
+  const handleExcelExport = () => {
+    const wb = XLSX.utils.book_new();
+
+    // Sheet 1 — Summary
+    const summaryRows = [
+      ["City", "County", "Country", "Order Count", "Total Revenue (KES)", "Avg per Order (KES)"],
+      ...data.map((l) => [
+        l.city, l.county, l.country, l.order_count, l.total_amount,
+        l.order_count ? +(l.total_amount / l.order_count).toFixed(2) : 0,
+      ]),
+      ["TOTAL", "", "", totalOrders, totalRevenue, +avgPerOrder.toFixed(2)],
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summaryRows), "Summary");
+
+    // Sheet 2 — All orders
+    const orderRows = [
+      ["Order No", "Customer Name", "Customer Phone", "City", "County", "Country", "Amount (KES)", "Type", "Status", "Date", "Served By"],
+      ...data.flatMap((loc) =>
+        loc.orders.map((o: any) => [
+          o.order_no, o.customer_name, o.customer_phone,
+          loc.city, loc.county, loc.country,
+          o.order_amount, o.order_type, o.status,
+          dayjs(o.createdAt).format("DD MMM YYYY HH:mm"),
+          o.served_by || "",
+        ])
+      ),
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(orderRows), "Orders");
+
+    const dateStr = `${filters.from || "all"}_to_${filters.to || "all"}`;
+    XLSX.writeFile(wb, `Order_Analysis_${dateStr}.xlsx`);
   };
 
-  const handleDateRangeChange = (dates: any) => {
-    if (dates && dates[0] && dates[1]) {
-      setFilters((prev) => ({
-        ...prev,
-        from: dates[0].format("YYYY-MM-DD"),
-        to: dates[1].format("YYYY-MM-DD"),
-      }));
-    } else {
-      setFilters((prev) => ({ ...prev, from: undefined, to: undefined }));
-    }
-  };
-
-  const handleApplyFilters = () => {
-    fetchData();
-  };
-
-  const handleResetFilters = () => {
-    setFilters({
-      country: undefined,
-      county: undefined,
-      city: undefined,
-      from: undefined,
-      to: undefined,
-    });
-    fetchData();
-  };
-
+  // ── Print/PDF ─────────────────────────────────────────────────────────────
   const handlePrint = useReactToPrint({
     content: () => printRef.current,
+    documentTitle: `Order_Analysis_${filters.from}_${filters.to}`,
   });
 
-  const LocationCard: React.FC<{ location: LocationData }> = ({ location }) => {
-    const orderColumns = [
-      {
-        title: "City",
-        key: "city",
-        render: (_: any, __: any, index: number) => {
-          if (index === 0) {
-            return <Text strong style={{ fontSize: 13 }}>{String(location.city || "")}</Text>;
-          }
-          return undefined;
-        },
-        onCell: (_: any, index?: number) => ({
-          rowSpan: index === 0 ? location.orders.length : 0,
-        }),
-      },
-      {
-        title: "County",
-        key: "county",
-        render: (_: any, __: any, index: number) => {
-          if (index === 0) {
-            return <Text style={{ fontSize: 12 }}>{String(location.county || "")}</Text>;
-          }
-          return undefined;
-        },
-        onCell: (_: any, index?: number) => ({
-          rowSpan: index === 0 ? location.orders.length : 0,
-        }),
-      },
-      {
-        title: "Country",
-        key: "country",
-        render: (_: any, __: any, index: number) => {
-          if (index === 0) {
-            return <Text style={{ fontSize: 12 }}>{String(location.country || "")}</Text>;
-          }
-          return undefined;
-        },
-        onCell: (_: any, index?: number) => ({
-          rowSpan: index === 0 ? location.orders.length : 0,
-        }),
-      },
-      {
-        title: "Order No",
-        dataIndex: "order_no",
-        key: "order_no",
-        render: (text: string) => <Text strong>{text}</Text>,
-      },
-      {
-        title: "Customer",
-        key: "customer",
-        render: (_: any, record: any) => (
-          <div>
-            <div>{record.customer_name}</div>
-            <Text type="secondary" style={{ fontSize: 11 }}>{record.customer_phone}</Text>
+  // ── Main table columns ─────────────────────────────────────────────────────
+  const locationColumns = [
+    {
+      title: "Location",
+      key: "location",
+      render: (_: any, r: LocationData) => (
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{
+            background: primaryColor + "18", borderRadius: 7, padding: "4px 6px",
+            color: primaryColor, fontSize: 13, flexShrink: 0,
+          }}>
+            <EnvironmentOutlined />
           </div>
-        ),
-      },
-      {
-        title: "Amount",
-        dataIndex: "order_amount",
-        key: "order_amount",
-        align: "right" as const,
-        render: (amount: number) => <Text>KES {amount?.toLocaleString()}</Text>,
-      },
-      {
-        title: "Type",
-        dataIndex: "order_type",
-        key: "order_type",
-        render: (type: string) => <Tag color="blue">{type}</Tag>,
-      },
-      {
-        title: "Status",
-        dataIndex: "status",
-        key: "status",
-        render: (status: string) => <Tag color={status === "COMPLETED" ? "green" : "orange"}>{status}</Tag>,
-      },
-      {
-        title: "Date",
-        dataIndex: "createdAt",
-        key: "createdAt",
-        render: (date: string) => <Text style={{ fontSize: 12 }}>{dayjs(date).format("DD MMM YYYY HH:mm")}</Text>,
-      },
-      {
-        title: "Served By",
-        key: "served_by",
-        render: (_: any, record: any) => (
-          <Text style={{ fontSize: 12 }}>{record.served_by || "—"}</Text>
-        ),
-      },
-    ];
-
-    return (
-      <Card
-        style={{ marginBottom: 16, borderRadius: 12, border: `1px solid ${C.border}` }}
-        styles={{ body: { padding: "16px" } }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-          <Space>
-            <EnvironmentOutlined style={{ color: primaryColor, fontSize: 20 }} />
-            <Title level={4} style={{ margin: 0, color: C.darkText }}>{String(location.city || "")}, {String(location.county || "")}</Title>
-          </Space>
-          <Space>
-            <Tag color="blue">{location.order_count} orders</Tag>
-            <Tag color="green">KES {location.total_amount.toLocaleString()}</Tag>
-          </Space>
+          <div>
+            <Text strong style={{ fontSize: 13, color: C.darkText }}>{r.city || "—"}</Text>
+            <Text style={{ fontSize: 11, color: C.subText, display: "block" }}>
+              {[r.county, r.country].filter(Boolean).join(", ")}
+            </Text>
+          </div>
         </div>
-        <Table
-          columns={orderColumns}
-          dataSource={location.orders}
-          rowKey="order_no"
-          pagination={false}
-          size="small"
-          bordered
-          style={{ marginTop: 12 }}
-        />
-      </Card>
-    );
-  };
+      ),
+    },
+    {
+      title: "Orders",
+      dataIndex: "order_count",
+      key: "order_count",
+      width: 90,
+      align: "center" as const,
+      render: (v: number) => (
+        <Tag color="blue" style={{ fontWeight: 700, fontSize: 12, borderRadius: 6 }}>{v}</Tag>
+      ),
+    },
+    {
+      title: "Revenue",
+      key: "revenue",
+      width: 300,
+      render: (_: any, r: LocationData) => (
+        <MiniBar value={r.total_amount} max={maxRevenue} color={primaryColor} />
+      ),
+    },
+    {
+      title: "Avg / Order",
+      key: "avg",
+      width: 130,
+      align: "right" as const,
+      render: (_: any, r: LocationData) => (
+        <Text style={{ fontSize: 12, color: C.orange, fontWeight: 600 }}>
+          {fmtAmt(r.order_count ? r.total_amount / r.order_count : 0)}
+        </Text>
+      ),
+    },
+  ];
 
+  const orderColumns = [
+    {
+      title: "Order No",
+      dataIndex: "order_no",
+      key: "order_no",
+      width: 130,
+      render: (v: string) => (
+        <Text strong style={{ fontFamily: "monospace", fontSize: 12 }}>{v}</Text>
+      ),
+    },
+    {
+      title: "Customer",
+      key: "customer",
+      render: (_: any, r: any) => (
+        <div>
+          <Text style={{ fontSize: 12 }}>{r.customer_name || "—"}</Text>
+          <Text style={{ fontSize: 11, color: C.subText, display: "block" }}>{r.customer_phone}</Text>
+        </div>
+      ),
+    },
+    {
+      title: "Amount",
+      dataIndex: "order_amount",
+      key: "order_amount",
+      width: 130,
+      align: "right" as const,
+      render: (v: number) => (
+        <Text strong style={{ color: C.green, fontSize: 12 }}>{fmtAmt(v || 0)}</Text>
+      ),
+    },
+    {
+      title: "Type",
+      dataIndex: "order_type",
+      key: "order_type",
+      width: 110,
+      render: (v: string) => <Tag color="blue" style={{ fontSize: 11 }}>{v}</Tag>,
+    },
+    {
+      title: "Status",
+      dataIndex: "status",
+      key: "status",
+      width: 110,
+      render: (v: string) => (
+        <Tag color={v === "COMPLETED" ? "green" : "orange"} style={{ fontSize: 11 }}>{v}</Tag>
+      ),
+    },
+    {
+      title: "Date",
+      dataIndex: "createdAt",
+      key: "createdAt",
+      width: 160,
+      render: (v: string) => (
+        <Text style={{ fontSize: 11, color: C.subText }}>{dayjs(v).format("DD MMM YYYY HH:mm")}</Text>
+      ),
+    },
+    {
+      title: "Served By",
+      key: "served_by",
+      width: 120,
+      render: (_: any, r: any) => (
+        <Text style={{ fontSize: 12 }}>{r.served_by || "—"}</Text>
+      ),
+    },
+  ];
+
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div>
-      {/* Filters */}
-      <Card
-        style={{ marginBottom: 16, borderRadius: 12, border: `1px solid ${C.border}` }}
-        styles={{ body: { padding: "16px" } }}
-      >
-        <Space wrap>
-          <Space>
-            <FilterOutlined style={{ color: primaryColor }} />
-            <Text strong>Filters:</Text>
-          </Space>
-          <Select
-            placeholder="Country"
-            style={{ width: 150 }}
-            allowClear
-            value={filters.country}
-            onChange={(value) => handleFilterChange("country", value)}
-            options={Array.isArray(data) ? [...new Set(data.map((c) => c.country))].map((country) => ({ value: country, label: country })) : []}
-          />
-          <Select
-            placeholder="County"
-            style={{ width: 150 }}
-            allowClear
-            value={filters.county}
-            onChange={(value) => handleFilterChange("county", value)}
-            options={Array.isArray(data) ? [...new Set(data.map((c) => c.county))].map((county) => ({ value: county, label: county })) : []}
-          />
-          <Select
-            placeholder="City"
-            style={{ width: 150 }}
-            allowClear
-            value={filters.city}
-            onChange={(value) => handleFilterChange("city", value)}
-            options={Array.isArray(data) ? [...new Set(data.map((c) => c.city))].map((city) => ({ value: city, label: city })) : []}
-          />
-          <RangePicker
-            value={filters.from && filters.to ? [dayjs(filters.from), dayjs(filters.to)] : null}
-            onChange={handleDateRangeChange}
-            style={{ width: 240 }}
-          />
-          <Button type="primary" onClick={handleApplyFilters} style={{ background: primaryColor, borderColor: primaryColor }}>
-            Apply
-          </Button>
-          <Button onClick={handleResetFilters}>
-            Reset
-          </Button>
-          <Button icon={<ReloadOutlined />} onClick={fetchData} loading={loading}>
-            Refresh
-          </Button>
-          <Button icon={<FilePdfOutlined />} onClick={() => setPrintModalOpen(true)}>
-            Export PDF
-          </Button>
-          <CSVLink
-            data={exportData}
-            filename={`Orders_by_Location_${dayjs().format("YYYY-MM-DD")}.csv`}
-          >
-            <Button icon={<DownloadOutlined />}>
-              Export CSV
-            </Button>
-          </CSVLink>
-        </Space>
-      </Card>
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
 
-      {/* Summary */}
+      {/* ── Toolbar ──────────────────────────────────────────────────────── */}
+      <div style={{
+        background: "#fff", border: `1px solid ${C.border}`,
+        borderRadius: 10, padding: "12px 16px",
+        display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center",
+      }}>
+        {/* Title */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginRight: 6 }}>
+          <div style={{
+            background: primaryColor + "18", borderRadius: 7,
+            padding: "5px 7px", color: primaryColor, fontSize: 14, lineHeight: 1,
+          }}>
+            <BarChartOutlined />
+          </div>
+          <div>
+            <Text strong style={{ fontSize: 13, color: C.darkText, display: "block", lineHeight: 1.2 }}>
+              Order Analysis
+            </Text>
+            <Text style={{ fontSize: 11, color: C.subText }}>by location</Text>
+          </div>
+        </div>
+
+        <div style={{ width: 1, height: 32, background: C.border, flexShrink: 0 }} />
+
+        {/* Filters */}
+        <RangePicker
+          size="small"
+          value={
+            filters.from && filters.to
+              ? [dayjs(filters.from), dayjs(filters.to)]
+              : null
+          }
+          onChange={(dates) => {
+            if (dates?.[0] && dates?.[1]) {
+              setFilters((f) => ({
+                ...f,
+                from: dates[0]!.format("YYYY-MM-DD"),
+                to:   dates[1]!.format("YYYY-MM-DD"),
+              }));
+            } else {
+              setFilters((f) => ({ ...f, from: undefined, to: undefined }));
+            }
+          }}
+          style={{ width: 230 }}
+          allowClear
+          suffixIcon={<CalendarOutlined style={{ color: C.subText }} />}
+        />
+
+        <Select
+          size="small"
+          placeholder="Country"
+          allowClear
+          value={filters.country}
+          onChange={(v) => setFilters((f) => ({ ...f, country: v }))}
+          options={countryOptions}
+          style={{ width: 130 }}
+        />
+        <Select
+          size="small"
+          placeholder="County"
+          allowClear
+          value={filters.county}
+          onChange={(v) => setFilters((f) => ({ ...f, county: v }))}
+          options={countyOptions}
+          style={{ width: 130 }}
+        />
+        <Select
+          size="small"
+          placeholder="City"
+          allowClear
+          value={filters.city}
+          onChange={(v) => setFilters((f) => ({ ...f, city: v }))}
+          options={cityOptions}
+          style={{ width: 120 }}
+        />
+
+        {/* Spacer */}
+        <div style={{ flex: 1 }} />
+
+        {/* Actions */}
+        <Button
+          size="small"
+          icon={<FilterOutlined />}
+          type="primary"
+          onClick={fetchData}
+          loading={loading}
+          style={{ background: primaryColor, borderColor: primaryColor, borderRadius: 7 }}
+        >
+          Apply
+        </Button>
+        <Button
+          size="small"
+          icon={<ReloadOutlined />}
+          onClick={() => {
+            setFilters({
+              country: undefined, county: undefined, city: undefined,
+              from: dayjs().startOf("month").format("YYYY-MM-DD"),
+              to:   dayjs().format("YYYY-MM-DD"),
+            });
+            fetchData();
+          }}
+          style={{ borderRadius: 7 }}
+        >
+          Reset
+        </Button>
+        <Button
+          size="small"
+          icon={<BarChartOutlined />}
+          onClick={() => setReportOpen(true)}
+          style={{ borderRadius: 7, fontWeight: 600 }}
+        >
+          View Report
+        </Button>
+      </div>
+
+      {/* ── KPI strip ──────────────────────────────────────────────────────── */}
       {data.length > 0 && (
-        <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-          <Col xs={24} sm={12} md={6}>
-            <Card style={{ borderRadius: 12, border: `1px solid ${C.border}` }}>
-              <Statistic
-                title="Total Locations"
-                value={data.length}
-                valueStyle={{ color: C.blue }}
-                prefix={<EnvironmentOutlined />}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card style={{ borderRadius: 12, border: `1px solid ${C.border}` }}>
-              <Statistic
-                title="Total Orders"
-                value={data.reduce((sum, c) => sum + c.order_count, 0)}
-                valueStyle={{ color: C.blue }}
-                prefix={<ShoppingCartOutlined />}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card style={{ borderRadius: 12, border: `1px solid ${C.border}` }}>
-              <Statistic
-                title="Total Revenue"
-                value={data.reduce((sum, c) => sum + c.total_amount, 0)}
-                precision={0}
-                valueStyle={{ color: C.green }}
-                prefix={<DollarOutlined />}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card style={{ borderRadius: 12, border: `1px solid ${C.border}` }}>
-              <Statistic
-                title="Avg per Order"
-                value={data.reduce((sum, c) => sum + c.total_amount, 0) / data.reduce((sum, c) => sum + c.order_count, 0) || 0}
-                precision={0}
-                valueStyle={{ color: C.orange }}
-                prefix={<DollarOutlined />}
-              />
-            </Card>
-          </Col>
-        </Row>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <KpiCard label="Locations"    value={String(data.length)}  icon={<EnvironmentOutlined />} color={C.blue}   bg={C.blueLight}   border={C.blue + "30"} />
+          <KpiCard label="Total Orders" value={fmt(totalOrders)}     icon={<ShoppingCartOutlined />} color={C.purple} bg={C.purpleLight}  border={C.purple + "30"} />
+          <KpiCard label="Revenue"      value={fmtAmt(totalRevenue)} icon={<DollarOutlined />}      color={C.green}  bg={C.greenLight}   border={C.green + "30"} />
+          <KpiCard label="Avg / Order"  value={fmtAmt(avgPerOrder)}  icon={<DollarOutlined />}      color={C.orange} bg={C.orangeLight}  border={C.orange + "30"} />
+        </div>
       )}
 
-      {/* Data */}
+      {/* ── Main data table ─────────────────────────────────────────────────── */}
       {loading ? (
-        <div style={{ textAlign: "center", padding: 40 }}>
+        <div style={{ textAlign: "center", padding: "60px 0" }}>
           <Spin size="large" />
         </div>
       ) : data.length === 0 ? (
-        <Empty description="No orders found" style={{ padding: 40 }} />
+        <Empty description="No orders found for the selected filters" style={{ padding: "60px 0" }} />
       ) : (
-        data.map((location) => <LocationCard key={`${location.country}-${location.county}-${location.city}`} location={location} />)
+        <div style={{
+          background: "#fff", border: `1px solid ${C.border}`,
+          borderRadius: 10, overflow: "hidden",
+        }}>
+          <Table
+            rowKey={(r) => `${r.country}-${r.county}-${r.city}`}
+            columns={locationColumns}
+            dataSource={data}
+            pagination={false}
+            size="middle"
+            expandable={{
+              expandedRowRender: (loc: LocationData) => (
+                <div style={{ padding: "8px 0 8px 40px", background: C.bg }}>
+                  <Table
+                    rowKey={(r: any, i) => `${r.order_no}-${i}`}
+                    columns={orderColumns}
+                    dataSource={loc.orders}
+                    pagination={{ pageSize: 10, size: "small" }}
+                    size="small"
+                    scroll={{ x: 800 }}
+                    style={{ background: "#fff", borderRadius: 8 }}
+                  />
+                </div>
+              ),
+              rowExpandable: (loc: LocationData) => loc.orders.length > 0,
+              columnWidth: 40,
+            }}
+            summary={() => (
+              <Table.Summary.Row style={{ background: primaryColor + "0d", fontWeight: 700 }}>
+                <Table.Summary.Cell index={0}>
+                  <Text strong style={{ fontSize: 12 }}>Total</Text>
+                </Table.Summary.Cell>
+                <Table.Summary.Cell index={1} align="center">
+                  <Tag color="blue" style={{ fontWeight: 700 }}>{totalOrders}</Tag>
+                </Table.Summary.Cell>
+                <Table.Summary.Cell index={2}>
+                  <Text strong style={{ color: C.green }}>{fmtAmt(totalRevenue)}</Text>
+                </Table.Summary.Cell>
+                <Table.Summary.Cell index={3} align="right">
+                  <Text strong style={{ color: C.orange }}>{fmtAmt(avgPerOrder)}</Text>
+                </Table.Summary.Cell>
+              </Table.Summary.Row>
+            )}
+          />
+        </div>
       )}
 
-      {/* PDF Export Modal */}
+      {/* ── Report Modal ──────────────────────────────────────────────────── */}
       <Modal
-        open={printModalOpen}
-        onCancel={() => setPrintModalOpen(false)}
-        footer={[
-          <Button key="cancel" onClick={() => setPrintModalOpen(false)}>Close</Button>,
-          <Button key="print" type="primary" icon={<FilePdfOutlined />} onClick={handlePrint} style={{ background: primaryColor, borderColor: primaryColor }}>
-            Print / Save as PDF
-          </Button>,
-        ]}
-        width={800}
+        open={reportOpen}
+        onCancel={() => setReportOpen(false)}
+        width="min(1000px, 96vw)"
         title={
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <FilePdfOutlined style={{ color: primaryColor }} />
-            <span>Export Orders by Location as PDF</span>
+          <Space size={8}>
+            <div style={{
+              background: primaryColor + "18", borderRadius: 7,
+              padding: "4px 6px", color: primaryColor, fontSize: 14, lineHeight: 1,
+            }}>
+              <BarChartOutlined />
+            </div>
+            <div>
+              <Text strong style={{ fontSize: 13 }}>Order Analysis Report</Text>
+              <Text style={{ fontSize: 11, color: C.subText, display: "block" }}>
+                {filters.from && filters.to
+                  ? `${dayjs(filters.from).format("D MMM YYYY")} – ${dayjs(filters.to).format("D MMM YYYY")}`
+                  : "All Time"}
+              </Text>
+            </div>
+          </Space>
+        }
+        styles={{
+          body: { padding: 0, maxHeight: "76vh", overflowY: "auto", background: C.bg },
+        }}
+        footer={
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+            <Button onClick={() => setReportOpen(false)}>Close</Button>
+            <Tooltip title="Download Excel workbook with Summary + Orders sheets">
+              <Button
+                icon={<FileExcelOutlined />}
+                onClick={handleExcelExport}
+                style={{ color: "#166534", borderColor: "#bbf7d0", background: "#f0fdf4", fontWeight: 600 }}
+              >
+                Download Excel
+              </Button>
+            </Tooltip>
+            <Tooltip title="Print or save as PDF">
+              <Button
+                type="primary"
+                icon={<FilePdfOutlined />}
+                onClick={handlePrint as any}
+                style={{ background: primaryColor, borderColor: primaryColor, fontWeight: 600 }}
+              >
+                Download PDF
+              </Button>
+            </Tooltip>
           </div>
         }
-        styles={{ body: { padding: "20px", maxHeight: "70vh", overflow: "auto" } }}
+        destroyOnClose={false}
       >
-        <div ref={printRef} style={{ padding: "24px", background: "#fff" }}>
-          {/* Header with Logo */}
-          <div style={{ textAlign: "center", marginBottom: "24px", paddingBottom: "16px", borderBottom: `3px solid ${primaryColor}` }}>
-            {tenant?.tenant_logo?.url ? (
-              <img
-                src={tenant.tenant_logo.url}
-                alt="tenant-logo"
-                style={{ maxWidth: "120px", maxHeight: "70px", marginBottom: "12px", objectFit: "contain" }}
-              />
-            ) : (
-              <div style={{ 
-                width: "80px", height: "80px", borderRadius: "12px", 
-                background: primaryColor, margin: "0 auto 12px",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                color: "white", fontSize: "24px", fontWeight: "bold"
-              }}>
-                {tenant?.business_name?.charAt(0) || "B"}
-              </div>
-            )}
-            <Title level={3} style={{ margin: "8px 0 4px", color: C.darkText, fontSize: "20px" }}>
-              {String(systemSettings?.name || tenant?.business_name || "Business Name")}
-            </Title>
-            <Text type="secondary" style={{ fontSize: "12px" }}>
-              {typeof systemSettings?.address === "object" && systemSettings?.address?.country 
-                ? String(systemSettings.address.country) 
-                : typeof systemSettings?.address === "object" 
-                  ? JSON.stringify(systemSettings.address)
-                  : String(systemSettings?.address || typeof tenant?.address === "object" && tenant?.address?.country
-                    ? String(tenant.address.country)
-                    : typeof tenant?.address === "object"
-                      ? JSON.stringify(tenant.address)
-                      : String(tenant?.address || "Business Address"))}
-            </Text>
-          </div>
-
-          {/* Report Title */}
-          <div style={{ textAlign: "center", marginBottom: "20px", padding: "16px", background: "#f8fafc", borderRadius: "8px" }}>
-            <Title level={4} style={{ margin: "0 0 8px", color: primaryColor, fontSize: "18px" }}>
-              Orders by Location Report
-            </Title>
-            <Text type="secondary" style={{ fontSize: "13px" }}>
-              {filters.from && filters.to ? `${dayjs(filters.from).format("DD MMM YYYY")} - ${dayjs(filters.to).format("DD MMM YYYY")}` : "All Time"}
-            </Text>
-          </div>
-
-          {/* Summary */}
-          <div style={{ display: "flex", gap: "12px", marginBottom: "20px", flexWrap: "wrap" }}>
-            <div style={{ flex: 1, minWidth: "120px", padding: "12px", background: "#f0f9ff", borderRadius: "8px", border: "1px solid #bae6fd" }}>
-              <div style={{ fontSize: "11px", color: "#64748b", marginBottom: "4px" }}>Total Locations</div>
-              <div style={{ fontSize: "18px", fontWeight: "bold", color: "#0284c7" }}>{data.length}</div>
-            </div>
-            <div style={{ flex: 1, minWidth: "120px", padding: "12px", background: "#f0fdf4", borderRadius: "8px", border: "1px solid #bbf7d0" }}>
-              <div style={{ fontSize: "11px", color: "#64748b", marginBottom: "4px" }}>Total Orders</div>
-              <div style={{ fontSize: "18px", fontWeight: "bold", color: "#16a34a" }}>
-                {data.reduce((sum, c) => sum + c.order_count, 0)}
-              </div>
-            </div>
-            <div style={{ flex: 1, minWidth: "120px", padding: "12px", background: "#fefce8", borderRadius: "8px", border: "1px solid #fef9c3" }}>
-              <div style={{ fontSize: "11px", color: "#64748b", marginBottom: "4px" }}>Total Revenue</div>
-              <div style={{ fontSize: "18px", fontWeight: "bold", color: "#ca8a04" }}>
-                KES {data.reduce((sum, c) => sum + c.total_amount, 0).toLocaleString()}
-              </div>
-            </div>
-          </div>
-
-          {/* Table */}
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
-            <thead>
-              <tr style={{ borderBottom: "2px solid #e2e8f0", background: "#f1f5f9" }}>
-                <th style={{ textAlign: "left", padding: "10px 8px", fontWeight: "600", color: "#475569" }}>City</th>
-                <th style={{ textAlign: "left", padding: "10px 8px", fontWeight: "600", color: "#475569" }}>County</th>
-                <th style={{ textAlign: "left", padding: "10px 8px", fontWeight: "600", color: "#475569" }}>Country</th>
-                <th style={{ textAlign: "left", padding: "10px 8px", fontWeight: "600", color: "#475569" }}>Order No</th>
-                <th style={{ textAlign: "left", padding: "10px 8px", fontWeight: "600", color: "#475569" }}>Customer</th>
-                <th style={{ textAlign: "right", padding: "10px 8px", fontWeight: "600", color: "#475569" }}>Amount</th>
-                <th style={{ textAlign: "left", padding: "10px 8px", fontWeight: "600", color: "#475569" }}>Type</th>
-                <th style={{ textAlign: "left", padding: "10px 8px", fontWeight: "600", color: "#475569" }}>Status</th>
-                <th style={{ textAlign: "left", padding: "10px 8px", fontWeight: "600", color: "#475569" }}>Date</th>
-                <th style={{ textAlign: "left", padding: "10px 8px", fontWeight: "600", color: "#475569" }}>Served By</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.map((location) =>
-                location.orders.map((order: any, idx: number) => (
-                  <tr key={`${location.country}-${location.county}-${location.city}-${order.order_no}`} style={{ borderBottom: "1px solid #e2e8f0" }}>
-                    {idx === 0 && (
-                      <>
-                        <td rowSpan={location.orders.length} style={{ padding: "10px 8px", verticalAlign: "top", fontWeight: "600", color: "#1e293b", background: "#f8fafc" }}>
-                          {String(location.city || "")}
-                        </td>
-                        <td rowSpan={location.orders.length} style={{ padding: "10px 8px", verticalAlign: "top", color: "#64748b", background: "#f8fafc" }}>
-                          {String(location.county || "")}
-                        </td>
-                        <td rowSpan={location.orders.length} style={{ padding: "10px 8px", verticalAlign: "top", color: "#64748b", background: "#f8fafc" }}>
-                          {String(location.country || "")}
-                        </td>
-                      </>
-                    )}
-                    <td style={{ padding: "10px 8px", color: "#1e293b" }}>{String(order.order_no || "")}</td>
-                    <td style={{ padding: "10px 8px", color: "#64748b" }}>{String(order.customer_name || "")} ({String(order.customer_phone || "")})</td>
-                    <td style={{ padding: "10px 8px", textAlign: "right", color: "#1e293b", fontWeight: "500" }}>KES {Number(order.order_amount || 0).toLocaleString()}</td>
-                    <td style={{ padding: "10px 8px", color: "#64748b" }}>{String(order.order_type || "")}</td>
-                    <td style={{ padding: "10px 8px" }}>
-                      <span style={{ 
-                        padding: "2px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "500",
-                        background: order.status === "COMPLETED" ? "#dcfce7" : "#fed7aa",
-                        color: order.status === "COMPLETED" ? "#16a34a" : "#ea580c"
-                      }}>
-                        {String(order.status || "")}
-                      </span>
-                    </td>
-                    <td style={{ padding: "10px 8px", color: "#64748b" }}>{order.createdAt ? dayjs(order.createdAt).format("DD MMM YYYY HH:mm") : ""}</td>
-                    <td style={{ padding: "10px 8px", color: "#64748b" }}>{String(order.served_by || "—")}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-
-          {/* Footer */}
-          <div style={{ marginTop: "24px", paddingTop: "16px", borderTop: "1px solid #e2e8f0", textAlign: "center" }}>
-            <Text type="secondary" style={{ fontSize: "11px" }}>
-              Generated on {dayjs().format("DD MMM YYYY HH:mm")} • {String(systemSettings?.name || tenant?.business_name || "Business Name")}
-            </Text>
+        <div style={{ padding: "16px 20px", background: C.bg }}>
+          {/* Preview wrapper */}
+          <div style={{
+            background: "#fff",
+            border: `1px solid ${C.border}`,
+            borderRadius: 10,
+            boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
+            overflow: "hidden",
+          }}>
+            <ReportDocument
+              ref={printRef}
+              data={data}
+              filters={filters}
+              primaryColor={primaryColor}
+              businessName={businessName}
+              businessAddress={businessAddress}
+              logoUrl={logoUrl}
+              tenantInitial={tenantInitial}
+            />
           </div>
         </div>
       </Modal>

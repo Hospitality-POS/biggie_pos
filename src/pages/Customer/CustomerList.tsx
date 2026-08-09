@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useMemo } from "react";
-import { Button, Typography } from "antd";
+import { App, Button, Typography } from "antd";
 import {
     CalendarOutlined, CreditCardOutlined, GiftOutlined,
     LockOutlined, StarOutlined, UserAddOutlined,
@@ -7,10 +7,10 @@ import {
 } from "@ant-design/icons";
 import CustomerTable from "./CustomerTable";
 import Schedule from "../staff/schedule";
-import AdminCustomersTable from "./CustomerTable";
 import SubscriptionPackagesTable from "./SubscriptionPackagesTable";
 import CustomerSubscriptionsTable from "./CustomerSubscriptionsTable";
 import AddCustomerModal from "./AddCustomerModal";
+import GiftCardsTab from "./GiftCardsTab";
 import { getPermissionChecker } from "@utils/getPermissionChecker";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 
@@ -247,7 +247,11 @@ function Customers() {
             case "schedule":
                 return <Schedule />;
             case "giftCards":
-                return <AdminCustomersTable nonCustomerEnabled={true} />;
+                return (
+                    <App>
+                        <GiftCardsTab primaryColor={colors.primary} />
+                    </App>
+                );
             default:
                 return null;
         }

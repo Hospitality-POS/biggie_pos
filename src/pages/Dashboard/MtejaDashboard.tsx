@@ -107,26 +107,26 @@ const fetchShops = async () => {
     return res.data;
 };
 const fetchRecentCustomers = async (params: { shop_id?: string; limit?: number }) => {
-    const res = await axiosInstance.get(`${BASE_URL}/customers`, {
+    const res = await axiosInstance.get(`${BASE_URL}/api/customers`, {
         params: { ...params, sort: "-createdAt" },
     });
     return Array.isArray(res.data) ? res.data : res.data?.customers || [];
 };
 const fetchMtejaStats = async (params: Record<string, any>) => {
     try {
-        const res = await axiosInstance.get(`${BASE_URL}/customers/mteja-stats`, { params });
+        const res = await axiosInstance.get(`${BASE_URL}/api/customers/mteja-stats`, { params });
         return res.data;
     } catch { return {}; }
 };
 const fetchLeadPipeline = async (params: { shop_id?: string }) => {
     try {
-        const res = await axiosInstance.get(`${BASE_URL}/crm/leads/pipeline-summary`, { params });
+        const res = await axiosInstance.get(`${BASE_URL}/api/crm/leads/pipeline-summary`, { params });
         return res.data;
     } catch { return { stages: [], total_leads: 0, total_value: 0, won_value: 0, conversion_rate: 0 }; }
 };
 const fetchRecentLeads = async (params: { shop_id?: string; limit?: number }) => {
     try {
-        const res = await axiosInstance.get(`${BASE_URL}/crm/leads`, {
+        const res = await axiosInstance.get(`${BASE_URL}/api/crm/leads`, {
             params: { ...params, limit: params.limit || 8, sort: "-createdAt" },
         });
         return Array.isArray(res.data) ? res.data : res.data?.leads || [];
@@ -251,45 +251,12 @@ const ConversationStatusBar: React.FC<{ open: number; pending: number; resolved:
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 16px" }}>
                 {items.map(item => (
-                    <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                    <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <div style={{ width: 8, height: 8, borderRadius: "50%", background: item.color }} />
                         <Text style={{ fontSize: 11, color: C.subtext }}>{item.label}</Text>
-                        <Text strong style={{ fontSize: 12, color: C.text }}>{loading ? "…" : item.value}</Text>
-                        <Text style={{ fontSize: 10, color: C.subtext }}>({loading ? "…" : pct(item.value, total)}%)</Text>
+                        <Text strong style={{ fontSize: 12, color: C.text }}>{item.value}</Text>
                     </div>
                 ))}
-            </div>
-        </Space>
-    );
-};
-
-// ── Pipeline Bar ──────────────────────────────────────────────────────────────
-const PipelineBar: React.FC<{ stages: any[]; total: number; loading: boolean }> = ({ stages, total, loading }) => {
-    const stageMap = Object.fromEntries((stages || []).map((s: any) => [s._id || s.stage, s]));
-    return (
-        <Space direction="vertical" size={10} style={{ width: "100%" }}>
-            <div style={{ display: "flex", height: 10, borderRadius: 6, overflow: "hidden", gap: 2 }}>
-                {LEAD_STAGES.map(({ key, color }) => {
-                    const count = stageMap[key]?.count || 0;
-                    return (
-                        <Tooltip key={key} title={`${key}: ${count}`}>
-                            <div style={{ flex: count || 0.05, background: count > 0 ? color : "transparent", minWidth: count > 0 ? 4 : 0, transition: "flex .4s" }} />
-                        </Tooltip>
-                    );
-                })}
-            </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 14px" }}>
-                {LEAD_STAGES.map(({ key, label, color }) => {
-                    const count = stageMap[key]?.count || 0;
-                    if (!loading && count === 0) return null;
-                    return (
-                        <div key={key} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                            <div style={{ width: 8, height: 8, borderRadius: "50%", background: color }} />
-                            <Text style={{ fontSize: 11, color: C.subtext }}>{label}</Text>
-                            <Text strong style={{ fontSize: 12, color: C.text }}>{loading ? "…" : count}</Text>
-                        </div>
-                    );
-                })}
             </div>
         </Space>
     );
@@ -690,113 +657,77 @@ const MtejaDashboard: React.FC = () => {
     // ── Handlers ─────────────────────────────────────────────────────────────
     const handleRefresh = useCallback(() => {
         queryClient.invalidateQueries({ queryKey: ["mteja-conversations"] });
+        queryClient.invalidateQueries({ queryKey: ["mteja-channels"] });
         queryClient.invalidateQueries({ queryKey: ["mteja-recent-customers"] });
         queryClient.invalidateQueries({ queryKey: ["mteja-stats"] });
         queryClient.invalidateQueries({ queryKey: ["mteja-lead-pipeline"] });
         queryClient.invalidateQueries({ queryKey: ["mteja-recent-leads"] });
-        refetchConv();
-    }, [queryClient, refetchConv]);
+    }, [queryClient]);
 
-    const handlePeriodChange = useCallback((val: string) => {
-        setPeriodFilter(val);
-        setShowCustomPicker(val === "custom");
-        if (isMobile) setFilterDrawerOpen(false);
-    }, [isMobile]);
+    const isDataLoading = statsLoading || pipelineLoading || custLoading;
 
-    const isDataLoading = convLoading || statsLoading || custLoading;
-
-    // ── KPI row data ──────────────────────────────────────────────────────────
-    const kpiData = [
-        { title: "Open Conversations", value: convCounts.open, icon: <MessageOutlined />, color: C.primary, bg: C.primaryLight, loading: convLoading, onClick: () => navTo("/omnichannel"), sub: `${totalConversations} total` },
-        { title: "Unread Messages", value: unreadCount, icon: <FireOutlined />, color: unreadCount > 0 ? C.orange : C.gray, bg: unreadCount > 0 ? C.orangeLight : C.bg, loading: convLoading, sub: "across all channels" },
-        { title: "Total Leads", value: totalLeads, icon: <FundOutlined />, color: C.purple, bg: C.purpleLight, loading: pipelineLoading, onClick: () => navTo("/crm/leads"), sub: `${fmtKES(totalLeadValue)} pipeline` },
-        { title: "Conversion Rate", value: `${conversionRate.toFixed(1)}%`, icon: <ThunderboltOutlined />, color: C.success, bg: C.successLight, loading: pipelineLoading, sub: `${fmtKES(wonLeadValue)} won` },
-        { title: "Total Customers", value: customerList.length, icon: <TeamOutlined />, color: C.blue, bg: C.blueLight, loading: custLoading, onClick: () => navTo("/customers"), sub: `${customerHealth.recent} visited recently` },
-        { title: "Active Channels", value: connectedCount, icon: <WifiOutlined />, color: connectedCount > 0 ? C.teal : C.gray, bg: connectedCount > 0 ? C.tealLight : C.bg, loading: channelsLoading, sub: "of 3 connected" },
-        { title: "Alerts Sent", value: alertsSent, icon: <ThunderboltOutlined />, color: C.warning, bg: C.warningLight, loading: statsLoading, sub: dateRangeLabel },
-        { title: "Referrals", value: referrals, icon: <StarOutlined />, color: C.indigo, bg: C.indigoLight, loading: statsLoading, sub: dateRangeLabel },
+    // ── Top stat cards ───────────────────────────────────────────────────────
+    const topCards = [
+        { title: "Total Conversations", value: totalConversations, color: C.primary, bg: C.primaryLight, icon: <MessageOutlined /> },
+        { title: "Open Conversations", value: convCounts.open, color: C.success, bg: C.successLight, icon: <CheckCircleOutlined /> },
+        { title: "Pending", value: convCounts.pending, color: C.warning, bg: C.warningLight, icon: <ClockCircleOutlined /> },
+        { title: "Resolved", value: convCounts.resolved, color: C.blue, bg: C.blueLight, icon: <CheckCircleOutlined /> },
+        { title: "Unread Messages", value: unreadCount, color: unreadCount > 0 ? C.orange : C.gray, bg: unreadCount > 0 ? C.orangeLight : C.bg, icon: <FireOutlined /> },
+        { title: "Channels Live", value: connectedCount, color: C.teal, bg: C.tealLight, icon: <WifiOutlined /> },
+        { title: "Total Leads", value: totalLeads, color: C.purple, bg: C.purpleLight, icon: <FundOutlined /> },
+        { title: "Lead Conversion", value: `${conversionRate.toFixed(1)}%`, color: C.success, bg: C.successLight, icon: <ThunderboltOutlined /> },
+        { title: "Pipeline Value", value: fmtKES(totalLeadValue), color: C.blue, bg: C.blueLight, icon: <DollarOutlined /> },
+        { title: "Won Revenue", value: fmtKES(wonLeadValue), color: C.success, bg: C.successLight, icon: <TrophyOutlined /> },
+        { title: "Alerts Sent", value: alertsSent, color: C.warning, bg: C.warningLight, icon: <ThunderboltOutlined /> },
+        { title: "Referrals", value: referrals, color: C.indigo, bg: C.indigoLight, icon: <StarOutlined /> },
     ];
-
-    const totalChannelConv = channelCounts.whatsapp + channelCounts.messenger + channelCounts.instagram || 1;
 
     return (
         <>
-            {/* ── Mobile filter drawer ──────────────────────────────────────────── */}
-            <Drawer title="Filter Period" placement="bottom" height="auto" open={filterDrawerOpen} onClose={() => setFilterDrawerOpen(false)} styles={{ body: { paddingBottom: 32 } }}>
-                <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-                    <Radio.Group value={periodFilter} onChange={e => handlePeriodChange(e.target.value)} style={{ width: "100%" }}>
-                        <Space direction="vertical" style={{ width: "100%" }}>
-                            {Object.entries(PERIOD_LABELS).map(([val, label]) => (
-                                <Radio.Button key={val} value={val} style={{ width: "100%", textAlign: "center", borderRadius: 8, marginBottom: 4 }}>{label}</Radio.Button>
-                            ))}
-                        </Space>
-                    </Radio.Group>
-                    {showCustomPicker && <RangePicker value={customDateRange as any} onChange={d => setCustomDateRange(d || [])} allowClear style={{ width: "100%" }} />}
+            {/* ── Header ── */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
+                <Space align="center" size={12}>
+                    <div style={{ background: `${C.primary}15`, borderRadius: 10, padding: "8px 10px", color: C.primary, fontSize: 20 }}>
+                        <MessageOutlined />
+                    </div>
+                    <div>
+                        <Title level={4} style={{ margin: 0, color: C.text }}>Mteja Dashboard</Title>
+                        <Text style={{ fontSize: 12, color: C.subtext }}>Customer Engagement & Lead Management</Text>
+                    </div>
                 </Space>
-            </Drawer>
 
-            {/* ── Header ────────────────────────────────────────────────────────── */}
-            <div style={{ marginBottom: 20 }}>
-                <Flex justify="space-between" align="flex-start" wrap gap={12}>
-                    <Space align="center" size={10}>
-                        <div style={{ background: C.primaryLight, borderRadius: 10, padding: "8px 10px", color: C.primary, fontSize: 18 }}>
-                            <CustomerServiceOutlined />
-                        </div>
-                        <div>
-                            <Title level={isMobile ? 5 : 4} style={{ margin: 0, color: C.text }}>
-                                Mteja — {PERIOD_LABELS[periodFilter]} Overview
-                            </Title>
-                            <Text style={{ fontSize: 12, color: C.subtext }}>
-                                {dateRangeLabel}
-                                {isAdminLayout && !shopId && " · All Branches"}
-                                {shopId && shops.find(s => s._id === shopId) && ` · ${shops.find(s => s._id === shopId)?.name}`}
-                            </Text>
-                        </div>
-                    </Space>
-
-                    <Space size="small" wrap>
-                        {isMobile ? (
-                            <>
-                                {isAdminLayout && (
-                                    <Select placeholder="Branch" value={selectedShopId || undefined} onChange={v => setSelectedShopId(v || "")} allowClear style={{ width: 130 }}
-                                        options={[{ label: "All", value: "" }, ...shops.map(s => ({ label: s.name, value: s._id }))]}
-                                    />
-                                )}
-                                <Button icon={<FilterOutlined />} onClick={() => setFilterDrawerOpen(true)}>{PERIOD_LABELS[periodFilter]}</Button>
-                                <Button type="primary" icon={<ReloadOutlined spin={convRefetching} />} onClick={handleRefresh} loading={isDataLoading} style={{ background: C.primary, borderColor: C.primary }} />
-                            </>
-                        ) : (
-                            <>
-                                {isAdminLayout && (
-                                    <Select placeholder={<span><GlobalOutlined style={{ marginRight: 6 }} />All Branches</span>}
-                                        value={selectedShopId || undefined} onChange={v => setSelectedShopId(v || "")} allowClear style={{ width: 180 }}
-                                        options={[{ label: <span><GlobalOutlined style={{ marginRight: 6 }} />All Branches</span>, value: "" }, ...shops.map(s => ({ label: s.name, value: s._id }))]}
-                                    />
-                                )}
-                                <div style={{ background: C.bg, borderRadius: 8, padding: "6px 12px", display: "flex", alignItems: "center", gap: 10, border: `1px solid ${C.border}` }}>
-                                    <CalendarOutlined style={{ color: C.primary, fontSize: 13 }} />
-                                    <Radio.Group value={periodFilter} onChange={e => handlePeriodChange(e.target.value)} buttonStyle="solid" size="small">
-                                        <Radio.Button value="day">Day</Radio.Button>
-                                        <Radio.Button value="week">Week</Radio.Button>
-                                        <Radio.Button value="month">Month</Radio.Button>
-                                        <Radio.Button value="year">Year</Radio.Button>
-                                        <Radio.Button value="custom">Custom</Radio.Button>
-                                    </Radio.Group>
-                                </div>
-                                {showCustomPicker && <RangePicker value={customDateRange as any} onChange={d => setCustomDateRange(d || [])} allowClear style={{ minWidth: 260 }} />}
-                                <Button type="primary" icon={<ReloadOutlined spin={convRefetching} />} onClick={handleRefresh} loading={isDataLoading}
-                                    style={{ fontWeight: 500, background: C.primary, borderColor: C.primary }}>
-                                    {convRefetching ? "Refreshing…" : "Refresh"}
-                                </Button>
-                            </>
-                        )}
-                    </Space>
-                </Flex>
+                <Space size={8} wrap>
+                    {isAdminLayout && (
+                        <Select
+                            value={selectedShopId}
+                            onChange={setSelectedShopId}
+                            options={shops.map((s: any) => ({ label: s.name, value: s._id }))}
+                            style={{ width: 140 }}
+                            size="small"
+                            placeholder="Select branch"
+                        />
+                    )}
+                    <Radio.Group value={periodFilter} onChange={e => setPeriodFilter(e.target.value)} buttonStyle="solid" size="small">
+                        <Radio.Button value="day">Day</Radio.Button>
+                        <Radio.Button value="week">Week</Radio.Button>
+                        <Radio.Button value="month">Month</Radio.Button>
+                        <Radio.Button value="year">Year</Radio.Button>
+                        <Radio.Button value="custom" onClick={() => setShowCustomPicker(!showCustomPicker)}>Custom</Radio.Button>
+                    </Radio.Group>
+                    {showCustomPicker && (
+                        <RangePicker
+                            value={customDateRange}
+                            onChange={dates => setCustomDateRange(dates)}
+                            size="small"
+                        />
+                    )}
+                    <Button size="small" icon={<ReloadOutlined />} onClick={handleRefresh}>Refresh</Button>
+                </Space>
             </div>
 
-            {/* ── KPI Row — 4 columns on desktop, 2 on mobile ──────────────────── */}
-            <Row gutter={[12, 12]} style={{ marginBottom: 20 }}>
-                {kpiData.map((card, i) => (
+            {/* ── Top stat cards ── */}
+            <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
+                {topCards.map((card, i) => (
                     <Col xs={12} sm={12} lg={6} key={i}>
                         <StatCard {...card} />
                     </Col>
@@ -918,9 +849,9 @@ const MtejaDashboard: React.FC = () => {
                         <Space direction="vertical" size={14} style={{ width: "100%" }}>
                             {/* Channel cards */}
                             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                                <ChannelDot color="#25D366" label="WhatsApp" count={channelCounts.whatsapp} connected={connected.whatsapp} pctOfTotal={pct(channelCounts.whatsapp, totalChannelConv)} />
-                                <ChannelDot color="#0084FF" label="Messenger" count={channelCounts.messenger} connected={connected.messenger} pctOfTotal={pct(channelCounts.messenger, totalChannelConv)} />
-                                <ChannelDot color="#E1306C" label="Instagram" count={channelCounts.instagram} connected={connected.instagram} pctOfTotal={pct(channelCounts.instagram, totalChannelConv)} />
+                                <ChannelDot color="#25D366" label="WhatsApp" count={channelCounts.whatsapp} connected={connected.whatsapp} pctOfTotal={pct(channelCounts.whatsapp, totalConversations)} />
+                                <ChannelDot color="#0084FF" label="Messenger" count={channelCounts.messenger} connected={connected.messenger} pctOfTotal={pct(channelCounts.messenger, totalConversations)} />
+                                <ChannelDot color="#E1306C" label="Instagram" count={channelCounts.instagram} connected={connected.instagram} pctOfTotal={pct(channelCounts.instagram, totalConversations)} />
                             </div>
 
                             <Divider style={{ margin: "4px 0" }} />
@@ -1096,6 +1027,23 @@ const MtejaDashboard: React.FC = () => {
                 </Col>
             </Row>
         </>
+    );
+};
+
+// ── Pipeline bar component ───────────────────────────────────────────────────
+const PipelineBar: React.FC<{ stages: any[]; total: number; loading: boolean }> = ({ stages, total, loading }) => {
+    if (loading) return <Skeleton active paragraph={{ rows: 1 }} />;
+    const stageMap = Object.fromEntries((stages || []).map((s: any) => [s._id || s.stage, s]));
+    const items = LEAD_STAGES.map(s => ({ label: s.label, count: stageMap[s.key]?.count || 0, color: s.color }));
+    const t = total || 1;
+    return (
+        <div style={{ display: "flex", height: 8, borderRadius: 4, overflow: "hidden", gap: 1 }}>
+            {items.map(item => (
+                <Tooltip key={item.label} title={`${item.label}: ${item.count} (${pct(item.count, t)}%)`}>
+                    <div style={{ flex: item.count || 0.02, background: item.color, transition: "flex .4s", cursor: "pointer" }} />
+                </Tooltip>
+            ))}
+        </div>
     );
 };
 

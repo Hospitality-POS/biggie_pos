@@ -1,7 +1,10 @@
 import React, { forwardRef, useRef, useState } from "react";
-import { Button, Form, Input, Modal, Segmented, Space, Typography } from "antd";
+import { Button, Empty, Form, Input, Modal, Segmented, Space, Spin, Typography } from "antd";
 import {
+  CalendarOutlined,
+  DollarOutlined,
   FilePdfOutlined,
+  FileTextOutlined,
   MailOutlined,
   MobileOutlined,
   PrinterFilled,
@@ -34,6 +37,17 @@ const C = {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const fmt = (v: number) =>
   (v || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+// ── Summary card ──────────────────────────────────────────────────────────────
+const SummaryCard: React.FC<{ label: string; value: string; color: string; bg: string; icon: React.ReactNode }> = ({ label, value, color, bg, icon }) => (
+  <div style={{ flex: "1 1 130px", background: bg, border: `1px solid ${color}20`, borderLeft: `3px solid ${color}`, borderRadius: 8, padding: "10px 14px" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+      <span style={{ color, fontSize: 12 }}>{icon}</span>
+      <Text style={{ fontSize: 10, color: C.subText, textTransform: "uppercase", letterSpacing: "0.4px", fontWeight: 700 }}>{label}</Text>
+    </div>
+    <Text strong style={{ fontSize: 14, color }}>{value}</Text>
+  </div>
+);
 
 // ── Shared props ──────────────────────────────────────────────────────────────
 interface ReportProps {
@@ -366,7 +380,7 @@ function TopEarnersModal({
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingRight: 32 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <div style={{ background: C.primaryLight, borderRadius: 7, padding: "4px 6px", color: C.primary, fontSize: 14, lineHeight: 1 }}>
-                <TrophyOutlined />
+                <FileTextOutlined />
               </div>
               <Text strong style={{ fontSize: 14, color: C.darkText }}>Top Earners Report</Text>
             </div>
@@ -391,22 +405,59 @@ function TopEarnersModal({
               Send via Email
             </Button>
             <Space>
-              <Button onClick={onClose}>Close</Button>
+              <Button onClick={onClose} style={{ borderRadius: 8 }}>Cancel</Button>
               <Button
                 type="primary"
                 icon={<PrinterFilled />}
                 onClick={handlePrint}
-                style={{ background: C.primary, borderColor: C.primary }}
+                style={{ background: C.primary, borderColor: C.primary, borderRadius: 8, fontWeight: 600 }}
               >
-                Print
+                {printMode === "thermal" ? "Print Thermal Receipt" : "Print A4 Report"}
               </Button>
             </Space>
           </div>
         }
       >
-        <div style={{ minHeight: 400, background: "#fff", padding: 20, borderRadius: 8 }}>
-          {printMode === "thermal" ? <ThermalReceipt {...sharedProps} ref={thermalRef} /> : <A4Report {...sharedProps} ref={a4Ref} />}
-        </div>
+        <Spin spinning={false} tip="Loading top earners report…" style={{ display: "block", width: "100%" }}>
+          {data.length === 0 ? (
+            <Empty description="No top earners data found for the selected period" style={{ padding: "40px 0" }} />
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {data.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                  <SummaryCard label="Grand Total Sales" value={`KES ${fmt(grandTotal)}`} color={C.primary} bg={C.primaryLight} icon={<DollarOutlined />} />
+                  <SummaryCard label={`Staff Earnings (${staffPct}%)`} value={`KES ${fmt(totalStaffEarnings)}`} color={C.green} bg="#f0fdf4" icon={<TrophyOutlined />} />
+                  <SummaryCard label={`Platform Cut (${platformPct}%)`} value={`KES ${fmt(platformCut)}`} color={C.blue} bg="#eff6ff" icon={<SendOutlined />} />
+                  <SummaryCard label="Top Earners" value={`${data.length}`} color={C.orange} bg="#fffbeb" icon={<TrophyOutlined />} />
+                </div>
+              )}
+
+              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 12px", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, flexWrap: "wrap" }}>
+                <CalendarOutlined style={{ color: C.subText, fontSize: 11 }} />
+                <Text style={{ fontSize: 12, color: C.subText, flex: 1 }}>
+                  {dayjs(startDate).format("MMM DD, YYYY HH:mm")} → {dayjs(endDate).format("MMM DD, YYYY HH:mm")}
+                </Text>
+              </div>
+
+              <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, background: "#fff", overflow: "hidden" }}>
+                <div style={{ padding: "8px 16px", background: C.bg, borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", gap: 6 }}>
+                  {printMode === "thermal"
+                    ? <><MobileOutlined style={{ color: C.subText, fontSize: 11 }} /><Text style={{ fontSize: 11, color: C.subText }}>Thermal Receipt Preview · 80mm</Text></>
+                    : <><FilePdfOutlined style={{ color: C.primary, fontSize: 11 }} /><Text style={{ fontSize: 11, color: C.subText }}>A4 PDF Preview</Text></>
+                  }
+                </div>
+                <div style={{ padding: 16, maxHeight: "50vh", overflowY: "auto" }}>
+                  <div style={{ display: printMode === "thermal" ? "block" : "none" }}>
+                    <ThermalReceipt ref={thermalRef} {...sharedProps} />
+                  </div>
+                  <div style={{ display: printMode === "a4" ? "block" : "none" }}>
+                    <A4Report ref={a4Ref} {...sharedProps} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </Spin>
       </Modal>
 
       <SendEmailModal open={emailModalOpen} onClose={() => setEmailModalOpen(false)} onSend={handleSendEmail} sending={sending} />

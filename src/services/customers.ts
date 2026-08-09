@@ -4,7 +4,7 @@ import { message } from "antd";
 import axiosInstance from "./request";
 import { createAsyncThunk } from "@reduxjs/toolkit";
 
-const categ_url = `${BASE_URL}/customers`;
+const categ_url = `${BASE_URL}/api/customers`;
 
 /* ============================
    CUSTOMER OPERATIONS

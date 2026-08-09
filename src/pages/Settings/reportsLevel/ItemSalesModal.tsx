@@ -729,8 +729,8 @@ const ItemSalesModal: React.FC<ItemSalesModalProps> = ({
     let total = 0, commission = 0;
     
     if (isBackendGrouped) {
-      // For backend-grouped data, sum up the totals from each period
-      data.forEach((period: PeriodGroup) => {
+      // For backend-grouped data, sum up the totals from each period (using filtered periods)
+      periods.forEach((period: PeriodGroup) => {
         total += period.total || 0;
         commission += period.commission || 0;
       });
@@ -743,18 +743,18 @@ const ItemSalesModal: React.FC<ItemSalesModalProps> = ({
     }
     
     return { overallTotal: total, totalCommission: commission };
-  }, [data, isBackendGrouped]);
+  }, [data, isBackendGrouped, periods]);
 
   const overallSupplierTotal = useMemo(() => {
     if (isBackendGrouped) {
-      // For backend-grouped data, sum up supplier totals from each period
-      return data.reduce((s: number, period: PeriodGroup) => {
-        return s + period.data.reduce((ps: number, item: CategoryData) => ps + getSupplierTotal(item.orderItems), 0);
+      // For backend-grouped data, sum up supplier totals from each period (using filtered periods)
+      return periods.reduce((s: number, period: PeriodGroup) => {
+        return s + period.supplierTotal || 0;
       }, 0);
     }
     // For ungrouped data, calculate directly
     return data.reduce((s: number, item: CategoryData) => s + getSupplierTotal(item.orderItems), 0);
-  }, [data, isBackendGrouped]);
+  }, [data, isBackendGrouped, periods]);
 
   const grossProfit = overallTotal - overallSupplierTotal;
   const hasData = data.length > 0;

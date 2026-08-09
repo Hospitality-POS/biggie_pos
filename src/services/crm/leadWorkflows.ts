@@ -4,7 +4,7 @@ import axiosInstance from "../request";
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import { LeadStage } from "./leads";
 
-const BASE = `${BASE_URL}/crm/lead-workflows`;
+const BASE = `${BASE_URL}/api/crm/lead-workflows`;
 
 /* ============================================================
    TYPES

@@ -1,18 +1,14 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
-    Card,
+    Collapse,
     Empty,
     Input,
     Select,
-    Space,
-    Table,
-    Tag,
     Tooltip,
     Typography,
 } from "antd";
 import {
-    KeyOutlined,
-    SafetyCertificateOutlined,
+    LockOutlined,
     SearchOutlined,
 } from "@ant-design/icons";
 import {
@@ -20,7 +16,6 @@ import {
     Permission,
     ActionType,
     ModuleScope,
-    getPermissionsGroupedByModuleForTenant,
 } from "@utils/accessControl";
 import { useTenantModules } from "@hooks/useTenantModules";
 
@@ -42,429 +37,289 @@ const C = {
     bg: "#f8fafc",
 };
 
-const ACTION_CFG: Record<ActionType, { color: string; bg: string; label: string }> = {
-    create: { color: C.blue, bg: "#eff6ff", label: "CREATE" },
-    read: { color: C.green, bg: "#f0fdf4", label: "READ" },
-    update: { color: C.orange, bg: "#fffbeb", label: "UPDATE" },
-    delete: { color: C.red, bg: "#fef2f2", label: "DELETE" },
-    special: { color: C.purple, bg: "#faf5ff", label: "ACTION" },
+// ── Action config ─────────────────────────────────────────────────────────────
+const ACTION_CFG: Record<ActionType, { color: string; dot: string; label: string }> = {
+    create: { color: C.blue,   dot: C.blue,   label: "CREATE" },
+    read:   { color: C.green,  dot: C.green,  label: "READ"   },
+    update: { color: C.orange, dot: C.orange, label: "UPDATE" },
+    delete: { color: C.red,    dot: C.red,    label: "DELETE" },
+    special:{ color: C.purple, dot: C.purple, label: "ACTION" },
 };
 
-const SCOPE_CFG: Record<ModuleScope, { color: string; bg: string; label: string; tagColor: string }> = {
-    core: { color: C.indigo, bg: "#eef2ff", label: "Core", tagColor: "default" },
-    hr: { color: C.blue, bg: "#eff6ff", label: "HR", tagColor: "blue" },
-    accounting: { color: C.purple, bg: "#faf5ff", label: "Accounting", tagColor: "purple" },
+// ── Module scope config ───────────────────────────────────────────────────────
+const SCOPE_CFG: Record<ModuleScope, { color: string; bg: string; label: string }> = {
+    core:       { color: C.indigo, bg: "#eef2ff", label: "Core"       },
+    pos:        { color: C.indigo, bg: "#eef2ff", label: "POS"        },
+    hr:         { color: C.blue,   bg: "#eff6ff", label: "HR"         },
+    accounting: { color: C.purple, bg: "#faf5ff", label: "Accounting" },
+    crm:        { color: C.green,  bg: "#f0fdf4", label: "CRM"        },
+    dala:       { color: "#0ea5e9", bg: "#f0f9ff", label: "Dala"      },
+    signature:  { color: C.primary, bg: C.primaryLight, label: "Signature" },
 };
 
-// ── Mobile hook ───────────────────────────────────────────────────────────────
-const useIsMobile = () => {
-    const [v, setV] = useState(window.innerWidth < 768);
-    useEffect(() => {
-        const h = () => setV(window.innerWidth < 768);
-        window.addEventListener("resize", h);
-        return () => window.removeEventListener("resize", h);
-    }, []);
-    return v;
-};
-
-// ── Badge atoms ───────────────────────────────────────────────────────────────
-const ActionBadge: React.FC<{ action: ActionType }> = ({ action }) => {
-    const cfg = ACTION_CFG[action] ?? ACTION_CFG.special;
+// ── Permission chip ───────────────────────────────────────────────────────────
+const PermChip: React.FC<{ perm: Permission }> = ({ perm }) => {
+    const ac = ACTION_CFG[perm.action] ?? ACTION_CFG.special;
     return (
-        <span
-            style={{
-                background: cfg.bg, color: cfg.color,
-                borderRadius: 4, fontSize: 10, fontWeight: 700,
-                padding: "2px 7px", fontFamily: "monospace",
-                whiteSpace: "nowrap", letterSpacing: "0.3px",
-            }}
-        >
-            {cfg.label}
-        </span>
-    );
-};
-
-const ScopeBadge: React.FC<{ scope: ModuleScope }> = ({ scope }) => {
-    const cfg = SCOPE_CFG[scope];
-    return (
-        <span
-            style={{
-                background: cfg.bg, color: cfg.color,
-                borderRadius: 4, fontSize: 10, fontWeight: 600,
-                padding: "2px 7px", whiteSpace: "nowrap",
-            }}
-        >
-            {cfg.label}
-        </span>
-    );
-};
-
-const ModuleTag: React.FC<{ module: string }> = ({ module }) => (
-    <span
-        style={{
-            background: C.primaryLight, color: C.primary,
-            borderRadius: 5, fontSize: 11, fontWeight: 600,
-            padding: "2px 8px", whiteSpace: "nowrap",
-        }}
-    >
-        {module}
-    </span>
-);
-
-// ── Stat card ─────────────────────────────────────────────────────────────────
-const StatCard: React.FC<{ label: string; value: number; color: string; bg: string; locked?: boolean }> = ({
-    label, value, color, bg, locked,
-}) => (
-    <div
-        style={{
-            background: locked ? C.bg : bg,
-            border: `1px solid ${C.border}`,
-            borderRadius: 10,
-            padding: "12px 16px",
-            flex: "1 1 90px",
-            minWidth: 80,
-            textAlign: "center",
-            opacity: locked ? 0.5 : 1,
-        }}
-    >
-        <Text style={{ fontSize: 22, fontWeight: 700, color: locked ? "#94a3b8" : color, display: "block", lineHeight: 1.2 }}>
-            {locked ? "—" : value}
-        </Text>
-        <Text style={{ fontSize: 11, color: "#94a3b8" }}>{label}</Text>
-        {locked && <Text style={{ fontSize: 10, color: "#94a3b8", display: "block" }}>not enabled</Text>}
-    </div>
-);
-
-// ── Mobile permission card ────────────────────────────────────────────────────
-const PermissionCard: React.FC<{ perm: Permission }> = ({ perm }) => (
-    <Card
-        style={{ borderRadius: 10, marginBottom: 8, border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
-        bodyStyle={{ padding: "10px 12px" }}
-    >
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 8 }}>
-            <div
-                style={{
-                    background: C.primaryLight, borderRadius: 7, width: 32, height: 32,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    color: C.primary, fontSize: 13, flexShrink: 0,
-                }}
-            >
-                <KeyOutlined />
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-                <Text strong style={{ fontSize: 12, color: C.darkText, display: "block", lineHeight: 1.3 }}>{perm.label}</Text>
-                <Text style={{ fontSize: 10, color: C.subText, fontFamily: "monospace", display: "block", marginTop: 2 }}>{perm.key}</Text>
-            </div>
-        </div>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-            <ActionBadge action={perm.action} />
-            <ScopeBadge scope={perm.moduleScope} />
-            <ModuleTag module={perm.module} />
-        </div>
-    </Card>
-);
-
-// ── Grouped view ──────────────────────────────────────────────────────────────
-const GroupedView: React.FC<{ permissions: Permission[] }> = ({ permissions }) => {
-    const grouped = useMemo(() => {
-        return permissions.reduce<Record<string, Permission[]>>((acc, p) => {
-            if (!acc[p.module]) acc[p.module] = [];
-            acc[p.module].push(p);
-            return acc;
-        }, {});
-    }, [permissions]);
-
-    if (!permissions.length)
-        return <Empty description="No permissions match your filter" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: "40px 0" }} />;
-
-    return (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            {Object.entries(grouped).map(([mod, perms]) => (
-                <div key={mod}>
-                    <div
-                        style={{
-                            display: "flex", alignItems: "center", gap: 10,
-                            marginBottom: 8, paddingBottom: 6,
-                            borderBottom: `2px solid ${C.border}`,
-                        }}
-                    >
-                        <Text strong style={{ fontSize: 13, color: C.darkText }}>{mod}</Text>
-                        <span
-                            style={{
-                                background: C.primaryLight, color: C.primary,
-                                borderRadius: 10, fontSize: 10, fontWeight: 700,
-                                padding: "1px 8px", border: `1px solid ${C.primary}30`,
-                            }}
-                        >
-                            {perms.length}
-                        </span>
-                        <ScopeBadge scope={perms[0].moduleScope} />
-                    </div>
-                    <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden" }}>
-                        {perms.map((perm, idx) => (
-                            <div
-                                key={perm.key}
-                                style={{
-                                    display: "flex", alignItems: "center", justifyContent: "space-between",
-                                    flexWrap: "wrap", gap: 8, padding: "8px 14px",
-                                    background: idx % 2 === 0 ? "#fff" : C.bg,
-                                    borderBottom: idx < perms.length - 1 ? `1px solid ${C.border}` : "none",
-                                }}
-                            >
-                                <div style={{ flex: 1, minWidth: 160 }}>
-                                    <Text style={{ fontSize: 12, color: C.darkText, fontWeight: 500 }}>{perm.label}</Text>
-                                    <Text style={{ fontSize: 10, color: "#94a3b8", fontFamily: "monospace", display: "block", marginTop: 1 }}>{perm.key}</Text>
-                                </div>
-                                <ActionBadge action={perm.action} />
-                            </div>
-                        ))}
-                    </div>
+        <Tooltip
+            title={
+                <div style={{ fontSize: 11 }}>
+                    <div style={{ fontFamily: "monospace", color: "#a5f3fc", marginBottom: 3 }}>{perm.key}</div>
+                    <span style={{ background: ac.color + "33", color: ac.color, borderRadius: 3, padding: "1px 5px", fontSize: 10, fontWeight: 700 }}>
+                        {ac.label}
+                    </span>
                 </div>
-            ))}
-        </div>
+            }
+            placement="top"
+        >
+            <div style={{
+                display: "inline-flex", alignItems: "center", gap: 5,
+                background: "#fff", border: `1px solid ${C.border}`,
+                borderRadius: 6, padding: "4px 9px", cursor: "default",
+                fontSize: 12, color: C.darkText, lineHeight: 1.3,
+                transition: "border-color 0.15s",
+            }}>
+                <span style={{
+                    width: 7, height: 7, borderRadius: "50%",
+                    background: ac.dot, flexShrink: 0,
+                }} />
+                {perm.label}
+            </div>
+        </Tooltip>
     );
 };
 
-// ── Table view ────────────────────────────────────────────────────────────────
-const TableView: React.FC<{ permissions: Permission[] }> = ({ permissions }) => {
-    const columns = [
-        {
-            title: "Permission",
-            key: "label",
-            render: (_: any, p: Permission) => (
-                <Space size={10} align="start">
-                    <div
-                        style={{
-                            background: C.primaryLight, borderRadius: 6, width: 26, height: 26,
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            color: C.primary, fontSize: 11, flexShrink: 0,
-                        }}
-                    >
-                        <KeyOutlined />
-                    </div>
-                    <div>
-                        <Text strong style={{ fontSize: 12, color: C.darkText, display: "block" }}>{p.label}</Text>
-                        <Text style={{ fontSize: 10, color: "#94a3b8", fontFamily: "monospace" }}>{p.key}</Text>
-                    </div>
-                </Space>
-            ),
-        },
-        {
-            title: "Module",
-            dataIndex: "module",
-            key: "module",
-            width: 220,
-            render: (v: string) => <ModuleTag module={v} />,
-        },
-        {
-            title: "Action",
-            dataIndex: "action",
-            key: "action",
-            width: 100,
-            render: (v: ActionType) => <ActionBadge action={v} />,
-        },
-        {
-            title: "Scope",
-            dataIndex: "moduleScope",
-            key: "scope",
-            width: 110,
-            render: (v: ModuleScope) => <ScopeBadge scope={v} />,
-        },
-    ];
+// ── Module panel header ───────────────────────────────────────────────────────
+const ModulePanelHeader: React.FC<{
+    module: string;
+    perms: Permission[];
+    scope: ModuleScope;
+}> = ({ module, perms, scope }) => {
+    const sc = SCOPE_CFG[scope];
+    const counts = perms.reduce<Record<string, number>>((acc, p) => {
+        acc[p.action] = (acc[p.action] || 0) + 1;
+        return acc;
+    }, {});
 
     return (
-        <Table
-            rowKey="key"
-            columns={columns}
-            dataSource={permissions}
-            pagination={{
-                pageSize: 20,
-                showSizeChanger: true,
-                showTotal: (total, range) => <Text style={{ fontSize: 12, color: C.subText }}>{range[0]}–{range[1]} of {total}</Text>,
-            }}
-            size="small"
-            scroll={{ x: 700 }}
-            locale={{ emptyText: <Empty description="No permissions match your filter" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
-        />
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <Text strong style={{ fontSize: 13, color: C.darkText, minWidth: 120 }}>{module}</Text>
+
+            {/* count badge */}
+            <span style={{
+                background: C.primaryLight, color: C.primary,
+                borderRadius: 10, fontSize: 10, fontWeight: 700,
+                padding: "1px 7px", border: `1px solid ${C.primary}25`,
+            }}>
+                {perms.length}
+            </span>
+
+            {/* scope badge */}
+            <span style={{
+                background: sc.bg, color: sc.color,
+                borderRadius: 4, fontSize: 10, fontWeight: 600,
+                padding: "2px 6px",
+            }}>
+                {sc.label}
+            </span>
+
+            {/* action dots */}
+            <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
+                {(Object.entries(counts) as [ActionType, number][]).map(([action, cnt]) => {
+                    const ac = ACTION_CFG[action];
+                    return (
+                        <Tooltip key={action} title={`${cnt} ${ac.label}`}>
+                            <span style={{
+                                display: "inline-flex", alignItems: "center", gap: 3,
+                                background: ac.color + "15", color: ac.color,
+                                borderRadius: 4, fontSize: 10, fontWeight: 600,
+                                padding: "2px 6px",
+                            }}>
+                                <span style={{ width: 5, height: 5, borderRadius: "50%", background: ac.color }} />
+                                {cnt}
+                            </span>
+                        </Tooltip>
+                    );
+                })}
+            </div>
+        </div>
     );
 };
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 function PermissionSettings() {
-    const isMobile = useIsMobile();
-
-    // ── Use the same robust tenant detection as RoleModal ──────────────────────
     const { hasHR, hasAccounting } = useTenantModules();
 
     const [search, setSearch] = useState("");
     const [filterAction, setFilterAction] = useState<ActionType | "all">("all");
     const [filterScope, setFilterScope] = useState<ModuleScope | "all">("all");
-    const [viewMode, setViewMode] = useState<"grouped" | "table">("grouped");
 
     // All permissions scoped to this tenant's enabled modules
     const tenantPerms = useMemo(
-        () =>
-            Object.values(PERMISSIONS).filter((p) => {
-                if (p.moduleScope === "core") return true;
-                if (p.moduleScope === "hr") return hasHR;
-                if (p.moduleScope === "accounting") return hasAccounting;
-                return false;
-            }),
+        () => Object.values(PERMISSIONS).filter((p) => {
+            if (p.moduleScope === "core") return true;
+            if (p.moduleScope === "hr") return hasHR;
+            if (p.moduleScope === "accounting") return hasAccounting;
+            return false;
+        }),
         [hasHR, hasAccounting]
     );
 
     // Filtered list
-    const filtered = useMemo(() => {
-        return tenantPerms.filter((p) => {
-            const matchSearch =
-                !search ||
-                p.label.toLowerCase().includes(search.toLowerCase()) ||
-                p.key.toLowerCase().includes(search.toLowerCase()) ||
-                p.module.toLowerCase().includes(search.toLowerCase());
+    const filtered = useMemo(() =>
+        tenantPerms.filter((p) => {
+            const q = search.toLowerCase();
+            const matchSearch = !q || p.label.toLowerCase().includes(q) || p.key.toLowerCase().includes(q) || p.module.toLowerCase().includes(q);
             const matchAction = filterAction === "all" || p.action === filterAction;
-            const matchScope = filterScope === "all" || p.moduleScope === filterScope;
+            const matchScope  = filterScope  === "all" || p.moduleScope === filterScope;
             return matchSearch && matchAction && matchScope;
-        });
-    }, [tenantPerms, search, filterAction, filterScope]);
-
-    // Stats — based on tenant-scoped perms
-    const stats = useMemo(() => {
-        return tenantPerms.reduce(
-            (acc, p) => {
-                acc.total++;
-                acc[p.moduleScope] = (acc[p.moduleScope] || 0) + 1;
-                return acc;
-            },
-            { total: 0, core: 0, hr: 0, accounting: 0 } as Record<string, number>
-        );
-    }, [tenantPerms]);
-
-    const moduleCount = useMemo(
-        () => new Set(tenantPerms.map((p) => p.module)).size,
-        [tenantPerms]
+        }),
+        [tenantPerms, search, filterAction, filterScope]
     );
 
-    // Scope filter options — only show enabled modules
+    // Group by module
+    const grouped = useMemo(() =>
+        filtered.reduce<Record<string, Permission[]>>((acc, p) => {
+            if (!acc[p.module]) acc[p.module] = [];
+            acc[p.module].push(p);
+            return acc;
+        }, {}),
+        [filtered]
+    );
+
+    const moduleKeys = Object.keys(grouped);
+
+    // Scope filter options
     const scopeOptions = useMemo(() => {
         const opts: { label: string; value: string }[] = [
-            { label: "All scopes", value: "all" },
+            { label: "All Scopes", value: "all" },
             { label: "Core (POS)", value: "core" },
         ];
-        if (hasHR) opts.push({ label: "HR module", value: "hr" });
-        if (hasAccounting) opts.push({ label: "Accounting module", value: "accounting" });
+        if (hasHR)         opts.push({ label: "HR",         value: "hr"         });
+        if (hasAccounting) opts.push({ label: "Accounting",  value: "accounting" });
         return opts;
     }, [hasHR, hasAccounting]);
 
+    const totalModules  = new Set(tenantPerms.map((p) => p.module)).size;
+
     return (
-        <div>
-            {/* ── Header ── */}
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-                <div style={{ background: C.primaryLight, borderRadius: 8, padding: "6px 7px", color: C.primary, fontSize: 16, lineHeight: 1 }}>
-                    <SafetyCertificateOutlined />
+        <div style={{ padding: "16px 16px 24px" }}>
+
+            {/* ── Compact toolbar ──────────────────────────────────────────── */}
+            <div style={{
+                background: "#fff", border: `1px solid ${C.border}`,
+                borderRadius: 10, padding: "10px 14px", marginBottom: 14,
+                display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center",
+            }}>
+                {/* Icon + title */}
+                <div style={{
+                    background: C.primaryLight, borderRadius: 7,
+                    padding: "5px 7px", color: C.primary, fontSize: 14, lineHeight: 1,
+                }}>
+                    <LockOutlined />
                 </div>
-                <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <Text strong style={{ fontSize: 15, color: C.darkText }}>Permission Registry</Text>
-                        <Tag color="default" style={{ fontSize: 10 }}>Core</Tag>
-                        {hasHR && <Tag color="blue" style={{ fontSize: 10 }}>HR</Tag>}
-                        {hasAccounting && <Tag color="purple" style={{ fontSize: 10 }}>Accounting</Tag>}
-                        {!hasHR && <Tag style={{ fontSize: 10, color: "#94a3b8", borderColor: C.border }}>HR not enabled</Tag>}
-                        {!hasAccounting && <Tag style={{ fontSize: 10, color: "#94a3b8", borderColor: C.border }}>Accounting not enabled</Tag>}
-                    </div>
-                    <Text style={{ fontSize: 12, color: C.subText }}>
-                        Showing permissions available for this tenant — read-only reference
+                <div style={{ marginRight: 4 }}>
+                    <Text strong style={{ fontSize: 13, color: C.darkText, display: "block", lineHeight: 1.2 }}>
+                        Permission Matrix
+                    </Text>
+                    <Text style={{ fontSize: 11, color: C.subText }}>
+                        {tenantPerms.length} permissions · {totalModules} modules
+                        {hasHR && " · HR"}
+                        {hasAccounting && " · Accounting"}
                     </Text>
                 </div>
-            </div>
 
-            {/* ── Stats strip ── */}
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
-                <StatCard label="Total" value={stats.total} color={C.indigo} bg="#eef2ff" />
-                <StatCard label="Modules" value={moduleCount} color={C.primary} bg={C.primaryLight} />
-                <StatCard label="Core" value={stats.core || 0} color={C.indigo} bg="#eef2ff" />
-                <StatCard label="HR" value={stats.hr || 0} color={C.blue} bg="#eff6ff" locked={!hasHR} />
-                <StatCard label="Accounting" value={stats.accounting || 0} color={C.purple} bg="#faf5ff" locked={!hasAccounting} />
-            </div>
+                {/* Spacer */}
+                <div style={{ flex: 1 }} />
 
-            {/* ── Filter bar ── */}
-            <div
-                style={{
-                    background: "#fff", border: `1px solid ${C.border}`,
-                    borderRadius: 10, padding: "12px 14px", marginBottom: 14,
-                    display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center",
-                }}
-            >
+                {/* Search */}
                 <Input
-                    prefix={<SearchOutlined style={{ color: "#94a3b8", fontSize: 13 }} />}
-                    placeholder="Search by name, key or module…"
+                    prefix={<SearchOutlined style={{ color: "#94a3b8", fontSize: 12 }} />}
+                    placeholder="Search permissions…"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     allowClear
-                    style={{ flex: "1 1 220px", borderRadius: 8, height: 34, fontSize: 12 }}
+                    style={{ width: 200, borderRadius: 7, fontSize: 12 }}
+                    size="small"
                 />
 
+                {/* Action filter */}
                 <Select
+                    size="small"
                     value={filterAction}
-                    onChange={(v) => setFilterAction(v)}
-                    style={{ width: 160, height: 34 }}
+                    onChange={setFilterAction}
+                    style={{ width: 130 }}
                     options={[
-                        { label: "All actions", value: "all" },
-                        { label: "READ", value: "read" },
-                        { label: "CREATE", value: "create" },
-                        { label: "UPDATE", value: "update" },
-                        { label: "DELETE", value: "delete" },
-                        { label: "ACTION (Special)", value: "special" },
+                        { label: "All Actions", value: "all"     },
+                        { label: "Read",        value: "read"    },
+                        { label: "Create",      value: "create"  },
+                        { label: "Update",      value: "update"  },
+                        { label: "Delete",      value: "delete"  },
+                        { label: "Special",     value: "special" },
                     ]}
                 />
 
+                {/* Scope filter */}
                 <Select
+                    size="small"
                     value={filterScope}
                     onChange={(v) => setFilterScope(v as ModuleScope | "all")}
-                    style={{ width: 170, height: 34 }}
+                    style={{ width: 130 }}
                     options={scopeOptions}
                 />
 
-                {/* View toggle */}
-                <div
-                    style={{
-                        display: "flex", background: C.bg,
-                        border: `1px solid ${C.border}`, borderRadius: 8,
-                        overflow: "hidden", flexShrink: 0,
-                    }}
-                >
-                    {(["grouped", "table"] as const).map((mode) => (
-                        <button
-                            key={mode}
-                            onClick={() => setViewMode(mode)}
-                            style={{
-                                padding: "5px 12px", fontSize: 11, fontWeight: 600,
-                                border: "none", cursor: "pointer",
-                                background: viewMode === mode ? C.primary : "transparent",
-                                color: viewMode === mode ? "#fff" : C.subText,
-                                transition: "background 0.15s",
-                            }}
-                        >
-                            {mode === "grouped" ? "By Module" : "Flat List"}
-                        </button>
-                    ))}
-                </div>
-
-                <Text style={{ fontSize: 12, color: C.subText, flexShrink: 0 }}>
-                    {filtered.length} / {tenantPerms.length}
+                {/* Result count */}
+                <Text style={{ fontSize: 11, color: C.subText, flexShrink: 0 }}>
+                    {filtered.length}/{tenantPerms.length}
                 </Text>
             </div>
 
-            {/* ── Content ── */}
-            {viewMode === "grouped" ? (
-                <GroupedView permissions={filtered} />
-            ) : isMobile ? (
-                filtered.length === 0 ? (
-                    <Empty description="No permissions match your filter" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: "40px 0" }} />
-                ) : (
-                    filtered.map((p) => <PermissionCard key={p.key} perm={p} />)
-                )
+            {/* ── Module accordion ─────────────────────────────────────────── */}
+            {moduleKeys.length === 0 ? (
+                <Empty
+                    description="No permissions match your filter"
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    style={{ padding: "40px 0" }}
+                />
             ) : (
-                <TableView permissions={filtered} />
+                <Collapse
+                    ghost
+                    defaultActiveKey={moduleKeys.slice(0, 1)}
+                    style={{ background: "transparent" }}
+                    items={moduleKeys.map((mod) => {
+                        const perms = grouped[mod];
+                        const scope = perms[0].moduleScope;
+                        return {
+                            key: mod,
+                            style: {
+                                marginBottom: 6,
+                                background: "#fff",
+                                border: `1px solid ${C.border}`,
+                                borderRadius: 10,
+                                overflow: "hidden",
+                            },
+                            label: (
+                                <ModulePanelHeader
+                                    module={mod}
+                                    perms={perms}
+                                    scope={scope}
+                                />
+                            ),
+                            children: (
+                                <div style={{
+                                    display: "flex", flexWrap: "wrap", gap: 6,
+                                    padding: "4px 4px 10px",
+                                    borderTop: `1px solid ${C.border}`,
+                                    background: C.bg,
+                                }}>
+                                    {perms.map((perm) => (
+                                        <PermChip key={perm.key} perm={perm} />
+                                    ))}
+                                </div>
+                            ),
+                        };
+                    })}
+                />
             )}
         </div>
     );

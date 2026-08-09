@@ -365,7 +365,7 @@ const routes = createBrowserRouter(
           element={guardedPage(UnifiedShopDashboardPage, "ORDERS_VIEW_DASHBOARD")} />
 
         <Route path="esign" errorElement={<NotFound />}
-          element={guardedPage(ESignPage, "DOCUMENTS_VIEW")} />
+          element={guardedPage(ESignPage, "SIGNATURE_VIEW")} />
 
         <Route path="store" errorElement={<NotFound />}
           element={guardedPage(MainStore, "PRODUCTS_VIEW")} />
@@ -679,6 +679,16 @@ const routes = createBrowserRouter(
 
         <Route path="help-center" errorElement={<NotFound />}
           element={<Suspense fallback={fullscreenSpin}><AdminRoute><HelpCenter /></AdminRoute></Suspense>} />
+
+        <Route path="esign" errorElement={<NotFound />}
+          element={
+            <PermissionRoute permission="SIGNATURE_VIEW">
+              <Suspense fallback={fullscreenSpin}>
+                <AdminRoute><ESignPage /></AdminRoute>
+              </Suspense>
+            </PermissionRoute>
+          }
+        />
 
         <Route path="discover" errorElement={<NotFound />}
           element={<Suspense fallback={fullscreenSpin}><AdminRoute><DiscoverPage /></AdminRoute></Suspense>} />

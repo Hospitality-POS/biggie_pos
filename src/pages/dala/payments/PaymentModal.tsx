@@ -95,6 +95,7 @@ interface PaymentModalProps {
   onSuccess?: () => void;
   visible?: boolean;
   onCancel?: () => void;
+  showButton?: boolean; // New prop to control whether to show the button
 }
 
 const PaymentModal: React.FC<PaymentModalProps> = ({
@@ -106,6 +107,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   onSuccess,
   visible: externalVisible,
   onCancel: externalOnCancel,
+  showButton = true,
 }) => {
   // Silence unused parameter warnings
   void actionRef;
@@ -526,11 +528,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
   return (
     <>
-      {edit ? (
-        <Button key="button" icon={<EditOutlined />} size="small">
-          {editText || 'Edit'}
-        </Button>
-      ) : (
+      {showButton && !edit ? (
         <Button type="primary" key="button" icon={<PlusOutlined />} onClick={() => {
           form.resetFields();
           form.setFieldsValue({ paymentDate: moment(), paymentMethod: 'mpesa' });
@@ -541,7 +539,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         }}>
           Add New
         </Button>
-      )}
+      ) : null}
       <Modal
         title="Record New Payment"
         open={isModalOpen}

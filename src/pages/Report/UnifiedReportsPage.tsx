@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { Tabs, Typography, Empty } from "antd";
+import { Tabs, Typography, Empty, Modal } from "antd";
 import {
   ShoppingOutlined,
   AccountBookOutlined,
   TeamOutlined,
   HomeOutlined,
   AuditOutlined,
+  FileTextOutlined,
 } from "@ant-design/icons";
 import AdminReports from "src/AdminDashboard/ReportsPage/Reports";
 import AccountingReportsPage from "./AccountingReportsPage";
@@ -34,19 +35,28 @@ const getModuleFlags = () => {
   }
 };
 
+// ── Duka/Store Report Components ─────────────────────────────────────────────────────
+const DukaReportsContent: React.FC<{ onReportGenerated: (title: string, content: React.ReactNode) => void }> = ({ onReportGenerated }) => <AdminReports onReportGenerated={onReportGenerated} />;
+
+// ── Pesa/Accounting Report Components ─────────────────────────────────────────────────
+const PesaReportsContent: React.FC<{ onReportGenerated: (title: string, content: React.ReactNode) => void }> = ({ onReportGenerated }) => <AccountingReportsPage onReportGenerated={onReportGenerated} />;
+
 // ── Bandu/HR Report Components ─────────────────────────────────────────────────────
-const BanduReportsContent: React.FC = () => <BanduReports />;
+const BanduReportsContent: React.FC<{ onReportGenerated: (title: string, content: React.ReactNode) => void }> = ({ onReportGenerated }) => <BanduReports onReportGenerated={onReportGenerated} />;
 
 // ── Mteja/CRM Report Components ────────────────────────────────────────────────────
-const MtejaReportsContent: React.FC = () => <MtejaReports />;
+const MtejaReportsContent: React.FC<{ onReportGenerated: (title: string, content: React.ReactNode) => void }> = ({ onReportGenerated }) => <MtejaReports onReportGenerated={onReportGenerated} />;
 
 // ── Dala Real Estate Report Components ───────────────────────────────────────────────
-const DalaReportsContent: React.FC = () => <DalaReports />;
+const DalaReportsContent: React.FC<{ onReportGenerated: (title: string, content: React.ReactNode) => void }> = ({ onReportGenerated }) => <DalaReports onReportGenerated={onReportGenerated} />;
 
 // ── Main Unified Reports Page ─────────────────────────────────────────────────────
 const UnifiedReportsPage: React.FC = () => {
   const [moduleFlags, setModuleFlags] = useState(getModuleFlags());
   const [activeModuleTab, setActiveModuleTab] = useState<string>("duka");
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalContent, setModalContent] = useState<React.ReactNode>(null);
+  const [modalTitle, setModalTitle] = useState("");
 
   useEffect(() => {
     const handleStorageChange = () => {
@@ -65,6 +75,18 @@ const UnifiedReportsPage: React.FC = () => {
     else if (moduleFlags.hasBandu) setActiveModuleTab("bandu");
   }, [moduleFlags]);
 
+  const openModal = (title: string, content: React.ReactNode) => {
+    setModalTitle(title);
+    setModalContent(content);
+    setModalVisible(true);
+  };
+
+  const closeModal = () => {
+    setModalVisible(false);
+    setModalContent(null);
+    setModalTitle("");
+  };
+
   // Build tab items dynamically based on enabled modules
   const tabItems = [
     ...(moduleFlags.hasDuka
@@ -73,7 +95,7 @@ const UnifiedReportsPage: React.FC = () => {
             key: "duka",
             label: "Duka (Store)",
             icon: <ShoppingOutlined />,
-            children: <AdminReports />,
+            children: <DukaReportsContent onReportGenerated={openModal} />,
           },
         ]
       : []),
@@ -83,13 +105,7 @@ const UnifiedReportsPage: React.FC = () => {
             key: "pesa",
             label: "Pesa (Accounting)",
             icon: <AccountBookOutlined />,
-            children: <AccountingReportsPage />,
-          },
-          {
-            key: "assets",
-            label: "Assets",
-            icon: <AuditOutlined />,
-            children: <AssetReportsPage />,
+            children: <PesaReportsContent onReportGenerated={openModal} />,
           },
         ]
       : []),
@@ -99,7 +115,7 @@ const UnifiedReportsPage: React.FC = () => {
             key: "mteja",
             label: "Mteja (CRM)",
             icon: <TeamOutlined />,
-            children: <MtejaReportsContent />,
+            children: <MtejaReportsContent onReportGenerated={openModal} />,
           },
         ]
       : []),
@@ -109,7 +125,7 @@ const UnifiedReportsPage: React.FC = () => {
             key: "dala",
             label: "Dala (Real Estate)",
             icon: <HomeOutlined />,
-            children: <DalaReportsContent />,
+            children: <DalaReportsContent onReportGenerated={openModal} />,
           },
         ]
       : []),
@@ -119,7 +135,7 @@ const UnifiedReportsPage: React.FC = () => {
             key: "bandu",
             label: "Bandu (HR)",
             icon: <TeamOutlined />,
-            children: <BanduReportsContent />,
+            children: <BanduReportsContent onReportGenerated={openModal} />,
           },
         ]
       : []),
@@ -163,6 +179,18 @@ const UnifiedReportsPage: React.FC = () => {
         size="large"
         tabBarStyle={{ marginBottom: 24 }}
       />
+
+      <Modal
+        title={modalTitle}
+        open={modalVisible}
+        onCancel={closeModal}
+        footer={null}
+        width={1200}
+        style={{ top: 20 }}
+        destroyOnClose
+      >
+        {modalContent}
+      </Modal>
     </div>
   );
 };
