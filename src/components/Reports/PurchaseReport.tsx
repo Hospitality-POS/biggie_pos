@@ -566,36 +566,21 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({ openM, onCloseM, s
                 </div>
               )}
 
-              {/* Date strip */}
-              {startDate && endDate && (
-                <div style={{
-                  display: "flex", alignItems: "center", gap: 8,
-                  padding: "8px 14px",
-                  background: C.bg,
-                  border: `1px solid ${C.border}`,
-                  borderRadius: 8,
-                }}>
-                  <CalendarOutlined style={{ color: C.subText, fontSize: 12 }} />
-                  <Text style={{ fontSize: 12, color: C.subText }}>
-                    {dayjs(startDate).format("MMM DD, YYYY HH:mm")} → {dayjs(endDate).format("MMM DD, YYYY HH:mm")}
-                  </Text>
-                </div>
-              )}
+              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 12px", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, flexWrap: "wrap" }}>
+                <CalendarOutlined style={{ color: C.subText, fontSize: 11 }} />
+                <Text style={{ fontSize: 12, color: C.subText, flex: 1 }}>
+                  {dayjs(startDate).format("MMM DD, YYYY HH:mm")} → {dayjs(endDate).format("MMM DD, YYYY HH:mm")}
+                </Text>
+              </div>
 
-              {/* Preview container */}
-              <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, background: C.white, overflow: "hidden" }}>
-                <div style={{
-                  padding: "7px 14px",
-                  background: C.bg,
-                  borderBottom: `1px solid ${C.border}`,
-                  display: "flex", alignItems: "center", gap: 6,
-                }}>
+              <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, background: "#fff", overflow: "hidden" }}>
+                <div style={{ padding: "8px 16px", background: C.bg, borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", gap: 6 }}>
                   {printMode === "thermal"
-                    ? <><MobileOutlined style={{ color: C.subText, fontSize: 11 }} /><Text style={{ fontSize: 11, color: C.subText }}>Thermal Receipt · 80mm</Text></>
+                    ? <><MobileOutlined style={{ color: C.subText, fontSize: 11 }} /><Text style={{ fontSize: 11, color: C.subText }}>Thermal Receipt Preview · 80mm</Text></>
                     : <><FilePdfOutlined style={{ color: C.primary, fontSize: 11 }} /><Text style={{ fontSize: 11, color: C.subText }}>A4 PDF Preview</Text></>
                   }
                 </div>
-                <div style={{ padding: 16, maxHeight: "52vh", overflowY: "auto" }}>
+                <div style={{ padding: 16, maxHeight: "50vh", overflowY: "auto" }}>
                   <div style={{ display: printMode === "thermal" ? "block" : "none" }}>
                     <ThermalReceipt ref={thermalRef} {...sharedProps} />
                   </div>

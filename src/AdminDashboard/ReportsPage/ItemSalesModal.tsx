@@ -534,17 +534,36 @@ function ItemSalesModal({ data, startDate, endDate, loading, open, onClose, onGr
 
   const { overallTotal, totalCommissionAmount, overallSupplierTotal, totalSubscriptionItems, totalRegularItems } = useMemo(() => {
     let total = 0, commission = 0, supplierTotal = 0, subItems = 0, regItems = 0;
-    salesData.forEach((item: CategoryData) => {
-      total += getTotalAmount(item.orderItems || []);
-      supplierTotal += getSupplierTotal(item.orderItems || []);
-      commission += item.commissionAmt || 0;
-      if (item.subscription_breakdown) {
-        subItems += item.subscription_breakdown.total_subscription_items || 0;
-        regItems += item.subscription_breakdown.total_regular_items || 0;
-      }
-    });
+    
+    if (isBackendGrouped) {
+      // For backend-grouped data, sum up from filtered periods
+      periods.forEach((period: PeriodGroup) => {
+        total += period.total || 0;
+        supplierTotal += period.supplierTotal || 0;
+        commission += period.commission || 0;
+        // Sum subscription breakdown from period data
+        period.data.forEach((item: CategoryData) => {
+          if (item.subscription_breakdown) {
+            subItems += item.subscription_breakdown.total_subscription_items || 0;
+            regItems += item.subscription_breakdown.total_regular_items || 0;
+          }
+        });
+      });
+    } else {
+      // For ungrouped data, calculate from items
+      salesData.forEach((item: CategoryData) => {
+        total += getTotalAmount(item.orderItems || []);
+        supplierTotal += getSupplierTotal(item.orderItems || []);
+        commission += item.commissionAmt || 0;
+        if (item.subscription_breakdown) {
+          subItems += item.subscription_breakdown.total_subscription_items || 0;
+          regItems += item.subscription_breakdown.total_regular_items || 0;
+        }
+      });
+    }
+    
     return { overallTotal: total, totalCommissionAmount: commission, overallSupplierTotal: supplierTotal, totalSubscriptionItems: subItems, totalRegularItems: regItems };
-  }, [salesData]);
+  }, [salesData, isBackendGrouped, periods]);
 
   const grossProfit = overallTotal - overallSupplierTotal;
   const hasData = salesData.length > 0;

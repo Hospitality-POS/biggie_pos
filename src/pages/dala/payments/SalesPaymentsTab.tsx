@@ -52,11 +52,13 @@ interface PaymentRecord {
 interface SalesPaymentsTabProps {
   salesData?: any[];
   propertiesData?: any[];
+  showAddButton?: boolean;
 }
 
 const SalesPaymentsTab: React.FC<SalesPaymentsTabProps> = ({
   salesData = [],
   propertiesData = [],
+  showAddButton = true,
 }) => {
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
@@ -300,7 +302,10 @@ const SalesPaymentsTab: React.FC<SalesPaymentsTabProps> = ({
 
   return (
     <div>
-      <Title level={4}>Sales Payments</Title>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <Title level={4} style={{ margin: 0 }}>Sales Payments</Title>
+        {showAddButton && <PaymentModal actionRef={actionRef} salesData={salesData} onSuccess={handlePaymentSuccess} />}
+      </div>
       
       {/* Payment Statistics */}
       <PaymentStats paymentsData={paymentsData} loading={loading} />
@@ -355,12 +360,9 @@ const SalesPaymentsTab: React.FC<SalesPaymentsTabProps> = ({
             </Select>
           </Col>
           <Col xs={24} sm={12} md={4}>
-            <Space>
-              <Button icon={<ReloadOutlined />} onClick={handleRefresh}>
-                Refresh
-              </Button>
-              <PaymentModal actionRef={actionRef} salesData={salesData} onSuccess={handlePaymentSuccess} />
-            </Space>
+            <Button icon={<ReloadOutlined />} onClick={handleRefresh}>
+              Refresh
+            </Button>
           </Col>
         </Row>
       </Card>

@@ -1,4 +1,4 @@
-export type ModuleScope = "core" | "pos" | "hr" | "accounting" | "crm" | "dala";
+export type ModuleScope = "core" | "pos" | "hr" | "accounting" | "crm" | "dala" | "signature";
 
 // ─── Feature module names (UI grouping labels) ────────────────────────────────
 
@@ -72,6 +72,8 @@ export const MODULES = {
     DALA_RENT_COLLECTION: "Dala · Rent Collection",
     DALA_MAINTENANCE: "Dala · Maintenance",
     DALA_REPORTS: "Dala · Reports",
+    // ── Signature module ───────────────────────────────────────────────────────────
+    SIGNATURE: "E-Signature",
 } as const;
 
 export type ModuleKey = keyof typeof MODULES;
@@ -763,6 +765,21 @@ export const PERMISSIONS: Record<string, Permission> = {
     DALA_MAINTENANCE_UPDATE: { key: "DALA_MAINTENANCE_UPDATE", label: "Update Maintenance Request", module: MODULES.DALA_MAINTENANCE, action: "update", moduleScope: "dala" },
     DALA_MAINTENANCE_DELETE: { key: "DALA_MAINTENANCE_DELETE", label: "Delete Maintenance Request", module: MODULES.DALA_MAINTENANCE, action: "delete", moduleScope: "dala" },
 
+    // ══════════════════════════════════════════════════════════════════════════
+    // SIGNATURE MODULE  (moduleScope: "signature")
+    // ══════════════════════════════════════════════════════════════════════════
+
+    // ── E-Signature ─────────────────────────────────────────────────────────────
+    SIGNATURE_VIEW: { key: "SIGNATURE_VIEW", label: "View E-Signature Documents", module: MODULES.SIGNATURE, action: "read", moduleScope: "signature" },
+    SIGNATURE_CREATE: { key: "SIGNATURE_CREATE", label: "Create E-Signature Document", module: MODULES.SIGNATURE, action: "create", moduleScope: "signature" },
+    SIGNATURE_UPDATE: { key: "SIGNATURE_UPDATE", label: "Update E-Signature Document", module: MODULES.SIGNATURE, action: "update", moduleScope: "signature" },
+    SIGNATURE_DELETE: { key: "SIGNATURE_DELETE", label: "Delete E-Signature Document", module: MODULES.SIGNATURE, action: "delete", moduleScope: "signature" },
+    SIGNATURE_SIGN: { key: "SIGNATURE_SIGN", label: "Sign Document", module: MODULES.SIGNATURE, action: "special", moduleScope: "signature" },
+    SIGNATURE_SEND_FOR_SIGNING: { key: "SIGNATURE_SEND_FOR_SIGNING", label: "Send Document for Signing", module: MODULES.SIGNATURE, action: "special", moduleScope: "signature" },
+    SIGNATURE_ADD_SIGNATURE_FIELD: { key: "SIGNATURE_ADD_SIGNATURE_FIELD", label: "Add Signature Field", module: MODULES.SIGNATURE, action: "create", moduleScope: "signature" },
+    SIGNATURE_MANAGE_SIGNATURES: { key: "SIGNATURE_MANAGE_SIGNATURES", label: "Manage Signature Library", module: MODULES.SIGNATURE, action: "update", moduleScope: "signature" },
+    SIGNATURE_VIEW_HISTORY: { key: "SIGNATURE_VIEW_HISTORY", label: "View Signature History", module: MODULES.SIGNATURE, action: "read", moduleScope: "signature" },
+
     // ── Reports ───────────────────────────────────────────────────────────────
 
     DALA_REPORTS_VIEW: { key: "DALA_REPORTS_VIEW", label: "View Dala Reports", module: MODULES.DALA_REPORTS, action: "read", moduleScope: "dala" },
@@ -788,6 +805,9 @@ export const CRM_PERMISSION_KEYS = ALL_PERMISSION_KEYS.filter(
 export const DALA_PERMISSION_KEYS = ALL_PERMISSION_KEYS.filter(
     (k) => PERMISSIONS[k].moduleScope === "dala"
 );
+export const SIGNATURE_PERMISSION_KEYS = ALL_PERMISSION_KEYS.filter(
+    (k) => PERMISSIONS[k].moduleScope === "signature"
+);
 
 // ─── Tenant-aware helpers ─────────────────────────────────────────────────────
 
@@ -797,6 +817,7 @@ export const getPermissionsForTenant = (options: {
     hasCRM?: boolean;
     hasDala?: boolean;
     hasPOS?: boolean;
+    hasSignature?: boolean;
 }): Permission[] =>
     Object.values(PERMISSIONS).filter((p) => {
         if (p.moduleScope === "core") return true;
@@ -805,6 +826,7 @@ export const getPermissionsForTenant = (options: {
         if (p.moduleScope === "accounting") return !!options.hasAccounting;
         if (p.moduleScope === "crm") return !!options.hasCRM;
         if (p.moduleScope === "dala") return !!options.hasDala;
+        if (p.moduleScope === "signature") return !!options.hasSignature;
         return false;
     });
 
@@ -814,6 +836,7 @@ export const getPermissionsGroupedByModuleForTenant = (options: {
     hasCRM?: boolean;
     hasDala?: boolean;
     hasPOS?: boolean;
+    hasSignature?: boolean;
 }): Record<string, Permission[]> =>
     getPermissionsForTenant(options).reduce<Record<string, Permission[]>>((acc, p) => {
         if (!acc[p.module]) acc[p.module] = [];
@@ -1018,6 +1041,86 @@ export const ROLE_PRESETS: Record<string, string[]> = {
         "ACCOUNTING_DIGITAX_VIEW_CONFIG", "ACCOUNTING_DIGITAX_VIEW_INVOICE_STATUS",
         "DOCUMENTS_VIEW", "DOCUMENTS_VIEW_ONE", "DOCUMENTS_SEARCH",
         "OMNICHANNEL_VIEW",
+        "NOTIFICATIONS_VIEW_MY", "NOTIFICATIONS_MARK_READ",
+    ],
+
+    // ── Module-specific role presets ─────────────────────────────────────────────
+
+    /** PESA_ONLY — Access only to Pesa (Accounting) module */
+    PESA_ONLY: [
+        ...ACCOUNTING_PERMISSION_KEYS,
+        "USERS_VIEW", "USERS_VIEW_ONE",
+        "DOCUMENTS_VIEW", "DOCUMENTS_VIEW_ONE", "DOCUMENTS_CREATE", "DOCUMENTS_UPDATE",
+        "DOCUMENTS_DELETE", "DOCUMENTS_MANAGE_FOLDERS", "DOCUMENTS_UPLOAD_ATTACHMENTS",
+        "DOCUMENTS_UPDATE_STATUS", "DOCUMENTS_SEARCH", "DOCUMENTS_EMBED",
+        "SUPPLIERS_VIEW", "CUSTOMERS_VIEW", "CUSTOMERS_VIEW_ONE", "PAYMENT_METHODS_VIEW",
+        "NOTIFICATIONS_VIEW_MY", "NOTIFICATIONS_MARK_READ",
+    ],
+
+    /** DUKA_ONLY — Access only to Duka (POS) module */
+    DUKA_ONLY: [
+        "CART_VIEW_ITEMS", "CART_CREATE", "CART_UPDATE", "CART_GET",
+        "CART_ADD_ITEM", "CART_UPDATE_ITEM", "CART_DELETE_ITEM", "CART_DELETE_ALL_ITEMS",
+        "CART_SEND_TO_KITCHEN", "CART_VOID", "CART_TRANSFER_ITEMS",
+        "CART_PRINT_INVOICE", "CART_VIEW_INVOICES", "CART_REPRINT_INVOICE",
+        "CART_VIEW_ACTIVE_SUBSCRIPTIONS",
+        "PRODUCTS_VIEW", "PRODUCTS_VIEW_ONE", "INVENTORY_VIEW", "INVENTORY_VIEW_ONE",
+        "CATEGORIES_VIEW", "SUB_CATEGORIES_VIEW", "MAIN_CATEGORIES_VIEW",
+        "CUSTOMERS_VIEW", "CUSTOMERS_VIEW_ONE", "CUSTOMERS_CREATE", "CUSTOMERS_UPDATE",
+        "TABLES_VIEW", "TABLES_VIEW_ONE", "TABLES_CREATE", "TABLES_UPDATE", "TABLES_DELETE",
+        "ORDERS_VIEW", "ORDERS_VIEW_ONE", "ORDERS_CREATE", "ORDERS_UPDATE", "ORDERS_DELETE",
+        "DELIVERY_VIEW", "DELIVERY_CREATE", "DELIVERY_UPDATE",
+        "PAYMENT_METHODS_VIEW",
+        "REPORTS_VIEW", "REPORTS_ITEM_SALES", "REPORTS_PURCHASE_SUMMARY", "REPORTS_VAT_SUMMARY",
+        "USERS_VIEW", "USERS_VIEW_ONE",
+        "DOCUMENTS_VIEW", "DOCUMENTS_VIEW_ONE", "DOCUMENTS_CREATE", "DOCUMENTS_UPDATE",
+        "DOCUMENTS_DELETE", "DOCUMENTS_MANAGE_FOLDERS", "DOCUMENTS_UPLOAD_ATTACHMENTS",
+        "DOCUMENTS_UPDATE_STATUS", "DOCUMENTS_SEARCH", "DOCUMENTS_EMBED",
+        "NOTIFICATIONS_VIEW_MY", "NOTIFICATIONS_MARK_READ",
+    ],
+
+    /** SIGNATURE_ONLY — Access only to E-Signature module */
+    SIGNATURE_ONLY: [
+        ...SIGNATURE_PERMISSION_KEYS,
+        "USERS_VIEW", "USERS_VIEW_ONE",
+        "DOCUMENTS_VIEW", "DOCUMENTS_VIEW_ONE", "DOCUMENTS_CREATE", "DOCUMENTS_UPDATE",
+        "DOCUMENTS_DELETE", "DOCUMENTS_MANAGE_FOLDERS", "DOCUMENTS_UPLOAD_ATTACHMENTS",
+        "DOCUMENTS_UPDATE_STATUS", "DOCUMENTS_SEARCH", "DOCUMENTS_EMBED",
+        "NOTIFICATIONS_VIEW_MY", "NOTIFICATIONS_MARK_READ",
+    ],
+
+    /** PESA_SIGNATURE — Access to Pesa (Accounting) and E-Signature modules */
+    PESA_SIGNATURE: [
+        ...ACCOUNTING_PERMISSION_KEYS,
+        ...SIGNATURE_PERMISSION_KEYS,
+        "USERS_VIEW", "USERS_VIEW_ONE",
+        "DOCUMENTS_VIEW", "DOCUMENTS_VIEW_ONE", "DOCUMENTS_CREATE", "DOCUMENTS_UPDATE",
+        "DOCUMENTS_DELETE", "DOCUMENTS_MANAGE_FOLDERS", "DOCUMENTS_UPLOAD_ATTACHMENTS",
+        "DOCUMENTS_UPDATE_STATUS", "DOCUMENTS_SEARCH", "DOCUMENTS_EMBED",
+        "SUPPLIERS_VIEW", "CUSTOMERS_VIEW", "CUSTOMERS_VIEW_ONE", "PAYMENT_METHODS_VIEW",
+        "NOTIFICATIONS_VIEW_MY", "NOTIFICATIONS_MARK_READ",
+    ],
+
+    /** DUKA_SIGNATURE — Access to Duka (POS) and E-Signature modules */
+    DUKA_SIGNATURE: [
+        "CART_VIEW_ITEMS", "CART_CREATE", "CART_UPDATE", "CART_GET",
+        "CART_ADD_ITEM", "CART_UPDATE_ITEM", "CART_DELETE_ITEM", "CART_DELETE_ALL_ITEMS",
+        "CART_SEND_TO_KITCHEN", "CART_VOID", "CART_TRANSFER_ITEMS",
+        "CART_PRINT_INVOICE", "CART_VIEW_INVOICES", "CART_REPRINT_INVOICE",
+        "CART_VIEW_ACTIVE_SUBSCRIPTIONS",
+        "PRODUCTS_VIEW", "PRODUCTS_VIEW_ONE", "INVENTORY_VIEW", "INVENTORY_VIEW_ONE",
+        "CATEGORIES_VIEW", "SUB_CATEGORIES_VIEW", "MAIN_CATEGORIES_VIEW",
+        "CUSTOMERS_VIEW", "CUSTOMERS_VIEW_ONE", "CUSTOMERS_CREATE", "CUSTOMERS_UPDATE",
+        "TABLES_VIEW", "TABLES_VIEW_ONE", "TABLES_CREATE", "TABLES_UPDATE", "TABLES_DELETE",
+        "ORDERS_VIEW", "ORDERS_VIEW_ONE", "ORDERS_CREATE", "ORDERS_UPDATE", "ORDERS_DELETE",
+        "DELIVERY_VIEW", "DELIVERY_CREATE", "DELIVERY_UPDATE",
+        "PAYMENT_METHODS_VIEW",
+        "REPORTS_VIEW", "REPORTS_ITEM_SALES", "REPORTS_PURCHASE_SUMMARY", "REPORTS_VAT_SUMMARY",
+        ...SIGNATURE_PERMISSION_KEYS,
+        "USERS_VIEW", "USERS_VIEW_ONE",
+        "DOCUMENTS_VIEW", "DOCUMENTS_VIEW_ONE", "DOCUMENTS_CREATE", "DOCUMENTS_UPDATE",
+        "DOCUMENTS_DELETE", "DOCUMENTS_MANAGE_FOLDERS", "DOCUMENTS_UPLOAD_ATTACHMENTS",
+        "DOCUMENTS_UPDATE_STATUS", "DOCUMENTS_SEARCH", "DOCUMENTS_EMBED",
         "NOTIFICATIONS_VIEW_MY", "NOTIFICATIONS_MARK_READ",
     ],
 

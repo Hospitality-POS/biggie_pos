@@ -3,7 +3,7 @@ import { message } from "antd";
 import axiosInstance from "../request";
 import { createAsyncThunk } from "@reduxjs/toolkit";
 
-const BASE = `${BASE_URL}/crm/sales-budgets`;
+const BASE = `${BASE_URL}/api/crm/sales-budgets`;
 
 /* ============================================================
    TYPES

@@ -26,7 +26,8 @@ import {
     PhoneOutlined,
     EyeOutlined,
     EyeInvisibleOutlined,
-    GiftOutlined
+    GiftOutlined,
+    MessageOutlined,
 } from "@ant-design/icons";
 import { createGiftCard, sendGiftCard } from "@services/customers";
 import moment from "moment";
@@ -34,7 +35,11 @@ import moment from "moment";
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
 
-const issueGiftCard = (customerId, customerName, email, phone, amount, message, priceVisible) => {
+const issueGiftCard = (
+    customerId, customerName, email, phone,
+    amount, message, priceVisible,
+    personalizedMessage = "", showMessageOnCard = true
+) => {
     const characters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let code = '';
     for (let i = 0; i < 12; i++) {
@@ -48,9 +53,11 @@ const issueGiftCard = (customerId, customerName, email, phone, amount, message, 
         code: code,
         amount,
         message: safeMessage,
+        personalized_message: personalizedMessage || safeMessage,
+        show_message_on_card: showMessageOnCard,
         expiry_date: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
         status: true,
-        price_visible: priceVisible
+        price_visible: priceVisible,
     };
 
     // Add customer details based on which type it is
@@ -88,6 +95,7 @@ const GiftCardModal = ({
     const giftCardRef = useRef(null);
     const [savingPDF, setSavingPDF] = useState(false);
     const [isPriceVisible, setIsPriceVisible] = useState(true);
+    const [isMessageVisible, setIsMessageVisible] = useState(true);
     const [shopData, setShopData] = useState<any>(null);
 
     const { message: messageApi } = App.useApp();
@@ -119,6 +127,7 @@ const GiftCardModal = ({
                 price_visible: true
             });
             setIsPriceVisible(true);
+            setIsMessageVisible(true);
         }
 
         if (isNewRecipientModalVisible) {
@@ -131,6 +140,7 @@ const GiftCardModal = ({
                 price_visible: true
             });
             setIsPriceVisible(true);
+            setIsMessageVisible(true);
         }
     }, [isGiftCardModalVisible, isNewRecipientModalVisible, giftCardForm, newRecipientForm, clientName, shopData]);
 
@@ -161,7 +171,9 @@ const GiftCardModal = ({
                 currentCustomer.phone,
                 values.amount,
                 cardMessage,
-                values.price_visible
+                values.price_visible,
+                cardMessage,   // personalized_message = same text
+                isMessageVisible
             );
 
             setCurrentGiftCard(giftCard);
@@ -190,7 +202,9 @@ const GiftCardModal = ({
                 values.phone,
                 values.amount,
                 cardMessage,
-                values.price_visible
+                values.price_visible,
+                cardMessage,   // personalized_message
+                isMessageVisible
             );
 
             // Add expiry date from the form
@@ -321,6 +335,16 @@ const GiftCardModal = ({
             setCurrentGiftCard(prev => ({
                 ...prev,
                 price_visible: checked
+            }));
+        }
+    };
+
+    const toggleMessageVisibility = (checked) => {
+        setIsMessageVisible(checked);
+        if (currentGiftCard) {
+            setCurrentGiftCard(prev => ({
+                ...prev,
+                show_message_on_card: checked
             }));
         }
     };
@@ -492,57 +516,86 @@ const GiftCardModal = ({
 
             {/* Gift Card Preview Modal */}
             <Modal
-                title="Gift Certificate Preview"
+                title={
+                    <Space>
+                        <GiftOutlined style={{ color: primaryColor }} />
+                        <span>Gift Certificate Preview</span>
+                    </Space>
+                }
                 open={isPreviewModalVisible}
                 footer={
-                    <Space size="large" style={{ width: "100%" }}>
-                        <Button
-                            block
-                            type="primary"
-                            icon={<FilePdfOutlined />}
-                            loading={savingPDF}
-                            onClick={saveGiftCardAsPDF}
-                        >
-                            Export PDF
-                        </Button>
-                        <Button
-                            block
-                            type="primary"
-                            icon={<GiftOutlined />}
-                            onClick={handleCreateGiftCard}
-                        >
-                            Create Gift Card
-                        </Button>
-                        <Button
-                            block
-                            type="primary"
-                            icon={<MailOutlined />}
-                            onClick={() => {
-                                emailForm.setFieldsValue({
-                                    email: currentGiftCard.customer_id
-                                        ? currentCustomer?.email || ""
-                                        : currentGiftCard.email || ""
-                                });
-                                setIsSendEmailModalVisible(true);
-                            }}
-                        >
-                            Share Email
-                        </Button>
-                    </Space>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                        {/* Toggle controls row */}
+                        <div style={{
+                            display: "flex", gap: 20, padding: "8px 12px",
+                            background: "#f8fafc", borderRadius: 8,
+                            border: "1px solid #e2e8f0", justifyContent: "center",
+                        }}>
+                            <Tooltip title={isPriceVisible ? "Hide amount on card" : "Show amount on card"}>
+                                <Space size={6}>
+                                    <EyeOutlined style={{ color: "#64748b", fontSize: 13 }} />
+                                    <span style={{ fontSize: 12, color: "#64748b" }}>Show Amount</span>
+                                    <Switch
+                                        size="small"
+                                        checkedChildren={<EyeOutlined />}
+                                        unCheckedChildren={<EyeInvisibleOutlined />}
+                                        checked={isPriceVisible}
+                                        onChange={togglePriceVisibility}
+                                    />
+                                </Space>
+                            </Tooltip>
+                            <Tooltip title={isMessageVisible ? "Exclude message from PDF download" : "Include message in PDF download"}>
+                                <Space size={6}>
+                                    <MessageOutlined style={{ color: "#64748b", fontSize: 13 }} />
+                                    <span style={{ fontSize: 12, color: "#64748b" }}>Include Message</span>
+                                    <Switch
+                                        size="small"
+                                        checked={isMessageVisible}
+                                        onChange={toggleMessageVisibility}
+                                    />
+                                </Space>
+                            </Tooltip>
+                        </div>
 
+                        {/* Action buttons */}
+                        <Space size="middle" style={{ width: "100%", justifyContent: "stretch" }}>
+                            <Button
+                                block
+                                type="primary"
+                                icon={<FilePdfOutlined />}
+                                loading={savingPDF}
+                                onClick={saveGiftCardAsPDF}
+                            >
+                                Export PDF
+                            </Button>
+                            <Button
+                                block
+                                type="primary"
+                                icon={<GiftOutlined />}
+                                onClick={handleCreateGiftCard}
+                            >
+                                Create Gift Card
+                            </Button>
+                            <Button
+                                block
+                                type="primary"
+                                icon={<MailOutlined />}
+                                onClick={() => {
+                                    emailForm.setFieldsValue({
+                                        email: currentGiftCard.customer_id
+                                            ? currentCustomer?.email || ""
+                                            : currentGiftCard.email || ""
+                                    });
+                                    setIsSendEmailModalVisible(true);
+                                }}
+                            >
+                                Share Email
+                            </Button>
+                        </Space>
+                    </div>
                 }
                 onCancel={() => setIsPreviewModalVisible(false)}
-                width={560}
-                extra={
-                    <Tooltip title={isPriceVisible ? "Hide price" : "Show price"}>
-                        <Switch
-                            checkedChildren={<EyeOutlined />}
-                            unCheckedChildren={<EyeInvisibleOutlined />}
-                            checked={isPriceVisible}
-                            onChange={togglePriceVisibility}
-                        />
-                    </Tooltip>
-                }
+                width={580}
             >
                 {currentGiftCard && (
                     <Card
@@ -636,6 +689,37 @@ const GiftCardModal = ({
                             }}>
                                 {currentGiftCard.code}
                             </div>
+
+                            {/* ── Personalized Message ── */}
+                            {isMessageVisible && (currentGiftCard.personalized_message || currentGiftCard.message) && (
+                                <div style={{
+                                    backgroundColor: `${primaryColor}08`,
+                                    border: `1px dashed ${primaryColor}50`,
+                                    borderRadius: "10px",
+                                    padding: "14px 18px",
+                                    margin: "4px 0 20px",
+                                    textAlign: "center",
+                                    position: "relative",
+                                }}>
+                                    <div style={{
+                                        position: "absolute", top: -10, left: "50%",
+                                        transform: "translateX(-50%)",
+                                        background: "white",
+                                        padding: "0 8px",
+                                    }}>
+                                        <MessageOutlined style={{ color: primaryColor, fontSize: 14 }} />
+                                    </div>
+                                    <p style={{
+                                        fontSize: "13px",
+                                        color: "#555",
+                                        fontStyle: "italic",
+                                        lineHeight: 1.6,
+                                        margin: 0,
+                                    }}>
+                                        "{currentGiftCard.personalized_message || currentGiftCard.message}"
+                                    </p>
+                                </div>
+                            )}
 
                             <Paragraph style={{ fontSize: "14px", color: "#757575", margin: "20px 0", textAlign: "center" }}>
                                 Our gift certificates are valid for three months from the date of issue. Please note that they must be used within this period, as they cannot be extended or redeemed after expiration.

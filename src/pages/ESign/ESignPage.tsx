@@ -18,6 +18,8 @@ import {
     Image,
     Radio,
 } from "antd";
+import PermissionButton from "@components/PermissionButton";
+import { usePermissions } from "@hooks/usePermissions";
 import {
     FilePdfOutlined,
     FileImageOutlined,
@@ -1811,6 +1813,7 @@ const DocumentSigningInterface: React.FC<{
 // ─────────────────────────────────────────────────────────────────────────────
 
 const ESignPage: React.FC = () => {
+    const { can } = usePermissions();
     const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
     const [initiateModalOpen, setInitiateModalOpen] = useState(false);
     const [signCaptureModalOpen, setSignCaptureModalOpen] = useState(false);
@@ -2252,12 +2255,14 @@ const ESignPage: React.FC = () => {
                     <Title level={2} style={{ margin: 0, fontWeight: 700, letterSpacing: -0.5 }}>E-Signature</Title>
                     <Text type="secondary" style={{ fontSize: 14 }}>Upload, manage and sign documents electronically</Text>
                 </div>
-                <Button type="primary" icon={<UploadOutlined />} size="large"
-                    onClick={() => setUploadModalOpen(true)}
-                    style={{ borderRadius: 8, height: 42, paddingInline: 20, fontWeight: 600 }}
-                >
-                    Upload Document
-                </Button>
+                <PermissionButton permission="SIGNATURE_CREATE">
+                    <Button type="primary" icon={<UploadOutlined />} size="large"
+                        onClick={() => setUploadModalOpen(true)}
+                        style={{ borderRadius: 8, height: 42, paddingInline: 20, fontWeight: 600 }}
+                    >
+                        Upload Document
+                    </Button>
+                </PermissionButton>
             </div>
 
             {/* ── Stat chips ───────────────────────────────── */}
@@ -2376,11 +2381,17 @@ const ESignPage: React.FC = () => {
                                         </>
                                     ) : (
                                         <>
-                                            <Button type="primary" icon={<EditOutlined />} onClick={() => handleInitiateSigning(doc)} style={{ flex: 1, borderRadius: 8, fontWeight: 600 }}>Initiate</Button>
-                                            <Button icon={<EditOutlined />} onClick={() => handleAddSignatureField(doc)} style={{ borderRadius: 8 }} title="Add field" />
+                                            <PermissionButton permission="SIGNATURE_SEND_FOR_SIGNING">
+                                                <Button type="primary" icon={<EditOutlined />} onClick={() => handleInitiateSigning(doc)} style={{ flex: 1, borderRadius: 8, fontWeight: 600 }}>Initiate</Button>
+                                            </PermissionButton>
+                                            <PermissionButton permission="SIGNATURE_ADD_SIGNATURE_FIELD">
+                                                <Button icon={<EditOutlined />} onClick={() => handleAddSignatureField(doc)} style={{ borderRadius: 8 }} title="Add field" />
+                                            </PermissionButton>
                                         </>
                                     )}
-                                    <Button danger icon={<DeleteOutlined />} style={{ borderRadius: 8 }} title="Delete" onClick={() => Modal.confirm({ title: "Delete Document", content: `Delete "${doc.name}"? This cannot be undone.`, okText: "Delete", okButtonProps: { danger: true }, onOk: async () => { await eSignService.deleteDocument(doc._id); message.success("Deleted"); queryClient.invalidateQueries({ queryKey: ["documents"] }); } })} />
+                                    <PermissionButton permission="SIGNATURE_DELETE">
+                                        <Button danger icon={<DeleteOutlined />} style={{ borderRadius: 8 }} title="Delete" onClick={() => Modal.confirm({ title: "Delete Document", content: `Delete "${doc.name}"? This cannot be undone.`, okText: "Delete", okButtonProps: { danger: true }, onOk: async () => { await eSignService.deleteDocument(doc._id); message.success("Deleted"); queryClient.invalidateQueries({ queryKey: ["documents"] }); } })} />
+                                    </PermissionButton>
                                 </div>
                             </div>
                         );
@@ -2440,11 +2451,17 @@ const ESignPage: React.FC = () => {
                                         </>
                                     ) : (
                                         <>
-                                            <Button size="small" type="primary" icon={<EditOutlined />} onClick={() => handleInitiateSigning(doc)} style={{ borderRadius: 6 }}>Initiate</Button>
-                                            <Button size="small" icon={<EditOutlined />} onClick={() => handleAddSignatureField(doc)} style={{ borderRadius: 6 }} title="Add field" />
+                                            <PermissionButton permission="SIGNATURE_SEND_FOR_SIGNING">
+                                                <Button size="small" type="primary" icon={<EditOutlined />} onClick={() => handleInitiateSigning(doc)} style={{ borderRadius: 6 }}>Initiate</Button>
+                                            </PermissionButton>
+                                            <PermissionButton permission="SIGNATURE_ADD_SIGNATURE_FIELD">
+                                                <Button size="small" icon={<EditOutlined />} onClick={() => handleAddSignatureField(doc)} style={{ borderRadius: 6 }} title="Add field" />
+                                            </PermissionButton>
                                         </>
                                     )}
-                                    <Button size="small" danger icon={<DeleteOutlined />} style={{ borderRadius: 6 }} title="Delete" onClick={() => Modal.confirm({ title: "Delete Document", content: `Delete "${doc.name}"? This cannot be undone.`, okText: "Delete", okButtonProps: { danger: true }, onOk: async () => { await eSignService.deleteDocument(doc._id); message.success("Deleted"); queryClient.invalidateQueries({ queryKey: ["documents"] }); } })} />
+                                    <PermissionButton permission="SIGNATURE_DELETE">
+                                        <Button size="small" danger icon={<DeleteOutlined />} style={{ borderRadius: 6 }} title="Delete" onClick={() => Modal.confirm({ title: "Delete Document", content: `Delete "${doc.name}"? This cannot be undone.`, okText: "Delete", okButtonProps: { danger: true }, onOk: async () => { await eSignService.deleteDocument(doc._id); message.success("Deleted"); queryClient.invalidateQueries({ queryKey: ["documents"] }); } })} />
+                                    </PermissionButton>
                                 </div>
                             </div>
                         );

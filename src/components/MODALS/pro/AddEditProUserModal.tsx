@@ -1,10 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Alert,
   Avatar,
   Button,
   Checkbox,
-  DatePicker,
   Drawer,
   Empty,
   Form,
@@ -164,13 +162,11 @@ const CategoryCard: React.FC<{
 
 // ── Categories tab content (shared) ──────────────────────────────────────────
 const CategoriesTabContent: React.FC<{
-  currentShopId: string | null;
   categoriesLoading: boolean;
   categoriesData: any[];
   selectedCategories: string[];
   onCategoryChange: (id: string, checked: boolean) => void;
 }> = ({
-  currentShopId,
   categoriesLoading,
   categoriesData,
   selectedCategories,
@@ -207,21 +203,12 @@ const CategoriesTabContent: React.FC<{
             Product Categories
           </Text>
           <Text style={{ fontSize: 11, color: C.subText }}>
-            Branch-specific — select a branch first.
+            Showing categories for the selected branch.
           </Text>
         </div>
       </div>
 
-      {!currentShopId && (
-        <Alert
-          message="Select a branch in the User Details tab to load categories."
-          type="warning"
-          showIcon
-          style={{ borderRadius: 9, marginBottom: 14 }}
-        />
-      )}
-
-      {currentShopId && categoriesLoading && (
+      {categoriesLoading && (
         <div
           style={{
             background: C.bg,
@@ -236,7 +223,7 @@ const CategoriesTabContent: React.FC<{
         </div>
       )}
 
-      {currentShopId && !categoriesLoading && categoriesData.length > 0 && (
+      {!categoriesLoading && categoriesData.length > 0 && (
         <>
           <div
             style={{
@@ -278,7 +265,7 @@ const CategoriesTabContent: React.FC<{
         </>
       )}
 
-      {currentShopId && !categoriesLoading && categoriesData.length === 0 && (
+      {!categoriesLoading && categoriesData.length === 0 && (
         <Empty
           description="No categories found for this branch"
           image={Empty.PRESENTED_IMAGE_SIMPLE}
@@ -390,6 +377,25 @@ const MobileDetailsFields: React.FC<{
                   label: r.role_type,
                   value: r._id,
                 }))}
+              />
+            </Form.Item>
+          )}
+          {isAdmin && (
+            <Form.Item
+              name="signatureAccess"
+              label={fieldLabel("Signature Access")}
+              tooltip="Grant user access to E-Signature module"
+              style={{ marginBottom: 10 }}
+            >
+              <Select
+                placeholder="Select signature access level"
+                disabled={isProfile || isEditingOwnProfile}
+                style={{ borderRadius: 8 }}
+                options={[
+                  { label: "No Access", value: "none" },
+                  { label: "View Only", value: "view" },
+                  { label: "Full Access", value: "full" },
+                ]}
               />
             </Form.Item>
           )}
@@ -513,18 +519,27 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
   useEffect(() => {
     if (!open) return;
 
+    // Always reset shop/categories state when opening
+    setSelectedShopId(null);
+    setCategoriesData([]);
+    setSelectedCategories([]);
+
     // For create mode on shop-level route, auto-set shop_id
     if (!edit && isShopLevelStaffManagement && currentShopId) {
-      form.setFieldsValue({
-        shop_id: currentShopId,
-      });
+      form.setFieldsValue({ shop_id: currentShopId });
       setSelectedShopId(currentShopId);
     }
 
     if (!data) return;
 
-    const shopId =
-      typeof data?.shop_id === "object" ? data?.shop_id?._id : data?.shop_id;
+    // Guard: typeof null === "object" in JS, so check for null explicitly
+    const rawShopId = data?.shop_id;
+    const shopId: string | null =
+      rawShopId == null
+        ? null
+        : typeof rawShopId === "object"
+          ? (rawShopId._id || null)
+          : (rawShopId as string) || null;
     setSelectedShopId(shopId);
 
     form.setFieldsValue({
@@ -534,10 +549,7 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
       shop_id: shopId
         ? {
           value: shopId,
-          label:
-            typeof data?.shop_id === "object"
-              ? data?.shop_id?.name
-              : data?.shop_id,
+          label: typeof rawShopId === "object" ? rawShopId?.name : rawShopId,
         }
         : undefined,
     });
@@ -557,7 +569,10 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
   // ── Fetch categories when shop changes ────────────────────────────────────
   useEffect(() => {
     const shopIdToUse = isShopLevelStaffManagement ? currentShopId : selectedShopId;
-    if (!shopIdToUse) return;
+    if (!shopIdToUse) {
+      setCategoriesData([]);
+      return;
+    }
     const load = async () => {
       setCategoriesLoading(true);
       try {
@@ -566,7 +581,12 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
           state: "all",
           shop_id: String(shopIdToUse).trim(),
         });
-        setCategoriesData(Array.isArray(result) ? result : []);
+        const all = Array.isArray(result) ? result : [];
+        // Client-side filter: only show categories belonging to this shop
+        const forShop = all.filter((cat: any) =>
+          !cat.shop_id || String(cat.shop_id).trim() === String(shopIdToUse).trim()
+        );
+        setCategoriesData(forShop);
       } catch {
         message.error("Failed to load categories");
         setCategoriesData([]);
@@ -699,6 +719,13 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
     }
   };
 
+  // ── Computed shop ID used for categories ──────────────────────────────────
+  // Only truthy when modal is open AND a shop has actually been selected.
+  // The `open` guard prevents stale selectedShopId from a previous session.
+  const effectiveShopId = open
+    ? (isShopLevelStaffManagement ? currentShopId : selectedShopId) || null
+    : null;
+
   // ── Shared tab items ───────────────────────────────────────────────────────
   const categoriesTabLabel = (
     <Space size={6}>
@@ -725,7 +752,6 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
 
   const categoriesContent = (
     <CategoriesTabContent
-      currentShopId={isShopLevelStaffManagement ? currentShopId : selectedShopId}
       categoriesLoading={categoriesLoading}
       categoriesData={categoriesData}
       selectedCategories={selectedCategories}
@@ -866,6 +892,22 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
               request={roleRequest}
             />
           )}
+          {isAdmin && (
+            <ProFormSelect
+              hasFeedback
+              width="xl"
+              name="signatureAccess"
+              label="Signature Access"
+              tooltip="Grant user access to E-Signature module"
+              disabled={isProfile || isEditingOwnProfile}
+              placeholder="Select signature access level"
+              options={[
+                { label: "No Access", value: "none" },
+                { label: "View Only", value: "view" },
+                { label: "Full Access", value: "full" },
+              ]}
+            />
+          )}
           <ProFormText
             hasFeedback
             width="xl"
@@ -990,11 +1032,11 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
                     />
                   ),
                 },
-                {
+                ...(effectiveShopId ? [{
                   key: "categories",
                   label: categoriesTabLabel,
                   children: categoriesContent,
-                },
+                }] : []),
               ]}
             />
           </Form>
@@ -1071,11 +1113,11 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
             ),
             children: desktopDetailsTab,
           },
-          {
+          ...(effectiveShopId ? [{
             key: "categories",
             label: categoriesTabLabel,
             children: categoriesContent,
-          },
+          }] : []),
         ]}
       />
     </ModalForm>

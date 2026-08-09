@@ -4,7 +4,7 @@ import axiosInstance from "../request";
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import { ParamsType } from "@ant-design/pro-components";
 
-const BASE = `${BASE_URL}/crm/leads`;
+const BASE = `${BASE_URL}/api/crm/leads`;
 
 /* ============================================================
    TYPES

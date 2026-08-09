@@ -120,6 +120,13 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
     // Track whether we've had a successful save so closing always triggers refresh
     const [didSave, setDidSave] = useState(false);
 
+    // ── Draft session persistence ─────────────────────────────────────────────
+    const draftDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const [hasDraft, setHasDraft] = useState(false);
+    const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
+    // Counter bumped by onValuesChange so the auto-save effect re-runs on form edits
+    const [formChangeCount, setFormChangeCount] = useState(0);
+
     // ── Inline add modals ─────────────────────────────────────────────────────
     const [addCustomerOpen, setAddCustomerOpen] = useState(false);
     const [addAccountOpen, setAddAccountOpen] = useState(false);
@@ -130,6 +137,8 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
     const tenantId = getCurrentTenantId();
     const isAdminRoute = window.location.pathname.startsWith("/admin");
     const systemSetupPath = isAdminRoute ? "/admin/system-setup" : "/system-setup";
+    // Scoped per tenant so drafts don't bleed between accounts
+    const DRAFT_KEY = `inv_draft_${tenantId || shopId}`;
 
     // ── System settings (KRA PIN check) ──────────────────────────────────────
     const { data: systemSettings } = useQuery({
@@ -269,6 +278,72 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
         }
     }, [servicesData]);
 
+    // ── Restore draft when modal opens ────────────────────────────────────────
+    useEffect(() => {
+        if (!open) return;
+        const raw = localStorage.getItem(DRAFT_KEY);
+        if (!raw) return;
+        try {
+            const draft = JSON.parse(raw);
+            const fv = draft.formValues || {};
+            form.setFieldsValue({
+                ...fv,
+                issue_date: fv.issue_date ? dayjs(fv.issue_date) : dayjs(),
+                due_date: fv.due_date ? dayjs(fv.due_date) : null,
+            });
+            if (draft.lines?.length)            setLines(draft.lines);
+            if (draft.docType)                   setDocType(draft.docType);
+            if (draft.discountType)              setDiscountType(draft.discountType);
+            if (draft.discountAmount  != null)   setDiscountAmount(draft.discountAmount);
+            if (draft.discountPercentage != null) setDiscountPercentage(draft.discountPercentage);
+            if (draft.discountReason  != null)   setDiscountReason(draft.discountReason);
+            if (draft.etrEnabled      != null)   setEtrEnabled(draft.etrEnabled);
+            if (draft.selectedCurrency)          setSelectedCurrency(draft.selectedCurrency);
+            setDraftSavedAt(draft.savedAt || null);
+            setHasDraft(true);
+        } catch {
+            localStorage.removeItem(DRAFT_KEY);
+        }
+    }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // ── Auto-save draft on every change (step 0 only) ─────────────────────────
+    useEffect(() => {
+        if (!open || step !== 0) return;
+        if (draftDebounceRef.current) clearTimeout(draftDebounceRef.current);
+        draftDebounceRef.current = setTimeout(() => {
+            const fv = form.getFieldsValue();
+            const hasContent =
+                fv.customer_id ||
+                lines.some((l: LineItem) => l.description || l.unit_price > 0);
+            if (!hasContent) return;
+            try {
+                const ts = new Date().toISOString();
+                localStorage.setItem(DRAFT_KEY, JSON.stringify({
+                    formValues: {
+                        ...fv,
+                        issue_date: fv.issue_date?.toISOString?.() ?? null,
+                        due_date:   fv.due_date?.toISOString?.()   ?? null,
+                    },
+                    lines,
+                    docType,
+                    discountType,
+                    discountAmount,
+                    discountPercentage,
+                    discountReason,
+                    etrEnabled,
+                    selectedCurrency,
+                    savedAt: ts,
+                }));
+                setDraftSavedAt(ts);
+            } catch {
+                // localStorage full / unavailable — ignore
+            }
+        }, 800);
+        return () => {
+            if (draftDebounceRef.current) clearTimeout(draftDebounceRef.current);
+        };
+    }, [open, step, formChangeCount, lines, docType, discountType, discountAmount, discountPercentage, discountReason, etrEnabled, selectedCurrency]); // eslint-disable-line react-hooks/exhaustive-deps
+
     const customerOptions = (customersData || []).map((c: any) => ({
         label: `${c.company_name || c.customer_name || "Unknown"}${c.phone ? ` — ${c.phone}` : ""}`,
         value: c._id,
@@ -369,6 +444,8 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
         onSuccess: (data) => {
             setSavedInvoice(data?.invoice);
             setDidSave(true); // mark: table needs refresh when modal closes
+            localStorage.removeItem(DRAFT_KEY); // draft posted — clear it
+            setHasDraft(false);
             queryClient.invalidateQueries({ queryKey: ["journal-entries"] });
             queryClient.invalidateQueries({ queryKey: ["invoices-unsettled"] });
             if (docType !== "quote" && etrEnabled && data?.invoice?._id) {
@@ -386,6 +463,8 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
         onSuccess: (data) => {
             setSavedInvoice(data?.invoice);
             setDidSave(true);
+            localStorage.removeItem(DRAFT_KEY); // draft posted — clear it
+            setHasDraft(false);
             queryClient.invalidateQueries({ queryKey: ["journal-entries"] });
             queryClient.invalidateQueries({ queryKey: ["invoices-unsettled"] });
             if (etrEnabled && data?.invoice?._id) {
@@ -455,6 +534,26 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
         etrActivePollRef.current = false;
         if (etrPollRef.current) clearTimeout(etrPollRef.current);
         setEtrPolling(false);
+    };
+
+    // ── Draft helpers ─────────────────────────────────────────────────────────
+    const clearDraft = () => {
+        localStorage.removeItem(DRAFT_KEY);
+        setHasDraft(false);
+        setDraftSavedAt(null);
+    };
+
+    const discardDraft = () => {
+        clearDraft();
+        form.resetFields();
+        form.setFieldsValue({ issue_date: dayjs() });
+        setLines([newLine(vatEnabled ? standardVatRate : 0)]);
+        setDocType("invoice");
+        setDiscountType("fixed");
+        setDiscountAmount(0);
+        setDiscountPercentage(0);
+        setDiscountReason("");
+        setEtrEnabled(false);
     };
 
     // ── Reset + close — always fires onSuccess if anything was saved ──────────
@@ -824,6 +923,33 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
     // ── Step 0 — create quote / invoice ───────────────────────────────────────
     const renderStep0 = () => (
         <>
+            {/* ── Draft restored banner ── */}
+            {hasDraft && (
+                <Alert
+                    type="info"
+                    showIcon
+                    style={{ marginBottom: 16, borderRadius: 8 }}
+                    message={
+                        <Space size={6}>
+                            <Text strong style={{ fontSize: 13 }}>Draft restored</Text>
+                            {draftSavedAt && (
+                                <Text type="secondary" style={{ fontSize: 12 }}>
+                                    · last saved {dayjs(draftSavedAt).format("D MMM [at] h:mm A")}
+                                </Text>
+                            )}
+                        </Space>
+                    }
+                    description="Continue where you left off, or discard to start fresh."
+                    action={
+                        <Button size="small" danger onClick={discardDraft}>
+                            Discard draft
+                        </Button>
+                    }
+                    closable
+                    onClose={() => setHasDraft(false)}
+                />
+            )}
+
             <Row justify="center" style={{ marginBottom: 16 }}>
                 <Segmented
                     value={docType}
@@ -876,7 +1002,12 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
                 }
             />
 
-            <Form form={form} layout="vertical" initialValues={{ issue_date: dayjs() }}>
+            <Form
+                form={form}
+                layout="vertical"
+                initialValues={{ issue_date: dayjs() }}
+                onValuesChange={() => setFormChangeCount((c) => c + 1)}
+            >
                 <Row gutter={16}>
                     <Col span={8}>
                         <Form.Item

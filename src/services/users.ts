@@ -35,22 +35,41 @@ export const updateUserStatus = async (id: string, status: 'Active' | 'Suspended
     throw new Error(errorMessage);
   }
 };
-export const fetchAllUsersList = async (data: ParamsType & { shop_id?: string }) => {
+export const fetchAllUsersList = async (data?: ParamsType & { shop_id?: string }) => {
+  // When used directly as a React-Query queryFn the library passes a QueryFunctionContext
+  // as the first argument (not a ParamsType). Guard against that so params stay clean.
+  const safeData = data && typeof data === "object" && !("queryKey" in data) ? data : {};
+
   try {
-    console.log('fetchAllUsersList called with data:', data);
     const url = `${BASE_URL}/users/all`;
 
     const response = await axiosInstance.get(url, {
       params: {
-        fullname: data.fullname,
-        email: data.email,
-        shop_id: data.shop_id,
+        fullname: safeData.fullname,
+        email: safeData.email,
+        shop_id: safeData.shop_id,
+        page: safeData.current || 1,
+        pageSize: safeData.pageSize || 10,
       },
     });
 
-    return response.data;
+    // Backend returns { users: [...], pagination: {...} }
+    // Extract and return just the users array
+    return response.data?.users || response.data || [];
   } catch (error: any) {
-    throw new Error(error?.message);
+    // Permission error — interceptor already showed a toast; return empty list silently
+    if (error?.isPermissionError) return [];
+
+    // Network-level error (server unreachable, CORS, etc.) — no `response` object
+    if (!error?.response) {
+      message.warning("Could not reach the server. User list may be unavailable.", 3);
+      return [];
+    }
+
+    // HTTP error with a body message — surface it and return empty list
+    const msg = error?.response?.data?.message || error?.message || "Failed to fetch users";
+    message.error(msg);
+    return [];
   }
 };
 

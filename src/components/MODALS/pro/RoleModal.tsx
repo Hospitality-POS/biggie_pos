@@ -71,6 +71,7 @@ const SCOPE_CFG: Record<string, { color: string; bg: string; antColor: string; l
   accounting: { color: C.purple, bg: "#faf5ff", antColor: "purple", label: "Accounting" },
   crm: { color: C.teal, bg: "#f0fdfa", antColor: "cyan", label: "CRM" },
   dala: { color: C.orange, bg: "#fff7ed", antColor: "orange", label: "Dala" },
+  signature: { color: C.red, bg: "#fef2f2", antColor: "red", label: "Signature" },
 };
 
 // ── Mobile hook ───────────────────────────────────────────────────────────────
@@ -92,8 +93,8 @@ const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 );
 
 // ── Active module tags ────────────────────────────────────────────────────────
-const ModuleTags: React.FC<{ hasHR: boolean; hasAccounting: boolean; hasMteja: boolean; hasDala: boolean; hasPOS: boolean; size?: "small" | "normal" }> = ({
-  hasHR, hasAccounting, hasMteja, hasDala, hasPOS, size = "normal",
+const ModuleTags: React.FC<{ hasHR: boolean; hasAccounting: boolean; hasMteja: boolean; hasDala: boolean; hasPOS: boolean; hasSignature: boolean; size?: "small" | "normal" }> = ({
+  hasHR, hasAccounting, hasMteja, hasDala, hasPOS, hasSignature, size = "normal",
 }) => {
   const fs = size === "small" ? 10 : 11;
   return (
@@ -104,6 +105,7 @@ const ModuleTags: React.FC<{ hasHR: boolean; hasAccounting: boolean; hasMteja: b
       {hasAccounting ? <Tag color="purple" style={{ fontSize: fs, margin: 0 }}>✓ Accounting</Tag> : null}
       {hasMteja ? <Tag color="cyan" style={{ fontSize: fs, margin: 0 }}>✓ CRM</Tag> : null}
       {hasDala ? <Tag color="orange" style={{ fontSize: fs, margin: 0 }}>✓ Dala</Tag> : null}
+      {hasSignature ? <Tag color="red" style={{ fontSize: fs, margin: 0 }}>✓ Signature</Tag> : null}
     </div>
   );
 };
@@ -532,13 +534,13 @@ const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({ 
   const isMobile = useIsMobile();
 
   // ── Tenant module flags ────────────────────────────────────────────────────
-  // useTenantModules must expose hasHR, hasAccounting, hasMteja, hasDala, hasPOS
-  const { hasHR, hasAccounting, hasMteja, hasDala, hasPOS } = useTenantModules();
+  // useTenantModules must expose hasHR, hasAccounting, hasMteja, hasDala, hasPOS, hasSignature
+  const { hasHR, hasAccounting, hasMteja, hasDala, hasPOS, hasSignature } = useTenantModules();
 
   // Rebuild permission groups whenever module flags change.
   // hasCRM maps to hasMteja — the CRM scope is gated on tenant.modules.crm.
   const groupedPermissions = useMemo(
-    () => getPermissionsGroupedByModuleForTenant({ hasHR, hasAccounting, hasCRM: hasMteja, hasDala, hasPOS }),
+    () => getPermissionsGroupedByModuleForTenant({ hasHR, hasAccounting, hasCRM: hasMteja, hasDala, hasPOS, hasSignature }),
     [hasHR, hasAccounting, hasMteja, hasDala, hasPOS]
   );
 
@@ -688,7 +690,7 @@ const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({ 
       <Text strong style={{ fontSize: 13, color: C.darkText }}>
         {edit ? `Edit Role — ${data?.role_type || ""}` : "New Role"}
       </Text>
-      <ModuleTags hasHR={hasHR} hasAccounting={hasAccounting} hasMteja={hasMteja} hasDala={hasDala} hasPOS={hasPOS} size="small" />
+      <ModuleTags hasHR={hasHR} hasAccounting={hasAccounting} hasMteja={hasMteja} hasDala={hasDala} hasPOS={hasPOS} hasSignature={hasSignature} size="small" />
     </Space>
   );
 

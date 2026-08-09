@@ -40,6 +40,7 @@ import {
   FileOutlined,
   UploadOutlined,
   DeleteOutlined,
+  AlertOutlined,
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchPropertySales, fetchProperties, createPropertySale, updatePropertySale, deletePropertySale } from '@services/dala';
@@ -58,6 +59,7 @@ import autoTable from 'jspdf-autotable';
 import AddEditSaleModal from './AddEditSaleModal';
 import SalesPaymentsTab from '../payments/SalesPaymentsTab';
 import PaymentModal from '../payments/PaymentModal';
+import PaymentPlansDueTab from './PaymentPlansDueTab';
 
 const { Search } = Input;
 const { Option } = Select;
@@ -1201,22 +1203,13 @@ const SalesManagement: React.FC = () => {
           </Col>
           <Col>
             {activeTab === 'sales' && (
-              <Space>
-                <Button
-                  type="primary"
-                  icon={<PlusOutlined />}
-                  onClick={handleAddSale}
-                >
-                  New Sale
-                </Button>
-                <Button
-                  type="primary"
-                  icon={<DollarOutlined />}
-                  onClick={() => setPaymentModalVisible(true)}
-                >
-                  Record Payment
-                </Button>
-              </Space>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={handleAddSale}
+              >
+                New Sale
+              </Button>
             )}
           </Col>
         </Row>
@@ -1458,7 +1451,17 @@ const SalesManagement: React.FC = () => {
                 Sales Payments
               </span>
             ),
-            children: <SalesPaymentsTab salesData={sales} propertiesData={propertiesQuery.data?.data || properties || []} />,
+            children: <SalesPaymentsTab salesData={sales} propertiesData={propertiesQuery.data?.data || properties || []} showAddButton={true} />,
+          },
+          {
+            key: 'payment-plans-due',
+            label: (
+              <span>
+                <AlertOutlined />
+                Due Payment Plans
+              </span>
+            ),
+            children: <PaymentPlansDueTab showAddButton={false} />,
           },
         ]}
       />

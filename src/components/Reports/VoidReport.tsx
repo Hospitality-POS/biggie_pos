@@ -1,5 +1,5 @@
 import React, { forwardRef, useMemo, useRef, useState } from "react";
-import { Button, Empty, Modal, Segmented, Spin, Typography } from "antd";
+import { Button, Empty, Modal, Segmented, Spin, Space, Typography } from "antd";
 import {
   CalendarOutlined,
   FilePdfOutlined,
@@ -325,17 +325,20 @@ const VoidReportModal: React.FC<VoidReportProps> = ({ openM, onCloseM, startDate
         </div>
       }
       footer={
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-          <Button onClick={onCloseM} style={{ borderRadius: 8 }}>Cancel</Button>
-          <Button
-            type="primary"
-            icon={<PrinterFilled />}
-            disabled={loading || !hasData}
-            onClick={handlePrint}
-            style={{ background: C.primary, borderColor: C.primary, borderRadius: 8, fontWeight: 600 }}
-          >
-            {printMode === "thermal" ? "Print Thermal Receipt" : "Print A4 Report"}
-          </Button>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div></div>
+          <Space>
+            <Button onClick={onCloseM} style={{ borderRadius: 8 }}>Cancel</Button>
+            <Button
+              type="primary"
+              icon={<PrinterFilled />}
+              disabled={loading || !hasData}
+              onClick={handlePrint}
+              style={{ background: C.primary, borderColor: C.primary, borderRadius: 8, fontWeight: 600 }}
+            >
+              {printMode === "thermal" ? "Print Thermal Receipt" : "Print A4 Report"}
+            </Button>
+          </Space>
         </div>
       }
     >
@@ -353,15 +356,12 @@ const VoidReportModal: React.FC<VoidReportProps> = ({ openM, onCloseM, startDate
               </div>
             )}
 
-            {/* Date strip */}
-            {startDate && endDate && (
-              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 12px", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8 }}>
-                <CalendarOutlined style={{ color: C.subText, fontSize: 11 }} />
-                <Text style={{ fontSize: 12, color: C.subText }}>
-                  {dayjs(startDate).format("MMM DD, YYYY HH:mm")} → {dayjs(endDate).format("MMM DD, YYYY HH:mm")}
-                </Text>
-              </div>
-            )}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 12px", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, flexWrap: "wrap" }}>
+              <CalendarOutlined style={{ color: C.subText, fontSize: 11 }} />
+              <Text style={{ fontSize: 12, color: C.subText, flex: 1 }}>
+                {dayjs(startDate).format("MMM DD, YYYY HH:mm")} → {dayjs(endDate).format("MMM DD, YYYY HH:mm")}
+              </Text>
+            </div>
 
             {/* Preview */}
             <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, background: "#fff", overflow: "hidden" }}>
