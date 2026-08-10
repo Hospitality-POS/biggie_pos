@@ -17,16 +17,12 @@ import {
   Upload,
   Typography,
   Switch,
-  Checkbox,
 } from 'antd';
-import { PlusOutlined, DeleteOutlined, UploadOutlined, DownloadOutlined } from '@ant-design/icons';
+import { PlusOutlined, DeleteOutlined, UploadOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { fetchAllCustomers } from '@services/customers';
 import { fetchAllUsersList } from '@services/users';
 import { fetchFloors } from '@services/dala';
-import { generateOfferLetterPDF } from '@utils/offerLetterPDF';
-import { getPermissionChecker } from '@utils/getPermissionChecker';
-import { PERMISSIONS } from '@utils/accessControl';
 import dayjs from 'dayjs';
 import type { UploadFile } from 'antd/es/upload/interface';
 
@@ -126,7 +122,6 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
     enabled: visible,
   });
 
-  const can = getPermissionChecker();
 
   console.log('my customers', customers);
 
@@ -593,7 +588,7 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
         formattedValues.customer = selectedCustomers[0];
       }
       
-      onSubmit(valuesToSubmit);
+      onSubmit(formattedValues);
       return true;
     } catch (error) {
       message.error('Please check all fields');
@@ -611,139 +606,7 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
     onCancel();
   };
 
-  const [hidePaymentPlans, setHidePaymentPlans] = useState(false);
 
-  const handleDownloadOfferLetter = async () => {
-    const values = form.getFieldsValue();
-    const client = customers?.find((c: any) => c._id === values.client_id);
-    const salesAgent = users?.find((u: any) => u._id === values.salesAgent);
-    const propertyManager = users?.find((u: any) => u._id === values.propertyManager);
-    const property = properties.find((p: any) => p._id === values.property_id);
-    const unit = property?.units?.find((u: any) => u._id === values.unit_id);
-    const apartment = unit?.apartments?.find((a: any) => a._id === values.apartment_id);
-
-    // Get floor and block info
-    const floor = propertyFloors.find((f: any) => f._id === unit?.floorId || f.tempId === unit?.floorId) ||
-                  property?.floors?.find((f: any) => f._id === unit?.floorId || f.tempId === unit?.floorId);
-    const block = property?.blocks?.find((b: any) => b._id === unit?.blockId || b.tempId === unit?.blockId);
-
-    const offerLetterData = {
-      saleCode: String(initialData?.saleCode || `SALE-${Date.now()}`),
-      clientName: String(client?.name || client?.customer_name || 'N/A'),
-      clientEmail: String(client?.email || ''),
-      clientPhone: String(client?.phone || ''),
-      clientIdNumber: String(client?.idNumber || client?.id_number || ''),
-      clientAddress: String(client?.address || ''),
-      clientAddressObject: client?.address || null,
-      clientKraPin: String(client?.kra_pin || ''),
-      propertyName: String(property?.name || 'N/A'),
-      propertyType: String(property?.propertyType || 'N/A'),
-      unitName: String(unit?.name || 'N/A'),
-      unitNumber: String(unit?.unitNumber || apartment?.apartmentName || ''),
-      unitType: String(unit?.unitType || unit?.type || 'N/A'),
-      apartmentName: String(apartment?.apartmentName || ''),
-      floor: String(floor?.name || ''),
-      block: String(block?.name || ''),
-      listPrice: Number(formattedValues.list_price || 0),
-      discount: Number(formattedValues.discount || 0),
-      salePrice: Number(formattedValues.sale_price || 0),
-      initialPayment: Number(formattedValues.initial_payment || 0),
-      initialPaymentCalcType: String(initialPaymentCalcType || 'fixed'),
-      paymentPlan: String(formattedValues.payment_plan || 'N/A'),
-      saleDate: String(formattedValues.sale_date?.format('YYYY-MM-DD') || ''),
-      salesAgent: String(salesAgent?.fullname || salesAgent?.name || 'N/A'),
-      propertyManager: String(propertyManager?.fullname || propertyManager?.name || 'N/A'),
-      hidePaymentPlans: hidePaymentPlans,
-      paymentPlans: initialData?.paymentPlans || [],
-      payments: initialData?.payments || [],
-      paymentTotals: initialData?.paymentTotals || null,
-      // Chestnut City specific fields
-      propertyTitleNumber: String(property?.titleNumber || 'LR 111199 (Originally 4761/)'),
-      location: String(property?.location || 'NANYUKI'),
-      leaseTerm: String(property?.leaseTerm || 'Ninety-Nine (99) years less the last seven (7) days thereof'),
-      managementCompany: String(property?.managementCompany || 'Chestnut City Management Company'),
-      completionDate: String(property?.completionDate || ''),
-      companyDetails: {
-        name: String(property?.developer || 'CHESTNUT CITY LIMITED'),
-        companyRegNo: String(property?.companyRegNo || 'PVT-RXU2E3RV'),
-        poBox: String(property?.poBox || '45721-00100 Nairobi'),
-        phone: String(property?.phone || ''),
-        email: String(property?.email || ''),
-        address: String(property?.address || ''),
-      },
-      bankDetails: {
-        beneficiary: String('CHESTNUT CITY LIMITED'),
-        accountName: String(property?.bankAccountName || ''),
-        bankName: String(property?.bankName || ''),
-        accountNumber: String(property?.accountNumber || ''),
-        branchName: String(property?.branchName || ''),
-      },
-      lawyerDetails: {
-        name: String(property?.lawyerName || 'Messrs. JASON & COMPANY ADVOCATES'),
-        address: String(property?.lawyerAddress || '62 Lower Plains Road, P.O. Box 61850-00200 Nairobi'),
-        accountName: String(property?.lawyerAccountName || 'JASON & COMPANY ADVOCATES'),
-        bankName: String(property?.lawyerBankName || 'EQUITY BANK (KENYA) LIMITED'),
-        accountNumber: String(property?.lawyerAccountNumber || '1470287315683'),
-        branchName: String(property?.lawyerBranchName || 'KILIMANI SUPREME CENTRE'),
-      },
-      serviceCharge: Number(property?.serviceCharge || 0),
-      serviceChargeDeposit: Number(property?.serviceChargeDeposit || 0),
-    };
-
-    await generateOfferLetterPDF(offerLetterData);
-  };
-
-  const handleDownloadClientStatement = async () => {
-    const values = form.getFieldsValue();
-    const client = customers?.find((c: any) => c._id === values.client_id);
-    const property = properties.find((p: any) => p._id === values.property_id);
-    const unit = property?.units?.find((u: any) => u._id === values.unit_id);
-    const apartment = unit?.apartments?.find((a: any) => a._id === values.apartment_id);
-
-    // Get floor and block info
-    const floor = propertyFloors.find((f: any) => f._id === unit?.floorId || f.tempId === unit?.floorId) || 
-                  property?.floors?.find((f: any) => f._id === unit?.floorId || f.tempId === unit?.floorId);
-    const block = property?.blocks?.find((b: any) => b._id === unit?.blockId || b.tempId === unit?.blockId);
-
-    const clientStatementData = {
-      saleCode: String(initialData?.saleCode || `SALE-${Date.now()}`),
-      client: {
-        name: String(client?.name || client?.customer_name || 'N/A'),
-        email: String(client?.email || ''),
-        phone: String(client?.phone || ''),
-        address: String(client?.address || ''),
-        addressObject: client?.address || null,
-      },
-      property: {
-        name: String(property?.name || 'N/A'),
-        propertyType: String(property?.propertyType || 'N/A'),
-      },
-      unit: {
-        name: String(unit?.name || 'N/A'),
-        unitNumber: String(unit?.unitNumber || apartment?.apartmentName || ''),
-        apartmentName: String(apartment?.apartmentName || ''),
-        floor: String(floor?.name || ''),
-        block: String(block?.name || ''),
-      },
-      list_price: Number(formattedValues.list_price || 0),
-      discount: Number(formattedValues.discount || 0),
-      sale_price: Number(formattedValues.sale_price || 0),
-      paymentTotals: initialData?.paymentTotals || {
-        totalPaid: 0,
-        depositPaid: Number(formattedValues.initial_payment || 0),
-        outstandingBalance: Number(formattedValues.sale_price || 0) - Number(formattedValues.initial_payment || 0),
-        paymentPercentage: 0,
-      },
-      paymentPlans: initialData?.paymentPlans || [],
-      payments: initialData?.payments || [],
-      sale_date: String(values.sale_date?.format('YYYY-MM-DD') || ''),
-      status: String(values.status || 'reservation'),
-    };
-
-    // Import the client statement PDF generator function
-    const { generateClientStatementPDF } = await import('@utils/clientStatementPDF');
-    await generateClientStatementPDF(clientStatementData);
-  };
 
   const getUnitsForProperty = (propertyId: string) => {
     const property = properties.find((p: any) => p._id === propertyId);
@@ -1621,41 +1484,15 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
                 </Form.Item>
               </Form>
               <div style={{ marginTop: 24, textAlign: 'right' }}>
-                <Button onClick={goToStep1} style={{ marginRight: 8 }}>
+                <Button onClick={() => setCurrentStep(1)} style={{ marginRight: 8 }}>
                   ← Back
                 </Button>
-                {can(PERMISSIONS.DALA_SALES_DOWNLOAD_OFFER_LETTER.key) && (
-                  <Button
-                    icon={<DownloadOutlined />}
-                    onClick={handleDownloadOfferLetter}
-                    style={{ marginRight: 8 }}
-                  >
-                    Download Offer Letter
-                  </Button>
-                )}
-                {can(PERMISSIONS.DALA_SALES_DOWNLOAD_OFFER_LETTER.key) && (
-                  <Button
-                    icon={<DownloadOutlined />}
-                    onClick={handleDownloadClientStatement}
-                    style={{ marginRight: 8 }}
-                  >
-                    Download Client Statement
-                  </Button>
-                )}
                 <Button onClick={handleCancel} style={{ marginRight: 8 }}>
                   Cancel
                 </Button>
                 <Button type="primary" onClick={handleSubmit}>
                   {edit ? 'Update Sale' : 'Create Sale'}
                 </Button>
-              </div>
-              <div style={{ marginTop: 12, textAlign: 'right' }}>
-                <Checkbox
-                  checked={hidePaymentPlans}
-                  onChange={(e) => setHidePaymentPlans(e.target.checked)}
-                >
-                  Hide Payment Plans in Offer Letter
-                </Checkbox>
               </div>
             </div>
           </Col>

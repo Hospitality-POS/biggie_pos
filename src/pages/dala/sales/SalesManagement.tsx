@@ -1480,6 +1480,7 @@ const SalesManagement: React.FC = () => {
       {/* Record New Payment Modal */}
       <PaymentModal
         visible={paymentModalVisible}
+        showButton={false}
         onCancel={() => setPaymentModalVisible(false)}
         onSuccess={() => {
           refetch();
