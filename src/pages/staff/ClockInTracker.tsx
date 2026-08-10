@@ -22,6 +22,7 @@ const StaffClockTracker = () => {
   // URL params extraction - done once
   const params = useMemo(() => new URLSearchParams(window.location.search), []);
   const tenantId = params.get("tenant_id");
+  const tenantCodeParam = params.get("tenant_code");
   const shopId = params.get("shop_id");
 
   // Get tenant data - optimized with proper caching
@@ -50,9 +51,11 @@ const StaffClockTracker = () => {
 
     setLoading(true);
     try {
+      const resolvedTenantCode = tenantCodeParam || tenant?.tenant_code;
       const payload = {
-        pin: pin,
+        pin,
         tenant_id: tenantId,
+        tenant_code: resolvedTenantCode,
         shop_id: shopId,
       };
 
