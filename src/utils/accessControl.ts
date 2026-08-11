@@ -766,19 +766,19 @@ export const PERMISSIONS: Record<string, Permission> = {
     DALA_MAINTENANCE_DELETE: { key: "DALA_MAINTENANCE_DELETE", label: "Delete Maintenance Request", module: MODULES.DALA_MAINTENANCE, action: "delete", moduleScope: "dala" },
 
     // ══════════════════════════════════════════════════════════════════════════
-    // SIGNATURE MODULE  (moduleScope: "signature")
+    // SIGNATURE MODULE  (moduleScope: "core")
     // ══════════════════════════════════════════════════════════════════════════
 
     // ── E-Signature ─────────────────────────────────────────────────────────────
-    SIGNATURE_VIEW: { key: "SIGNATURE_VIEW", label: "View E-Signature Documents", module: MODULES.SIGNATURE, action: "read", moduleScope: "signature" },
-    SIGNATURE_CREATE: { key: "SIGNATURE_CREATE", label: "Create E-Signature Document", module: MODULES.SIGNATURE, action: "create", moduleScope: "signature" },
-    SIGNATURE_UPDATE: { key: "SIGNATURE_UPDATE", label: "Update E-Signature Document", module: MODULES.SIGNATURE, action: "update", moduleScope: "signature" },
-    SIGNATURE_DELETE: { key: "SIGNATURE_DELETE", label: "Delete E-Signature Document", module: MODULES.SIGNATURE, action: "delete", moduleScope: "signature" },
-    SIGNATURE_SIGN: { key: "SIGNATURE_SIGN", label: "Sign Document", module: MODULES.SIGNATURE, action: "special", moduleScope: "signature" },
-    SIGNATURE_SEND_FOR_SIGNING: { key: "SIGNATURE_SEND_FOR_SIGNING", label: "Send Document for Signing", module: MODULES.SIGNATURE, action: "special", moduleScope: "signature" },
-    SIGNATURE_ADD_SIGNATURE_FIELD: { key: "SIGNATURE_ADD_SIGNATURE_FIELD", label: "Add Signature Field", module: MODULES.SIGNATURE, action: "create", moduleScope: "signature" },
-    SIGNATURE_MANAGE_SIGNATURES: { key: "SIGNATURE_MANAGE_SIGNATURES", label: "Manage Signature Library", module: MODULES.SIGNATURE, action: "update", moduleScope: "signature" },
-    SIGNATURE_VIEW_HISTORY: { key: "SIGNATURE_VIEW_HISTORY", label: "View Signature History", module: MODULES.SIGNATURE, action: "read", moduleScope: "signature" },
+    SIGNATURE_VIEW: { key: "SIGNATURE_VIEW", label: "View E-Signature Documents", module: MODULES.SIGNATURE, action: "read", moduleScope: "core" },
+    SIGNATURE_CREATE: { key: "SIGNATURE_CREATE", label: "Create E-Signature Document", module: MODULES.SIGNATURE, action: "create", moduleScope: "core" },
+    SIGNATURE_UPDATE: { key: "SIGNATURE_UPDATE", label: "Update E-Signature Document", module: MODULES.SIGNATURE, action: "update", moduleScope: "core" },
+    SIGNATURE_DELETE: { key: "SIGNATURE_DELETE", label: "Delete E-Signature Document", module: MODULES.SIGNATURE, action: "delete", moduleScope: "core" },
+    SIGNATURE_SIGN: { key: "SIGNATURE_SIGN", label: "Sign Document", module: MODULES.SIGNATURE, action: "special", moduleScope: "core" },
+    SIGNATURE_SEND_FOR_SIGNING: { key: "SIGNATURE_SEND_FOR_SIGNING", label: "Send Document for Signing", module: MODULES.SIGNATURE, action: "special", moduleScope: "core" },
+    SIGNATURE_ADD_SIGNATURE_FIELD: { key: "SIGNATURE_ADD_SIGNATURE_FIELD", label: "Add Signature Field", module: MODULES.SIGNATURE, action: "create", moduleScope: "core" },
+    SIGNATURE_MANAGE_SIGNATURES: { key: "SIGNATURE_MANAGE_SIGNATURES", label: "Manage Signature Library", module: MODULES.SIGNATURE, action: "update", moduleScope: "core" },
+    SIGNATURE_VIEW_HISTORY: { key: "SIGNATURE_VIEW_HISTORY", label: "View Signature History", module: MODULES.SIGNATURE, action: "read", moduleScope: "core" },
 
     // ── Reports ───────────────────────────────────────────────────────────────
 
@@ -805,9 +805,17 @@ export const CRM_PERMISSION_KEYS = ALL_PERMISSION_KEYS.filter(
 export const DALA_PERMISSION_KEYS = ALL_PERMISSION_KEYS.filter(
     (k) => PERMISSIONS[k].moduleScope === "dala"
 );
-export const SIGNATURE_PERMISSION_KEYS = ALL_PERMISSION_KEYS.filter(
-    (k) => PERMISSIONS[k].moduleScope === "signature"
-);
+export const SIGNATURE_PERMISSION_KEYS = [
+    "SIGNATURE_VIEW",
+    "SIGNATURE_CREATE",
+    "SIGNATURE_UPDATE",
+    "SIGNATURE_DELETE",
+    "SIGNATURE_SIGN",
+    "SIGNATURE_SEND_FOR_SIGNING",
+    "SIGNATURE_ADD_SIGNATURE_FIELD",
+    "SIGNATURE_MANAGE_SIGNATURES",
+    "SIGNATURE_VIEW_HISTORY",
+];
 
 // ─── Tenant-aware helpers ─────────────────────────────────────────────────────
 

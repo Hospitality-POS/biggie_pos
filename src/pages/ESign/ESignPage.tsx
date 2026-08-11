@@ -472,7 +472,7 @@ const TYPE_FONTS = [
 const SIG_COLORS = ["#1a1a2e", "#1d4ed8", "#dc2626", "#16a34a"];
 
 const TypeSignature: React.FC<{
-    onSave: (data: string, type: string) => void;
+    onSave: (data: string, type: string, typedText?: string) => void;
     onCancel: () => void;
     signerName?: string;
     mode?: "signature" | "initials";
@@ -527,7 +527,7 @@ const TypeSignature: React.FC<{
             });
         } else {
             // If no library option, just apply to document
-            onSave(data, mode === "initials" ? "initials" : "type");
+            onSave(data, mode === "initials" ? "initials" : "type", mode === "initials" ? undefined : displayText);
         }
     };
 
@@ -765,7 +765,7 @@ const SIG_SUB_TABS = [
 const SignatureCaptureModal: React.FC<{
     open: boolean;
     onClose: () => void;
-    onSave: (data: string, type: string, duplicateToAllPages?: boolean) => void;
+    onSave: (data: string, type: string, duplicateToAllPages?: boolean, typedText?: string) => void;
     signerName?: string;
     defaultTab?: string;
     onDuplicate?: (data: string, type: string) => void;
@@ -777,14 +777,20 @@ const SignatureCaptureModal: React.FC<{
     const [showLibrary, setShowLibrary] = useState(false);
     const [duplicateToAllPages, setDuplicateToAllPages] = useState(false);
     const [libraryAction, setLibraryAction] = useState<'apply' | 'save' | 'both'>('apply');
-    React.useEffect(() => { if (open) { setFieldType(defaultTab); setSubTab("type"); setShowLibrary(false); setDuplicateToAllPages(false); setLibraryAction('apply'); } }, [open, defaultTab]);
+    const [saveToLibrary, setSaveToLibrary] = useState(false);
+    React.useEffect(() => { if (open) { setFieldType(defaultTab); setSubTab("type"); setShowLibrary(false); setDuplicateToAllPages(false); setLibraryAction('apply'); setSaveToLibrary(false); } }, [open, defaultTab]);
 
-    const handleSave = (data: string, type: string) => { 
+    const handleSave = (data: string, type: string, typedText?: string) => { 
         if (libraryOnly) {
             // Only save to library, don't apply to document
             handleSaveToLibrary(data, type);
         } else {
-            onSave(data, type, duplicateToAllPages); 
+            if (showSaveToLibraryOption && saveToLibrary) {
+                const storageKey = fieldType === 'stamp' ? STORAGE_KEYS.STAMPS : STORAGE_KEYS.SIGNATURES;
+                const defaultName = `${fieldType === 'stamp' ? 'Stamp' : 'Signature'} - ${new Date().toLocaleDateString()}`;
+                saveToStorage(storageKey, { id: Date.now().toString(), data, type, name: defaultName, createdAt: new Date().toISOString() });
+            }
+            onSave(data, type, duplicateToAllPages, typedText); 
             onClose(); 
         }
     };
@@ -1007,9 +1013,9 @@ const SignatureCaptureModal: React.FC<{
                         </div>
                     ) : (
                         <div style={{ minHeight: 240 }}>
-                            {subTab === "type"   && <TypeSignature onSave={handleSave} onCancel={onClose} onSaveToLibrary={showSaveToLibraryOption ? handleSaveToLibrary : undefined} signerName={signerName} mode="signature" />}
-                            {subTab === "draw"   && <SignatureCanvas onSave={(d) => handleSave(d, "draw")} onCancel={onClose} onSaveToLibrary={showSaveToLibraryOption ? handleSaveToLibrary : undefined} />}
-                            {subTab === "upload" && <UploadSignature onSave={(d) => handleSave(d, "upload")} onCancel={onClose} onSaveToLibrary={showSaveToLibraryOption ? handleSaveToLibrary : undefined} />}
+                            {subTab === "type"   && <TypeSignature onSave={handleSave} onCancel={onClose} signerName={signerName} mode="signature" />}
+                            {subTab === "draw"   && <SignatureCanvas onSave={(d) => handleSave(d, "draw")} onCancel={onClose} />}
+                            {subTab === "upload" && <UploadSignature onSave={(d) => handleSave(d, "upload")} onCancel={onClose} />}
                         </div>
                     )}
                 </>
@@ -1018,7 +1024,7 @@ const SignatureCaptureModal: React.FC<{
             {/* Initials */}
             {fieldType === "initials" && (
                 <div style={{ minHeight: 240 }}>
-                    <TypeSignature onSave={handleSave} onCancel={onClose} onSaveToLibrary={showSaveToLibraryOption ? handleSaveToLibrary : undefined} signerName={signerName} mode="initials" />
+                    <TypeSignature onSave={handleSave} onCancel={onClose} signerName={signerName} mode="initials" />
                 </div>
             )}
 
@@ -1117,21 +1123,22 @@ const SignatureCaptureModal: React.FC<{
                             <StampUpload 
                                 onSave={(d) => handleSave(d, "stamp")} 
                                 onCancel={onClose} 
-                                onSaveToLibrary={showSaveToLibraryOption ? handleSaveToLibrary : undefined} 
                             />
                         </div>
                     )}
                 </>
             )}
             
-            {/* Footer with duplicate option */}
+            {/* Footer with duplicate + save-to-library options */}
             <div style={{ 
                 borderTop: "1px solid #e8e8e8", 
                 paddingTop: 12, 
                 marginTop: 16,
                 display: "flex",
                 justifyContent: "space-between",
-                alignItems: "center"
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: 8,
             }}>
                 <label style={{ 
                     display: "flex", 
@@ -1149,6 +1156,29 @@ const SignatureCaptureModal: React.FC<{
                     />
                     <span>Duplicate to all pages at same position</span>
                 </label>
+                {showSaveToLibraryOption && (
+                    <label style={{ 
+                        display: "flex", 
+                        alignItems: "center", 
+                        gap: 8, 
+                        fontSize: 13, 
+                        color: saveToLibrary ? "#1890ff" : "#666",
+                        cursor: "pointer",
+                        background: saveToLibrary ? "#e6f4ff" : "transparent",
+                        border: `1px solid ${saveToLibrary ? "#91caff" : "#d9d9d9"}`,
+                        borderRadius: 6,
+                        padding: "4px 10px",
+                        transition: "all 0.2s",
+                    }}>
+                        <input
+                            type="checkbox"
+                            checked={saveToLibrary}
+                            onChange={(e) => setSaveToLibrary(e.target.checked)}
+                            style={{ cursor: "pointer" }}
+                        />
+                        <span>💾 Save to library</span>
+                    </label>
+                )}
             </div>
         </Modal>
     );
@@ -1817,6 +1847,7 @@ const ESignPage: React.FC = () => {
     const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
     const [initiateModalOpen, setInitiateModalOpen] = useState(false);
     const [signCaptureModalOpen, setSignCaptureModalOpen] = useState(false);
+    const [libraryAddModalOpen, setLibraryAddModalOpen] = useState(false);
     // Draggable position for signing within preview
     const [pendingMarkers, setPendingMarkers] = useState<PendingMarker[]>([]);
     const [previewSignDragging, setPreviewSignDragging] = useState(false);
@@ -3351,7 +3382,6 @@ const ESignPage: React.FC = () => {
                                                 await eSignService.submitSignature(selectedDocument?._id || "", {
                                                     signature_data: marker.preloadedData ?? "",
                                                     signature_type: marker.preloadedType || marker.type,
-                                                    field_id: marker.id,
                                                     position: { x: marker.x, y: marker.y, page: marker.page, ...getSigDimensions(marker.preloadedType || marker.type), ...containerSize },
                                                 });
                                             }
@@ -3417,18 +3447,20 @@ const ESignPage: React.FC = () => {
                 open={signCaptureModalOpen}
                 onClose={() => setSignCaptureModalOpen(false)}
                 defaultTab={previewSignMode}
+                showSaveToLibraryOption={true}
                 signerName={selectedDocument?.signing_workflow?.signers?.[selectedDocument?.signing_workflow?.current_signer_index ?? 0]?.name ?? selectedDocument?.signing_workflow?.signers?.[0]?.name ?? ""}
-                onSave={async (data, type) => {
+                onSave={async (data, type, _dup, typedText) => {
                     const containerSize = getContainerSize();
                     setIsSigningAllPages(true);
                     setSignCaptureModalOpen(false);
                     try {
                         for (const marker of pendingMarkers) {
+                            const sigType = marker.preloadedType || type;
                             await eSignService.submitSignature(selectedDocument?._id || "", {
                                 signature_data: marker.preloadedData || data,
-                                signature_type: marker.preloadedType || type,
-                                field_id: marker.id,
-                                position: { x: marker.x, y: marker.y, page: marker.page, ...getSigDimensions(marker.preloadedType || type), ...containerSize },
+                                signature_type: sigType,
+                                ...(sigType === "type" && typedText && !marker.preloadedData ? { typed_signature_text: typedText } : {}),
+                                position: { x: marker.x, y: marker.y, page: marker.page, ...getSigDimensions(sigType), ...containerSize },
                             });
                         }
                         message.success(`${pendingMarkers.length} field${pendingMarkers.length !== 1 ? "s" : ""} signed successfully`);
@@ -3669,18 +3701,17 @@ const ESignPage: React.FC = () => {
             }}
             onAddNew={() => {
                 setLibraryModalOpen(false);
-                setSignCaptureModalOpen(true);
+                setLibraryAddModalOpen(true);
             }}
             type={libraryType}
         />
         
-        {/* Signature capture modal for adding new signatures/stamps */}
+        {/* Signature capture modal for adding new signatures/stamps to library */}
         <SignatureCaptureModal
-            open={signCaptureModalOpen}
-            onClose={() => setSignCaptureModalOpen(false)}
-            onSave={(data, type) => {
-                // This won't be called in library-only mode
-                setSignCaptureModalOpen(false);
+            open={libraryAddModalOpen}
+            onClose={() => setLibraryAddModalOpen(false)}
+            onSave={(_data, _type) => {
+                setLibraryAddModalOpen(false);
                 // Reopen library to show the new item
                 setTimeout(() => setLibraryModalOpen(true), 100);
             }}
