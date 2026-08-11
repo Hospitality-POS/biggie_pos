@@ -1509,7 +1509,7 @@ const DocumentSigningInterface: React.FC<{
         },
     });
 
-    const handleSignatureSave = (data: string, type: string, duplicateToAllPages: boolean = false) => {
+    const handleSignatureSave = async (data: string, type: string, duplicateToAllPages: boolean = false) => {
         const basePosition = { 
             x: positionRef.current.x, 
             y: positionRef.current.y, 
@@ -1519,28 +1519,32 @@ const DocumentSigningInterface: React.FC<{
         };
 
         if (duplicateToAllPages && totalPages > 1) {
-            // Submit for all pages with the same position
-            const positions = Array.from({ length: totalPages }, (_, i) => ({
-                ...basePosition,
-                page: i + 1
-            }));
+            try {
+                // Submit page 1 first and capture its _id for subsequent pages
+                const firstResponse = await eSignService.submitSignature(document._id, {
+                    signature_data: data,
+                    signature_type: type,
+                    position: { ...basePosition, page: 1 },
+                });
+                const sourceId: string | undefined = firstResponse?._id;
 
-            let completed = 0;
-            positions.forEach((position, index) => {
-                setTimeout(() => {
-                    submitMutation.mutate({
+                // Pages 2+ use source_signature_id to copy the image directly
+                for (let page = 2; page <= totalPages; page++) {
+                    await new Promise(r => setTimeout(r, 200));
+                    await eSignService.submitSignature(document._id, sourceId ? {
+                        source_signature_id: sourceId,
+                        position: { ...basePosition, page },
+                    } : {
                         signature_data: data,
                         signature_type: type,
-                        position,
+                        position: { ...basePosition, page },
                     });
-                    completed++;
-                    if (completed === positions.length) {
-                        message.success(`Signature applied to all ${totalPages} pages at the same position`);
-                        // Refresh the document to show all signatures
-                        queryClient.invalidateQueries(["signing-status", document._id]);
-                    }
-                }, index * 500); // Stagger submissions
-            });
+                }
+                message.success(`Signature applied to all ${totalPages} pages at the same position`);
+                queryClient.invalidateQueries(["signing-status", document._id]);
+            } catch {
+                message.error("Failed to apply signature to all pages");
+            }
         } else {
             submitMutation.mutate({
                 signature_data: data,
@@ -2019,22 +2023,44 @@ const ESignPage: React.FC = () => {
             if (p !== field.position.page) pagesToAdd.push(p);
         }
         if (pagesToAdd.length === 0) { message.info("No other pages to copy to"); return; }
-        
+
         let completed = 0;
         pagesToAdd.forEach((page, index) => {
-            setTimeout(() => {
-                addSignatureFieldMutation.mutate({
-                    signer_name: field.signer_name,
-                    position: { x: field.position.x, y: field.position.y, page, width: field.position.width || 200, height: field.position.height || 50 },
-                });
+            setTimeout(async () => {
+                try {
+                    await eSignService.submitSignature(selectedDocument?._id || "", {
+                        source_signature_id: field._id,
+                        signature_type: field.signature_type || "upload",
+                        position: { x: field.position.x, y: field.position.y, page, width: field.position.width || 200, height: field.position.height || 50 },
+                    });
+                } catch { /* error toast handled by interceptor */ }
                 completed++;
                 if (completed === pagesToAdd.length) {
                     message.success(`Signature duplicated to ${pagesToAdd.length} page(s)`);
-                    // Refresh the document to show the new signatures
-                    if (selectedDocument) handlePreviewSigned(selectedDocument);
+                    // Silent refresh — stay on current page so user can navigate to verify
+                    if (selectedDocument) {
+                        try {
+                            const r = await axiosInstance.get(`${BASE_URL}/documents/${selectedDocument._id}`);
+                            setSelectedDocument(r.data);
+                        } catch { /* keep current view */ }
+                    }
                 }
-            }, index * 300); // Stagger requests
+            }, index * 300);
         });
+    };
+
+    const handleCopyToSamePage = (field: SignatureField) => {
+        const offset = 30;
+        setPendingMarkers(prev => [...prev, {
+            id: `pm-${Date.now()}`,
+            x: Math.max(10, field.position.x + offset),
+            y: Math.max(10, field.position.y + offset),
+            page: currentPage,
+            type: field.signature_type === "stamp" ? "stamp" : "signature",
+            preloadedData: field.signature_image_url || "",
+            preloadedType: field.signature_type || "upload",
+        }]);
+        message.success("Signature copied to this page — drag to reposition");
     };
 
     const addSidebarMarker = (type: PendingMarker["type"], imageUrl: string, sigType: string) => {
@@ -2681,21 +2707,6 @@ const ESignPage: React.FC = () => {
                                     return (
                                         <div
                                             key={field._id}
-                                            onMouseDown={(e) => {
-                                                if (isLocked) return;
-                                                e.preventDefault();
-                                                e.stopPropagation();
-                                                const rect = e.currentTarget.getBoundingClientRect();
-                                                const containerScrollTop = previewContainerRef.current?.scrollTop ?? 0;
-                                                const containerScrollLeft = previewContainerRef.current?.scrollLeft ?? 0;
-                                                activeDragRef.current = {
-                                                    type: 'signature',
-                                                    index,
-                                                    offsetX: e.clientX - rect.left + containerScrollLeft,
-                                                    offsetY: e.clientY - rect.top + containerScrollTop,
-                                                };
-                                                setPreviewDraggingIndex(index);
-                                            }}
                                             style={{
                                                 position: "absolute",
                                                 left: posX,
@@ -2705,21 +2716,44 @@ const ESignPage: React.FC = () => {
                                                 padding: "8px 16px",
                                                 color: isDraggingThis ? "#1890ff" : isLocked ? "#faad14" : "#52c41a",
                                                 fontSize: "12px",
-                                                cursor: isLocked ? "default" : isDraggingThis ? "grabbing" : "grab",
+                                                cursor: isLocked ? "default" : "default",
                                                 userSelect: "none",
                                                 zIndex: isDraggingThis ? 1000 : 10,
                                             }}
                                         >
                                             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                                {!isLocked && (
+                                                    <span
+                                                        onMouseDown={(e) => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                            const rect = e.currentTarget.parentElement?.parentElement?.getBoundingClientRect();
+                                                            if (!rect) return;
+                                                            const containerScrollTop = previewContainerRef.current?.scrollTop ?? 0;
+                                                            const containerScrollLeft = previewContainerRef.current?.scrollLeft ?? 0;
+                                                            activeDragRef.current = {
+                                                                type: 'signature',
+                                                                index,
+                                                                offsetX: e.clientX - rect.left + containerScrollLeft,
+                                                                offsetY: e.clientY - rect.top + containerScrollTop,
+                                                            };
+                                                            setPreviewDraggingIndex(index);
+                                                        }}
+                                                        style={{ cursor: "grab", fontSize: "16px", userSelect: "none" }}
+                                                        title="Drag to move"
+                                                    >
+                                                        ⋮⋮
+                                                    </span>
+                                                )}
                                                 {field.signature_image_url ? (
                                                     <img
                                                         src={field.signature_image_url}
                                                         alt="Signature"
                                                         draggable={false}
-                                                        style={{ maxWidth: "150px", maxHeight: "50px", objectFit: "contain" }}
+                                                        style={{ maxWidth: "150px", maxHeight: "50px", objectFit: "contain", pointerEvents: "none" }}
                                                     />
                                                 ) : (
-                                                    <span>✓ {field.signer_name}</span>
+                                                    <span style={{ pointerEvents: "none" }}>✓ {field.signer_name}</span>
                                                 )}
                                                 <div style={{ display: "flex", gap: 4, marginLeft: 8 }}>
                                                     <Button
@@ -2740,16 +2774,27 @@ const ESignPage: React.FC = () => {
                                                         {isLocked ? "🔓" : "🔒"}
                                                     </Button>
                                                     {!isLocked && (
-                                                        <Button
-                                                            size="small"
-                                                            type="text"
-                                                            onMouseDown={(e) => e.stopPropagation()}
-                                                            onClick={(e) => { e.stopPropagation(); handleDuplicateSignature(field); }}
-                                                            title="Duplicate to other pages"
-                                                            disabled={totalPages <= 1}
-                                                        >
-                                                            📋
-                                                        </Button>
+                                                        <>
+                                                            <Button
+                                                                size="small"
+                                                                type="text"
+                                                                onMouseDown={(e) => e.stopPropagation()}
+                                                                onClick={(e) => { e.stopPropagation(); handleCopyToSamePage(field); }}
+                                                                title="Copy to this page"
+                                                            >
+                                                                📄
+                                                            </Button>
+                                                            <Button
+                                                                size="small"
+                                                                type="text"
+                                                                onMouseDown={(e) => e.stopPropagation()}
+                                                                onClick={(e) => { e.stopPropagation(); handleDuplicateSignature(field); }}
+                                                                title="Duplicate to other pages"
+                                                                disabled={totalPages <= 1}
+                                                            >
+                                                                📋
+                                                            </Button>
+                                                        </>
                                                     )}
                                                     <Button
                                                         size="small"
@@ -3454,19 +3499,32 @@ const ESignPage: React.FC = () => {
                     setIsSigningAllPages(true);
                     setSignCaptureModalOpen(false);
                     try {
+                        let freshSourceId: string | null = null;
                         for (const marker of pendingMarkers) {
                             const sigType = marker.preloadedType || type;
-                            await eSignService.submitSignature(selectedDocument?._id || "", {
+                            // For fresh (non-library) duplicates, reuse the first submission's image
+                            const useSource = freshSourceId && !marker.preloadedData;
+                            const response = await eSignService.submitSignature(selectedDocument?._id || "", useSource ? {
+                                source_signature_id: freshSourceId,
+                                signature_type: sigType,
+                                position: { x: marker.x, y: marker.y, page: marker.page, ...getSigDimensions(sigType), ...containerSize },
+                            } : {
                                 signature_data: marker.preloadedData || data,
                                 signature_type: sigType,
                                 ...(sigType === "type" && typedText && !marker.preloadedData ? { typed_signature_text: typedText } : {}),
                                 position: { x: marker.x, y: marker.y, page: marker.page, ...getSigDimensions(sigType), ...containerSize },
                             });
+                            // Capture first fresh signature's ID for subsequent duplicates
+                            if (!freshSourceId && !marker.preloadedData) {
+                                freshSourceId = response?._id || null;
+                            }
                         }
                         message.success(`${pendingMarkers.length} field${pendingMarkers.length !== 1 ? "s" : ""} signed successfully`);
                         setPendingMarkers([]);
                         queryClient.invalidateQueries({ queryKey: ["documents"] });
-                        // Silently refresh doc data so overlays update without closing signing mode
+                        queryClient.invalidateQueries({ queryKey: ["signing-status", selectedDocument?._id] });
+                        // Small delay to allow backend to process, then silently refresh doc data
+                        await new Promise(r => setTimeout(r, 300));
                         if (selectedDocument) {
                             try {
                                 const resp = await axiosInstance.get(`${BASE_URL}/documents/${selectedDocument._id}`);
