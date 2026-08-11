@@ -244,9 +244,14 @@ axiosInstance.interceptors.response.use(
                 case 409:
                     handleError(response.data.message || "Company does not exist kindly contact support");
                     break;
-                case 404:
-                    handleError(response.data.message || "Resource not found");
+                case 404: {
+                    const url404 = response.config?.url || '';
+                    // Signature field deletes return 404 for submitted signatures — suppress toast
+                    if (!url404.includes('/signing/fields/')) {
+                        handleError(response.data.message || "Resource not found");
+                    }
                     break;
+                }
                 default:
                     break;
             }
