@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import {
     Space, DatePicker, Button, Typography, Tooltip,
-    Switch, Tag, Divider, InputNumber,
+    Switch, Tag, Divider, InputNumber, Dropdown,
 } from "antd";
 import {
     SearchOutlined, DownloadOutlined, FilterOutlined, SwapOutlined,
@@ -112,12 +112,11 @@ interface PeriodFilterProps {
     onChange: (v: ComparativePeriod) => void;
     onRun: () => void;
     loading?: boolean;
-    extra?: React.ReactNode;
     supportComparative?: boolean;
 }
 
 export const PeriodFilter: React.FC<PeriodFilterProps> = ({
-    value, onChange, onRun, loading, extra, supportComparative = true,
+    value, onChange, onRun, loading, supportComparative = true,
 }) => {
     const [activeMonths, setActiveMonths] = useState<number | null>(null);
     const [customMonths, setCustomMonths] = useState(3);
@@ -169,7 +168,6 @@ export const PeriodFilter: React.FC<PeriodFilterProps> = ({
                     allowClear={false} format="DD MMM YYYY" presets={antPresets} style={{ borderRadius: 8 }} />
                 <MonthChips activeMonths={activeMonths} onSelect={(m) => applyMonths(m)}
                     customMonths={customMonths} onCustom={(m) => { setCustomMonths(m); applyMonths(m); }} />
-                {extra}
                 <Button type="primary" icon={<SearchOutlined />} loading={loading} onClick={onRun} style={{ borderRadius: 8 }}>
                     Run Report
                 </Button>
@@ -208,12 +206,11 @@ interface AsOfFilterProps {
     onChange: (v: ComparativeAsOf) => void;
     onRun: () => void;
     loading?: boolean;
-    extra?: React.ReactNode;
     supportComparative?: boolean;
 }
 
 export const AsOfFilter: React.FC<AsOfFilterProps> = ({
-    value, onChange, onRun, loading, extra, supportComparative = true,
+    value, onChange, onRun, loading, supportComparative = true,
 }) => {
     const asOfPresets = [
         { label: "Today", value: dayjs() },
@@ -240,7 +237,6 @@ export const AsOfFilter: React.FC<AsOfFilterProps> = ({
                 <Text style={{ fontSize: 12, color: "#64748b", fontWeight: 500 }}>As of:</Text>
                 <DatePicker value={value.primary} onChange={(d) => onChange({ ...value, primary: d })}
                     format="DD MMM YYYY" allowClear={false} presets={asOfPresets} style={{ borderRadius: 8 }} />
-                {extra}
                 <Button type="primary" icon={<SearchOutlined />} loading={loading} onClick={onRun} style={{ borderRadius: 8 }}>
                     Run Report
                 </Button>
@@ -359,20 +355,39 @@ export const GLPeriodFilter: React.FC<GLPeriodFilterProps> = ({ value, onChange,
 
 // Export button
 interface ExportButtonProps {
-    onExport: () => void;
+    onExportCSV?: () => void;
+    onExportPDF?: () => void;
     disabled?: boolean;
 }
 
-export const ExportButton: React.FC<ExportButtonProps> = ({ onExport, disabled }) => (
-    <Tooltip title="Export to CSV">
-        <Button icon={<DownloadOutlined />} onClick={onExport} disabled={disabled} style={{ borderRadius: 8 }}>Export</Button>
-    </Tooltip>
-);
+export const ExportButton: React.FC<ExportButtonProps> = ({ onExportCSV, onExportPDF, disabled }) => {
+    const items = [];
+    if (onExportCSV) {
+        items.push({ key: 'csv', label: 'Export to CSV' });
+    }
+    if (onExportPDF) {
+        items.push({ key: 'pdf', label: 'Export to PDF' });
+    }
 
-export const exportToCSV = (filename: string, rows: Record<string, any>[]) => {
+    if (items.length === 0) return null;
+
+    const handleMenuClick = ({ key }: { key: string }) => {
+        if (key === 'csv' && onExportCSV) onExportCSV();
+        if (key === 'pdf' && onExportPDF) onExportPDF();
+    };
+
+    return (
+        <Dropdown menu={{ items, onClick: handleMenuClick }} disabled={disabled}>
+            <Button icon={<DownloadOutlined />} style={{ borderRadius: 8 }}>Export</Button>
+        </Dropdown>
+    );
+};
+
+export const exportToCSV = (filename: string, rows: Record<string, any>[], periodLabel?: string) => {
     if (!rows.length) return;
     const headers = Object.keys(rows[0]);
     const csv = [
+        periodLabel ? `Report Period: ${periodLabel}` : "",
         headers.join(","),
         ...rows.map((row) =>
             headers.map((h) => {
@@ -389,4 +404,77 @@ export const exportToCSV = (filename: string, rows: Record<string, any>[]) => {
     link.download = filename + "_" + dayjs().format("YYYY-MM-DD") + ".csv";
     link.click();
     URL.revokeObjectURL(url);
+};
+
+export const exportToPDF = (filename: string, rows: Record<string, any>[], periodLabel?: string, summary?: { revenue?: number; expenses?: number; netProfit?: number; basis?: string; assets?: number; liabilities?: number; equity?: number; asOf?: string }) => {
+    if (!rows.length) return;
+    const headers = Object.keys(rows[0]);
+    
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+    <title>${filename}</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: Arial, sans-serif; padding: 20px; font-size: 12px; color: #333; }
+        h1 { font-size: 18px; margin-bottom: 10px; color: #1a1a1a; }
+        .period { font-size: 14px; color: #666; margin-bottom: 20px; font-weight: 500; }
+        .summary { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; margin-bottom: 20px; }
+        .summary-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
+        .summary-row:last-child { margin-bottom: 0; }
+        .summary-label { font-weight: 500; color: #64748b; }
+        .summary-value { font-weight: 600; color: #0f172a; }
+        .summary-value.profit { color: #10b981; }
+        .summary-value.loss { color: #ef4444; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th { background: #f5f5f5; text-align: left; padding: 8px 12px; border-bottom: 2px solid #ddd; font-size: 11px; font-weight: 600; color: #444; }
+        td { padding: 8px 12px; border-bottom: 1px solid #eee; }
+        tr:nth-child(even) { background: #f9f9f9; }
+        .footer { margin-top: 30px; color: #999; font-size: 10px; border-top: 1px solid #eee; padding-top: 10px; }
+    </style>
+</head>
+<body>
+    <h1>${filename.replace(/_/g, ' ').toUpperCase()}</h1>
+    ${periodLabel ? `<div class="period">Report Period: ${periodLabel}</div>` : ''}
+    ${summary ? `
+    <div class="summary">
+        ${periodLabel ? `<div class="summary-row"><span class="summary-label">Report Period:</span><span class="summary-value">${periodLabel}</span></div>` : ''}
+        ${summary.basis ? `<div class="summary-row"><span class="summary-label">Basis:</span><span class="summary-value">${summary.basis}</span></div>` : ''}
+        ${summary.asOf ? `<div class="summary-row"><span class="summary-label">As Of:</span><span class="summary-value">${summary.asOf}</span></div>` : ''}
+        ${summary.revenue !== undefined ? `<div class="summary-row"><span class="summary-label">Revenue:</span><span class="summary-value">KES ${(summary.revenue || 0).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>` : ''}
+        ${summary.expenses !== undefined ? `<div class="summary-row"><span class="summary-label">Expenses:</span><span class="summary-value">KES ${(summary.expenses || 0).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>` : ''}
+        ${summary.netProfit !== undefined ? `<div class="summary-row"><span class="summary-label">Net Profit:</span><span class="summary-value ${summary.netProfit >= 0 ? 'profit' : 'loss'}">KES ${(summary.netProfit || 0).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>` : ''}
+        ${summary.assets !== undefined ? `<div class="summary-row"><span class="summary-label">Total Assets:</span><span class="summary-value">KES ${(summary.assets || 0).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>` : ''}
+        ${summary.liabilities !== undefined ? `<div class="summary-row"><span class="summary-label">Total Liabilities:</span><span class="summary-value">KES ${(summary.liabilities || 0).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>` : ''}
+        ${summary.equity !== undefined ? `<div class="summary-row"><span class="summary-label">Total Equity:</span><span class="summary-value">KES ${(summary.equity || 0).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>` : ''}
+        <div class="summary-row"><span class="summary-label">Generated:</span><span class="summary-value">${dayjs().format('DD MMM YYYY HH:mm')}</span></div>
+    </div>
+    ` : ''}
+    <table>
+        <thead>
+            <tr>
+                ${headers.map(h => `<th>${h.replace(/_/g, ' ')}</th>`).join('')}
+            </tr>
+        </thead>
+        <tbody>
+            ${rows.map(row => `
+                <tr>
+                    ${headers.map(h => `<td>${row[h] ?? ''}</td>`).join('')}
+                </tr>
+            `).join('')}
+        </tbody>
+    </table>
+    ${!summary ? `<div class="footer">Generated on ${dayjs().format('DD MMM YYYY HH:mm')}</div>` : ''}
+</body>
+</html>`;
+
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+        printWindow.document.write(html);
+        printWindow.document.close();
+        printWindow.onload = () => {
+            printWindow.print();
+        };
+    }
 };

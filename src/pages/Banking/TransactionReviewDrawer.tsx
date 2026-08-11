@@ -2,11 +2,11 @@ import React, { useState, useEffect } from "react";
 import {
     Drawer, Table, Typography, Space, Tag, Button, Tooltip,
     Select, Popconfirm, Badge, Alert, Row, Col, Statistic,
-    Tabs, Progress, Divider, App, Modal, Form, Input, DatePicker,
+    Tabs, Progress, App, Modal, Form, Input, DatePicker, Card,
 } from "antd";
 import {
-    ThunderboltOutlined, CheckCircleOutlined, StopOutlined,
-    SendOutlined, ReloadOutlined, TagOutlined, PushpinOutlined,
+    CheckCircleOutlined, StopOutlined,
+    SendOutlined, ReloadOutlined, TagOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -24,6 +24,8 @@ import {
     CategorizeTransactionInput,
 } from "@services/accounting/bankStatementImport";
 import { getAllAccounts } from "@services/accounting/accounts";
+import { fetchAllSuppliers } from "@services/supplier";
+import { getAllReconciliations, BankReconciliation } from "@services/accounting/reconciliation";
 import dayjs from "dayjs";
 
 const { Text, Title } = Typography;
@@ -49,11 +51,12 @@ interface CategorizeTxnModalProps {
     onConfirm: (data: CategorizeTransactionInput) => void;
     transaction: RawTransaction | null;
     accounts: any[];
+    suppliers: any[];
     loading: boolean;
 }
 
 const CategorizeTxnModal: React.FC<CategorizeTxnModalProps> = ({
-    open, onClose, onConfirm, transaction, accounts, loading,
+    open, onClose, onConfirm, transaction, accounts, suppliers, loading,
 }) => {
     const [form] = Form.useForm();
 
@@ -61,11 +64,15 @@ const CategorizeTxnModal: React.FC<CategorizeTxnModalProps> = ({
         if (open && transaction) {
             form.setFieldsValue({
                 account_id: transaction.account_id || undefined,
-                category_label: transaction.category_label || "",
-                payee_name: transaction.payee_name || "",
-                notes: transaction.notes || "",
                 record_type: transaction.record_type || undefined,
                 target_account_id: transaction.target_account_id || undefined,
+                vendor_id: transaction.vendor_id || undefined,
+                vat_treatment: transaction.vat_treatment || undefined,
+                tax: transaction.tax || undefined,
+                tax_exemption_reason: transaction.tax_exemption_reason || undefined,
+                reference_number: transaction.reference_number || undefined,
+                custom_reference: transaction.custom_reference || undefined,
+                reporting_tags: transaction.reporting_tags || undefined,
             });
         } else {
             form.resetFields();
@@ -75,6 +82,11 @@ const CategorizeTxnModal: React.FC<CategorizeTxnModalProps> = ({
     const accountOptions = accounts.map((a: any) => ({
         label: `${a.account_code} — ${a.account_name}`,
         value: a._id,
+    }));
+
+    const supplierOptions = suppliers.map((s: any) => ({
+        label: s.name,
+        value: s._id,
     }));
 
     const handleOk = async () => {
@@ -96,8 +108,8 @@ const CategorizeTxnModal: React.FC<CategorizeTxnModalProps> = ({
             onCancel={onClose}
             onOk={handleOk}
             confirmLoading={loading}
-            okText="Save Category"
-            width={500}
+            okText="Save"
+            width={600}
             destroyOnClose
         >
             <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
@@ -112,11 +124,12 @@ const CategorizeTxnModal: React.FC<CategorizeTxnModalProps> = ({
                         showSearch
                         optionFilterProp="label"
                         allowClear
+                        size="large"
                     />
                 </Form.Item>
                 <Row gutter={12}>
                     <Col span={12}>
-                        <Form.Item name="record_type" label="Record As">
+                        <Form.Item name="record_type" label="Record Type">
                             <Select
                                 placeholder="Select type..."
                                 options={[
@@ -126,35 +139,112 @@ const CategorizeTxnModal: React.FC<CategorizeTxnModalProps> = ({
                                     { label: "Refund", value: "refund" },
                                 ]}
                                 allowClear
+                                size="large"
                             />
                         </Form.Item>
                     </Col>
                     <Col span={12}>
-                        <Form.Item name="category_label" label="Category Label">
-                            <Input placeholder="e.g. Office Supplies, Utilities..." />
+                        <Form.Item name="vendor_id" label="Vendor">
+                            <Select
+                                placeholder="Select vendor..."
+                                options={supplierOptions}
+                                showSearch
+                                optionFilterProp="label"
+                                allowClear
+                                size="large"
+                            />
                         </Form.Item>
                     </Col>
                 </Row>
                 <Form.Item noStyle shouldUpdate={(prev, curr) => prev.record_type !== curr.record_type}>
                     {({ getFieldValue }) =>
                         getFieldValue("record_type") === "transfer" ? (
-                            <Form.Item name="target_account_id" label="Target Account (for transfers)">
+                            <Form.Item name="target_account_id" label="Target Account">
                                 <Select
                                     placeholder="Select target account..."
                                     options={accountOptions}
                                     showSearch
                                     optionFilterProp="label"
                                     allowClear
+                                    size="large"
                                 />
                             </Form.Item>
                         ) : null
                     }
                 </Form.Item>
-                <Form.Item name="payee_name" label="Payee Name">
-                    <Input placeholder="e.g. KPA, Safaricom..." />
+                <Row gutter={12}>
+                    <Col span={12}>
+                        <Form.Item name="vat_treatment" label="VAT Treatment">
+                            <Select
+                                placeholder="Select..."
+                                options={[
+                                    { label: "VAT Registered", value: "vat_registered" },
+                                    { label: "Non VAT Registered", value: "non_vat_registered" },
+                                ]}
+                                allowClear
+                                size="large"
+                            />
+                        </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                        <Form.Item name="tax" label="Tax">
+                            <Select
+                                placeholder="Select..."
+                                options={[
+                                    { label: "Taxable", value: "taxable" },
+                                    { label: "Exempt", value: "exempt" },
+                                ]}
+                                allowClear
+                                size="large"
+                            />
+                        </Form.Item>
+                    </Col>
+                </Row>
+                <Form.Item noStyle shouldUpdate={(prev, curr) => prev.tax !== curr.tax}>
+                    {({ getFieldValue }) =>
+                        getFieldValue("tax") === "exempt" ? (
+                            <Form.Item
+                                name="tax_exemption_reason"
+                                label="Tax Exemption Reason"
+                                rules={[{ required: true, message: "Please provide exemption reason" }]}
+                            >
+                                <Input placeholder="Reason for tax exemption..." size="large" />
+                            </Form.Item>
+                        ) : null
+                    }
                 </Form.Item>
-                <Form.Item name="notes" label="Notes">
-                    <Input.TextArea rows={2} placeholder="Optional notes" />
+                <Row gutter={12}>
+                    <Col span={12}>
+                        <Form.Item name="reference_number" label="Reference Number">
+                            <Select
+                                placeholder="Select..."
+                                options={[
+                                    { label: "From Bank Statement", value: "from_bank_statement" },
+                                    { label: "Custom", value: "custom" },
+                                ]}
+                                allowClear
+                                size="large"
+                            />
+                        </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                        <Form.Item noStyle shouldUpdate={(prev, curr) => prev.reference_number !== curr.reference_number}>
+                            {({ getFieldValue }) =>
+                                getFieldValue("reference_number") === "custom" ? (
+                                    <Form.Item name="custom_reference" label="Custom Reference">
+                                        <Input placeholder="Enter custom reference..." size="large" />
+                                    </Form.Item>
+                                ) : null
+                            }
+                        </Form.Item>
+                    </Col>
+                </Row>
+                <Form.Item name="reporting_tags" label="Reporting Tags">
+                    <Select
+                        mode="tags"
+                        placeholder="Add tags..."
+                        size="large"
+                    />
                 </Form.Item>
             </Form>
         </Modal>
@@ -200,10 +290,32 @@ const TransactionReviewDrawer: React.FC<Props> = ({
         enabled: open,
     });
 
+    const { data: suppliersData } = useQuery({
+        queryKey: ["suppliers", shopId],
+        queryFn: () => fetchAllSuppliers({ name: "", email: "" }),
+        enabled: open,
+    });
+
+    const { data: reconciliationsData } = useQuery({
+        queryKey: ["reconciliations", shopId],
+        queryFn: () => getAllReconciliations({ shop_id: shopId, status: "Open" }),
+        enabled: open,
+    });
+
     const accounts = accountsData?.accounts || [];
+    const suppliers = Array.isArray(suppliersData) ? suppliersData : [];
+    const reconciliations = reconciliationsData?.reconciliations || [];
     const accountOptions = accounts.map((a: any) => ({
         label: `${a.account_code} — ${a.account_name}`,
         value: a._id,
+    }));
+    const supplierOptions = suppliers.map((s: any) => ({
+        label: s.name,
+        value: s._id,
+    }));
+    const reconciliationOptions = reconciliations.map((r: BankReconciliation) => ({
+        label: `${r.reconciliation_no} — ${r.account_name} (${dayjs(r.period_start).format("DD MMM YYYY")} to ${dayjs(r.period_end).format("DD MMM YYYY")})`,
+        value: r._id,
     }));
 
     const importDetail = data?.import;
@@ -343,59 +455,53 @@ const TransactionReviewDrawer: React.FC<Props> = ({
             ),
         },
         {
-            title: "Category",
-            key: "category",
+            title: "Account",
+            key: "account",
             width: 200,
             render: (_: any, r: RawTransaction) => {
-                if (!r.account_name && !r.category_label) {
+                if (!r.account_name) {
                     return <Text type="secondary" style={{ fontSize: 12 }}>—</Text>;
                 }
                 return (
-                    <Space direction="vertical" size={0}>
-                        {r.account_name && (
-                            <Tag icon={<TagOutlined />} color="blue" style={{ fontSize: 11 }}>
-                                {r.account_code} {r.account_name}
-                            </Tag>
-                        )}
-                        {r.category_label && (
-                            <Text type="secondary" style={{ fontSize: 11 }}>{r.category_label}</Text>
-                        )}
-                        {r.categorized_by && (
-                            <Text type="secondary" style={{ fontSize: 10 }}>
-                                via {r.categorized_by === "rule" ? `rule: ${r.matched_rule_name}` : r.categorized_by}
-                            </Text>
-                        )}
-                    </Space>
+                    <Tag icon={<TagOutlined />} color="blue" style={{ fontSize: 11 }}>
+                        {r.account_code} {r.account_name}
+                    </Tag>
                 );
             },
         },
         {
-            title: "Debit (Deposit)",
+            title: "Debit",
             dataIndex: "debit",
             width: 110,
             align: "right" as const,
-            render: (v: number) =>
-                v > 0 ? (
-                    <Text style={{ color: "#cf1322", fontSize: 12 }}>
-                        {v.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
-                    </Text>
-                ) : (
-                    <Text type="secondary">—</Text>
-                ),
+            render: (v: number, r: RawTransaction) => {
+                if (importDetail?.amount_column_type === "single" && r.original_amount !== undefined) {
+                    if (r.original_amount < 0) {
+                        return <Text style={{ color: "#cf1322", fontSize: 12 }}>{r.original_amount.toLocaleString("en-KE", { minimumFractionDigits: 2 })}</Text>;
+                    }
+                    return <Text type="secondary">—</Text>;
+                }
+                return v > 0 ? (
+                    <Text style={{ color: "#cf1322", fontSize: 12 }}>{v.toLocaleString("en-KE", { minimumFractionDigits: 2 })}</Text>
+                ) : <Text type="secondary">—</Text>;
+            },
         },
         {
-            title: "Credit (Withdrawal)",
+            title: "Credit",
             dataIndex: "credit",
             width: 110,
             align: "right" as const,
-            render: (v: number) =>
-                v > 0 ? (
-                    <Text style={{ color: "#389e0d", fontSize: 12 }}>
-                        {v.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
-                    </Text>
-                ) : (
-                    <Text type="secondary">—</Text>
-                ),
+            render: (v: number, r: RawTransaction) => {
+                if (importDetail?.amount_column_type === "single" && r.original_amount !== undefined) {
+                    if (r.original_amount > 0) {
+                        return <Text style={{ color: "#389e0d", fontSize: 12 }}>{r.original_amount.toLocaleString("en-KE", { minimumFractionDigits: 2 })}</Text>;
+                    }
+                    return <Text type="secondary">—</Text>;
+                }
+                return v > 0 ? (
+                    <Text style={{ color: "#389e0d", fontSize: 12 }}>{v.toLocaleString("en-KE", { minimumFractionDigits: 2 })}</Text>
+                ) : <Text type="secondary">—</Text>;
+            },
         },
         {
             title: "Status",
@@ -453,154 +559,146 @@ const TransactionReviewDrawer: React.FC<Props> = ({
         <>
             <Drawer
                 title={
-                    <Space direction="vertical" size={0}>
-                        <Title level={5} style={{ margin: 0 }}>Review Transactions</Title>
+                    <Space>
+                        <Text strong style={{ fontSize: 18 }}>Review Transactions</Text>
                         {importRecord && (
-                            <Text type="secondary" style={{ fontSize: 12 }}>
-                                {importRecord.import_no} — {importRecord.original_filename || importRecord.source_type}
-                            </Text>
+                            <Tag color="blue" style={{ marginLeft: 8 }}>
+                                {importRecord.import_no}
+                            </Tag>
                         )}
                     </Space>
                 }
                 open={open}
                 onClose={onClose}
-                width={1100}
+                width={950}
                 destroyOnClose
                 extra={
                     <Space>
-                        <Tooltip title="Re-apply categorization rules to uncategorized transactions">
-                            <Button
-                                icon={<ReloadOutlined />}
-                                onClick={() => reApplyMutation.mutate()}
-                                loading={reApplyMutation.isLoading}
-                            >
-                                Re-apply Rules
-                            </Button>
-                        </Tooltip>
+                        <Button
+                            icon={<ReloadOutlined />}
+                            onClick={() => reApplyMutation.mutate()}
+                            loading={reApplyMutation.isLoading}
+                            size="large"
+                        >
+                            Re-apply Rules
+                        </Button>
                         <Button
                             type="primary"
                             icon={<SendOutlined />}
                             onClick={() => setPushModalOpen(true)}
                             disabled={!importDetail?.categorized_count}
+                            size="large"
                         >
                             Push Categorized
                         </Button>
                     </Space>
                 }
             >
-                {/* ── Summary Row ── */}
-                <Row gutter={16} style={{ marginBottom: 16 }}>
+                {/* ── Summary Stats ── */}
+                <Row gutter={16} style={{ marginBottom: 20 }}>
                     <Col span={4}>
-                        <Statistic
-                            title="Total"
-                            value={importDetail?.imported_rows || 0}
-                            valueStyle={{ fontSize: 18 }}
-                        />
-                    </Col>
-                    <Col span={4}>
-                        <Statistic
-                            title="Categorized"
-                            value={importDetail?.categorized_count || 0}
-                            valueStyle={{ fontSize: 18, color: "#52c41a" }}
-                        />
+                        <Card size="small" bordered>
+                            <Statistic
+                                title="Total"
+                                value={importDetail?.imported_rows || 0}
+                                valueStyle={{ fontSize: 18 }}
+                            />
+                        </Card>
                     </Col>
                     <Col span={4}>
-                        <Statistic
-                            title="Uncategorized"
-                            value={importDetail?.uncategorized_count || 0}
-                            valueStyle={{ fontSize: 18, color: "#faad14" }}
-                        />
+                        <Card size="small" bordered>
+                            <Statistic
+                                title="Categorized"
+                                value={importDetail?.categorized_count || 0}
+                                valueStyle={{ fontSize: 18, color: "#52c41a" }}
+                            />
+                        </Card>
                     </Col>
                     <Col span={4}>
-                        <Statistic
-                            title="Excluded"
-                            value={importDetail?.excluded_count || 0}
-                            valueStyle={{ fontSize: 18, color: "#8c8c8c" }}
-                        />
+                        <Card size="small" bordered>
+                            <Statistic
+                                title="Uncategorized"
+                                value={importDetail?.uncategorized_count || 0}
+                                valueStyle={{ fontSize: 18, color: "#faad14" }}
+                            />
+                        </Card>
                     </Col>
                     <Col span={4}>
-                        <Statistic
-                            title="Pushed"
-                            value={importDetail?.pushed_count || 0}
-                            valueStyle={{ fontSize: 18, color: "#1890ff" }}
-                        />
+                        <Card size="small" bordered>
+                            <Statistic
+                                title="Pushed"
+                                value={importDetail?.pushed_count || 0}
+                                valueStyle={{ fontSize: 18, color: "#1890ff" }}
+                            />
+                        </Card>
                     </Col>
                     <Col span={4}>
-                        <Space direction="vertical" size={4} style={{ width: "100%" }}>
-                            <Text type="secondary" style={{ fontSize: 12 }}>Categorization</Text>
-                            <Progress percent={catPct} size="small" strokeColor="#52c41a" />
-                        </Space>
+                        <Card size="small" bordered>
+                            <Space direction="vertical" size={4} style={{ width: "100%" }}>
+                                <Text type="secondary" style={{ fontSize: 12 }}>Progress</Text>
+                                <Progress percent={catPct} size="small" strokeColor="#52c41a" />
+                            </Space>
+                        </Card>
                     </Col>
-                </Row>
-
-                <Row gutter={16} style={{ marginBottom: 16 }}>
-                    <Col span={12}>
-                        <Alert
-                            type="error"
-                            showIcon
-                            message={`Total Debits: KES ${totalDebits.toLocaleString("en-KE", { minimumFractionDigits: 2 })}`}
-                        />
-                    </Col>
-                    <Col span={12}>
-                        <Alert
-                            type="success"
-                            showIcon
-                            message={`Total Credits: KES ${totalCredits.toLocaleString("en-KE", { minimumFractionDigits: 2 })}`}
-                        />
+                    <Col span={4}>
+                        <Card size="small" bordered>
+                            <Space direction="vertical" size={4} style={{ width: "100%" }}>
+                                <Text type="secondary" style={{ fontSize: 12 }}>Amounts</Text>
+                                <Text style={{ fontSize: 13 }}>
+                                    <Text type="danger">DR {totalDebits.toLocaleString("en-KE", { minimumFractionDigits: 2 })}</Text>
+                                    {" / "}
+                                    <Text type="success">CR {totalCredits.toLocaleString("en-KE", { minimumFractionDigits: 2 })}</Text>
+                                </Text>
+                            </Space>
+                        </Card>
                     </Col>
                 </Row>
 
                 {/* ── Bulk Actions (when rows selected) ── */}
                 {selectedRowKeys.length > 0 && (
-                    <Alert
-                        type="info"
-                        style={{ marginBottom: 12 }}
-                        message={
-                            <Space wrap>
-                                <Text strong>{selectedRowKeys.length} selected</Text>
-                                <Select
-                                    placeholder="Select account for bulk categorize..."
-                                    options={accountOptions}
-                                    value={bulkAccountId}
-                                    onChange={setBulkAccountId}
-                                    style={{ width: 260 }}
-                                    showSearch
-                                    optionFilterProp="label"
-                                    allowClear
-                                />
-                                <Button
-                                    type="primary"
-                                    size="small"
-                                    icon={<TagOutlined />}
-                                    onClick={handleBulkCategorize}
-                                    disabled={!bulkAccountId}
-                                    loading={bulkCategorizeMutation.isLoading}
-                                >
-                                    Apply to {selectedRowKeys.length}
-                                </Button>
-                                <Button size="small" onClick={() => setSelectedRowKeys([])}>Clear</Button>
-                            </Space>
-                        }
-                    />
+                    <div style={{ marginBottom: 16, padding: 12, background: "#e6f7ff", borderRadius: 8 }}>
+                        <Space wrap>
+                            <Text strong>{selectedRowKeys.length} selected</Text>
+                            <Select
+                                placeholder="Select account..."
+                                options={accountOptions}
+                                value={bulkAccountId}
+                                onChange={setBulkAccountId}
+                                style={{ width: 250 }}
+                                showSearch
+                                optionFilterProp="label"
+                                allowClear
+                                size="large"
+                            />
+                            <Button
+                                type="primary"
+                                icon={<TagOutlined />}
+                                onClick={handleBulkCategorize}
+                                disabled={!bulkAccountId}
+                                loading={bulkCategorizeMutation.isLoading}
+                                size="large"
+                            >
+                                Apply
+                            </Button>
+                            <Button onClick={() => setSelectedRowKeys([])} size="large">Clear</Button>
+                        </Space>
+                    </div>
                 )}
 
                 {/* ── Status Tabs ── */}
-                <Row gutter={12} style={{ marginBottom: 8 }}>
-                    <Col span={16}>
-                        <Tabs
-                            activeKey={statusFilter}
-                            onChange={(k) => { setStatusFilter(k as any); setPage(1); }}
-                            size="small"
-                            items={STATUS_TABS.map((s) => ({
-                                key: s,
-                                label: s === "ALL" ? "All" : s,
-                            }))}
-                        />
-                    </Col>
-                    <Col span={8}>
+                <Tabs
+                    activeKey={statusFilter}
+                    onChange={(k) => { setStatusFilter(k as any); setPage(1); }}
+                    size="large"
+                    style={{ marginBottom: 16 }}
+                    items={STATUS_TABS.map((s) => ({
+                        key: s,
+                        label: s === "ALL" ? "All" : s,
+                    }))}
+                    tabBarExtraContent={
                         <DatePicker.RangePicker
-                            size="small"
-                            style={{ width: "100%" }}
+                            size="large"
+                            style={{ width: 280 }}
                             value={dateRange ? [dayjs(dateRange[0]), dayjs(dateRange[1])] : null}
                             onChange={(dates) => {
                                 if (dates && dates[0] && dates[1]) {
@@ -617,16 +715,16 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                             }}
                             allowClear
                         />
-                    </Col>
-                </Row>
+                    }
+                />
 
                 <Table
                     rowKey="_id"
                     dataSource={transactions}
                     columns={columns}
                     loading={isLoading}
-                    size="small"
-                    scroll={{ x: 1000 }}
+                    size="middle"
+                    scroll={{ x: 850 }}
                     rowSelection={{
                         selectedRowKeys,
                         onChange: setSelectedRowKeys,
@@ -655,6 +753,7 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                 onConfirm={(d) => categorizeMutation.mutate({ txnId: activeTxn!._id, data: d })}
                 transaction={activeTxn}
                 accounts={accounts}
+                suppliers={suppliers}
                 loading={categorizeMutation.isLoading}
             />
 
@@ -665,37 +764,46 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                 onCancel={() => setPushModalOpen(false)}
                 onOk={() => pushMutation.mutate()}
                 confirmLoading={pushMutation.isLoading}
-                okText="Push Now"
+                okText="Push"
+                okButtonProps={{ size: "large" }}
+                cancelButtonProps={{ size: "large" }}
+                width={500}
                 destroyOnClose
             >
-                <Space direction="vertical" style={{ width: "100%" }} size={16}>
+                <Space direction="vertical" style={{ width: "100%" }} size={20}>
                     <Alert
                         type="info"
                         showIcon
-                        message={`${selectedRowKeys.length > 0 ? selectedRowKeys.length : importDetail?.categorized_count} transactions will be pushed`}
-                        description={selectedRowKeys.length > 0 ? "Only selected transactions" : "All categorized transactions"}
+                        message={`${selectedRowKeys.length > 0 ? selectedRowKeys.length : importDetail?.categorized_count} transactions`}
+                        description={selectedRowKeys.length > 0 ? "Selected transactions only" : "All categorized transactions"}
                     />
-                    <Space direction="vertical" style={{ width: "100%" }} size={8}>
-                        <Text strong>Push to:</Text>
+                    <div>
+                        <Text strong style={{ display: "block", marginBottom: 8 }}>Push to</Text>
                         <Select
                             value={pushMode}
                             onChange={setPushMode as any}
                             style={{ width: "100%" }}
+                            size="large"
                             options={[
-                                { label: "Bank Reconciliation (as statement lines)", value: "reconciliation" },
-                                { label: "Journal Entries (creates double-entry JEs)", value: "journal" },
+                                { label: "Bank Reconciliation", value: "reconciliation" },
+                                { label: "Journal Entries", value: "journal" },
                             ]}
                         />
-                    </Space>
-                    <Space direction="vertical" style={{ width: "100%" }} size={8}>
-                        <Text strong>
-                            {pushMode === "reconciliation" ? "Reconciliation ID" : "Bank Account"}
+                    </div>
+                    <div>
+                        <Text strong style={{ display: "block", marginBottom: 8 }}>
+                            {pushMode === "reconciliation" ? "Reconciliation" : "Bank Account"}
                         </Text>
                         {pushMode === "reconciliation" ? (
-                            <Input
-                                placeholder="Enter reconciliation ID..."
-                                value={pushTarget}
-                                onChange={(e) => setPushTarget(e.target.value)}
+                            <Select
+                                placeholder="Select reconciliation..."
+                                options={reconciliationOptions}
+                                value={pushTarget || undefined}
+                                onChange={setPushTarget}
+                                style={{ width: "100%" }}
+                                showSearch
+                                optionFilterProp="label"
+                                size="large"
                             />
                         ) : (
                             <Select
@@ -706,9 +814,10 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                                 style={{ width: "100%" }}
                                 showSearch
                                 optionFilterProp="label"
+                                size="large"
                             />
                         )}
-                    </Space>
+                    </div>
                 </Space>
             </Modal>
         </>

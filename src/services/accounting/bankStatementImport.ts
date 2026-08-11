@@ -17,55 +17,10 @@ export type ConditionField = "description" | "reference" | "amount" | "debit" | 
 export type ConditionOperator =
     | "contains" | "not_contains" | "starts_with" | "ends_with"
     | "regex" | "equals" | "gt" | "gte" | "lt" | "lte" | "between" | "is";
-export type ApplyTo = "deposits" | "withdrawals" | "both";
+export type ApplyTo = "deposits" | "withdrawals";
 export type TransactionHandling = "recognized" | "categorized";
 export type RecordType = "transfer" | "income" | "expense" | "refund" | null;
 export type AssociateAccounts = "all_accounts" | "all_banks" | "all_cards" | "custom";
-
-// ── Column Mapping ───────────────────────────────────────────────────────────
-
-export interface FieldMap {
-    date?: string;
-    value_date?: string | null;
-    description?: string;
-    reference?: string;
-    debit?: string;
-    credit?: string;
-    amount?: string | null;
-    balance?: string;
-}
-
-export interface ColumnMapping {
-    _id: string;
-    name: string;
-    bank_name?: string;
-    field_map: FieldMap;
-    amount_direction_mode: AmountDirectionMode;
-    direction_column?: string | null;
-    date_format: string;
-    skip_rows: number;
-    decimal_separator: string;
-    thousands_separator: string;
-    is_default: boolean;
-    shop_id: string;
-    created_by?: string;
-    createdAt?: string;
-    updatedAt?: string;
-}
-
-export interface ColumnMappingInput {
-    shop_id: string;
-    name: string;
-    bank_name?: string;
-    field_map?: FieldMap;
-    amount_direction_mode?: AmountDirectionMode;
-    direction_column?: string | null;
-    date_format?: string;
-    skip_rows?: number;
-    decimal_separator?: string;
-    thousands_separator?: string;
-    is_default?: boolean;
-}
 
 // ── Categorization Rule ──────────────────────────────────────────────────────
 
@@ -81,13 +36,6 @@ export interface RuleActions {
     account_id?: string;
     account_code?: string;
     account_name?: string;
-    payee_type?: PayeeType;
-    payee_id?: string;
-    payee_name?: string;
-    category_label?: string;
-    tags?: string[];
-    notes_template?: string;
-    exclude?: boolean;
     record_type?: RecordType;
     target_account_id?: string;
     target_account_code?: string;
@@ -98,15 +46,22 @@ export interface CategorizationRule {
     _id: string;
     name: string;
     is_active: boolean;
-    priority: number;
     match_type: MatchType;
     conditions: RuleCondition[];
     actions: RuleActions;
     apply_to_existing: boolean;
     apply_to?: ApplyTo;
     transaction_handling?: TransactionHandling;
+    auto_categorize?: boolean;
     associate_accounts?: AssociateAccounts;
-    associated_account_id?: string;
+    associated_account_id?: string | string[];
+    vendor_id?: string;
+    vat_treatment?: string;
+    tax?: string;
+    tax_exemption_reason?: string;
+    reference_number?: string;
+    custom_reference?: string;
+    reporting_tags?: string[];
     shop_id: string;
     match_count: number;
     last_matched_at?: string;
@@ -119,53 +74,22 @@ export interface CategorizationRuleInput {
     shop_id: string;
     name: string;
     is_active?: boolean;
-    priority?: number;
     match_type?: MatchType;
     conditions: RuleCondition[];
     actions: RuleActions;
     apply_to_existing?: boolean;
     apply_to?: ApplyTo;
     transaction_handling?: TransactionHandling;
+    auto_categorize?: boolean;
     associate_accounts?: AssociateAccounts;
-    associated_account_id?: string;
-}
-
-// ── Category Mapping ─────────────────────────────────────────────────────────
-
-export interface CategoryMapping {
-    _id: string;
-    keyword: string;
-    match_mode: MatchMode;
-    case_sensitive: boolean;
-    direction: Direction;
-    account_id: string;
-    account_code?: string;
-    account_name?: string;
-    category_label?: string;
-    payee_type?: PayeeType;
-    payee_id?: string;
-    payee_name?: string;
-    priority: number;
-    is_active: boolean;
-    shop_id: string;
-    created_by?: string;
-    createdAt?: string;
-    updatedAt?: string;
-}
-
-export interface CategoryMappingInput {
-    shop_id: string;
-    keyword: string;
-    match_mode?: MatchMode;
-    case_sensitive?: boolean;
-    direction?: Direction;
-    account_id: string;
-    category_label?: string;
-    payee_type?: PayeeType;
-    payee_id?: string;
-    payee_name?: string;
-    priority?: number;
-    is_active?: boolean;
+    associated_account_id?: string | string[];
+    vendor_id?: string;
+    vat_treatment?: string;
+    tax?: string;
+    tax_exemption_reason?: string;
+    reference_number?: string;
+    custom_reference?: string;
+    reporting_tags?: string[];
 }
 
 // ── Raw Transaction ──────────────────────────────────────────────────────────
@@ -179,6 +103,7 @@ export interface RawTransaction {
     reference?: string;
     debit: number;
     credit: number;
+    original_amount?: number;
     running_balance?: number;
     status: TransactionStatus;
     account_id?: string;
@@ -220,6 +145,7 @@ export interface BankStatementImport {
     statement_to?: string;
     opening_balance: number;
     closing_balance: number;
+    amount_column_type?: "double" | "single";
     transactions: RawTransaction[];
     total_rows: number;
     imported_rows: number;
@@ -291,6 +217,8 @@ export interface ImportStatementInput {
     statement_to?: string;
     opening_balance?: number;
     closing_balance?: number;
+    amount_column_type?: "double" | "single";
+    date_format?: string;
     transactions: Partial<RawTransaction>[];
     notes?: string;
 }
@@ -338,70 +266,6 @@ export interface UploadStatementInput {
 // ============================================
 // COLUMN MAPPING SERVICES
 // ============================================
-
-export const getColumnMappings = async (shop_id: string) => {
-    const response = await axiosInstance.get(
-        `${BASE_URL}/accounting/bank-reconciliations/column-mappings`,
-        { params: { shop_id } }
-    );
-    return response.data as { mappings: ColumnMapping[] };
-};
-
-export const createColumnMapping = async (data: ColumnMappingInput) => {
-    try {
-        const response = await axiosInstance.post(
-            `${BASE_URL}/accounting/bank-reconciliations/column-mappings`,
-            data
-        );
-        message.success("Column mapping created");
-        return response.data as { mapping: ColumnMapping };
-    } catch (error: unknown) {
-        const axiosError = error as { response?: { data?: { message?: string } } };
-        if (axiosError?.response?.data?.message) {
-            message.error(axiosError.response.data.message);
-        } else {
-            message.error("Error creating column mapping");
-        }
-        throw error;
-    }
-};
-
-export const updateColumnMapping = async (id: string, data: Partial<ColumnMappingInput>) => {
-    try {
-        const response = await axiosInstance.put(
-            `${BASE_URL}/accounting/bank-reconciliations/column-mappings/${id}`,
-            data
-        );
-        message.success("Column mapping updated");
-        return response.data as { mapping: ColumnMapping };
-    } catch (error: unknown) {
-        const axiosError = error as { response?: { data?: { message?: string } } };
-        if (axiosError?.response?.data?.message) {
-            message.error(axiosError.response.data.message);
-        } else {
-            message.error("Error updating column mapping");
-        }
-        throw error;
-    }
-};
-
-export const deleteColumnMapping = async (id: string) => {
-    try {
-        await axiosInstance.delete(
-            `${BASE_URL}/accounting/bank-reconciliations/column-mappings/${id}`
-        );
-        message.success("Column mapping deleted");
-        return true;
-    } catch (error: unknown) {
-        const axiosError = error as { response?: { data?: { message?: string } } };
-        if (axiosError?.response?.data?.message) {
-            message.error(axiosError.response.data.message);
-        } else {
-            message.error("Error deleting column mapping");
-        }
-        return false;
-    }
-};
 
 // ============================================
 // CATEGORIZATION RULE SERVICES
@@ -518,24 +382,6 @@ export const updateCategoryMapping = async (id: string, data: Partial<CategoryMa
             message.error("Error updating category mapping");
         }
         throw error;
-    }
-};
-
-export const deleteCategoryMapping = async (id: string) => {
-    try {
-        await axiosInstance.delete(
-            `${BASE_URL}/accounting/bank-reconciliations/category-mappings/${id}`
-        );
-        message.success("Category mapping deleted");
-        return true;
-    } catch (error: unknown) {
-        const axiosError = error as { response?: { data?: { message?: string } } };
-        if (axiosError?.response?.data?.message) {
-            message.error(axiosError.response.data.message);
-        } else {
-            message.error("Error deleting category mapping");
-        }
-        return false;
     }
 };
 

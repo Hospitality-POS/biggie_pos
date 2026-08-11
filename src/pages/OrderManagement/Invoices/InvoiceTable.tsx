@@ -280,7 +280,7 @@ const MobileInvoiceCard: React.FC<{
       {/* Customer & amount */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
         <Text style={{ fontSize: 12, color: C.darkText, fontWeight: 500 }}>
-          {record.customer_id?.customer_name || record.counterparty_name || "—"}
+          {record.customer_id?.company_name || record.customer_id?.customer_name || record.customer_id?.name || record.counterparty_name || "—"}
         </Text>
         <Text strong style={{ fontSize: 13, color: C.primary }}>
           {record.grand_total ? `KES ${fmt(record.grand_total)}` : "—"}
@@ -801,10 +801,12 @@ const InvoicesTable = () => {
     },
     {
       title: "Customer", dataIndex: ["customer_id", "customer_name"], hideInSearch: true,
-      render: (name: string, record: any) =>
-        name || record.counterparty_name
-          ? <Text style={{ fontSize: 12, fontWeight: 500 }}>{name || record.counterparty_name}</Text>
-          : <Text style={{ color: C.subText }}>—</Text>,
+      render: (name: string, record: any) => {
+        const customerName = record.customer_id?.company_name || record.customer_id?.customer_name || record.customer_id?.name || record.counterparty_name || name;
+        return customerName
+          ? <Text style={{ fontSize: 12, fontWeight: 500 }}>{customerName}</Text>
+          : <Text style={{ color: C.subText }}>—</Text>;
+      },
     },
     {
       title: "Address", dataIndex: ["customer_id", "address"], hideInSearch: true,

@@ -267,7 +267,7 @@ export const TrialBalanceTable: React.FC<{ data: TrialBalanceResponse }> = ({ da
 };
 
 // ── 2. Profit & Loss (Enhanced with COGS, Operating/Non-Operating splits) ───
-export const ProfitAndLossTable: React.FC<{ data: ProfitAndLossResponse }> = ({ data }) => {
+export const ProfitAndLossTable: React.FC<{ data: ProfitAndLossResponse; period?: { from?: string; to?: string } }> = ({ data, period }) => {
     const amountCols = (color: string) => [
         { title: "Code", dataIndex: "account_code", width: 90, render: (v: string) => <Text code style={{ fontSize: 11 }}>{v}</Text> },
         { title: "Account", dataIndex: "account_name" },
@@ -297,8 +297,8 @@ export const ProfitAndLossTable: React.FC<{ data: ProfitAndLossResponse }> = ({ 
 
     // ── Print ────────────────────────────────────────────────────────────────
     const handlePrint = () => {
-        const periodLabel = (data as any).period
-            ? `${dayjs((data as any).period.from).format("DD MMM YYYY")} – ${dayjs((data as any).period.to).format("DD MMM YYYY")}`
+        const periodLabel = period?.from && period?.to
+            ? `${dayjs(period.from).format("DD MMM YYYY")} – ${dayjs(period.to).format("DD MMM YYYY")}`
             : dayjs().format("MMM YYYY");
 
         const profitColor = (v: number) => v >= 0 ? "#389e0d" : "#cf1322";
@@ -415,8 +415,8 @@ export const ProfitAndLossTable: React.FC<{ data: ProfitAndLossResponse }> = ({ 
 
     // ── Excel ────────────────────────────────────────────────────────────────
     const handleExcel = () => {
-        const period = (data as any).period
-            ? `${dayjs((data as any).period.from).format("DD MMM YYYY")} – ${dayjs((data as any).period.to).format("DD MMM YYYY")}`
+        const periodLabel = period?.from && period?.to
+            ? `${dayjs(period.from).format("DD MMM YYYY")} – ${dayjs(period.to).format("DD MMM YYYY")}`
             : dayjs().format("MMM YYYY");
         
         const rows = [
@@ -485,17 +485,22 @@ export const ProfitAndLossTable: React.FC<{ data: ProfitAndLossResponse }> = ({ 
         
         exportToExcel("profit_loss", rows, {
             title: "Profit and Loss",
-            period: period,
+            period: periodLabel,
             boldRows: boldRows
         });
     };
 
     // ── PDF ──────────────────────────────────────────────────────────────────
-    const handlePdf = () => exportToPdf(
-        "profit_loss",
-        "Profit and Loss",
-        `Basis: Accrual  |  Revenue: KES ${fmt(data.revenue.total_revenue)}  |  Expenses: KES ${fmt(data.expenses.total_expenses)}  |  ${data.is_profit ? "Net Profit" : "Net Loss"}: KES ${fmt(Math.abs(netProfit))}`,
-        ["Section", "Code", "Account", "Amount (KES)"],
+    const handlePdf = () => {
+        const periodLabel = period?.from && period?.to
+            ? `${dayjs(period.from).format("DD MMM YYYY")} – ${dayjs(period.to).format("DD MMM YYYY")}`
+            : dayjs().format("MMM YYYY");
+            
+        return exportToPdf(
+            "profit_loss",
+            "Profit and Loss",
+            `Report Period: ${periodLabel}  |  Basis: Accrual  |  Revenue: KES ${fmt(data.revenue.total_revenue)}  |  Expenses: KES ${fmt(data.expenses.total_expenses)}  |  ${data.is_profit ? "Net Profit" : "Net Loss"}: KES ${fmt(Math.abs(netProfit))}`,
+            ["Section", "Code", "Account", "Amount (KES)"],
         [
             [{ content: "Operating Income", colSpan: 4, styles: { fontStyle: "bold", fillColor: [245, 240, 245] } }],
             ...(opIncRows.length ? opIncRows : revenueRows).map((r) => ["", r.account_code, r.account_name, fmt(r.amount)]),
@@ -510,7 +515,8 @@ export const ProfitAndLossTable: React.FC<{ data: ProfitAndLossResponse }> = ({ 
             ["", "", { content: "Operating Profit", styles: { fontStyle: "bold", fontSize: 9 } }, { content: fmt(opProfit), styles: { fontStyle: "bold", fontSize: 9, textColor: opProfit >= 0 ? [56, 158, 13] : [207, 19, 34] } }],
             ["", "", { content: netProfit >= 0 ? "NET PROFIT" : "NET LOSS", styles: { fontStyle: "bold", fontSize: 11 } }, { content: fmt(Math.abs(netProfit)), styles: { fontStyle: "bold", fontSize: 11, textColor: netProfit >= 0 ? [56, 158, 13] : [207, 19, 34] } }],
         ]
-    );
+        );
+    };
 
     // ── Render ───────────────────────────────────────────────────────────────
     return (
