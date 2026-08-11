@@ -460,23 +460,17 @@ const AccountingReportsPage: React.FC = () => {
         switch (activeTab) {
 
             case "profit-loss": return <>
-                <PeriodFilter value={plPeriod} onChange={setPlPeriod} onRun={() => run("profit-loss")} loading={isLoading(plQ, plQC, plPeriod.enabled)} supportComparative
-                    extra={plQ.data && !plPeriod.enabled && <ExportButton onExport={() => exportToCSV("profit_and_loss", [...(plQ.data!.revenue?.accounts || []).map((a: any) => ({ section: "Revenue", ...a })), ...(plQ.data!.expenses?.accounts || []).map((a: any) => ({ section: "Expense", ...a }))])} />}
-                />
-                {plQ.isFetching ? <Loading /> : plPeriod.enabled && plQ.data && plQC.data ? renderComparativePL() : plQ.data ? <ProfitAndLossTable data={plQ.data} /> : <EmptyState />}
+                <PeriodFilter value={plPeriod} onChange={setPlPeriod} onRun={() => run("profit-loss")} loading={isLoading(plQ, plQC, plPeriod.enabled)} supportComparative />
+                {plQ.isFetching ? <Loading /> : plPeriod.enabled && plQ.data && plQC.data ? renderComparativePL() : plQ.data ? <ProfitAndLossTable data={plQ.data} period={{ from: plPeriod.primary[0]?.toISOString(), to: plPeriod.primary[1]?.toISOString() }} /> : <EmptyState />}
             </>;
 
             case "balance-sheet": return <>
-                <AsOfFilter value={bsAsOf} onChange={setBsAsOf} onRun={() => run("balance-sheet")} loading={isLoading(bsQ, bsQC, bsAsOf.enabled)} supportComparative
-                    extra={bsQ.data && !bsAsOf.enabled && <ExportButton onExport={() => exportToCSV("balance_sheet", [...(bsQ.data!.assets?.accounts || []).map((a: any) => ({ section: "Asset", ...a })), ...(bsQ.data!.liabilities?.accounts || []).map((a: any) => ({ section: "Liability", ...a })), ...(bsQ.data!.equity?.accounts || []).map((a: any) => ({ section: "Equity", ...a }))])} />}
-                />
+                <AsOfFilter value={bsAsOf} onChange={setBsAsOf} onRun={() => run("balance-sheet")} loading={isLoading(bsQ, bsQC, bsAsOf.enabled)} supportComparative />
                 {bsQ.isFetching ? <Loading /> : bsAsOf.enabled && bsQ.data && bsQC.data ? renderComparativeBS() : bsQ.data ? <BalanceSheetTable data={bsQ.data} /> : <EmptyState />}
             </>;
 
             case "trial-balance": return <>
-                <PeriodFilter value={tbPeriod} onChange={setTbPeriod} onRun={() => run("trial-balance")} loading={isLoading(tbQ, tbQC, tbPeriod.enabled)} supportComparative
-                    extra={tbQ.data && !tbPeriod.enabled && <ExportButton onExport={() => exportToCSV("trial_balance", tbQ.data!.rows || [])} />}
-                />
+                <PeriodFilter value={tbPeriod} onChange={setTbPeriod} onRun={() => run("trial-balance")} loading={isLoading(tbQ, tbQC, tbPeriod.enabled)} supportComparative />
                 {tbQ.isFetching ? <Loading /> : tbPeriod.enabled && tbQ.data && tbQC.data ? renderComparativeTB() : tbQ.data ? <TrialBalanceTable data={tbQ.data} /> : <EmptyState />}
             </>;
 
@@ -487,23 +481,17 @@ const AccountingReportsPage: React.FC = () => {
             </>;
 
             case "account-balances": return <>
-                <AsOfFilter value={abAsOf} onChange={setAbAsOf} onRun={() => run("account-balances")} loading={isLoading(abQ, abQC, abAsOf.enabled)} supportComparative
-                    extra={abQ.data && !abAsOf.enabled && <ExportButton onExport={() => exportToCSV("account_balances", abQ.data!.accounts || [])} />}
-                />
+                <AsOfFilter value={abAsOf} onChange={setAbAsOf} onRun={() => run("account-balances")} loading={isLoading(abQ, abQC, abAsOf.enabled)} supportComparative />
                 {abQ.isFetching ? <Loading /> : abAsOf.enabled && abQ.data && abQC.data ? renderComparativeAB() : abQ.data ? <AccountBalancesTable data={abQ.data} /> : <EmptyState />}
             </>;
 
             case "vat": return <>
-                <PeriodFilter value={vatPeriod} onChange={setVatPeriod} onRun={() => run("vat")} loading={isLoading(vatQ, vatQC, vatPeriod.enabled)} supportComparative
-                    extra={vatQ.data && !vatPeriod.enabled && <ExportButton onExport={() => exportToCSV("vat_report", vatQ.data!.transactions || [])} />}
-                />
+                <PeriodFilter value={vatPeriod} onChange={setVatPeriod} onRun={() => run("vat")} loading={isLoading(vatQ, vatQC, vatPeriod.enabled)} supportComparative />
                 {vatQ.isFetching ? <Loading /> : vatPeriod.enabled && vatQ.data && vatQC.data ? renderComparativeVAT() : vatQ.data ? <VATReportTable data={vatQ.data} /> : <EmptyState />}
             </>;
 
             case "cash-flow": return <>
-                <PeriodFilter value={cfPeriod} onChange={setCfPeriod} onRun={() => run("cash-flow")} loading={isLoading(cfQ, cfQC, cfPeriod.enabled)} supportComparative
-                    extra={cfQ.data && !cfPeriod.enabled && <ExportButton onExport={() => exportToCSV("cash_flow", cfQ.data!.accounts || [])} />}
-                />
+                <PeriodFilter value={cfPeriod} onChange={setCfPeriod} onRun={() => run("cash-flow")} loading={isLoading(cfQ, cfQC, cfPeriod.enabled)} supportComparative />
                 {cfQ.isFetching ? <Loading /> : cfPeriod.enabled && cfQ.data && cfQC.data ? renderComparativeCF() : cfQ.data ? <CashFlowTable data={cfQ.data} /> : <EmptyState />}
             </>;
 
@@ -516,9 +504,8 @@ const AccountingReportsPage: React.FC = () => {
                             options={customers.map((c: any) => ({ label: `${c.customer_name}${c.customer_phone ? ` — ${c.customer_phone}` : ""}`, value: c._id }))} />
                     )}
                 </Space>
-                <PeriodFilter value={custPeriod} onChange={setCustPeriod} onRun={() => { if (customerId) run("customer-statement"); }} loading={isLoading(custQ, custQC, custPeriod.enabled)} supportComparative
-                    extra={custQ.data && !custPeriod.enabled && <ExportButton onExport={() => exportToCSV("customer_statement", custQ.data!.transactions || [])} />}
-                />
+                <PeriodFilter value={custPeriod} onChange={setCustPeriod} onRun={() => { if (customerId) run("customer-statement"); }} loading={isLoading(custQ, custQC, custPeriod.enabled)} supportComparative />
+
                 {!customerId && <Alert type="info" showIcon message="Select a customer to generate their statement." style={{ marginBottom: 12 }} />}
                 {custQ.isFetching ? <Loading /> : custPeriod.enabled && custQ.data && custQC.data ? renderComparativeCust() : custQ.data ? <CustomerStatementTable data={custQ.data} /> : !customerId ? null : <EmptyState />}
             </>;
@@ -532,9 +519,8 @@ const AccountingReportsPage: React.FC = () => {
                             options={suppliers.map((s: any) => ({ label: `${s.name}${s.phone ? ` — ${s.phone}` : ""}`, value: s._id }))} />
                     )}
                 </Space>
-                <PeriodFilter value={suppPeriod} onChange={setSuppPeriod} onRun={() => { if (supplierId) run("supplier-statement"); }} loading={isLoading(suppQ, suppQC, suppPeriod.enabled)} supportComparative
-                    extra={suppQ.data && !suppPeriod.enabled && <ExportButton onExport={() => exportToCSV("supplier_statement", suppQ.data!.transactions || [])} />}
-                />
+                <PeriodFilter value={suppPeriod} onChange={setSuppPeriod} onRun={() => { if (supplierId) run("supplier-statement"); }} loading={isLoading(suppQ, suppQC, suppPeriod.enabled)} supportComparative />
+
                 {!supplierId && <Alert type="info" showIcon message="Select a supplier to generate their statement." style={{ marginBottom: 12 }} />}
                 {suppQ.isFetching ? <Loading /> : suppPeriod.enabled && suppQ.data && suppQC.data ? renderComparativeSupp() : suppQ.data ? <SupplierStatementTable data={suppQ.data} /> : !supplierId ? null : <EmptyState />}
             </>;

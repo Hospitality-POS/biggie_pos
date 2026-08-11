@@ -879,7 +879,7 @@ const LogoOrText = ({
 // ═══════════════════════════════════════════════════════════════
 export const Template1Classic = React.forwardRef<HTMLDivElement, SharedProps>(({ inv, sys, accentColor = "#dc2626" }, ref) => {
     const party = resolveParty(inv);
-    const docLabel = inv.status === "Draft" ? "QUOTE" : inv.direction === "supplier" ? "BILL" : "TAX INVOICE";
+    const docLabel = inv.status === "Draft" ? "QUOTE" : inv.direction === "supplier" ? "BILL" : (inv.etr_enabled ? "TAX INVOICE" : "INVOICE");
 
     return (
         <div
@@ -923,14 +923,14 @@ export const Template1Classic = React.forwardRef<HTMLDivElement, SharedProps>(({
                             borderRadius: 5,
                             padding: "4px 12px",
                             fontWeight: 700,
-                            fontSize: 12,
+                            fontSize: 20,
                             marginBottom: 6,
                             letterSpacing: 1,
                         }}
                     >
                         {docLabel}
                     </div>
-                    <div style={{ fontSize: 13, fontWeight: 600 }}>{inv.order_no || inv.invoice_no}</div>
+                    <div style={{ fontSize: 11, fontWeight: 600 }}>{inv.order_no || inv.invoice_no}</div>
                     <div style={{ fontSize: 11, opacity: 0.75, marginTop: 2 }}>{fmtDate(inv.issue_date || inv.createdAt)}</div>
                     {inv.due_date && (
                         <div style={{ fontSize: 11, opacity: 0.75 }}>Due: {fmtDateShort(inv.due_date)}</div>
@@ -1029,7 +1029,7 @@ Template1Classic.displayName = "Template1Classic";
 export const Template2SlatePro = React.forwardRef<HTMLDivElement, SharedProps>(({ inv, sys }, ref) => {
     const party = resolveParty(inv);
     const navy = "#1e293b";
-    const docLabel = inv.status === "Draft" ? "QUOTE" : inv.direction === "supplier" ? "BILL" : "INVOICE";
+    const docLabel = inv.status === "Draft" ? "QUOTE" : inv.direction === "supplier" ? "BILL" : (inv.etr_enabled ? "TAX INVOICE" : "INVOICE");
 
     return (
         <div
@@ -1069,8 +1069,8 @@ export const Template2SlatePro = React.forwardRef<HTMLDivElement, SharedProps>((
                     </div>
                 </div>
                 <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: 28, fontWeight: 700, color: navy, letterSpacing: "-0.5px" }}>{docLabel}</div>
-                    <div style={{ fontSize: 12, color: C.subText, marginTop: 2 }}>{inv.order_no || inv.invoice_no}</div>
+                    <div style={{ fontSize: 36, fontWeight: 700, color: navy, letterSpacing: "-0.5px" }}>{docLabel}</div>
+                    <div style={{ fontSize: 11, color: C.subText, marginTop: 2 }}>{inv.order_no || inv.invoice_no}</div>
                     <div style={{ fontSize: 11, color: C.subText }}>{fmtDate(inv.issue_date || inv.createdAt)}</div>
                 </div>
             </div>
@@ -1157,7 +1157,7 @@ Template2SlatePro.displayName = "Template2SlatePro";
 // ═══════════════════════════════════════════════════════════════
 export const Template3Ocean = React.forwardRef<HTMLDivElement, SharedProps>(({ inv, sys }, ref) => {
     const party = resolveParty(inv);
-    const docLabel = inv.status === "Draft" ? "QUOTE" : inv.direction === "supplier" ? "BILL" : "TAX INVOICE";
+    const docLabel = inv.status === "Draft" ? "QUOTE" : inv.direction === "supplier" ? "BILL" : (inv.etr_enabled ? "TAX INVOICE" : "INVOICE");
 
     return (
         <div
@@ -1186,8 +1186,8 @@ export const Template3Ocean = React.forwardRef<HTMLDivElement, SharedProps>(({ i
                     </div>
                 </div>
                 <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: 28, fontWeight: 700, opacity: 0.3, letterSpacing: 2 }}>{docLabel}</div>
-                    <div style={{ fontSize: 13, fontWeight: 700, marginTop: -4 }}>{inv.order_no || inv.invoice_no}</div>
+                    <div style={{ fontSize: 36, fontWeight: 700, opacity: 0.3, letterSpacing: 2 }}>{docLabel}</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, marginTop: -4 }}>{inv.order_no || inv.invoice_no}</div>
                     <div style={{ fontSize: 11, opacity: 0.8 }}>{fmtDateShort(inv.issue_date || inv.createdAt)}</div>
                 </div>
             </div>
@@ -1252,7 +1252,7 @@ Template3Ocean.displayName = "Template3Ocean";
 export const Template4Minimal = React.forwardRef<HTMLDivElement, SharedProps>(({ inv, sys }, ref) => {
     const party = resolveParty(inv);
     const charcoal = "#374151";
-    const docLabel = inv.status === "Draft" ? "Quote" : inv.direction === "supplier" ? "Bill" : "Invoice";
+    const docLabel = inv.status === "Draft" ? "Quote" : inv.direction === "supplier" ? "Bill" : (inv.etr_enabled ? "Tax Invoice" : "Invoice");
 
     return (
         <div
@@ -1293,10 +1293,10 @@ export const Template4Minimal = React.forwardRef<HTMLDivElement, SharedProps>(({
                     </div>
                 </div>
                 <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: 11, color: C.subText, fontStyle: "italic", fontFamily: "'Segoe UI', sans-serif" }}>
-                        Tax {docLabel}
+                    <div style={{ fontSize: 20, color: C.subText, fontStyle: "italic", fontFamily: "'Segoe UI', sans-serif", fontWeight: 600 }}>
+                        {docLabel}
                     </div>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: charcoal }}>{inv.order_no || inv.invoice_no}</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: charcoal }}>{inv.order_no || inv.invoice_no}</div>
                     <div style={{ fontSize: 11, color: C.subText, fontFamily: "'Segoe UI', sans-serif" }}>
                         {fmtDateShort(inv.issue_date || inv.createdAt)}
                     </div>
@@ -1387,7 +1387,7 @@ Template4Minimal.displayName = "Template4Minimal";
 export const Template5Forest = React.forwardRef<HTMLDivElement, SharedProps>(({ inv, sys }, ref) => {
     const party = resolveParty(inv);
     const forest = "#065f46";
-    const docLabel = inv.status === "Draft" ? "QUOTE" : inv.direction === "supplier" ? "BILL" : "TAX INVOICE";
+    const docLabel = inv.status === "Draft" ? "QUOTE" : inv.direction === "supplier" ? "BILL" : (inv.etr_enabled ? "TAX INVOICE" : "INVOICE");
 
     return (
         <div
@@ -1417,10 +1417,10 @@ export const Template5Forest = React.forwardRef<HTMLDivElement, SharedProps>(({ 
                         minWidth: 140,
                     }}
                 >
-                    <div style={{ fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase" as const, opacity: 0.7, marginBottom: 4 }}>
+                    <div style={{ fontSize: 16, letterSpacing: "1.5px", textTransform: "uppercase" as const, opacity: 0.7, marginBottom: 4, fontWeight: 600 }}>
                         {docLabel}
                     </div>
-                    <div style={{ fontSize: 13, fontWeight: 700 }}>{inv.order_no || inv.invoice_no}</div>
+                    <div style={{ fontSize: 11, fontWeight: 700 }}>{inv.order_no || inv.invoice_no}</div>
                     <div style={{ fontSize: 11, opacity: 0.75, marginTop: 3 }}>
                         {fmtDateShort(inv.issue_date || inv.createdAt)}
                     </div>

@@ -1,39 +1,29 @@
 import React, { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
     Drawer, Tabs, Table, Button, Space, Tag, Switch, Typography,
     Popconfirm, Tooltip, Badge, Form, Input, Select, InputNumber,
-    Modal, Row, Col, Divider, Alert,
+    Modal, Row, Col, Divider, Alert, Radio, Checkbox,
 } from "antd";
 import {
     PlusOutlined, EditOutlined, DeleteOutlined,
     ThunderboltOutlined, TagOutlined, SettingOutlined,
     ArrowUpOutlined, ArrowDownOutlined,
 } from "@ant-design/icons";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
     getCategorizationRules,
     createCategorizationRule,
     updateCategorizationRule,
     deleteCategorizationRule,
-    getCategoryMappings,
-    createCategoryMapping,
-    updateCategoryMapping,
-    deleteCategoryMapping,
-    getColumnMappings,
-    createColumnMapping,
-    updateColumnMapping,
-    deleteColumnMapping,
     CategorizationRule,
-    CategoryMapping,
-    ColumnMapping,
     CategorizationRuleInput,
-    CategoryMappingInput,
-    ColumnMappingInput,
     RuleCondition,
     ConditionField,
     ConditionOperator,
 } from "@services/accounting/bankStatementImport";
 import { getAllAccounts } from "@services/accounting/accounts";
+import { fetchAllSuppliers } from "@services/supplier";
+import { fetchTenantDetails, getCurrentTenantId } from "@services/tenants";
 
 const { Text, Title } = Typography;
 
@@ -54,6 +44,7 @@ const OPERATOR_OPTIONS: Record<string, { label: string; value: ConditionOperator
         { label: "Ends with", value: "ends_with" },
         { label: "Equals", value: "equals" },
         { label: "Regex", value: "regex" },
+        { label: "Then", value: "then" },
     ],
     number: [
         { label: "Equals", value: "equals" },
@@ -62,6 +53,7 @@ const OPERATOR_OPTIONS: Record<string, { label: string; value: ConditionOperator
         { label: "Less than", value: "lt" },
         { label: "Less or equal", value: "lte" },
         { label: "Between", value: "between" },
+        { label: "Then", value: "then" },
     ],
     direction: [{ label: "Is", value: "is" }],
 };
@@ -85,33 +77,53 @@ const RuleFormModal: React.FC<{
     onConfirm: (data: CategorizationRuleInput) => void;
     editingRule: CategorizationRule | null;
     accounts: any[];
+    suppliers: any[];
     loading: boolean;
-}> = ({ open, onClose, onConfirm, editingRule, accounts, loading }) => {
+}> = ({ open, onClose, onConfirm, editingRule, accounts, suppliers, loading }) => {
     const [form] = Form.useForm();
     const [conditions, setConditions] = useState<Partial<RuleCondition>[]>([{}]);
+    const [showTagInput, setShowTagInput] = useState(false);
+    const [newTagValue, setNewTagValue] = useState("");
+
+    const tenantId = getCurrentTenantId();
+    const { data: tenantData } = useQuery({
+        queryKey: ["tenant", tenantId],
+        queryFn: () => fetchTenantDetails(tenantId),
+        enabled: open && !!tenantId,
+    });
+    const tenant = tenantData?.data;
 
     React.useEffect(() => {
         if (open && editingRule) {
             form.setFieldsValue({
                 name: editingRule.name,
-                priority: editingRule.priority,
-                match_type: editingRule.match_type,
+                match_type: editingRule.match_type || "all",
                 is_active: editingRule.is_active,
-                apply_to: editingRule.apply_to || "both",
+                apply_to: editingRule.apply_to || "deposits",
                 transaction_handling: editingRule.transaction_handling || "recognized",
+                auto_categorize: editingRule.auto_categorize || false,
                 associate_accounts: editingRule.associate_accounts || "all_accounts",
-                associated_account_id: editingRule.associated_account_id,
+                associated_account_id: Array.isArray(editingRule.associated_account_id) ? editingRule.associated_account_id : editingRule.associated_account_id,
+                vendor_id: editingRule.vendor_id,
+                vat_treatment: editingRule.vat_treatment,
+                tax: editingRule.tax,
+                tax_exemption_reason: editingRule.tax_exemption_reason,
+                reference_number: editingRule.reference_number,
+                custom_reference: editingRule.custom_reference,
+                reporting_tags: editingRule.reporting_tags || [],
                 action_account_id: editingRule.actions?.account_id,
-                action_category_label: editingRule.actions?.category_label,
-                action_payee_name: editingRule.actions?.payee_name,
-                action_exclude: editingRule.actions?.exclude,
                 action_record_type: editingRule.actions?.record_type,
                 action_target_account_id: editingRule.actions?.target_account_id,
             });
             setConditions(editingRule.conditions || [{}]);
+            setShowTagInput(false);
+            setNewTagValue('');
         } else if (open) {
             form.resetFields();
+            form.setFieldsValue({ reporting_tags: [] });
             setConditions([{}]);
+            setShowTagInput(false);
+            setNewTagValue('');
         }
     }, [open, editingRule, form]);
 
@@ -127,25 +139,28 @@ const RuleFormModal: React.FC<{
         const values = await form.validateFields();
         const acc = accounts.find((a: any) => a._id === values.action_account_id);
         const targetAcc = values.action_target_account_id ? accounts.find((a: any) => a._id === values.action_target_account_id) : null;
-        const assocAcc = values.associated_account_id ? accounts.find((a: any) => a._id === values.associated_account_id) : null;
         onConfirm({
             shop_id: editingRule?.shop_id || "",
             name: values.name,
-            priority: values.priority || 100,
             match_type: values.match_type || "all",
             is_active: values.is_active ?? true,
-            apply_to: values.apply_to || "both",
+            apply_to: values.apply_to || "deposits",
             transaction_handling: values.transaction_handling || "recognized",
+            auto_categorize: values.auto_categorize || false,
             associate_accounts: values.associate_accounts || "all_accounts",
             associated_account_id: values.associated_account_id,
+            vendor_id: values.vendor_id,
+            vat_treatment: values.vat_treatment,
+            tax: values.tax,
+            tax_exemption_reason: values.tax_exemption_reason,
+            reference_number: values.reference_number,
+            custom_reference: values.custom_reference,
+            reporting_tags: values.reporting_tags || [],
             conditions: conditions.filter((c) => c.field && c.operator) as RuleCondition[],
             actions: {
                 account_id: values.action_account_id,
                 account_code: acc?.account_code,
                 account_name: acc?.account_name,
-                category_label: values.action_category_label,
-                payee_name: values.action_payee_name,
-                exclude: values.action_exclude || false,
                 record_type: values.action_record_type,
                 target_account_id: values.action_target_account_id,
                 target_account_code: targetAcc?.account_code,
@@ -157,6 +172,10 @@ const RuleFormModal: React.FC<{
     const accountOptions = accounts.map((a: any) => ({
         label: `${a.account_code} — ${a.account_name}`,
         value: a._id,
+    }));
+    const supplierOptions = suppliers.map((s: any) => ({
+        label: s.name,
+        value: s._id,
     }));
 
     return (
@@ -171,27 +190,48 @@ const RuleFormModal: React.FC<{
             destroyOnClose
         >
             <Form form={form} layout="vertical">
-                <Row gutter={12}>
-                    <Col span={14}>
-                        <Form.Item name="name" label="Rule Name" rules={[{ required: true }]}>
-                            <Input placeholder="e.g. Match Safaricom payments" />
-                        </Form.Item>
+                <Form.Item name="name" label="Rule Name" rules={[{ required: true }]}>
+                    <Input placeholder="e.g. Match Safaricom payments" />
+                </Form.Item>
+
+                <Form.Item name="apply_to" label="Apply To" initialValue="deposits">
+                    <Radio.Group>
+                        <Radio value="deposits">Deposit</Radio>
+                        <Radio value="withdrawals">Withdrawal</Radio>
+                    </Radio.Group>
+                </Form.Item>
+
+                <Form.Item name="transaction_handling" label="Transaction Handling" initialValue="recognized">
+                    <Radio.Group>
+                        <Radio value="recognized">Recognized transactions</Radio>
+                        <Radio value="categorized">Categorized transactions</Radio>
+                    </Radio.Group>
+                </Form.Item>
+
+                <Form.Item name="auto_categorize" valuePropName="checked" initialValue={false}>
+                    <Checkbox>Allow Base to categorize my bank statements</Checkbox>
+                </Form.Item>
+
+                <Row gutter={8} align="middle" style={{ marginBottom: 16 }}>
+                    <Col span={12}>
+                        <Text type="secondary" style={{ fontSize: 12 }}>Categorize the transactions when</Text>
                     </Col>
-                    <Col span={5}>
-                        <Form.Item name="priority" label="Priority">
-                            <InputNumber min={1} max={999} style={{ width: "100%" }} />
-                        </Form.Item>
+                    <Col span={9}>
+                        <Select 
+                            value={form.getFieldValue("match_type") || "all"}
+                            onChange={(v) => form.setFieldsValue({ match_type: v })}
+                            options={[
+                                { label: "All the following criteria matches", value: "all" },
+                                { label: "Any of the following criteria matches", value: "any" },
+                            ]} 
+                            style={{ width: "100%" }}
+                            size="small"
+                        />
                     </Col>
-                    <Col span={5}>
-                        <Form.Item name="match_type" label="Match" initialValue="all">
-                            <Select options={[{ label: "ALL conditions", value: "all" }, { label: "ANY condition", value: "any" }]} />
-                        </Form.Item>
+                    <Col span={3}>
+                        <div></div>
                     </Col>
                 </Row>
-
-                <Divider orientation="left" plain>
-                    <Text type="secondary" style={{ fontSize: 12 }}>Conditions</Text>
-                </Divider>
 
                 {conditions.map((cond, i) => {
                     const opsGroup = cond.field ? getOperatorGroup(cond.field) : "string";
@@ -243,7 +283,7 @@ const RuleFormModal: React.FC<{
                                     </Space.Compact>
                                 ) : (
                                     <Input
-                                        placeholder="Value"
+                                        placeholder="Match value"
                                         value={cond.value}
                                         onChange={(e) => updateCondition(i, { value: e.target.value })}
                                     />
@@ -258,63 +298,23 @@ const RuleFormModal: React.FC<{
                     );
                 })}
                 <Button type="dashed" onClick={addCondition} size="small" icon={<PlusOutlined />} style={{ marginBottom: 16 }}>
-                    Add Condition
+                    Add criterion
                 </Button>
 
-                <Divider orientation="left" plain>
-                    <Text type="secondary" style={{ fontSize: 12 }}>Apply To</Text>
-                </Divider>
-
-                <Row gutter={12}>
-                    <Col span={12}>
-                        <Form.Item name="apply_to" label="Transaction Direction" initialValue="both">
-                            <Select options={[
-                                { label: "Both (deposits & withdrawals)", value: "both" },
-                                { label: "Deposits (credit only)", value: "deposits" },
-                                { label: "Withdrawals (debit only)", value: "withdrawals" },
-                            ]} />
-                        </Form.Item>
-                    </Col>
-                    <Col span={12}>
-                        <Form.Item name="transaction_handling" label="Apply To" initialValue="recognized">
-                            <Select options={[
-                                { label: "New/Uncategorized transactions", value: "recognized" },
-                                { label: "Re-apply to already categorized", value: "categorized" },
-                            ]} />
-                        </Form.Item>
-                    </Col>
-                </Row>
-
-                <Form.Item name="associate_accounts" label="Associate Accounts" initialValue="all_accounts">
-                    <Select options={[
-                        { label: "All Accounts", value: "all_accounts" },
-                        { label: "All Banks", value: "all_banks" },
-                        { label: "All Cards", value: "all_cards" },
-                        { label: "Custom (select specific)", value: "custom" },
-                    ]} />
+                <Form.Item name="action_record_type" label="Record As">
+                    <Select
+                        placeholder="Select type..."
+                        options={[
+                            { label: "Income", value: "income" },
+                            { label: "Expense", value: "expense" },
+                            { label: "Transfer", value: "transfer" },
+                            { label: "Refund", value: "refund" },
+                        ]}
+                        allowClear
+                    />
                 </Form.Item>
 
-                <Form.Item noStyle shouldUpdate={(prev, curr) => prev.associate_accounts !== curr.associate_accounts}>
-                    {({ getFieldValue }) =>
-                        getFieldValue("associate_accounts") === "custom" ? (
-                            <Form.Item name="associated_account_id" label="Specific Account">
-                                <Select
-                                    placeholder="Select account..."
-                                    options={accountOptions}
-                                    showSearch
-                                    optionFilterProp="label"
-                                    allowClear
-                                />
-                            </Form.Item>
-                        ) : null
-                    }
-                </Form.Item>
-
-                <Divider orientation="left" plain>
-                    <Text type="secondary" style={{ fontSize: 12 }}>Actions (when rule matches)</Text>
-                </Divider>
-
-                <Form.Item name="action_account_id" label="Assign Account">
+                <Form.Item name="action_account_id" label="account">
                     <Select
                         placeholder="Select account..."
                         options={accountOptions}
@@ -323,28 +323,6 @@ const RuleFormModal: React.FC<{
                         allowClear
                     />
                 </Form.Item>
-
-                <Row gutter={12}>
-                    <Col span={12}>
-                        <Form.Item name="action_record_type" label="Record As">
-                            <Select
-                                placeholder="Select type..."
-                                options={[
-                                    { label: "Income", value: "income" },
-                                    { label: "Expense", value: "expense" },
-                                    { label: "Transfer", value: "transfer" },
-                                    { label: "Refund", value: "refund" },
-                                ]}
-                                allowClear
-                            />
-                        </Form.Item>
-                    </Col>
-                    <Col span={12}>
-                        <Form.Item name="action_category_label" label="Category Label">
-                            <Input placeholder="e.g. Office Supplies" />
-                        </Form.Item>
-                    </Col>
-                </Row>
 
                 <Form.Item noStyle shouldUpdate={(prev, curr) => prev.action_record_type !== curr.action_record_type}>
                     {({ getFieldValue }) =>
@@ -362,18 +340,163 @@ const RuleFormModal: React.FC<{
                     }
                 </Form.Item>
 
+                <Form.Item name="vendor_id" label="Vendor">
+                    <Select
+                        placeholder="Select vendor..."
+                        options={supplierOptions}
+                        showSearch
+                        optionFilterProp="label"
+                        allowClear
+                    />
+                </Form.Item>
+
+                <Form.Item name="vat_treatment" label="Vat Treatment">
+                    <Select
+                        placeholder="Select vat treatment..."
+                        options={[
+                            { label: "Vat Registered", value: "vat_registered" },
+                            { label: "Non Vat registered", value: "non_vat_registered" },
+                        ]}
+                        disabled={!tenant?.is_vat_enabled}
+                    />
+                </Form.Item>
+
                 <Row gutter={12}>
                     <Col span={12}>
-                        <Form.Item name="action_payee_name" label="Payee Name">
-                            <Input placeholder="e.g. Safaricom" />
+                        <Form.Item name="tax" label="Tax">
+                            <Select
+                                placeholder="Select tax..."
+                                options={[
+                                    { label: "Taxable", value: "taxable" },
+                                    { label: "Exempt", value: "exempt" },
+                                ]}
+                            />
                         </Form.Item>
                     </Col>
                     <Col span={12}>
-                        <Form.Item name="action_exclude" valuePropName="checked" label="Exclude">
-                            <Switch />
+                        <Form.Item noStyle shouldUpdate={(prev, curr) => prev.tax !== curr.tax}>
+                            {({ getFieldValue }) =>
+                                getFieldValue("tax") === "exempt" ? (
+                                    <Form.Item name="tax_exemption_reason" label="Tax Exemption Reason">
+                                        <Input placeholder="Enter exemption reason..." />
+                                    </Form.Item>
+                                ) : null
+                            }
                         </Form.Item>
                     </Col>
                 </Row>
+
+                <Form.Item name="reference_number" label="Reference Number">
+                    <Select
+                        placeholder="Select reference number..."
+                        options={[
+                            { label: "Use value from bank statement", value: "from_bank_statement" },
+                            { label: "Custom", value: "custom" },
+                        ]}
+                    />
+                </Form.Item>
+
+                <Form.Item noStyle shouldUpdate={(prev, curr) => prev.reference_number !== curr.reference_number}>
+                    {({ getFieldValue }) =>
+                        getFieldValue("reference_number") === "custom" ? (
+                            <Form.Item name="custom_reference" label="Custom Reference">
+                                <Input placeholder="Enter custom reference..." />
+                            </Form.Item>
+                        ) : null
+                    }
+                </Form.Item>
+
+                <Form.Item name="reporting_tags" label="Reporting Tags">
+                    <Form.List name="reporting_tags">
+                        {(fields, { add, remove }) => (
+                            <div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                                    {fields.map((field) => (
+                                        <Tag key={field.key} closable onClose={() => remove(field.name)}>
+                                            {form.getFieldValue(['reporting_tags', field.name])}
+                                        </Tag>
+                                    ))}
+                                    <Button 
+                                        type="dashed" 
+                                        size="small" 
+                                        icon={<TagOutlined />}
+                                        onClick={() => setShowTagInput(!showTagInput)}
+                                    >
+                                        {showTagInput ? 'Cancel' : 'Add Tag'}
+                                    </Button>
+                                </div>
+                                {showTagInput && (
+                                    <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+                                        <Input
+                                            placeholder="Enter reporting tag..."
+                                            value={newTagValue}
+                                            onChange={(e) => setNewTagValue(e.target.value)}
+                                            onPressEnter={(e) => {
+                                                e.preventDefault();
+                                                if (newTagValue.trim()) {
+                                                    add(newTagValue.trim());
+                                                    setNewTagValue('');
+                                                    setShowTagInput(false);
+                                                }
+                                            }}
+                                            style={{ flex: 1 }}
+                                        />
+                                        <Button 
+                                            type="primary" 
+                                            size="small"
+                                            onClick={() => {
+                                                if (newTagValue.trim()) {
+                                                    add(newTagValue.trim());
+                                                    setNewTagValue('');
+                                                    setShowTagInput(false);
+                                                }
+                                            }}
+                                        >
+                                            Add
+                                        </Button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </Form.List>
+                </Form.Item>
+
+                <Divider orientation="left" plain>
+                    <Text type="secondary" style={{ fontSize: 12 }}>Associate Accounts</Text>
+                </Divider>
+
+                <Form.Item name="associate_accounts" label="Associate Accounts" initialValue="all_accounts">
+                    <Radio.Group>
+                        <Radio value="all_accounts">All Accounts</Radio>
+                        <Radio value="all_banks">All Banks</Radio>
+                        <Radio value="all_cards">All Cards</Radio>
+                        <Radio value="custom">Custom</Radio>
+                    </Radio.Group>
+                </Form.Item>
+
+                <Form.Item noStyle shouldUpdate={(prev, curr) => prev.associate_accounts !== curr.associate_accounts}>
+                    {({ getFieldValue }) =>
+                        getFieldValue("associate_accounts") === "custom" ? (
+                            <Form.Item name="associated_account_id" label="Select Accounts">
+                                <Select
+                                    placeholder="Select accounts..."
+                                    options={accountOptions}
+                                    showSearch
+                                    optionFilterProp="label"
+                                    allowClear
+                                    mode="multiple"
+                                />
+                            </Form.Item>
+                        ) : null
+                    }
+                </Form.Item>
+
+                <Alert
+                    message="Depending on selected record as, some associate account options may be disabled"
+                    type="info"
+                    showIcon
+                    style={{ fontSize: 11, marginTop: 8 }}
+                />
             </Form>
         </Modal>
     );
@@ -384,29 +507,11 @@ const CategorizationRulesDrawer: React.FC<Props> = ({ open, onClose, shopId }) =
     const queryClient = useQueryClient();
     const [activeTab, setActiveTab] = useState("rules");
     const [ruleModalOpen, setRuleModalOpen] = useState(false);
-    const [mappingModalOpen, setMappingModalOpen] = useState(false);
-    const [columnMappingModalOpen, setColumnMappingModalOpen] = useState(false);
     const [editingRule, setEditingRule] = useState<CategorizationRule | null>(null);
-    const [editingMapping, setEditingMapping] = useState<CategoryMapping | null>(null);
-    const [editingColumnMapping, setEditingColumnMapping] = useState<ColumnMapping | null>(null);
-    const [mappingForm] = Form.useForm();
-    const [columnForm] = Form.useForm();
 
     const { data: rulesData, isLoading: rulesLoading } = useQuery({
         queryKey: ["categorization-rules", shopId],
         queryFn: () => getCategorizationRules(shopId),
-        enabled: open,
-    });
-
-    const { data: mappingsData, isLoading: mappingsLoading } = useQuery({
-        queryKey: ["category-mappings", shopId],
-        queryFn: () => getCategoryMappings(shopId),
-        enabled: open,
-    });
-
-    const { data: columnMappingsData, isLoading: columnMappingsLoading } = useQuery({
-        queryKey: ["column-mappings", shopId],
-        queryFn: () => getColumnMappings(shopId),
         enabled: open,
     });
 
@@ -416,10 +521,21 @@ const CategorizationRulesDrawer: React.FC<Props> = ({ open, onClose, shopId }) =
         enabled: open,
     });
 
+    const { data: suppliersData } = useQuery({
+        queryKey: ["suppliers", shopId],
+        queryFn: () => fetchAllSuppliers({}),
+        enabled: open,
+    });
+
     const accounts = accountsData?.accounts || [];
+    const suppliers = suppliersData || [];
     const accountOptions = accounts.map((a: any) => ({
         label: `${a.account_code} — ${a.account_name}`,
         value: a._id,
+    }));
+    const supplierOptions = suppliers.map((s: any) => ({
+        label: s.name,
+        value: s._id,
     }));
 
     const invalidateAll = () => {
@@ -444,122 +560,12 @@ const CategorizationRulesDrawer: React.FC<Props> = ({ open, onClose, shopId }) =
         onSuccess: () => invalidateAll(),
     });
 
-    const mappingCreateMutation = useMutation({
-        mutationFn: (d: CategoryMappingInput) => createCategoryMapping({ ...d, shop_id: shopId }),
-        onSuccess: () => { invalidateAll(); setMappingModalOpen(false); mappingForm.resetFields(); },
-    });
-
-    const mappingUpdateMutation = useMutation({
-        mutationFn: ({ id, d }: { id: string; d: Partial<CategoryMappingInput> }) =>
-            updateCategoryMapping(id, d),
-        onSuccess: () => { invalidateAll(); setMappingModalOpen(false); setEditingMapping(null); },
-    });
-
-    const mappingDeleteMutation = useMutation({
-        mutationFn: (id: string) => deleteCategoryMapping(id),
-        onSuccess: () => invalidateAll(),
-    });
-
-    const columnCreateMutation = useMutation({
-        mutationFn: (d: ColumnMappingInput) => createColumnMapping({ ...d, shop_id: shopId }),
-        onSuccess: () => { invalidateAll(); setColumnMappingModalOpen(false); columnForm.resetFields(); },
-    });
-
-    const columnUpdateMutation = useMutation({
-        mutationFn: ({ id, d }: { id: string; d: Partial<ColumnMappingInput> }) =>
-            updateColumnMapping(id, d),
-        onSuccess: () => { invalidateAll(); setColumnMappingModalOpen(false); setEditingColumnMapping(null); },
-    });
-
-    const columnDeleteMutation = useMutation({
-        mutationFn: (id: string) => deleteColumnMapping(id),
-        onSuccess: () => invalidateAll(),
-    });
-
     const handleRuleSubmit = (d: CategorizationRuleInput) => {
         if (editingRule) ruleUpdateMutation.mutate({ id: editingRule._id, d });
         else ruleCreateMutation.mutate(d);
     };
 
-    const openEditMapping = (m: CategoryMapping) => {
-        setEditingMapping(m);
-        mappingForm.setFieldsValue({
-            keyword: m.keyword,
-            match_mode: m.match_mode,
-            direction: m.direction,
-            account_id: m.account_id,
-            category_label: m.category_label,
-            payee_name: m.payee_name,
-            priority: m.priority,
-            is_active: m.is_active,
-        });
-        setMappingModalOpen(true);
-    };
-
-    const handleMappingSubmit = async () => {
-        const values = await mappingForm.validateFields();
-        const acc = accounts.find((a: any) => a._id === values.account_id);
-        const payload: CategoryMappingInput = {
-            ...values,
-            shop_id: shopId,
-            account_code: acc?.account_code,
-            account_name: acc?.account_name,
-        };
-        if (editingMapping) mappingUpdateMutation.mutate({ id: editingMapping._id, d: payload });
-        else mappingCreateMutation.mutate(payload);
-    };
-
-    const openEditColumnMapping = (m: ColumnMapping) => {
-        setEditingColumnMapping(m);
-        columnForm.setFieldsValue({
-            name: m.name,
-            bank_name: m.bank_name,
-            date_format: m.date_format,
-            skip_rows: m.skip_rows,
-            amount_direction_mode: m.amount_direction_mode,
-            is_default: m.is_default,
-            field_date: m.field_map?.date,
-            field_description: m.field_map?.description,
-            field_debit: m.field_map?.debit,
-            field_credit: m.field_map?.credit,
-            field_amount: m.field_map?.amount,
-            field_reference: m.field_map?.reference,
-            field_balance: m.field_map?.balance,
-        });
-        setColumnMappingModalOpen(true);
-    };
-
-    const handleColumnMappingSubmit = async () => {
-        const values = await columnForm.validateFields();
-        const payload: ColumnMappingInput = {
-            shop_id: shopId,
-            name: values.name,
-            bank_name: values.bank_name,
-            date_format: values.date_format || "DD/MM/YYYY",
-            skip_rows: values.skip_rows || 1,
-            amount_direction_mode: values.amount_direction_mode || "split",
-            is_default: values.is_default || false,
-            field_map: {
-                date: values.field_date,
-                description: values.field_description,
-                debit: values.field_debit,
-                credit: values.field_credit,
-                amount: values.field_amount,
-                reference: values.field_reference,
-                balance: values.field_balance,
-            },
-        };
-        if (editingColumnMapping) columnUpdateMutation.mutate({ id: editingColumnMapping._id, d: payload });
-        else columnCreateMutation.mutate(payload);
-    };
-
     const ruleColumns = [
-        {
-            title: "Priority",
-            dataIndex: "priority",
-            width: 75,
-            render: (v: number) => <Tag style={{ fontSize: 11 }}>{v}</Tag>,
-        },
         {
             title: "Rule Name",
             dataIndex: "name",
@@ -573,15 +579,28 @@ const CategorizationRulesDrawer: React.FC<Props> = ({ open, onClose, shopId }) =
             ),
         },
         {
-            title: "Assigns To",
-            key: "assigns",
+            title: "Account",
+            key: "account",
             render: (_: any, r: CategorizationRule) => (
-                r.actions?.exclude
-                    ? <Tag color="default">Exclude</Tag>
-                    : r.actions?.account_name
-                        ? <Tag color="blue" icon={<TagOutlined />}>{r.actions.account_code} {r.actions.account_name}</Tag>
-                        : <Text type="secondary">—</Text>
+                r.actions?.account_name
+                    ? <Tag color="blue" icon={<TagOutlined />}>{r.actions.account_code} {r.actions.account_name}</Tag>
+                    : <Text type="secondary">—</Text>
             ),
+        },
+        {
+            title: "Vendor",
+            dataIndex: "vendor_id",
+            render: (v: string) => v ? <Tag color="purple">{v}</Tag> : <Text type="secondary">—</Text>,
+        },
+        {
+            title: "Vat Treatment",
+            dataIndex: "vat_treatment",
+            render: (v: string) => v ? <Tag color="orange">{v}</Tag> : <Text type="secondary">—</Text>,
+        },
+        {
+            title: "Tax",
+            dataIndex: "tax",
+            render: (v: string) => v ? <Tag color="green">{v}</Tag> : <Text type="secondary">—</Text>,
         },
         {
             title: "Matches",
@@ -609,103 +628,6 @@ const CategorizationRulesDrawer: React.FC<Props> = ({ open, onClose, shopId }) =
                 <Space size={4}>
                     <Button icon={<EditOutlined />} size="small" onClick={() => { setEditingRule(r); setRuleModalOpen(true); }} />
                     <Popconfirm title="Delete this rule?" onConfirm={() => ruleDeleteMutation.mutate(r._id)} okText="Delete" okButtonProps={{ danger: true }} cancelText="No">
-                        <Button icon={<DeleteOutlined />} size="small" danger />
-                    </Popconfirm>
-                </Space>
-            ),
-        },
-    ];
-
-    const mappingColumns = [
-        {
-            title: "Keyword",
-            dataIndex: "keyword",
-            render: (v: string, r: CategoryMapping) => (
-                <Space direction="vertical" size={0}>
-                    <Text code style={{ fontSize: 12 }}>{v}</Text>
-                    <Text type="secondary" style={{ fontSize: 11 }}>{r.match_mode} · {r.direction}</Text>
-                </Space>
-            ),
-        },
-        {
-            title: "Maps To",
-            key: "maps_to",
-            render: (_: any, r: CategoryMapping) => (
-                <Tag color="blue" icon={<TagOutlined />}>
-                    {r.account_code} {r.account_name}
-                </Tag>
-            ),
-        },
-        {
-            title: "Category",
-            dataIndex: "category_label",
-            render: (v: string) => v ? <Tag>{v}</Tag> : <Text type="secondary">—</Text>,
-        },
-        {
-            title: "Priority",
-            dataIndex: "priority",
-            width: 75,
-            render: (v: number) => <Tag style={{ fontSize: 11 }}>{v}</Tag>,
-        },
-        {
-            title: "Active",
-            dataIndex: "is_active",
-            width: 70,
-            render: (v: boolean, r: CategoryMapping) => (
-                <Switch
-                    checked={v}
-                    size="small"
-                    onChange={(checked) => mappingUpdateMutation.mutate({ id: r._id, d: { is_active: checked } })}
-                />
-            ),
-        },
-        {
-            title: "Actions",
-            key: "actions",
-            width: 90,
-            render: (_: any, r: CategoryMapping) => (
-                <Space size={4}>
-                    <Button icon={<EditOutlined />} size="small" onClick={() => openEditMapping(r)} />
-                    <Popconfirm title="Delete this mapping?" onConfirm={() => mappingDeleteMutation.mutate(r._id)} okText="Delete" okButtonProps={{ danger: true }} cancelText="No">
-                        <Button icon={<DeleteOutlined />} size="small" danger />
-                    </Popconfirm>
-                </Space>
-            ),
-        },
-    ];
-
-    const columnMappingColumns = [
-        {
-            title: "Name",
-            dataIndex: "name",
-            render: (v: string, r: ColumnMapping) => (
-                <Space>
-                    <Text strong>{v}</Text>
-                    {r.is_default && <Tag color="green">Default</Tag>}
-                    {r.bank_name && <Text type="secondary" style={{ fontSize: 12 }}>({r.bank_name})</Text>}
-                </Space>
-            ),
-        },
-        {
-            title: "Date Format",
-            dataIndex: "date_format",
-            width: 120,
-            render: (v: string) => <Tag>{v}</Tag>,
-        },
-        {
-            title: "Amount Mode",
-            dataIndex: "amount_direction_mode",
-            width: 120,
-            render: (v: string) => <Tag>{v}</Tag>,
-        },
-        {
-            title: "Actions",
-            key: "actions",
-            width: 90,
-            render: (_: any, r: ColumnMapping) => (
-                <Space size={4}>
-                    <Button icon={<EditOutlined />} size="small" onClick={() => openEditColumnMapping(r)} />
-                    <Popconfirm title="Delete this template?" onConfirm={() => columnDeleteMutation.mutate(r._id)} okText="Delete" okButtonProps={{ danger: true }} cancelText="No">
                         <Button icon={<DeleteOutlined />} size="small" danger />
                     </Popconfirm>
                 </Space>
@@ -751,80 +673,6 @@ const CategorizationRulesDrawer: React.FC<Props> = ({ open, onClose, shopId }) =
                 </Space>
             ),
         },
-        {
-            key: "mappings",
-            label: (
-                <Space>
-                    <TagOutlined />
-                    Keyword Mappings
-                    <Tag>{mappingsData?.mappings?.length || 0}</Tag>
-                </Space>
-            ),
-            children: (
-                <Space direction="vertical" style={{ width: "100%" }} size={12}>
-                    <Alert
-                        type="info"
-                        showIcon
-                        message="Keyword mappings are simpler than rules — they match a keyword in the description to an account. Evaluated after rules."
-                    />
-                    <div style={{ textAlign: "right" }}>
-                        <Button
-                            type="primary"
-                            icon={<PlusOutlined />}
-                            onClick={() => { setEditingMapping(null); mappingForm.resetFields(); setMappingModalOpen(true); }}
-                        >
-                            New Mapping
-                        </Button>
-                    </div>
-                    <Table
-                        rowKey="_id"
-                        dataSource={mappingsData?.mappings || []}
-                        columns={mappingColumns}
-                        loading={mappingsLoading}
-                        size="small"
-                        pagination={false}
-                        locale={{ emptyText: "No keyword mappings yet" }}
-                    />
-                </Space>
-            ),
-        },
-        {
-            key: "column-mappings",
-            label: (
-                <Space>
-                    <SettingOutlined />
-                    Column Templates
-                    <Tag>{columnMappingsData?.mappings?.length || 0}</Tag>
-                </Space>
-            ),
-            children: (
-                <Space direction="vertical" style={{ width: "100%" }} size={12}>
-                    <Alert
-                        type="info"
-                        showIcon
-                        message="Save column mapping templates per bank so you don't have to re-map headers every time you import."
-                    />
-                    <div style={{ textAlign: "right" }}>
-                        <Button
-                            type="primary"
-                            icon={<PlusOutlined />}
-                            onClick={() => { setEditingColumnMapping(null); columnForm.resetFields(); setColumnMappingModalOpen(true); }}
-                        >
-                            New Template
-                        </Button>
-                    </div>
-                    <Table
-                        rowKey="_id"
-                        dataSource={columnMappingsData?.mappings || []}
-                        columns={columnMappingColumns}
-                        loading={columnMappingsLoading}
-                        size="small"
-                        pagination={false}
-                        locale={{ emptyText: "No column templates yet" }}
-                    />
-                </Space>
-            ),
-        },
     ];
 
     return (
@@ -833,7 +681,7 @@ const CategorizationRulesDrawer: React.FC<Props> = ({ open, onClose, shopId }) =
                 title={
                     <Space>
                         <SettingOutlined />
-                        <Text strong>Rules & Mappings</Text>
+                        <Text strong>Categorization Rules</Text>
                     </Space>
                 }
                 open={open}
@@ -851,168 +699,9 @@ const CategorizationRulesDrawer: React.FC<Props> = ({ open, onClose, shopId }) =
                 onConfirm={handleRuleSubmit}
                 editingRule={editingRule}
                 accounts={accounts}
+                suppliers={suppliers}
                 loading={ruleCreateMutation.isLoading || ruleUpdateMutation.isLoading}
             />
-
-            {/* ── Keyword Mapping Modal ── */}
-            <Modal
-                open={mappingModalOpen}
-                title={editingMapping ? "Edit Keyword Mapping" : "New Keyword Mapping"}
-                onCancel={() => { setMappingModalOpen(false); setEditingMapping(null); mappingForm.resetFields(); }}
-                onOk={handleMappingSubmit}
-                confirmLoading={mappingCreateMutation.isLoading || mappingUpdateMutation.isLoading}
-                okText={editingMapping ? "Save Changes" : "Create Mapping"}
-                destroyOnClose
-            >
-                <Form form={mappingForm} layout="vertical" style={{ marginTop: 16 }}>
-                    <Row gutter={12}>
-                        <Col span={14}>
-                            <Form.Item name="keyword" label="Keyword" rules={[{ required: true }]}>
-                                <Input placeholder="e.g. SAFARICOM, KPA, KPLC" />
-                            </Form.Item>
-                        </Col>
-                        <Col span={10}>
-                            <Form.Item name="match_mode" label="Match Mode" initialValue="contains">
-                                <Select options={[
-                                    { label: "Contains", value: "contains" },
-                                    { label: "Starts with", value: "starts_with" },
-                                    { label: "Ends with", value: "ends_with" },
-                                    { label: "Exact", value: "exact" },
-                                    { label: "Regex", value: "regex" },
-                                ]} />
-                            </Form.Item>
-                        </Col>
-                    </Row>
-                    <Form.Item name="direction" label="Apply to" initialValue="both">
-                        <Select options={[
-                            { label: "Both (debits and credits)", value: "both" },
-                            { label: "Debits only (outflow)", value: "debit" },
-                            { label: "Credits only (inflow)", value: "credit" },
-                        ]} />
-                    </Form.Item>
-                    <Form.Item name="account_id" label="Map to Account" rules={[{ required: true }]}>
-                        <Select
-                            placeholder="Select account..."
-                            options={accountOptions}
-                            showSearch
-                            optionFilterProp="label"
-                        />
-                    </Form.Item>
-                    <Row gutter={12}>
-                        <Col span={12}>
-                            <Form.Item name="category_label" label="Category Label">
-                                <Input placeholder="e.g. Utilities" />
-                            </Form.Item>
-                        </Col>
-                        <Col span={6}>
-                            <Form.Item name="priority" label="Priority" initialValue={50}>
-                                <InputNumber min={1} max={999} style={{ width: "100%" }} />
-                            </Form.Item>
-                        </Col>
-                        <Col span={6}>
-                            <Form.Item name="is_active" label="Active" valuePropName="checked" initialValue={true}>
-                                <Switch />
-                            </Form.Item>
-                        </Col>
-                    </Row>
-                </Form>
-            </Modal>
-
-            {/* ── Column Mapping Modal ── */}
-            <Modal
-                open={columnMappingModalOpen}
-                title={editingColumnMapping ? "Edit Column Template" : "New Column Template"}
-                onCancel={() => { setColumnMappingModalOpen(false); setEditingColumnMapping(null); columnForm.resetFields(); }}
-                onOk={handleColumnMappingSubmit}
-                confirmLoading={columnCreateMutation.isLoading || columnUpdateMutation.isLoading}
-                okText={editingColumnMapping ? "Save Changes" : "Create Template"}
-                width={600}
-                destroyOnClose
-            >
-                <Form form={columnForm} layout="vertical" style={{ marginTop: 16 }}>
-                    <Row gutter={12}>
-                        <Col span={12}>
-                            <Form.Item name="name" label="Template Name" rules={[{ required: true }]}>
-                                <Input placeholder="e.g. KCB Bank Kenya" />
-                            </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                            <Form.Item name="bank_name" label="Bank Name">
-                                <Input placeholder="e.g. KCB" />
-                            </Form.Item>
-                        </Col>
-                    </Row>
-                    <Divider orientation="left" plain>
-                        <Text type="secondary" style={{ fontSize: 12 }}>Column Header Names (as they appear in the file)</Text>
-                    </Divider>
-                    <Row gutter={12}>
-                        <Col span={12}>
-                            <Form.Item name="field_date" label="Date Column">
-                                <Input placeholder="e.g. Date, Value Date" />
-                            </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                            <Form.Item name="field_description" label="Description Column">
-                                <Input placeholder="e.g. Description, Narration" />
-                            </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                            <Form.Item name="field_debit" label="Debit Column">
-                                <Input placeholder="e.g. Debit, Withdrawals" />
-                            </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                            <Form.Item name="field_credit" label="Credit Column">
-                                <Input placeholder="e.g. Credit, Deposits" />
-                            </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                            <Form.Item name="field_amount" label="Single Amount Column">
-                                <Input placeholder="e.g. Amount (leave blank if split)" />
-                            </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                            <Form.Item name="field_reference" label="Reference Column">
-                                <Input placeholder="e.g. Reference, Cheque No" />
-                            </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                            <Form.Item name="field_balance" label="Balance Column">
-                                <Input placeholder="e.g. Balance, Running Balance" />
-                            </Form.Item>
-                        </Col>
-                    </Row>
-                    <Row gutter={12}>
-                        <Col span={8}>
-                            <Form.Item name="date_format" label="Date Format" initialValue="DD/MM/YYYY">
-                                <Select options={[
-                                    { label: "DD/MM/YYYY", value: "DD/MM/YYYY" },
-                                    { label: "MM/DD/YYYY", value: "MM/DD/YYYY" },
-                                    { label: "YYYY-MM-DD", value: "YYYY-MM-DD" },
-                                    { label: "DD-MMM-YYYY", value: "DD-MMM-YYYY" },
-                                ]} />
-                            </Form.Item>
-                        </Col>
-                        <Col span={8}>
-                            <Form.Item name="skip_rows" label="Header Rows" initialValue={1}>
-                                <InputNumber min={0} max={10} style={{ width: "100%" }} />
-                            </Form.Item>
-                        </Col>
-                        <Col span={8}>
-                            <Form.Item name="amount_direction_mode" label="Amount Mode" initialValue="split">
-                                <Select options={[
-                                    { label: "Split (debit/credit)", value: "split" },
-                                    { label: "Sign (+/-)", value: "sign" },
-                                    { label: "Type column", value: "column" },
-                                ]} />
-                            </Form.Item>
-                        </Col>
-                    </Row>
-                    <Form.Item name="is_default" valuePropName="checked" label="Set as default template">
-                        <Switch />
-                    </Form.Item>
-                </Form>
-            </Modal>
         </>
     );
 };

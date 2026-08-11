@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import {
     ProForm, ProFormText,
     ProFormDateRangePicker, ProFormDigit, ProFormTextArea,
@@ -6,7 +6,7 @@ import {
 import {
     Drawer, Divider, Typography, Upload, Alert, Space,
     Tag, Table, Button, Steps, Card, Select, Form, Row, Col,
-    Tabs, Progress, Spin, message,
+    Tabs, Progress, Spin, message, Radio,
 } from "antd";
 import {
     InboxOutlined, FileExcelOutlined, CheckCircleOutlined,
@@ -18,8 +18,6 @@ import * as XLSX from "xlsx";
 import {
     importStatement,
     uploadAndParseStatement,
-    getColumnMappings,
-    ColumnMapping,
     ImportStatementInput,
     downloadExcelTemplate,
     downloadPDFTemplate,
@@ -36,7 +34,7 @@ interface ParsedRow {
     reference?: string;
     debit: number;
     credit: number;
-    balance?: number;
+    original_amount?: number;
     raw_row?: Record<string, any>;
 }
 
@@ -60,25 +58,24 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
     const [fileHeaders, setFileHeaders] = useState<string[]>([]);
     const [rawRows, setRawRows] = useState<Record<string, any>[]>([]);
     const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
-    const [selectedMapping, setSelectedMapping] = useState<string | null>(null);
-    const [columnMap, setColumnMap] = useState<Record<string, string>>({});
     const [submitting, setSubmitting] = useState(false);
     const [fileName, setFileName] = useState<string>("");
     const [uploadProgress, setUploadProgress] = useState(0);
     const [autoDetectedData, setAutoDetectedData] = useState<any>(null);
-    const [selectedAccountId, setSelectedAccountId] = useState<string>("");
-
-    const { data: mappingsData } = useQuery({
-        queryKey: ["column-mappings", shopId],
-        queryFn: () => getColumnMappings(shopId),
-        enabled: open && importMethod === "manual",
-    });
+    const [selectedAccountId, setSelectedAccountId] = useState<string | undefined>(undefined);
+    const [selectedDateFormat, setSelectedDateFormat] = useState<string>("DD/MM/YYYY");
+    const [amountColumnType, setAmountColumnType] = useState<"double" | "single">("double");
+    const [columnMap, setColumnMap] = useState<Record<string, string>>({});
 
     const { data: accountsData } = useQuery({
         queryKey: ["chart-of-accounts", shopId],
-        queryFn: () => getAllAccounts({ shop_id: shopId }),
         enabled: open,
+        queryFn: () => getAllAccounts({ shop_id: shopId }),
     });
+
+    const accounts = (accountsData?.accounts || []).filter((a: any) =>
+        a.account_subtype === "Cash & Bank" && a.is_bank_account === true
+    );
 
     const uploadMutation = useMutation({
         mutationFn: (formData: FormData) => uploadAndParseStatement(formData),
@@ -111,11 +108,6 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
         },
     });
 
-    const columnMappings = useMemo(() => mappingsData?.mappings || [], [mappingsData?.mappings]);
-    const accounts = (accountsData?.accounts || []).filter((a: any) =>
-        a.account_subtype === "Cash & Bank" && a.is_bank_account === true
-    );
-
     useEffect(() => {
         if (!open) {
             resetState();
@@ -128,29 +120,15 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
         setFileHeaders([]);
         setRawRows([]);
         setParsedRows([]);
-        setSelectedMapping(null);
         setColumnMap({});
         setFileName("");
         setUploadProgress(0);
         setAutoDetectedData(null);
-        setSelectedAccountId("");
+        setSelectedAccountId(undefined);
+        setSelectedDateFormat("DD/MM/YYYY");
+        setAmountColumnType("double");
         form.resetFields();
     };
-
-    useEffect(() => {
-        if (selectedMapping && columnMappings.length && importMethod === "manual") {
-            const mapping = columnMappings.find((m: ColumnMapping) => m._id === selectedMapping);
-            if (mapping?.field_map) {
-                const newMap: Record<string, string> = {};
-                Object.entries(mapping.field_map).forEach(([field, header]) => {
-                    if (header && fileHeaders.includes(header as string)) {
-                        newMap[field] = header as string;
-                    }
-                });
-                setColumnMap(newMap);
-            }
-        }
-    }, [selectedMapping, columnMappings, fileHeaders, importMethod]);
 
     const parseExcelFile = (file: File) => {
         setFileName(file.name);
@@ -183,7 +161,7 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
 
         // Reset progress
         setUploadProgress(0);
-        
+
         // Simulate progress
         const interval = setInterval(() => {
             setUploadProgress((prev) => {
@@ -232,7 +210,6 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
         const creditKey = columnMap["credit"];
         const amtKey = columnMap["amount"];
         const refKey = columnMap["reference"];
-        const balKey = columnMap["balance"];
 
         const parsed: ParsedRow[] = rawRows
             .map((row) => {
@@ -241,12 +218,18 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
 
                 let debit = 0;
                 let credit = 0;
+                let originalAmount: number | undefined;
 
-                if (amtKey && row[amtKey] !== undefined) {
-                    const amt = parseFloat(String(row[amtKey]).replace(/,/g, "")) || 0;
-                    if (amt < 0) debit = Math.abs(amt);
-                    else credit = amt;
+                if (amountColumnType === "single") {
+                    // Single column: negative = debit, positive = credit
+                    if (amtKey && row[amtKey] !== undefined) {
+                        const amt = parseFloat(String(row[amtKey]).replace(/,/g, "")) || 0;
+                        originalAmount = amt; // Store original signed amount
+                        if (amt < 0) debit = Math.abs(amt);
+                        else credit = amt;
+                    }
                 } else {
+                    // Double column: separate debit and credit
                     debit = parseFloat(String(row[debitKey] || 0).replace(/,/g, "")) || 0;
                     credit = parseFloat(String(row[creditKey] || 0).replace(/,/g, "")) || 0;
                 }
@@ -254,7 +237,7 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
                 const rawDate = row[dateKey];
                 let transaction_date = "";
                 if (rawDate) {
-                    const parsed = dayjs(rawDate);
+                    const parsed = dayjs(rawDate, selectedDateFormat);
                     transaction_date = parsed.isValid() ? parsed.toISOString() : rawDate;
                 }
 
@@ -264,13 +247,65 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
                     reference: refKey ? String(row[refKey] || "").trim() : undefined,
                     debit,
                     credit,
-                    balance: balKey ? parseFloat(String(row[balKey] || 0).replace(/,/g, "")) || undefined : undefined,
+                    original_amount: originalAmount,
                     raw_row: row,
                 };
             })
             .filter(Boolean) as ParsedRow[];
 
         setParsedRows(parsed);
+
+        // Auto-fill statement period, opening balance, and closing balance
+        if (parsed.length > 0) {
+            const validDates = parsed
+                .map((r) => dayjs(r.transaction_date))
+                .filter((d) => d.isValid())
+                .sort((a, b) => a.valueOf() - b.valueOf());
+
+            if (validDates.length > 0) {
+                const firstDate = validDates[0];
+                const lastDate = validDates[validDates.length - 1];
+
+                form.setFieldsValue({
+                    period: [firstDate, lastDate],
+                });
+            }
+
+            // Try to determine opening and closing balances from transactions
+            // For closing balance, use the last transaction's running balance if available
+            // For opening balance, we can estimate from the first transaction or use 0
+            const lastTransaction = parsed[parsed.length - 1];
+            const firstTransaction = parsed[0];
+
+            // Calculate closing balance from the data
+            let closingBalance = 0;
+            let openingBalance = 0;
+
+            // Try to get balance from raw data if available
+            if (lastTransaction.raw_row && Object.keys(lastTransaction.raw_row).length > 0) {
+                // Look for common balance column names
+                const balanceKeys = Object.keys(lastTransaction.raw_row).filter(
+                    (k) => k.toLowerCase().includes("balance") || k.toLowerCase().includes("running")
+                );
+                if (balanceKeys.length > 0) {
+                    const balanceValue = parseFloat(String(lastTransaction.raw_row[balanceKeys[0]]).replace(/,/g, "")) || 0;
+                    closingBalance = balanceValue;
+                }
+            }
+
+            // If no balance found, calculate from transactions
+            if (closingBalance === 0) {
+                const totalCredits = parsed.reduce((sum, r) => sum + r.credit, 0);
+                const totalDebits = parsed.reduce((sum, r) => sum + r.debit, 0);
+                closingBalance = totalCredits - totalDebits;
+            }
+
+            form.setFieldsValue({
+                opening_balance: openingBalance,
+                closing_balance: closingBalance,
+            });
+        }
+
         setCurrentStep(2);
     };
 
@@ -292,13 +327,15 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
                     statement_to: values.period?.[1]?.toISOString() || autoDetectedData.statement_to,
                     opening_balance: values.opening_balance || autoDetectedData.opening_balance || 0,
                     closing_balance: values.closing_balance || autoDetectedData.closing_balance || 0,
+                    amount_column_type: amountColumnType,
+                    date_format: selectedDateFormat,
                     transactions: parsedRows.map((r) => ({
                         transaction_date: r.transaction_date,
                         description: r.description,
                         reference: r.reference,
                         debit: r.debit,
                         credit: r.credit,
-                        balance: r.balance,
+                        original_amount: r.original_amount,
                         raw_row: r.raw_row,
                     })),
                     notes: values.notes,
@@ -310,18 +347,19 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
                     account_id: selectedAccountId || values.account_id,
                     source_type: fileName.endsWith(".csv") ? "csv" : "excel",
                     original_filename: fileName,
-                    column_mapping_id: selectedMapping || undefined,
                     statement_from: values.period?.[0]?.toISOString(),
                     statement_to: values.period?.[1]?.toISOString(),
                     opening_balance: values.opening_balance || 0,
                     closing_balance: values.closing_balance || 0,
+                    amount_column_type: amountColumnType,
+                    date_format: selectedDateFormat,
                     transactions: parsedRows.map((r) => ({
                         transaction_date: r.transaction_date,
                         description: r.description,
                         reference: r.reference,
                         debit: r.debit,
                         credit: r.credit,
-                        balance: r.balance,
+                        original_amount: r.original_amount,
                         raw_row: r.raw_row,
                     })),
                     notes: values.notes,
@@ -341,11 +379,56 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
     const INTERNAL_FIELDS = [
         { key: "date", label: "Transaction Date *", required: true },
         { key: "description", label: "Description *", required: true },
-        { key: "debit", label: "Debit (Outflow)" },
-        { key: "credit", label: "Credit (Inflow)" },
-        { key: "amount", label: "Single Amount Column" },
+        ...(amountColumnType === "double"
+            ? [
+                { key: "debit", label: "Debit (Outflow)" },
+                { key: "credit", label: "Credit (Inflow)" },
+              ]
+            : [
+                { key: "amount", label: "Amount Column" },
+              ]
+        ),
         { key: "reference", label: "Reference / Cheque No" },
-        { key: "balance", label: "Running Balance" },
+    ];
+
+    const DATE_FORMATS = [
+        { label: "DD/MM/YYYY", value: "DD/MM/YYYY" },
+        { label: "MM/DD/YYYY", value: "MM/DD/YYYY" },
+        { label: "YYYY-MM-DD", value: "YYYY-MM-DD" },
+        { label: "DD-MMM-YYYY", value: "DD-MMM-YYYY" },
+        { label: "MMM DD, YYYY", value: "MMM DD, YYYY" },
+        { label: "YYYY/MM/DD", value: "YYYY/MM/DD" },
+        { label: "DD.MM.YYYY", value: "DD.MM.YYYY" },
+        { label: "MM.DD.YYYY", value: "MM.DD.YYYY" },
+        { label: "YYYY.MM.DD", value: "YYYY.MM.DD" },
+        { label: "DD/MM/YY", value: "DD/MM/YY" },
+        { label: "MM/DD/YY", value: "MM/DD/YY" },
+        { label: "YY/MM/DD", value: "YY/MM/DD" },
+        { label: "DD-MMM-YY", value: "DD-MMM-YY" },
+        { label: "MMM-DD-YY", value: "MMM-DD-YY" },
+        { label: "YYYYMMDD", value: "YYYYMMDD" },
+        { label: "MMDDYYYY", value: "MMDDYYYY" },
+        { label: "DDMMYYYY", value: "DDMMYYYY" },
+        { label: "D/M/YYYY", value: "D/M/YYYY" },
+        { label: "M/D/YYYY", value: "M/D/YYYY" },
+        { label: "YYYY-M-D", value: "YYYY-M-D" },
+        { label: "D-M-YYYY", value: "D-M-YYYY" },
+        { label: "M-D-YYYY", value: "M-D-YYYY" },
+        { label: "DD Month YYYY", value: "DD MMMM YYYY" },
+        { label: "Month DD, YYYY", value: "MMMM DD, YYYY" },
+        { label: "YYYY Month DD", value: "YYYY MMMM DD" },
+        { label: "DD-Month-YYYY", value: "DD-MMMM-YYYY" },
+        { label: "Month-DD-YYYY", value: "MMMM-DD-YYYY" },
+        { label: "DD/MM/YYYY HH:mm", value: "DD/MM/YYYY HH:mm" },
+        { label: "DD/MM/YYYY HH:mm:ss", value: "DD/MM/YYYY HH:mm:ss" },
+        { label: "YYYY-MM-DD HH:mm:ss", value: "YYYY-MM-DD HH:mm:ss" },
+        { label: "YYYY-MM-DDTHH:mm:ss", value: "YYYY-MM-DDTHH:mm:ss" },
+        { label: "DD/MM/YYYY HH:mm:ss.SSS", value: "DD/MM/YYYY HH:mm:ss.SSS" },
+        { label: "Do MMM YYYY", value: "Do MMM YYYY" },
+        { label: "MMM Do YYYY", value: "MMM Do YYYY" },
+        { label: "dddd, MMMM D, YYYY", value: "dddd, MMMM D, YYYY" },
+        { label: "MMMM D, YYYY", value: "MMMM D, YYYY" },
+        { label: "YYYY, MMMM D", value: "YYYY, MMMM D" },
     ];
 
     const headerOptions = fileHeaders.map((h) => ({ label: h, value: h }));
@@ -356,22 +439,37 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
         { title: "Reference", dataIndex: "reference", width: 120 },
         {
             title: "Debit", dataIndex: "debit", width: 110, align: "right" as const,
-            render: (v: number) => v > 0 ? <Text style={{ color: "#cf1322" }}>{v.toLocaleString("en-KE", { minimumFractionDigits: 2 })}</Text> : <Text type="secondary">—</Text>,
+            render: (v: number, record: any) => {
+                if (amountColumnType === "single" && record.original_amount !== undefined) {
+                    // In single column mode, show the original signed amount
+                    if (record.original_amount < 0) {
+                        return <Text style={{ color: "#cf1322" }}>{record.original_amount.toLocaleString("en-KE", { minimumFractionDigits: 2 })}</Text>;
+                    }
+                    return <Text type="secondary">—</Text>;
+                }
+                // Double column mode
+                return v > 0 ? <Text style={{ color: "#cf1322" }}>{v.toLocaleString("en-KE", { minimumFractionDigits: 2 })}</Text> : <Text type="secondary">—</Text>;
+            },
         },
         {
             title: "Credit", dataIndex: "credit", width: 110, align: "right" as const,
-            render: (v: number) => v > 0 ? <Text style={{ color: "#389e0d" }}>{v.toLocaleString("en-KE", { minimumFractionDigits: 2 })}</Text> : <Text type="secondary">—</Text>,
+            render: (v: number, record: any) => {
+                if (amountColumnType === "single" && record.original_amount !== undefined) {
+                    // In single column mode, show the original signed amount
+                    if (record.original_amount > 0) {
+                        return <Text style={{ color: "#389e0d" }}>{record.original_amount.toLocaleString("en-KE", { minimumFractionDigits: 2 })}</Text>;
+                    }
+                    return <Text type="secondary">—</Text>;
+                }
+                // Double column mode
+                return v > 0 ? <Text style={{ color: "#389e0d" }}>{v.toLocaleString("en-KE", { minimumFractionDigits: 2 })}</Text> : <Text type="secondary">—</Text>;
+            },
         },
     ];
 
     const accountOptions = accounts.map((a: any) => ({
         label: `${a.account_name} (${a.account_code})${a.bank_details?.bank_name ? ` - ${a.bank_details.bank_name}` : ''}`,
         value: a._id,
-    }));
-
-    const mappingOptions = columnMappings.map((m: ColumnMapping) => ({
-        label: `${m.name}${m.is_default ? " (Default)" : ""}${m.bank_name ? ` — ${m.bank_name}` : ""}`,
-        value: m._id,
     }));
 
     const isMappingValid = columnMap["date"] && columnMap["description"];
@@ -381,21 +479,13 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
         <Drawer
             title={
                 <Space>
-                    {importMethod === "auto" ?
-                        <FilePdfOutlined style={{ color: "#ff4d4f" }} /> :
-                        <FileExcelOutlined style={{ color: "#52c41a" }} />
-                    }
-                    <Text strong>Import Bank Statement</Text>
-                    {fileName && (
-                        <Tag color="blue" style={{ marginLeft: 8 }}>
-                            {fileName}
-                        </Tag>
-                    )}
+                    <BankOutlined style={{ fontSize: 20 }} />
+                    <Text strong style={{ fontSize: 16 }}>Import Bank Statement</Text>
                 </Space>
             }
             open={open}
             onClose={onClose}
-            width={820}
+            width={700}
             destroyOnClose
             footer={
                 <Space style={{ justifyContent: "flex-end", width: "100%", display: "flex" }}>
@@ -406,9 +496,9 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
                     {currentStep === 1 && importMethod === "manual" && (
                         <Button
                             type="primary"
-                            icon={<ArrowRightOutlined />}
                             onClick={applyMapping}
                             disabled={!isMappingValid}
+                            size="large"
                         >
                             Preview
                         </Button>
@@ -420,6 +510,7 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
                             onClick={handleImport}
                             loading={submitting}
                             disabled={parsedRows.length === 0}
+                            size="large"
                         >
                             Import {parsedRows.length} Transactions
                         </Button>
@@ -430,203 +521,241 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
             <Steps
                 current={currentStep}
                 items={STEP_LABELS.map((t) => ({ title: t }))}
-                style={{ marginBottom: 24 }}
+                style={{ marginBottom: 32 }}
                 size="small"
             />
 
             {/* ── Step 0: Upload with Method Selection ── */}
             {currentStep === 0 && (
-                <Space direction="vertical" style={{ width: "100%" }} size={16}>
-                    <Alert
-                        type="info"
-                        showIcon
-                        message="Choose import method"
-                        description={
-                            <div>
-                                <p><strong>Manual Mapping:</strong> Upload Excel/CSV files and map columns manually or use saved templates.</p>
-                                <p><strong>Auto-Detect (PDF):</strong> Upload PDF bank statements - automatically detects transactions from major Kenyan banks (Equity, KCB, Absa, etc.)</p>
-                            </div>
-                        }
-                    />
-
-                    <Card size="small" title={<Space><CloudUploadOutlined /><Text>Download Templates</Text></Space>}>
-                        <Space direction="vertical" style={{ width: "100%" }} size={8}>
-                            <Text type="secondary" style={{ fontSize: 12 }}>
-                                Download pre-formatted templates to help you prepare your bank statement data
-                            </Text>
-                            <Space>
-                                <Button
-                                    icon={<FileExcelOutlined />}
-                                    onClick={() => {
-                                        if (!selectedAccountId) {
-                                            message.warning("Please select a bank account first");
-                                            return;
-                                        }
-                                        downloadExcelTemplate(selectedAccountId);
-                                    }}
-                                    size="small"
-                                    disabled={!selectedAccountId}
-                                >
-                                    Download Excel Template
-                                </Button>
-                                <Button
-                                    icon={<FilePdfOutlined />}
-                                    onClick={() => {
-                                        if (!selectedAccountId) {
-                                            message.warning("Please select a bank account first");
-                                            return;
-                                        }
-                                        downloadPDFTemplate(selectedAccountId);
-                                    }}
-                                    size="small"
-                                    disabled={!selectedAccountId}
-                                >
-                                    Download PDF Template
-                                </Button>
-                            </Space>
-                        </Space>
-                    </Card>
-
-                    <Card size="small" title={<Space><BankOutlined /><Text>Select Bank Account</Text></Space>}>
+                <Space direction="vertical" style={{ width: "100%" }} size={20}>
+                    {/* Bank Account Selection */}
+                    <div>
+                        <Text strong style={{ display: "block", marginBottom: 8 }}>
+                            <BankOutlined /> Bank Account
+                        </Text>
                         <Select
-                            placeholder="Select the bank / cash account for this import"
+                            placeholder="Select bank account for this import"
                             options={accountOptions}
                             value={selectedAccountId}
                             onChange={setSelectedAccountId}
                             style={{ width: "100%" }}
                             showSearch
                             optionFilterProp="label"
-                            status={!selectedAccountId ? "error" : undefined}
+                            size="large"
                         />
-                        {!selectedAccountId && (
-                            <Text type="danger" style={{ fontSize: 12, marginTop: 4, display: "block" }}>
-                                Bank account is required before uploading
-                            </Text>
-                        )}
-                    </Card>
+                    </div>
 
-                    <Tabs
-                        activeKey={importMethod}
-                        onChange={(key) => setImportMethod(key as "manual" | "auto")}
-                        items={IMPORT_METHODS.map(method => ({
-                            key: method.key,
-                            label: (
-                                <Space>
-                                    {method.icon}
-                                    {method.label}
-                                </Space>
-                            ),
-                            children: null,
-                        }))}
-                    />
+                    {/* Import Method Selection */}
+                    <div>
+                        <Text strong style={{ display: "block", marginBottom: 8 }}>
+                            Import Method
+                        </Text>
+                        <Radio.Group
+                            value={importMethod}
+                            onChange={(e) => setImportMethod(e.target.value)}
+                            style={{ width: "100%" }}
+                        >
+                            <Space direction="vertical" style={{ width: "100%" }}>
+                                <Radio value="manual">
+                                    <Space>
+                                        <FileExcelOutlined style={{ color: "#52c41a" }} />
+                                        <span>Excel/CSV - Map columns manually</span>
+                                    </Space>
+                                </Radio>
+                                <Radio value="auto">
+                                    <Space>
+                                        <FilePdfOutlined style={{ color: "#ff4d4f" }} />
+                                        <span>PDF - Auto-detect (Equity, KCB, Absa, etc.)</span>
+                                    </Space>
+                                </Radio>
+                            </Space>
+                        </Radio.Group>
+                    </div>
 
-                    {importMethod === "manual" && (
-                        <>
+                    {/* File Upload */}
+                    <div>
+                        <Text strong style={{ display: "block", marginBottom: 8 }}>
+                            Upload File
+                        </Text>
+                        {importMethod === "manual" ? (
                             <Dragger
                                 accept=".xlsx,.xls,.csv"
                                 beforeUpload={parseExcelFile}
                                 showUploadList={false}
                                 multiple={false}
+                                disabled={!selectedAccountId}
                             >
                                 <p className="ant-upload-drag-icon">
-                                    <InboxOutlined style={{ color: "#52c41a", fontSize: 40 }} />
+                                    <InboxOutlined style={{ color: selectedAccountId ? "#52c41a" : "#d9d9d9", fontSize: 48 }} />
                                 </p>
-                                <p className="ant-upload-text">Click or drag an Excel/CSV file here</p>
+                                <p className="ant-upload-text">
+                                    {selectedAccountId ? "Click or drag Excel/CSV file here" : "Select a bank account first"}
+                                </p>
                                 <p className="ant-upload-hint">
-                                    Excel (.xlsx, .xls) or CSV format — first row must be headers
+                                    Supports .xlsx, .xls, .csv
                                 </p>
                             </Dragger>
-                        </>
-                    )}
-
-                    {importMethod === "auto" && (
-                        <>
-                            {isLoading ? (
-                                <Card>
-                                    <Space direction="vertical" style={{ width: "100%" }} align="center">
+                        ) : (
+                            <>
+                                {isLoading ? (
+                                    <div style={{ textAlign: "center", padding: "40px 0" }}>
                                         <Spin size="large" />
-                                        <Progress percent={uploadProgress} status="active" />
-                                        <Text type="secondary">Parsing PDF statement...</Text>
-                                    </Space>
-                                </Card>
-                            ) : (
-                                <Dragger
-                                    accept=".pdf"
-                                    beforeUpload={handleFileUpload}
-                                    showUploadList={false}
-                                    multiple={false}
-                                >
-                                    <p className="ant-upload-drag-icon">
-                                        <FilePdfOutlined style={{ color: "#ff4d4f", fontSize: 40 }} />
-                                    </p>
-                                    <p className="ant-upload-text">Click or drag a PDF bank statement here</p>
-                                    <p className="ant-upload-hint">
-                                        Supports Equity, KCB, Absa, Stanbic, and Cooperative Bank formats
-                                    </p>
-                                </Dragger>
-                            )}
-                        </>
-                    )}
+                                        <Progress percent={uploadProgress} status="active" style={{ marginTop: 16 }} />
+                                        <Text type="secondary" style={{ display: "block", marginTop: 8 }}>
+                                            Parsing PDF statement...
+                                        </Text>
+                                    </div>
+                                ) : (
+                                    <Dragger
+                                        accept=".pdf"
+                                        beforeUpload={handleFileUpload}
+                                        showUploadList={false}
+                                        multiple={false}
+                                        disabled={!selectedAccountId}
+                                    >
+                                        <p className="ant-upload-drag-icon">
+                                            <FilePdfOutlined style={{ color: selectedAccountId ? "#ff4d4f" : "#d9d9d9", fontSize: 48 }} />
+                                        </p>
+                                        <p className="ant-upload-text">
+                                            {selectedAccountId ? "Click or drag PDF bank statement here" : "Select a bank account first"}
+                                        </p>
+                                        <p className="ant-upload-hint">
+                                            Auto-detects transactions from major Kenyan banks
+                                        </p>
+                                    </Dragger>
+                                )}
+                            </>
+                        )}
+                    </div>
+
+                    {/* Download Templates */}
+                    <div style={{ paddingTop: 8 }}>
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                            Need a template?{" "}
+                            <Button
+                                type="link"
+                                size="small"
+                                icon={<FileExcelOutlined />}
+                                onClick={() => {
+                                    if (!selectedAccountId) {
+                                        message.warning("Please select a bank account first");
+                                        return;
+                                    }
+                                    downloadExcelTemplate(selectedAccountId);
+                                }}
+                                disabled={!selectedAccountId}
+                            >
+                                Download Excel
+                            </Button>
+                            {" or "}
+                            <Button
+                                type="link"
+                                size="small"
+                                icon={<FilePdfOutlined />}
+                                onClick={() => {
+                                    if (!selectedAccountId) {
+                                        message.warning("Please select a bank account first");
+                                        return;
+                                    }
+                                    downloadPDFTemplate(selectedAccountId);
+                                }}
+                                disabled={!selectedAccountId}
+                            >
+                                Download PDF
+                            </Button>
+                        </Text>
+                    </div>
                 </Space>
             )}
 
             {/* ── Step 1: Map Columns (Manual only) ── */}
             {currentStep === 1 && importMethod === "manual" && (
-                <Space direction="vertical" style={{ width: "100%" }} size={16}>
+                <Space direction="vertical" style={{ width: "100%" }} size={20}>
+                    {/* File Info */}
                     <Alert
                         type="success"
                         showIcon
-                        message={`${rawRows.length} rows detected in "${fileName}"`}
-                        description={`Headers found: ${fileHeaders.join(", ")}`}
+                        message={`${rawRows.length} rows detected`}
+                        description={`File: ${fileName}`}
                     />
 
-                    <Card size="small" title={<Space><SettingOutlined /><Text>Column Mapping Template</Text></Space>}>
-                        <Space direction="vertical" style={{ width: "100%" }} size={8}>
-                            <Text type="secondary" style={{ fontSize: 12 }}>
-                                Load a saved template or map columns manually below
-                            </Text>
-                            <Select
-                                placeholder="Load a saved column mapping template..."
-                                options={mappingOptions}
-                                value={selectedMapping}
-                                onChange={setSelectedMapping}
-                                style={{ width: "100%" }}
-                                allowClear
-                            />
-                        </Space>
-                    </Card>
+                    {/* Amount Column Type */}
+                    <div>
+                        <Text strong style={{ display: "block", marginBottom: 8 }}>
+                            Amount Column Type
+                        </Text>
+                        <Radio.Group
+                            value={amountColumnType}
+                            onChange={(e) => {
+                                setAmountColumnType(e.target.value);
+                                setColumnMap((prev) => {
+                                    const { debit, credit, amount, ...rest } = prev;
+                                    return rest;
+                                });
+                            }}
+                        >
+                            <Radio value="double">Double Column (Debit & Credit)</Radio>
+                            <Radio value="single">Single Column (Amount)</Radio>
+                        </Radio.Group>
+                    </div>
 
-                    <Divider orientation="left" plain>
-                        <Text type="secondary" style={{ fontSize: 12 }}>Map your columns</Text>
-                    </Divider>
-
-                    <Row gutter={[12, 12]}>
-                        {INTERNAL_FIELDS.map((field) => (
-                            <Col span={12} key={field.key}>
-                                <Space direction="vertical" size={4} style={{ width: "100%" }}>
-                                    <Text style={{ fontSize: 12 }}>
-                                        {field.label}
-                                        {field.required && <span style={{ color: "#ff4d4f" }}>*</span>}
-                                    </Text>
-                                    <Select
-                                        placeholder="Select column..."
-                                        options={headerOptions}
-                                        value={columnMap[field.key]}
-                                        onChange={(v) => setColumnMap((prev) => ({ ...prev, [field.key]: v }))}
-                                        style={{ width: "100%" }}
-                                        allowClear
-                                        showSearch
-                                    />
-                                </Space>
-                            </Col>
-                        ))}
-                    </Row>
+                    {/* Column Mapping */}
+                    <div>
+                        <Text strong style={{ display: "block", marginBottom: 12 }}>
+                            Map Your Columns
+                        </Text>
+                        <Row gutter={[16, 16]}>
+                            {INTERNAL_FIELDS.map((field) => (
+                                <Col span={12} key={field.key}>
+                                    <Space direction="vertical" size={6} style={{ width: "100%" }}>
+                                        <Text style={{ fontSize: 13 }}>
+                                            {field.label}
+                                            {field.required && <span style={{ color: "#ff4d4f", marginLeft: 4 }}>*</span>}
+                                        </Text>
+                                        {field.key === "date" ? (
+                                            <Space.Compact style={{ width: "100%" }}>
+                                                <Select
+                                                    placeholder="Select column"
+                                                    options={headerOptions}
+                                                    value={columnMap[field.key]}
+                                                    onChange={(v) => setColumnMap((prev) => ({ ...prev, [field.key]: v }))}
+                                                    style={{ flex: 1 }}
+                                                    allowClear
+                                                    showSearch
+                                                    size="large"
+                                                />
+                                                <Select
+                                                    placeholder="Format"
+                                                    options={DATE_FORMATS}
+                                                    value={selectedDateFormat}
+                                                    onChange={setSelectedDateFormat}
+                                                    style={{ width: 140 }}
+                                                    size="large"
+                                                />
+                                            </Space.Compact>
+                                        ) : (
+                                            <Select
+                                                placeholder="Select column"
+                                                options={headerOptions}
+                                                value={columnMap[field.key]}
+                                                onChange={(v) => setColumnMap((prev) => ({ ...prev, [field.key]: v }))}
+                                                style={{ width: "100%" }}
+                                                allowClear
+                                                showSearch
+                                                size="large"
+                                            />
+                                        )}
+                                    </Space>
+                                </Col>
+                            ))}
+                        </Row>
+                    </div>
 
                     {!isMappingValid && (
                         <Alert
                             type="warning"
                             showIcon
-                            message="Date and Description fields are required for mapping"
+                            message="Date and Description fields are required"
                             style={{ marginTop: 8 }}
                         />
                     )}
@@ -635,28 +764,25 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
 
             {/* ── Step 2: Preview & Import ── */}
             {currentStep === 2 && (
-                <Space direction="vertical" style={{ width: "100%" }} size={16}>
+                <Space direction="vertical" style={{ width: "100%" }} size={20}>
+                    {/* Summary */}
                     <Alert
                         type="success"
                         showIcon
-                        message={`${parsedRows.length} transactions ready to import`}
+                        message={`${parsedRows.length} transactions ready`}
                         description={
-                            <Space split={<Divider type="vertical" />}>
+                            <Space split={<Divider type="vertical" />} size="middle">
                                 <Text type="danger">
-                                    Total Debits: {parsedRows.reduce((s, r) => s + r.debit, 0).toLocaleString("en-KE", { minimumFractionDigits: 2 })}
+                                    Debits: {parsedRows.reduce((s, r) => s + r.debit, 0).toLocaleString("en-KE", { minimumFractionDigits: 2 })}
                                 </Text>
                                 <Text type="success">
-                                    Total Credits: {parsedRows.reduce((s, r) => s + r.credit, 0).toLocaleString("en-KE", { minimumFractionDigits: 2 })}
+                                    Credits: {parsedRows.reduce((s, r) => s + r.credit, 0).toLocaleString("en-KE", { minimumFractionDigits: 2 })}
                                 </Text>
-                                {autoDetectedData?.auto_categorized !== undefined && (
-                                    <Tag color="green">
-                                        {autoDetectedData.auto_categorized} auto-categorized
-                                    </Tag>
-                                )}
                             </Space>
                         }
                     />
 
+                    {/* Statement Details */}
                     <ProForm
                         form={form}
                         submitter={false}
@@ -667,55 +793,56 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
                             account_id: selectedAccountId,
                         }}
                     >
-                        <Row gutter={12}>
+                        <Row gutter={16}>
                             <Col span={12}>
                                 <ProFormDigit
                                     name="opening_balance"
                                     label="Opening Balance"
                                     placeholder="0.00"
-                                    fieldProps={{ precision: 2, prefix: "KES" }}
+                                    fieldProps={{ precision: 2, prefix: "KES", size: "large" }}
                                 />
                             </Col>
                             <Col span={12}>
                                 <ProFormDigit
                                     name="closing_balance"
-                                    label="Closing / Statement Balance"
+                                    label="Closing Balance"
                                     placeholder="0.00"
-                                    fieldProps={{ precision: 2, prefix: "KES" }}
+                                    fieldProps={{ precision: 2, prefix: "KES", size: "large" }}
                                 />
                             </Col>
                         </Row>
                         <ProFormDateRangePicker
                             name="period"
                             label="Statement Period"
-                            fieldProps={{ style: { width: "100%" } }}
+                            fieldProps={{ style: { width: "100%" }, size: "large" }}
                         />
                         <ProFormTextArea
                             name="notes"
-                            label="Notes"
-                            placeholder="Optional notes about this import"
+                            label="Notes (optional)"
+                            placeholder="Add any notes about this import"
                             fieldProps={{ rows: 2 }}
                         />
                     </ProForm>
 
-                    <Divider orientation="left" plain>
-                        <Text type="secondary" style={{ fontSize: 12 }}>Transaction Preview (first 10)</Text>
-                    </Divider>
-
-                    <Table
-                        rowKey={(_, i) => String(i)}
-                        dataSource={parsedRows.slice(0, 10)}
-                        columns={previewColumns}
-                        size="small"
-                        pagination={false}
-                        scroll={{ x: 600 }}
-                    />
-
-                    {parsedRows.length > 10 && (
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                            …and {parsedRows.length - 10} more transactions
+                    {/* Transaction Preview */}
+                    <div>
+                        <Text strong style={{ display: "block", marginBottom: 12 }}>
+                            Transaction Preview (first 10)
                         </Text>
-                    )}
+                        <Table
+                            rowKey={(_, i) => String(i)}
+                            dataSource={parsedRows.slice(0, 10)}
+                            columns={previewColumns}
+                            size="small"
+                            pagination={false}
+                            scroll={{ x: 600 }}
+                        />
+                        {parsedRows.length > 10 && (
+                            <Text type="secondary" style={{ fontSize: 12, display: "block", marginTop: 8 }}>
+                                …and {parsedRows.length - 10} more transactions
+                            </Text>
+                        )}
+                    </div>
                 </Space>
             )}
         </Drawer>

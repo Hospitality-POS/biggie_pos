@@ -97,47 +97,53 @@ const SystemSetup: React.FC = () => {
             </div>
           </ProCard.TabPane>
 
-          <ProCard.TabPane
-            key="printer-settings"
-            tab={
-              <Space>
-                <PrinterOutlined style={{ fontSize: 18, color: "#722ed1" }} />
-                <Text strong>Printer Settings</Text>
-              </Space>
-            }
-          >
-            <div style={{ padding: "16px", borderRadius: "8px" }}>
-              <PrinterSettings />
-            </div>
-          </ProCard.TabPane>
+          {hasPOS && (
+            <ProCard.TabPane
+              key="printer-settings"
+              tab={
+                <Space>
+                  <PrinterOutlined style={{ fontSize: 18, color: "#722ed1" }} />
+                  <Text strong>Printer Settings</Text>
+                </Space>
+              }
+            >
+              <div style={{ padding: "16px", borderRadius: "8px" }}>
+                <PrinterSettings />
+              </div>
+            </ProCard.TabPane>
+          )}
 
-          <ProCard.TabPane
-            key="privacy"
-            tab={
-              <Space>
-                <LockOutlined style={{ fontSize: 18, color: "#fa541c" }} />
-                <Text strong>Privacy</Text>
-              </Space>
-            }
-          >
-            <div style={{ padding: "16px", borderRadius: "8px" }}>
-              <PrivacySettings />
-            </div>
-          </ProCard.TabPane>
+          {hasPOS && (
+            <ProCard.TabPane
+              key="privacy"
+              tab={
+                <Space>
+                  <LockOutlined style={{ fontSize: 18, color: "#fa541c" }} />
+                  <Text strong>Privacy</Text>
+                </Space>
+              }
+            >
+              <div style={{ padding: "16px", borderRadius: "8px" }}>
+                <PrivacySettings />
+              </div>
+            </ProCard.TabPane>
+          )}
 
-          <ProCard.TabPane
-            key="receipt-appearance"
-            tab={
-              <Space>
-                <FontColorsOutlined style={{ fontSize: 18, color: "#13c2c2" }} />
-                <Text strong>Receipt Appearance</Text>
-              </Space>
-            }
-          >
-            <div style={{ padding: "16px", borderRadius: "8px" }}>
-              <ReceiptAppearanceSettings />
-            </div>
-          </ProCard.TabPane>
+          {hasPOS && (
+            <ProCard.TabPane
+              key="receipt-appearance"
+              tab={
+                <Space>
+                  <FontColorsOutlined style={{ fontSize: 18, color: "#13c2c2" }} />
+                  <Text strong>Receipt Appearance</Text>
+                </Space>
+              }
+            >
+              <div style={{ padding: "16px", borderRadius: "8px" }}>
+                <ReceiptAppearanceSettings />
+              </div>
+            </ProCard.TabPane>
+          )}
 
           <ProCard.TabPane
             key="profile"

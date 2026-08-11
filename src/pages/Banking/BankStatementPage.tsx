@@ -301,6 +301,44 @@ const BankStatementPage: React.FC = () => {
 
     return (
         <App>
+            {/* ── Header Section ── */}
+            <div style={{ marginBottom: 24 }}>
+                <Space style={{ width: "100%", justifyContent: "space-between" }}>
+                    <Space>
+                        <BankOutlined style={{ fontSize: 24, color: primaryColor }} />
+                        <Text strong style={{ fontSize: 20 }}>Bank Statement Imports</Text>
+                    </Space>
+                    <Space>
+                        <Select
+                            placeholder="Filter by account"
+                            options={bankAccountOptions}
+                            value={selectedAccountId}
+                            onChange={setSelectedAccountId}
+                            style={{ width: 250 }}
+                            allowClear
+                            showSearch
+                            optionFilterProp="label"
+                            size="large"
+                        />
+                        <Button
+                            icon={<SettingOutlined />}
+                            onClick={() => setRulesOpen(true)}
+                            size="large"
+                        >
+                            Categorization Rules
+                        </Button>
+                        <Button
+                            type="primary"
+                            icon={<PlusOutlined />}
+                            onClick={() => setImportOpen(true)}
+                            size="large"
+                        >
+                            Import Statement
+                        </Button>
+                    </Space>
+                </Space>
+            </div>
+
             {/* ── Summary Stats ── */}
             <Row gutter={16} style={{ marginBottom: 16 }}>
                 <Col span={6}>
@@ -345,52 +383,17 @@ const BankStatementPage: React.FC = () => {
                 </Col>
             </Row>
 
-            {/* ── Main Table Card ── */}
-            <Card
-                bordered
-                bodyStyle={{ padding: 0 }}
-                title={
-                    <Space>
-                        <BankOutlined style={{ fontSize: 18, color: primaryColor }} />
-                        <Text strong style={{ fontSize: 16 }}>Bank Statement Imports</Text>
-                    </Space>
-                }
-                extra={
-                    <Space>
-                        <Select
-                            placeholder="Filter by Bank Account"
-                            options={bankAccountOptions}
-                            value={selectedAccountId}
-                            onChange={setSelectedAccountId}
-                            style={{ width: 250 }}
-                            allowClear
-                            showSearch
-                            optionFilterProp="label"
-                        />
-                        <Tooltip title="Manage categorization rules and keyword mappings">
-                            <Button icon={<SettingOutlined />} onClick={() => setRulesOpen(true)}>
-                                Rules & Mappings
-                            </Button>
-                        </Tooltip>
-                        <Button
-                            type="primary"
-                            icon={<PlusOutlined />}
-                            onClick={() => setImportOpen(true)}
-                            style={{ background: primaryColor, borderColor: primaryColor }}
-                        >
-                            Import Statement
-                        </Button>
-                    </Space>
-                }
-            >
-                <Tabs
-                    activeKey={activeStatus}
-                    onChange={(k) => { setActiveStatus(k as ImportStatus | "ALL"); setPage(1); }}
-                    items={tabItems}
-                    style={{ paddingLeft: 16, paddingRight: 16 }}
-                    tabBarStyle={{ marginBottom: 0 }}
-                />
+            {/* ── Status Tabs ── */}
+            <Tabs
+                activeKey={activeStatus}
+                onChange={(k) => { setActiveStatus(k as ImportStatus | "ALL"); setPage(1); }}
+                items={tabItems}
+                style={{ marginBottom: 16 }}
+                size="large"
+            />
 
+            {/* ── Main Table ── */}
+            <Card bordered={false} bodyStyle={{ padding: 0 }}>
                 <ProTable<BankStatementImport>
                     rowKey="_id"
                     actionRef={actionRef}
@@ -398,7 +401,7 @@ const BankStatementPage: React.FC = () => {
                     columns={columns}
                     loading={isLoading}
                     search={false}
-                    options={{ reload: () => refetch() }}
+                    options={false}
                     pagination={{
                         current: page,
                         total: totalImports,
@@ -408,11 +411,8 @@ const BankStatementPage: React.FC = () => {
                         showSizeChanger: false,
                     }}
                     scroll={{ x: 1200 }}
-                    size="small"
+                    size="middle"
                     cardBordered={false}
-                    toolbar={{
-                        title: `${imports.length} imports shown`,
-                    }}
                     columnsState={{
                         persistenceKey: "bank-imports-table-columns",
                         persistenceType: "localStorage",
