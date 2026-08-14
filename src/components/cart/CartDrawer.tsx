@@ -355,7 +355,7 @@ const CartDrawer: React.FC = () => {
       }
     };
     loadStaff();
-  }, []);
+  }, [shopId]);
 
   useEffect(() => {
     // Load global captain_order setting from localStorage
@@ -883,17 +883,28 @@ const CartDrawer: React.FC = () => {
                   Assign staff members
                 </Text>
                 <Flex align="center" gap={6}>
-                  <Select
-                    mode="multiple"
-                    size="middle" style={{ flex: 1 }}
-                    loading={loadingStaff || updatingServedBy}
-                    disabled={updatingServedBy}
-                    value={servedByIds}
-                    options={staffList}
-                    placeholder={loadingStaff ? "Loading…" : staffList.length === 0 ? "No staff found" : "Select staff members"}
-                    onChange={handleServedByChange}
-                    autoFocus
-                  />
+                  {!loadingStaff && staffList.length > 0 ? (
+                    <Select
+                      mode="multiple"
+                      size="middle" style={{ flex: 1 }}
+                      loading={updatingServedBy}
+                      disabled={updatingServedBy}
+                      value={servedByIds.filter(id => staffList.some(staff => staff.value === id))}
+                      options={staffList}
+                      placeholder="Select staff members"
+                      onChange={handleServedByChange}
+                      autoFocus
+                      fieldNames={{ label: 'label', value: 'value' }}
+                      showSearch
+                      filterOption={(input, option) =>
+                        (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                      }
+                    />
+                  ) : (
+                    <div style={{ flex: 1, textAlign: 'center', padding: '8px' }}>
+                      {loadingStaff ? 'Loading staff...' : 'No staff available'}
+                    </div>
+                  )}
                   <Button size="middle" onClick={() => setEditingServedBy(false)} disabled={updatingServedBy} style={{ borderRadius: 6 }}>
                     Cancel
                   </Button>
