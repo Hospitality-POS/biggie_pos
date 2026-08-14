@@ -42,20 +42,39 @@ export const fetchAllUsersList = async (data?: ParamsType & { shop_id?: string }
 
   try {
     const url = `${BASE_URL}/users/all`;
+    const pageSize = safeData.pageSize || 10;
+    const page = safeData.current || 1;
+    const skip = (page - 1) * pageSize;
+
+    console.log("🔍 fetchAllUsersList API Call:", { page, pageSize, skip, limit: pageSize });
 
     const response = await axiosInstance.get(url, {
       params: {
         fullname: safeData.fullname,
         email: safeData.email,
         shop_id: safeData.shop_id,
-        page: safeData.current || 1,
-        pageSize: safeData.pageSize || 10,
+        skip: skip,
+        limit: pageSize,
       },
     });
 
+    console.log("📦 fetchAllUsersList API Response:", {
+      usersCount: response.data?.users?.length,
+      pagination: response.data?.pagination
+    });
+
     // Backend returns { users: [...], pagination: {...} }
-    // Extract and return just the users array
-    return response.data?.users || response.data || [];
+    // Return both users and pagination for proper pagination support
+    const users = response.data?.users || response.data || [];
+    const pagination = response.data?.pagination || { total: users.length, limit: pageSize, skip, hasMore: false };
+
+    // For backward compatibility, if the caller expects just an array, return it
+    // Otherwise return the full object with pagination
+    if (safeData.returnPagination) {
+      return { users, pagination };
+    }
+    
+    return users;
   } catch (error: any) {
     // Permission error — interceptor already showed a toast; return empty list silently
     if (error?.isPermissionError) return [];
@@ -73,21 +92,48 @@ export const fetchAllUsersList = async (data?: ParamsType & { shop_id?: string }
   }
 };
 
-export const fetchAllUsersByShopId = async () => {
+export const fetchAllUsersByShopId = async (params?: { page?: number; pageSize?: number; search?: string }) => {
   try {
     const currentShopId = localStorage.getItem("shopId");
     const url = `${BASE_URL}/users/all`;
+    const pageSize = params?.pageSize || 10;
+    const page = params?.page || 1;
+    const skip = (page - 1) * pageSize;
+    
+    console.log("🔍 fetchAllUsersByShopId API Call params:", { page, pageSize, skip, limit: pageSize, search: params?.search });
+    
     const response = await axiosInstance.get(url, {
       params: {
         shop_id: currentShopId,
-        page: 1,
-        pageSize: 100, // Fetch more staff members to ensure we get all available staff
+        skip: skip,
+        limit: pageSize,
+        fullname: params?.search,
       },
     });
+    
+    console.log("📦 fetchAllUsersByShopId API Response:", {
+      usersCount: response.data?.users?.length,
+      pagination: response.data?.pagination
+    });
+    
     // Backend returns { users: [...], pagination: {...} }
-    // Extract and return just the users array
-    return response.data?.users || response.data || [];
+    const users = response.data?.users || response.data || [];
+    const apiPagination = response.data?.pagination;
+    
+    // Use API pagination if available, otherwise calculate from users
+    const pagination = apiPagination || { 
+      total: users.length, 
+      limit: pageSize, 
+      skip: skip, 
+      hasMore: users.length >= pageSize 
+    };
+    
+    return {
+      users,
+      pagination
+    };
   } catch (error) {
+    console.error("fetchAllUsersByShopId error:", error);
     throw new Error(error?.message);
   }
 };
