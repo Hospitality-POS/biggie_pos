@@ -1,48 +1,73 @@
 import { useQuery } from "@tanstack/react-query";
 import StaffCard from "../../components/staffCard/StaffCard";
-// import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import { Divider, Typography } from "@mui/material";
+import { Divider, Typography, TextField, Box, InputAdornment, Pagination, Stack } from "@mui/material";
+import { Search as SearchIcon } from "@mui/icons-material";
 import classes from "./staffs.module.css";
-import { Key, useEffect } from "react";
+import { Key, useEffect, useState, useRef } from "react";
 import SkeletonCard from "../../components/staffCard/SkeletonCard";
-import { useDispatch, useSelector } from "react-redux";
-import { fetchAllUsers } from "../../features/Auth/AuthActions";
-import React from "react"
+import { fetchAllUsersByShopId } from "../../services/users";
+import React from "react";
 
 const Staff = () => {
-  //   const {users:data, loading: isLoading, error:isError}=useSelector((state:any)=>state.auth)
-  //   const dispatch = useDispatch()
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pageSize = 10;
 
-  //   useEffect(() => {
-  //     dispatch(fetchAllUsers());
-  // }, [dispatch]);
-  // const { isLoading, isError, data } = useQuery({
-  //     queryKey: ["staff"],
-  //     queryFn: async () => {
-  //       try {
-  //         const response = await fetch("http://localhost:3000/users/all");
-  //         const responseData = await response.json();
-
-  //         // Store data in localStorage
-  //         localStorage.setItem("staffData", JSON.stringify(responseData));
-
-  //         return responseData;
-  //       } catch (error) {
-  //         throw error;
-  //       }
-  //     },
-  //     initialData: JSON.parse(localStorage.getItem("staffData")),
-  //     retry: false,
-  //   });
-
-  const { isLoading, isError, error, data } = useQuery({
-    queryKey: ["staff"],
-    queryFn: () =>
-      fetch(process.env.VITE_BASE_URL + "/users/all").then((res) => res.json()),
-    retry: 3,
-    retryDelay: 1000,
+  // Fetch staff with pagination and search
+  const {
+    data,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ["staff", currentPage, searchQuery],
+    queryFn: async () => {
+      const result = await fetchAllUsersByShopId({
+        page: currentPage,
+        pageSize: pageSize,
+        search: searchQuery,
+      });
+      return result;
+    },
   });
 
+  const users = data?.users || [];
+  const pagination = data?.pagination || { total: 0, limit: pageSize, skip: 0 };
+  
+  // Calculate total pages
+  const totalPages = Math.ceil(pagination.total / pageSize);
+
+  // Handle search with debouncing
+  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const query = event.target.value;
+    setSearchQuery(query);
+    setCurrentPage(1); // Reset to first page on search
+
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    searchTimeoutRef.current = setTimeout(() => {
+      refetch();
+    }, 500);
+  };
+
+  // Handle page change
+  const handlePageChange = (event: React.ChangeEvent<unknown>, value: number) => {
+    setCurrentPage(value);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
 
   if (isLoading) {
     return (
@@ -70,16 +95,56 @@ const Staff = () => {
     <section className="staff-section">
       <div className={classes.staffheader}>
         <Typography mt={2} variant="h6" ml={2} gutterBottom>
-          Registered Staff
+          Registered Staff ({pagination.total})
         </Typography>
+        <Box sx={{ ml: 2, mt: 2, mb: 2, maxWidth: 400 }}>
+          <TextField
+            fullWidth
+            size="small"
+            placeholder="Search staff by name..."
+            value={searchQuery}
+            onChange={handleSearchChange}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+            }}
+          />
+        </Box>
       </div>
       <Divider />
       <div className="cards">
-        {data?.map((item: { _id: Key | null | undefined }) => (
-          <StaffCard key={item._id} item={item} />
-        ))}
-        {/* <ReactQueryDevtools initialIsOpen={false} /> */}
+        {users.length > 0 ? (
+          users.map((item: { _id: Key | null | undefined }) => (
+            <StaffCard key={item._id} item={item} />
+          ))
+        ) : (
+          <Box sx={{ p: 4, textAlign: "center" }}>
+            <Typography variant="body1" color="textSecondary">
+              No staff members found matching "{searchQuery}"
+            </Typography>
+          </Box>
+        )}
       </div>
+      {totalPages > 1 && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+          <Stack spacing={2}>
+            <Pagination
+              count={totalPages}
+              page={currentPage}
+              onChange={handlePageChange}
+              color="primary"
+              showFirstButton
+              showLastButton
+            />
+            <Typography variant="caption" color="textSecondary" textAlign="center">
+              Showing {pagination.skip + 1}-{Math.min(pagination.skip + pageSize, pagination.total)} of {pagination.total} staff members
+            </Typography>
+          </Stack>
+        </Box>
+      )}
     </section>
   );
 };

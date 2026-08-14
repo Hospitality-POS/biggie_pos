@@ -1,4 +1,5 @@
-import React, { Key, useEffect, useMemo, useState } from "react";
+import React, { Key, useEffect, useMemo, useState, useRef } from "react";
+import { LoadingOutlined } from "@ant-design/icons";
 import CartItemCard from "./CartItemCard";
 import PrintBillModal from "../MODALS/PrintBillModal";
 import PrintBillSpaModal from "../MODALS/printBillSpaModal";
@@ -130,6 +131,7 @@ const CartDrawer: React.FC = () => {
   const [loadingData, setLoadingData] = useState(false);
   const [staffList, setStaffList] = useState<{ value: string; label: string }[]>([]);
   const [loadingStaff, setLoadingStaff] = useState(false);
+  const [loadingMoreStaff, setLoadingMoreStaff] = useState(false);
   const [editingServedBy, setEditingServedBy] = useState(false);
   const [updatingServedBy, setUpdatingServedBy] = useState(false);
   const [delinkingCustomer, setDelinkingCustomer] = useState(false);
@@ -142,6 +144,18 @@ const CartDrawer: React.FC = () => {
   const [earningsModalOpen, setEarningsModalOpen] = useState(false);
   const [staffEarnings, setStaffEarnings] = useState<Record<string, number>>({});
   const [updatingEarnings, setUpdatingEarnings] = useState(false);
+  const [staffPage, setStaffPage] = useState(1);
+  const [staffSearchQuery, setStaffSearchQuery] = useState("");
+  const [hasMoreStaff, setHasMoreStaff] = useState(true);
+  const [searchingStaff, setSearchingStaff] = useState(false);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const loadStaffRef = useRef<((page: number, search: string, append: boolean) => Promise<void>) | null>(null);
+  const staffSearchQueryRef = useRef(staffSearchQuery);
+  
+  // Keep the ref in sync with state
+  useEffect(() => {
+    staffSearchQueryRef.current = staffSearchQuery;
+  }, [staffSearchQuery]);
 
   // Document type driving which print status to check.
   const documentType: DocumentType = "bill";
@@ -335,26 +349,64 @@ const CartDrawer: React.FC = () => {
     ? `Clear "${activeTable?.name}"? This will empty the cart and free this bed/ward.`
     : `Clear "${activeTable?.name}"? This will empty the cart and free up this slot.`;
 
+  // Initial load and reload when shop changes
   useEffect(() => {
-    const loadStaff = async () => {
-      setLoadingStaff(true);
+    const loadStaff = async (page = 1, search = "", append = false) => {
+      if (!append) {
+        setLoadingStaff(true);
+      } else {
+        setLoadingMoreStaff(true);
+      }
+      
+      // Set searching state when there's a search query
+      if (search && search.length > 0) {
+        setSearchingStaff(true);
+      }
+      
       try {
-        const users = await fetchAllUsersByShopId();
-        const filtered = (users || [])
+        const result = await fetchAllUsersByShopId({ page, pageSize: 50, search });
+        const users = result.users || [];
+        const pagination = result.pagination || {};
+        
+        const filtered = users
           .filter((u: any) => u.role?.role_type?.toLowerCase() !== "admin")
           .map((u: any) => ({
             value: u._id,
             label: u.username || u.fullname || u.email || "Unknown",
           }))
           .sort((a: { label: string }, b: { label: string }) => a.label.localeCompare(b.label));
-        setStaffList(filtered);
+        
+        if (append) {
+          setStaffList(prev => [...prev, ...filtered]);
+        } else {
+          setStaffList(filtered);
+        }
+        
+        setHasMoreStaff(pagination.hasMore || false);
+        if (!append) {
+          setStaffPage(1);
+        }
       } catch (e) {
         console.error("Failed to load staff list", e);
       } finally {
         setLoadingStaff(false);
+        setLoadingMoreStaff(false);
+        setSearchingStaff(false);
       }
     };
-    loadStaff();
+    
+    // Store the function in a ref for access in event handlers
+    loadStaffRef.current = loadStaff;
+    
+    // Initial load
+    loadStaff(1, "", false);
+    
+    // Cleanup
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
   }, [shopId]);
 
   useEffect(() => {
@@ -887,7 +939,7 @@ const CartDrawer: React.FC = () => {
                     <Select
                       mode="multiple"
                       size="middle" style={{ flex: 1 }}
-                      loading={updatingServedBy}
+                      loading={updatingServedBy || loadingMoreStaff}
                       disabled={updatingServedBy}
                       value={servedByIds.filter(id => staffList.some(staff => staff.value === id))}
                       options={staffList}
@@ -896,9 +948,49 @@ const CartDrawer: React.FC = () => {
                       autoFocus
                       fieldNames={{ label: 'label', value: 'value' }}
                       showSearch
-                      filterOption={(input, option) =>
-                        (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-                      }
+                      filterOption={false}
+                      onSearch={(value) => {
+                        // Only search if more than 3 characters
+                        if (value.length <= 3) return;
+                        
+                        // Debounce the search
+                        if (searchTimeoutRef.current) {
+                          clearTimeout(searchTimeoutRef.current);
+                        }
+                        searchTimeoutRef.current = setTimeout(() => {
+                          setStaffSearchQuery(value);
+                          setStaffPage(1);
+                          if (loadStaffRef.current) {
+                            loadStaffRef.current(1, value, false);
+                          }
+                        }, 300);
+                      }}
+                      suffixIcon={searchingStaff ? <LoadingOutlined spin /> : undefined}
+                      onPopupScroll={(e) => {
+                        const { scrollTop, clientHeight, scrollHeight } = e.target as HTMLElement;
+                        if (scrollTop + clientHeight >= scrollHeight - 10 && hasMoreStaff && !loadingMoreStaff) {
+                          const nextPage = staffPage + 1;
+                          setStaffPage(nextPage);
+                          if (loadStaffRef.current) {
+                            loadStaffRef.current(nextPage, staffSearchQueryRef.current, true);
+                          }
+                        }
+                      }}
+                      dropdownRender={(menu) => (
+                        <>
+                          {menu}
+                          {loadingMoreStaff && (
+                            <div style={{ padding: '8px', textAlign: 'center', color: '#999' }}>
+                              Loading more staff...
+                            </div>
+                          )}
+                          {!hasMoreStaff && staffList.length > 0 && (
+                            <div style={{ padding: '8px', textAlign: 'center', color: '#999', fontSize: '12px' }}>
+                              No more staff to load
+                            </div>
+                          )}
+                        </>
+                      )}
                     />
                   ) : (
                     <div style={{ flex: 1, textAlign: 'center', padding: '8px' }}>
