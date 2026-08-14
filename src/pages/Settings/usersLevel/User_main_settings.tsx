@@ -69,7 +69,8 @@ function UsersMainSettings() {
 
   const loadStats = async () => {
     try {
-      const data = await fetchAllUsersList({});
+      const result = await fetchAllUsersList({ returnPagination: true, pageSize: 1000 });
+      const data = result?.users || [];
       let arr = Array.isArray(data) ? data : [];
 
       // Branch-level view: only count staff belonging to this shop
