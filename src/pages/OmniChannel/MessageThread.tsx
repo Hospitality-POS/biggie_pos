@@ -14,7 +14,6 @@ import {
     Tag,
     Tooltip,
     Typography,
-    Upload,
     App,
     Form,
     Alert,
@@ -33,6 +32,7 @@ import {
     ThunderboltOutlined,
     MessageOutlined,
     WarningOutlined,
+    PhoneOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
@@ -50,7 +50,10 @@ import {
     ConversationStatus,
     CHANNEL_CONFIG,
     STATUS_CONFIG,
-} from "./OmnichannelInboxPage";
+} from "./omnichannelConstants.tsx";
+import CallButton from "@components/Twilio/CallButton";
+import SMSButton from "@components/Twilio/SMSButton";
+import WhatsAppButton from "@components/Twilio/WhatsAppButton";
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -733,9 +736,31 @@ const MessageThread: React.FC<Props> = ({
                                     · {cfg?.label}
                                 </Text>
                                 {conversation.external_contact_phone && (
-                                    <Text type="secondary" style={{ fontSize: 11 }}>
-                                        · {conversation.external_contact_phone}
-                                    </Text>
+                                    <>
+                                        <Text type="secondary" style={{ fontSize: 11 }}>
+                                            · {conversation.external_contact_phone}
+                                        </Text>
+                                        <Space size={2}>
+                                            <CallButton 
+                                                phoneNumber={conversation.external_contact_phone} 
+                                                customerId={conversation.customer_id}
+                                                size="small" 
+                                                type="text" 
+                                            />
+                                            <SMSButton 
+                                                phoneNumber={conversation.external_contact_phone} 
+                                                customerId={conversation.customer_id}
+                                                size="small" 
+                                                type="text" 
+                                            />
+                                            <WhatsAppButton 
+                                                phoneNumber={conversation.external_contact_phone} 
+                                                customerId={conversation.customer_id}
+                                                size="small" 
+                                                type="text" 
+                                            />
+                                        </Space>
+                                    </>
                                 )}
                             </Space>
                         </div>

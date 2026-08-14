@@ -44,6 +44,9 @@ importers:
       '@tanstack/react-query-devtools':
         specifier: ^4.29.19
         version: 4.36.1(@tanstack/react-query@4.36.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@twilio/voice-sdk':
+        specifier: ^2.18.3
+        version: 2.18.3
       '@zxing/library':
         specifier: ^0.21.3
         version: 0.21.3
@@ -155,6 +158,9 @@ importers:
       remark-gfm:
         specifier: ^4.0.1
         version: 4.0.1
+      twilio-client:
+        specifier: ^1.15.1
+        version: 1.15.1
       typeface-inter:
         specifier: ^3.18.1
         version: 3.18.1
@@ -1795,6 +1801,19 @@ packages:
       react-native:
         optional: true
 
+  '@twilio/audioplayer@1.0.6':
+    resolution: {integrity: sha512-c9cjX/ifICgXqShtyAQdVMqfe7odnxougiuRMXBJtn3dZ320mFdt7kmuKedpNnc3ZJ6irOZ9M9MZi9/vuEqHiw==}
+
+  '@twilio/voice-errors@1.0.1':
+    resolution: {integrity: sha512-iXzCuiOhNMhrr8DVjRRzI14YwGUIBM83kWSWcDktxmXim0Tz9xoCth4QFAQcMkNL2h9DlfXlob6noH+3h2iA4A==}
+
+  '@twilio/voice-errors@1.7.0':
+    resolution: {integrity: sha512-9TvniWpzU0iy6SYFAcDP+HG+/mNz2yAHSs7+m0DZk86lE+LoTB6J/ZONTPuxXrXWi4tso/DulSHuA0w7nIQtGg==}
+
+  '@twilio/voice-sdk@2.18.3':
+    resolution: {integrity: sha512-sBa9Tw+aXVIqDVnFQXIoY+yZM8GI8v/fwt34EMElSUfvlb8kquDOwLv6wXrBOwSYrnlyJoUqjlAOWdFPizEBnw==}
+    engines: {node: '>= 12'}
+
   '@types/babel__core@7.20.5':
     resolution: {integrity: sha512-qoQprZvz5wQFJwMDqeseRXWv3rqMvhgpbXFfVyWhbx9X47POIA6i/+dXefEmZKoAgOaTdaIgNSMqMIU61yRyzA==}
 
@@ -1881,6 +1900,9 @@ packages:
 
   '@types/estree@1.0.5':
     resolution: {integrity: sha512-/kYRxGDLWzHOB7q+wtSUQlFrtcdUccpfy+X+9iMBpHK8QLLhx2wIPYuS5DYtR9Wa/YlZAbIovy7qVdB1Aq6Lyw==}
+
+  '@types/events@3.0.3':
+    resolution: {integrity: sha512-trOc4AAUThEz9hapPtSd7wf5tiQKvTtu5b371UxXdTuqzIh0ArcRspRP0i0Viu+LXstIQ1z96t1nsPxT9ol01g==}
 
   '@types/geojson@7946.0.16':
     resolution: {integrity: sha512-6C8nqWur3j98U6+lXDfTUWIfgvZU+EumvpHKcYjujKH7woYyLj2sUmff0tRhrqM7BohUw7Pz3ZB1jj2gW9Fvmg==}
@@ -2216,6 +2238,13 @@ packages:
     peerDependencies:
       '@babel/core': ^7.4.0 || ^8.0.0-0 <8.0.0
 
+  babel-runtime@6.26.0:
+    resolution: {integrity: sha512-ITKNuq2wKlW1fJg9sSW52eepoYgZBggvOAHC0u/CYu/qxQ9EVzThCgR69BnSXLHjy2f7SY5zaQ4yt7H9ZVxY2g==}
+
+  backoff@2.5.0:
+    resolution: {integrity: sha512-wC5ihrnUXmR2douXmXLCe5O3zg3GKIyvRi/hi58a/XyRxVI+3/yM0PYueQOZXPXQ9pxBislYkw+sF9b7C/RuMA==}
+    engines: {node: '>= 0.6'}
+
   bail@2.0.2:
     resolution: {integrity: sha512-0xO6mYd7JB2YesxDKplafRpsiOzPt9V02ddPCLbY1xYGPOX24NTyN50qnUxgCPcSoYMhKpAuBTjQoRZCAkUDRw==}
 
@@ -2427,6 +2456,10 @@ packages:
 
   core-js-pure@3.37.1:
     resolution: {integrity: sha512-J/r5JTHSmzTxbiYYrzXg9w1VpqrYt+gexenBE9pugeyhwPZTAEJddyiReJWsLO6uNQ8xJZFbod6XC7KKwatCiA==}
+
+  core-js@2.6.12:
+    resolution: {integrity: sha512-Kb2wC0fvsWfQrgk8HU5lW6U/Lcs8+9aaYcy4ZFc6DDlo4nZ7n70dEgE5rtR0oG6ufKDUnrwfWL1mXR5ljDatrQ==}
+    deprecated: core-js@<3.23.3 is no longer maintained and not recommended for usage due to the number of issues. Because of the V8 engine whims, feature detection in old core-js versions could cause a slowdown up to 100x even if nothing is polyfilled. Some versions have web compatibility issues. Please, upgrade your dependencies to the actual version of core-js.
 
   core-js@3.37.1:
     resolution: {integrity: sha512-Xn6qmxrQZyB0FFY8E3bgRXei3lWDJHhvI+u0q9TKIYM49G8pAr0FgnnrFRAmsbptZL1yxRADVXn+x5AGsbBfyw==}
@@ -3429,6 +3462,14 @@ packages:
   lodash@4.17.23:
     resolution: {integrity: sha512-LgVTMpQtIopCi79SJeDiP0TfWi5CNEc/L/aRdTh3yIvmZXTnheWpKjSZhnvMl8iXbC1tFg9gdHHDMLoV7CnG+w==}
 
+  loglevel@1.6.7:
+    resolution: {integrity: sha512-cY2eLFrQSAfVPhCgH1s7JI73tMbg9YC3v3+ZHVW67sBS7UxWzNEk/ZBbSfLykBWHp33dqqtOv82gjhKEi81T/A==}
+    engines: {node: '>= 0.6.0'}
+
+  loglevel@1.9.2:
+    resolution: {integrity: sha512-HgMmCqIJSAKqo68l0rS2AanEWfkxaZ5wNiEFb5ggm08lDs9Xl2KxBlX3PTcaD2chBM1gXAYf491/M2Rv8Jwayg==}
+    engines: {node: '>= 0.6.0'}
+
   longest-streak@3.1.0:
     resolution: {integrity: sha512-9Ri+o0JYgehTaVBBDoMqIl8GXtbWg711O3srftcHhZ0dqnETqLaoIK0x17fUw9rFSlK/0NlsKe0Ahhyl5pXE2g==}
 
@@ -3838,6 +3879,10 @@ packages:
   postcss@8.4.49:
     resolution: {integrity: sha512-OCVPnIObs4N29kxTjzLfUryOkvZEq+pf8jTF0lg8E7uETuWHA+v7j3c/xJmiqpX450191LlmZfUKkXxkTry7nA==}
     engines: {node: ^10 || ^12 || >=14}
+
+  precond@0.2.3:
+    resolution: {integrity: sha512-QCYG84SgGyGzqJ/vlMsxeXd/pgL/I94ixdNFyh1PusWmTCyVfPJjZ1K1jvHtsbfnXQs2TSkEP2fR7QiMZAnKFQ==}
+    engines: {node: '>= 0.6'}
 
   prelude-ls@1.2.1:
     resolution: {integrity: sha512-vkcDPrRZo1QZLbn5RLGPpg/WmIQ65qoWWhcGKf/b5eplkkarX0m9z8ppCat4mlOqUsWpyNuYgO3VRyrYHSzX5g==}
@@ -4286,6 +4331,9 @@ packages:
   regenerate@1.4.2:
     resolution: {integrity: sha512-zrceR/XhGYU/d/opr2EKO7aRHUeiBI8qjtfHqADTwZd6Szfy16la6kqD0MIUs5z5hx6AaKa+PixpPrR289+I0A==}
 
+  regenerator-runtime@0.11.1:
+    resolution: {integrity: sha512-MguG95oij0fC3QV3URf4V2SDYGJhJnJGqvIIgdECeODCT98wSWDAJ94SSuVpYQUoTcGUIL6L4yNB7j1DFFHSBg==}
+
   regenerator-runtime@0.13.11:
     resolution: {integrity: sha512-kY1AZVr2Ra+t+piVaJ4gxaFaReZVH40AKNo7UCX6W+dEwBo/2oZJzqfuN1qLq1oL45o56cPaTXELwrTh8Fpggg==}
 
@@ -4372,6 +4420,10 @@ packages:
     engines: {node: '>=14.18.0', npm: '>=8.0.0'}
     hasBin: true
 
+  rtcpeerconnection-shim@1.2.8:
+    resolution: {integrity: sha512-5Sx90FGru1sQw9aGOM+kHU4i6mbP8eJPgxliu2X3Syhg8qgDybx8dpDTxUwfJvPnubXFnZeRNl59DWr4AttJKQ==}
+    engines: {node: '>=6.0.0', npm: '>=3.10.0'}
+
   run-parallel@1.2.0:
     resolution: {integrity: sha512-5l4VyZR86LZ/lDxZTR6jqL8AFE2S0IFLMP26AbjsLVADxHdhB/c0GUsH+y39UfCi3dzz8OlQuPmnaJOMoDHQBA==}
 
@@ -4405,6 +4457,9 @@ packages:
 
   scroll-into-view-if-needed@3.1.0:
     resolution: {integrity: sha512-49oNpRjWRvnU8NyGVmUaYG4jtTkNonFZI86MmGRDqBphEK2EXT9gdEUoQPZhuBM8yWHxCWbobltqYO5M4XrUvQ==}
+
+  sdp@2.12.0:
+    resolution: {integrity: sha512-jhXqQAQVM+8Xj5EjJGVweuEzgtGWb3tmEEpl3CLP3cStInSbVHSg0QWOGQzNq8pSID4JkpeV2mPqlMDLrm0/Vw==}
 
   semver@6.3.1:
     resolution: {integrity: sha512-BR7VvDCVHO+q2xBEWskxS6DJE1qRnb7DxzUrogb71CWoSficBxYsiAGd+Kl0mmq/MprG9yArRkyrQxTO6XjMzA==}
@@ -4705,11 +4760,19 @@ packages:
   tslib@2.6.2:
     resolution: {integrity: sha512-AEYxH93jGFPn/a2iVAwW87VuUIkR1FVUKB77NwMF7nBTDkDrrT/Hpt/IrCJ0QXhW27jTBDcf5ZY7w6RiqTMw2Q==}
 
+  tslib@2.8.1:
+    resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
+
   tsutils@3.21.0:
     resolution: {integrity: sha512-mHKK3iUXL+3UF6xL5k0PEhKRUBKPBCv/+RkEOpjRWxxx27KKRBmmA60A9pgOUvMi8GKhRMPEmjBRPzs2W7O1OA==}
     engines: {node: '>= 6'}
     peerDependencies:
       typescript: '>=2.8.0 || >= 3.2.0-dev || >= 3.3.0-dev || >= 3.4.0-dev || >= 3.5.0-dev || >= 3.6.0-dev || >= 3.6.0-beta || >= 3.7.0-dev || >= 3.7.0-beta'
+
+  twilio-client@1.15.1:
+    resolution: {integrity: sha512-O2Cdq4THosTPLMIfFK0/xcS8SCCLUiv1hDB4i4sAisqtfHEVLXSuNoL332rPkDPC3jzgm3C5zzbEz/XyEXO+NQ==}
+    engines: {node: '>= 12'}
+    deprecated: Effective April 1, 2025, Twilio will end of life (EOL) our support for Twilio Voice JS SDK version 1.x. Please migrate to version 2.x https://www.twilio.com/docs/voice/sdks/javascript/migrating-to-js-voice-sdk-20
 
   type-check@0.4.0:
     resolution: {integrity: sha512-XleUoc9uwGXqjWwXaUTZAmzMcFZ5858QA2vvx1Ur5xIcixXIP+8LnFDgRplU30us6teqdlskFfu+ae4K79Ooew==}
@@ -5021,10 +5084,26 @@ packages:
   wrappy@1.0.2:
     resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
 
+  ws@7.4.6:
+    resolution: {integrity: sha512-YmhHDO4MzaDLB+M9ym/mDA5z0naX8j7SIlT8f8z+I0VtzsRbekxEutHSme7NPS2qE8StCYQNUnfWdXta/Yu85A==}
+    engines: {node: '>=8.3.0'}
+    peerDependencies:
+      bufferutil: ^4.0.1
+      utf-8-validate: ^5.0.2
+    peerDependenciesMeta:
+      bufferutil:
+        optional: true
+      utf-8-validate:
+        optional: true
+
   xlsx@0.18.5:
     resolution: {integrity: sha512-dmg3LCjBPHZnQp5/F/+nnTa+miPJxUXB6vtk42YjBBKayDNagxGEeIdWApkYPOf3Z3pm3k62Knjzp7lMeTEtFQ==}
     engines: {node: '>=0.8'}
     hasBin: true
+
+  xmlhttprequest@1.8.0:
+    resolution: {integrity: sha512-58Im/U0mlVBLM38NdZjHyhuMtCqa61469k2YP/AaPbvCoV9aQGUpbJBj1QRm2ytRiVQBD/fsw7L2bJGDVQswBA==}
+    engines: {node: '>=0.4.0'}
 
   y18n@4.0.3:
     resolution: {integrity: sha512-JKhqTOwSrqNA1NY5lSztJ1GrBiUodLMmIZuLiDaMRJ+itFd+ABVE8XBjOvIWL+rSqNDC74LCSFmlb/U4UZ4hJQ==}
@@ -7042,6 +7121,22 @@ snapshots:
     optionalDependencies:
       react-dom: 18.3.1(react@18.3.1)
 
+  '@twilio/audioplayer@1.0.6':
+    dependencies:
+      babel-runtime: 6.26.0
+
+  '@twilio/voice-errors@1.0.1': {}
+
+  '@twilio/voice-errors@1.7.0': {}
+
+  '@twilio/voice-sdk@2.18.3':
+    dependencies:
+      '@twilio/voice-errors': 1.7.0
+      '@types/events': 3.0.3
+      events: 3.3.0
+      loglevel: 1.9.2
+      tslib: 2.8.1
+
   '@types/babel__core@7.20.5':
     dependencies:
       '@babel/parser': 7.24.5
@@ -7132,6 +7227,8 @@ snapshots:
   '@types/estree@0.0.39': {}
 
   '@types/estree@1.0.5': {}
+
+  '@types/events@3.0.3': {}
 
   '@types/geojson@7946.0.16': {}
 
@@ -7593,6 +7690,15 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  babel-runtime@6.26.0:
+    dependencies:
+      core-js: 2.6.12
+      regenerator-runtime: 0.11.1
+
+  backoff@2.5.0:
+    dependencies:
+      precond: 0.2.3
+
   bail@2.0.2: {}
 
   balanced-match@1.0.2: {}
@@ -7794,6 +7900,8 @@ snapshots:
       browserslist: 4.23.0
 
   core-js-pure@3.37.1: {}
+
+  core-js@2.6.12: {}
 
   core-js@3.37.1:
     optional: true
@@ -8877,6 +8985,10 @@ snapshots:
 
   lodash@4.17.23: {}
 
+  loglevel@1.6.7: {}
+
+  loglevel@1.9.2: {}
+
   longest-streak@3.1.0: {}
 
   loose-envify@1.4.0:
@@ -9495,6 +9607,8 @@ snapshots:
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
+  precond@0.2.3: {}
+
   prelude-ls@1.2.1: {}
 
   pretty-bytes@5.6.0: {}
@@ -10056,6 +10170,8 @@ snapshots:
 
   regenerate@1.4.2: {}
 
+  regenerator-runtime@0.11.1: {}
+
   regenerator-runtime@0.13.11:
     optional: true
 
@@ -10158,6 +10274,10 @@ snapshots:
     optionalDependencies:
       fsevents: 2.3.3
 
+  rtcpeerconnection-shim@1.2.8:
+    dependencies:
+      sdp: 2.12.0
+
   run-parallel@1.2.0:
     dependencies:
       queue-microtask: 1.2.3
@@ -10196,6 +10316,8 @@ snapshots:
   scroll-into-view-if-needed@3.1.0:
     dependencies:
       compute-scroll-into-view: 3.1.0
+
+  sdp@2.12.0: {}
 
   semver@6.3.1: {}
 
@@ -10494,10 +10616,25 @@ snapshots:
 
   tslib@2.6.2: {}
 
+  tslib@2.8.1: {}
+
   tsutils@3.21.0(typescript@5.4.5):
     dependencies:
       tslib: 1.14.1
       typescript: 5.4.5
+
+  twilio-client@1.15.1:
+    dependencies:
+      '@twilio/audioplayer': 1.0.6
+      '@twilio/voice-errors': 1.0.1
+      backoff: 2.5.0
+      loglevel: 1.6.7
+      rtcpeerconnection-shim: 1.2.8
+      ws: 7.4.6
+      xmlhttprequest: 1.8.0
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
 
   type-check@0.4.0:
     dependencies:
@@ -10937,6 +11074,8 @@ snapshots:
 
   wrappy@1.0.2: {}
 
+  ws@7.4.6: {}
+
   xlsx@0.18.5:
     dependencies:
       adler-32: 1.3.1
@@ -10946,6 +11085,8 @@ snapshots:
       ssf: 0.11.2
       wmf: 1.0.2
       word: 0.3.0
+
+  xmlhttprequest@1.8.0: {}
 
   y18n@4.0.3: {}
 

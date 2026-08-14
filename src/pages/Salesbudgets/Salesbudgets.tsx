@@ -2,11 +2,11 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "re
 import { ActionType, ProTable } from "@ant-design/pro-components";
 import {
     AuditOutlined, CheckOutlined, CloseOutlined,
-    EditOutlined, EyeOutlined, MoreOutlined, PlusOutlined, SendOutlined,
+    EditOutlined, EyeOutlined, MoreOutlined, PlusOutlined, SendOutlined, PhoneOutlined,
 } from "@ant-design/icons";
 import {
     App, Button, DatePicker, Drawer, Dropdown, Form,
-    Input, InputNumber, Modal, Select, Tag, Typography,
+    Input, InputNumber, Modal, Select, Space, Tag, Typography,
 } from "antd";
 import { useAppDispatch } from "../../store";
 import {
@@ -18,6 +18,8 @@ import { fetchAllCampaigns } from "@services/crm/campaigns";
 import { fetchAllDepartments } from "@services/crm/departments";
 import { useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
+import CallButton from "@components/Twilio/CallButton";
+import SMSButton from "@components/Twilio/SMSButton";
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -88,9 +90,22 @@ const SalesBudgetTable = forwardRef<SalesBudgetTableHandle, SalesBudgetTableProp
             },
             {
                 title: "Department", dataIndex: "department_id", search: false,
-                render: (d: any) => d
-                    ? <Text style={{ fontSize: 11, color: "#8b5cf6" }}>{d.name ?? d}</Text>
-                    : <Text style={{ fontSize: 11, color: "#94a3b8" }}>—</Text>,
+                render: (d: any) => {
+                    if (!d) return <Text style={{ fontSize: 11, color: "#94a3b8" }}>—</Text>;
+                    const deptName = d.name ?? d;
+                    const deptPhone = d.phone;
+                    return (
+                        <div>
+                            <Text style={{ fontSize: 11, color: "#8b5cf6" }}>{deptName}</Text>
+                            {deptPhone && (
+                                <Space size={4} style={{ marginTop: 4 }}>
+                                    <CallButton phoneNumber={deptPhone} size="small" type="text" />
+                                    <SMSButton phoneNumber={deptPhone} size="small" type="text" />
+                                </Space>
+                            )}
+                        </div>
+                    );
+                },
             },
             { title: "Budgeted", dataIndex: "budgeted_revenue", search: false, render: (v: number) => <Text style={{ fontSize: 12 }}>{v ? `KES ${v.toLocaleString()}` : "—"}</Text> },
             { title: "Actual", dataIndex: "actual_revenue", search: false, render: (v: number) => <Text style={{ fontSize: 12, color: C.green }}>{v ? `KES ${v.toLocaleString()}` : "—"}</Text> },

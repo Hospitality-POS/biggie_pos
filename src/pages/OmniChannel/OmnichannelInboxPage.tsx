@@ -1,5 +1,4 @@
-import React, { useState, useCallback, useMemo } from "react";
-import { ProCard } from "@ant-design/pro-components";
+import React, { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import {
     Button,
     Space,
@@ -9,104 +8,272 @@ import {
     Tooltip,
     Alert,
     Segmented,
-    Spin,
     Empty,
+    Row,
+    Col,
+    Tag,
+    Card,
+    Statistic,
+    Avatar,
+    List,
+    Modal,
+    Input,
+    Select,
+    Form,
+    message,
 } from "antd";
 import {
     PlusOutlined,
     MessageOutlined,
     ReloadOutlined,
-    SettingOutlined,
     WifiOutlined,
+    PhoneOutlined,
+    TrophyOutlined,
+    UserOutlined,
+    ClockCircleOutlined,
+    PhoneFilled,
+    VideoCameraOutlined,
+    CommentOutlined,
+    CloseCircleOutlined,
+    FileOutlined,
 } from "@ant-design/icons";
-
-const WhatsAppIcon = () => (
-    <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
-        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-    </svg>
-);
-
-const MessengerIcon = () => (
-    <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
-        <path d="M12 0C5.373 0 0 4.373 0 9.75c0 2.884 1.624 5.456 4.128 7.094l-.641 3.156 3.723-1.549c1.536.392 3.18.392 4.716 0l3.723 1.549-.641-3.156C22.376 15.206 24 12.634 24 9.75 24 4.373 18.627 0 12 0zm-1.5 13.5l-3.75-3.75 1.5-1.5 2.25 2.25 6-6 1.5 1.5-7.5 7.5z"/>
-    </svg>
-);
-
-const InstagramIcon = () => (
-    <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
-        <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
-    </svg>
-);
+import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
     fetchConversations,
     fetchWhatsappChannels,
+    sendTextMessage,
 } from "@services/whatsappService";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import ConversationList from "./ConversationList";
 import MessageThread from "./MessageThread";
-import ConnectChannelDrawer from "./ConnectChannelDrawer";
+import CallInterfaceModal from "./CallInterfaceModal";
+import { getAgentStatus, getCallHistory, initiateCall, getPhoneNumbers, getActiveCalls, answerCall, rejectCall, endCall, getAfricasTalkingVoiceToken } from "@services/twilio";
+import { getAfricasTalkingVoiceManager } from "@services/africasTalkingVoice";
+import { fetchAllUsersList } from "@services/users";
+import { 
+    getShopId, 
+    CHANNEL_CONFIG, 
+    ConversationStatus,
+    WhatsAppIconComponent,
+    Conversation
+} from "./omnichannelConstants.tsx";
 
 const { Text, Title } = Typography;
+const { TextArea } = Input;
 
-export type Channel = "all" | "whatsapp" | "messenger" | "instagram";
-export type ConversationStatus = "open" | "pending" | "resolved" | "closed";
+export type Channel = "all" | "whatsapp" | "africastalking";
 
-export interface Conversation {
+export interface Call {
     _id: string;
-    channel: "whatsapp" | "messenger" | "instagram";
-    external_contact_name: string;
-    external_contact_phone?: string;
-    external_contact_id: string;
-    customer_id?: string;
-    status: ConversationStatus;
-    last_message_at: string;
-    last_message_preview?: string;
-    unread_count: number;
-    phone_number_id?: string;
-    assigned_to?: { _id: string; fullname: string; thumbnail?: string };
-    is_window_open?: boolean;
+    from_number?: string;
+    to_number?: string;
+    direction?: "inbound" | "outbound";
+    status?: string;
+    agent_id?: string;
+    duration?: number;
+    start_time?: string;
+    createdAt?: string;
 }
 
-export const getShopId = (): string => {
-    try {
-        const shopId = localStorage.getItem("shopId");
-        return shopId && shopId !== "{}" && shopId !== "null" ? shopId : "";
-    } catch {
-        return "";
-    }
-};
+export interface Agent {
+    _id: string;
+    fullname: string;
+    thumbnail?: string;
+    role_type?: string;
+    email?: string;
+}
 
-export const CHANNEL_CONFIG: Record<
-    string,
-    { label: string; color: string; icon: React.ReactNode; bg: string }
-> = {
-    whatsapp: { label: "WhatsApp", color: "#25D366", bg: "#f0fdf4", icon: <WhatsAppIcon /> },
-    messenger: { label: "Messenger", color: "#0084FF", bg: "#eff6ff", icon: <MessengerIcon /> },
-    instagram: { label: "Instagram", color: "#E1306C", bg: "#fff0f5", icon: <InstagramIcon /> },
-};
+export interface AgentStatus {
+    agent_id: string;
+    agent_name: string;
+    status: string;
+    total_calls_today: number;
+}
 
-export const STATUS_CONFIG: Record<
-    ConversationStatus,
-    { label: string; badge: "success" | "processing" | "warning" | "error" | "default"; color: string }
-> = {
-    open: { label: "Open", badge: "success", color: "#52c41a" },
-    pending: { label: "Pending", badge: "warning", color: "#faad14" },
-    resolved: { label: "Resolved", badge: "default", color: "#8c8c8c" },
-    closed: { label: "Closed", badge: "error", color: "#ff4d4f" },
-};
+export interface PhoneNumber {
+    _id: string;
+    phone_number: string;
+    friendly_name?: string;
+}
+
+export interface CallFormValues {
+    phone_number_id: string;
+    country_code: string;
+    phone_number: string;
+    entity_type?: "customer" | "lead";
+    customer_id?: string;
+    lead_id?: string;
+    record?: boolean;
+}
+
+export interface WhatsAppFormValues {
+    conversation_id: string;
+    message: string;
+}
 
 const OmnichannelInboxPage: React.FC = () => {
     const shopId = getShopId();
     const primaryColor = usePrimaryColor();
     const queryClient = useQueryClient();
+    const navigate = useNavigate();
+    const { message } = App.useApp();
 
     const [activeChannel, setActiveChannel] = useState<Channel>("all");
     const [activeStatus, setActiveStatus] = useState<ConversationStatus | "all">("all");
     const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
-    const [connectDrawerOpen, setConnectDrawerOpen] = useState(false);
     const [search, setSearch] = useState("");
     const [page, setPage] = useState(1);
+
+    // Get user ID from localStorage user object
+    const getUserId = () => {
+        try {
+            const userStr = localStorage.getItem("user");
+            if (userStr) {
+                const user = JSON.parse(userStr);
+                return user.id || user._id || user.userId || undefined;
+            }
+            return undefined;
+        } catch (error) {
+            console.error('Error parsing user from localStorage:', error);
+            return undefined;
+        }
+    };
+
+    const userId = getUserId();
+    
+    // New call modal state
+    const [newCallModalOpen, setNewCallModalOpen] = useState(false);
+    const [callForm] = Form.useForm();
+    
+    // Device test state
+    const [deviceReady, setDeviceReady] = useState(false);
+    
+    // New WhatsApp message modal state
+    const [newWhatsAppModalOpen, setNewWhatsAppModalOpen] = useState(false);
+    const [whatsappForm] = Form.useForm();
+    
+    // Incoming call state
+    const [incomingCall, setIncomingCall] = useState<Call | null>(null);
+    const [activeCall, setActiveCall] = useState<Call | null>(null);
+    const [callTimer, setCallTimer] = useState(0);
+    const [isMuted, setIsMuted] = useState(false);
+    const [isOnHold, setIsOnHold] = useState(false);
+    
+    // Track if incoming call came from WebSocket (to prevent polling from clearing it)
+    const [isWebSocketCall, setIsWebSocketCall] = useState(false);
+    
+    // Voice manager reference for making callbacks
+    const voiceManagerRef = useRef(getAfricasTalkingVoiceManager());
+    
+    // WebSocket connection for incoming call notifications
+    const wsRef = useRef<WebSocket | null>(null);
+    
+    // Auto-initialize Africa's Talking device on mount
+    useEffect(() => {
+        const initializeDevice = async () => {
+            try {
+                console.log('🧪 Auto-initializing Africa\'s Talking device...');
+                const tokenData = await getAfricasTalkingVoiceToken({ 
+                    shop_id: shopId, 
+                    user_id: userId,
+                    clientName: `agent_${userId}`
+                });
+                const voiceManager = getAfricasTalkingVoiceManager();
+                
+                await voiceManager.initialize({
+                    token: tokenData.token,
+                    clientName: tokenData.clientName,
+                    phoneNumber: tokenData.phoneNumber,
+                });
+                
+                console.log('✅ Auto-initialized Africa\'s Talking device');
+                setDeviceReady(true);
+            } catch (error) {
+                console.error('❌ Auto-initialization failed:', error);
+            }
+        };
+        
+        initializeDevice();
+    }, [shopId, userId]);
+    
+    // WebSocket effect
+    useEffect(() => {
+        const wsUrl = 'ws://localhost:3003';
+        const ws = new WebSocket(wsUrl);
+        wsRef.current = ws;
+        
+        ws.onopen = () => {
+            console.log('🔌 WebSocket connected for incoming call notifications');
+        };
+        
+        ws.onmessage = (event) => {
+            try {
+                const message = JSON.parse(event.data);
+                console.log('📨 WebSocket message received:', message);
+                
+                if (message.type === 'incoming_call') {
+                    console.log('📞📞📞 INCOMING CALL via WebSocket! 📞📞📞');
+                    console.log('📞 Call data:', message.data);
+                    
+                    // Create a call object from the WebSocket notification
+                    const callData: Call = {
+                        _id: message.data.call_sid,
+                        call_sid: message.data.call_sid,
+                        direction: message.data.direction,
+                        from_number: message.data.from,
+                        to_number: message.data.to,
+                        status: message.data.status,
+                        created_at: new Date(message.data.timestamp),
+                        updated_at: new Date(message.data.timestamp),
+                    };
+                    
+                    setIncomingCall(callData);
+                    setIsWebSocketCall(true); // Mark as WebSocket call
+                    console.log('📞 Set isWebSocketCall to true');
+                    
+                    // Play ring sound
+                    try {
+                        const audio = new Audio('/ringtone.mp3');
+                        audio.play().catch(err => console.warn('Failed to play ringtone:', err));
+                    } catch (error) {
+                        console.warn('Failed to create audio element:', error);
+                    }
+                }
+            } catch (error) {
+                console.error('Error parsing WebSocket message:', error);
+            }
+        };
+        
+        ws.onerror = (error) => {
+            console.error('WebSocket error:', error);
+        };
+        
+        ws.onclose = () => {
+            console.log('WebSocket disconnected');
+        };
+        
+        return () => {
+            if (wsRef.current) {
+                wsRef.current.close();
+            }
+        };
+    }, []);
+    
+    // Call notes state
+    const [callNotes, setCallNotes] = useState("");
+    const [showCallPanel, setShowCallPanel] = useState(false);
+    
+    // Call interface modal state
+    const [callInterfaceOpen, setCallInterfaceOpen] = useState(false);
+    const [currentCallInfo, setCurrentCallInfo] = useState<{
+        phoneNumber: string;
+        contactName?: string;
+        customerId?: string;
+        leadId?: string;
+        twilioToken?: string;
+        conferenceName?: string;
+    } | null>(null);
 
     const {
         data: channelsData,
@@ -123,11 +290,205 @@ const OmnichannelInboxPage: React.FC = () => {
     const channels = channelsData?.channels || [];
 
     const connected = {
-        whatsapp: channels.some((c: any) => c.channel === "whatsapp" && c.is_active),
-        messenger: channels.some((c: any) => c.channel === "messenger" && c.is_active),
-        instagram: channels.some((c: any) => c.channel === "instagram" && c.is_active),
+        whatsapp: channels.some((c: { channel: string; is_active: boolean }) => c.channel === "whatsapp" && c.is_active),
     };
-    const anyConnected = connected.whatsapp || connected.messenger || connected.instagram;
+    const anyConnected = connected.whatsapp;
+
+    // Twilio agent status for call readiness
+    const { data: agentStatus } = useQuery({
+        queryKey: ["twilio-agent-status", shopId, userId],
+        queryFn: () => getAgentStatus(shopId || "", userId || ""),
+        enabled: !!shopId && !!userId,
+        staleTime: 30_000,
+        refetchInterval: 30_000,
+    });
+
+    // Debug: Log agent status to check API response structure
+    useEffect(() => {
+        console.log('👥 Agent Status Debug:', {
+            agentStatus,
+            agentCount: agentStatus?.agent_statuses?.length,
+            sampleAgent: agentStatus?.agent_statuses?.[0]
+        });
+    }, [agentStatus]);
+
+    // Twilio call history
+    const { data: callHistory } = useQuery({
+        queryKey: ["twilio-call-history", shopId],
+        queryFn: () => getCallHistory({ shop_id: shopId || "", limit: 100 }),
+        enabled: !!shopId,
+        staleTime: 60_000,
+    });
+
+    // Handle different API response structures
+    const callsArray = useMemo(() => {
+        return callHistory?.calls || callHistory?.data || (Array.isArray(callHistory) ? callHistory : []);
+    }, [callHistory]);
+    
+    const todayCalls = useMemo(() => {
+        return callsArray.filter((call: Call) => {
+            // Use start_time if available, otherwise fall back to createdAt
+            const callTime = call.start_time || call.createdAt;
+            if (!callTime) return false;
+            
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            const callDate = new Date(callTime);
+            callDate.setHours(0, 0, 0, 0);
+            
+            return callDate.getTime() === today.getTime();
+        }).length || 0;
+    }, [callsArray]);
+
+    // Debug: Log call history to check API response structure
+    useEffect(() => {
+        console.log('📞 Call History Debug:', {
+            callHistory,
+            callHistoryKeys: callHistory ? Object.keys(callHistory) : 'null',
+            todayCalls,
+            totalCalls: callsArray.length,
+            sampleCall: callsArray[0],
+            today: new Date().toDateString(),
+            // Check if response structure is different
+            hasCallsArray: !!callHistory?.calls,
+            hasDataArray: !!callHistory?.data,
+            isArray: Array.isArray(callHistory),
+            // Check how many calls have start_time vs createdAt
+            callsWithStartTime: callsArray.filter((c: Call) => c.start_time).length,
+            callsWithCreatedAt: callsArray.filter((c: Call) => c.createdAt).length,
+            callsWithNoTime: callsArray.filter((c: Call) => !c.start_time && !c.createdAt).length
+        });
+    }, [callHistory, todayCalls, callsArray]);
+
+    // Fetch users with CRM agent roles
+    const { data: usersData } = useQuery({
+        queryKey: ["users-list", shopId],
+        queryFn: () => fetchAllUsersList({ shop_id: shopId }),
+        enabled: !!shopId,
+        staleTime: 60_000,
+    });
+
+    // Filter users with CRM agent roles (CRM_AGENT, CRM_MANAGER)
+    const crmAgents = useMemo(() => {
+        // Handle different API response structures
+        const users = usersData?.users || usersData || (Array.isArray(usersData) ? usersData : []);
+        const usersArray = Array.isArray(users) ? users : [];
+        
+        const filtered = usersArray.filter((user: { role?: { role_type?: string } }) => {
+            const roleType = user.role?.role_type?.toLowerCase() || "";
+            return roleType.includes("crm_agent") || roleType.includes("crm_manager");
+        });
+        
+        // Debug: Log users filtering
+        console.log('👥 CRM Agents Debug:', {
+            usersData,
+            usersDataKeys: usersData ? Object.keys(usersData) : 'null',
+            usersArray,
+            totalUsers: usersArray.length,
+            crmAgentsCount: filtered.length,
+            sampleUser: usersArray[0],
+            sampleUserRole: usersArray[0]?.role
+        });
+        
+        return filtered;
+    }, [usersData]);
+
+    // Fetch available phone numbers for calls
+    const { data: phoneNumbersData } = useQuery({
+        queryKey: ["twilio-phone-numbers", shopId],
+        queryFn: () => getPhoneNumbers(shopId, undefined, true),
+        enabled: !!shopId,
+        staleTime: 60_000,
+    });
+
+    const phoneNumbers = phoneNumbersData?.phone_numbers as Array<{ _id: string; phone_number: string; friendly_name?: string }> || [];
+
+    // Poll for active calls (incoming calls)
+    const { data: activeCallsData } = useQuery({
+        queryKey: ["twilio-active-calls", shopId],
+        queryFn: () => getActiveCalls(shopId),
+        enabled: !!shopId,
+        staleTime: 0,
+        refetchInterval: 3000, // Poll every 3 seconds
+    });
+
+    // Track incoming calls
+    useEffect(() => {
+        const activeCalls = activeCallsData?.calls || [];
+        const inboundCalls = activeCalls.filter((call: Call) => 
+            call.direction === "inbound" && call.status === "ringing"
+        );
+        
+        if (inboundCalls.length > 0 && !incomingCall) {
+            // New incoming call
+            setIncomingCall(inboundCalls[0]);
+            // Play ring sound
+            try {
+                const audio = new Audio('/ringtone.mp3');
+                audio.play().catch((error) => {
+                    console.warn('Failed to play ringtone:', error);
+                });
+            } catch (error) {
+                console.warn('Failed to create audio element:', error);
+            }
+        } else if (inboundCalls.length === 0 && incomingCall && !isWebSocketCall) {
+            // Call ended or answered elsewhere (only clear if not WebSocket call)
+            setIncomingCall(null);
+        }
+    }, [activeCallsData, incomingCall]);
+
+    // Track active call (answered)
+    useEffect(() => {
+        const activeCalls = activeCallsData?.calls || [];
+        const myActiveCall = activeCalls.find((call: Call) => 
+            call.status === "in-progress" && call.agent_id === userId
+        );
+        
+        if (myActiveCall && !activeCall) {
+            setActiveCall(myActiveCall);
+        } else if (!myActiveCall && activeCall) {
+            setActiveCall(null);
+            setCallTimer(0);
+        }
+    }, [activeCallsData, activeCall, userId]);
+
+    // Call timer
+    useEffect(() => {
+        let interval: number | undefined;
+        if (activeCall) {
+            interval = setInterval(() => {
+                setCallTimer(prev => prev + 1);
+            }, 1000);
+        }
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [activeCall]);
+
+    // Add pulse animation styles
+    useEffect(() => {
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes pulse {
+                0%, 100% {
+                    transform: scale(1);
+                    opacity: 1;
+                }
+                50% {
+                    transform: scale(1.05);
+                    opacity: 0.8;
+                }
+            }
+            .pulse-animation {
+                animation: pulse 1.5s infinite;
+            }
+        `;
+        document.head.appendChild(style);
+        return () => {
+            document.head.removeChild(style);
+        };
+    }, []);
 
     const {
         data: conversationsData,
@@ -159,7 +520,7 @@ const OmnichannelInboxPage: React.FC = () => {
         refetchOnWindowFocus: true,
     });
 
-    const conversations = conversationsData?.conversations || [];
+    const conversations = useMemo(() => conversationsData?.conversations || [], [conversationsData?.conversations]);
     const totalCount = conversationsData?.total || 0;
 
     // Calculate status counts from conversations array
@@ -172,7 +533,7 @@ const OmnichannelInboxPage: React.FC = () => {
             resolved_today: conversationsData?.status_counts?.resolved_today || 0
         };
 
-        conversations.forEach(conv => {
+        conversations.forEach((conv: Conversation) => {
             if (conv.status === "open") counts.open++;
             else if (conv.status === "pending") counts.pending++;
             else if (conv.status === "resolved") counts.resolved++;
@@ -184,16 +545,12 @@ const OmnichannelInboxPage: React.FC = () => {
 
     // Calculate channel counts from conversations array
     const channelCounts = useMemo(() => {
-        const counts = {
+        const counts: Record<string, number> = {
             whatsapp: 0,
-            messenger: 0,
-            instagram: 0
         };
 
-        conversations.forEach(conv => {
+        conversations.forEach((conv: Conversation) => {
             if (conv.channel === "whatsapp") counts.whatsapp++;
-            else if (conv.channel === "messenger") counts.messenger++;
-            else if (conv.channel === "instagram") counts.instagram++;
         });
 
         return counts;
@@ -215,10 +572,172 @@ const OmnichannelInboxPage: React.FC = () => {
         }
     }, [queryClient, selectedConversation]);
 
-    const handleConnectSuccess = useCallback(() => {
-        queryClient.invalidateQueries({ queryKey: ["omnichannel-channels"] });
-        setConnectDrawerOpen(false);
-    }, [queryClient]);
+    const handleMakeCall = async (values: CallFormValues) => {
+        try {
+            const fullPhoneNumber = `${values.country_code}${values.phone_number}`;
+            const currentUserId = userId || 'default_agent'; // Fallback if userId is not available
+
+            console.log('Initiating call with userId:', currentUserId);
+
+            const response = await initiateCall({
+                shop_id: shopId,
+                phone_number_id: values.phone_number_id,
+                to_number: fullPhoneNumber,
+                customer_id: values.entity_type === "customer" ? values.customer_id : undefined,
+                lead_id: values.entity_type === "lead" ? values.lead_id : undefined,
+                agent_id: currentUserId, // Track which agent made the call
+                agent_identity: currentUserId, // Required for WebRTC bridging - must match token identity
+                record: values.record !== false,
+            });
+
+            console.log('Backend response:', response); // Debug: Check what backend returns
+
+            message.success("Call initiated successfully");
+            setNewCallModalOpen(false);
+
+            // Get Twilio token for the call interface
+            const token = await getTwilioToken();
+
+            // Open call interface modal with conference information
+            setCurrentCallInfo({
+                phoneNumber: fullPhoneNumber,
+                customerId: values.entity_type === "customer" ? values.customer_id : undefined,
+                leadId: values.entity_type === "lead" ? values.lead_id : undefined,
+                twilioToken: token,
+                conferenceName: response.conference_name || response.call?.conference_name || undefined, // Try multiple possible fields
+            });
+            setCallInterfaceOpen(true);
+            
+            // Open call interface modal
+            setCurrentCallInfo({
+                phoneNumber: fullPhoneNumber,
+                customerId: values.entity_type === "customer" ? values.customer_id : undefined,
+                leadId: values.entity_type === "lead" ? values.lead_id : undefined,
+                twilioToken: await getTwilioToken(), // This would need to be implemented
+            });
+            setCallInterfaceOpen(true);
+            
+            callForm.resetFields();
+            queryClient.invalidateQueries({ queryKey: ["twilio-call-history"] });
+        } catch (error) {
+            console.error("Failed to initiate call:", error);
+            message.error("Failed to initiate call");
+        }
+    };
+
+    const handleSendWhatsApp = async (values: WhatsAppFormValues) => {
+        try {
+            if (values.conversation_id) {
+                // Send to existing conversation
+                await sendTextMessage({
+                    conversation_id: values.conversation_id,
+                    content: values.message,
+                });
+                message.success("WhatsApp message sent successfully");
+                setNewWhatsAppModalOpen(false);
+                whatsappForm.resetFields();
+                queryClient.invalidateQueries({ queryKey: ["omnichannel-conversations"] });
+            } else {
+                message.warning("Please select a conversation to send the message to");
+            }
+        } catch (error) {
+            console.error("Failed to send WhatsApp message:", error);
+            message.error("Failed to send WhatsApp message");
+        }
+    };
+
+    const handleCallInterfaceClose = () => {
+        setCallInterfaceOpen(false);
+        setCurrentCallInfo(null);
+    };
+
+    const handleCallInterfaceEnd = () => {
+        setCallInterfaceOpen(false);
+        setCurrentCallInfo(null);
+        // Additional cleanup if needed
+    };
+
+    const handleCallMute = (muted: boolean) => {
+        setIsMuted(muted);
+    };
+
+    const handleCallHold = (onHold: boolean) => {
+        setIsOnHold(onHold);
+    };
+
+    const handleCallSpeaker = (speaker: boolean) => {
+        // Handle speaker toggle logic
+        console.log('Speaker toggled:', speaker);
+    };
+
+    // Test Africa's Talking device initialization
+    const testAfricasTalkingDevice = async () => {
+        try {
+            console.log('🧪 Testing Africa\'s Talking device initialization...');
+            
+            const shopId = localStorage.getItem("shopId");
+            const userStr = localStorage.getItem("user");
+            
+            if (!shopId || !userStr) {
+                console.error('Missing shopId or user');
+                message.error('Missing shopId or user');
+                return;
+            }
+
+            const user = JSON.parse(userStr);
+            const userId = user.id || user._id || user.userId;
+            
+            if (!userId) {
+                console.error('Missing userId');
+                message.error('Missing userId');
+                return;
+            }
+
+            const tokenData = await getAfricasTalkingVoiceToken({
+                shop_id: shopId,
+                user_id: userId,
+                clientName: `agent_${userId}`,
+            });
+
+            console.log('✅ Token received:', tokenData);
+            console.log('🔍 Token details:', {
+                clientName: tokenData?.clientName,
+                phoneNumber: tokenData?.phoneNumber,
+                hasToken: !!tokenData?.token
+            });
+
+            const voiceManager = getAfricasTalkingVoiceManager();
+            await voiceManager.initialize({
+                token: tokenData.token,
+                clientName: tokenData.clientName,
+                phoneNumber: tokenData.phoneNumber,
+            });
+
+            console.log('✅ Africa\'s Talking device initialized');
+            setTwilioDeviceReady(true);
+        } catch (error) {
+            console.error('❌ Failed to initialize Africa\'s Talking device:', error);
+            message.error('Failed to initialize Africa\'s Talking device');
+        }
+    };
+
+    // Placeholder function to get Twilio token from backend
+    const getTwilioToken = async (): Promise<string> => {
+        try {
+            const currentUserId = userId || 'default_agent'; // Fallback if userId is not available
+
+            const data = await getTwilioVoiceToken({
+                shop_id: shopId,
+                agent_id: currentUserId,
+                agent_identity: currentUserId, // Required for WebRTC bridging - use current user ID
+            });
+            return data.token;
+        } catch (error) {
+            console.error('Failed to get Twilio token:', error);
+            message.error('Failed to initialize voice calling. Please check your Twilio configuration.');
+            throw error;
+        }
+    };
 
     if (!shopId) {
         return (
@@ -245,16 +764,16 @@ const OmnichannelInboxPage: React.FC = () => {
             ),
             value: "all",
         },
-        ...["whatsapp", "messenger", "instagram"].map((ch) => ({
+        ...["whatsapp"].map((ch) => ({
             label: (
                 <Space size={6} align="center">
                     <span style={{ color: CHANNEL_CONFIG[ch].color, display: "flex", alignItems: "center" }}>
                         {CHANNEL_CONFIG[ch].icon}
                     </span>
                     <span style={{ lineHeight: 1 }}>{CHANNEL_CONFIG[ch].label}</span>
-                    {(channelCounts[ch] || 0) > 0 && (
+                    {((channelCounts as Record<string, number>)[ch] || 0) > 0 && (
                         <Badge
-                            count={channelCounts[ch]}
+                            count={(channelCounts as Record<string, number>)[ch]}
                             size="small"
                             style={{ fontSize: 10, backgroundColor: CHANNEL_CONFIG[ch].color }}
                         />
@@ -269,271 +788,1068 @@ const OmnichannelInboxPage: React.FC = () => {
         <App>
             <div style={{ 
                 minHeight: "100vh",
-                // background: "#f5f5f5",
-                padding: "24px"
+                background: "#f5f7fa",
+                padding: "20px"
             }}>
-                {!channelsLoading && !anyConnected && (
-                    <ProCard
-                        bordered={false}
-                        style={{ 
-                            marginBottom: 24,
-                            borderRadius: 16,
-                            // background: "linear-gradient(135deg, #e6f7ff 0%, #f0f9ff 100%)",
-                            // border: "1px solid #bae7ff"
-                        }}
-                    >
-                        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-                            <div style={{
-                                width: 80,
-                                height: 80,
-                                borderRadius: "50%",
-                                background: "linear-gradient(135deg, #ffffff 0%, #e6f7ff 100%)",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                boxShadow: "0 4px 12px rgba(24,144,255,0.15)"
-                            }}>
-                                <WifiOutlined style={{ fontSize: 36, color: "#1890ff" }} />
-                            </div>
-                            <div style={{ flex: 1 }}>
-                                <Title level={4} style={{ margin: 0, marginBottom: 8, color: "#262626", fontSize: 20 }}>
-                                    Welcome to Your Omnichannel Inbox
-                                </Title>
-                                <Text style={{ fontSize: 15, color: "#595959", display: "block" }}>
-                                    Connect WhatsApp, Messenger, or Instagram to start receiving messages from all your customers in one place.
-                                </Text>
-                            </div>
-                            <Button
-                                type="primary"
-                                size="large"
-                                onClick={() => setConnectDrawerOpen(true)}
-                                icon={<PlusOutlined />}
-                                style={{ 
-                                    borderRadius: 10,
-                                    fontWeight: 600,
-                                    background: primaryColor,
-                                    borderColor: primaryColor,
-                                    height: 44,
-                                    padding: "0 28px",
-                                    fontSize: 15
-                                }}
-                            >
-                                Connect Channel
-                            </Button>
-                        </div>
-                    </ProCard>
-                )}
-
-                <ProCard
-                    bordered={false}
-                    bodyStyle={{ padding: 0 }}
-                    style={{ 
-                        borderRadius: 16,
-                        boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
-                        overflow: "hidden"
-                    }}
-                    title={
-                        <div style={{ display: "flex", alignItems: "center", gap: 24, flexWrap: "wrap" }}>
-                            <div style={{ 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                gap: 12,
-                                padding: '12px 20px',
-                                background: 'linear-gradient(135deg, rgba(24,144,255,0.1) 0%, rgba(24,144,255,0.05) 100%)',
-                                borderRadius: 12
-                            }}>
-                                <MessageOutlined style={{ fontSize: 24, color: primaryColor }} />
-                                <Title level={4} style={{ margin: 0, fontSize: 20, fontWeight: 600 }}>
-                                    Inbox
-                                </Title>
-                            </div>
-                            <Segmented
-                                options={channelOptions}
-                                value={activeChannel}
-                                onChange={(v) => {
-                                    setActiveChannel(v as Channel);
-                                    setPage(1);
-                                    setSelectedConversation(null);
-                                }}
-                                size="large"
-                                style={{ 
-                                    background: "#f5f5f5",
-                                    padding: 6,
-                                    borderRadius: 10
-                                }}
-                            />
-                            {isFetching && !conversationsLoading && (
-                                <Spin size="small" />
-                            )}
-                        </div>
-                    }
-                    extra={
-                        <Space size={12}>
-                            <Tooltip title="Refresh">
-                                <Button
-                                    icon={<ReloadOutlined />}
-                                    size="large"
-                                    loading={isFetching || channelsLoading}
-                                    onClick={() => {
-                                        queryClient.invalidateQueries({ queryKey: ["omnichannel-channels"] });
-                                        if (anyConnected) {
-                                            refetch();
-                                        }
-                                    }}
-                                    style={{ borderRadius: 10, height: 40 }}
-                                />
-                            </Tooltip>
-                            <Tooltip title="Channel Settings">
-                                <Button
-                                    icon={<SettingOutlined />}
-                                    size="large"
-                                    onClick={() => setConnectDrawerOpen(true)}
-                                    style={{ borderRadius: 10, height: 40 }}
-                                />
-                            </Tooltip>
-                            <Button
-                                type="primary"
-                                icon={<PlusOutlined />}
-                                onClick={() => setConnectDrawerOpen(true)}
-                                style={{ 
-                                    background: primaryColor, 
-                                    borderColor: primaryColor,
-                                    borderRadius: 10,
-                                    fontWeight: 600,
-                                    height: 40,
-                                    padding: "0 20px"
-                                }}
-                                size="large"
-                            >
-                                Connect Channel
-                            </Button>
-                        </Space>
-                    }
-                >
-                    <div style={{ display: "flex", height: "calc(100vh - 280px)", minHeight: 700 }}>
-                        <div
-                            style={{
-                                width: 380,
-                                borderRight: "1px solid #f0f0f0",
-                                flexShrink: 0,
-                                overflowY: "auto",
-                                background: "#fafafa"
+                {/* Header */}
+                <div style={{ 
+                    marginBottom: 20,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 16
+                }}>
+                    <div>
+                        <Title level={3} style={{ margin: 0, fontSize: 24, fontWeight: 600 }}>
+                            Communication Center
+                        </Title>
+                        <Text type="secondary" style={{ fontSize: 13 }}>
+                            Manage calls, messages, and customer interactions
+                        </Text>
+                    </div>
+                    <Space size={12}>
+                        <Button
+                            type="default"
+                            icon={<PhoneOutlined />}
+                            size="large"
+                            onClick={testAfricasTalkingDevice}
+                            style={{ 
+                                borderRadius: 8,
+                                fontWeight: 500,
+                                height: 40,
+                                borderColor: deviceReady ? '#52c41a' : undefined,
+                                color: deviceReady ? '#52c41a' : undefined
                             }}
                         >
-                        {!anyConnected && !channelsLoading ? (
-                            <div style={{ 
-                                marginTop: 80, 
-                                padding: 24,
-                                textAlign: "center"
-                            }}>
-                                <div style={{
-                                    width: 120,
-                                    height: 120,
-                                    margin: "0 auto 24px",
-                                    borderRadius: "50%",
-                                    background: "linear-gradient(135deg, #e6f7ff 0%, #f0f9ff 100%)",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center"
-                                }}>
-                                    <MessageOutlined style={{ fontSize: 56, color: "#1890ff" }} />
-                                </div>
-                                <Title level={4} style={{ marginBottom: 12, color: "#262626" }}>
-                                    No Channels Connected
-                                </Title>
-                                <Text type="secondary" style={{ fontSize: 14, display: "block", marginBottom: 24 }}>
-                                    Connect WhatsApp, Messenger, or Instagram to start receiving messages
-                                </Text>
-                                <Button
-                                    type="primary"
-                                    icon={<PlusOutlined />}
-                                    onClick={() => setConnectDrawerOpen(true)}
-                                    size="large"
-                                    style={{ 
-                                        background: primaryColor, 
-                                        borderColor: primaryColor,
-                                        borderRadius: 8,
-                                        fontWeight: 500
-                                    }}
-                                >
-                                    Connect a Channel
-                                </Button>
-                            </div>
-                        ) : (
-                            <ConversationList
-                                conversations={conversations}
-                                loading={conversationsLoading}
-                                selectedId={selectedConversation?._id || null}
-                                activeStatus={activeStatus}
-                                total={totalCount}
-                                page={page}
-                                pageSize={30}
-                                search={search}
-                                onSearchChange={(v) => { setSearch(v); setPage(1); }}
-                                onStatusChange={(s) => { setActiveStatus(s); setPage(1); }}
-                                onPageChange={setPage}
-                                onSelect={handleConversationSelect}
-                                statusCounts={statusCounts}
-                                primaryColor={primaryColor}
+                            {deviceReady ? '✓ Device Ready' : 'Test Device'}
+                        </Button>
+                        <Button
+                            type="primary"
+                            icon={<PhoneFilled />}
+                            size="large"
+                            onClick={() => {
+                                if (phoneNumbers.length > 0) {
+                                    callForm.setFieldsValue({
+                                        phone_number_id: phoneNumbers[0]._id
+                                    });
+                                }
+                                setNewCallModalOpen(true);
+                            }}
+                            style={{ 
+                                borderRadius: 8,
+                                fontWeight: 500,
+                                height: 40
+                            }}
+                        >
+                            New Call
+                        </Button>
+                        <Button
+                            type="primary"
+                            icon={<CommentOutlined />}
+                            size="large"
+                            onClick={() => setNewWhatsAppModalOpen(true)}
+                            style={{ 
+                                borderRadius: 8,
+                                fontWeight: 500,
+                                height: 40,
+                                background: "#25D366",
+                                borderColor: "#25D366"
+                            }}
+                        >
+                            New WhatsApp
+                        </Button>
+                        <Tooltip title="Refresh">
+                            <Button
+                                icon={<ReloadOutlined />}
+                                size="large"
+                                loading={isFetching || channelsLoading}
+                                onClick={() => {
+                                    queryClient.invalidateQueries({ queryKey: ["omnichannel-channels"] });
+                                    if (anyConnected) {
+                                        refetch();
+                                    }
+                                }}
+                                style={{ borderRadius: 8, height: 40 }}
                             />
-                        )}
-                    </div>
+                        </Tooltip>
+                    </Space>
+                </div>
 
-                    <div style={{ flex: 1, overflow: "hidden", background: "#fff" }}>
-                        {selectedConversation ? (
-                            <MessageThread
-                                conversation={selectedConversation}
-                                shopId={shopId}
-                                onMessageSent={handleMessageSent}
-                                onConversationUpdate={handleConversationUpdate}
-                                primaryColor={primaryColor}
+                {/* Quick Stats */}
+                <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
+                    <Col xs={24} sm={12} md={6}>
+                        <Card 
+                            style={{ borderRadius: 12, height: "100%", cursor: "pointer" }}
+                            hoverable
+                            onClick={() => setNewCallModalOpen(true)}
+                        >
+                            <Statistic
+                                title="Today's Calls"
+                                value={todayCalls}
+                                prefix={<PhoneOutlined style={{ color: "#1890ff" }} />}
+                                valueStyle={{ color: "#1890ff", fontSize: 28, fontWeight: 600 }}
                             />
-                        ) : (
-                            <div
-                                style={{
+                        </Card>
+                    </Col>
+                    <Col xs={24} sm={12} md={6}>
+                        <Card style={{ borderRadius: 12, height: "100%" }}>
+                            <Statistic
+                                title="CRM Agents"
+                                value={crmAgents.length}
+                                prefix={<UserOutlined style={{ color: "#52c41a" }} />}
+                                valueStyle={{ color: "#52c41a", fontSize: 28, fontWeight: 600 }}
+                            />
+                        </Card>
+                    </Col>
+                    <Col xs={24} sm={12} md={6}>
+                        <Card style={{ borderRadius: 12, height: "100%" }}>
+                            <Statistic
+                                title="Avg Call Duration"
+                                value={callsArray.length > 0 
+                                    ? Math.floor(callsArray.reduce((acc: number, c: Call) => acc + (c.duration || 0), 0) / callsArray.length / 60)
+                                    : 0}
+                                suffix="min"
+                                prefix={<ClockCircleOutlined style={{ color: "#faad14" }} />}
+                                valueStyle={{ color: "#faad14", fontSize: 28, fontWeight: 600 }}
+                            />
+                        </Card>
+                    </Col>
+                    <Col xs={24} sm={12} md={6}>
+                        <Card 
+                            style={{ borderRadius: 12, height: "100%", cursor: "pointer" }}
+                            hoverable
+                            onClick={() => setNewWhatsAppModalOpen(true)}
+                        >
+                            <Statistic
+                                title="Open Conversations"
+                                value={statusCounts.open}
+                                prefix={<MessageOutlined style={{ color: "#722ed1" }} />}
+                                valueStyle={{ color: "#722ed1", fontSize: 28, fontWeight: 600 }}
+                            />
+                        </Card>
+                    </Col>
+                </Row>
+
+                {/* Main Content Grid */}
+                <Row gutter={[16, 16]} style={{ height: `calc(100vh - 280px)`, minHeight: 600, marginTop: activeCall ? 80 : 0 }}>
+                    {/* Left: Conversation List */}
+                    <Col xs={24} lg={activeCall ? 6 : 8} style={{ display: "flex", flexDirection: "column" }}>
+                        <Card
+                            title={
+                                <Space>
+                                    <MessageOutlined />
+                                    <span>Messages</span>
+                                    <Badge count={totalCount} size="small" />
+                                </Space>
+                            }
+                            extra={
+                                <Segmented
+                                    options={channelOptions}
+                                    value={activeChannel}
+                                    onChange={(v) => {
+                                        setActiveChannel(v as Channel);
+                                        setPage(1);
+                                        setSelectedConversation(null);
+                                    }}
+                                    size="small"
+                                />
+                            }
+                            style={{ borderRadius: 12, flex: 1, display: "flex", flexDirection: "column" }}
+                            bodyStyle={{ padding: 0, flex: 1, overflow: "hidden" }}
+                        >
+                            {!anyConnected && !channelsLoading ? (
+                                <div style={{ 
+                                    padding: 40,
+                                    textAlign: "center",
                                     height: "100%",
                                     display: "flex",
                                     flexDirection: "column",
                                     alignItems: "center",
-                                    justifyContent: "center",
-                                    color: "#bfbfbf",
-                                    gap: 16,
-                                    background: "linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%)"
-                                }}
-                            >
-                                <div style={{
-                                    width: 160,
-                                    height: 160,
-                                    borderRadius: "50%",
-                                    background: "linear-gradient(135deg, #f0f0f0 0%, #e8e8e8 100%)",
-                                    display: "flex",
-                                    alignItems: "center",
                                     justifyContent: "center"
                                 }}>
-                                    <MessageOutlined style={{ fontSize: 72, color: "#d9d9d9" }} />
-                                </div>
-                                <div style={{ textAlign: "center" }}>
-                                    <Title level={4} style={{ color: "#8c8c8c", marginBottom: 8 }}>
-                                        Start a Conversation
+                                    <div style={{
+                                        width: 80,
+                                        height: 80,
+                                        borderRadius: "50%",
+                                        background: "#f0f5ff",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        marginBottom: 16
+                                    }}>
+                                        <WifiOutlined style={{ fontSize: 32, color: "#1890ff" }} />
+                                    </div>
+                                    <Title level={5} style={{ marginBottom: 8 }}>
+                                        Connect WhatsApp
                                     </Title>
-                                    <Text type="secondary" style={{ fontSize: 15 }}>
-                                        Select a conversation from the list to start messaging
+                                    <Text type="secondary" style={{ fontSize: 13, display: "block", marginBottom: 16 }}>
+                                        Connect your WhatsApp via Twilio to start messaging
                                     </Text>
+                                    <Button
+                                        type="primary"
+                                        icon={<PlusOutlined />}
+                                        onClick={() => navigate("/system-setup")}
+                                        size="small"
+                                    >
+                                        Configure Setup
+                                    </Button>
                                 </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </ProCard>
-            </div>
+                            ) : (
+                                <div style={{ height: "100%", overflowY: "auto" }}>
+                                    <ConversationList
+                                        conversations={conversations}
+                                        loading={conversationsLoading}
+                                        selectedId={selectedConversation?._id || null}
+                                        activeStatus={activeStatus}
+                                        total={totalCount}
+                                        page={page}
+                                        pageSize={30}
+                                        search={search}
+                                        onSearchChange={(v) => { setSearch(v); setPage(1); }}
+                                        onStatusChange={(s) => { setActiveStatus(s); setPage(1); }}
+                                        onPageChange={setPage}
+                                        onSelect={handleConversationSelect}
+                                        statusCounts={statusCounts}
+                                        primaryColor={primaryColor}
+                                    />
+                                </div>
+                            )}
+                        </Card>
+                    </Col>
 
-            <ConnectChannelDrawer
-                open={connectDrawerOpen}
-                onClose={() => setConnectDrawerOpen(false)}
-                onSuccess={handleConnectSuccess}
-                shopId={shopId}
-                connectedChannels={connected}
-            />
+                    {/* Center: Message Thread */}
+                    <Col xs={24} lg={activeCall ? 10 : 10} style={{ display: "flex", flexDirection: "column" }}>
+                        <Card
+                            title={
+                                selectedConversation ? (
+                                    <Space>
+                                        <Avatar size="small" icon={<UserOutlined />} />
+                                        <span>{selectedConversation.external_contact_name || "Unknown"}</span>
+                                        {selectedConversation.external_contact_phone && (
+                                            <Button 
+                                                size="small" 
+                                                type="text" 
+                                                icon={<PhoneOutlined />}
+                                                onClick={() => {
+                                                    // Quick call from conversation
+                                                    if (phoneNumbers.length > 0 && selectedConversation.external_contact_phone) {
+                                                        const phoneNumber = selectedConversation.external_contact_phone;
+                                                        // Try to extract country code and phone number
+                                                        let countryCode = "+254";
+                                                        let localNumber = phoneNumber;
+                                                        
+                                                        if (phoneNumber.startsWith("+")) {
+                                                            const match = phoneNumber.match(/^\+(\d{1,3})(\d+)$/);
+                                                            if (match) {
+                                                                countryCode = "+" + match[1];
+                                                                localNumber = match[2];
+                                                            }
+                                                        }
+                                                        
+                                                        callForm.setFieldsValue({
+                                                            phone_number_id: phoneNumbers[0]._id,
+                                                            country_code: countryCode,
+                                                            phone_number: localNumber,
+                                                            entity_type: selectedConversation.customer_id ? "customer" : undefined,
+                                                            customer_id: selectedConversation.customer_id,
+                                                        });
+                                                        setNewCallModalOpen(true);
+                                                    } else {
+                                                        message.warning("No phone numbers available");
+                                                    }
+                                                }}
+                                            />
+                                        )}
+                                    </Space>
+                                ) : (
+                                    <span>Conversation</span>
+                                )
+                            }
+                            extra={
+                                selectedConversation && (
+                                    <Space>
+                                        <Button 
+                                            size="small" 
+                                            icon={<PhoneFilled />}
+                                            onClick={() => {
+                                                if (phoneNumbers.length > 0 && selectedConversation.external_contact_phone) {
+                                                    const phoneNumber = selectedConversation.external_contact_phone;
+                                                    // Try to extract country code and phone number
+                                                    let countryCode = "+254";
+                                                    let localNumber = phoneNumber;
+                                                    
+                                                    if (phoneNumber.startsWith("+")) {
+                                                        const match = phoneNumber.match(/^\+(\d{1,3})(\d+)$/);
+                                                        if (match) {
+                                                            countryCode = "+" + match[1];
+                                                            localNumber = match[2];
+                                                        }
+                                                    }
+                                                    
+                                                    callForm.setFieldsValue({
+                                                        phone_number_id: phoneNumbers[0]._id,
+                                                        country_code: countryCode,
+                                                        phone_number: localNumber,
+                                                        entity_type: selectedConversation.customer_id ? "customer" : undefined,
+                                                        customer_id: selectedConversation.customer_id,
+                                                    });
+                                                    setNewCallModalOpen(true);
+                                                } else {
+                                                    message.warning("No phone number available");
+                                                }
+                                            }}
+                                        >
+                                            Call
+                                        </Button>
+                                    </Space>
+                                )
+                            }
+                            style={{ borderRadius: 12, flex: 1, display: "flex", flexDirection: "column" }}
+                            bodyStyle={{ padding: 0, flex: 1, overflow: "hidden" }}
+                        >
+                            {selectedConversation ? (
+                                <MessageThread
+                                    conversation={selectedConversation}
+                                    shopId={shopId}
+                                    onMessageSent={handleMessageSent}
+                                    onConversationUpdate={handleConversationUpdate}
+                                    primaryColor={primaryColor}
+                                />
+                            ) : (
+                                <div style={{
+                                    height: "100%",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    color: "#bfbfbf"
+                                }}>
+                                    <div style={{ textAlign: "center" }}>
+                                        <MessageOutlined style={{ fontSize: 48, marginBottom: 16 }} />
+                                        <div>Select a conversation to start messaging</div>
+                                    </div>
+                                </div>
+                            )}
+                        </Card>
+                    </Col>
+
+                    {/* Right: Call Center Panel */}
+                    <Col xs={24} lg={6} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                        {/* Active Agents */}
+                        <Card
+                            title={
+                                <Space size={8}>
+                                    <UserOutlined />
+                                    <span>CRM Agents</span>
+                                </Space>
+                            }
+                            size="small"
+                            style={{ borderRadius: 12 }}
+                            bodyStyle={{ padding: "12px" }}
+                        >
+                            {crmAgents.length > 0 ? (
+                                <List
+                                    size="small"
+                                    dataSource={crmAgents.slice(0, 5)}
+                                    renderItem={(agent: Agent) => (
+                                        <List.Item style={{ padding: "8px 0", border: "none" }}>
+                                            <List.Item.Meta
+                                                avatar={
+                                                    <Avatar 
+                                                        size={32} 
+                                                        src={agent.thumbnail}
+                                                        icon={!agent.thumbnail && <UserOutlined />}
+                                                    />
+                                                }
+                                                title={
+                                                    <Text style={{ fontSize: 12, fontWeight: 500 }}>
+                                                        {agent.fullname || "Unknown"}
+                                                    </Text>
+                                                }
+                                                description={
+                                                    <Space size={8}>
+                                                        <Tag 
+                                                            color="blue"
+                                                            style={{ fontSize: 10, margin: 0 }}
+                                                        >
+                                                            {agent.role_type || "Agent"}
+                                                        </Tag>
+                                                        <Text style={{ fontSize: 11, color: "#8c8c8c" }}>
+                                                            {agent.email}
+                                                        </Text>
+                                                    </Space>
+                                                }
+                                            />
+                                        </List.Item>
+                                    )}
+                                />
+                            ) : (
+                                <Empty description="No CRM agents found" style={{ padding: "20px 0" }} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                            )}
+                        </Card>
+
+                        {/* Recent Calls */}
+                        <Card
+                            title={
+                                <Space size={8}>
+                                    <PhoneOutlined />
+                                    <span>Recent Calls</span>
+                                </Space>
+                            }
+                            size="small"
+                            style={{ borderRadius: 12, flex: 1 }}
+                            bodyStyle={{ padding: "12px", overflowY: "auto", maxHeight: 300 }}
+                        >
+                            {callsArray.length > 0 ? (
+                                <List
+                                    size="small"
+                                    dataSource={callsArray.slice(0, 5)}
+                                    renderItem={(call: Call) => (
+                                        <List.Item 
+                                            style={{ padding: "8px 0", border: "none", cursor: "pointer" }}
+                                            onClick={() => {
+                                                // Quick callback
+                                                if (phoneNumbers.length > 0 && call.to_number) {
+                                                    const phoneNumber = call.to_number;
+                                                    // Try to extract country code and phone number
+                                                    let countryCode = "+254";
+                                                    let localNumber = phoneNumber;
+                                                    
+                                                    if (phoneNumber.startsWith("+")) {
+                                                        const match = phoneNumber.match(/^\+(\d{1,3})(\d+)$/);
+                                                        if (match) {
+                                                            countryCode = "+" + match[1];
+                                                            localNumber = match[2];
+                                                        }
+                                                    }
+                                                    
+                                                    callForm.setFieldsValue({
+                                                        phone_number_id: phoneNumbers[0]._id,
+                                                        country_code: countryCode,
+                                                        phone_number: localNumber,
+                                                    });
+                                                    setNewCallModalOpen(true);
+                                                }
+                                            }}
+                                        >
+                                            <List.Item.Meta
+                                                avatar={
+                                                    <Avatar 
+                                                        size={32} 
+                                                        style={{ 
+                                                            background: call.status === "completed" ? "#52c41a" : "#ff4d4f" 
+                                                        }}
+                                                        icon={<PhoneOutlined />}
+                                                    />
+                                                }
+                                                title={
+                                                    <Text style={{ fontSize: 12, fontWeight: 500 }}>
+                                                        {call.to_number || "Unknown"}
+                                                    </Text>
+                                                }
+                                                description={
+                                                    <Space size={8}>
+                                                        <Tag 
+                                                            color={call.status === "completed" ? "success" : "error"}
+                                                            style={{ fontSize: 10, margin: 0 }}
+                                                        >
+                                                            {call.status}
+                                                        </Tag>
+                                                        <Text style={{ fontSize: 11, color: "#8c8c8c" }}>
+                                                            {call.duration}s
+                                                        </Text>
+                                                    </Space>
+                                                }
+                                            />
+                                        </List.Item>
+                                    )}
+                                />
+                            ) : (
+                                <Empty description="No recent calls" style={{ padding: "20px 0" }} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                            )}
+                        </Card>
+
+                        {/* Top Performers */}
+                        {agentStatus?.agent_statuses?.length > 0 && (
+                            <Card
+                                title={
+                                    <Space size={8}>
+                                        <TrophyOutlined />
+                                        <span>Top Performers</span>
+                                    </Space>
+                                }
+                                size="small"
+                                style={{ borderRadius: 12 }}
+                                bodyStyle={{ padding: "12px" }}
+                            >
+                                <List
+                                    size="small"
+                                    dataSource={agentStatus.agent_statuses
+                                        .sort((a: AgentStatus, b: AgentStatus) => b.total_calls_today - a.total_calls_today)
+                                        .slice(0, 3)}
+                                    renderItem={(agent: AgentStatus, index: number) => (
+                                        <List.Item style={{ padding: "6px 0", border: "none" }}>
+                                            <Space size={12} style={{ width: "100%" }}>
+                                                <div style={{
+                                                    width: 24,
+                                                    height: 24,
+                                                    borderRadius: "50%",
+                                                    background: index === 0 ? "#ffd700" : index === 1 ? "#c0c0c0" : "#cd7f32",
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    justifyContent: "center",
+                                                    fontSize: 12,
+                                                    fontWeight: 700,
+                                                    color: "#fff"
+                                                }}>
+                                                    {index + 1}
+                                                </div>
+                                                <div style={{ flex: 1 }}>
+                                                    <Text style={{ fontSize: 12, fontWeight: 500, display: "block" }}>
+                                                        {agent.agent_name || "Unknown"}
+                                                    </Text>
+                                                    <Text style={{ fontSize: 11, color: "#8c8c8c" }}>
+                                                        {agent.total_calls_today} calls
+                                                    </Text>
+                                                </div>
+                                            </Space>
+                                        </List.Item>
+                                    )}
+                                />
+                            </Card>
+                        )}
+                    </Col>
+                </Row>
+
+                {/* New Call Modal */}
+                <Modal
+                    title="Make a New Call"
+                    open={newCallModalOpen}
+                    onCancel={() => {
+                        setNewCallModalOpen(false);
+                        callForm.resetFields();
+                    }}
+                    onOk={() => callForm.submit()}
+                    okText="Call"
+                    width={500}
+                >
+                    {!phoneNumbers.length ? (
+                        <Alert
+                            type="warning"
+                            message="No Phone Numbers Available"
+                            description="Please add a Twilio account and provision a phone number in System Setup to make calls."
+                            showIcon
+                            style={{ marginBottom: 16 }}
+                        />
+                    ) : null}
+                    <Form
+                        form={callForm}
+                        layout="vertical"
+                        onFinish={handleMakeCall}
+                    >
+                        <Form.Item
+                            label="From Phone Number"
+                            name="phone_number_id"
+                            rules={[{ required: true, message: "Please select a phone number" }]}
+                        >
+                            <Select
+                                placeholder="Select phone number"
+                                disabled={!phoneNumbers.length}
+                                options={phoneNumbers.map((pn: PhoneNumber) => ({
+                                    label: `${pn.phone_number} (${pn.friendly_name || 'Twilio'})`,
+                                    value: pn._id,
+                                }))}
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="To Phone Number"
+                            required
+                        >
+                            <Input.Group compact>
+                                <Form.Item
+                                    name="country_code"
+                                    noStyle
+                                    initialValue="+254"
+                                >
+                                    <Select
+                                        style={{ width: 100 }}
+                                        options={[
+                                            { label: "+254", value: "+254" },
+                                            { label: "+1", value: "+1" },
+                                            { label: "+44", value: "+44" },
+                                            { label: "+91", value: "+91" },
+                                            { label: "+86", value: "+86" },
+                                            { label: "+49", value: "+49" },
+                                            { label: "+33", value: "+33" },
+                                            { label: "+81", value: "+81" },
+                                            { label: "+61", value: "+61" },
+                                            { label: "+55", value: "+55" },
+                                        ]}
+                                    />
+                                </Form.Item>
+                                <Form.Item
+                                    name="phone_number"
+                                    noStyle
+                                    rules={[{ required: true, message: "Please enter phone number" }]}
+                                >
+                                    <Input 
+                                        style={{ width: "calc(100% - 100px)" }}
+                                        placeholder="7XXXXXXXX" 
+                                    />
+                                </Form.Item>
+                            </Input.Group>
+                        </Form.Item>
+                        <Form.Item
+                            label="Associate With"
+                            name="entity_type"
+                        >
+                            <Select
+                                placeholder="Optional: Associate with customer or lead"
+                                allowClear
+                                options={[
+                                    { label: "Customer", value: "customer" },
+                                    { label: "Lead", value: "lead" },
+                                ]}
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Record Call"
+                            name="record"
+                            valuePropName="checked"
+                            initialValue={true}
+                        >
+                            <Select
+                                options={[
+                                    { label: "Yes", value: true },
+                                    { label: "No", value: false },
+                                ]}
+                            />
+                        </Form.Item>
+                    </Form>
+                </Modal>
+
+                {/* New WhatsApp Message Modal */}
+                <Modal
+                    title={
+                        <Space>
+                            <WhatsAppIconComponent />
+                            <span>Send WhatsApp Message</span>
+                        </Space>
+                    }
+                    open={newWhatsAppModalOpen}
+                    onCancel={() => {
+                        setNewWhatsAppModalOpen(false);
+                        whatsappForm.resetFields();
+                    }}
+                    onOk={() => whatsappForm.submit()}
+                    okText="Send Message"
+                    width={500}
+                >
+                    {!anyConnected ? (
+                        <Alert
+                            type="warning"
+                            message="WhatsApp Not Connected"
+                            description="Please connect your WhatsApp channel in System Setup to send messages."
+                            showIcon
+                            style={{ marginBottom: 16 }}
+                        />
+                    ) : null}
+                    <Form
+                        form={whatsappForm}
+                        layout="vertical"
+                        onFinish={handleSendWhatsApp}
+                    >
+                        <Form.Item
+                            label="Select Conversation"
+                            name="conversation_id"
+                            rules={[{ required: true, message: "Please select a conversation" }]}
+                        >
+                            <Select
+                                placeholder="Select a conversation"
+                                disabled={!anyConnected}
+                                showSearch
+                                optionFilterProp="children"
+                                options={conversations.map((conv: Conversation) => ({
+                                    label: `${conv.external_contact_name} (${conv.external_contact_phone || conv.external_contact_id})`,
+                                    value: conv._id,
+                                }))}
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            label="Message"
+                            name="message"
+                            rules={[{ required: true, message: "Please enter your message" }]}
+                        >
+                            <TextArea
+                                placeholder="Type your WhatsApp message here..."
+                                autoSize={{ minRows: 4, maxRows: 8 }}
+                            />
+                        </Form.Item>
+                        <Alert
+                            message="24-hour Window"
+                            description="If the conversation window is closed, your message will be sent as a template."
+                            type="info"
+                            showIcon
+                            style={{ marginTop: 8 }}
+                        />
+                    </Form>
+                </Modal>
+
+                {/* Incoming Call Modal */}
+                <Modal
+                    title={
+                        <Space size={12}>
+                            <PhoneFilled style={{ color: "#52c41a", fontSize: 24 }} />
+                            <span>Incoming Call</span>
+                        </Space>
+                    }
+                    open={!!incomingCall}
+                    onCancel={() => {
+                        if (incomingCall) {
+                            setIncomingCall(null);
+                            setIsWebSocketCall(false);
+                        }
+                    }}
+                    footer={[
+                        <Button key="reject" danger onClick={() => {
+                            if (incomingCall) {
+                                setIncomingCall(null);
+                            }
+                        }}>
+                            Reject
+                        </Button>,
+                        <Button key="accept" type="primary" onClick={() => {
+                            if (incomingCall) {
+                                // Handle polling-based incoming call
+                                setIncomingCall(null);
+                                setIsWebSocketCall(false);
+                            }
+                        }}>
+                            Accept
+                        </Button>,
+                    ]}
+                    width={450}
+                    centered
+                    closable={false}
+                    maskClosable={false}
+                    style={{ textAlign: "center" }}
+                >
+                    <div style={{ textAlign: "center", padding: "30px 20px" }}>
+                        <div style={{
+                            width: 100,
+                            height: 100,
+                            borderRadius: "50%",
+                            background: "linear-gradient(135deg, #52c41a 0%, #389e0d 100%)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            margin: "0 auto 20px",
+                        }} className="pulse-animation">
+                            <PhoneFilled style={{ fontSize: 40, color: "#fff" }} />
+                        </div>
+                        <Title level={3} style={{ marginBottom: 8, color: "#262626" }}>
+                            {incomingCall?.from_number || "Unknown Caller"}
+                        </Title>
+                        <Text type="secondary" style={{ fontSize: 16, display: "block", marginBottom: 32 }}>
+                            Incoming call...
+                        </Text>
+                        <Row gutter={16} justify="center">
+                            <Col>
+                                <Button
+                                    type="primary"
+                                    size="large"
+                                    icon={<PhoneFilled />}
+                                    onClick={async () => {
+                                        console.log('📞 Accept clicked - isWebSocketCall:', isWebSocketCall, 'incomingCall:', incomingCall);
+                                        if (incomingCall) {
+                                            if (isWebSocketCall) {
+                                                // WebSocket-based call - track callback
+                                                console.log('📞 Accepting WebSocket-based call - tracking callback');
+                                                
+                                                // Record callback attempt
+                                                try {
+                                                    await fetch('http://localhost:3002/api/crm/twilio/voice/callbacks', {
+                                                        method: 'POST',
+                                                        headers: {
+                                                            'Content-Type': 'application/json',
+                                                            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                                                            'companycode': 'RPOS-000002',
+                                                        },
+                                                        body: JSON.stringify({
+                                                            original_call_sid: incomingCall.call_sid,
+                                                            from_number: incomingCall.from_number,
+                                                            to_number: incomingCall.to_number,
+                                                            agent_id: userId,
+                                                            shop_id: shopId,
+                                                            callback_status: 'initiated',
+                                                            callback_time: new Date().toISOString(),
+                                                        }),
+                                                    });
+                                                    console.log('📞 Callback tracked successfully');
+                                                    message.success('Callback tracked. Please call back the customer.');
+                                                } catch (error) {
+                                                    console.error('📞 Error tracking callback:', error);
+                                                    message.warning('Incoming call acknowledged. Please call back manually.');
+                                                }
+                                                
+                                                setIncomingCall(null);
+                                                setIsWebSocketCall(false);
+                                            } else {
+                                                // Polling-based call - use API
+                                                await answerCall(incomingCall._id);
+                                                setIncomingCall(null);
+                                                setIsWebSocketCall(false);
+                                            }
+                                        }
+                                    }}
+                                    style={{ 
+                                        borderRadius: 50, 
+                                        width: 72, 
+                                        height: 72,
+                                        background: "#52c41a",
+                                        borderColor: "#52c41a",
+                                        fontSize: 20
+                                    }}
+                                />
+                                <div style={{ marginTop: 8, fontSize: 12, color: "#52c41a", fontWeight: 500 }}>
+                                    Answer
+                                </div>
+                            </Col>
+                            <Col>
+                                <Button
+                                    danger
+                                    size="large"
+                                    icon={<PhoneOutlined />}
+                                    onClick={async () => {
+                                        if (incomingCall) {
+                                            if (isWebSocketCall) {
+                                                // WebSocket-based call - just close modal
+                                                console.log('📞 Rejecting WebSocket-based call:', incomingCall.from_number);
+                                                setIncomingCall(null);
+                                                setIsWebSocketCall(false);
+                                            } else {
+                                                // Polling-based call - use API
+                                                await rejectCall(incomingCall._id);
+                                                setIncomingCall(null);
+                                                setIsWebSocketCall(false);
+                                            }
+                                        }
+                                    }}
+                                    style={{ 
+                                        borderRadius: 50, 
+                                        width: 72, 
+                                        height: 72,
+                                        fontSize: 20
+                                    }}
+                                />
+                                <div style={{ marginTop: 8, fontSize: 12, color: "#ff4d4f", fontWeight: 500 }}>
+                                    Decline
+                                </div>
+                            </Col>
+                        </Row>
+                    </div>
+                </Modal>
+
+                {/* Active Call Banner */}
+                {activeCall && (
+                    <div style={{
+                        position: "fixed",
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        background: "linear-gradient(135deg, #52c41a 0%, #389e0d 100%)",
+                        color: "#fff",
+                        padding: "16px 24px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        zIndex: 1000,
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.15)"
+                    }}>
+                        <Space size={16}>
+                            <div style={{
+                                width: 48,
+                                height: 48,
+                                borderRadius: "50%",
+                                background: "rgba(255,255,255,0.2)",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                            }} className="pulse-animation">
+                                <PhoneFilled style={{ fontSize: 24 }} />
+                            </div>
+                            <div>
+                                <Text style={{ color: "#fff", fontSize: 16, fontWeight: 600, display: "block" }}>
+                                    {activeCall.from_number || "Unknown Caller"}
+                                </Text>
+                                <Space size={8}>
+                                    <Text style={{ color: "rgba(255,255,255,0.9)", fontSize: 13 }}>
+                                        {Math.floor(callTimer / 60)}:{(callTimer % 60).toString().padStart(2, '0')}
+                                    </Text>
+                                    <Tag color="rgba(255,255,255,0.3)" style={{ 
+                                        color: "#fff", 
+                                        border: "none",
+                                        fontSize: 11,
+                                        margin: 0
+                                    }}>
+                                        Active Call
+                                    </Tag>
+                                </Space>
+                            </div>
+                        </Space>
+                        <Space size={12}>
+                            <Button
+                                size="large"
+                                icon={isMuted ? <VideoCameraOutlined /> : <CommentOutlined />}
+                                onClick={() => setIsMuted(!isMuted)}
+                                style={{ 
+                                    background: "rgba(255,255,255,0.2)", 
+                                    color: "#fff", 
+                                    border: "none",
+                                    borderRadius: 8,
+                                    height: 40,
+                                    width: 40
+                                }}
+                            />
+                            <Button
+                                size="large"
+                                onClick={() => setIsOnHold(!isOnHold)}
+                                style={{ 
+                                    background: "rgba(255,255,255,0.2)", 
+                                    color: "#fff", 
+                                    border: "none",
+                                    borderRadius: 8,
+                                    height: 40,
+                                    width: 40
+                                }}
+                            >
+                                {isOnHold ? "▶" : "⏸"}
+                            </Button>
+                            <Button
+                                size="large"
+                                onClick={() => setShowCallPanel(!showCallPanel)}
+                                style={{ 
+                                    background: "rgba(255,255,255,0.2)", 
+                                    color: "#fff", 
+                                    border: "none",
+                                    borderRadius: 8,
+                                    height: 40
+                                }}
+                            >
+                                {showCallPanel ? "Hide Panel" : "Call Notes"}
+                            </Button>
+                            <Button
+                                danger
+                                size="large"
+                                icon={<PhoneOutlined />}
+                                onClick={async () => {
+                                    if (activeCall) {
+                                        await endCall(activeCall._id);
+                                        setActiveCall(null);
+                                        setCallTimer(0);
+                                        setShowCallPanel(false);
+                                    }
+                                }}
+                                style={{ 
+                                    background: "#ff4d4f", 
+                                    color: "#fff", 
+                                    border: "none",
+                                    borderRadius: 8,
+                                    height: 40,
+                                    fontWeight: 500
+                                }}
+                            >
+                                End Call
+                            </Button>
+                        </Space>
+                    </div>
+                )}
+
+                {/* Call Notes Panel */}
+                {activeCall && showCallPanel && (
+                    <div style={{
+                        position: "fixed",
+                        top: 80,
+                        right: 24,
+                        width: 350,
+                        background: "#fff",
+                        borderRadius: 12,
+                        boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
+                        zIndex: 999,
+                        maxHeight: "calc(100vh - 120px)",
+                        overflow: "hidden"
+                    }}>
+                        <div style={{
+                            padding: "16px",
+                            borderBottom: "1px solid #f0f0f0",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between"
+                        }}>
+                            <Space>
+                                <FileOutlined style={{ color: "#1890ff" }} />
+                                <Text strong style={{ fontSize: 14 }}>Call Notes</Text>
+                            </Space>
+                            <Button 
+                                type="text" 
+                                size="small"
+                                icon={<CloseCircleOutlined />}
+                                onClick={() => setShowCallPanel(false)}
+                            />
+                        </div>
+                        <div style={{ padding: "16px" }}>
+                            <div style={{ marginBottom: 12 }}>
+                                <Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 4 }}>
+                                    Caller: {activeCall.from_number || "Unknown"}
+                                </Text>
+                                <Text type="secondary" style={{ fontSize: 12 }}>
+                                    Duration: {Math.floor(callTimer / 60)}:{(callTimer % 60).toString().padStart(2, '0')}
+                                </Text>
+                            </div>
+                            <TextArea
+                                placeholder="Take notes during the call..."
+                                value={callNotes}
+                                onChange={(e) => setCallNotes(e.target.value)}
+                                autoSize={{ minRows: 6, maxRows: 12 }}
+                                style={{ marginBottom: 12 }}
+                            />
+                            <Space size={8} style={{ width: "100%" }}>
+                                <Button 
+                                    size="small" 
+                                    block
+                                    onClick={() => {
+                                        // Save notes logic here
+                                        message.success("Notes saved");
+                                    }}
+                                >
+                                    Save Notes
+                                </Button>
+                                <Button 
+                                    size="small"
+                                    onClick={() => setCallNotes("")}
+                                >
+                                    Clear
+                                </Button>
+                            </Space>
+                        </div>
+                    </div>
+                )}
+
+                {/* Call Interface Modal */}
+                <CallInterfaceModal
+                    open={callInterfaceOpen}
+                    onClose={handleCallInterfaceClose}
+                    phoneNumber={currentCallInfo?.phoneNumber || ""}
+                    contactName={currentCallInfo?.contactName}
+                    customerId={currentCallInfo?.customerId}
+                    leadId={currentCallInfo?.leadId}
+                    twilioToken={currentCallInfo?.twilioToken}
+                    conferenceName={currentCallInfo?.conferenceName}
+                    onEndCall={handleCallInterfaceEnd}
+                    onMuteToggle={handleCallMute}
+                    onHoldToggle={handleCallHold}
+                    onSpeakerToggle={handleCallSpeaker}
+                />
+            </div>
         </App>
     );
 };
