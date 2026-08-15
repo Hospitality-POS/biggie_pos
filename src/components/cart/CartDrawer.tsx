@@ -134,6 +134,8 @@ const CartDrawer: React.FC = () => {
   const [loadingMoreStaff, setLoadingMoreStaff] = useState(false);
   const [editingServedBy, setEditingServedBy] = useState(false);
   const [updatingServedBy, setUpdatingServedBy] = useState(false);
+  const [tempServedByIds, setTempServedByIds] = useState<string[]>([]);
+  const [selectedStaffDetails, setSelectedStaffDetails] = useState<{ value: string; label: string }[]>([]);
   const [delinkingCustomer, setDelinkingCustomer] = useState(false);
   const [sendingToPrinter, setSendingToPrinter] = useState(false);
   const [showSendButton, setShowSendButton] = useState(false);
@@ -156,6 +158,25 @@ const CartDrawer: React.FC = () => {
   useEffect(() => {
     staffSearchQueryRef.current = staffSearchQuery;
   }, [staffSearchQuery]);
+
+  // Update selected staff details when staffList changes
+  useEffect(() => {
+    if (tempServedByIds.length > 0 && staffList.length > 0) {
+      const updatedDetails = tempServedByIds.map(id => {
+        const existing = selectedStaffDetails.find(s => s.value === id);
+        const inList = staffList.find(s => s.value === id);
+        
+        // If we have a proper name from staffList, use it
+        if (inList) {
+          return { value: id, label: inList.label };
+        }
+        
+        // Otherwise keep existing or use ID as fallback
+        return existing || { value: id, label: id };
+      });
+      setSelectedStaffDetails(updatedDetails);
+    }
+  }, [staffList, tempServedByIds]);
 
   // Document type driving which print status to check.
   const documentType: DocumentType = "bill";
@@ -358,10 +379,7 @@ const CartDrawer: React.FC = () => {
         setLoadingMoreStaff(true);
       }
       
-      // Set searching state when there's a search query
-      if (search && search.length > 0) {
-        setSearchingStaff(true);
-      }
+
       
       try {
         const result = await fetchAllUsersByShopId({ page, pageSize: 50, search });
@@ -498,12 +516,31 @@ const CartDrawer: React.FC = () => {
   const isSpa = tenant?.business_type?.name === "massage_parlour";
   const canCheckout = (user?.role === "admin" || user?.role === "cashier") && (data?.length ?? 0) > 0;
 
-  const handleServedByChange = async (newUserIds: string[]) => {
+  const handleServedByChange = (newUserIds: string[]) => {
+    setTempServedByIds(newUserIds);
+    
+    // Update selected staff details to include newly selected staff
+    const newSelectedDetails = newUserIds.map(id => {
+      const existing = selectedStaffDetails.find(s => s.value === id);
+      if (existing) return existing;
+      
+      // Find in current staffList
+      const inList = staffList.find(s => s.value === id);
+      if (inList) return inList;
+      
+      // If not found, create a placeholder with the ID
+      return { value: id, label: id };
+    });
+    
+    setSelectedStaffDetails(newSelectedDetails);
+  };
+
+  const handleSaveServedBy = async () => {
     const cartId = cartDetails?._id ?? cartDetails?.id;
     if (!cartId) return;
     setUpdatingServedBy(true);
     try {
-      await updateCartService(cartId, { served_by: newUserIds });
+      await updateCartService(cartId, { served_by: tempServedByIds });
       await dispatch(getCart(tableId));
       setEditingServedBy(false);
     } catch (e) {
@@ -511,6 +548,12 @@ const CartDrawer: React.FC = () => {
     } finally {
       setUpdatingServedBy(false);
     }
+  };
+
+  const handleCancelServedBy = () => {
+    setTempServedByIds([]);
+    setSelectedStaffDetails([]);
+    setEditingServedBy(false);
   };
 
   const handleOpenEarningsModal = () => {
@@ -939,19 +982,26 @@ const CartDrawer: React.FC = () => {
                     <Select
                       mode="multiple"
                       size="middle" style={{ flex: 1 }}
-                      loading={updatingServedBy || loadingMoreStaff}
                       disabled={updatingServedBy}
-                      value={servedByIds.filter(id => staffList.some(staff => staff.value === id))}
-                      options={staffList}
+                      value={tempServedByIds}
+                      options={[
+                        // Always include selected staff members first with their proper names
+                        ...selectedStaffDetails.filter(staff => tempServedByIds.includes(staff.value)),
+                        // Then add the rest of the staff list (excluding duplicates)
+                        ...staffList.filter(staff => !tempServedByIds.includes(staff.value))
+                      ]}
                       placeholder="Select staff members"
                       onChange={handleServedByChange}
                       autoFocus
                       fieldNames={{ label: 'label', value: 'value' }}
                       showSearch
                       filterOption={false}
+                      suffixIcon={searchingStaff ? <LoadingOutlined spin /> : undefined}
                       onSearch={(value) => {
-                        // Only search if more than 3 characters
-                        if (value.length <= 3) return;
+                        // Show loading state immediately when user types
+                        if (value.length > 2) {
+                          setSearchingStaff(true);
+                        }
                         
                         // Debounce the search
                         if (searchTimeoutRef.current) {
@@ -965,7 +1015,14 @@ const CartDrawer: React.FC = () => {
                           }
                         }, 300);
                       }}
-                      suffixIcon={searchingStaff ? <LoadingOutlined spin /> : undefined}
+                      onClear={() => {
+                        setSearchingStaff(false);
+                        setStaffSearchQuery("");
+                        setStaffPage(1);
+                        if (loadStaffRef.current) {
+                          loadStaffRef.current(1, "", false);
+                        }
+                      }}
                       onPopupScroll={(e) => {
                         const { scrollTop, clientHeight, scrollHeight } = e.target as HTMLElement;
                         if (scrollTop + clientHeight >= scrollHeight - 10 && hasMoreStaff && !loadingMoreStaff) {
@@ -997,8 +1054,11 @@ const CartDrawer: React.FC = () => {
                       {loadingStaff ? 'Loading staff...' : 'No staff available'}
                     </div>
                   )}
-                  <Button size="middle" onClick={() => setEditingServedBy(false)} disabled={updatingServedBy} style={{ borderRadius: 6 }}>
+                  <Button size="middle" onClick={handleCancelServedBy} disabled={updatingServedBy} style={{ borderRadius: 6 }}>
                     Cancel
+                  </Button>
+                  <Button size="middle" type="primary" onClick={handleSaveServedBy} loading={updatingServedBy} style={{ borderRadius: 6, backgroundColor: primaryColor, borderColor: primaryColor }}>
+                    Save
                   </Button>
                 </Flex>
               </div>
@@ -1057,7 +1117,27 @@ const CartDrawer: React.FC = () => {
                     <Button
                       size="small"
                       type="text"
-                      onClick={(e) => { e.stopPropagation(); setEditingServedBy(true); }}
+                      onClick={(e) => { 
+                    e.stopPropagation(); 
+                    setTempServedByIds(servedByIds);
+                    // Initialize selected staff details from cartDetails
+                    const servedBy = cartDetails?.served_by;
+                    if (Array.isArray(servedBy)) {
+                      const staffDetails = servedBy.map((staff: any) => ({
+                        value: typeof staff === "string" ? staff : staff._id,
+                        label: typeof staff === "string" ? staff : (staff.username || staff.name || staff.fullname || staff._id)
+                      }));
+                      setSelectedStaffDetails(staffDetails);
+                    } else if (servedBy && typeof servedBy === "object") {
+                      setSelectedStaffDetails([{
+                        value: servedBy._id,
+                        label: servedBy.username || servedBy.name || servedBy.fullname || servedBy._id
+                      }]);
+                    } else {
+                      setSelectedStaffDetails([]);
+                    }
+                    setEditingServedBy(true); 
+                  }}
                       style={{ fontSize: 11, color: primaryColor }}
                     >
                       Change
