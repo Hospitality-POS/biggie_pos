@@ -80,6 +80,7 @@ const CallInterfaceModal: React.FC<CallInterfaceModalProps> = ({
     const [selectedOutputDevice, setSelectedOutputDevice] = useState<string>('');
     const [voiceManagerReady, setVoiceManagerReady] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [isAfricasTalking, setIsAfricasTalking] = useState(false);
 
     const timerRef = useRef<number | null>(null);
     const voiceManagerRef = useRef<TwilioVoiceManager | null>(null);
@@ -90,6 +91,17 @@ const CallInterfaceModal: React.FC<CallInterfaceModalProps> = ({
             console.log('📞 Phone number:', phoneNumber);
             console.log('🔑 Conference name:', conferenceName);
             console.log('🎫 Twilio token:', twilioToken ? 'Present' : 'Missing');
+
+            // Check if this is AfricasTalking (no token means backend-mediated)
+            if (!twilioToken) {
+                console.log('ℹ️ AfricasTalking backend-mediated call detected');
+                setIsAfricasTalking(true);
+                setVoiceManagerReady(true);
+                setCallStatus('connected'); // Backend handles the call
+                setError(null);
+                return;
+            }
+
             setCallStatus('initiating');
             const voiceManager = getVoiceManager();
             voiceManagerRef.current = voiceManager;
@@ -357,11 +369,15 @@ const CallInterfaceModal: React.FC<CallInterfaceModalProps> = ({
     };
 
     const getStatusText = () => {
+        if (isAfricasTalking) {
+            return 'Call in progress (Backend-mediated)';
+        }
         switch (callStatus) {
             case 'initiating': return 'Waiting for call...';
             case 'ringing': return 'Ringing...';
             case 'connected': return 'Connected';
             case 'ended': return 'Call Ended';
+            case 'error': return 'Call Failed';
             default: return 'Unknown';
         }
     };
@@ -378,6 +394,15 @@ const CallInterfaceModal: React.FC<CallInterfaceModalProps> = ({
             maskClosable={false}
             style={{ top: 20 }}
         >
+            {isAfricasTalking && (
+                <Alert
+                    message="Backend-Mediated Call"
+                    description="This call is being handled by the AfricasTalking backend. Audio controls are not available for backend-mediated calls."
+                    type="info"
+                    showIcon
+                    style={{ margin: 16 }}
+                />
+            )}
             <div style={{ padding: "20px 0" }}>
                 {/* Call Header */}
                 <div style={{ 
@@ -479,7 +504,7 @@ const CallInterfaceModal: React.FC<CallInterfaceModalProps> = ({
                                                 onClick={handleMute}
                                                 size="large"
                                                 style={{ borderRadius: 8 }}
-                                                disabled={!voiceManagerReady}
+                                                disabled={!voiceManagerReady || isAfricasTalking}
                                             />
                                         </Tooltip>
                                         <Tooltip title={isOnHold ? "Resume" : "Hold"}>
@@ -489,7 +514,7 @@ const CallInterfaceModal: React.FC<CallInterfaceModalProps> = ({
                                                 onClick={handleHold}
                                                 size="large"
                                                 style={{ borderRadius: 8 }}
-                                                disabled={!voiceManagerReady}
+                                                disabled={!voiceManagerReady || isAfricasTalking}
                                             />
                                         </Tooltip>
                                         <Tooltip title={isSpeakerOn ? "Switch to Earpiece" : "Switch to Speaker"}>
@@ -499,7 +524,7 @@ const CallInterfaceModal: React.FC<CallInterfaceModalProps> = ({
                                                 onClick={handleSpeaker}
                                                 size="large"
                                                 style={{ borderRadius: 8 }}
-                                                disabled={!voiceManagerReady}
+                                                disabled={!voiceManagerReady || isAfricasTalking}
                                             />
                                         </Tooltip>
                                     </Space>

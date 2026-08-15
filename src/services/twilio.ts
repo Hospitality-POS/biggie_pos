@@ -109,6 +109,47 @@ export const testTwilioCredentials = async (data: {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// AFRICASTALKING ACCOUNT MANAGEMENT
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const getAfricasTalkingAccounts = async (shopId: string, role?: string) => {
+  try {
+    let url = `${BASE_URL}/api/crm/africastalking/accounts?shop_id=${shopId}`;
+    if (role) url += `&role=${role}`;
+    const response = await axiosInstance.get(url);
+    return response.data;
+  } catch (error: unknown) {
+    console.error('Failed to fetch AfricasTalking accounts:', error);
+    throw error;
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AFRICASTALKING VOICE CALLING
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const initiateAfricasTalkingCall = async (data: {
+  shop_id: string;
+  account_id: string;
+  to_number: string;
+  from_number?: string;
+  customer_id?: string;
+  lead_id?: string;
+  agent_id?: string;
+  record?: boolean;
+}) => {
+  try {
+    const url = `${BASE_URL}/api/crm/africastalking/voice/initiate`;
+    const response = await axiosInstance.post(url, data);
+    return response.data;
+  } catch (error: unknown) {
+    const errorResponse = error as { response?: { data?: { message?: string; status?: string } } };
+    // Don't show error message here - let the frontend handle specific error cases
+    throw error;
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // PHONE NUMBER MANAGEMENT
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -250,20 +291,10 @@ export const createAfricasTalkingAccount = async (data: {
   }
 };
 
-export const getAfricasTalkingAccounts = async (shop_id: string) => {
-  try {
-    const url = `${BASE_URL}/api/crm/africastalking/accounts?shop_id=${shop_id}`;
-    const response = await axiosInstance.get(url);
-    return response.data;
-  } catch (error: unknown) {
-    message.error((error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to fetch Africa's Talking accounts");
-    throw error;
-  }
-};
-
 export const getAfricasTalkingVoiceToken = async (data: {
   shop_id: string;
-  user_id: string;
+  account_id: string;
+  user_id?: string;
   clientName?: string;
 }) => {
   try {
@@ -272,22 +303,7 @@ export const getAfricasTalkingVoiceToken = async (data: {
     return response.data;
   } catch (error: unknown) {
     console.error('Error getting Africa\'s Talking voice token:', error);
-    throw error;
-  }
-};
-
-export const initiateAfricasTalkingCall = async (data: {
-  to: string;
-  from?: string;
-  shop_id: string;
-  user_id: string;
-}) => {
-  try {
-    const url = `${BASE_URL}/api/crm/africastalking/voice/call`;
-    const response = await axiosInstance.post(url, data);
-    return response.data;
-  } catch (error: unknown) {
-    message.error((error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to initiate call");
+    // Don't show error message to user - just log it
     throw error;
   }
 };
@@ -342,6 +358,7 @@ export const initiateCall = async (data: {
   shop_id: string;
   phone_number_id: string;
   to_number: string;
+  from_number?: string;
   customer_id?: string;
   lead_id?: string;
   agent_id: string;

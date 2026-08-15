@@ -48,7 +48,7 @@ import { usePrimaryColor } from "@context/PrimaryColorContext";
 import ConversationList from "./ConversationList";
 import MessageThread from "./MessageThread";
 import CallInterfaceModal from "./CallInterfaceModal";
-import { getAgentStatus, getCallHistory, initiateCall, getPhoneNumbers, getActiveCalls, answerCall, rejectCall, endCall, getAfricasTalkingVoiceToken } from "@services/twilio";
+import { getAgentStatus, getCallHistory, initiateCall, getPhoneNumbers, getActiveCalls, answerCall, rejectCall, endCall, getAfricasTalkingVoiceToken, getAfricasTalkingAccounts, initiateAfricasTalkingCall, getTwilioVoiceToken } from "@services/twilio";
 import { getAfricasTalkingVoiceManager } from "@services/africasTalkingVoice";
 import { fetchAllUsersList } from "@services/users";
 import { 
@@ -93,8 +93,16 @@ export interface AgentStatus {
 
 export interface PhoneNumber {
     _id: string;
-    phone_number: string;
+    voice_phone_number: string;
+    whatsapp_phone_number: string;
     friendly_name?: string;
+    username?: string;
+    capabilities?: {
+        voice: boolean;
+        whatsapp: boolean;
+        sms: boolean;
+        ussd: boolean;
+    };
 }
 
 export interface CallFormValues {
@@ -105,6 +113,7 @@ export interface CallFormValues {
     customer_id?: string;
     lead_id?: string;
     record?: boolean;
+    from_number?: string;
 }
 
 export interface WhatsAppFormValues {
@@ -174,27 +183,18 @@ const OmnichannelInboxPage: React.FC = () => {
         const initializeDevice = async () => {
             try {
                 console.log('🧪 Auto-initializing Africa\'s Talking device...');
-                const tokenData = await getAfricasTalkingVoiceToken({ 
-                    shop_id: shopId, 
-                    user_id: userId,
-                    clientName: `agent_${userId}`
-                });
-                const voiceManager = getAfricasTalkingVoiceManager();
-                
-                await voiceManager.initialize({
-                    token: tokenData.token,
-                    clientName: tokenData.clientName,
-                    phoneNumber: tokenData.phoneNumber,
-                });
-                
-                console.log('✅ Auto-initialized Africa\'s Talking device');
+                // AfricasTalking doesn't have a browser SDK like Twilio
+                // We use backend-mediated calling instead
+                console.log('ℹ️ Africa\'s Talking uses backend-mediated calling, no browser SDK needed');
                 setDeviceReady(true);
             } catch (error) {
                 console.error('❌ Auto-initialization failed:', error);
             }
         };
-        
-        initializeDevice();
+
+        if (shopId) {
+            initializeDevice();
+        }
     }, [shopId, userId]);
     
     // WebSocket effect
@@ -394,15 +394,30 @@ const OmnichannelInboxPage: React.FC = () => {
         return filtered;
     }, [usersData]);
 
-    // Fetch available phone numbers for calls
-    const { data: phoneNumbersData } = useQuery({
-        queryKey: ["twilio-phone-numbers", shopId],
-        queryFn: () => getPhoneNumbers(shopId, undefined, true),
+    // Fetch available phone numbers for calls from AfricasTalking
+    const { data: africasTalkingAccountsData } = useQuery({
+        queryKey: ["africastalking-accounts", shopId],
+        queryFn: () => {
+            const singleShopId = Array.isArray(shopId) ? shopId[0] : shopId;
+            return getAfricasTalkingAccounts(singleShopId, 'admin');
+        },
         enabled: !!shopId,
         staleTime: 60_000,
     });
 
-    const phoneNumbers = phoneNumbersData?.phone_numbers as Array<{ _id: string; phone_number: string; friendly_name?: string }> || [];
+    const phoneNumbers = africasTalkingAccountsData?.accounts as Array<{
+        _id: string;
+        voice_phone_number: string;
+        whatsapp_phone_number: string;
+        friendly_name?: string;
+        username?: string;
+        capabilities?: {
+            voice: boolean;
+            whatsapp: boolean;
+            sms: boolean;
+            ussd: boolean;
+        };
+    }> || [];
 
     // Poll for active calls (incoming calls)
     const { data: activeCallsData } = useQuery({
@@ -577,16 +592,23 @@ const OmnichannelInboxPage: React.FC = () => {
             const fullPhoneNumber = `${values.country_code}${values.phone_number}`;
             const currentUserId = userId || 'default_agent'; // Fallback if userId is not available
 
-            console.log('Initiating call with userId:', currentUserId);
+            console.log('Initiating AfricasTalking call with userId:', currentUserId);
 
-            const response = await initiateCall({
-                shop_id: shopId,
-                phone_number_id: values.phone_number_id,
+            // Get the selected phone number details
+            const selectedPhone = phoneNumbers.find((pn: PhoneNumber) => pn._id === values.phone_number_id);
+            const fromPhoneNumber = selectedPhone?.voice_phone_number || '';
+
+            // Ensure shopId is a string, not an array
+            const singleShopId = Array.isArray(shopId) ? shopId[0] : shopId;
+
+            const response = await initiateAfricasTalkingCall({
+                shop_id: singleShopId,
+                account_id: values.phone_number_id,
                 to_number: fullPhoneNumber,
+                from_number: fromPhoneNumber,
                 customer_id: values.entity_type === "customer" ? values.customer_id : undefined,
                 lead_id: values.entity_type === "lead" ? values.lead_id : undefined,
-                agent_id: currentUserId, // Track which agent made the call
-                agent_identity: currentUserId, // Required for WebRTC bridging - must match token identity
+                agent_id: currentUserId,
                 record: values.record !== false,
             });
 
@@ -595,33 +617,41 @@ const OmnichannelInboxPage: React.FC = () => {
             message.success("Call initiated successfully");
             setNewCallModalOpen(false);
 
-            // Get Twilio token for the call interface
-            const token = await getTwilioToken();
+            // Extract sessionId from XML response if available
+            let sessionId = undefined;
+            if (typeof response === 'string' && response.includes('sessionId')) {
+                const match = response.match(/<sessionId>([^<]+)<\/sessionId>/);
+                if (match) {
+                    sessionId = match[1];
+                }
+            } else if (response.sessionId) {
+                sessionId = response.sessionId;
+            }
 
-            // Open call interface modal with conference information
+            // Open call interface modal with basic call information
+            // Since AfricasTalking doesn't have browser SDK, we show basic info without WebRTC
             setCurrentCallInfo({
                 phoneNumber: fullPhoneNumber,
                 customerId: values.entity_type === "customer" ? values.customer_id : undefined,
                 leadId: values.entity_type === "lead" ? values.lead_id : undefined,
-                twilioToken: token,
-                conferenceName: response.conference_name || response.call?.conference_name || undefined, // Try multiple possible fields
+                twilioToken: "", // No token needed for AfricasTalking
+                conferenceName: sessionId || undefined,
             });
             setCallInterfaceOpen(true);
-            
-            // Open call interface modal
-            setCurrentCallInfo({
-                phoneNumber: fullPhoneNumber,
-                customerId: values.entity_type === "customer" ? values.customer_id : undefined,
-                leadId: values.entity_type === "lead" ? values.lead_id : undefined,
-                twilioToken: await getTwilioToken(), // This would need to be implemented
-            });
-            setCallInterfaceOpen(true);
-            
+
             callForm.resetFields();
             queryClient.invalidateQueries({ queryKey: ["twilio-call-history"] });
-        } catch (error) {
-            console.error("Failed to initiate call:", error);
-            message.error("Failed to initiate call");
+        } catch (error: any) {
+            console.error('Failed to initiate call:', error);
+
+            // Handle specific error cases
+            if (error.response?.status === 402) {
+                message.error('Insufficient airtime/credit. Please top up your Africa\'s Talking account to make calls.');
+            } else if (error.response?.status === 404) {
+                message.error('Phone number not found. Please check your Africa\'s Talking account configuration.');
+            } else {
+                message.error(error.response?.data?.message || 'Failed to initiate call. Please try again.');
+            }
         }
     };
 
@@ -695,6 +725,7 @@ const OmnichannelInboxPage: React.FC = () => {
 
             const tokenData = await getAfricasTalkingVoiceToken({
                 shop_id: shopId,
+                account_id: phoneNumbers[0]?._id,
                 user_id: userId,
                 clientName: `agent_${userId}`,
             });
@@ -706,14 +737,9 @@ const OmnichannelInboxPage: React.FC = () => {
                 hasToken: !!tokenData?.token
             });
 
-            const voiceManager = getAfricasTalkingVoiceManager();
-            await voiceManager.initialize({
-                token: tokenData.token,
-                clientName: tokenData.clientName,
-                phoneNumber: tokenData.phoneNumber,
-            });
-
-            console.log('✅ Africa\'s Talking device initialized');
+            // AfricasTalking doesn't have a browser SDK like Twilio
+            // We use backend-mediated calling instead
+            console.log('ℹ️ Africa\'s Talking uses backend-mediated calling, no browser SDK needed');
             setTwilioDeviceReady(true);
         } catch (error) {
             console.error('❌ Failed to initialize Africa\'s Talking device:', error);
@@ -721,23 +747,7 @@ const OmnichannelInboxPage: React.FC = () => {
         }
     };
 
-    // Placeholder function to get Twilio token from backend
-    const getTwilioToken = async (): Promise<string> => {
-        try {
-            const currentUserId = userId || 'default_agent'; // Fallback if userId is not available
 
-            const data = await getTwilioVoiceToken({
-                shop_id: shopId,
-                agent_id: currentUserId,
-                agent_identity: currentUserId, // Required for WebRTC bridging - use current user ID
-            });
-            return data.token;
-        } catch (error) {
-            console.error('Failed to get Twilio token:', error);
-            message.error('Failed to initialize voice calling. Please check your Twilio configuration.');
-            throw error;
-        }
-    };
 
     if (!shopId) {
         return (
@@ -955,7 +965,7 @@ const OmnichannelInboxPage: React.FC = () => {
                                 />
                             }
                             style={{ borderRadius: 12, flex: 1, display: "flex", flexDirection: "column" }}
-                            bodyStyle={{ padding: 0, flex: 1, overflow: "hidden" }}
+                            styles={{ body: { padding: 0, flex: 1, overflow: "hidden" } }}
                         >
                             {!anyConnected && !channelsLoading ? (
                                 <div style={{ 
@@ -1105,7 +1115,7 @@ const OmnichannelInboxPage: React.FC = () => {
                                 )
                             }
                             style={{ borderRadius: 12, flex: 1, display: "flex", flexDirection: "column" }}
-                            bodyStyle={{ padding: 0, flex: 1, overflow: "hidden" }}
+                            styles={{ body: { padding: 0, flex: 1, overflow: "hidden" } }}
                         >
                             {selectedConversation ? (
                                 <MessageThread
@@ -1144,7 +1154,7 @@ const OmnichannelInboxPage: React.FC = () => {
                             }
                             size="small"
                             style={{ borderRadius: 12 }}
-                            bodyStyle={{ padding: "12px" }}
+                            styles={{ body: { padding: "12px" } }}
                         >
                             {crmAgents.length > 0 ? (
                                 <List
@@ -1197,7 +1207,7 @@ const OmnichannelInboxPage: React.FC = () => {
                             }
                             size="small"
                             style={{ borderRadius: 12, flex: 1 }}
-                            bodyStyle={{ padding: "12px", overflowY: "auto", maxHeight: 300 }}
+                            styles={{ body: { padding: "12px", overflowY: "auto", maxHeight: 300 } }}
                         >
                             {callsArray.length > 0 ? (
                                 <List
@@ -1279,7 +1289,7 @@ const OmnichannelInboxPage: React.FC = () => {
                                 }
                                 size="small"
                                 style={{ borderRadius: 12 }}
-                                bodyStyle={{ padding: "12px" }}
+                                styles={{ body: { padding: "12px" } }}
                             >
                                 <List
                                     size="small"
@@ -1322,25 +1332,37 @@ const OmnichannelInboxPage: React.FC = () => {
 
                 {/* New Call Modal */}
                 <Modal
-                    title="Make a New Call"
+                    title={
+                        <Space>
+                            <PhoneFilled style={{ color: '#52c41a' }} />
+                            <span>Make a New Call</span>
+                        </Space>
+                    }
                     open={newCallModalOpen}
                     onCancel={() => {
                         setNewCallModalOpen(false);
                         callForm.resetFields();
                     }}
-                    onOk={() => callForm.submit()}
-                    okText="Call"
-                    width={500}
+                    footer={null}
+                    width={600}
                 >
                     {!phoneNumbers.length ? (
                         <Alert
                             type="warning"
                             message="No Phone Numbers Available"
-                            description="Please add a Twilio account and provision a phone number in System Setup to make calls."
+                            description="Please add an AfricasTalking account in System Setup to make calls."
                             showIcon
                             style={{ marginBottom: 16 }}
                         />
-                    ) : null}
+                    ) : (
+                        <Alert
+                            type="info"
+                            message="Airtime Required"
+                            description="Ensure your AfricasTalking account has sufficient airtime/credit to make calls."
+                            showIcon
+                            style={{ marginBottom: 16 }}
+                        />
+                    )}
                     <Form
                         form={callForm}
                         layout="vertical"
@@ -1354,35 +1376,50 @@ const OmnichannelInboxPage: React.FC = () => {
                             <Select
                                 placeholder="Select phone number"
                                 disabled={!phoneNumbers.length}
-                                options={phoneNumbers.map((pn: PhoneNumber) => ({
-                                    label: `${pn.phone_number} (${pn.friendly_name || 'Twilio'})`,
+                                options={phoneNumbers
+                                    .filter((pn: PhoneNumber) => pn.capabilities?.voice)
+                                    .map((pn: PhoneNumber) => ({
+                                    label: `${pn.voice_phone_number} (${pn.friendly_name || pn.username || 'AfricasTalking'})`,
                                     value: pn._id,
                                 }))}
                             />
                         </Form.Item>
+
                         <Form.Item
                             label="To Phone Number"
                             required
                         >
-                            <Input.Group compact>
+                            <Space.Compact style={{ width: '100%' }}>
                                 <Form.Item
                                     name="country_code"
                                     noStyle
                                     initialValue="+254"
                                 >
                                     <Select
-                                        style={{ width: 100 }}
+                                        style={{ width: 120 }}
+                                        showSearch
+                                        optionFilterProp="label"
                                         options={[
-                                            { label: "+254", value: "+254" },
-                                            { label: "+1", value: "+1" },
-                                            { label: "+44", value: "+44" },
-                                            { label: "+91", value: "+91" },
-                                            { label: "+86", value: "+86" },
-                                            { label: "+49", value: "+49" },
-                                            { label: "+33", value: "+33" },
-                                            { label: "+81", value: "+81" },
-                                            { label: "+61", value: "+61" },
-                                            { label: "+55", value: "+55" },
+                                            { label: "+254 (Kenya)", value: "+254" },
+                                            { label: "+256 (Uganda)", value: "+256" },
+                                            { label: "+255 (Tanzania)", value: "+255" },
+                                            { label: "+257 (Burundi)", value: "+257" },
+                                            { label: "+250 (Rwanda)", value: "+250" },
+                                            { label: "+258 (Mozambique)", value: "+258" },
+                                            { label: "+260 (Zambia)", value: "+260" },
+                                            { label: "+263 (Zimbabwe)", value: "+263" },
+                                            { label: "+27 (South Africa)", value: "+27" },
+                                            { label: "+234 (Nigeria)", value: "+234" },
+                                            { label: "+233 (Ghana)", value: "+233" },
+                                            { label: "+1 (USA/Canada)", value: "+1" },
+                                            { label: "+44 (UK)", value: "+44" },
+                                            { label: "+91 (India)", value: "+91" },
+                                            { label: "+86 (China)", value: "+86" },
+                                            { label: "+49 (Germany)", value: "+49" },
+                                            { label: "+33 (France)", value: "+33" },
+                                            { label: "+81 (Japan)", value: "+81" },
+                                            { label: "+61 (Australia)", value: "+61" },
+                                            { label: "+55 (Brazil)", value: "+55" },
                                         ]}
                                     />
                                 </Form.Item>
@@ -1390,14 +1427,77 @@ const OmnichannelInboxPage: React.FC = () => {
                                     name="phone_number"
                                     noStyle
                                     rules={[{ required: true, message: "Please enter phone number" }]}
+                                    style={{ flex: 1 }}
                                 >
-                                    <Input 
-                                        style={{ width: "calc(100% - 100px)" }}
-                                        placeholder="7XXXXXXXX" 
+                                    <Input
+                                        placeholder="7XXXXXXXX"
+                                        size="large"
                                     />
                                 </Form.Item>
-                            </Input.Group>
+                            </Space.Compact>
                         </Form.Item>
+
+                        {/* Dial Pad */}
+                        <Card size="small" style={{ marginBottom: 16 }}>
+                            <Row gutter={[8, 8]} style={{ textAlign: 'center' }}>
+                                {['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'].map((num) => (
+                                    <Col span={8} key={num}>
+                                        <Button
+                                            size="large"
+                                            onClick={() => {
+                                                const currentValue = callForm.getFieldValue('phone_number') || '';
+                                                callForm.setFieldsValue({
+                                                    phone_number: currentValue + num
+                                                });
+                                            }}
+                                            style={{
+                                                width: '100%',
+                                                height: 50,
+                                                fontSize: 20,
+                                                fontWeight: 500
+                                            }}
+                                        >
+                                            {num}
+                                        </Button>
+                                    </Col>
+                                ))}
+                                <Col span={8}>
+                                    <Button
+                                        danger
+                                        size="large"
+                                        onClick={() => {
+                                            const currentValue = callForm.getFieldValue('phone_number') || '';
+                                            callForm.setFieldsValue({
+                                                phone_number: currentValue.slice(0, -1)
+                                            });
+                                        }}
+                                        style={{
+                                            width: '100%',
+                                            height: 50,
+                                            fontSize: 20
+                                        }}
+                                    >
+                                        ⌫
+                                    </Button>
+                                </Col>
+                                <Col span={8}>
+                                    <Button
+                                        type="primary"
+                                        size="large"
+                                        onClick={() => callForm.submit()}
+                                        style={{
+                                            width: '100%',
+                                            height: 50,
+                                            fontSize: 16,
+                                            fontWeight: 600
+                                        }}
+                                    >
+                                        Call
+                                    </Button>
+                                </Col>
+                            </Row>
+                        </Card>
+
                         <Form.Item
                             label="Associate With"
                             name="entity_type"

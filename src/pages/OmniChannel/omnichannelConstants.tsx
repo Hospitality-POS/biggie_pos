@@ -3,7 +3,20 @@ import React from "react";
 export const getShopId = (): string => {
     try {
         const shopId = localStorage.getItem("shopId");
-        return shopId && shopId !== "{}" && shopId !== "null" ? shopId : "";
+        // Handle if shopId is stored as JSON array
+        if (shopId) {
+            try {
+                const parsed = JSON.parse(shopId);
+                if (Array.isArray(parsed)) {
+                    return parsed[0] || "";
+                }
+                return parsed || "";
+            } catch {
+                // If not JSON, return as string
+                return shopId && shopId !== "{}" && shopId !== "null" ? shopId : "";
+            }
+        }
+        return "";
     } catch {
         return "";
     }
