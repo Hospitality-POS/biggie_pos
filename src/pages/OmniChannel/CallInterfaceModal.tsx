@@ -16,6 +16,8 @@ import {
     Badge,
     Switch,
     Alert,
+    Empty,
+    List,
 } from "antd";
 import {
     PhoneFilled,
@@ -30,6 +32,9 @@ import {
     LoadingOutlined,
     PlayCircleOutlined,
     PauseCircleOutlined,
+    TeamOutlined,
+    DeleteOutlined,
+    PlusOutlined,
 } from "@ant-design/icons";
 import { getVoiceManager, TwilioVoiceManager } from "@services/twilioVoice";
 
@@ -45,6 +50,7 @@ interface CallInterfaceModalProps {
     leadId?: string;
     twilioToken?: string;
     conferenceName?: string;
+    additionalParticipants?: string[];
     onEndCall: () => void;
     onMuteToggle: (muted: boolean) => void;
     onHoldToggle: (onHold: boolean) => void;
@@ -60,6 +66,7 @@ const CallInterfaceModal: React.FC<CallInterfaceModalProps> = ({
     leadId,
     twilioToken,
     conferenceName,
+    additionalParticipants = [],
     onEndCall,
     onMuteToggle,
     onHoldToggle,
@@ -80,7 +87,9 @@ const CallInterfaceModal: React.FC<CallInterfaceModalProps> = ({
     const [selectedOutputDevice, setSelectedOutputDevice] = useState<string>('');
     const [voiceManagerReady, setVoiceManagerReady] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [isAfricasTalking, setIsAfricasTalking] = useState(false);
+    const [showAddParticipant, setShowAddParticipant] = useState(false);
+    const [participantPhone, setParticipantPhone] = useState('');
+    const [participants, setParticipants] = useState<string[]>(additionalParticipants);
 
     const timerRef = useRef<number | null>(null);
     const voiceManagerRef = useRef<TwilioVoiceManager | null>(null);
@@ -91,25 +100,12 @@ const CallInterfaceModal: React.FC<CallInterfaceModalProps> = ({
             console.log('📞 Phone number:', phoneNumber);
             console.log('🔑 Conference name:', conferenceName);
             console.log('🎫 Twilio token:', twilioToken ? 'Present' : 'Missing');
-
-            // Check if this is AfricasTalking (no token means backend-mediated)
-            if (!twilioToken) {
-                console.log('ℹ️ AfricasTalking backend-mediated call detected');
-                setIsAfricasTalking(true);
-                setVoiceManagerReady(true);
-                setCallStatus('connected'); // Backend handles the call
-                setError(null);
-                return;
-            }
-
+            
             setCallStatus('initiating');
             const voiceManager = getVoiceManager();
             voiceManagerRef.current = voiceManager;
 
             console.log('🔧 Initializing Twilio device with token...');
-            if (!twilioToken) {
-                throw new Error('Twilio token is required');
-            }
 
             await voiceManager.initialize({
                 token: twilioToken,
@@ -227,7 +223,7 @@ const CallInterfaceModal: React.FC<CallInterfaceModalProps> = ({
                         const error = args[0] as Error;
                         console.error('❌ Direct call error:', error);
                         setError(`Call error: ${error.message}`);
-                        setCallStatus('error');
+                        setCallStatus('ringing'); // Still show ringing even on error
                     });
                 } catch (fallbackError) {
                     console.error('❌ Fallback direct call also failed:', fallbackError);
@@ -235,9 +231,8 @@ const CallInterfaceModal: React.FC<CallInterfaceModalProps> = ({
                         message: fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
                         stack: fallbackError instanceof Error ? fallbackError.stack : undefined
                     });
-                    // Don't show error message for fallback - just log it
-                    // The call might still work through the backend
-                    setCallStatus('ringing');
+                    setError('Failed to establish call connection');
+                    setCallStatus('error');
                 }
             }
 
@@ -247,25 +242,30 @@ const CallInterfaceModal: React.FC<CallInterfaceModalProps> = ({
                 message: err instanceof Error ? err.message : String(err),
                 stack: err instanceof Error ? err.stack : undefined
             });
-            // Only show error if it's a genuine initialization failure
-            if (err instanceof Error && err.message.includes('Twilio token is required')) {
-                setError('Twilio token is required. Please check your authentication.');
-                setCallStatus('error');
-            } else if (err instanceof Error && err.message.includes('Microphone permission')) {
-                setError('Microphone access is required for voice calling.');
-                setCallStatus('error');
-            } else {
-                // For other errors, don't show UI error - just log and let call proceed
-                console.warn('⚠️ Initialization had issues but call may still work');
+            
+            // Check if it's a token/credential error
+            if (err instanceof Error && (err.message.includes('token') || err.message.includes('credential') || err.message.includes('401'))) {
+                setError('Twilio credentials not configured. Call proceeding via backend only.');
                 setCallStatus('ringing');
+                
+                // Start timer since call is still proceeding via backend
+                if (!timerRef.current) {
+                    timerRef.current = setInterval(() => {
+                        setCallDuration(prev => prev + 1);
+                    }, 1000);
+                }
+            } else {
+                setError('Failed to initialize voice connection');
+                setCallStatus('error');
             }
         }
     }, [twilioToken, conferenceName, phoneNumber]);
 
     // Initialize voice manager when modal opens
     useEffect(() => {
-        if (open && twilioToken) {
+        if (open) {
             initializeVoiceManager();
+            setParticipants(additionalParticipants);
         } else if (!open) {
             cleanupVoiceManager();
         }
@@ -273,7 +273,7 @@ const CallInterfaceModal: React.FC<CallInterfaceModalProps> = ({
         return () => {
             cleanupVoiceManager();
         };
-    }, [open, twilioToken, initializeVoiceManager]);
+    }, [open, initializeVoiceManager, additionalParticipants]);
 
     const cleanupVoiceManager = () => {
         if (timerRef.current) {
@@ -369,9 +369,6 @@ const CallInterfaceModal: React.FC<CallInterfaceModalProps> = ({
     };
 
     const getStatusText = () => {
-        if (isAfricasTalking) {
-            return 'Call in progress (Backend-mediated)';
-        }
         switch (callStatus) {
             case 'initiating': return 'Waiting for call...';
             case 'ringing': return 'Ringing...';
@@ -394,15 +391,6 @@ const CallInterfaceModal: React.FC<CallInterfaceModalProps> = ({
             maskClosable={false}
             style={{ top: 20 }}
         >
-            {isAfricasTalking && (
-                <Alert
-                    message="Backend-Mediated Call"
-                    description="This call is being handled by the AfricasTalking backend. Audio controls are not available for backend-mediated calls."
-                    type="info"
-                    showIcon
-                    style={{ margin: 16 }}
-                />
-            )}
             <div style={{ padding: "20px 0" }}>
                 {/* Call Header */}
                 <div style={{ 
@@ -504,7 +492,7 @@ const CallInterfaceModal: React.FC<CallInterfaceModalProps> = ({
                                                 onClick={handleMute}
                                                 size="large"
                                                 style={{ borderRadius: 8 }}
-                                                disabled={!voiceManagerReady || isAfricasTalking}
+                                                disabled={!voiceManagerReady}
                                             />
                                         </Tooltip>
                                         <Tooltip title={isOnHold ? "Resume" : "Hold"}>
@@ -514,7 +502,7 @@ const CallInterfaceModal: React.FC<CallInterfaceModalProps> = ({
                                                 onClick={handleHold}
                                                 size="large"
                                                 style={{ borderRadius: 8 }}
-                                                disabled={!voiceManagerReady || isAfricasTalking}
+                                                disabled={!voiceManagerReady}
                                             />
                                         </Tooltip>
                                         <Tooltip title={isSpeakerOn ? "Switch to Earpiece" : "Switch to Speaker"}>
@@ -524,7 +512,7 @@ const CallInterfaceModal: React.FC<CallInterfaceModalProps> = ({
                                                 onClick={handleSpeaker}
                                                 size="large"
                                                 style={{ borderRadius: 8 }}
-                                                disabled={!voiceManagerReady || isAfricasTalking}
+                                                disabled={!voiceManagerReady}
                                             />
                                         </Tooltip>
                                     </Space>
@@ -678,6 +666,100 @@ const CallInterfaceModal: React.FC<CallInterfaceModalProps> = ({
                                     <div>
                                         <Text type="secondary" style={{ fontSize: 12 }}>Lead ID:</Text>
                                         <Text code>{leadId}</Text>
+                                    </div>
+                                )}
+                            </Space>
+                        </Card>
+
+                        {/* Conference Participants */}
+                        <Card 
+                            title={
+                                <Space>
+                                    <TeamOutlined />
+                                    <span>Conference Participants</span>
+                                </Space>
+                            }
+                            size="small"
+                            style={{ marginBottom: 16 }}
+                            extra={
+                                <Button 
+                                    type="primary" 
+                                    size="small" 
+                                    icon={<PlusOutlined />}
+                                    onClick={() => setShowAddParticipant(true)}
+                                    disabled={callStatus === 'ended'}
+                                >
+                                    Add
+                                </Button>
+                            }
+                        >
+                            <Space direction="vertical" style={{ width: '100%' }} size={8}>
+                                {participants.length > 0 ? (
+                                    <List
+                                        size="small"
+                                        dataSource={participants}
+                                        renderItem={(participant: string) => (
+                                            <List.Item
+                                                style={{ padding: '4px 0' }}
+                                                actions={[
+                                                    <Button 
+                                                        type="text" 
+                                                        size="small" 
+                                                        danger 
+                                                        icon={<DeleteOutlined />}
+                                                        onClick={() => setParticipants(prev => prev.filter(p => p !== participant))}
+                                                        disabled={callStatus === 'ended'}
+                                                    />
+                                                ]}
+                                            >
+                                                <List.Item.Meta
+                                                    avatar={<Avatar size="small" icon={<PhoneOutlined />} />}
+                                                    title={<Text style={{ fontSize: 12 }}>{participant}</Text>}
+                                                    description={<Tag color="blue" size="small">Invited</Tag>}
+                                                />
+                                            </List.Item>
+                                        )}
+                                    />
+                                ) : (
+                                    <Empty description="No additional participants" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                                )}
+
+                                {showAddParticipant && (
+                                    <div style={{ marginTop: 8 }}>
+                                        <Space.Compact style={{ width: '100%' }}>
+                                            <Input
+                                                placeholder="Enter phone number with country code"
+                                                value={participantPhone}
+                                                onChange={(e) => setParticipantPhone(e.target.value)}
+                                                onPressEnter={() => {
+                                                    if (participantPhone.trim()) {
+                                                        setParticipants(prev => [...prev, participantPhone.trim()]);
+                                                        setParticipantPhone('');
+                                                        setShowAddParticipant(false);
+                                                    }
+                                                }}
+                                            />
+                                            <Button 
+                                                type="primary" 
+                                                onClick={() => {
+                                                    if (participantPhone.trim()) {
+                                                        setParticipants(prev => [...prev, participantPhone.trim()]);
+                                                        setParticipantPhone('');
+                                                        setShowAddParticipant(false);
+                                                    }
+                                                }}
+                                            >
+                                                Add
+                                            </Button>
+                                            <Button 
+                                                onClick={() => {
+                                                    setParticipantPhone('');
+                                                    setShowAddParticipant(false);
+                                                }}
+                                            >
+                                                Cancel
+                                            </Button>
+                                        </Space.Compact>
                                     </div>
                                 )}
                             </Space>

@@ -338,6 +338,10 @@ const routes = createBrowserRouter(
       <Route path="/" element={<Layout />}>
         <Route index errorElement={<NotFound />} element={<SmartShopRouter />} />
 
+        {/* Legacy Mteja landing — redirect to unified dashboard */}
+        <Route path="mteja" errorElement={<NotFound />}
+          element={<Navigate to="/home-dashboard" replace />} />
+
         <Route path="login" errorElement={<NotFound />}
           element={<Suspense fallback={fullscreenSpin}><StaffLoginPage /></Suspense>} />
 

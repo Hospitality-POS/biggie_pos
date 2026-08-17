@@ -50,13 +50,15 @@ const NON_CACHEABLE_ROUTES = [
     '/invoices',
 ];
 
-// Routes that should NOT trigger logout on 401 (Meta/Webhook APIs)
+// Routes that should NOT trigger logout on 401 (Meta/Webhook/Twilio integration APIs)
 const NON_AUTH_401_ROUTES = [
     '/omnichannel',
     '/webhook',
     '/messages',
     '/conversations',
     '/channels',
+    '/twilio',
+    '/crm/twilio',
     '/users/register', // New Staff modal - don't logout on errors
 ];
 
@@ -146,7 +148,8 @@ axiosInstance.interceptors.request.use(
 
         if (raw) {
             const userObject = JSON.parse(raw);
-            const token = userObject.Token;
+            // Support both Token (legacy) and token (lowercase) fields
+            const token = userObject.Token || userObject.token;
 
             if (token) {
                 config.headers['Authorization'] = `Bearer ${token}`;
@@ -177,12 +180,17 @@ axiosInstance.interceptors.request.use(
             }
 
             if (shopId && !isExcludedRoute(config.url)) {
+                // Avoid duplicating shop_id if it's already in URL query or config.params
+                const alreadyHasShopId = config.params?.shop_id !== undefined ||
+                    (config.url && new URL(config.url, window.location.origin).searchParams.has('shop_id'));
+
                 if (config.method === 'get' || config.method === 'delete') {
-                    config.params = {
-                        ...config.params,
-                        shop_id: shopId,
-                        role: userObject?.role,
-                    };
+                    if (!alreadyHasShopId) {
+                        config.params = {
+                            ...config.params,
+                            shop_id: shopId,
+                        };
+                    }
                 } else if (
                     config.method === 'post' ||
                     config.method === 'put' ||

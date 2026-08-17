@@ -11,7 +11,7 @@ import {
   BellOutlined,
   WhatsAppOutlined,
   HomeOutlined,
-  ThunderboltOutlined,
+  PhoneOutlined,
 } from "@ant-design/icons";
 import { Space, Typography, Card } from "antd";
 import { useQuery } from "@tanstack/react-query";
@@ -24,7 +24,7 @@ import BankDetailsSettings from "./BankDetailsSettings";
 import NotificationSettings from "./NotificationSettings";
 import WhatsAppSenderRegistration from "./WhatsAppSenderRegistration";
 import HotelSettings from "./HotelSettings";
-import AfricasTalkingSettings from "./AfricasTalkingSettings";
+import TwilioSettings from "./TwilioSettings";
 import { fetchShop } from "@services/shops";
 import { getPermissionChecker } from "@utils/getPermissionChecker";
 
@@ -188,16 +188,16 @@ const SystemSetup: React.FC = () => {
           </ProCard.TabPane>
 
           <ProCard.TabPane
-            key="africastalking-settings"
+            key="twilio-settings"
             tab={
               <Space>
-                <ThunderboltOutlined style={{ fontSize: 18, color: "#fa541c" }} />
-                <Text strong>Africa's Talking</Text>
+                <PhoneOutlined style={{ fontSize: 18, color: "#1890ff" }} />
+                <Text strong>Twilio Settings</Text>
               </Space>
             }
           >
             <div style={{ padding: "16px", borderRadius: "8px" }}>
-              <AfricasTalkingSettings />
+              <TwilioSettings />
             </div>
           </ProCard.TabPane>
 

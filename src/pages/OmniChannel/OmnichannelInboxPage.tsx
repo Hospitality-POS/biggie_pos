@@ -7,7 +7,7 @@ import {
     App,
     Tooltip,
     Alert,
-    Segmented,
+    Tabs,
     Empty,
     Row,
     Col,
@@ -21,12 +21,15 @@ import {
     Select,
     Form,
     message,
+    Switch,
+    Divider,
 } from "antd";
 import {
     PlusOutlined,
     MessageOutlined,
     ReloadOutlined,
     WifiOutlined,
+    SendOutlined,
     PhoneOutlined,
     TrophyOutlined,
     UserOutlined,
@@ -45,15 +48,13 @@ import {
     sendTextMessage,
 } from "@services/whatsappService";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
-import ConversationList from "./ConversationList";
-import MessageThread from "./MessageThread";
 import CallInterfaceModal from "./CallInterfaceModal";
-import { getAgentStatus, getCallHistory, initiateCall, getPhoneNumbers, getActiveCalls, answerCall, rejectCall, endCall, getAfricasTalkingVoiceToken, getAfricasTalkingAccounts, initiateAfricasTalkingCall, getTwilioVoiceToken } from "@services/twilio";
-import { getAfricasTalkingVoiceManager } from "@services/africasTalkingVoice";
+import { getAgentStatus, getCallHistory, initiateCall, getPhoneNumbers, getActiveCalls, answerCall, rejectCall, endCall, getTwilioVoiceToken, updateAgentStatus, updateAgentHeartbeat, getMissedCalls, getMissedCallStats, progressMissedCall, sendTwilioWhatsAppMessage, getTwilioWhatsAppConversations, getTwilioWhatsAppMessages, getTwilioWhatsAppTemplates, createTwilioWhatsAppTemplate, deleteTwilioWhatsAppTemplate, getTwilioWhatsAppTemplateStatus } from "@services/twilio";
 import { fetchAllUsersList } from "@services/users";
+import { fetchAllCustomers } from "@services/customers";
+import { fetchAllLeads } from "@services/crm/leads";
 import { 
     getShopId, 
-    CHANNEL_CONFIG, 
     ConversationStatus,
     WhatsAppIconComponent,
     Conversation
@@ -62,7 +63,8 @@ import {
 const { Text, Title } = Typography;
 const { TextArea } = Input;
 
-export type Channel = "all" | "whatsapp" | "africastalking";
+export type Channel = "all" | "whatsapp";
+export type ActiveTab = "calls" | "whatsapp";
 
 export interface Call {
     _id: string;
@@ -93,15 +95,30 @@ export interface AgentStatus {
 
 export interface PhoneNumber {
     _id: string;
-    voice_phone_number: string;
-    whatsapp_phone_number: string;
+    phone_number: string;
+    whatsapp_phone_number?: string;
     friendly_name?: string;
     username?: string;
+    is_active: boolean;
+    status: "active" | "inactive" | "suspended" | "released";
+    whatsapp_enabled: boolean;
     capabilities?: {
         voice: boolean;
-        whatsapp: boolean;
         sms: boolean;
-        ussd: boolean;
+        mms: boolean;
+        fax: boolean;
+    };
+    twilio_account_id?: {
+        _id: string;
+        account_type: string;
+        status: string;
+        capabilities?: {
+            voice: boolean;
+            sms: boolean;
+            whatsapp: boolean;
+            mms: boolean;
+            fax: boolean;
+        };
     };
 }
 
@@ -114,11 +131,20 @@ export interface CallFormValues {
     lead_id?: string;
     record?: boolean;
     from_number?: string;
+    associate_with?: string; // For linking calls to customers/leads
+    additional_participants?: string[]; // For adding more people to conference
 }
 
 export interface WhatsAppFormValues {
-    conversation_id: string;
+    mode: "existing" | "new";
+    conversation_id?: string;
+    to_number?: string;
+    from_number?: string;
+    messaging_service_sid?: string;
     message: string;
+    use_template?: boolean;
+    content_sid?: string;
+    template_params?: Record<string, string>;
 }
 
 const OmnichannelInboxPage: React.FC = () => {
@@ -128,7 +154,8 @@ const OmnichannelInboxPage: React.FC = () => {
     const navigate = useNavigate();
     const { message } = App.useApp();
 
-    const [activeChannel, setActiveChannel] = useState<Channel>("all");
+    const [activeTab, setActiveTab] = useState<ActiveTab>("calls");
+    const activeChannel: Channel = "all";
     const [activeStatus, setActiveStatus] = useState<ConversationStatus | "all">("all");
     const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
     const [search, setSearch] = useState("");
@@ -154,6 +181,8 @@ const OmnichannelInboxPage: React.FC = () => {
     // New call modal state
     const [newCallModalOpen, setNewCallModalOpen] = useState(false);
     const [callForm] = Form.useForm();
+    const watchedPhoneNumber = Form.useWatch('phone_number', callForm);
+    const watchedCountryCode = Form.useWatch('country_code', callForm) || '+254';
     
     // Device test state
     const [deviceReady, setDeviceReady] = useState(false);
@@ -161,6 +190,7 @@ const OmnichannelInboxPage: React.FC = () => {
     // New WhatsApp message modal state
     const [newWhatsAppModalOpen, setNewWhatsAppModalOpen] = useState(false);
     const [whatsappForm] = Form.useForm();
+    const [templateForm] = Form.useForm();
     
     // Incoming call state
     const [incomingCall, setIncomingCall] = useState<Call | null>(null);
@@ -171,32 +201,52 @@ const OmnichannelInboxPage: React.FC = () => {
     
     // Track if incoming call came from WebSocket (to prevent polling from clearing it)
     const [isWebSocketCall, setIsWebSocketCall] = useState(false);
-    
-    // Voice manager reference for making callbacks
-    const voiceManagerRef = useRef(getAfricasTalkingVoiceManager());
+
+    // Caller context for outbound calls
+    const [callerContext, setCallerContext] = useState<{ customer?: { customer_name?: string; fullname?: string; name?: string; phone?: string; phone_number?: string; email?: string; _id?: string }; lead?: { lead_name?: string; fullname?: string; name?: string; phone?: string; phone_number?: string; email?: string; _id?: string } } | null>(null);
+
+    // Twilio WhatsApp state
+    const [selectedTwilioConversation, setSelectedTwilioConversation] = useState<Conversation | null>(null);
+    const [twilioWhatsAppMessage, setTwilioWhatsAppMessage] = useState("");
+    const [twilioWhatsAppMediaUrl, setTwilioWhatsAppMediaUrl] = useState("");
+    const [templatesModalOpen, setTemplatesModalOpen] = useState(false);
+    const [showTemplateForm, setShowTemplateForm] = useState(false);
+    const [selectedTemplate, setSelectedTemplate] = useState<{ _id: string; name: string; content_sid: string; variables?: string[] } | null>(null);
+
+    // Agent availability state
+    const [isAvailable, setIsAvailable] = useState(false);
+    const heartbeatIntervalRef = useRef<number | null>(null);
     
     // WebSocket connection for incoming call notifications
     const wsRef = useRef<WebSocket | null>(null);
     
-    // Auto-initialize Africa's Talking device on mount
+    // Auto-initialize Twilio device on mount
     useEffect(() => {
         const initializeDevice = async () => {
             try {
-                console.log('🧪 Auto-initializing Africa\'s Talking device...');
-                // AfricasTalking doesn't have a browser SDK like Twilio
-                // We use backend-mediated calling instead
-                console.log('ℹ️ Africa\'s Talking uses backend-mediated calling, no browser SDK needed');
+                console.log('🧪 Auto-initializing Twilio device...');
+                // Don't auto-initialize - will initialize when making a call
+                console.log('ℹ️ Twilio device will be initialized when making a call');
                 setDeviceReady(true);
             } catch (error) {
                 console.error('❌ Auto-initialization failed:', error);
             }
         };
 
-        if (shopId) {
+        if (shopId && userId) {
             initializeDevice();
         }
     }, [shopId, userId]);
     
+    // Cleanup heartbeat on unmount
+    useEffect(() => {
+        return () => {
+            if (heartbeatIntervalRef.current) {
+                clearInterval(heartbeatIntervalRef.current);
+            }
+        };
+    }, []);
+
     // WebSocket effect
     useEffect(() => {
         const wsUrl = 'ws://localhost:3003';
@@ -239,6 +289,16 @@ const OmnichannelInboxPage: React.FC = () => {
                     } catch (error) {
                         console.warn('Failed to create audio element:', error);
                     }
+                } else if (message.type === 'missed_call_assigned') {
+                    console.log('🔔 Missed call assigned:', message.data);
+                    
+                    // Show notification with caller info
+                    const contactName = message.data.contact_name || 'Unknown';
+                    const contactPhone = message.data.contact_phone || 'Unknown';
+                    message.info(`Missed call assigned: ${contactName} (${contactPhone})`);
+                    
+                    // Refresh missed calls list
+                    queryClient.invalidateQueries({ queryKey: ["missed-calls"] });
                 }
             } catch (error) {
                 console.error('Error parsing WebSocket message:', error);
@@ -258,7 +318,7 @@ const OmnichannelInboxPage: React.FC = () => {
                 wsRef.current.close();
             }
         };
-    }, []);
+    }, [queryClient]);
     
     // Call notes state
     const [callNotes, setCallNotes] = useState("");
@@ -273,6 +333,7 @@ const OmnichannelInboxPage: React.FC = () => {
         leadId?: string;
         twilioToken?: string;
         conferenceName?: string;
+        additionalParticipants?: string[];
     } | null>(null);
 
     const {
@@ -292,10 +353,9 @@ const OmnichannelInboxPage: React.FC = () => {
     const connected = {
         whatsapp: channels.some((c: { channel: string; is_active: boolean }) => c.channel === "whatsapp" && c.is_active),
     };
-    const anyConnected = connected.whatsapp;
 
     // Twilio agent status for call readiness
-    const { data: agentStatus } = useQuery({
+    const { data: agentStatusData } = useQuery({
         queryKey: ["twilio-agent-status", shopId, userId],
         queryFn: () => getAgentStatus(shopId || "", userId || ""),
         enabled: !!shopId && !!userId,
@@ -303,14 +363,31 @@ const OmnichannelInboxPage: React.FC = () => {
         refetchInterval: 30_000,
     });
 
+    // Missed calls queries
+    const { data: missedCallsData } = useQuery({
+        queryKey: ["missed-calls", shopId],
+        queryFn: () => getMissedCalls(shopId || ""),
+        enabled: !!shopId,
+        staleTime: 60_000,
+        refetchInterval: 30_000,
+    });
+
+    const { data: missedCallStatsData } = useQuery({
+        queryKey: ["missed-call-stats", shopId],
+        queryFn: () => getMissedCallStats(shopId || ""),
+        enabled: !!shopId,
+        staleTime: 60_000,
+        refetchInterval: 60_000,
+    });
+
     // Debug: Log agent status to check API response structure
     useEffect(() => {
         console.log('👥 Agent Status Debug:', {
-            agentStatus,
-            agentCount: agentStatus?.agent_statuses?.length,
-            sampleAgent: agentStatus?.agent_statuses?.[0]
+            agentStatusData,
+            agentCount: agentStatusData?.agent_statuses?.length,
+            sampleAgent: agentStatusData?.agent_statuses?.[0]
         });
-    }, [agentStatus]);
+    }, [agentStatusData]);
 
     // Twilio call history
     const { data: callHistory } = useQuery({
@@ -319,6 +396,55 @@ const OmnichannelInboxPage: React.FC = () => {
         enabled: !!shopId,
         staleTime: 60_000,
     });
+
+    // Twilio WhatsApp conversations
+    const { data: twilioWhatsAppConversationsData, isLoading: twilioWhatsAppLoading, refetch: refetchTwilioWhatsAppConversations } = useQuery({
+        queryKey: ["twilio-whatsapp-conversations", shopId, activeTab],
+        queryFn: () => getTwilioWhatsAppConversations(shopId || "", undefined, 1, 100),
+        enabled: !!shopId && activeTab === "whatsapp",
+        staleTime: 30_000,
+        refetchInterval: activeTab === "whatsapp" ? 10_000 : false,
+    });
+
+    const twilioWhatsAppConversations = useMemo(() => twilioWhatsAppConversationsData?.conversations || [], [twilioWhatsAppConversationsData?.conversations]);
+
+    // Twilio WhatsApp messages
+    const { data: twilioWhatsAppMessagesData, isLoading: twilioWhatsAppMessagesLoading, refetch: refetchTwilioWhatsAppMessages } = useQuery({
+        queryKey: ["twilio-whatsapp-messages", selectedTwilioConversation?._id, shopId],
+        queryFn: () => getTwilioWhatsAppMessages(selectedTwilioConversation?._id || "", 1, 100),
+        enabled: !!selectedTwilioConversation?._id,
+        staleTime: 10_000,
+        refetchInterval: selectedTwilioConversation ? 5_000 : false,
+    });
+
+    const twilioWhatsAppMessages = useMemo(() => twilioWhatsAppMessagesData?.messages || [], [twilioWhatsAppMessagesData?.messages]);
+
+    // Twilio WhatsApp templates
+    const { data: twilioWhatsAppTemplatesData, refetch: refetchTwilioWhatsAppTemplates } = useQuery({
+        queryKey: ["twilio-whatsapp-templates", shopId],
+        queryFn: () => getTwilioWhatsAppTemplates(shopId || ""),
+        enabled: !!shopId,
+        staleTime: 60_000,
+    });
+
+    const twilioWhatsAppTemplates = useMemo(() => twilioWhatsAppTemplatesData?.templates || [], [twilioWhatsAppTemplatesData?.templates]);
+
+    // Calculate call statistics
+    const callStats = useMemo(() => {
+        const calls = callHistory?.calls || [];
+        const total = calls.length;
+        const successful = calls.filter((call: Call) => 
+            call.status === 'completed' || call.status === 'answered'
+        ).length;
+        const missed = calls.filter((call: Call) => 
+            call.status === 'no-answer' || call.status === 'busy' || call.status === 'failed'
+        ).length;
+        const totalDuration = calls.reduce((sum: number, call: Call) => 
+            sum + (call.duration || 0), 0
+        );
+
+        return { total, successful, missed, totalDuration };
+    }, [callHistory]);
 
     // Handle different API response structures
     const callsArray = useMemo(() => {
@@ -394,30 +520,40 @@ const OmnichannelInboxPage: React.FC = () => {
         return filtered;
     }, [usersData]);
 
-    // Fetch available phone numbers for calls from AfricasTalking
-    const { data: africasTalkingAccountsData } = useQuery({
-        queryKey: ["africastalking-accounts", shopId],
-        queryFn: () => {
-            const singleShopId = Array.isArray(shopId) ? shopId[0] : shopId;
-            return getAfricasTalkingAccounts(singleShopId, 'admin');
-        },
+    // Fetch available phone numbers for calls from Twilio
+    const { data: phoneNumbersData } = useQuery({
+        queryKey: ["twilio-phone-numbers", shopId],
+        queryFn: () => getPhoneNumbers(shopId, undefined, true),
         enabled: !!shopId,
         staleTime: 60_000,
     });
 
-    const phoneNumbers = africasTalkingAccountsData?.accounts as Array<{
-        _id: string;
-        voice_phone_number: string;
-        whatsapp_phone_number: string;
-        friendly_name?: string;
-        username?: string;
-        capabilities?: {
-            voice: boolean;
-            whatsapp: boolean;
-            sms: boolean;
-            ussd: boolean;
-        };
-    }> || [];
+    const phoneNumbers = Array.isArray(phoneNumbersData?.phone_numbers) ? phoneNumbersData.phone_numbers : [];
+    // Account supports WhatsApp
+    const phoneHasWhatsApp = (pn: PhoneNumber) =>
+        pn.whatsapp_enabled ||
+        (pn.twilio_account_id?.capabilities?.whatsapp && pn.is_active);
+    // Number is actually a configured WhatsApp sender (can be used as from)
+    const phoneHasWhatsAppSender = (pn: PhoneNumber) =>
+        pn.whatsapp_enabled && pn.is_active;
+    const hasTwilioWhatsApp = phoneNumbers.some((pn: PhoneNumber) => phoneHasWhatsApp(pn));
+    const anyConnected = connected.whatsapp || hasTwilioWhatsApp;
+
+    // Fetch customers for call association
+    const { data: customersData } = useQuery({
+        queryKey: ["customers-list", shopId],
+        queryFn: () => fetchAllCustomers({ shop_id: shopId }),
+        enabled: !!shopId,
+        staleTime: 60_000,
+    });
+
+    // Fetch leads for call association
+    const { data: leadsData } = useQuery({
+        queryKey: ["leads-list", shopId],
+        queryFn: () => fetchAllLeads({ shop_id: shopId }),
+        enabled: !!shopId,
+        staleTime: 60_000,
+    });
 
     // Poll for active calls (incoming calls)
     const { data: activeCallsData } = useQuery({
@@ -452,6 +588,54 @@ const OmnichannelInboxPage: React.FC = () => {
             setIncomingCall(null);
         }
     }, [activeCallsData, incomingCall]);
+
+    // Caller context lookup based on phone number
+    useEffect(() => {
+        const fullNumber = `${watchedCountryCode}${watchedPhoneNumber}`;
+        
+        if (!watchedPhoneNumber || watchedPhoneNumber.length < 9) {
+            setCallerContext(null);
+            return;
+        }
+
+        // Search customers and leads by phone number
+        const customers = (customersData?.customers || customersData || []) as { phone?: string; phone_number?: string; _id?: string }[];
+        const leads = (leadsData?.leads || leadsData || []) as { phone?: string; phone_number?: string; _id?: string }[];
+
+        const customerMatch = customers.find((c) => {
+            const customerPhone = String(c.phone || c.phone_number || '').trim();
+            return customerPhone.includes(watchedPhoneNumber) || customerPhone.includes(fullNumber);
+        });
+
+        const leadMatch = leads.find((l) => {
+            const leadPhone = String(l.phone || l.phone_number || '').trim();
+            return leadPhone.includes(watchedPhoneNumber) || leadPhone.includes(fullNumber);
+        });
+
+        if (customerMatch || leadMatch) {
+            setCallerContext({
+                customer: customerMatch,
+                lead: leadMatch,
+            });
+            
+            // Auto-fill associate with field
+            if (customerMatch) {
+                callForm.setFieldsValue({
+                    entity_type: 'customer',
+                    customer_id: customerMatch._id,
+                    lead_id: undefined,
+                });
+            } else if (leadMatch) {
+                callForm.setFieldsValue({
+                    entity_type: 'lead',
+                    customer_id: undefined,
+                    lead_id: leadMatch._id,
+                });
+            }
+        } else {
+            setCallerContext(null);
+        }
+    }, [watchedPhoneNumber, watchedCountryCode, customersData, leadsData, callForm]);
 
     // Track active call (answered)
     useEffect(() => {
@@ -528,10 +712,10 @@ const OmnichannelInboxPage: React.FC = () => {
                 limit: 30,
                 search: search || undefined,
             }),
-        enabled: !!shopId && anyConnected,
+        enabled: !!shopId && connected.whatsapp,
         staleTime: 5_000,
         retry: 1,
-        refetchInterval: anyConnected ? 5_000 : false,
+        refetchInterval: connected.whatsapp ? 5_000 : false,
         refetchOnWindowFocus: true,
     });
 
@@ -558,19 +742,6 @@ const OmnichannelInboxPage: React.FC = () => {
         return counts;
     }, [conversations, conversationsData]);
 
-    // Calculate channel counts from conversations array
-    const channelCounts = useMemo(() => {
-        const counts: Record<string, number> = {
-            whatsapp: 0,
-        };
-
-        conversations.forEach((conv: Conversation) => {
-            if (conv.channel === "whatsapp") counts.whatsapp++;
-        });
-
-        return counts;
-    }, [conversations]);
-
     const handleConversationSelect = useCallback((conv: Conversation) => {
         setSelectedConversation(conv);
     }, []);
@@ -587,29 +758,64 @@ const OmnichannelInboxPage: React.FC = () => {
         }
     }, [queryClient, selectedConversation]);
 
+    const handleSendTwilioWhatsApp = async () => {
+        try {
+            if (!selectedTwilioConversation || !selectedTwilioConversation.external_contact_phone) {
+                message.warning("Please select a conversation first");
+                return;
+            }
+            if (!twilioWhatsAppMessage.trim() && !twilioWhatsAppMediaUrl.trim()) {
+                message.warning("Please enter a message or media URL");
+                return;
+            }
+
+            const whatsAppPhoneNumbers = phoneNumbers.filter((pn: PhoneNumber) => phoneHasWhatsAppSender(pn));
+            if (whatsAppPhoneNumbers.length === 0) {
+                message.warning("No WhatsApp-enabled Twilio phone number available");
+                return;
+            }
+
+            const fromNumber = whatsAppPhoneNumbers[0].phone_number;
+
+            await sendTwilioWhatsAppMessage({
+                shop_id: shopId,
+                from_number: fromNumber,
+                to_number: selectedTwilioConversation.external_contact_phone,
+                body: twilioWhatsAppMessage,
+                media_url: twilioWhatsAppMediaUrl || undefined,
+            });
+
+            setTwilioWhatsAppMessage("");
+            setTwilioWhatsAppMediaUrl("");
+            queryClient.invalidateQueries({ queryKey: ["twilio-whatsapp-messages", selectedTwilioConversation._id] });
+            queryClient.invalidateQueries({ queryKey: ["twilio-whatsapp-conversations", shopId, activeTab] });
+            message.success("WhatsApp message sent");
+        } catch (error) {
+            console.error('Failed to send Twilio WhatsApp message:', error);
+            message.error('Failed to send WhatsApp message');
+        }
+    };
+
     const handleMakeCall = async (values: CallFormValues) => {
         try {
             const fullPhoneNumber = `${values.country_code}${values.phone_number}`;
             const currentUserId = userId || 'default_agent'; // Fallback if userId is not available
 
-            console.log('Initiating AfricasTalking call with userId:', currentUserId);
+            console.log('Initiating Twilio call with userId:', currentUserId);
 
             // Get the selected phone number details
             const selectedPhone = phoneNumbers.find((pn: PhoneNumber) => pn._id === values.phone_number_id);
-            const fromPhoneNumber = selectedPhone?.voice_phone_number || '';
+            const fromPhoneNumber = selectedPhone?.phone_number || '';
 
-            // Ensure shopId is a string, not an array
-            const singleShopId = Array.isArray(shopId) ? shopId[0] : shopId;
-
-            const response = await initiateAfricasTalkingCall({
-                shop_id: singleShopId,
-                account_id: values.phone_number_id,
-                to_number: fullPhoneNumber,
+            const response = await initiateCall({
+                shop_id: shopId,
                 from_number: fromPhoneNumber,
+                to_number: fullPhoneNumber,
                 customer_id: values.entity_type === "customer" ? values.customer_id : undefined,
                 lead_id: values.entity_type === "lead" ? values.lead_id : undefined,
                 agent_id: currentUserId,
                 record: values.record !== false,
+                additional_participants: values.additional_participants,
             });
 
             console.log('Backend response:', response); // Debug: Check what backend returns
@@ -617,48 +823,103 @@ const OmnichannelInboxPage: React.FC = () => {
             message.success("Call initiated successfully");
             setNewCallModalOpen(false);
 
-            // Extract sessionId from XML response if available
-            let sessionId = undefined;
-            if (typeof response === 'string' && response.includes('sessionId')) {
-                const match = response.match(/<sessionId>([^<]+)<\/sessionId>/);
-                if (match) {
-                    sessionId = match[1];
-                }
-            } else if (response.sessionId) {
-                sessionId = response.sessionId;
-            }
+            // Generate Twilio voice token for WebRTC audio
+            const token = await getTwilioVoiceToken({
+                shop_id: shopId,
+                agent_id: currentUserId,
+                agent_identity: `agent_${currentUserId}`,
+            });
 
-            // Open call interface modal with basic call information
-            // Since AfricasTalking doesn't have browser SDK, we show basic info without WebRTC
+            console.log('Twilio token generated:', token ? 'Success' : 'Failed');
+
+            // Open call interface modal with conference information and token
             setCurrentCallInfo({
                 phoneNumber: fullPhoneNumber,
                 customerId: values.entity_type === "customer" ? values.customer_id : undefined,
                 leadId: values.entity_type === "lead" ? values.lead_id : undefined,
-                twilioToken: "", // No token needed for AfricasTalking
-                conferenceName: sessionId || undefined,
+                twilioToken: token?.token || "",
+                conferenceName: response.conference_name || response.call?.conference_name || undefined,
+                additionalParticipants: values.additional_participants || [],
             });
             setCallInterfaceOpen(true);
 
             callForm.resetFields();
             queryClient.invalidateQueries({ queryKey: ["twilio-call-history"] });
-        } catch (error: any) {
+        } catch (error) {
             console.error('Failed to initiate call:', error);
-
-            // Handle specific error cases
-            if (error.response?.status === 402) {
-                message.error('Insufficient airtime/credit. Please top up your Africa\'s Talking account to make calls.');
-            } else if (error.response?.status === 404) {
-                message.error('Phone number not found. Please check your Africa\'s Talking account configuration.');
-            } else {
-                message.error(error.response?.data?.message || 'Failed to initiate call. Please try again.');
-            }
+            const axiosError = error as { response?: { data?: { message?: string } } };
+            message.error(axiosError.response?.data?.message || 'Failed to initiate call. Please try again.');
         }
     };
 
     const handleSendWhatsApp = async (values: WhatsAppFormValues) => {
         try {
-            if (values.conversation_id) {
-                // Send to existing conversation
+            if (hasTwilioWhatsApp) {
+                let fromNumber: string | undefined;
+                let messagingServiceSid: string | undefined;
+                let toNumber: string | undefined;
+
+                if (values.mode === "new") {
+                    toNumber = values.to_number;
+                    if (values.messaging_service_sid) {
+                        messagingServiceSid = values.messaging_service_sid;
+                    } else if (values.from_number) {
+                        fromNumber = values.from_number;
+                    }
+                } else {
+                    if (!values.conversation_id) {
+                        message.warning("Please select a conversation to send the message to");
+                        return;
+                    }
+                    const conv = twilioWhatsAppConversations.find((c: Conversation) => c._id === values.conversation_id);
+                    if (!conv || !conv.external_contact_phone) {
+                        message.warning("Selected conversation has no phone number");
+                        return;
+                    }
+                    toNumber = conv.external_contact_phone;
+                    if (values.messaging_service_sid) {
+                        messagingServiceSid = values.messaging_service_sid;
+                    } else if (values.from_number) {
+                        fromNumber = values.from_number;
+                    } else {
+                        const whatsAppPhoneNumbers = phoneNumbers.filter((pn: PhoneNumber) => phoneHasWhatsAppSender(pn));
+                        fromNumber = whatsAppPhoneNumbers[0]?.phone_number;
+                    }
+                }
+
+                if (!toNumber) {
+                    message.warning("Please enter recipient phone number");
+                    return;
+                }
+                if (!fromNumber && !messagingServiceSid) {
+                    message.warning("Please select a WhatsApp-enabled number or enter a Messaging Service SID");
+                    return;
+                }
+
+                await sendTwilioWhatsAppMessage({
+                    shop_id: shopId,
+                    from_number: fromNumber,
+                    messaging_service_sid: messagingServiceSid,
+                    to_number: toNumber,
+                    body: values.message,
+                    use_template: values.use_template,
+                    content_sid: values.content_sid,
+                    template_params: values.template_params,
+                });
+
+                message.success("WhatsApp message sent successfully");
+                setNewWhatsAppModalOpen(false);
+                whatsappForm.resetFields();
+                queryClient.invalidateQueries({ queryKey: ["twilio-whatsapp-conversations", shopId, activeTab] });
+                if (values.conversation_id) {
+                    queryClient.invalidateQueries({ queryKey: ["twilio-whatsapp-messages", values.conversation_id] });
+                }
+            } else if (connected.whatsapp) {
+                // Send to existing Meta conversation
+                if (!values.conversation_id) {
+                    message.warning("Please select a conversation to send the message to");
+                    return;
+                }
                 await sendTextMessage({
                     conversation_id: values.conversation_id,
                     content: values.message,
@@ -667,8 +928,6 @@ const OmnichannelInboxPage: React.FC = () => {
                 setNewWhatsAppModalOpen(false);
                 whatsappForm.resetFields();
                 queryClient.invalidateQueries({ queryKey: ["omnichannel-conversations"] });
-            } else {
-                message.warning("Please select a conversation to send the message to");
             }
         } catch (error) {
             console.error("Failed to send WhatsApp message:", error);
@@ -685,6 +944,45 @@ const OmnichannelInboxPage: React.FC = () => {
         setCallInterfaceOpen(false);
         setCurrentCallInfo(null);
         // Additional cleanup if needed
+    };
+
+    // Agent status management
+    const handleToggleAvailability = async (checked: boolean) => {
+        try {
+            const newStatus = checked ? 'available' : 'offline';
+            await updateAgentStatus({
+                shop_id: shopId,
+                agent_id: userId || '',
+                status: newStatus,
+                capabilities: { voice: true, chat: true },
+            });
+            setIsAvailable(checked);
+            
+            if (checked) {
+                // Start heartbeat
+                if (heartbeatIntervalRef.current) {
+                    clearInterval(heartbeatIntervalRef.current);
+                }
+                heartbeatIntervalRef.current = window.setInterval(async () => {
+                    try {
+                        await updateAgentHeartbeat(userId || '');
+                    } catch (error) {
+                        console.error('Heartbeat failed:', error);
+                    }
+                }, 60_000); // Every minute
+            } else {
+                // Stop heartbeat
+                if (heartbeatIntervalRef.current) {
+                    clearInterval(heartbeatIntervalRef.current);
+                    heartbeatIntervalRef.current = null;
+                }
+            }
+            
+            message.success(`Agent status set to ${newStatus}`);
+        } catch (error) {
+            console.error('Failed to update agent status:', error);
+            message.error('Failed to update agent status');
+        }
     };
 
     const handleCallMute = (muted: boolean) => {
@@ -761,38 +1059,6 @@ const OmnichannelInboxPage: React.FC = () => {
             </App>
         );
     }
-
-    const channelOptions = [
-        {
-            label: (
-                <Space size={4}>
-                    <span>All</span>
-                    {totalCount > 0 && (
-                        <Badge count={totalCount} size="small" style={{ fontSize: 10 }} />
-                    )}
-                </Space>
-            ),
-            value: "all",
-        },
-        ...["whatsapp"].map((ch) => ({
-            label: (
-                <Space size={6} align="center">
-                    <span style={{ color: CHANNEL_CONFIG[ch].color, display: "flex", alignItems: "center" }}>
-                        {CHANNEL_CONFIG[ch].icon}
-                    </span>
-                    <span style={{ lineHeight: 1 }}>{CHANNEL_CONFIG[ch].label}</span>
-                    {((channelCounts as Record<string, number>)[ch] || 0) > 0 && (
-                        <Badge
-                            count={(channelCounts as Record<string, number>)[ch]}
-                            size="small"
-                            style={{ fontSize: 10, backgroundColor: CHANNEL_CONFIG[ch].color }}
-                        />
-                    )}
-                </Space>
-            ),
-            value: ch,
-        })),
-    ];
 
     return (
         <App>
@@ -942,391 +1208,484 @@ const OmnichannelInboxPage: React.FC = () => {
 
                 {/* Main Content Grid */}
                 <Row gutter={[16, 16]} style={{ height: `calc(100vh - 280px)`, minHeight: 600, marginTop: activeCall ? 80 : 0 }}>
-                    {/* Left: Conversation List */}
-                    <Col xs={24} lg={activeCall ? 6 : 8} style={{ display: "flex", flexDirection: "column" }}>
+                    <Col xs={24} style={{ display: "flex", flexDirection: "column" }}>
                         <Card
-                            title={
-                                <Space>
-                                    <MessageOutlined />
-                                    <span>Messages</span>
-                                    <Badge count={totalCount} size="small" />
-                                </Space>
-                            }
-                            extra={
-                                <Segmented
-                                    options={channelOptions}
-                                    value={activeChannel}
-                                    onChange={(v) => {
-                                        setActiveChannel(v as Channel);
-                                        setPage(1);
-                                        setSelectedConversation(null);
-                                    }}
-                                    size="small"
-                                />
-                            }
                             style={{ borderRadius: 12, flex: 1, display: "flex", flexDirection: "column" }}
                             styles={{ body: { padding: 0, flex: 1, overflow: "hidden" } }}
                         >
-                            {!anyConnected && !channelsLoading ? (
-                                <div style={{ 
-                                    padding: 40,
-                                    textAlign: "center",
-                                    height: "100%",
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    alignItems: "center",
-                                    justifyContent: "center"
-                                }}>
-                                    <div style={{
-                                        width: 80,
-                                        height: 80,
-                                        borderRadius: "50%",
-                                        background: "#f0f5ff",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        marginBottom: 16
-                                    }}>
-                                        <WifiOutlined style={{ fontSize: 32, color: "#1890ff" }} />
-                                    </div>
-                                    <Title level={5} style={{ marginBottom: 8 }}>
-                                        Connect WhatsApp
-                                    </Title>
-                                    <Text type="secondary" style={{ fontSize: 13, display: "block", marginBottom: 16 }}>
-                                        Connect your WhatsApp via Twilio to start messaging
-                                    </Text>
-                                    <Button
-                                        type="primary"
-                                        icon={<PlusOutlined />}
-                                        onClick={() => navigate("/system-setup")}
-                                        size="small"
-                                    >
-                                        Configure Setup
-                                    </Button>
-                                </div>
-                            ) : (
-                                <div style={{ height: "100%", overflowY: "auto" }}>
-                                    <ConversationList
-                                        conversations={conversations}
-                                        loading={conversationsLoading}
-                                        selectedId={selectedConversation?._id || null}
-                                        activeStatus={activeStatus}
-                                        total={totalCount}
-                                        page={page}
-                                        pageSize={30}
-                                        search={search}
-                                        onSearchChange={(v) => { setSearch(v); setPage(1); }}
-                                        onStatusChange={(s) => { setActiveStatus(s); setPage(1); }}
-                                        onPageChange={setPage}
-                                        onSelect={handleConversationSelect}
-                                        statusCounts={statusCounts}
-                                        primaryColor={primaryColor}
-                                    />
-                                </div>
-                            )}
-                        </Card>
-                    </Col>
-
-                    {/* Center: Message Thread */}
-                    <Col xs={24} lg={activeCall ? 10 : 10} style={{ display: "flex", flexDirection: "column" }}>
-                        <Card
-                            title={
-                                selectedConversation ? (
-                                    <Space>
-                                        <Avatar size="small" icon={<UserOutlined />} />
-                                        <span>{selectedConversation.external_contact_name || "Unknown"}</span>
-                                        {selectedConversation.external_contact_phone && (
-                                            <Button 
-                                                size="small" 
-                                                type="text" 
-                                                icon={<PhoneOutlined />}
-                                                onClick={() => {
-                                                    // Quick call from conversation
-                                                    if (phoneNumbers.length > 0 && selectedConversation.external_contact_phone) {
-                                                        const phoneNumber = selectedConversation.external_contact_phone;
-                                                        // Try to extract country code and phone number
-                                                        let countryCode = "+254";
-                                                        let localNumber = phoneNumber;
-                                                        
-                                                        if (phoneNumber.startsWith("+")) {
-                                                            const match = phoneNumber.match(/^\+(\d{1,3})(\d+)$/);
-                                                            if (match) {
-                                                                countryCode = "+" + match[1];
-                                                                localNumber = match[2];
-                                                            }
-                                                        }
-                                                        
-                                                        callForm.setFieldsValue({
-                                                            phone_number_id: phoneNumbers[0]._id,
-                                                            country_code: countryCode,
-                                                            phone_number: localNumber,
-                                                            entity_type: selectedConversation.customer_id ? "customer" : undefined,
-                                                            customer_id: selectedConversation.customer_id,
-                                                        });
-                                                        setNewCallModalOpen(true);
-                                                    } else {
-                                                        message.warning("No phone numbers available");
-                                                    }
-                                                }}
-                                            />
-                                        )}
-                                    </Space>
-                                ) : (
-                                    <span>Conversation</span>
-                                )
-                            }
-                            extra={
-                                selectedConversation && (
-                                    <Space>
-                                        <Button 
-                                            size="small" 
-                                            icon={<PhoneFilled />}
-                                            onClick={() => {
-                                                if (phoneNumbers.length > 0 && selectedConversation.external_contact_phone) {
-                                                    const phoneNumber = selectedConversation.external_contact_phone;
-                                                    // Try to extract country code and phone number
-                                                    let countryCode = "+254";
-                                                    let localNumber = phoneNumber;
-                                                    
-                                                    if (phoneNumber.startsWith("+")) {
-                                                        const match = phoneNumber.match(/^\+(\d{1,3})(\d+)$/);
-                                                        if (match) {
-                                                            countryCode = "+" + match[1];
-                                                            localNumber = match[2];
-                                                        }
-                                                    }
-                                                    
-                                                    callForm.setFieldsValue({
-                                                        phone_number_id: phoneNumbers[0]._id,
-                                                        country_code: countryCode,
-                                                        phone_number: localNumber,
-                                                        entity_type: selectedConversation.customer_id ? "customer" : undefined,
-                                                        customer_id: selectedConversation.customer_id,
-                                                    });
-                                                    setNewCallModalOpen(true);
-                                                } else {
-                                                    message.warning("No phone number available");
-                                                }
-                                            }}
-                                        >
-                                            Call
-                                        </Button>
-                                    </Space>
-                                )
-                            }
-                            style={{ borderRadius: 12, flex: 1, display: "flex", flexDirection: "column" }}
-                            styles={{ body: { padding: 0, flex: 1, overflow: "hidden" } }}
-                        >
-                            {selectedConversation ? (
-                                <MessageThread
-                                    conversation={selectedConversation}
-                                    shopId={shopId}
-                                    onMessageSent={handleMessageSent}
-                                    onConversationUpdate={handleConversationUpdate}
-                                    primaryColor={primaryColor}
-                                />
-                            ) : (
-                                <div style={{
-                                    height: "100%",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    color: "#bfbfbf"
-                                }}>
-                                    <div style={{ textAlign: "center" }}>
-                                        <MessageOutlined style={{ fontSize: 48, marginBottom: 16 }} />
-                                        <div>Select a conversation to start messaging</div>
-                                    </div>
-                                </div>
-                            )}
-                        </Card>
-                    </Col>
-
-                    {/* Right: Call Center Panel */}
-                    <Col xs={24} lg={6} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                        {/* Active Agents */}
-                        <Card
-                            title={
-                                <Space size={8}>
-                                    <UserOutlined />
-                                    <span>CRM Agents</span>
-                                </Space>
-                            }
-                            size="small"
-                            style={{ borderRadius: 12 }}
-                            styles={{ body: { padding: "12px" } }}
-                        >
-                            {crmAgents.length > 0 ? (
-                                <List
-                                    size="small"
-                                    dataSource={crmAgents.slice(0, 5)}
-                                    renderItem={(agent: Agent) => (
-                                        <List.Item style={{ padding: "8px 0", border: "none" }}>
-                                            <List.Item.Meta
-                                                avatar={
-                                                    <Avatar 
-                                                        size={32} 
-                                                        src={agent.thumbnail}
-                                                        icon={!agent.thumbnail && <UserOutlined />}
-                                                    />
-                                                }
-                                                title={
-                                                    <Text style={{ fontSize: 12, fontWeight: 500 }}>
-                                                        {agent.fullname || "Unknown"}
-                                                    </Text>
-                                                }
-                                                description={
-                                                    <Space size={8}>
-                                                        <Tag 
-                                                            color="blue"
-                                                            style={{ fontSize: 10, margin: 0 }}
-                                                        >
-                                                            {agent.role_type || "Agent"}
-                                                        </Tag>
-                                                        <Text style={{ fontSize: 11, color: "#8c8c8c" }}>
-                                                            {agent.email}
-                                                        </Text>
-                                                    </Space>
-                                                }
-                                            />
-                                        </List.Item>
-                                    )}
-                                />
-                            ) : (
-                                <Empty description="No CRM agents found" style={{ padding: "20px 0" }} image={Empty.PRESENTED_IMAGE_SIMPLE} />
-                            )}
-                        </Card>
-
-                        {/* Recent Calls */}
-                        <Card
-                            title={
-                                <Space size={8}>
-                                    <PhoneOutlined />
-                                    <span>Recent Calls</span>
-                                </Space>
-                            }
-                            size="small"
-                            style={{ borderRadius: 12, flex: 1 }}
-                            styles={{ body: { padding: "12px", overflowY: "auto", maxHeight: 300 } }}
-                        >
-                            {callsArray.length > 0 ? (
-                                <List
-                                    size="small"
-                                    dataSource={callsArray.slice(0, 5)}
-                                    renderItem={(call: Call) => (
-                                        <List.Item 
-                                            style={{ padding: "8px 0", border: "none", cursor: "pointer" }}
-                                            onClick={() => {
-                                                // Quick callback
-                                                if (phoneNumbers.length > 0 && call.to_number) {
-                                                    const phoneNumber = call.to_number;
-                                                    // Try to extract country code and phone number
-                                                    let countryCode = "+254";
-                                                    let localNumber = phoneNumber;
-                                                    
-                                                    if (phoneNumber.startsWith("+")) {
-                                                        const match = phoneNumber.match(/^\+(\d{1,3})(\d+)$/);
-                                                        if (match) {
-                                                            countryCode = "+" + match[1];
-                                                            localNumber = match[2];
-                                                        }
-                                                    }
-                                                    
-                                                    callForm.setFieldsValue({
-                                                        phone_number_id: phoneNumbers[0]._id,
-                                                        country_code: countryCode,
-                                                        phone_number: localNumber,
-                                                    });
-                                                    setNewCallModalOpen(true);
-                                                }
-                                            }}
-                                        >
-                                            <List.Item.Meta
-                                                avatar={
-                                                    <Avatar 
-                                                        size={32} 
-                                                        style={{ 
-                                                            background: call.status === "completed" ? "#52c41a" : "#ff4d4f" 
-                                                        }}
-                                                        icon={<PhoneOutlined />}
-                                                    />
-                                                }
-                                                title={
-                                                    <Text style={{ fontSize: 12, fontWeight: 500 }}>
-                                                        {call.to_number || "Unknown"}
-                                                    </Text>
-                                                }
-                                                description={
-                                                    <Space size={8}>
-                                                        <Tag 
-                                                            color={call.status === "completed" ? "success" : "error"}
-                                                            style={{ fontSize: 10, margin: 0 }}
-                                                        >
-                                                            {call.status}
-                                                        </Tag>
-                                                        <Text style={{ fontSize: 11, color: "#8c8c8c" }}>
-                                                            {call.duration}s
-                                                        </Text>
-                                                    </Space>
-                                                }
-                                            />
-                                        </List.Item>
-                                    )}
-                                />
-                            ) : (
-                                <Empty description="No recent calls" style={{ padding: "20px 0" }} image={Empty.PRESENTED_IMAGE_SIMPLE} />
-                            )}
-                        </Card>
-
-                        {/* Top Performers */}
-                        {agentStatus?.agent_statuses?.length > 0 && (
-                            <Card
-                                title={
-                                    <Space size={8}>
-                                        <TrophyOutlined />
-                                        <span>Top Performers</span>
-                                    </Space>
-                                }
-                                size="small"
-                                style={{ borderRadius: 12 }}
-                                styles={{ body: { padding: "12px" } }}
-                            >
-                                <List
-                                    size="small"
-                                    dataSource={agentStatus.agent_statuses
-                                        .sort((a: AgentStatus, b: AgentStatus) => b.total_calls_today - a.total_calls_today)
-                                        .slice(0, 3)}
-                                    renderItem={(agent: AgentStatus, index: number) => (
-                                        <List.Item style={{ padding: "6px 0", border: "none" }}>
-                                            <Space size={12} style={{ width: "100%" }}>
-                                                <div style={{
-                                                    width: 24,
-                                                    height: 24,
-                                                    borderRadius: "50%",
-                                                    background: index === 0 ? "#ffd700" : index === 1 ? "#c0c0c0" : "#cd7f32",
-                                                    display: "flex",
-                                                    alignItems: "center",
-                                                    justifyContent: "center",
-                                                    fontSize: 12,
-                                                    fontWeight: 700,
-                                                    color: "#fff"
-                                                }}>
-                                                    {index + 1}
-                                                </div>
-                                                <div style={{ flex: 1 }}>
-                                                    <Text style={{ fontSize: 12, fontWeight: 500, display: "block" }}>
-                                                        {agent.agent_name || "Unknown"}
-                                                    </Text>
-                                                    <Text style={{ fontSize: 11, color: "#8c8c8c" }}>
-                                                        {agent.total_calls_today} calls
-                                                    </Text>
-                                                </div>
+                            <Tabs
+                                activeKey={activeTab}
+                                onChange={(key) => setActiveTab(key as ActiveTab)}
+                                items={[
+                                    {
+                                        key: 'calls',
+                                        label: (
+                                            <Space>
+                                                <PhoneOutlined />
+                                                <span>Calls</span>
+                                                <Badge count={callStats.total} size="small" />
                                             </Space>
-                                        </List.Item>
-                                    )}
-                                />
-                            </Card>
-                        )}
+                                        ),
+                                        children: (
+                                            <div style={{ padding: 16 }}>
+                                                {/* Call Statistics */}
+                                                <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+                                                    <Col xs={24} sm={6}>
+                                                        <Card>
+                                                            <Statistic
+                                                                title="Total Calls"
+                                                                value={callStats.total}
+                                                                prefix={<PhoneOutlined style={{ color: "#1890ff" }} />}
+                                                                valueStyle={{ color: "#1890ff", fontSize: 24, fontWeight: 600 }}
+                                                            />
+                                                        </Card>
+                                                    </Col>
+                                                    <Col xs={24} sm={6}>
+                                                        <Card>
+                                                            <Statistic
+                                                                title="Successful Calls"
+                                                                value={callStats.successful}
+                                                                prefix={<TrophyOutlined style={{ color: "#52c41a" }} />}
+                                                                valueStyle={{ color: "#52c41a", fontSize: 24, fontWeight: 600 }}
+                                                            />
+                                                        </Card>
+                                                    </Col>
+                                                    <Col xs={24} sm={6}>
+                                                        <Card>
+                                                            <Statistic
+                                                                title="Missed Calls"
+                                                                value={callStats.missed}
+                                                                prefix={<CloseCircleOutlined style={{ color: "#ff4d4f" }} />}
+                                                                valueStyle={{ color: "#ff4d4f", fontSize: 24, fontWeight: 600 }}
+                                                            />
+                                                        </Card>
+                                                    </Col>
+                                                    <Col xs={24} sm={6}>
+                                                        <Card>
+                                                            <Statistic
+                                                                title="Pending Callbacks"
+                                                                value={missedCallStatsData?.total_pending || missedCallsData?.assignments?.length || 0}
+                                                                prefix={<ClockCircleOutlined style={{ color: "#faad14" }} />}
+                                                                valueStyle={{ color: "#faad14", fontSize: 24, fontWeight: 600 }}
+                                                            />
+                                                        </Card>
+                                                    </Col>
+                                                </Row>
+
+                                                {/* Agent Monitoring */}
+                                                <Card title="Agent Status" style={{ marginBottom: 16 }}>
+                                                    <Row gutter={[16, 16]} align="middle">
+                                                        <Col xs={24} sm={12}>
+                                                            <Space direction="vertical" size={4}>
+                                                                <Text type="secondary">My Availability</Text>
+                                                                <Switch
+                                                                    checked={isAvailable}
+                                                                    onChange={handleToggleAvailability}
+                                                                    checkedChildren="Available"
+                                                                    unCheckedChildren="Offline"
+                                                                    style={{ minWidth: 90 }}
+                                                                />
+                                                            </Space>
+                                                        </Col>
+                                                        <Col xs={24} sm={12}>
+                                                            <Statistic
+                                                                title="Agents On Call"
+                                                                value={activeCallsData?.active_calls?.length || 0}
+                                                                prefix={<UserOutlined style={{ color: "#722ed1" }} />}
+                                                                valueStyle={{ color: "#722ed1", fontSize: 20, fontWeight: 600 }}
+                                                            />
+                                                        </Col>
+                                                    </Row>
+                                                </Card>
+
+                                                {/* Missed Calls Section */}
+                                                <Card 
+                                                    title="Missed Calls" 
+                                                    style={{ marginBottom: 16 }}
+                                                    extra={
+                                                        <Badge 
+                                                            count={missedCallsData?.assignments?.length || 0} 
+                                                            size="small" 
+                                                            style={{ backgroundColor: '#ff4d4f' }}
+                                                        />
+                                                    }
+                                                >
+                                                    {missedCallsData?.assignments?.length > 0 ? (
+                                                        <List
+                                                            dataSource={missedCallsData.assignments}
+                                                            renderItem={(assignment: { _id: string; contact_name?: string; contact_phone: string; status: string; assigned_at: string }) => (
+                                                                <List.Item
+                                                                    actions={[
+                                                                        <Button 
+                                                                            type="primary" 
+                                                                            size="small" 
+                                                                            icon={<PhoneFilled />}
+                                                                            onClick={async () => {
+                                                                                // Set missed call in progress and pre-fill callback form
+                                                                                await progressMissedCall(assignment._id, shopId);
+                                                                                const phone = assignment.contact_phone || '';
+                                                                                let countryCode = '+254';
+                                                                                let localNumber = phone;
+                                                                                
+                                                                                if (phone.startsWith('+')) {
+                                                                                    const match = phone.match(/^\+(\d{1,3})(\d+)$/);
+                                                                                    if (match) {
+                                                                                        countryCode = '+' + match[1];
+                                                                                        localNumber = match[2];
+                                                                                    }
+                                                                                }
+                                                                                
+                                                                                callForm.setFieldsValue({
+                                                                                    phone_number_id: phoneNumbers[0]?._id,
+                                                                                    country_code: countryCode,
+                                                                                    phone_number: localNumber,
+                                                                                    record: true,
+                                                                                });
+                                                                                setNewCallModalOpen(true);
+                                                                                queryClient.invalidateQueries({ queryKey: ["missed-calls"] });
+                                                                            }}
+                                                                        >
+                                                                            Callback
+                                                                        </Button>
+                                                                    ]}
+                                                                >
+                                                                    <List.Item.Meta
+                                                                        avatar={<Avatar icon={<PhoneOutlined />} />}
+                                                                        title={
+                                                                            <Space>
+                                                                                <Text strong>{assignment.contact_name || 'Unknown'}</Text>
+                                                                                <Text type="secondary">{assignment.contact_phone}</Text>
+                                                                            </Space>
+                                                                        }
+                                                                        description={
+                                                                            <Space>
+                                                                                <Tag color="red">{assignment.status}</Tag>
+                                                                                <Text type="secondary">
+                                                                                    {new Date(assignment.assigned_at).toLocaleString()}
+                                                                                </Text>
+                                                                            </Space>
+                                                                        }
+                                                                    />
+                                                                </List.Item>
+                                                            )}
+                                                        />
+                                                    ) : (
+                                                        <Empty description="No missed calls" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                                                    )}
+                                                </Card>
+
+                                                {/* Call History List */}
+                                                <Card title="Recent Calls">
+                                                    <List
+                                                        dataSource={callHistory?.calls?.slice(0, 10) || []}
+                                                        renderItem={(call: Call) => (
+                                                            <List.Item>
+                                                                <List.Item.Meta
+                                                                    avatar={<Avatar icon={<PhoneOutlined />} />}
+                                                                    title={
+                                                                        <Space>
+                                                                            <Text strong>{call.from_number || call.to_number}</Text>
+                                                                            <Tag color={call.status === 'completed' ? 'green' : call.status === 'no-answer' ? 'red' : 'blue'}>
+                                                                                {call.status}
+                                                                            </Tag>
+                                                                        </Space>
+                                                                    }
+                                                                    description={
+                                                                        <Space>
+                                                                            <Text type="secondary">{call.direction}</Text>
+                                                                            <Text type="secondary">{call.duration}s</Text>
+                                                                            <Text type="secondary">{new Date(call.createdAt || call.start_time || '').toLocaleString()}</Text>
+                                                                        </Space>
+                                                                    }
+                                                                />
+                                                            </List.Item>
+                                                        )}
+                                                    />
+                                                </Card>
+                                            </div>
+                                        ),
+                                    },
+                                    {
+                                        key: 'whatsapp',
+                                        label: (
+                                            <Space>
+                                                <CommentOutlined />
+                                                <span>WhatsApp</span>
+                                                <Badge count={twilioWhatsAppConversations.length} size="small" />
+                                            </Space>
+                                        ),
+                                        children: (
+                                            <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                                                <Row gutter={[16, 16]} style={{ height: '100%' }}>
+                                                    {/* Left: Twilio WhatsApp Conversation List */}
+                                                    <Col xs={24} lg={8} style={{ display: "flex", flexDirection: "column" }}>
+                                                        <Card
+                                                            title={
+                                                                <Space>
+                                                                    <MessageOutlined />
+                                                                    <span>Conversations</span>
+                                                                    <Badge count={twilioWhatsAppConversations.length} size="small" />
+                                                                </Space>
+                                                            }
+                                                            extra={
+                                                                <Space>
+                                                                    <Button
+                                                                        type="primary"
+                                                                        icon={<FileOutlined />}
+                                                                        onClick={() => setTemplatesModalOpen(true)}
+                                                                        size="small"
+                                                                    >
+                                                                        Templates
+                                                                    </Button>
+                                                                    <Tooltip title="Refresh">
+                                                                        <Button
+                                                                            icon={<ReloadOutlined />}
+                                                                            size="small"
+                                                                            onClick={() => refetchTwilioWhatsAppConversations()}
+                                                                            loading={twilioWhatsAppLoading}
+                                                                        />
+                                                                    </Tooltip>
+                                                                </Space>
+                                                            }
+                                                            style={{ borderRadius: 12, flex: 1, display: "flex", flexDirection: "column" }}
+                                                            styles={{ body: { padding: 0, flex: 1, overflow: "hidden" } }}
+                                                        >
+                                                            {phoneNumbers.filter((pn: PhoneNumber) => phoneHasWhatsAppSender(pn)).length === 0 ? (
+                                                                <div style={{ 
+                                                                    padding: 40,
+                                                                    textAlign: "center",
+                                                                    height: "100%",
+                                                                    display: "flex",
+                                                                    flexDirection: "column",
+                                                                    alignItems: "center",
+                                                                    justifyContent: "center"
+                                                                }}>
+                                                                    <div style={{
+                                                                        width: 80,
+                                                                        height: 80,
+                                                                        borderRadius: "50%",
+                                                                        background: "#f0f5ff",
+                                                                        display: "flex",
+                                                                        alignItems: "center",
+                                                                        justifyContent: "center",
+                                                                        marginBottom: 16
+                                                                    }}>
+                                                                        <WifiOutlined style={{ fontSize: 32, color: "#1890ff" }} />
+                                                                    </div>
+                                                                    <Title level={5} style={{ marginBottom: 8 }}>
+                                                                        Connect WhatsApp
+                                                                    </Title>
+                                                                    <Text type="secondary" style={{ fontSize: 13, display: "block", marginBottom: 16 }}>
+                                                                        Connect your WhatsApp via Twilio to start messaging
+                                                                    </Text>
+                                                                    <Button
+                                                                        type="primary"
+                                                                        icon={<PlusOutlined />}
+                                                                        onClick={() => navigate("/system-setup")}
+                                                                        size="small"
+                                                                    >
+                                                                        Configure Setup
+                                                                    </Button>
+                                                                </div>
+                                                            ) : (
+                                                                <div style={{ height: "100%", overflowY: "auto" }}>
+                                                                    <List
+                                                                        loading={twilioWhatsAppLoading}
+                                                                        dataSource={twilioWhatsAppConversations}
+                                                                        renderItem={(conv: Conversation) => (
+                                                                            <List.Item
+                                                                                onClick={() => {
+                                                                                    setSelectedTwilioConversation(conv);
+                                                                                }}
+                                                                                style={{
+                                                                                    padding: '12px 16px',
+                                                                                    cursor: 'pointer',
+                                                                                    background: selectedTwilioConversation?._id === conv._id ? '#f0f7ff' : 'transparent',
+                                                                                    borderBottom: '1px solid #f5f5f5',
+                                                                                }}
+                                                                            >
+                                                                                <List.Item.Meta
+                                                                                    avatar={<Avatar icon={<UserOutlined />} />}
+                                                                                    title={
+                                                                                        <Space>
+                                                                                            <Text strong>{conv.external_contact_name || 'Unknown'}</Text>
+                                                                                            {conv.unread_count > 0 && <Badge count={conv.unread_count} size="small" />}
+                                                                                        </Space>
+                                                                                    }
+                                                                                    description={
+                                                                                        <Space direction="vertical" size={0} style={{ width: '100%' }}>
+                                                                                            <Text type="secondary" style={{ fontSize: 12 }}>{conv.external_contact_phone}</Text>
+                                                                                            <Text ellipsis style={{ fontSize: 12, maxWidth: 200 }}>{conv.last_message_preview}</Text>
+                                                                                            {(conv.customer_id || conv.lead_id) && (
+                                                                                                <Space size={4} style={{ marginTop: 4 }}>
+                                                                                                    {conv.customer_id && (
+                                                                                                        <Tag color="green" size="small">
+                                                                                                            {(conv.customer_id as any).customer_name || 'Customer'}
+                                                                                                        </Tag>
+                                                                                                    )}
+                                                                                                    {conv.lead_id && (
+                                                                                                        <Tag color="orange" size="small">
+                                                                                                            {(conv.lead_id as any).lead_name || 'Lead'}
+                                                                                                        </Tag>
+                                                                                                    )}
+                                                                                                </Space>
+                                                                                            )}
+                                                                                        </Space>
+                                                                                    }
+                                                                                />
+                                                                                <div style={{ textAlign: 'right' }}>
+                                                                                    <Text type="secondary" style={{ fontSize: 11 }}>
+                                                                                        {conv.last_message_at ? new Date(conv.last_message_at).toLocaleDateString() : ''}
+                                                                                    </Text>
+                                                                                </div>
+                                                                            </List.Item>
+                                                                        )}
+                                                                    />
+                                                                </div>
+                                                            )}
+                                                        </Card>
+                                                    </Col>
+
+                                                    {/* Center: Twilio WhatsApp Message Thread */}
+                                                    <Col xs={24} lg={16} style={{ display: "flex", flexDirection: "column" }}>
+                                                        <Card
+                                                            title={
+                                                                selectedTwilioConversation ? (
+                                                                    <Space>
+                                                                        <Avatar size="small" icon={<UserOutlined />} />
+                                                                        <span>{selectedTwilioConversation.external_contact_name || "Unknown"}</span>
+                                                                        {selectedTwilioConversation.customer_id && (
+                                                                            <Tag color="green" size="small">
+                                                                                {(selectedTwilioConversation.customer_id as any).customer_name || 'Customer'}
+                                                                            </Tag>
+                                                                        )}
+                                                                        {selectedTwilioConversation.lead_id && (
+                                                                            <Tag color="orange" size="small">
+                                                                                {(selectedTwilioConversation.lead_id as any).lead_name || 'Lead'}
+                                                                            </Tag>
+                                                                        )}
+                                                                        {selectedTwilioConversation.external_contact_phone && (
+                                                                            <Button 
+                                                                                size="small" 
+                                                                                type="text" 
+                                                                                icon={<PhoneOutlined />}
+                                                                                onClick={() => {
+                                                                                    if (phoneNumbers.length > 0 && selectedTwilioConversation.external_contact_phone) {
+                                                                                        const phoneNumber = selectedTwilioConversation.external_contact_phone;
+                                                                                        let countryCode = "+254";
+                                                                                        let localNumber = phoneNumber;
+                                                                                        
+                                                                                        if (phoneNumber.startsWith("+")) {
+                                                                                            const match = phoneNumber.match(/^\+(\d{1,3})(\d+)$/);
+                                                                                            if (match) {
+                                                                                                countryCode = "+" + match[1];
+                                                                                                localNumber = match[2];
+                                                                                            }
+                                                                                        }
+
+                                                                                        callForm.setFieldsValue({
+                                                                                            phone_number_id: phoneNumbers[0]._id,
+                                                                                            country_code: countryCode,
+                                                                                            phone_number: localNumber,
+                                                                                            entity_type: selectedTwilioConversation.customer_id ? "customer" : undefined,
+                                                                                            customer_id: (selectedTwilioConversation.customer_id as any)?._id,
+                                                                                            lead_id: (selectedTwilioConversation.lead_id as any)?._id,
+                                                                                        });
+                                                                                        setNewCallModalOpen(true);
+                                                                                    } else {
+                                                                                        message.warning("No phone number available");
+                                                                                    }
+                                                                                }}
+                                                                            />
+                                                                        )}
+                                                                    </Space>
+                                                                ) : "Conversation"
+                                                            }
+                                                            style={{ borderRadius: 12, flex: 1, display: "flex", flexDirection: "column" }}
+                                                            styles={{ body: { padding: 0, flex: 1, overflow: "hidden" } }}
+                                                        >
+                                                            {selectedTwilioConversation ? (
+                                                                <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                                                                    <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
+                                                                        <List
+                                                                            loading={twilioWhatsAppMessagesLoading}
+                                                                            dataSource={twilioWhatsAppMessages}
+                                                                            renderItem={(msg: any) => (
+                                                                                <div style={{
+                                                                                    display: 'flex',
+                                                                                    justifyContent: msg.direction === 'outbound' ? 'flex-end' : 'flex-start',
+                                                                                    marginBottom: 8,
+                                                                                }}>
+                                                                                    <div style={{
+                                                                                        maxWidth: '70%',
+                                                                                        padding: '8px 12px',
+                                                                                        borderRadius: 12,
+                                                                                        background: msg.direction === 'outbound' ? primaryColor : '#f5f5f5',
+                                                                                        color: msg.direction === 'outbound' ? '#fff' : '#000',
+                                                                                    }}>
+                                                                                        {msg.media_url && (
+                                                                                            <a href={msg.media_url} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>
+                                                                                                Media
+                                                                                            </a>
+                                                                                        )}
+                                                                                        <Text style={{ color: 'inherit' }}>{msg.content}</Text>
+                                                                                        <div style={{ fontSize: 10, opacity: 0.7, marginTop: 4, textAlign: 'right' }}>
+                                                                                            {new Date(msg.createdAt).toLocaleTimeString()}
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </div>
+                                                                            )}
+                                                                        />
+                                                                    </div>
+                                                                    <div style={{ padding: 12, borderTop: '1px solid #f0f0f0', background: '#fff' }}>
+                                                                        <Space.Compact style={{ width: '100%' }}>
+                                                                            <Input
+                                                                                placeholder="Type a message..."
+                                                                                value={twilioWhatsAppMessage}
+                                                                                onChange={(e) => setTwilioWhatsAppMessage(e.target.value)}
+                                                                                onPressEnter={handleSendTwilioWhatsApp}
+                                                                                style={{ flex: 1 }}
+                                                                            />
+                                                                            <Input
+                                                                                placeholder="Media URL (optional)"
+                                                                                value={twilioWhatsAppMediaUrl}
+                                                                                onChange={(e) => setTwilioWhatsAppMediaUrl(e.target.value)}
+                                                                                style={{ width: 180 }}
+                                                                            />
+                                                                            <Button
+                                                                                type="primary"
+                                                                                icon={<SendOutlined />}
+                                                                                onClick={handleSendTwilioWhatsApp}
+                                                                                loading={false}
+                                                                            >
+                                                                                Send
+                                                                            </Button>
+                                                                        </Space.Compact>
+                                                                    </div>
+                                                                </div>
+                                                            ) : (
+                                                                <div style={{
+                                                                    height: "100%",
+                                                                    display: "flex",
+                                                                    alignItems: "center",
+                                                                    justifyContent: "center",
+                                                                    color: "#bfbfbf"
+                                                                }}>
+                                                                    <div style={{ textAlign: "center" }}>
+                                                                        <MessageOutlined style={{ fontSize: 48, marginBottom: 16 }} />
+                                                                        <div>Select a conversation to start messaging</div>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </Card>
+                                                    </Col>
+                                                </Row>
+                                            </div>
+                                        ),
+                                    },
+                                ]}
+                            />
+                        </Card>
                     </Col>
                 </Row>
 
@@ -1350,19 +1709,11 @@ const OmnichannelInboxPage: React.FC = () => {
                         <Alert
                             type="warning"
                             message="No Phone Numbers Available"
-                            description="Please add an AfricasTalking account in System Setup to make calls."
+                            description="Please add a Twilio account in System Setup to make calls."
                             showIcon
                             style={{ marginBottom: 16 }}
                         />
-                    ) : (
-                        <Alert
-                            type="info"
-                            message="Airtime Required"
-                            description="Ensure your AfricasTalking account has sufficient airtime/credit to make calls."
-                            showIcon
-                            style={{ marginBottom: 16 }}
-                        />
-                    )}
+                    ) : null}
                     <Form
                         form={callForm}
                         layout="vertical"
@@ -1379,7 +1730,7 @@ const OmnichannelInboxPage: React.FC = () => {
                                 options={phoneNumbers
                                     .filter((pn: PhoneNumber) => pn.capabilities?.voice)
                                     .map((pn: PhoneNumber) => ({
-                                    label: `${pn.voice_phone_number} (${pn.friendly_name || pn.username || 'AfricasTalking'})`,
+                                    label: `${pn.phone_number} (${pn.friendly_name || 'Twilio'})`,
                                     value: pn._id,
                                 }))}
                             />
@@ -1436,6 +1787,55 @@ const OmnichannelInboxPage: React.FC = () => {
                                 </Form.Item>
                             </Space.Compact>
                         </Form.Item>
+
+                        {/* Caller Context Popup */}
+                        {callerContext && (
+                            <Card
+                                size="small"
+                                title={
+                                    <Space>
+                                        <UserOutlined />
+                                        <span>Caller Context</span>
+                                    </Space>
+                                }
+                                style={{ marginBottom: 16, backgroundColor: '#f0f5ff', borderColor: '#1890ff' }}
+                            >
+                                <Space direction="vertical" style={{ width: '100%' }} size={8}>
+                                    {callerContext.customer && (
+                                        <div>
+                                            <Tag color="green">Customer</Tag>
+                                            <Text strong style={{ display: 'block' }}>
+                                                {callerContext.customer.customer_name || callerContext.customer.fullname || callerContext.customer.name}
+                                            </Text>
+                                            <Text type="secondary" style={{ fontSize: 12 }}>
+                                                Phone: {callerContext.customer.phone || callerContext.customer.phone_number}
+                                            </Text>
+                                            {callerContext.customer.email && (
+                                                <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>
+                                                    Email: {callerContext.customer.email}
+                                                </Text>
+                                            )}
+                                        </div>
+                                    )}
+                                    {callerContext.lead && (
+                                        <div>
+                                            <Tag color="blue">Lead</Tag>
+                                            <Text strong style={{ display: 'block' }}>
+                                                {callerContext.lead.lead_name || callerContext.lead.fullname || callerContext.lead.name}
+                                            </Text>
+                                            <Text type="secondary" style={{ fontSize: 12 }}>
+                                                Phone: {callerContext.lead.phone || callerContext.lead.phone_number}
+                                            </Text>
+                                            {callerContext.lead.email && (
+                                                <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>
+                                                    Email: {callerContext.lead.email}
+                                                </Text>
+                                            )}
+                                        </div>
+                                    )}
+                                </Space>
+                            </Card>
+                        )}
 
                         {/* Dial Pad */}
                         <Card size="small" style={{ marginBottom: 16 }}>
@@ -1505,12 +1905,68 @@ const OmnichannelInboxPage: React.FC = () => {
                             <Select
                                 placeholder="Optional: Associate with customer or lead"
                                 allowClear
+                                onChange={(value) => {
+                                    // Clear the ID field when entity type changes
+                                    if (!value) {
+                                        callForm.setFieldsValue({ customer_id: undefined, lead_id: undefined });
+                                    }
+                                }}
                                 options={[
                                     { label: "Customer", value: "customer" },
                                     { label: "Lead", value: "lead" },
                                 ]}
                             />
                         </Form.Item>
+
+                        {callForm.getFieldValue('entity_type') === 'customer' && (
+                            <Form.Item
+                                label="Select Customer"
+                                name="customer_id"
+                                rules={[{ required: true, message: "Please select a customer" }]}
+                            >
+                                <Select
+                                    placeholder="Search and select customer"
+                                    showSearch
+                                    optionFilterProp="label"
+                                    options={customersData?.map((customer: { _id: string; fullname?: string; name?: string; phone?: string; email?: string }) => ({
+                                        label: `${customer.fullname || customer.name} (${customer.phone || customer.email || 'No contact'})`,
+                                        value: customer._id
+                                    })) || []}
+                                />
+                            </Form.Item>
+                        )}
+
+                        {callForm.getFieldValue('entity_type') === 'lead' && (
+                            <Form.Item
+                                label="Select Lead"
+                                name="lead_id"
+                                rules={[{ required: true, message: "Please select a lead" }]}
+                            >
+                                <Select
+                                    placeholder="Search and select lead"
+                                    showSearch
+                                    optionFilterProp="label"
+                                    options={leadsData?.map((lead: { _id: string; fullname?: string; name?: string; phone?: string; email?: string }) => ({
+                                        label: `${lead.fullname || lead.name} (${lead.phone || lead.email || 'No contact'})`,
+                                        value: lead._id
+                                    })) || []}
+                                />
+                            </Form.Item>
+                        )}
+
+                        <Form.Item
+                            label="Add Participants (Optional)"
+                            name="additional_participants"
+                            tooltip="Add more people to the conference call"
+                        >
+                            <Select
+                                mode="tags"
+                                placeholder="Enter phone numbers to add to conference"
+                                tokenSeparators={[',']}
+                                style={{ width: '100%' }}
+                            />
+                        </Form.Item>
+
                         <Form.Item
                             label="Record Call"
                             name="record"
@@ -1557,23 +2013,87 @@ const OmnichannelInboxPage: React.FC = () => {
                         form={whatsappForm}
                         layout="vertical"
                         onFinish={handleSendWhatsApp}
+                        initialValues={{ mode: "existing" }}
                     >
                         <Form.Item
-                            label="Select Conversation"
-                            name="conversation_id"
-                            rules={[{ required: true, message: "Please select a conversation" }]}
+                            label="Send To"
+                            name="mode"
+                            rules={[{ required: true }]}
                         >
                             <Select
-                                placeholder="Select a conversation"
                                 disabled={!anyConnected}
-                                showSearch
-                                optionFilterProp="children"
-                                options={conversations.map((conv: Conversation) => ({
-                                    label: `${conv.external_contact_name} (${conv.external_contact_phone || conv.external_contact_id})`,
-                                    value: conv._id,
-                                }))}
+                                options={[
+                                    { label: "Existing conversation", value: "existing" },
+                                    { label: "New phone number", value: "new" },
+                                ]}
                             />
                         </Form.Item>
+
+                        <Form.Item noStyle shouldUpdate={(prev, current) => prev.mode !== current.mode}>
+                            {({ getFieldValue }) =>
+                                getFieldValue("mode") === "new" ? (
+                                    <>
+                                        <Form.Item
+                                            label="From Phone Number"
+                                            name="from_number"
+                                        >
+                                            <Select
+                                                placeholder="Select a WhatsApp-enabled number (or use messaging service)"
+                                                disabled={!anyConnected}
+                                                options={phoneNumbers
+                                                    .filter((pn: PhoneNumber) => phoneHasWhatsAppSender(pn))
+                                                    .map((pn: PhoneNumber) => ({
+                                                        label: `${pn.friendly_name || pn.phone_number} (${pn.phone_number})`,
+                                                        value: pn.phone_number,
+                                                    }))}
+                                            />
+                                        </Form.Item>
+                                        <Form.Item
+                                            label="OR Messaging Service SID"
+                                            name="messaging_service_sid"
+                                        >
+                                            <Input
+                                                placeholder="MG..."
+                                                disabled={!anyConnected}
+                                            />
+                                        </Form.Item>
+                                        <Form.Item
+                                            label="To Phone Number"
+                                            name="to_number"
+                                            rules={[{ required: true, message: "Please enter recipient phone number" }]}
+                                        >
+                                            <Input
+                                                placeholder="e.g. +254712345678"
+                                                disabled={!anyConnected}
+                                            />
+                                        </Form.Item>
+                                    </>
+                                ) : (
+                                    <Form.Item
+                                        label="Select Conversation"
+                                        name="conversation_id"
+                                        rules={[{ required: true, message: "Please select a conversation" }]}
+                                    >
+                                        <Select
+                                            placeholder="Select a conversation"
+                                            disabled={!anyConnected}
+                                            showSearch
+                                            optionFilterProp="children"
+                                            options={hasTwilioWhatsApp
+                                                ? twilioWhatsAppConversations.map((conv: Conversation) => ({
+                                                    label: `${conv.external_contact_name} (${conv.external_contact_phone || conv.external_contact_id})`,
+                                                    value: conv._id,
+                                                }))
+                                                : conversations.map((conv: Conversation) => ({
+                                                    label: `${conv.external_contact_name} (${conv.external_contact_phone || conv.external_contact_id})`,
+                                                    value: conv._id,
+                                                }))}
+                                        />
+                                    </Form.Item>
+                                )
+                            }
+                        </Form.Item>
+
                         <Form.Item
                             label="Message"
                             name="message"
@@ -1592,6 +2112,222 @@ const OmnichannelInboxPage: React.FC = () => {
                             style={{ marginTop: 8 }}
                         />
                     </Form>
+                </Modal>
+
+                {/* WhatsApp Templates Modal */}
+                <Modal
+                    title={
+                        <Space>
+                            <FileOutlined />
+                            <span>WhatsApp Templates</span>
+                        </Space>
+                    }
+                    open={templatesModalOpen}
+                    onCancel={() => setTemplatesModalOpen(false)}
+                    footer={null}
+                    width={600}
+                >
+                    <div style={{ marginBottom: 16, textAlign: "right" }}>
+                        <Button
+                            type="primary"
+                            icon={<PlusOutlined />}
+                            onClick={() => setShowTemplateForm(true)}
+                            disabled={showTemplateForm}
+                        >
+                            Add New Template
+                        </Button>
+                    </div>
+
+                    {showTemplateForm && (
+                        <Card
+                            title="Create New Template"
+                            extra={
+                                <Button
+                                    type="text"
+                                    icon={<CloseCircleOutlined />}
+                                    onClick={() => {
+                                        setShowTemplateForm(false);
+                                        templateForm.resetFields();
+                                    }}
+                                >
+                                    Cancel
+                                </Button>
+                            }
+                            style={{ marginBottom: 16 }}
+                        >
+                            <Form
+                                form={templateForm}
+                                layout="vertical"
+                                onFinish={async (values) => {
+                                    try {
+                                        const twilioAccountId = values.twilio_account_id || (phoneNumbers[0]?.twilio_account_id?._id || "");
+                                        await createTwilioWhatsAppTemplate({
+                                            shop_id: shopId,
+                                            twilio_account_id: twilioAccountId,
+                                            name: values.name,
+                                            body: values.body,
+                                            language: values.language,
+                                            category: values.category,
+                                            variables: values.variables ? values.variables.split(",").map((v: string) => v.trim()) : [],
+                                        });
+                                        refetchTwilioWhatsAppTemplates();
+                                        setShowTemplateForm(false);
+                                        templateForm.resetFields();
+                                    } catch (error) {
+                                        console.error("Failed to add template:", error);
+                                    }
+                                }}
+                            >
+                                <Form.Item
+                                    label="Template Name"
+                                    name="name"
+                                    rules={[{ required: true, message: "Please enter template name" }]}
+                                >
+                                    <Input placeholder="e.g. Order Confirmation" />
+                                </Form.Item>
+                                <Form.Item
+                                    label="Template Body"
+                                    name="body"
+                                    rules={[{ required: true, message: "Please enter template body" }]}
+                                >
+                                    <TextArea
+                                        placeholder="Hello {{customer_name}}, your order {{order_id}} is confirmed."
+                                        autoSize={{ minRows: 3, maxRows: 6 }}
+                                    />
+                                </Form.Item>
+                                <Row gutter={16}>
+                                    <Col span={12}>
+                                        <Form.Item
+                                            label="Language"
+                                            name="language"
+                                            initialValue="en"
+                                        >
+                                            <Input placeholder="en" />
+                                        </Form.Item>
+                                    </Col>
+                                    <Col span={12}>
+                                        <Form.Item
+                                            label="Category"
+                                            name="category"
+                                            initialValue="UTILITY"
+                                        >
+                                            <Select
+                                                options={[
+                                                    { label: "Marketing", value: "MARKETING" },
+                                                    { label: "Utility", value: "UTILITY" },
+                                                    { label: "Authentication", value: "AUTHENTICATION" },
+                                                ]}
+                                            />
+                                        </Form.Item>
+                                    </Col>
+                                </Row>
+                                <Form.Item
+                                    label="Variables (comma separated)"
+                                    name="variables"
+                                >
+                                    <Input placeholder="order_id, customer_name" />
+                                </Form.Item>
+                                <Form.Item
+                                    label="Twilio Account"
+                                    name="twilio_account_id"
+                                >
+                                    <Select
+                                        placeholder="Select Twilio account"
+                                        options={phoneNumbers
+                                            .map((pn: PhoneNumber) => pn.twilio_account_id)
+                                            .filter((acc, index, self) => acc && self.findIndex((a) => a?._id === acc?._id) === index)
+                                            .map((acc) => ({
+                                                label: `${acc?.account_type || "Account"} - ${acc?._id || ""}`,
+                                                value: acc?._id,
+                                            }))}
+                                    />
+                                </Form.Item>
+                                <Space>
+                                    <Button type="primary" htmlType="submit">
+                                        Submit to Twilio
+                                    </Button>
+                                    <Button onClick={() => {
+                                        setShowTemplateForm(false);
+                                        templateForm.resetFields();
+                                    }}>
+                                        Cancel
+                                    </Button>
+                                </Space>
+                            </Form>
+                        </Card>
+                    )}
+
+                    <List
+                        loading={!twilioWhatsAppTemplatesData}
+                        grid={{ gutter: 16, column: 1 }}
+                        dataSource={twilioWhatsAppTemplates}
+                        locale={{ emptyText: <Empty description="No WhatsApp templates yet" /> }}
+                        renderItem={(tmpl: any) => (
+                            <List.Item>
+                                <Card
+                                    size="small"
+                                    title={
+                                        <Space>
+                                            <Text strong>{tmpl.name}</Text>
+                                            <Tag color={
+                                                tmpl.status === "approved" ? "green" :
+                                                tmpl.status === "rejected" ? "red" : "orange"
+                                            }>
+                                                {tmpl.status || "pending"}
+                                            </Tag>
+                                        </Space>
+                                    }
+                                    extra={
+                                        <Space>
+                                            {tmpl.status !== "approved" && (
+                                                <Button
+                                                    size="small"
+                                                    onClick={async () => {
+                                                        try {
+                                                            await getTwilioWhatsAppTemplateStatus(tmpl._id);
+                                                            refetchTwilioWhatsAppTemplates();
+                                                            message.success("Template status refreshed");
+                                                        } catch (error) {
+                                                            console.error("Failed to refresh template status:", error);
+                                                            message.error("Failed to refresh status");
+                                                        }
+                                                    }}
+                                                >
+                                                    Refresh Status
+                                                </Button>
+                                            )}
+                                            <Button
+                                                danger
+                                                size="small"
+                                                onClick={async () => {
+                                                    try {
+                                                        await deleteTwilioWhatsAppTemplate(tmpl._id);
+                                                        refetchTwilioWhatsAppTemplates();
+                                                    } catch (error) {
+                                                        console.error("Failed to delete template:", error);
+                                                    }
+                                                }}
+                                            >
+                                                Delete
+                                            </Button>
+                                        </Space>
+                                    }
+                                >
+                                    <Space direction="vertical" size="small" style={{ width: "100%" }}>
+                                        <Text type="secondary">{tmpl.content_sid}</Text>
+                                        <Text>{tmpl.body}</Text>
+                                        <Space wrap>
+                                            <Tag>{tmpl.language}</Tag>
+                                            <Tag>{tmpl.category}</Tag>
+                                            {tmpl.variables?.map((v: string) => (
+                                                <Tag key={v} color="blue">{`{{${v}}}`}</Tag>
+                                            ))}
+                                        </Space>
+                                    </Space>
+                                </Card>
+                            </List.Item>
+                        )}
+                    />
                 </Modal>
 
                 {/* Incoming Call Modal */}
@@ -1944,6 +2680,7 @@ const OmnichannelInboxPage: React.FC = () => {
                     leadId={currentCallInfo?.leadId}
                     twilioToken={currentCallInfo?.twilioToken}
                     conferenceName={currentCallInfo?.conferenceName}
+                    additionalParticipants={currentCallInfo?.additionalParticipants}
                     onEndCall={handleCallInterfaceEnd}
                     onMuteToggle={handleCallMute}
                     onHoldToggle={handleCallHold}

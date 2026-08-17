@@ -109,47 +109,6 @@ export const testTwilioCredentials = async (data: {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// AFRICASTALKING ACCOUNT MANAGEMENT
-// ─────────────────────────────────────────────────────────────────────────────
-
-export const getAfricasTalkingAccounts = async (shopId: string, role?: string) => {
-  try {
-    let url = `${BASE_URL}/api/crm/africastalking/accounts?shop_id=${shopId}`;
-    if (role) url += `&role=${role}`;
-    const response = await axiosInstance.get(url);
-    return response.data;
-  } catch (error: unknown) {
-    console.error('Failed to fetch AfricasTalking accounts:', error);
-    throw error;
-  }
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// AFRICASTALKING VOICE CALLING
-// ─────────────────────────────────────────────────────────────────────────────
-
-export const initiateAfricasTalkingCall = async (data: {
-  shop_id: string;
-  account_id: string;
-  to_number: string;
-  from_number?: string;
-  customer_id?: string;
-  lead_id?: string;
-  agent_id?: string;
-  record?: boolean;
-}) => {
-  try {
-    const url = `${BASE_URL}/api/crm/africastalking/voice/initiate`;
-    const response = await axiosInstance.post(url, data);
-    return response.data;
-  } catch (error: unknown) {
-    const errorResponse = error as { response?: { data?: { message?: string; status?: string } } };
-    // Don't show error message here - let the frontend handle specific error cases
-    throw error;
-  }
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
 // PHONE NUMBER MANAGEMENT
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -257,95 +216,6 @@ export const getPhoneNumberUsage = async (phoneNumberId: string, periodType = "m
     return response.data;
   } catch (error: unknown) {
     message.error((error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to fetch phone number usage");
-    throw error;
-  }
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// AFRICA'S TALKING INTEGRATION
-// ─────────────────────────────────────────────────────────────────────────────
-
-export const createAfricasTalkingAccount = async (data: {
-  shop_id: string;
-  username: string;
-  api_key: string;
-  voice_phone_number: string;
-  whatsapp_phone_number: string;
-  sms_sender_id?: string;
-  account_type?: "sandbox" | "production";
-  capabilities?: {
-    voice: boolean;
-    whatsapp: boolean;
-    sms: boolean;
-    ussd?: boolean;
-  };
-}) => {
-  try {
-    const url = `${BASE_URL}/api/crm/africastalking/accounts`;
-    const response = await axiosInstance.post(url, data);
-    message.success("Africa's Talking account created successfully");
-    return response.data;
-  } catch (error: unknown) {
-    message.error((error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to create Africa's Talking account");
-    throw error;
-  }
-};
-
-export const getAfricasTalkingVoiceToken = async (data: {
-  shop_id: string;
-  account_id: string;
-  user_id?: string;
-  clientName?: string;
-}) => {
-  try {
-    const url = `${BASE_URL}/api/crm/africastalking/voice/token`;
-    const response = await axiosInstance.post(url, data);
-    return response.data;
-  } catch (error: unknown) {
-    console.error('Error getting Africa\'s Talking voice token:', error);
-    // Don't show error message to user - just log it
-    throw error;
-  }
-};
-
-export const sendAfricasTalkingWhatsAppMessage = async (data: {
-  phoneNumber: string;
-  message: string;
-  mediaType?: string;
-  url?: string;
-  caption?: string;
-}) => {
-  try {
-    const url = `${BASE_URL}/api/crm/africastalking/whatsapp/send`;
-    const response = await axiosInstance.post(url, data);
-    message.success("WhatsApp message sent successfully");
-    return response.data;
-  } catch (error: unknown) {
-    message.error((error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to send WhatsApp message");
-    throw error;
-  }
-};
-
-export const updateAfricasTalkingAccount = async (id: string, data: any) => {
-  try {
-    const url = `${BASE_URL}/api/crm/africastalking/accounts/${id}`;
-    const response = await axiosInstance.put(url, data);
-    message.success("Africa's Talking account updated successfully");
-    return response.data;
-  } catch (error: unknown) {
-    message.error((error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to update Africa's Talking account");
-    throw error;
-  }
-};
-
-export const deleteAfricasTalkingAccount = async (id: string) => {
-  try {
-    const url = `${BASE_URL}/api/crm/africastalking/accounts/${id}`;
-    const response = await axiosInstance.delete(url);
-    message.success("Africa's Talking account deleted successfully");
-    return response.data;
-  } catch (error: unknown) {
-    message.error((error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to delete Africa's Talking account");
     throw error;
   }
 };
@@ -620,6 +490,184 @@ export const getTwilioVoiceToken = async (data: {
     return response.data;
   } catch (error: unknown) {
     message.error((error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to get Twilio voice token");
+    throw error;
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MISSED CALL MANAGEMENT
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const getMissedCalls = async (shopId: string) => {
+  try {
+    const url = `${BASE_URL}/api/crm/twilio/voice/missed-calls?shop_id=${shopId}`;
+    const response = await axiosInstance.get(url);
+    return response.data;
+  } catch (error: unknown) {
+    console.error('Failed to fetch missed calls:', error);
+    throw error;
+  }
+};
+
+export const getAllMissedCalls = async (shopId: string) => {
+  try {
+    const url = `${BASE_URL}/api/crm/twilio/voice/missed-calls/all?shop_id=${shopId}`;
+    const response = await axiosInstance.get(url);
+    return response.data;
+  } catch (error: unknown) {
+    console.error('Failed to fetch all missed calls:', error);
+    throw error;
+  }
+};
+
+export const getMissedCallStats = async (shopId: string) => {
+  try {
+    const url = `${BASE_URL}/api/crm/twilio/voice/missed-calls/stats?shop_id=${shopId}`;
+    const response = await axiosInstance.get(url);
+    return response.data;
+  } catch (error: unknown) {
+    console.error('Failed to fetch missed call stats:', error);
+    throw error;
+  }
+};
+
+export const progressMissedCall = async (assignmentId: string, shopId: string) => {
+  try {
+    const url = `${BASE_URL}/api/crm/twilio/voice/missed-calls/${assignmentId}/progress`;
+    const response = await axiosInstance.post(url, { shop_id: shopId });
+    message.success("Missed call marked in progress");
+    return response.data;
+  } catch (error: unknown) {
+    message.error((error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to progress missed call");
+    throw error;
+  }
+};
+
+export const callbackMissedCall = async (assignmentId: string, data: {
+  shop_id: string;
+  callback_call_id?: string;
+  notes?: string;
+}) => {
+  try {
+    const url = `${BASE_URL}/api/crm/twilio/voice/missed-calls/${assignmentId}/callback`;
+    const response = await axiosInstance.post(url, data);
+    message.success("Callback completed successfully");
+    return response.data;
+  } catch (error: unknown) {
+    message.error((error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to complete callback");
+    throw error;
+  }
+};
+
+export const getCallerContext = async (phone: string) => {
+  try {
+    const url = `${BASE_URL}/api/crm/twilio/voice/caller-context?phone=${encodeURIComponent(phone)}`;
+    const response = await axiosInstance.get(url);
+    return response.data;
+  } catch (error: unknown) {
+    console.error('Failed to fetch caller context:', error);
+    throw error;
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TWILIO WHATSAPP MESSAGING
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const sendTwilioWhatsAppMessage = async (data: {
+  shop_id: string;
+  from_number?: string;
+  messaging_service_sid?: string;
+  to_number: string;
+  body?: string;
+  media_url?: string;
+  use_template?: boolean;
+  content_sid?: string;
+  template_params?: Record<string, string>;
+}) => {
+  try {
+    const url = `${BASE_URL}/api/crm/twilio/whatsapp/send`;
+    const response = await axiosInstance.post(url, data);
+    return response.data;
+  } catch (error: unknown) {
+    message.error((error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to send WhatsApp message");
+    throw error;
+  }
+};
+
+export const getTwilioWhatsAppConversations = async (shopId: string, status?: string, page = 1, limit = 30) => {
+  try {
+    let url = `${BASE_URL}/api/crm/twilio/whatsapp/conversations?shop_id=${shopId}&page=${page}&limit=${limit}`;
+    if (status) url += `&status=${status}`;
+    const response = await axiosInstance.get(url);
+    return response.data;
+  } catch (error: unknown) {
+    console.error('Failed to fetch WhatsApp conversations:', error);
+    throw error;
+  }
+};
+
+export const getTwilioWhatsAppMessages = async (conversationId: string, page = 1, limit = 50) => {
+  try {
+    const url = `${BASE_URL}/api/crm/twilio/whatsapp/messages?conversation_id=${conversationId}&page=${page}&limit=${limit}`;
+    const response = await axiosInstance.get(url);
+    return response.data;
+  } catch (error: unknown) {
+    console.error('Failed to fetch WhatsApp messages:', error);
+    throw error;
+  }
+};
+
+export const getTwilioWhatsAppTemplates = async (shopId: string) => {
+  try {
+    const url = `${BASE_URL}/api/crm/twilio/whatsapp/templates?shop_id=${shopId}`;
+    const response = await axiosInstance.get(url);
+    return response.data;
+  } catch (error: unknown) {
+    console.error('Failed to fetch WhatsApp templates:', error);
+    throw error;
+  }
+};
+
+export const createTwilioWhatsAppTemplate = async (data: {
+  shop_id: string;
+  twilio_account_id: string;
+  name: string;
+  body: string;
+  language?: string;
+  category?: string;
+  variables?: string[];
+}) => {
+  try {
+    const url = `${BASE_URL}/api/crm/twilio/whatsapp/templates`;
+    const response = await axiosInstance.post(url, data);
+    message.success("Template added successfully");
+    return response.data;
+  } catch (error: unknown) {
+    message.error((error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to add template");
+    throw error;
+  }
+};
+
+export const getTwilioWhatsAppTemplateStatus = async (id: string) => {
+  try {
+    const url = `${BASE_URL}/api/crm/twilio/whatsapp/templates/${id}/status`;
+    const response = await axiosInstance.get(url);
+    return response.data;
+  } catch (error: unknown) {
+    message.error((error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to refresh template status");
+    throw error;
+  }
+};
+
+export const deleteTwilioWhatsAppTemplate = async (id: string) => {
+  try {
+    const url = `${BASE_URL}/api/crm/twilio/whatsapp/templates/${id}`;
+    const response = await axiosInstance.delete(url);
+    message.success("Template removed successfully");
+    return response.data;
+  } catch (error: unknown) {
+    message.error((error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to remove template");
     throw error;
   }
 };

@@ -3,20 +3,7 @@ import React from "react";
 export const getShopId = (): string => {
     try {
         const shopId = localStorage.getItem("shopId");
-        // Handle if shopId is stored as JSON array
-        if (shopId) {
-            try {
-                const parsed = JSON.parse(shopId);
-                if (Array.isArray(parsed)) {
-                    return parsed[0] || "";
-                }
-                return parsed || "";
-            } catch {
-                // If not JSON, return as string
-                return shopId && shopId !== "{}" && shopId !== "null" ? shopId : "";
-            }
-        }
-        return "";
+        return shopId && shopId !== "{}" && shopId !== "null" ? shopId : "";
     } catch {
         return "";
     }
@@ -41,7 +28,8 @@ export interface Conversation {
     external_contact_name: string;
     external_contact_phone?: string;
     external_contact_id: string;
-    customer_id?: string;
+    customer_id?: string | { _id: string; customer_name?: string; phone?: string; phone_number?: string };
+    lead_id?: string | { _id: string; lead_name?: string; phone?: string; phone_number?: string };
     status: ConversationStatus;
     last_message_at: string;
     last_message_preview?: string;
