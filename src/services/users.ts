@@ -84,6 +84,16 @@ export const fetchAllUsersByShopId = async () => {
   }
 };
 
+export const fetchAllUsersFlat = async () => {
+  try {
+    const url = `${BASE_URL}/users/all-flat`;
+    const response = await axiosInstance.get(url);
+    return response.data?.users || [];
+  } catch (error) {
+    throw new Error(error?.message);
+  }
+};
+
 export const updateSubscription = createAsyncThunk(
   "subscription/update",
   async (data: ParamsType, { rejectWithValue }) => {
