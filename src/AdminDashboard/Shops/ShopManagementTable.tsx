@@ -1,6 +1,6 @@
 // ShopManagementTable.tsx
 import React, { useRef, useMemo, useEffect, useState, useCallback } from "react";
-import { ActionType, ProTable, ProCard } from "@ant-design/pro-components";
+import { ActionType, ProTable, ProCard, ProColumns } from "@ant-design/pro-components";
 import {
   Tooltip, Button, Space, Popconfirm, message, Tag,
   Typography, Card, Skeleton, Empty, Tabs,
@@ -15,12 +15,22 @@ import { useMutation } from "@tanstack/react-query";
 import {
   deleteShop, fetchAllShops,
   GOOGLE_MAPS_API_KEY,
+  ShopLocation,
 } from "@services/shops";
 import AddEditShopModal from "@components/MODALS/pro/AddEditShopModal";
 import { useNavigate } from "react-router-dom";
 import PrintSettingsTab from "../../pages/Settings/systemSetup/PrintSettingsTab";
 
 const { Text } = Typography;
+
+interface Shop {
+  _id: string;
+  name: string;
+  pos_mode?: string;
+  location?: ShopLocation;
+  daily_revenue?: number;
+  staff_count?: number;
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const fmtK = (v: number) => {
@@ -46,8 +56,8 @@ const useIsMobile = () => {
  * Navigation targets when the user clicks "Open Shop":
  *   - POS (default)        → /tables
  *   - Accounting only      → /accounting
- *   - Mteja only           → /mteja
- *
+ *   - Mteja only           → /home-dashboard
+
  * Tabs / columns hidden per module:
  *   - Print Settings tab   → shown ONLY when POS is active (hidden for accounting-only & mteja-only)
  *   - POS Mode column/tag  → shown ONLY when POS is active (hidden for accounting-only & mteja-only)
@@ -66,7 +76,7 @@ const useTenantConfig = () => {
 
   /** Where "Open Shop" should navigate */
   const shopLandingPath = isMtejaOnly
-    ? "/mteja"
+    ? "/home-dashboard"
     : isAccountingOnly
       ? "/accounting"
       : isDalaOnly
@@ -87,14 +97,14 @@ const useTenantConfig = () => {
   return { isAccountingOnly, isMtejaOnly, shopLandingPath, showPrintSettings, showPosMode, showRevenue };
 };
 
-const getLocationDisplay = (loc: any): string => {
+const getLocationDisplay = (loc: string | ShopLocation | null | undefined): string => {
   if (!loc) return "";
   if (typeof loc === "string") return loc;
   return loc.formatted_address || loc.address || "";
 };
 
-const hasCoords = (loc: any): boolean =>
-  loc && typeof loc === "object" && loc.lat != null && loc.lng != null;
+const hasCoords = (loc: string | ShopLocation | null | undefined): boolean =>
+  !!loc && typeof loc === "object" && loc.lat != null && loc.lng != null;
 
 // ── POS mode config ───────────────────────────────────────────────────────────
 const POS_MODE_CONFIG: Record<string, { label: string; icon: React.ReactNode; color: string; bg: string }> = {
@@ -122,7 +132,7 @@ const PosModeTag: React.FC<{ mode: string }> = ({ mode }) => {
 };
 
 // ── InfoWindow HTML for map markers ──────────────────────────────────────────
-const buildInfoHtml = (shop: any): string => {
+const buildInfoHtml = (shop: Shop): string => {
   const cfg = POS_MODE_CONFIG[shop.pos_mode] ?? POS_MODE_CONFIG.restaurant;
   const modeHtml = shop.pos_mode
     ? `<div style="display:inline-block;font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;background:${cfg.bg};color:${cfg.color};margin-bottom:6px">${cfg.label}</div>`
@@ -140,12 +150,12 @@ const buildInfoHtml = (shop: any): string => {
 };
 
 // ── Map View ──────────────────────────────────────────────────────────────────
-const MapView: React.FC<{ shops: any[]; height?: number }> = ({ shops, height = 480 }) => {
+const MapView: React.FC<{ shops: Shop[]; height?: number }> = ({ shops, height = 480 }) => {
   const mapRef = useRef<HTMLDivElement>(null);
-  const mapObjRef = useRef<any>(null);
-  const markersRef = useRef<any[]>([]);
-  const infoWinRef = useRef<any>(null);
-  const shopsRef = useRef<any[]>([]);
+  const mapObjRef = useRef<google.maps.Map | null>(null);
+  const markersRef = useRef<google.maps.Marker[]>([]);
+  const infoWinRef = useRef<google.maps.InfoWindow | null>(null);
+  const shopsRef = useRef<Shop[]>([]);
   const [sdkLoaded, setSdkLoaded] = useState(false);
 
   const located = shops.filter(s => s.location && getLocationDisplay(s.location));
@@ -157,12 +167,14 @@ const MapView: React.FC<{ shops: any[]; height?: number }> = ({ shops, height = 
   // Load Google Maps SDK
   useEffect(() => {
     const loadGoogleMaps = () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       if ((window as any).google?.maps) {
         setSdkLoaded(true);
         return;
       }
       if (document.getElementById("gmap-script")) {
         const check = setInterval(() => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           if ((window as any).google?.maps) {
             clearInterval(check);
             setSdkLoaded(true);
@@ -188,6 +200,7 @@ const MapView: React.FC<{ shops: any[]; height?: number }> = ({ shops, height = 
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const g = (window as any).google?.maps;
     if (!g || !mapRef.current || withCoords.length === 0 || !sdkLoaded) return;
 
@@ -230,7 +243,7 @@ const MapView: React.FC<{ shops: any[]; height?: number }> = ({ shops, height = 
       });
 
       marker.addListener("click", () => {
-        openInfo(g, shop, marker);
+        openInfo(shop, marker);
       });
 
       markersRef.current.push(marker);
@@ -247,7 +260,7 @@ const MapView: React.FC<{ shops: any[]; height?: number }> = ({ shops, height = 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shopKey, sdkLoaded]);
 
-  const openInfo = (g: any, shop: any, marker: any) => {
+  const openInfo = (shop: Shop, marker: any) => {  // eslint-disable-line @typescript-eslint/no-explicit-any
     if (!infoWinRef.current || !mapObjRef.current) return;
     infoWinRef.current.setContent(buildInfoHtml(shop));
     infoWinRef.current.open(mapObjRef.current, marker);
@@ -289,7 +302,7 @@ const MapView: React.FC<{ shops: any[]; height?: number }> = ({ shops, height = 
 
 
 // ── Summary strip ─────────────────────────────────────────────────────────────
-const SummaryStrip: React.FC<{ shops: any[]; isMtejaOnly?: boolean }> = ({ shops, isMtejaOnly }) => {
+const SummaryStrip: React.FC<{ shops: Shop[]; isMtejaOnly?: boolean }> = ({ shops, isMtejaOnly }) => {
   if (!shops.length) return null;
   const stats = [
     { icon: <ShopOutlined />, label: "Branches", value: shops.length, color: "#f97316", bg: "#fff7ed" },
@@ -319,7 +332,7 @@ const SummaryStrip: React.FC<{ shops: any[]; isMtejaOnly?: boolean }> = ({ shops
 
 // ── Mobile shop card ──────────────────────────────────────────────────────────
 const ShopCard: React.FC<{
-  record: any;
+  record: Shop;
   showPosMode: boolean;
   showRevenue: boolean;
   onOpen: (id: string) => void;
@@ -409,7 +422,7 @@ const MobileShopList: React.FC<{
 }> = ({ shopLandingPath, showPosMode, showRevenue, isMtejaOnly, tableRef }) => {
   const navigate = useNavigate();
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [shops, setShops] = useState<any[]>([]);
+  const [shops, setShops] = useState<Shop[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState("");
   const [activeTab, setActiveTab] = useState("list");
@@ -533,7 +546,7 @@ const ShopManagementTable: React.FC = () => {
     [allShops]
   );
 
-  const columns = useMemo(() => [
+  const columns = useMemo<ProColumns<Shop>[]>(() => [
     {
       title: "Branch Name",
       dataIndex: "name",
@@ -541,7 +554,7 @@ const ShopManagementTable: React.FC = () => {
       width: 250,
       copyable: true,
       ellipsis: true,
-      render: (_: any, record: any) => {
+      render: (_, record) => {
         const loc = getLocationDisplay(record.location);
         return (
           <Space size={8} align="center">
@@ -573,7 +586,7 @@ const ShopManagementTable: React.FC = () => {
         hospital: { text: "Hospital" },
         hotel: { text: "Hotel" },
       },
-      render: (_: any, record: any) =>
+      render: (_, record) =>
         record.pos_mode ? <PosModeTag mode={record.pos_mode} /> : <Text type="secondary">—</Text>,
     }] : []),
     // Today Revenue column — hidden for mteja-only tenants
@@ -582,8 +595,8 @@ const ShopManagementTable: React.FC = () => {
       dataIndex: "daily_revenue",
       hideInSearch: true,
       width: 130,
-      sorter: (a: any, b: any) => (a.daily_revenue || 0) - (b.daily_revenue || 0),
-      render: (_: any, record: any) => (
+      sorter: (a, b) => (a.daily_revenue || 0) - (b.daily_revenue || 0),
+      render: (_, record) => (
         <Text strong style={{ color: "#10b981", fontSize: 13 }}>Ksh {fmtK(record?.daily_revenue || 0)}</Text>
       ),
     }] : []),
@@ -592,8 +605,8 @@ const ShopManagementTable: React.FC = () => {
       dataIndex: "staff_count",
       hideInSearch: true,
       width: 100,
-      sorter: (a: any, b: any) => (a.staff_count || 0) - (b.staff_count || 0),
-      render: (_: any, record: any) => (
+      sorter: (a, b) => (a.staff_count || 0) - (b.staff_count || 0),
+      render: (_, record) => (
         <Space size={4}>
           <TeamOutlined style={{ fontSize: 12, color: "#06b6d4" }} />
           <Text style={{ fontSize: 13, color: "#374151" }}>{record?.staff_count ?? 0}</Text>
@@ -605,7 +618,7 @@ const ShopManagementTable: React.FC = () => {
       dataIndex: "actions",
       hideInSearch: true,
       width: 200,
-      render: (_: any, record: any) => (
+      render: (_, record) => (
         <Space size={6}>
           <Tooltip title="Open shop">
             <Button type="primary" size="small" icon={<ArrowRightOutlined />}

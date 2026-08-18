@@ -7,11 +7,14 @@ import {
     SearchOutlined, StarFilled, TeamOutlined, TrophyOutlined,
     UserAddOutlined, UserOutlined, PhoneOutlined,
 } from "@ant-design/icons";
-import { App, Button, Drawer, Dropdown, Form, Input, Modal, Table, Typography } from "antd";
+import { App, Button, Drawer, Dropdown, Form, Input, Modal, Space, Table, Typography } from "antd";
 import CustomerDetailDrawer from "./CustomerDetailDrawer";
 import { deleteCustomer, fetchAllCustomers, fetchAllGiftCards } from "@services/customers";
 import ExpandedRowContent from "./ExpandableCustomer";
 import GiftCardModal from "../../components/MODALS/pro/GiftCardModal";
+import CallButton from "@components/Twilio/CallButton";
+import SMSButton from "@components/Twilio/SMSButton";
+import WhatsAppButton from "@components/Twilio/WhatsAppButton";
 
 const { Text } = Typography;
 
@@ -714,7 +717,19 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
             {
                 title: "Phone", dataIndex: "phone", copyable: true,
                 fieldProps: { placeholder: "Search by phone..." },
-                render: (phone: string) => <Text style={{ fontSize: 12 }}>{phone || "—"}</Text>,
+                render: (phone: string, record: any) => (
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <PhoneOutlined style={{ color: C.subText, fontSize: 12 }} />
+                        <Text style={{ fontSize: 12, color: C.darkText }}>{phone || "—"}</Text>
+                        {phone && (
+                            <Space size={2}>
+                                <CallButton phoneNumber={phone} customerId={record._id} size="small" type="text" iconOnly />
+                                <SMSButton phoneNumber={phone} customerId={record._id} size="small" type="text" iconOnly />
+                                <WhatsAppButton phoneNumber={phone} customerId={record._id} size="small" type="text" iconOnly />
+                            </Space>
+                        )}
+                    </div>
+                ),
             },
                         {
                 title: "Street Address", dataIndex: ["address", "street"], search: false,

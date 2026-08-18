@@ -13,6 +13,7 @@ import {
   Tag,
   Tooltip,
   Typography,
+  message,
 } from "antd";
 import {
   CheckCircleOutlined,
@@ -208,7 +209,7 @@ const StepBasicInfo: React.FC<{
   roleType: string;
   onChange: (v: string) => void;
   error?: string;
-  onApplyPreset: (keys: string[], goToPermissions: () => void) => void;
+  onApplyPreset: (keys: string[], presetName: string) => void;
   hasHR: boolean;
   hasAccounting: boolean;
   hasMteja: boolean;
@@ -282,14 +283,14 @@ const StepBasicInfo: React.FC<{
       <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "16px 16px 12px" }}>
         <SectionLabel>Quick-load a Permission Preset</SectionLabel>
         <Text style={{ fontSize: 12, color: C.subText, display: "block", marginBottom: 10 }}>
-          Click a preset to load its permissions — you will jump to Step 2 to review and customise.
+          Click a preset to prefill permissions — you can then customise them in Step 2.
         </Text>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
           {presetOptions.map((p) => (
             <button
               key={p.value}
               type="button"
-              onClick={() => onApplyPreset(p.keys, () => { })}
+              onClick={() => onApplyPreset(p.keys, p.label)}
               style={{
                 background: "#fff", border: `1.5px solid ${C.border}`,
                 borderRadius: 7, padding: "5px 12px", fontSize: 12,
@@ -586,14 +587,23 @@ const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({ 
     });
 
   // ── Apply preset — filters to keys valid for active modules, then jumps to step 2 ──
-  const handleApplyPreset = (keys: string[]) => {
+  const handleApplyPreset = (keys: string[], presetName?: string) => {
     // Build the set of permission keys that are valid for this tenant's active modules.
     // This prevents assigning accounting/HR/CRM permissions when those modules are off.
     const validKeys = new Set(Object.values(groupedPermissions).flat().map((p) => p.key));
     const filtered = keys.filter((k) => validKeys.has(k));
     setSelectedPermissions(filtered);
-    // Jump straight to step 2 so the user can immediately see and adjust what was applied
+    
+    // Auto-fill role type from preset name if role type is empty
+    if (!roleType.trim() && presetName) {
+      const suggestedRoleType = presetName.toLowerCase().replace(/\s+/g, "_");
+      setRoleType(suggestedRoleType);
+      setRoleTypeError("");
+    }
+    
+    // Jump to step 2 so the user can immediately see and adjust what was applied
     setCurrentStep(1);
+    message.success(`Loaded ${filtered.length} permissions from preset`);
   };
 
   // ── Step navigation ────────────────────────────────────────────────────────
@@ -638,7 +648,7 @@ const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({ 
       roleType={roleType}
       onChange={(v) => { setRoleType(v); setRoleTypeError(""); }}
       error={roleTypeError}
-      onApplyPreset={(keys) => handleApplyPreset(keys)}
+      onApplyPreset={(keys, presetName) => handleApplyPreset(keys, presetName)}
       hasHR={hasHR}
       hasAccounting={hasAccounting}
       hasMteja={hasMteja}

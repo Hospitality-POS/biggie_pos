@@ -15,6 +15,7 @@ import {
 import {
     SearchOutlined,
     UserOutlined,
+    PhoneOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -23,7 +24,10 @@ import {
     ConversationStatus,
     CHANNEL_CONFIG,
     STATUS_CONFIG,
-} from "./OmnichannelInboxPage";
+} from "./omnichannelConstants.tsx";
+import CallButton from "@components/Twilio/CallButton";
+import SMSButton from "@components/Twilio/SMSButton";
+import WhatsAppButton from "@components/Twilio/WhatsAppButton";
 
 dayjs.extend(relativeTime);
 
@@ -56,6 +60,13 @@ const STATUS_TABS: { key: ConversationStatus | "all"; label: string }[] = [
     { key: "pending", label: "Pending" },
     { key: "resolved", label: "Resolved" },
     { key: "closed", label: "Closed" },
+];
+
+// ── Channel tab items ──────────────────────────────────────────────────────────
+
+const CHANNEL_TABS: { key: "all" | "whatsapp"; label: string }[] = [
+    { key: "all", label: "All" },
+    { key: "whatsapp", label: "WhatsApp" },
 ];
 
 // ── Channel dot indicator ─────────────────────────────────────────────────────
@@ -219,25 +230,26 @@ const ConversationRow: React.FC<{
                     </div>
 
                     {/* Status + window row */}
-                    <div style={{ marginTop: 4, display: "flex", gap: 4, alignItems: "center" }}>
-                        <Badge
-                            status={statusCfg.badge}
-                            text={
-                                <Text style={{ fontSize: 10, color: "#8c8c8c" }}>
-                                    {statusCfg.label}
-                                </Text>
-                            }
-                        />
-                        {conv.channel === "whatsapp" && (
-                            <Tooltip
-                                title={
-                                    windowOpen
-                                        ? "24hr window open — free-form replies allowed"
-                                        : "24hr window closed — templates only"
+                    <div style={{ marginTop: 4, display: "flex", gap: 4, alignItems: "center", justifyContent: "space-between" }}>
+                        <Space size={4}>
+                            <Badge
+                                status={statusCfg.badge}
+                                text={
+                                    <Text style={{ fontSize: 10, color: "#8c8c8c" }}>
+                                        {statusCfg.label}
+                                    </Text>
                                 }
-                            >
-                                <Tag
-                                    style={{
+                            />
+                            {conv.channel === "whatsapp" && (
+                                <Tooltip
+                                    title={
+                                        windowOpen
+                                            ? "24hr window open — free-form replies allowed"
+                                            : "24hr window closed — templates only"
+                                    }
+                                >
+                                    <Tag
+                                        style={{
                                         fontSize: 9,
                                         padding: "0 4px",
                                         lineHeight: "14px",
@@ -261,6 +273,29 @@ const ConversationRow: React.FC<{
                                     style={{ fontSize: 8 }}
                                 />
                             </Tooltip>
+                        )}
+                        </Space>
+                        {conv.external_contact_phone && (
+                            <Space size={2}>
+                                <CallButton 
+                                    phoneNumber={conv.external_contact_phone} 
+                                    customerId={conv.customer_id}
+                                    size="small" 
+                                    type="text" 
+                                />
+                                <SMSButton 
+                                    phoneNumber={conv.external_contact_phone} 
+                                    customerId={conv.customer_id}
+                                    size="small" 
+                                    type="text" 
+                                />
+                                <WhatsAppButton 
+                                    phoneNumber={conv.external_contact_phone} 
+                                    customerId={conv.customer_id}
+                                    size="small" 
+                                    type="text" 
+                                />
+                            </Space>
                         )}
                     </div>
                 </div>

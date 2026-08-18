@@ -2,11 +2,11 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "re
 import { ActionType, ProTable } from "@ant-design/pro-components";
 import {
     AimOutlined, EditOutlined, EyeOutlined, MoreOutlined,
-    PlusOutlined, TrophyOutlined,
+    PlusOutlined, TrophyOutlined, PhoneOutlined, MessageOutlined,
 } from "@ant-design/icons";
 import {
     App, Button, DatePicker, Drawer, Dropdown, Form,
-    Input, InputNumber, Modal, Progress, Select, Typography,
+    Input, InputNumber, Modal, Progress, Select, Space, Typography,
 } from "antd";
 import { useAppDispatch } from "../../store";
 import {
@@ -19,6 +19,8 @@ import { fetchAllUsersList } from "@services/users";
 import { fetchUserRoles } from "@services/users";
 import { useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
+import CallButton from "@components/Twilio/CallButton";
+import SMSButton from "@components/Twilio/SMSButton";
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -83,13 +85,31 @@ const SalesTargetTable = forwardRef<SalesTargetTableHandle, SalesTargetTableProp
             {
                 title: "Scope", search: false,
                 render: (_: any, r: SalesTarget) => {
-                    if (typeof r.user_id === "object" && r.user_id?.fullname)
-                        return <Text style={{ fontSize: 12 }}>{r.user_id.fullname}</Text>;
-                    if (typeof r.department_id === "object" && (r.department_id as any)?.name)
-                        return <Text style={{ fontSize: 12, color: "#8b5cf6" }}>{(r.department_id as any).name}</Text>;
-                    if (typeof r.role_id === "object" && (r.role_id as any)?.role_type)
-                        return <Text style={{ fontSize: 12, color: C.blue }}>{(r.role_id as any).role_type}</Text>;
-                    return <Text style={{ fontSize: 12, color: C.subText }}>Team</Text>;
+                    let content: React.ReactNode;
+                    let phone: string | undefined;
+                    
+                    if (typeof r.user_id === "object" && r.user_id?.fullname) {
+                        content = <Text style={{ fontSize: 12 }}>{r.user_id.fullname}</Text>;
+                        phone = (r.user_id as any).phone;
+                    } else if (typeof r.department_id === "object" && (r.department_id as any)?.name) {
+                        content = <Text style={{ fontSize: 12, color: "#8b5cf6" }}>{(r.department_id as any).name}</Text>;
+                    } else if (typeof r.role_id === "object" && (r.role_id as any)?.role_type) {
+                        content = <Text style={{ fontSize: 12, color: C.blue }}>{(r.role_id as any).role_type}</Text>;
+                    } else {
+                        content = <Text style={{ fontSize: 12, color: C.subText }}>Team</Text>;
+                    }
+                    
+                    return (
+                        <div>
+                            {content}
+                            {phone && (
+                                <Space size={4} style={{ marginTop: 4 }}>
+                                    <CallButton phoneNumber={phone} size="small" type="text" />
+                                    <SMSButton phoneNumber={phone} size="small" type="text" />
+                                </Space>
+                            )}
+                        </div>
+                    );
                 },
             },
             {

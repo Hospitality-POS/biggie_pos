@@ -16,7 +16,7 @@ import {
  *  - Duka (POS) only         → Dashboard, Branch, Staff, POS Reports, Documents, Help
  *  - Pesa (Accounting) only  → Accounting Dashboard, Branch, Staff, CoA, Reports, Documents, Help
  *  - Duka + Pesa both        → Dashboard, Branch, Staff, POS Reports, Accounting Dashboard, CoA, Reports, Documents, Help
- *  - Mteja ONLY              → Mteja Dashboard, Branch, Staff, Help
+ *  - Mteja ONLY              → Dashboard, Branch, Staff, Help
  *  - Mteja + any other       → Mteja routes hidden; only the other module(s) show
  *
  * Router paths (Routers.tsx) — must match exactly:
@@ -76,11 +76,6 @@ const useAdminProLayoutNav = () => {
     { path: "/admin/documents", name: "Document Center", icon: <FileDoneOutlined /> },
   ];
 
-  // ── Mteja (CRM) routes — only when Mteja is the sole module ──────────────
-  const mtejaRoutes = [
-    { path: "/admin/mteja", name: "Mteja Dashboard", icon: <CustomerServiceOutlined /> },
-  ];
-
   // ── Dala (Real Estate) routes ─────────────────────────────────────────────
   const dalaRoutes: Array<{ path: string; name: string; icon: React.ReactNode }> = [];
 
@@ -97,7 +92,7 @@ const useAdminProLayoutNav = () => {
     return {
       route: {
         path: "/admin",
-        routes: [...commonRoutes, ...mtejaRoutes, helpRoute],
+        routes: [...commonRoutes, helpRoute],
       },
     };
   }
@@ -254,8 +249,6 @@ const useAdminProLayoutNav = () => {
     ...(hasDuka ? dukaRoutes : []),
     ...(hasPesa ? pesaRoutes : []),
     ...(hasDala ? dalaRoutes : []),
-    // Only show Mteja Dashboard if it's the sole module
-    ...(isMtejaOnly ? mtejaRoutes : []),
     helpRoute,
   ];
   // Deduplicate routes based on path

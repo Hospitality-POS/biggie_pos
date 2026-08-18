@@ -97,9 +97,6 @@ const ESignPage = lazy(() => import("@pages/ESign/ESignPage"));
 const OmnichannelInboxPage = lazy(() => import("src/pages/OmniChannel/OmnichannelInboxPage"));
 const OAuthCallbackPage = lazy(() => import("src/pages/OmniChannel/OAuthCallbackPage"));
 
-// ─── Mteja Dashboard ──────────────────────────────────────────────────────────
-const MtejaDashboard = lazy(() => import("src/pages/Dashboard/MtejaDashboard"));
-
 // ─── Accounting Module ────────────────────────────────────────────────────────
 const AccountingDashboardPage = lazy(() => import("src/pages/AccountingDashboard/AccountingDashboardPage"));
 const ChartOfAccountsPage = lazy(() => import("src/pages/ChartOfAccounts/ChartOfAccountsPage"));
@@ -135,6 +132,7 @@ const LeadsPage = lazy(() => import("src/pages/Lead/Leads"));
 const CampaignsPage = lazy(() => import("src/pages/Campaign/Campaigns"));
 const SalesTargetsPage = lazy(() => import("src/pages/SalesTargets/SalesTargets"));
 const SalesBudgetsPage = lazy(() => import("src/pages/Salesbudgets/Salesbudgets"));
+const WorkflowsPage = lazy(() => import("src/pages/CRM/Workflows"));
 
 // ─── Dala Real Estate Module ───────────────────────────────────────────────────
 // All Dala pages are lazy-loaded and only reachable when hasDala === true.
@@ -288,7 +286,7 @@ const SmartShopRouter = () => {
   const hasDala = tenant?.modules?.dala === true;
 
   if (hasDala && !hasPOS && !hasAccounting && !hasMteja) return <Navigate to="/dala" replace />;
-  if (hasMteja && !hasPOS && !hasAccounting) return <Navigate to="/mteja" replace />;
+  if (hasMteja && !hasPOS && !hasAccounting) return <Navigate to="/home-dashboard" replace />;
   if (hasAccounting && !hasPOS) return <Navigate to="/accounting" replace />;
   return privatePage(Table);
 };
@@ -304,7 +302,7 @@ const SmartDashboardRouter = () => {
   const hasMteja = tenant?.modules?.crm === true;
   const hasDala = tenant?.modules?.dala === true;
 
-  if (hasMteja && !hasPOS && !hasAccounting && !hasDala) return <Navigate to="/admin/mteja" replace />;
+  if (hasMteja && !hasPOS && !hasAccounting && !hasDala) return <Navigate to="/home-dashboard" replace />;
   if (hasAccounting && !hasPOS) return <Navigate to="/admin/dashboard" replace />;
   return <Navigate to="/admin/dashboard" replace />;
 };
@@ -339,6 +337,10 @@ const routes = createBrowserRouter(
       ══════════════════════════════════════════════════════════════════ */}
       <Route path="/" element={<Layout />}>
         <Route index errorElement={<NotFound />} element={<SmartShopRouter />} />
+
+        {/* Legacy Mteja landing — redirect to unified dashboard */}
+        <Route path="mteja" errorElement={<NotFound />}
+          element={<Navigate to="/home-dashboard" replace />} />
 
         <Route path="login" errorElement={<NotFound />}
           element={<Suspense fallback={fullscreenSpin}><StaffLoginPage /></Suspense>} />
@@ -453,9 +455,6 @@ const routes = createBrowserRouter(
         <Route path="omnichannel" errorElement={<NotFound />}
           element={guardedPage(OmnichannelInboxPage, "OMNICHANNEL_VIEW")} />
 
-        <Route path="mteja" errorElement={<NotFound />}
-          element={<Navigate to="/home-dashboard" replace />} />
-
         <Route path="currencies" errorElement={<NotFound />}
           element={guardedPage(CurrencyPage, "ACCOUNTING_COA_VIEW")} />
 
@@ -512,6 +511,8 @@ const routes = createBrowserRouter(
             element={mtejaPage(SalesTargetsPage, "CUSTOMERS_VIEW")} />
           <Route path="sales-budgets" errorElement={<NotFound />}
             element={mtejaPage(SalesBudgetsPage, "CUSTOMERS_VIEW")} />
+          <Route path="workflows" errorElement={<NotFound />}
+            element={mtejaPage(WorkflowsPage, "CUSTOMERS_VIEW")} />
         </Route>
 
         {/* ── Dala Real Estate — shop level (/dala/...) ───────────────────────
@@ -726,9 +727,6 @@ const routes = createBrowserRouter(
             </Suspense>
           } />
 
-        <Route path="mteja" errorElement={<NotFound />}
-          element={<Navigate to="/admin/dashboard" replace />} />
-
         {/* ── Accounting — admin level (/admin/accounting/...) ───────────── */}
         <Route path="accounting" element={<AccountingLayout />}>
           <Route index errorElement={<NotFound />}
@@ -772,6 +770,8 @@ const routes = createBrowserRouter(
             element={mtejaAdminPage(SalesTargetsPage, "CUSTOMERS_VIEW")} />
           <Route path="sales-budgets" errorElement={<NotFound />}
             element={mtejaAdminPage(SalesBudgetsPage, "CUSTOMERS_VIEW")} />
+          <Route path="workflows" errorElement={<NotFound />}
+            element={mtejaAdminPage(WorkflowsPage, "CUSTOMERS_VIEW")} />
         </Route>
 
         {/* ── Dala Real Estate — admin level (/admin/dala/...) ───────────────

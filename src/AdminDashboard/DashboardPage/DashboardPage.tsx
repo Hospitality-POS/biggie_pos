@@ -42,6 +42,7 @@ import {
   ArrowUpOutlined,
   ArrowDownOutlined,
   DashboardOutlined,
+  PhoneOutlined,
 } from "@ant-design/icons";
 import { Line } from "@ant-design/charts";
 import {
@@ -51,6 +52,8 @@ import {
 } from "@services/orders";
 import dayjs from "dayjs";
 import { ProCard } from "@ant-design/pro-components";
+import { getCallHistory } from "@services/twilio";
+import { getPermissionChecker } from "@utils/getPermissionChecker";
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -905,49 +908,90 @@ const DashboardAdminPage: React.FC = () => {
 
   const isDataLoading = isLoading || isRefetching || chartLoading;
 
+  const can = getPermissionChecker();
+  const canViewCallHistory = can("TWILIO_VIEW_CALL_HISTORY");
+  const shopId = localStorage.getItem("shopId");
+
+  const { data: callHistory } = useQuery({
+    queryKey: ["twilioCallHistory", shopId],
+    queryFn: () => getCallHistory({ shop_id: shopId || "", limit: 100 }),
+    enabled: !!shopId && canViewCallHistory,
+  });
+
+  const todayCalls = callHistory?.calls?.filter((call: any) => {
+    const callTime = call.start_time || call.createdAt;
+    if (!callTime) return false;
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const callDate = new Date(callTime);
+    callDate.setHours(0, 0, 0, 0);
+    
+    return callDate.getTime() === today.getTime();
+  }).length || 0;
+
   const kpiCards = useMemo(
-    () => [
-      {
-        title: periodFilter === "day" ? "Today's Orders" : "Total Orders",
-        value: data?.totalOrderCount || 0,
-        icon: <ShoppingCartOutlined />,
-        color: "#3b82f6",
-        bg: "#eff6ff",
-        pctChange: null,
-        prefix: "",
-        onClick: () => navigate("/orders"),
-      },
-      {
-        title: "Total Revenue",
-        value: data?.todayRevenue || 0,
-        icon: <DollarOutlined />,
-        color: COLORS.success,
-        bg: "#f0fdf4",
-        pctChange: growthRate || null,
-        prefix: "Ksh",
-      },
-      {
-        title: "Active Shops",
-        value: data?.activeOrders || 0,
-        icon: <ShopOutlined />,
-        color: COLORS.orange,
-        bg: "#fff7ed",
-        pctChange: null,
-        prefix: "",
-        onClick: () => navigate("/shops"),
-      },
-      {
-        title: "Active Shifts",
-        value: data?.activeShift || 0,
-        icon: <TeamOutlined />,
-        color: COLORS.cyan,
-        bg: "#ecfeff",
-        pctChange: null,
-        prefix: "",
-        onClick: () => navigate("/shifts"),
-      },
-    ],
-    [data, growthRate, navigate, periodFilter]
+    () => {
+      const cards = [
+        {
+          title: periodFilter === "day" ? "Today's Orders" : "Total Orders",
+          value: data?.totalOrderCount || 0,
+          icon: <ShoppingCartOutlined />,
+          color: "#3b82f6",
+          bg: "#eff6ff",
+          pctChange: null,
+          prefix: "",
+          onClick: () => navigate("/orders"),
+        },
+        {
+          title: "Total Revenue",
+          value: data?.todayRevenue || 0,
+          icon: <DollarOutlined />,
+          color: COLORS.success,
+          bg: "#f0fdf4",
+          pctChange: growthRate || null,
+          prefix: "Ksh",
+        },
+        {
+          title: "Active Shops",
+          value: data?.activeOrders || 0,
+          icon: <ShopOutlined />,
+          color: COLORS.orange,
+          bg: "#fff7ed",
+          pctChange: null,
+          prefix: "",
+          onClick: () => navigate("/shops"),
+        },
+        {
+          title: "Active Shifts",
+          value: data?.activeShift || 0,
+          icon: <TeamOutlined />,
+          color: COLORS.cyan,
+          bg: "#ecfeff",
+          pctChange: null,
+          prefix: "",
+          onClick: () => navigate("/shifts"),
+        },
+      ];
+
+      // Add Twilio card if user has permission
+      if (canViewCallHistory) {
+        cards.splice(2, 0, {
+          title: "Today's Calls",
+          value: todayCalls,
+          icon: <PhoneOutlined />,
+          color: "#8b5cf6",
+          bg: "#faf5ff",
+          pctChange: null,
+          prefix: "",
+          onClick: () => navigate("/system-setup"),
+        });
+      }
+
+      return cards;
+    },
+    [data, growthRate, navigate, periodFilter, canViewCallHistory, todayCalls]
   );
 
   return (
