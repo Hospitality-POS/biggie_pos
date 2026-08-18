@@ -1,5 +1,4 @@
-import React, { Key, useEffect, useMemo, useState, useRef } from "react";
-import { LoadingOutlined } from "@ant-design/icons";
+import React, { Key, useEffect, useMemo, useState } from "react";
 import CartItemCard from "./CartItemCard";
 import PrintBillModal from "../MODALS/PrintBillModal";
 import PrintBillSpaModal from "../MODALS/printBillSpaModal";
@@ -10,7 +9,7 @@ import SkeletonCartItemCard from "./SkeletonCartItemCard";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { useNavigate, useParams } from "react-router-dom";
 import CartLoader from "../spinner/cartLoader";
-import { fetchAllUsersByShopId } from "../../services/users";
+import { fetchAllUsersFlat } from "../../services/users";
 import { fetchMainCategories } from "../../services/categories";
 import { useQuery } from "@tanstack/react-query";
 import { fetchShop, sendCheckinInfo } from "../../services/shops";
@@ -18,6 +17,7 @@ import { getCustomerById, fetchAllCustomers } from "../../services/customers";
 import {
   Button, Space, Typography, Tag, Empty, Divider,
   Flex, Avatar, Tooltip, Select, Popconfirm, message, Modal, Form, InputNumber, Input,
+  List, Checkbox,
 } from "antd";
 import {
   ClearOutlined, CloseCircleOutlined, OrderedListOutlined,
@@ -131,11 +131,12 @@ const CartDrawer: React.FC = () => {
   const [loadingData, setLoadingData] = useState(false);
   const [staffList, setStaffList] = useState<{ value: string; label: string }[]>([]);
   const [loadingStaff, setLoadingStaff] = useState(false);
-  const [loadingMoreStaff, setLoadingMoreStaff] = useState(false);
   const [editingServedBy, setEditingServedBy] = useState(false);
   const [updatingServedBy, setUpdatingServedBy] = useState(false);
-  const [tempServedByIds, setTempServedByIds] = useState<string[]>([]);
-  const [selectedStaffDetails, setSelectedStaffDetails] = useState<{ value: string; label: string }[]>([]);
+  const [pendingServedByIds, setPendingServedByIds] = useState<string[]>([]);
+  const [staffSearch, setStaffSearch] = useState("");
+  const [staffPage, setStaffPage] = useState(1);
+  const [staffPageSize, setStaffPageSize] = useState(15);
   const [delinkingCustomer, setDelinkingCustomer] = useState(false);
   const [sendingToPrinter, setSendingToPrinter] = useState(false);
   const [showSendButton, setShowSendButton] = useState(false);
@@ -146,37 +147,6 @@ const CartDrawer: React.FC = () => {
   const [earningsModalOpen, setEarningsModalOpen] = useState(false);
   const [staffEarnings, setStaffEarnings] = useState<Record<string, number>>({});
   const [updatingEarnings, setUpdatingEarnings] = useState(false);
-  const [staffPage, setStaffPage] = useState(1);
-  const [staffSearchQuery, setStaffSearchQuery] = useState("");
-  const [hasMoreStaff, setHasMoreStaff] = useState(true);
-  const [searchingStaff, setSearchingStaff] = useState(false);
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const loadStaffRef = useRef<((page: number, search: string, append: boolean) => Promise<void>) | null>(null);
-  const staffSearchQueryRef = useRef(staffSearchQuery);
-  
-  // Keep the ref in sync with state
-  useEffect(() => {
-    staffSearchQueryRef.current = staffSearchQuery;
-  }, [staffSearchQuery]);
-
-  // Update selected staff details when staffList changes
-  useEffect(() => {
-    if (tempServedByIds.length > 0 && staffList.length > 0) {
-      const updatedDetails = tempServedByIds.map(id => {
-        const existing = selectedStaffDetails.find(s => s.value === id);
-        const inList = staffList.find(s => s.value === id);
-        
-        // If we have a proper name from staffList, use it
-        if (inList) {
-          return { value: id, label: inList.label };
-        }
-        
-        // Otherwise keep existing or use ID as fallback
-        return existing || { value: id, label: id };
-      });
-      setSelectedStaffDetails(updatedDetails);
-    }
-  }, [staffList, tempServedByIds]);
 
   // Document type driving which print status to check.
   const documentType: DocumentType = "bill";
@@ -358,6 +328,18 @@ const CartDrawer: React.FC = () => {
     return [];
   }, [cartDetails?.served_by, cartDetails?.created_by]);
 
+  const filteredStaff = useMemo(() => {
+    const term = staffSearch.trim().toLowerCase();
+    if (!term) return staffList;
+    return staffList.filter((s) => s.label.toLowerCase().includes(term));
+  }, [staffList, staffSearch]);
+
+  const toggleStaff = (id: string) => {
+    setPendingServedByIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
   const slotLabel = useMemo(() => {
     if (isHospitalMode) return activeTable?.name || "No Ward/Bed";
     if (isRetailMode) return activeTable?.name || "No Slot";
@@ -370,62 +352,34 @@ const CartDrawer: React.FC = () => {
     ? `Clear "${activeTable?.name}"? This will empty the cart and free this bed/ward.`
     : `Clear "${activeTable?.name}"? This will empty the cart and free up this slot.`;
 
-  // Initial load and reload when shop changes
   useEffect(() => {
-    const loadStaff = async (page = 1, search = "", append = false) => {
-      if (!append) {
-        setLoadingStaff(true);
-      } else {
-        setLoadingMoreStaff(true);
-      }
-      
-
-      
+    const loadStaff = async () => {
+      setLoadingStaff(true);
       try {
-        const result = await fetchAllUsersByShopId({ page, pageSize: 50, search });
-        const users = result.users || [];
-        const pagination = result.pagination || {};
-        
-        const filtered = users
-          .filter((u: any) => u.role?.role_type?.toLowerCase() !== "admin")
+        const users = await fetchAllUsersFlat();
+        const filtered = (users || [])
           .map((u: any) => ({
             value: u._id,
             label: u.username || u.fullname || u.email || "Unknown",
           }))
           .sort((a: { label: string }, b: { label: string }) => a.label.localeCompare(b.label));
-        
-        if (append) {
-          setStaffList(prev => [...prev, ...filtered]);
-        } else {
-          setStaffList(filtered);
-        }
-        
-        setHasMoreStaff(pagination.hasMore || false);
-        if (!append) {
-          setStaffPage(1);
-        }
+        setStaffList(filtered);
       } catch (e) {
         console.error("Failed to load staff list", e);
       } finally {
         setLoadingStaff(false);
-        setLoadingMoreStaff(false);
-        setSearchingStaff(false);
       }
     };
-    
-    // Store the function in a ref for access in event handlers
-    loadStaffRef.current = loadStaff;
-    
-    // Initial load
-    loadStaff(1, "", false);
-    
-    // Cleanup
-    return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
-    };
-  }, [shopId]);
+    loadStaff();
+  }, []);
+
+  useEffect(() => {
+    if (editingServedBy) {
+      setPendingServedByIds(servedByIds);
+      setStaffSearch("");
+      setStaffPage(1);
+    }
+  }, [editingServedBy, servedByIds]);
 
   useEffect(() => {
     // Load global captain_order setting from localStorage
@@ -516,31 +470,12 @@ const CartDrawer: React.FC = () => {
   const isSpa = tenant?.business_type?.name === "massage_parlour";
   const canCheckout = (user?.role === "admin" || user?.role === "cashier") && (data?.length ?? 0) > 0;
 
-  const handleServedByChange = (newUserIds: string[]) => {
-    setTempServedByIds(newUserIds);
-    
-    // Update selected staff details to include newly selected staff
-    const newSelectedDetails = newUserIds.map(id => {
-      const existing = selectedStaffDetails.find(s => s.value === id);
-      if (existing) return existing;
-      
-      // Find in current staffList
-      const inList = staffList.find(s => s.value === id);
-      if (inList) return inList;
-      
-      // If not found, create a placeholder with the ID
-      return { value: id, label: id };
-    });
-    
-    setSelectedStaffDetails(newSelectedDetails);
-  };
-
-  const handleSaveServedBy = async () => {
+  const handleServedByChange = async (newUserIds: string[]) => {
     const cartId = cartDetails?._id ?? cartDetails?.id;
     if (!cartId) return;
     setUpdatingServedBy(true);
     try {
-      await updateCartService(cartId, { served_by: tempServedByIds });
+      await updateCartService(cartId, { served_by: newUserIds });
       await dispatch(getCart(tableId));
       setEditingServedBy(false);
     } catch (e) {
@@ -548,12 +483,6 @@ const CartDrawer: React.FC = () => {
     } finally {
       setUpdatingServedBy(false);
     }
-  };
-
-  const handleCancelServedBy = () => {
-    setTempServedByIds([]);
-    setSelectedStaffDetails([]);
-    setEditingServedBy(false);
   };
 
   const handleOpenEarningsModal = () => {
@@ -972,96 +901,63 @@ const CartDrawer: React.FC = () => {
 
             {/* ── Served by ─────────────────────────────────────────────── */}
             {editingServedBy ? (
-              <div style={{ background: `${primaryColor}08`, border: `1px solid ${primaryColor}40`, borderRadius: 8, padding: "8px 10px" }}>
-                <Text style={{ fontSize: 11, color: "#94a3b8", display: "block", marginBottom: 6 }}>
-                  <SmileFilled style={{ color: "#fbbf24", marginRight: 4 }} />
-                  Assign staff members
-                </Text>
-                <Flex align="center" gap={6}>
-                  {!loadingStaff && staffList.length > 0 ? (
-                    <Select
-                      mode="multiple"
-                      size="middle" style={{ flex: 1 }}
-                      disabled={updatingServedBy}
-                      value={tempServedByIds}
-                      options={[
-                        // Always include selected staff members first with their proper names
-                        ...selectedStaffDetails.filter(staff => tempServedByIds.includes(staff.value)),
-                        // Then add the rest of the staff list (excluding duplicates)
-                        ...staffList.filter(staff => !tempServedByIds.includes(staff.value))
-                      ]}
-                      placeholder="Select staff members"
-                      onChange={handleServedByChange}
-                      autoFocus
-                      fieldNames={{ label: 'label', value: 'value' }}
-                      showSearch
-                      filterOption={false}
-                      suffixIcon={searchingStaff ? <LoadingOutlined spin /> : undefined}
-                      onSearch={(value) => {
-                        // Show loading state immediately when user types
-                        if (value.length > 2) {
-                          setSearchingStaff(true);
-                        }
-                        
-                        // Debounce the search
-                        if (searchTimeoutRef.current) {
-                          clearTimeout(searchTimeoutRef.current);
-                        }
-                        searchTimeoutRef.current = setTimeout(() => {
-                          setStaffSearchQuery(value);
-                          setStaffPage(1);
-                          if (loadStaffRef.current) {
-                            loadStaffRef.current(1, value, false);
-                          }
-                        }, 300);
+              <Modal
+                title="Assign staff members"
+                open={editingServedBy}
+                onOk={() => { handleServedByChange(pendingServedByIds); }}
+                onCancel={() => setEditingServedBy(false)}
+                confirmLoading={updatingServedBy}
+                okText="Save"
+                cancelText="Cancel"
+                width={560}
+                destroyOnClose
+              >
+                <Input
+                  placeholder="Search staff by name…"
+                  value={staffSearch}
+                  onChange={(e) => { setStaffSearch(e.target.value); setStaffPage(1); }}
+                  allowClear
+                  style={{ marginBottom: 12 }}
+                />
+                {loadingStaff ? (
+                  <Text style={{ fontSize: 13, color: "#64748b" }}>Loading staff…</Text>
+                ) : filteredStaff.length === 0 ? (
+                  <Text style={{ fontSize: 13, color: "#64748b" }}>No staff found</Text>
+                ) : (
+                  <>
+                    <Flex align="center" justify="space-between" style={{ marginBottom: 8 }}>
+                      <Text style={{ fontSize: 12, color: "#64748b" }}>
+                        {pendingServedByIds.length} selected
+                      </Text>
+                    </Flex>
+                    <List
+                      bordered
+                      size="small"
+                      dataSource={filteredStaff}
+                      pagination={{
+                        current: staffPage,
+                        pageSize: staffPageSize,
+                        onChange: (page, size) => {
+                          setStaffPage(page);
+                          if (size) setStaffPageSize(size);
+                        },
+                        showSizeChanger: true,
+                        pageSizeOptions: ["10", "15", "30", "50"],
                       }}
-                      onClear={() => {
-                        setSearchingStaff(false);
-                        setStaffSearchQuery("");
-                        setStaffPage(1);
-                        if (loadStaffRef.current) {
-                          loadStaffRef.current(1, "", false);
-                        }
-                      }}
-                      onPopupScroll={(e) => {
-                        const { scrollTop, clientHeight, scrollHeight } = e.target as HTMLElement;
-                        if (scrollTop + clientHeight >= scrollHeight - 10 && hasMoreStaff && !loadingMoreStaff) {
-                          const nextPage = staffPage + 1;
-                          setStaffPage(nextPage);
-                          if (loadStaffRef.current) {
-                            loadStaffRef.current(nextPage, staffSearchQueryRef.current, true);
-                          }
-                        }
-                      }}
-                      dropdownRender={(menu) => (
-                        <>
-                          {menu}
-                          {loadingMoreStaff && (
-                            <div style={{ padding: '8px', textAlign: 'center', color: '#999' }}>
-                              Loading more staff...
-                            </div>
-                          )}
-                          {!hasMoreStaff && staffList.length > 0 && (
-                            <div style={{ padding: '8px', textAlign: 'center', color: '#999', fontSize: '12px' }}>
-                              No more staff to load
-                            </div>
-                          )}
-                        </>
+                      renderItem={(staff) => (
+                        <List.Item key={staff.value}>
+                          <Checkbox
+                            checked={pendingServedByIds.includes(staff.value)}
+                            onChange={() => toggleStaff(staff.value)}
+                          >
+                            {staff.label}
+                          </Checkbox>
+                        </List.Item>
                       )}
                     />
-                  ) : (
-                    <div style={{ flex: 1, textAlign: 'center', padding: '8px' }}>
-                      {loadingStaff ? 'Loading staff...' : 'No staff available'}
-                    </div>
-                  )}
-                  <Button size="middle" onClick={handleCancelServedBy} disabled={updatingServedBy} style={{ borderRadius: 6 }}>
-                    Cancel
-                  </Button>
-                  <Button size="middle" type="primary" onClick={handleSaveServedBy} loading={updatingServedBy} style={{ borderRadius: 6, backgroundColor: primaryColor, borderColor: primaryColor }}>
-                    Save
-                  </Button>
-                </Flex>
-              </div>
+                  </>
+                )}
+              </Modal>
             ) : (
               <div
                 style={{
@@ -1117,27 +1013,7 @@ const CartDrawer: React.FC = () => {
                     <Button
                       size="small"
                       type="text"
-                      onClick={(e) => { 
-                    e.stopPropagation(); 
-                    setTempServedByIds(servedByIds);
-                    // Initialize selected staff details from cartDetails
-                    const servedBy = cartDetails?.served_by;
-                    if (Array.isArray(servedBy)) {
-                      const staffDetails = servedBy.map((staff: any) => ({
-                        value: typeof staff === "string" ? staff : staff._id,
-                        label: typeof staff === "string" ? staff : (staff.username || staff.name || staff.fullname || staff._id)
-                      }));
-                      setSelectedStaffDetails(staffDetails);
-                    } else if (servedBy && typeof servedBy === "object") {
-                      setSelectedStaffDetails([{
-                        value: servedBy._id,
-                        label: servedBy.username || servedBy.name || servedBy.fullname || servedBy._id
-                      }]);
-                    } else {
-                      setSelectedStaffDetails([]);
-                    }
-                    setEditingServedBy(true); 
-                  }}
+                      onClick={(e) => { e.stopPropagation(); setEditingServedBy(true); }}
                       style={{ fontSize: 11, color: primaryColor }}
                     >
                       Change
