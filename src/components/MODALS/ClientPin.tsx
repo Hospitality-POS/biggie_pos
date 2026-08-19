@@ -1,14 +1,15 @@
-import { KeyOutlined, SearchOutlined, UserOutlined, IdcardOutlined, EnvironmentOutlined } from "@ant-design/icons";
+import { KeyOutlined, SearchOutlined, UserOutlined, IdcardOutlined, EnvironmentOutlined, ApartmentOutlined } from "@ant-design/icons";
 import { ModalForm, ProFormText } from "@ant-design/pro-form";
 import { updateCart } from "@features/Cart/CartActions";
 import ShowConfirm from "@utils/ConfirmUtil";
-import { Button, Form, Input, Select, Space, Typography, Divider, Radio, message, Tag, Row, Col, AutoComplete } from "antd";
+import { Button, Form, Input, Select, Space, Typography, Divider, Radio, message, Tag, Row, Col, AutoComplete, Switch } from "antd";
 import { CartDetailsInterface } from "src/interfaces/CartDetailsTypes";
 import { useAppDispatch } from "src/store";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
-import { fetchAllCustomers, addNewCustomer, updateCustomer } from "@services/customers";
+import { fetchAllCustomers, fetchOtherBranchCustomers, addNewCustomer, updateCustomer } from "@services/customers";
+import { fetchAllShops } from "@services/shops";
 import { useQuery } from "@tanstack/react-query";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 
 interface ClientPinProps {
   cart: CartDetailsInterface;
@@ -24,13 +25,47 @@ function ClientPin({ cart }: ClientPinProps) {
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [addressOptions, setAddressOptions] = useState<any[]>([]);
   const [addressLoading, setAddressLoading] = useState(false);
+  const [showBranchPicker, setShowBranchPicker] = useState(false);
+  const [selectedOtherShops, setSelectedOtherShops] = useState<string[]>([]);
 
-  const { data: customers = [], isLoading: loadingCustomers, refetch: refetchCustomers } = useQuery({
-    queryKey: ["customers"],
-    queryFn: () => fetchAllCustomers(),
+  const shopId = localStorage.getItem("shopId") || "";
+
+  const { data: currentBranchCustomers = [], isLoading: loadingCurrentCustomers, refetch: refetchCustomers } = useQuery({
+    queryKey: ["customers", customerSearch],
+    queryFn: () => fetchAllCustomers({ search: customerSearch, customer_name: customerSearch }),
     retry: 1,
     staleTime: 30000,
   });
+
+  const { data: otherBranchCustomers = [], isLoading: loadingOtherCustomers } = useQuery({
+    queryKey: ["customers-other-branches-cart", customerSearch, selectedOtherShops],
+    queryFn: () => fetchOtherBranchCustomers({ shop_ids: selectedOtherShops.join(","), search: customerSearch }),
+    enabled: selectedOtherShops.length > 0,
+    retry: 1,
+    staleTime: 30000,
+    select: (res: any) => Array.isArray(res) ? res : (res?.customers || res?.data || []),
+  });
+
+  const customers = useMemo(() => {
+    const base: any[] = Array.isArray(currentBranchCustomers) ? currentBranchCustomers : [];
+    if (!otherBranchCustomers?.length) return base;
+    const existingIds = new Set(base.map((c: any) => c._id));
+    const extras = (otherBranchCustomers as any[]).filter((c: any) => !existingIds.has(c._id));
+    return [...base, ...extras];
+  }, [currentBranchCustomers, otherBranchCustomers]);
+
+  const loadingCustomers = loadingCurrentCustomers || loadingOtherCustomers;
+
+  const { data: shopsRaw } = useQuery({
+    queryKey: ["shops"],
+    queryFn: fetchAllShops,
+    staleTime: 5 * 60 * 1000,
+    select: (res: any) => Array.isArray(res) ? res : (res?.data || res?.shops || []),
+  });
+
+  const otherBranchOptions = (shopsRaw || [])
+    .filter((s: any) => s._id !== shopId)
+    .map((s: any) => ({ label: s.name, value: s._id }));
 
   // ── Google Places functionality ───────────────────────────────────────────────
   const loadGoogleMaps = useCallback((): Promise<void> => {
@@ -246,6 +281,7 @@ function ClientPin({ cart }: ClientPinProps) {
   // Custom option renderer for customer select
   const renderCustomerOption = (customer: any) => {
     const hasKraPin = !!(customer.kra_pin || customer.pin || customer.client_pin);
+    const branchName = customer.shop_id?.name;
     return (
       <Select.Option key={customer._id} value={customer._id}>
         <Space direction="vertical" size={0} style={{ width: "100%" }}>
@@ -255,6 +291,11 @@ function ClientPin({ cart }: ClientPinProps) {
             {hasKraPin && (
               <Tag color="blue" style={{ fontSize: 10, margin: 0 }}>
                 <IdcardOutlined /> Has PIN
+              </Tag>
+            )}
+            {branchName && (
+              <Tag color="geekblue" icon={<ApartmentOutlined />} style={{ fontSize: 10, margin: 0 }}>
+                {branchName}
               </Tag>
             )}
           </Space>
@@ -449,6 +490,52 @@ function ClientPin({ cart }: ClientPinProps) {
 
       {inputMode === "select" ? (
         <>
+          {/* ── Cross-branch customer toggle ────────────────────────────────── */}
+          <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "#f5f5f5", borderRadius: 6, border: "1px solid #e8e8e8" }}>
+            <ApartmentOutlined style={{ color: showBranchPicker ? "#1677ff" : "#8c8c8c", fontSize: 15 }} />
+            <span style={{ flex: 1, fontSize: 13, color: "#595959" }}>
+              <strong>Search across branches</strong>
+              <span style={{ marginLeft: 6, color: "#8c8c8c", fontWeight: 400 }}>
+                — include customers from other branches
+              </span>
+            </span>
+            <Switch
+              checked={showBranchPicker}
+              onChange={(checked) => {
+                setShowBranchPicker(checked);
+                if (!checked) setSelectedOtherShops([]);
+              }}
+              checkedChildren="On"
+              unCheckedChildren="Off"
+            />
+          </div>
+
+          {showBranchPicker && (
+            <div style={{ marginBottom: 12, padding: "8px 12px", background: "#e6f4ff", borderRadius: 6, border: "1px solid #91caff" }}>
+              <div style={{ fontSize: 12, color: "#0958d9", marginBottom: 6, fontWeight: 500 }}>
+                <ApartmentOutlined style={{ marginRight: 4 }} />
+                Select branches to include customers from:
+              </div>
+              <Select
+                mode="multiple"
+                allowClear
+                style={{ width: "100%" }}
+                placeholder="Click to select one or more branches..."
+                value={selectedOtherShops}
+                onChange={setSelectedOtherShops}
+                options={otherBranchOptions}
+                disabled={!otherBranchOptions.length}
+                notFoundContent="No other branches available"
+                loading={!shopsRaw}
+              />
+              {selectedOtherShops.length > 0 && (
+                <div style={{ fontSize: 11, color: "#0958d9", marginTop: 4 }}>
+                  Showing customers from your branch + {selectedOtherShops.length} other {selectedOtherShops.length === 1 ? "branch" : "branches"}
+                </div>
+              )}
+            </div>
+          )}
+
           <Form.Item name="customer_select" label="Search Customer">
             <Select
               showSearch

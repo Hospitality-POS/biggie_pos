@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
     Modal, Form, Input, InputNumber, Select, DatePicker,
     Button, Space, Table, Divider, App, Row, Col, Tag,
@@ -9,14 +9,15 @@ import {
     FileDoneOutlined, FileTextOutlined, DollarOutlined,
     CheckCircleOutlined, ArrowRightOutlined, InfoCircleOutlined,
     SafetyCertificateOutlined, WarningOutlined, ReloadOutlined, LinkOutlined,
-    SelectOutlined,
+    SelectOutlined, ApartmentOutlined,
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getAllAccounts } from "@services/accounting/accounts";
 import { createInvoice, convertQuoteToInvoice, recordInvoicePayment, getInvoiceById, patchInvoice } from "@services/accounting/invoice";
-import { fetchAllCustomers } from "@services/customers";
+import { fetchAllCustomers, fetchOtherBranchCustomers } from "@services/customers";
 import { fetchAllInventoryItems, getAllProducts } from "@services/products";
+import { fetchAllShops } from "@services/shops";
 import { fetchAllPaymentMethods } from "@services/paymentMethod";
 import { fetchTenantDetails, getCurrentTenantId } from "@services/tenants";
 import AddCustomerModal from "@pages/Customer/AddCustomerModal";
@@ -101,6 +102,8 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
     const [step, setStep] = useState(0);
     const [savedInvoice, setSavedInvoice] = useState<any>(null);
     const [customerSearch, setCustomerSearch] = useState("");
+    const [selectedOtherShops, setSelectedOtherShops] = useState<string[]>([]);
+    const [showBranchPicker, setShowBranchPicker] = useState(false);
     const [customTermInput, setCustomTermInput] = useState("");
     const [inventoryItems, setInventoryItems] = useState<any[]>([]);
     const [services, setServices] = useState<any[]>([]);
@@ -193,15 +196,50 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
         value: a._id,
     }));
 
-    // ── Customers ─────────────────────────────────────────────────────────────
-    const { data: customersData, isFetching: customersFetching } = useQuery({
+    // ── Shops (for cross-branch customer search) ────────────────────────────────
+    const { data: shopsData } = useQuery({
+        queryKey: ["shops"],
+        queryFn: fetchAllShops,
+        enabled: open,
+        select: (res: any) =>
+            Array.isArray(res) ? res : (res?.data || res?.shops || []),
+        staleTime: 5 * 60 * 1000,
+    });
+
+    const otherBranchOptions = (shopsData || [])
+        .filter((s: any) => s._id !== shopId)
+        .map((s: any) => ({ label: s.name, value: s._id }));
+
+    // ── Customers (current branch) ────────────────────────────────────────────
+    const { data: currentBranchCustomers, isFetching: currentFetching } = useQuery({
         queryKey: ["customers-dropdown", customerSearch],
-        queryFn: () => fetchAllCustomers({ customer_name: customerSearch }),
+        queryFn: () => fetchAllCustomers({ search: customerSearch, customer_name: customerSearch }),
         enabled: open,
         select: (res: any) =>
             Array.isArray(res) ? res : (res?.customers || res?.data || []),
         staleTime: 30_000,
     });
+
+    // ── Customers (other branches — only when branches are selected) ──────────
+    const { data: otherBranchCustomers, isFetching: otherFetching } = useQuery({
+        queryKey: ["customers-other-branches", customerSearch, selectedOtherShops],
+        queryFn: () => fetchOtherBranchCustomers({ shop_ids: selectedOtherShops.join(","), search: customerSearch }),
+        enabled: open && selectedOtherShops.length > 0,
+        select: (res: any) =>
+            Array.isArray(res) ? res : (res?.customers || res?.data || []),
+        staleTime: 30_000,
+    });
+
+    // Merge: current branch first, then other-branch results (deduplicated by _id)
+    const customersData = useMemo(() => {
+        const base: any[] = currentBranchCustomers || [];
+        if (!otherBranchCustomers?.length) return base;
+        const existingIds = new Set(base.map((c: any) => c._id));
+        const extras = otherBranchCustomers.filter((c: any) => !existingIds.has(c._id));
+        return [...base, ...extras];
+    }, [currentBranchCustomers, otherBranchCustomers]);
+
+    const customersFetching = currentFetching || otherFetching;
 
     // ── Inventory Items & Services ─────────────────────────────────────────────
     // Products (used as inventory items)
@@ -345,7 +383,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
     }, [open, step, formChangeCount, lines, docType, discountType, discountAmount, discountPercentage, discountReason, etrEnabled, selectedCurrency]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const customerOptions = (customersData || []).map((c: any) => ({
-        label: `${c.company_name || c.customer_name || "Unknown"}${c.phone ? ` — ${c.phone}` : ""}`,
+        label: `${c.company_name || c.customer_name || "Unknown"}${c.phone ? ` — ${c.phone}` : ""}${c.shop_id?.name ? ` [${c.shop_id.name}]` : ""}`,
         value: c._id,
     }));
 
@@ -1008,10 +1046,57 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
                 initialValues={{ issue_date: dayjs() }}
                 onValuesChange={() => setFormChangeCount((c) => c + 1)}
             >
+                {/* ── Cross-branch customer toggle ───────────────────────────────── */}
+                <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "#f5f5f5", borderRadius: 6, border: "1px solid #e8e8e8" }}>
+                    <ApartmentOutlined style={{ color: showBranchPicker ? "#1677ff" : "#8c8c8c", fontSize: 15 }} />
+                    <span style={{ flex: 1, fontSize: 13, color: "#595959" }}>
+                        <strong>Search across branches</strong>
+                        <span style={{ marginLeft: 6, color: "#8c8c8c", fontWeight: 400 }}>
+                            — include customers from other branches in the customer list
+                        </span>
+                    </span>
+                    <Switch
+                        checked={showBranchPicker}
+                        onChange={(checked) => {
+                            setShowBranchPicker(checked);
+                            if (!checked) setSelectedOtherShops([]);
+                        }}
+                        checkedChildren="On"
+                        unCheckedChildren="Off"
+                    />
+                </div>
+
+                {showBranchPicker && (
+                    <div style={{ marginBottom: 12, padding: "8px 12px", background: "#e6f4ff", borderRadius: 6, border: "1px solid #91caff" }}>
+                        <div style={{ fontSize: 12, color: "#0958d9", marginBottom: 6, fontWeight: 500 }}>
+                            <ApartmentOutlined style={{ marginRight: 4 }} />
+                            Select branches to include customers from:
+                        </div>
+                        <Select
+                            mode="multiple"
+                            allowClear
+                            style={{ width: "100%" }}
+                            placeholder="Click to select one or more branches..."
+                            value={selectedOtherShops}
+                            onChange={setSelectedOtherShops}
+                            options={otherBranchOptions}
+                            disabled={!otherBranchOptions.length}
+                            notFoundContent="No other branches available"
+                            loading={!shopsData}
+                        />
+                        {selectedOtherShops.length > 0 && (
+                            <div style={{ fontSize: 11, color: "#0958d9", marginTop: 4 }}>
+                                Showing customers from your branch + {selectedOtherShops.length} other {selectedOtherShops.length === 1 ? "branch" : "branches"}
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 <Row gutter={16}>
-                    <Col span={8}>
+                    <Col span={16}>
                         <Form.Item
-                            name="customer_id" label="Customer / Billed To"
+                            name="customer_id"
+                            label="Customer / Billed To"
                             rules={[{ required: true, message: "Select a customer" }]}
                         >
                             <Select

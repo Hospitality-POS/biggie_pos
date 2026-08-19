@@ -37,6 +37,23 @@ export const fetchAllCustomers = async (data: ParamsType = {}) => {
   }
 };
 
+// Fetch customers from selected other branches
+export const fetchOtherBranchCustomers = async (data: ParamsType = {}) => {
+  try {
+    const response = await axiosInstance.get(`${categ_url}/other-branches`, {
+      params: {
+        shop_ids: data.shop_ids,
+        search: data.search,
+      },
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching other-branch customers:", error);
+    message.error(error?.response?.data?.message || "Failed to fetch customers");
+    return [];
+  }
+};
+
 // Admin fetch (no shop filter required)
 export const fetchAdminAllCustomers = async (data: ParamsType = {}) => {
   try {
