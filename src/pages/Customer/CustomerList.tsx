@@ -13,6 +13,7 @@ import AddCustomerModal from "./AddCustomerModal";
 import GiftCardsTab from "./GiftCardsTab";
 import { getPermissionChecker } from "@utils/getPermissionChecker";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
+import { Customer } from "./CustomerDetailDrawer";
 
 const { Text } = Typography;
 
@@ -76,7 +77,7 @@ const getTabConfig = (): TabItem[] => {
             { key: "customers", label: customerLabel, icon: <UserOutlined />, permissionKey: "CUSTOMERS_VIEW" },
             { key: "packages", label: "Packages", icon: <CreditCardOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
             { key: "subscriptions", label: "Subscriptions", icon: <WalletOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
-            ...(!hasDala ? [{ key: "schedule", label: "Bookings", icon: <CalendarOutlined />, permissionKey: "SCHEDULES_VIEW" }] : []),
+            ...(!hasDala ? [{ key: "schedule", label: "Appointments", icon: <CalendarOutlined />, permissionKey: "SCHEDULES_VIEW" }] : []),
             { key: "giftCards", label: "Gift Cards", icon: <GiftOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
         ];
     }
@@ -84,7 +85,7 @@ const getTabConfig = (): TabItem[] => {
     if (hasMteja) {
         return [
             { key: "customers", label: customerLabel, icon: <UserOutlined />, permissionKey: "CUSTOMERS_VIEW" },
-            ...(!hasDala ? [{ key: "schedule", label: "Bookings", icon: <CalendarOutlined />, permissionKey: "SCHEDULES_VIEW" }] : []),
+            ...(!hasDala ? [{ key: "schedule", label: "Appointments", icon: <CalendarOutlined />, permissionKey: "SCHEDULES_VIEW" }] : []),
         ];
     }
 
@@ -92,7 +93,7 @@ const getTabConfig = (): TabItem[] => {
         { key: "customers", label: customerLabel, icon: <UserOutlined />, permissionKey: "CUSTOMERS_VIEW" },
         { key: "packages", label: "Packages", icon: <CreditCardOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
         { key: "subscriptions", label: "Subscriptions", icon: <WalletOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
-        ...(!hasDala ? [{ key: "schedule", label: "Bookings", icon: <CalendarOutlined />, permissionKey: "SCHEDULES_VIEW" }] : []),
+        ...(!hasDala ? [{ key: "schedule", label: "Appointments", icon: <CalendarOutlined />, permissionKey: "SCHEDULES_VIEW" }] : []),
         { key: "giftCards", label: "Gift Cards", icon: <GiftOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
     ];
 };
@@ -127,7 +128,7 @@ const TabNav = ({
     tabs: (TabItem & { allowed: boolean })[];
     active: string;
     onChange: (key: string) => void;
-    colors: any;
+    colors: Record<string, string>;
 }) => (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: "0 0 16px", borderBottom: `1px solid ${colors.border}`, marginBottom: 20 }}>
         {tabs.map((tab) => {
@@ -176,8 +177,7 @@ function Customers() {
     );
 
     // Use primary color context instead of hardcoded colors
-    const contextResult = usePrimaryColor();
-    const primaryColor = contextResult?.primaryColor || '#6c1c2c';
+    const primaryColor = usePrimaryColor() || '#6c1c2c';
     
     // Generate color palette based on primary color (same logic as CalendarView)
     const generateColorPalette = (primary: string) => {
@@ -204,10 +204,10 @@ function Customers() {
 
     // ── State ──────────────────────────────────────────────────────────────
     const [addCustomerVisible, setAddCustomerVisible] = useState(false);
-    const [editingCustomer, setEditingCustomer] = useState<any>(null);
+    const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
     const [modalMode, setModalMode] = useState<"add" | "edit">("add");
     const [activeTab, setActiveTab] = useState(defaultTab);
-    const customerTableRef = useRef<any>(null);
+    const customerTableRef = useRef<{ reload: () => void } | null>(null);
 
     // ── Customer modal handlers ────────────────────────────────────────────
     const handleAddCustomer = () => {
@@ -216,7 +216,7 @@ function Customers() {
         setAddCustomerVisible(true);
     };
 
-    const handleEditCustomer = (customer: any) => {
+    const handleEditCustomer = (customer: Customer) => {
         setModalMode("edit");
         setEditingCustomer(customer);
         setAddCustomerVisible(true);
@@ -273,10 +273,10 @@ function Customers() {
                     {showOnlyCustomers
                         ? `Manage your ${isHospital ? "patients" : (hasDala ? "clients" : "customers")}` 
                         : hasMteja
-                            ? `${hasDala ? "Clients" : "Customers"}, leads & bookings`
+                            ? `${hasDala ? "Clients" : "Customers"}, leads & appointments`
                             : isHospital
                                 ? "Patients, appointments, services & more"
-                                : `${hasDala ? "Clients" : "Customers"}, subscriptions, bookings & more`}
+                                : `${hasDala ? "Clients" : "Customers"}, subscriptions, appointments & more`}
                 </Text>
             </div>
             {showAdd && can("CUSTOMERS_CREATE") && (

@@ -13,6 +13,7 @@ interface CallButtonProps {
   size?: "small" | "middle" | "large";
   type?: "primary" | "default" | "text" | "link";
   iconOnly?: boolean;
+  label?: string;
 }
 
 const CallButton: React.FC<CallButtonProps> = ({
@@ -24,6 +25,7 @@ const CallButton: React.FC<CallButtonProps> = ({
   size = "small",
   type = "default",
   iconOnly = false,
+  label,
 }) => {
   const can = getPermissionChecker();
   const canMakeCalls = can("TWILIO_MAKE_CALLS");
@@ -69,7 +71,7 @@ const CallButton: React.FC<CallButtonProps> = ({
         type={type}
         style={{ color: "#3b82f6", borderColor: "#3b82f6" }}
       >
-        {iconOnly ? "" : "Call"}
+        {iconOnly ? "" : (label || "Call")}
       </Button>
     </Tooltip>
   );

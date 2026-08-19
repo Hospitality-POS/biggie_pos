@@ -12,6 +12,7 @@ import { useAppDispatch } from "src/store";
 import { Lead, LeadStage, updateLeadStage, convertLead, getLeadById } from "@services/crm/leads";
 import { createLeadActivity } from "@services/crm/leadActivities";
 import { uploadLeadDocument, deleteLeadDocument, LeadDocument } from "@services/crm/leadDocuments";
+import CallButton from "@components/Twilio/CallButton";
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -35,6 +36,22 @@ const STAGE_COLORS: Record<LeadStage, string> = {
     proposal: "#0891b2", negotiation: "#d97706", won: C.green,
     lost: C.red, disqualified: C.subText,
 };
+
+interface Call {
+    _id?: string;
+    call_sid?: string;
+    direction?: "inbound" | "outbound";
+    from_number?: string;
+    to_number?: string;
+    from_formatted?: string;
+    to_formatted?: string;
+    status?: string;
+    call_duration?: number;
+    recording_url?: string | null;
+    createdAt?: string;
+}
+
+type LeadWithCalls = Lead & { calls?: Call[] };
 
 const InfoRow = ({ icon, label, value }: { icon: React.ReactNode; label: string; value?: React.ReactNode }) => (
     <div style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "7px 0", borderBottom: `1px solid ${C.border}` }}>
@@ -110,6 +127,9 @@ const LeadDetailDrawer: React.FC<LeadDetailDrawerProps> = ({ open, onClose, lead
     }, [open, lead, documentForm]);
 
     if (!lead) return null;
+
+    const leadWithCalls = lead as LeadWithCalls;
+    const calls: Call[] = leadWithCalls.calls || [];
 
     const handleDocumentUpload = async (values: any) => {
         setUploadLoading(true);
@@ -560,6 +580,49 @@ const LeadDetailDrawer: React.FC<LeadDetailDrawerProps> = ({ open, onClose, lead
                                     )}
                                 </div>
                             </>
+                        ),
+                    },
+                    {
+                        key: 'calls',
+                        label: 'Calls',
+                        children: (
+                            <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 14px" }}>
+                                <SectionTitle label="Calls" />
+                                {calls.length === 0 ? (
+                                    <Text type="secondary" style={{ fontSize: 12 }}>No calls yet</Text>
+                                ) : (
+                                    <Timeline
+                                        mode="left"
+                                        items={[...calls].reverse().map((call: Call) => {
+                                            const needsCallback = ['no-answer', 'busy', 'failed'].includes(call.status || '');
+                                            const callbackNumber = call.direction === 'inbound'
+                                                ? (call.from_number || call.from_formatted)
+                                                : (call.to_number || call.to_formatted);
+                                            const formatted = call.direction === 'inbound'
+                                                ? (call.from_formatted || call.from_number)
+                                                : (call.to_formatted || call.to_number);
+                                            const label = call.direction === 'inbound' ? 'From' : 'To';
+                                            return {
+                                                label: new Date(call.createdAt || '').toLocaleString("en-GB"),
+                                                color: call.status === 'completed' ? C.green : call.status === 'no-answer' ? C.red : call.status === 'busy' ? C.orange : C.blue,
+                                                children: (
+                                                    <div>
+                                                        <Text strong style={{ fontSize: 12, display: "block" }}>
+                                                            {call.direction === 'inbound' ? 'Incoming' : 'Outgoing'} call · {call.status || 'unknown'}
+                                                        </Text>
+                                                        <Text style={{ fontSize: 11, color: C.subText, display: "block" }}>
+                                                            {label}: {formatted || '—'} · {call.call_duration ?? 0}s
+                                                        </Text>
+                                                        {needsCallback && callbackNumber && (
+                                                            <CallButton phoneNumber={callbackNumber} leadId={lead._id} label="Callback" size="small" type="default" />
+                                                        )}
+                                                    </div>
+                                                ),
+                                            };
+                                        })}
+                                    />
+                                )}
+                            </div>
                         ),
                     },
                 ]}

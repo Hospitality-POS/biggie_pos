@@ -1,14 +1,15 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
-import { ActionType, ProFormInstance, ProTable } from "@ant-design/pro-components";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState, ReactNode } from "react";
+import { ActionType, ProColumns, ProFormInstance, ProTable } from "@ant-design/pro-components";
 import {
     AlertOutlined, BarsOutlined, CheckCircleOutlined, DeleteOutlined, EditOutlined,
     EnvironmentOutlined, EyeOutlined, GiftOutlined, HistoryOutlined,
     IdcardOutlined, MailOutlined, MoreOutlined, ReloadOutlined,
-    SearchOutlined, StarFilled, TeamOutlined, TrophyOutlined,
-    UserAddOutlined, UserOutlined, PhoneOutlined,
+    SearchOutlined, StarFilled, TeamOutlined,
+    UserAddOutlined, PhoneOutlined,
 } from "@ant-design/icons";
-import { App, Button, Drawer, Dropdown, Form, Input, Modal, Space, Table, Typography } from "antd";
-import CustomerDetailDrawer from "./CustomerDetailDrawer";
+import { App, Button, Drawer, Dropdown, Input, Modal, Space, Table, Typography } from "antd";
+import { parsePhoneNumber } from "libphonenumber-js";
+import CustomerDetailDrawer, { Customer, Visit } from "./CustomerDetailDrawer";
 import { deleteCustomer, fetchAllCustomers, fetchAllGiftCards } from "@services/customers";
 import ExpandedRowContent from "./ExpandableCustomer";
 import GiftCardModal from "../../components/MODALS/pro/GiftCardModal";
@@ -32,6 +33,51 @@ const C = {
     border: "#e2e8f0",
     bg: "#f8fafc",
 };
+
+const normalizePhoneInput = (raw: string | number | { phone?: string | number; code?: string; short?: string } | undefined | null) => {
+    if (!raw) return { s: "", country: "KE" };
+    if (typeof raw === "object" && !Array.isArray(raw)) {
+        const obj = raw as { phone?: string | number; code?: string; short?: string };
+        if (obj.phone !== undefined || obj.code !== undefined) {
+            return {
+                s: `${obj.code || ""}${obj.phone || ""}`.trim(),
+                country: (obj.short || "ke").toUpperCase(),
+            };
+        }
+    }
+    return { s: String(raw).trim(), country: "KE" };
+};
+
+const formatPhone = (raw: string | number | { phone?: string | number; code?: string; short?: string } | undefined | null): string => {
+    const { s, country } = normalizePhoneInput(raw);
+    if (!s) return "—";
+    try {
+        return parsePhoneNumber(s, country).formatInternational();
+    } catch {
+        return s;
+    }
+};
+
+const toE164 = (raw: string | number | { phone?: string | number; code?: string; short?: string } | undefined | null): string => {
+    const { s, country } = normalizePhoneInput(raw);
+    if (!s) return "";
+    try {
+        return parsePhoneNumber(s, country).format("E.164");
+    } catch {
+        return s;
+    }
+};
+
+interface GiftCard {
+    _id?: string;
+    amount?: number;
+    status?: string;
+    customer_name?: string;
+    customer_id?: string | { _id?: string; customer_name?: string };
+    email?: string;
+    createdAt?: string;
+    expiry_date?: string;
+}
 
 const useIsMobile = () => {
     const [v, setV] = useState(window.innerWidth < 768);
@@ -93,34 +139,6 @@ const KpiCard = ({ icon, label, value, sub, color, bg }: {
     </div>
 );
 
-const TopCustomerRow = ({ rank, name, visits, sub, last }: {
-    rank: number; name: string; visits: number; sub?: string; last?: boolean;
-}) => {
-    const medals = ["#f59e0b", "#9ca3af", "#cd7f32"];
-    const color = medals[rank - 1] || C.subText;
-    return (
-        <div style={{
-            display: "flex", alignItems: "center", gap: 8,
-            padding: "6px 0", borderBottom: last ? "none" : `1px solid ${C.border}`,
-        }}>
-            <div style={{
-                width: 20, height: 20, borderRadius: "50%",
-                background: color, display: "flex", alignItems: "center",
-                justifyContent: "center", flexShrink: 0,
-            }}>
-                <Text style={{ fontSize: 10, color: "#fff", fontWeight: 700 }}>{rank}</Text>
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-                <Text strong style={{ fontSize: 12, color: C.darkText, display: "block" }}>{name}</Text>
-                {sub && <Text style={{ fontSize: 10, color: C.subText }}>{sub}</Text>}
-            </div>
-            <span style={pill("#eff6ff", C.blue, "#bfdbfe")}>
-                {visits} visit{visits !== 1 ? "s" : ""}
-            </span>
-        </div>
-    );
-};
-
 const ProgressRow = ({ label, count, total, color, last }: {
     label: string; count: number; total: number; color: string; last?: boolean;
 }) => {
@@ -138,7 +156,7 @@ const ProgressRow = ({ label, count, total, color, last }: {
     );
 };
 
-const buildStats = (customers: any[]) => {
+const buildStats = (customers: Customer[]) => {
     const now = Date.now();
     let recent = 0, overdue = 0, never = 0;
     const visitCounts: { name: string; visits: number; location?: string }[] = [];
@@ -146,10 +164,10 @@ const buildStats = (customers: any[]) => {
     customers.forEach(c => {
         const visits = c.visits || [];
         if (!visits.length) { never++; return; }
-        const lastDate = visits.reduce((p: any, x: any) =>
-            new Date(x.createdAt) > new Date(p.createdAt) ? x : p
+        const lastDate = visits.reduce((p: Visit, x: Visit) =>
+            new Date(x.createdAt || '') > new Date(p.createdAt || '') ? x : p
         ).createdAt;
-        const days = (now - new Date(lastDate).getTime()) / 86400000;
+        const days = (now - new Date(lastDate || '').getTime()) / 86400000;
         if (days <= 14) recent++; else overdue++;
         visitCounts.push({ name: c.customer_name, visits: visits.length, location: c.location });
     });
@@ -196,7 +214,7 @@ const LIFECYCLE_COLORS: Record<string, string> = {
     vip: '#f59e0b', at_risk: C.red, churned: C.subText,
 };
 
-const AnalyticsPanel = ({ customers }: { customers: any[] }) => {
+const AnalyticsPanel = ({ customers }: { customers: Customer[] }) => {
     if (!customers.length) return null;
     const s = buildStats(customers);
 
@@ -304,7 +322,7 @@ const AnalyticsPanel = ({ customers }: { customers: any[] }) => {
     );
 };
 
-const VisitBadge = ({ visits }: { visits: any[] }) => {
+const VisitBadge = ({ visits }: { visits: Visit[] }) => {
     const lastVisitDate = visits?.[0]?.createdAt ? new Date(visits[0].createdAt) : null;
     if (!lastVisitDate)
         return <span style={pill(C.bg, C.subText, C.border)}><AlertOutlined />No Visits</span>;
@@ -351,15 +369,15 @@ const TabNav = ({ active, onChange }: { active: GiftTab; onChange: (k: GiftTab) 
 );
 
 const MobileCustomerCard = ({ record, onEdit, onIssueGiftCard, onViewGiftCards, showGiftCards }: {
-    record: any; onEdit?: () => void;
+    record: Customer; onEdit?: () => void;
     onIssueGiftCard: () => void; onViewGiftCards: () => void;
     showGiftCards: boolean;
 }) => {
     const lv = (() => {
         const visits = record.visits || [];
         if (!visits.length) return null;
-        return visits.reduce((prev: any, curr: any) =>
-            new Date(curr.createdAt) > new Date(prev.createdAt) ? curr : prev
+        return visits.reduce((prev: Visit, curr: Visit) =>
+            new Date(curr.createdAt || '') > new Date(prev.createdAt || '') ? curr : prev
         ).createdAt;
     })();
 
@@ -380,7 +398,7 @@ const MobileCustomerCard = ({ record, onEdit, onIssueGiftCard, onViewGiftCards, 
             <div style={{ background: C.bg, borderRadius: 8, padding: "4px 10px", marginBottom: 10 }}>
                 {record.phone && (
                     <MetaRow label="Phone">
-                        <Text copyable style={{ fontSize: 12 }}>{record.phone}</Text>
+                        <Text copyable style={{ fontSize: 12 }}>{formatPhone(record.phone)}</Text>
                     </MetaRow>
                 )}
                 {record.email && (
@@ -435,7 +453,7 @@ const MobileCustomerCard = ({ record, onEdit, onIssueGiftCard, onViewGiftCards, 
 };
 
 const GiftCardMobileCard = ({ card, onPreview, onShare }: {
-    card: any; onPreview: () => void; onShare: () => void;
+    card: GiftCard; onPreview: () => void; onShare: () => void;
 }) => (
     <div style={{
         background: "#fff", border: `1px solid ${C.border}`,
@@ -498,7 +516,7 @@ const getModules = () => {
 
 interface CustomerTableProps {
     nonCustomerEnabled?: boolean;
-    onEditCustomer?: (customer: any) => void;
+    onEditCustomer?: (customer: Customer) => void;
 }
 interface CustomerTableHandle { reload: () => void }
 
@@ -507,7 +525,7 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
         const isMobile = useIsMobile();
         const actionRef = useRef<ActionType>();
         const formRef = useRef<ProFormInstance>();
-        const [searchForm] = Form.useForm();
+
 
         // ── Gift cards are a POS feature — hide when accounting-only ──────────
         const { hasPOS, hasDala } = getModules();
@@ -522,16 +540,16 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
         const [activeGiftTab, setActiveGiftTab] = useState<GiftTab>("all");
         const [customerDetailOpen, setCustomerDetailOpen] = useState(false);
 
-        const [currentCustomer, setCurrentCustomer] = useState<any>(null);
-        const [currentGiftCard, setCurrentGiftCard] = useState<any>(null);
-        const [customerGiftCards, setCustomerGiftCards] = useState<any[]>([]);
-        const [allGiftCards, setAllGiftCards] = useState<any[]>([]);
+        const [currentCustomer, setCurrentCustomer] = useState<Customer | null>(null);
+        const [currentGiftCard, setCurrentGiftCard] = useState<GiftCard | null>(null);
+        const [customerGiftCards, setCustomerGiftCards] = useState<GiftCard[]>([]);
+        const [allGiftCards, setAllGiftCards] = useState<GiftCard[]>([]);
         const [loadingGiftCards, setLoadingGiftCards] = useState(false);
         const [loadingAllGiftCards, setLoadingAllGiftCards] = useState(false);
         const [clientName, setClientName] = useState("BasePoint Cloud");
 
-        const [allCustomers, setAllCustomers] = useState<any[]>([]);
-        const [mobileData, setMobileData] = useState<any[]>([]);
+        const [allCustomers, setAllCustomers] = useState<Customer[]>([]);
+        const [mobileData, setMobileData] = useState<Customer[]>([]);
         const [mobileTotal, setMobileTotal] = useState(0);
         const [mobilePage, setMobilePage] = useState(1);
         const [mobileLoading, setMobileLoading] = useState(false);
@@ -567,7 +585,7 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
         const loadMobileData = async (page: number, name?: string, phone?: string, email?: string) => {
             setMobileLoading(true);
             try {
-                const params: any = { current: page, pageSize: 15 };
+                const params: Record<string, string | number | undefined> = { current: page, pageSize: 15 };
                 if (name) params.customer_name = name;
                 if (phone) params.phone = phone;
                 if (email) params.email = email;
@@ -585,7 +603,7 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
             }
         };
 
-        useEffect(() => { if (isMobile) loadMobileData(1); }, [isMobile]);
+        useEffect(() => { if (isMobile) loadMobileData(1); }, [isMobile]); // eslint-disable-line react-hooks/exhaustive-deps
 
         const handleMobileSearch = () => {
             setMobileData([]);
@@ -600,16 +618,16 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
             loadMobileData(1, "", "", "");
         };
 
-        const getLastVisit = (visits: any[]) => {
+        const getLastVisit = (visits: Visit[]) => {
             if (!visits?.length) return null;
-            return visits.reduce((p: any, c: any) =>
-                new Date(c.createdAt) > new Date(p.createdAt) ? c : p
+            return visits.reduce((p: Visit, c: Visit) =>
+                new Date(c.createdAt || '') > new Date(p.createdAt || '') ? c : p
             ).createdAt;
         };
 
-        const openGiftCardModal = (r: any) => { setCurrentCustomer(r); setGiftCardOpen(true); };
+        const openGiftCardModal = (r: Customer) => { setCurrentCustomer(r); setGiftCardOpen(true); };
 
-        const openGiftCardsHistory = async (r: any) => {
+        const openGiftCardsHistory = async (r: Customer) => {
             setCurrentCustomer(r); setViewGiftCardsOpen(true); setLoadingGiftCards(true);
             try { setCustomerGiftCards(await fetchAllGiftCards(r._id)); }
             catch { messageApi.error("Failed to load gift cards"); }
@@ -623,7 +641,7 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
             finally { setLoadingAllGiftCards(false); }
         };
 
-        const handleGiftCardCreated = (card: any) => {
+        const handleGiftCardCreated = (card: GiftCard) => {
             if (card.customer_id && currentCustomer) setCustomerGiftCards(prev => [...prev, card]);
             if (allGiftCards.length > 0) setAllGiftCards(prev => [...prev, card]);
         };
@@ -637,9 +655,9 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
             },
             {
                 title: "Recipient", key: "recipient",
-                render: (_: any, r: any) => (
+                render: (_: string | number | undefined, r: GiftCard) => (
                     <Text style={{ fontSize: 12 }}>
-                        {r.customer_name || r.customer_id?.customer_name || "Non-Customer"}
+                        {r.customer_name || (typeof r.customer_id === 'object' ? r.customer_id?.customer_name : undefined) || "Non-Customer"}
                     </Text>
                 ),
             },
@@ -665,12 +683,12 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
             },
             {
                 title: "Actions", key: "actions",
-                render: (_: any, r: any) => (
+                render: (_: string | number | undefined, r: GiftCard) => (
                     <div style={{ display: "flex", gap: 6 }}>
                         <Button size="small" icon={<EyeOutlined />} style={{ borderRadius: 6, fontSize: 11 }}
                             onClick={() => {
                                 setCurrentGiftCard(r);
-                                if (r.customer_id) setCurrentCustomer({ _id: r.customer_id });
+                                if (r.customer_id) setCurrentCustomer({ _id: r.customer_id } as unknown as Customer);
                                 setPreviewOpen(true);
                             }}>
                             Preview
@@ -684,24 +702,24 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
             },
         ];
 
-        const columns = [
+        const columns: ProColumns<Customer>[] = [
             {
                 title: "Code", dataIndex: "code",
                 fieldProps: { placeholder: "Customer Code" },
-                render: (text: string) => <Text copyable strong style={{ fontSize: 12 }}>{text}</Text>,
+                render: (text: ReactNode) => <Text copyable strong style={{ fontSize: 12 }}>{text}</Text>,
             },
             {
                 title: "Name", dataIndex: "customer_name",
                 fieldProps: { placeholder: "Customer Name" },
-                render: (_: string, record: any) => {
-                    const displayName = record.entity_type === 'company' 
-                        ? (record.company_name || 'Unnamed Company') 
-                        : (record.customer_name || 'Unnamed Individual');
+                render: (_: ReactNode, record: Customer) => {
+                    const displayName = (record.entity_type === 'company'
+                        ? (record.company_name || 'Unnamed Company')
+                        : (record.customer_name || 'Unnamed Individual')).trim();
                     return (
                         <div>
                             <Text strong style={{ fontSize: 12 }}>{displayName}</Text>
                             {record.entity_type === 'company' && record.contact_person && (
-                                <Text style={{ fontSize: 11, color: C.subText, display: "block" }}>Contact: {record.contact_person}</Text>
+                                <Text style={{ fontSize: 11, color: C.subText, display: "block" }}>Contact: {record.contact_person.trim()}</Text>
                             )}
                         </div>
                     );
@@ -710,54 +728,54 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
             {
                 title: "Email", dataIndex: "email", copyable: true,
                 fieldProps: { placeholder: "Search by email..." },
-                render: (text: string) => (
+                render: (text: ReactNode) => (
                     <Text style={{ fontSize: 12, color: C.subText }}>{text || "—"}</Text>
                 ),
             },
             {
                 title: "Phone", dataIndex: "phone", copyable: true,
                 fieldProps: { placeholder: "Search by phone..." },
-                render: (phone: string, record: any) => (
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <PhoneOutlined style={{ color: C.subText, fontSize: 12 }} />
-                        <Text style={{ fontSize: 12, color: C.darkText }}>{phone || "—"}</Text>
-                        {phone && (
-                            <Space size={2}>
-                                <CallButton phoneNumber={phone} customerId={record._id} size="small" type="text" iconOnly />
-                                <SMSButton phoneNumber={phone} customerId={record._id} size="small" type="text" iconOnly />
-                                <WhatsAppButton phoneNumber={phone} customerId={record._id} size="small" type="text" iconOnly />
-                            </Space>
-                        )}
-                    </div>
-                ),
+                render: (_: ReactNode, record: Customer) => {
+                    const phone = record.phone;
+                    const dialNumber = toE164(phone);
+                    return (
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <PhoneOutlined style={{ color: C.subText, fontSize: 12 }} />
+                            <Text style={{ fontSize: 12, color: C.darkText }}>{formatPhone(phone)}</Text>
+                            {dialNumber && (
+                                <Space size={2}>
+                                    <CallButton phoneNumber={dialNumber} customerId={record._id} size="small" type="text" iconOnly />
+                                    <SMSButton phoneNumber={dialNumber} customerId={record._id} size="small" type="text" iconOnly />
+                                    <WhatsAppButton phoneNumber={dialNumber} customerId={record._id} size="small" type="text" iconOnly />
+                                </Space>
+                            )}
+                        </div>
+                    );
+                },
             },
                         {
-                title: "Street Address", dataIndex: ["address", "street"], search: false,
-                render: (street: string) => (
-                    <Text style={{ fontSize: 12, color: C.subText }}>
-                        {street || "—"}
-                    </Text>
-                ),
-            },
-            {
-                title: "City", dataIndex: ["address", "city"], search: false,
-                render: (city: string) => (
-                    <Text style={{ fontSize: 12, color: C.subText }}>
-                        {city || "—"}
-                    </Text>
-                ),
-            },
-            {
-                title: "County", dataIndex: ["address", "county"], search: false,
-                render: (county: string) => (
-                    <Text style={{ fontSize: 12, color: C.subText }}>
-                        {county || "—"}
-                    </Text>
-                ),
+                title: "Location", key: "location", search: false, width: 160,
+                render: (_: ReactNode, record: Customer) => {
+                    const addr = record.address || {};
+                    const parts = [addr.city, addr.county, addr.country].filter(Boolean);
+                    const full = [addr.street, ...parts].filter(Boolean).join(", ");
+                    const short = parts.join(", ");
+                    return short ? (
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <EnvironmentOutlined style={{ color: C.subText, fontSize: 12 }} />
+                            <div
+                                style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 120, fontSize: 12, color: C.subText }}
+                                title={full}
+                            >
+                                {short}
+                            </div>
+                        </div>
+                    ) : <Text style={{ fontSize: 12, color: C.subText }}>—</Text>;
+                },
             },
             {
                 title: "KRA PIN", dataIndex: "kra_pin", search: false,
-                render: (pin: string) =>
+                render: (pin: ReactNode) =>
                     pin ? (
                         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                             <IdcardOutlined style={{ color: C.subText, fontSize: 11 }} />
@@ -768,11 +786,11 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
             ...(!hasDala ? [
                 {
                     title: "Status", dataIndex: "lastVisit", hideInSearch: true,
-                    render: (_: any, record: any) => <VisitBadge visits={record.visits || []} />,
+                    render: (_: ReactNode, record: Customer) => <VisitBadge visits={record.visits || []} />,
                 },
                 {
                     title: "Last Visit", key: "lastVisit", search: false,
-                    render: (_: any, record: any) => {
+                    render: (_: ReactNode, record: Customer) => {
                         const lv = getLastVisit(record.visits || []);
                         return (
                             <Text style={{ fontSize: 12, color: C.subText }}>
@@ -784,7 +802,7 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
             ] : []),
             {
                 title: "Actions", key: "actions", search: false, fixed: "right" as const, width: 56,
-                render: (_: any, record: any) => (
+                render: (_: ReactNode, record: Customer) => (
                     <Dropdown trigger={["click"]} menu={{
                         items: [
                             { key: "view", icon: <EyeOutlined />, label: "View Details", onClick: () => { setCurrentCustomer(record); setCustomerDetailOpen(true); } },
@@ -819,14 +837,14 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
             },
         ];
 
-        const tabData: Record<GiftTab, any[]> = {
+        const tabData: Record<GiftTab, GiftCard[]> = {
             all: allGiftCards,
             nonCustomers: allGiftCards.filter(c => !c.customer_id),
             customers: allGiftCards.filter(c => c.customer_id),
         };
 
         const GiftCardsContent = ({ cards, loading, emptyText }: {
-            cards: any[]; loading: boolean; emptyText: string;
+            cards: GiftCard[]; loading: boolean; emptyText: string;
         }) => {
             if (loading) return (
                 <div style={{ textAlign: "center", padding: "24px 0" }}>

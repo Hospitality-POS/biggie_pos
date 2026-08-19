@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import {
-    Button, Drawer, Form, Input, Select, Typography, message, Tabs, Upload, Tag,
+    Button, Drawer, Form, Input, Select, Typography, message, Tabs, Upload, Tag, Timeline,
 } from "antd";
 import {
     FileOutlined, UploadOutlined, DeleteOutlined, UserOutlined, ShopOutlined,
@@ -8,6 +8,9 @@ import {
     DownloadOutlined, EyeOutlined,
 } from "@ant-design/icons";
 import { uploadCustomerDocument, deleteCustomerDocument, CustomerDocument } from "@services/customerDocuments";
+import type { UploadFile } from "antd/es/upload/interface";
+import { parsePhoneNumber } from "libphonenumber-js";
+import CallButton from "@components/Twilio/CallButton";
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -19,10 +22,18 @@ const C = {
     green: "#10b981",
     red: "#ef4444",
     blue: "#3b82f6",
+    orange: "#f59e0b",
+    purple: "#8b5cf6",
     subText: "#64748b",
     darkText: "#0f172a",
     border: "#e2e8f0",
     bg: "#f8fafc",
+};
+
+const STAGE_COLORS: Record<string, string> = {
+    new: C.blue, contacted: C.orange, qualified: C.purple,
+    proposal: "#0891b2", negotiation: "#d97706", won: C.green,
+    lost: C.red, disqualified: C.subText,
 };
 
 const INDIVIDUAL_DOCUMENT_TYPES = [
@@ -64,19 +75,95 @@ const InfoRow = ({ icon, label, value }: { icon: React.ReactNode; label: string;
     </div>
 );
 
+const formatCustomerPhone = (raw: Customer['phone']): string => {
+    if (!raw) return "—";
+    let s = "";
+    let country = "KE";
+    if (typeof raw === "object" && !Array.isArray(raw)) {
+        const obj = raw as { phone?: string | number; code?: string; short?: string };
+        s = `${obj.code || ""}${obj.phone || ""}`.trim();
+        country = (obj.short || "ke").toUpperCase();
+    } else {
+        s = String(raw).trim();
+    }
+    if (!s) return "—";
+    try {
+        return parsePhoneNumber(s, country).formatInternational();
+    } catch {
+        return s;
+    }
+};
+
+interface CustomerAddress {
+    street?: string;
+    city?: string;
+    county?: string;
+    country?: string;
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export interface Visit {
+    _id?: string;
+    createdAt?: string;
+    review?: string;
+    rating?: number;
+}
+
+interface Call {
+    _id?: string;
+    call_sid?: string;
+    direction?: "inbound" | "outbound";
+    from_number?: string;
+    to_number?: string;
+    from_formatted?: string;
+    to_formatted?: string;
+    status?: string;
+    call_duration?: number;
+    recording_url?: string | null;
+    createdAt?: string;
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export interface Customer {
+    _id: string;
+    code?: string;
+    customer_name?: string;
+    company_name?: string;
+    contact_person?: string;
+    type?: 'individual' | 'company';
+    entity_type?: 'individual' | 'company';
+    phone?: string | number | { phone?: string | number; code?: string; short?: string };
+    email?: string;
+    location?: string;
+    address?: CustomerAddress;
+    kra_pin?: string;
+    payment_terms?: number;
+    credit_limit?: number;
+    notes?: string;
+    is_active?: boolean;
+    lifecycle_stage?: string;
+    source?: string;
+    assigned_to?: string | { _id?: string; name?: string };
+    documents?: CustomerDocument[];
+    activities?: Record<string, string | undefined>[];
+    stage_history?: Record<string, string | undefined>[];
+    visits?: Visit[];
+    calls?: Call[];
+}
+
 interface CustomerDetailDrawerProps {
     open: boolean;
     onClose: () => void;
-    customer: any;
+    customer: Customer | null;
     onUpdated?: () => void;
 }
 
 const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ open, onClose, customer, onUpdated }) => {
     const [documentForm] = Form.useForm();
     const [documents, setDocuments] = useState<CustomerDocument[]>([]);
-    const [documentsLoading, setDocumentsLoading] = useState(false);
+    const [documentsLoading] = useState(false);
     const [uploadLoading, setUploadLoading] = useState(false);
-    const [fileList, setFileList] = useState<any[]>([]);
+    const [fileList, setFileList] = useState<UploadFile[]>([]);
 
     const shop_id = JSON.parse(localStorage.getItem("shop") || "{}")?._id;
     const entityType = customer?.type || 'individual';
@@ -86,7 +173,7 @@ const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ open, onClo
     useEffect(() => {
         if (open && customer) {
             const docs = customer.documents || [];
-            setDocuments(Array.isArray(docs) ? docs.filter((d: any) => d.document_type !== 'folder') : []);
+            setDocuments(Array.isArray(docs) ? docs.filter(d => d.document_type !== 'folder') : []);
             // Auto-populate document name with customer name
             documentForm.setFieldValue('name', customer.customer_name || customer.company_name);
         }
@@ -94,7 +181,7 @@ const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ open, onClo
 
     if (!customer) return null;
 
-    const handleDocumentUpload = async (values: any) => {
+    const handleDocumentUpload = async (values: { document_type: string; name?: string; description?: string }) => {
         setUploadLoading(true);
         try {
             await uploadCustomerDocument(customer._id, {
@@ -138,7 +225,7 @@ const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ open, onClo
         </Text>
     );
 
-    const displayName = entityType === 'company' ? (customer.company_name || 'Unnamed Company') : (customer.customer_name || 'Unnamed Individual');
+    const displayName = (entityType === 'company' ? (customer.company_name || 'Unnamed Company') : (customer.customer_name || 'Unnamed Individual')).trim();
 
     return (
         <Drawer
@@ -179,7 +266,7 @@ const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ open, onClo
                                 {/* ── Contact Info ─────────────────────────────────────── */}
                                 <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 14px", marginBottom: 14 }}>
                                     <SectionTitle label="Contact Info" />
-                                    <InfoRow icon={<PhoneOutlined />} label="Phone" value={customer.phone} />
+                                    <InfoRow icon={<PhoneOutlined />} label="Phone" value={formatCustomerPhone(customer.phone)} />
                                     <InfoRow icon={<MailOutlined />} label="Email" value={customer.email} />
                                     <InfoRow icon={<EnvironmentOutlined />} label="Location" value={customer.location} />
                                     <InfoRow icon={<IdcardOutlined />} label="KRA PIN" value={customer.kra_pin} />
@@ -293,7 +380,7 @@ const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ open, onClo
                                                     </div>
                                                     {doc.attachments && doc.attachments.length > 0 && (
                                                         <div style={{ display: "flex", flexDirection: "column", gap: 6, paddingLeft: 28 }}>
-                                                            {doc.attachments.map((attachment: any) => (
+                                                            {doc.attachments.map((attachment) => (
                                                                 <div key={attachment._id} style={{
                                                                     display: "flex", alignItems: "center", gap: 8,
                                                                     padding: "6px 10px", background: "#fff",
@@ -333,6 +420,107 @@ const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ open, onClo
                                                 </div>
                                             ))}
                                         </div>
+                                    )}
+                                </div>
+                            </>
+                        ),
+                    },
+                    {
+                        key: 'history',
+                        label: 'History',
+                        children: (
+                            <>
+                                {/* ── Activity History ─────────────────────────────────────── */}
+                                <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 14px", marginBottom: 14 }}>
+                                    <SectionTitle label="Activity History" />
+                                    {(customer.activities || []).length === 0 ? (
+                                        <Text type="secondary" style={{ fontSize: 12 }}>No activities yet</Text>
+                                    ) : (
+                                        <Timeline
+                                            mode="left"
+                                            items={[...customer.activities].reverse().map((activity: Record<string, string | undefined>) => ({
+                                                label: new Date(activity.activity_date || activity.createdAt || '').toLocaleString("en-GB"),
+                                                color: activity.type === 'call' ? C.green : activity.type === 'whatsapp' ? C.blue : C.orange,
+                                                children: (
+                                                    <div>
+                                                        <Text strong style={{ fontSize: 12, display: "block" }}>
+                                                            {activity.type ? activity.type.replace(/_/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase()) : "Activity"}
+                                                        </Text>
+                                                        {activity.subject && <Text style={{ fontSize: 11, color: C.darkText, display: "block" }}>{activity.subject}</Text>}
+                                                        {activity.description && <Text style={{ fontSize: 11, color: C.subText, display: "block" }}>{activity.description}</Text>}
+                                                        {activity.outcome && (
+                                                            <Tag style={{ fontSize: 10, marginTop: 4 }}>
+                                                                {activity.outcome.replace(/_/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                                                            </Tag>
+                                                        )}
+                                                    </div>
+                                                ),
+                                            }))}
+                                        />
+                                    )}
+                                </div>
+
+                                {/* ── Stage History ─────────────────────────────────────── */}
+                                <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 14px" }}>
+                                    <SectionTitle label="Stage History" />
+                                    {(customer.stage_history || []).length === 0 ? (
+                                        <Text type="secondary" style={{ fontSize: 12 }}>No stage history</Text>
+                                    ) : (
+                                        <Timeline
+                                            mode="left"
+                                            items={[...customer.stage_history].reverse().map((h: Record<string, string | undefined>) => ({
+                                                label: new Date(h.changed_at || h.createdAt || '').toLocaleString("en-GB"),
+                                                color: STAGE_COLORS[h.stage] || C.subText,
+                                                children: (
+                                                    <div>
+                                                        <Text strong style={{ fontSize: 12, display: "block" }}>
+                                                            {h.stage ? h.stage.replace(/_/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase()) : "Stage"}
+                                                        </Text>
+                                                        {h.note && <Text style={{ fontSize: 11, color: C.subText, display: "block" }}>{h.note}</Text>}
+                                                        {h.changed_by && <Text style={{ fontSize: 11, color: C.subText, display: "block" }}>By: {h.changed_by}</Text>}
+                                                    </div>
+                                                ),
+                                            }))}
+                                        />
+                                    )}
+                                </div>
+
+                                {/* ── Calls ─────────────────────────────────────── */}
+                                <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 14px" }}>
+                                    <SectionTitle label="Calls" />
+                                    {(customer.calls || []).length === 0 ? (
+                                        <Text type="secondary" style={{ fontSize: 12 }}>No calls yet</Text>
+                                    ) : (
+                                        <Timeline
+                                            mode="left"
+                                            items={[...(customer.calls || [])].reverse().map((call: Call) => {
+                                                const needsCallback = ['no-answer', 'busy', 'failed'].includes(call.status || '');
+                                                const callbackNumber = call.direction === 'inbound'
+                                                    ? (call.from_number || call.from_formatted)
+                                                    : (call.to_number || call.to_formatted);
+                                                const formatted = call.direction === 'inbound'
+                                                    ? (call.from_formatted || call.from_number)
+                                                    : (call.to_formatted || call.to_number);
+                                                const label = call.direction === 'inbound' ? 'From' : 'To';
+                                                return {
+                                                    label: new Date(call.createdAt || '').toLocaleString("en-GB"),
+                                                    color: call.status === 'completed' ? C.green : call.status === 'no-answer' ? C.red : call.status === 'busy' ? C.orange : C.blue,
+                                                    children: (
+                                                        <div>
+                                                            <Text strong style={{ fontSize: 12, display: "block" }}>
+                                                                {call.direction === 'inbound' ? 'Incoming' : 'Outgoing'} call · {call.status || 'unknown'}
+                                                            </Text>
+                                                            <Text style={{ fontSize: 11, color: C.subText, display: "block" }}>
+                                                                {label}: {formatted || '—'} · {call.call_duration ?? 0}s
+                                                            </Text>
+                                                            {needsCallback && callbackNumber && (
+                                                                <CallButton phoneNumber={callbackNumber} customerId={customer?._id} label="Callback" size="small" type="default" />
+                                                            )}
+                                                        </div>
+                                                    ),
+                                                };
+                                            })}
+                                        />
                                     )}
                                 </div>
                             </>

@@ -2,22 +2,12 @@ import { useRef, useState, useCallback } from "react";
 import { CalendarOutlined, UnorderedListOutlined, TeamOutlined, BarChartOutlined } from "@ant-design/icons";
 import { Typography } from "antd";
 import BookingsList from "./BookingsList";
-import CalendarView from "./CalendarView";
 import AnalyticsPanel from "./AnalyticsPanel";
 import StaffClasses from "./StaffClasses";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
+import { useTenantModules } from "@hooks/useTenantModules";
 
 const { Text } = Typography;
-
-// ── Palette ────────────────────────────────────────────────────────────────
-const C = {
-  primary: "#6c1c2c",
-  primaryLight: "#f9f0f2",
-  subText: "#64748b",
-  darkText: "#0f172a",
-  border: "#e2e8f0",
-  bg: "#f8fafc",
-};
 
 // ── Tab definition ─────────────────────────────────────────────────────────
 type TabKey = "calendar" | "list" | "classes" | "analytics";
@@ -40,8 +30,13 @@ const SpaReservationSystem = () => {
   }, []);
 
   // Use primary color context instead of hardcoded colors
-  const contextResult = usePrimaryColor();
-  const primaryColor = contextResult?.primaryColor || '#6c1c2c';
+  const primaryColor = usePrimaryColor() || '#6c1c2c';
+
+  // Mteja-only tenants don't need the Classes tab
+  const { hasMteja, hasPOS, hasAccounting, hasDala, hasHR } = useTenantModules();
+  const isMtejaOnly = hasMteja && !hasPOS && !hasAccounting && !hasDala && !hasHR;
+  const visibleTabs = isMtejaOnly ? TABS.filter(t => t.key !== "classes") : TABS;
+  const activeKey = visibleTabs.some(t => t.key === activeTab) ? activeTab : visibleTabs[0]?.key || "calendar";
   
   // Generate color palette based on primary color (same logic as CalendarView)
   const generateColorPalette = (primary: string) => {
@@ -60,9 +55,9 @@ const SpaReservationSystem = () => {
 
   // Ref to CalendarView's openEdit — we expose it via a forwarded callback
   // so BookingsList can trigger edit mode in the calendar from the list tab.
-  const calendarEditRef = useRef<((appt: any) => void) | null>(null);
+  const calendarEditRef = useRef<((appt: Record<string, unknown>) => void) | null>(null);
 
-  const handleEditFromList = (booking: any) => {
+  const handleEditFromList = (booking: Record<string, unknown>) => {
     // Switch to calendar tab, then open the edit drawer
     setActiveTab("calendar");
     // Use rAF to ensure CalendarView has mounted / re-rendered first
@@ -98,8 +93,8 @@ const SpaReservationSystem = () => {
 
         {/* Tab nav */}
         <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-          {TABS.map(tab => {
-            const active = activeTab === tab.key;
+          {visibleTabs.map(tab => {
+            const active = activeKey === tab.key;
             return (
               <button
                 key={tab.key}
@@ -133,22 +128,22 @@ const SpaReservationSystem = () => {
       <div style={{ flex: 1, padding: "16px 20px" }}>
 
         {/* Calendar view — always rendered so the ref is available */}
-        <div style={{ display: activeTab === "calendar" ? "block" : "none" }}>
+        <div style={{ display: activeKey === "calendar" ? "block" : "none" }}>
           <CalendarViewWithRef editRef={calendarEditRef} onAppointmentUpdate={handleAppointmentUpdate} />
         </div>
 
         {/* Bookings list — rendered when active */}
-        {activeTab === "list" && (
+        {activeKey === "list" && (
           <BookingsList onEditBooking={handleEditFromList} refreshTrigger={refreshTrigger} />
         )}
 
         {/* Classes view — rendered when active */}
-        {activeTab === "classes" && (
+        {activeKey === "classes" && (
           <StaffClasses />
         )}
 
         {/* Analytics view — rendered when active */}
-        {activeTab === "analytics" && (
+        {activeKey === "analytics" && (
           <AnalyticsPanel />
         )}
       </div>
@@ -165,14 +160,14 @@ const CalendarViewWithRef = ({
   editRef,
   onAppointmentUpdate,
 }: {
-  editRef: React.MutableRefObject<((appt: any) => void) | null>;
+  editRef: React.MutableRefObject<((appt: Record<string, unknown>) => void) | null>;
   onAppointmentUpdate?: () => void;
 }) => {
   // CalendarView already handles openEdit internally.
   // We pass a prop so it can register its own openEdit with us.
   return (
     <CalendarViewBase
-      onRegisterEditHandler={(fn: (appt: any) => void) => {
+      onRegisterEditHandler={(fn: (appt: Record<string, unknown>) => void) => {
         editRef.current = fn;
       }}
       onAppointmentUpdate={onAppointmentUpdate}

@@ -23,6 +23,7 @@ import {
     message,
     Switch,
     Divider,
+    Spin,
 } from "antd";
 import {
     PlusOutlined,
@@ -39,6 +40,7 @@ import {
     CommentOutlined,
     CloseCircleOutlined,
     FileOutlined,
+    PlayCircleOutlined,
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -49,7 +51,7 @@ import {
 } from "@services/whatsappService";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import CallInterfaceModal from "./CallInterfaceModal";
-import { getAgentStatus, getCallHistory, initiateCall, getPhoneNumbers, getActiveCalls, answerCall, rejectCall, endCall, getTwilioVoiceToken, updateAgentStatus, updateAgentHeartbeat, getMissedCalls, getMissedCallStats, progressMissedCall, sendTwilioWhatsAppMessage, getTwilioWhatsAppConversations, getTwilioWhatsAppMessages, getTwilioWhatsAppTemplates, createTwilioWhatsAppTemplate, deleteTwilioWhatsAppTemplate, getTwilioWhatsAppTemplateStatus } from "@services/twilio";
+import { getAgentStatus, getCallHistory, initiateCall, getPhoneNumbers, getActiveCalls, answerCall, rejectCall, endCall, getTwilioVoiceToken, transcribeCall, updateAgentStatus, updateAgentHeartbeat, getMissedCalls, getMissedCallStats, progressMissedCall, sendTwilioWhatsAppMessage, getTwilioWhatsAppConversations, getTwilioWhatsAppMessages, getTwilioWhatsAppTemplates, createTwilioWhatsAppTemplate, deleteTwilioWhatsAppTemplate, getTwilioWhatsAppTemplateStatus } from "@services/twilio";
 import { fetchAllUsersList } from "@services/users";
 import { fetchAllCustomers } from "@services/customers";
 import { fetchAllLeads } from "@services/crm/leads";
@@ -69,11 +71,21 @@ export type ActiveTab = "calls" | "whatsapp";
 export interface Call {
     _id: string;
     from_number?: string;
+    from_formatted?: string;
     to_number?: string;
+    to_formatted?: string;
     direction?: "inbound" | "outbound";
     status?: string;
-    agent_id?: string;
+    contact_name?: string;
+    customer_id?: { _id: string; customer_name?: string; phone?: string | number } | null;
+    agent_id?: string | { _id: string; fullname: string };
     duration?: number;
+    call_duration?: number;
+    recording_duration?: number;
+    recording_url?: string;
+    recording_status?: string;
+    transcription_text?: string | null;
+    transcription_status?: string;
     start_time?: string;
     createdAt?: string;
 }
@@ -201,6 +213,10 @@ const OmnichannelInboxPage: React.FC = () => {
     
     // Track if incoming call came from WebSocket (to prevent polling from clearing it)
     const [isWebSocketCall, setIsWebSocketCall] = useState(false);
+
+    // Recording playback state
+    const [selectedRecording, setSelectedRecording] = useState<Call | null>(null);
+    const [recordingModalOpen, setRecordingModalOpen] = useState(false);
 
     // Caller context for outbound calls
     const [callerContext, setCallerContext] = useState<{ customer?: { customer_name?: string; fullname?: string; name?: string; phone?: string; phone_number?: string; email?: string; _id?: string }; lead?: { lead_name?: string; fullname?: string; name?: string; phone?: string; phone_number?: string; email?: string; _id?: string } } | null>(null);
@@ -1378,28 +1394,155 @@ const OmnichannelInboxPage: React.FC = () => {
                                                 <Card title="Recent Calls">
                                                     <List
                                                         dataSource={callHistory?.calls?.slice(0, 10) || []}
-                                                        renderItem={(call: Call) => (
-                                                            <List.Item>
-                                                                <List.Item.Meta
-                                                                    avatar={<Avatar icon={<PhoneOutlined />} />}
-                                                                    title={
-                                                                        <Space>
-                                                                            <Text strong>{call.from_number || call.to_number}</Text>
-                                                                            <Tag color={call.status === 'completed' ? 'green' : call.status === 'no-answer' ? 'red' : 'blue'}>
-                                                                                {call.status}
-                                                                            </Tag>
-                                                                        </Space>
-                                                                    }
-                                                                    description={
-                                                                        <Space>
-                                                                            <Text type="secondary">{call.direction}</Text>
-                                                                            <Text type="secondary">{call.duration}s</Text>
-                                                                            <Text type="secondary">{new Date(call.createdAt || call.start_time || '').toLocaleString()}</Text>
-                                                                        </Space>
-                                                                    }
-                                                                />
-                                                            </List.Item>
-                                                        )}
+                                                        renderItem={(call: Call) => {
+                                                            const statusColor = call.status === 'completed' ? 'green' : call.status === 'no-answer' ? 'red' : 'blue';
+                                                            const displayName = call.contact_name
+                                                                || (typeof call.customer_id === 'object' && call.customer_id?.customer_name)
+                                                                || (call.direction === 'inbound' ? call.from_formatted || call.from_number : call.to_formatted || call.to_number)
+                                                                || 'Unknown';
+                                                            const agentName = typeof call.agent_id === 'object'
+                                                                ? call.agent_id?.fullname
+                                                                : call.agent_id || '—';
+                                                            const duration = call.call_duration ?? call.duration ?? call.recording_duration ?? 0;
+                                                            const needsCallback = ['no-answer', 'busy', 'failed'].includes(call.status || '');
+                                                            const callbackNumber = call.direction === 'inbound'
+                                                                ? (call.from_formatted || call.from_number)
+                                                                : (call.to_formatted || call.to_number);
+
+                                                            const actions: React.ReactNode[] = [];
+                                                            if (call.recording_url) {
+                                                                actions.push(
+                                                                    <Button
+                                                                        key="play"
+                                                                        type="primary"
+                                                                        size="small"
+                                                                        icon={<PlayCircleOutlined />}
+                                                                        onClick={() => {
+                                                                            setSelectedRecording(call);
+                                                                            setRecordingModalOpen(true);
+                                                                        }}
+                                                                    >
+                                                                        Play
+                                                                    </Button>
+                                                                );
+                                                            } else {
+                                                                actions.push(
+                                                                    <Text key="no-rec" type="secondary" style={{ fontSize: 12 }}>
+                                                                        No recording
+                                                                    </Text>
+                                                                );
+                                                            }
+                                                            if (call.recording_url && call.transcription_status === 'completed' && call.transcription_text) {
+                                                                actions.push(
+                                                                    <Button
+                                                                        key="view-transcript"
+                                                                        size="small"
+                                                                        onClick={() => {
+                                                                            setSelectedRecording(call);
+                                                                            setRecordingModalOpen(true);
+                                                                        }}
+                                                                    >
+                                                                        View transcript
+                                                                    </Button>
+                                                                );
+                                                            } else if (call.recording_url && call.transcription_status !== 'processing') {
+                                                                actions.push(
+                                                                    <Button
+                                                                        key="transcribe"
+                                                                        size="small"
+                                                                        onClick={async () => {
+                                                                            if (!call.call_sid) return;
+                                                                            try {
+                                                                                await transcribeCall({ call_sid: call.call_sid });
+                                                                                message.success('Transcription requested');
+                                                                                queryClient.invalidateQueries({ queryKey: ['twilio-call-history'] });
+                                                                            } catch (error) {
+                                                                                // message handled in service
+                                                                            }
+                                                                        }}
+                                                                    >
+                                                                        Transcribe
+                                                                    </Button>
+                                                                );
+                                                            } else if (call.recording_url && call.transcription_status === 'processing') {
+                                                                actions.push(<Spin key="transcribing" size="small" />);
+                                                            }
+                                                            if (needsCallback && callbackNumber) {
+                                                                actions.push(
+                                                                    <Button
+                                                                        key="callback"
+                                                                        type="default"
+                                                                        size="small"
+                                                                        icon={<PhoneFilled />}
+                                                                        onClick={() => {
+                                                                            const phone = callbackNumber || '';
+                                                                            let countryCode = '+254';
+                                                                            let localNumber = phone;
+                                                                            if (phone.startsWith('+')) {
+                                                                                const match = phone.match(/^\+(\d{1,3})(\d+)$/);
+                                                                                if (match) {
+                                                                                    countryCode = '+' + match[1];
+                                                                                    localNumber = match[2];
+                                                                                }
+                                                                            }
+                                                                            callForm.setFieldsValue({
+                                                                                phone_number_id: phoneNumbers[0]?._id,
+                                                                                country_code: countryCode,
+                                                                                phone_number: localNumber,
+                                                                                record: true,
+                                                                            });
+                                                                            setNewCallModalOpen(true);
+                                                                        }}
+                                                                    >
+                                                                        Callback
+                                                                    </Button>
+                                                                );
+                                                            }
+
+                                                            return (
+                                                                <List.Item
+                                                                    actions={actions}
+                                                                >
+                                                                    <List.Item.Meta
+                                                                        avatar={<Avatar icon={call.direction === 'inbound' ? <PhoneFilled /> : <PhoneOutlined />} />}
+                                                                        title={
+                                                                            <Space>
+                                                                                <Text strong>{displayName}</Text>
+                                                                                <Tag color={statusColor}>{call.status}</Tag>
+                                                                            </Space>
+                                                                        }
+                                                                        description={
+                                                                            <Row gutter={[16, 4]} style={{ width: '100%' }}>
+                                                                                <Col xs={24} sm={12} md={8}>
+                                                                                    <Text type="secondary">From: </Text>
+                                                                                    <Text>{call.from_formatted || call.from_number}</Text>
+                                                                                </Col>
+                                                                                <Col xs={24} sm={12} md={8}>
+                                                                                    <Text type="secondary">To: </Text>
+                                                                                    <Text>{call.to_formatted || call.to_number}</Text>
+                                                                                </Col>
+                                                                                <Col xs={24} sm={12} md={8}>
+                                                                                    <Text type="secondary">Direction: </Text>
+                                                                                    <Text style={{ textTransform: 'capitalize' }}>{call.direction}</Text>
+                                                                                </Col>
+                                                                                <Col xs={24} sm={12} md={8}>
+                                                                                    <Text type="secondary">Duration: </Text>
+                                                                                    <Text>{duration}s</Text>
+                                                                                </Col>
+                                                                                <Col xs={24} sm={12} md={8}>
+                                                                                    <Text type="secondary">Agent: </Text>
+                                                                                    <Text>{agentName}</Text>
+                                                                                </Col>
+                                                                                <Col xs={24} sm={12} md={8}>
+                                                                                    <Text type="secondary">Date: </Text>
+                                                                                    <Text>{new Date(call.createdAt || call.start_time || '').toLocaleString()}</Text>
+                                                                                </Col>
+                                                                            </Row>
+                                                                        }
+                                                                    />
+                                                                </List.Item>
+                                                            );
+                                                        }}
                                                     />
                                                 </Card>
                                             </div>
@@ -2686,6 +2829,102 @@ const OmnichannelInboxPage: React.FC = () => {
                     onHoldToggle={handleCallHold}
                     onSpeakerToggle={handleCallSpeaker}
                 />
+
+                {/* Recording Playback Modal */}
+                <Modal
+                    title="Call Recording"
+                    open={recordingModalOpen}
+                    onCancel={() => setRecordingModalOpen(false)}
+                    footer={null}
+                    width={620}
+                    destroyOnClose
+                >
+                    {selectedRecording && (
+                        <Space direction="vertical" style={{ width: '100%' }}>
+                            <audio
+                                controls
+                                src={selectedRecording.recording_url}
+                                style={{ width: '100%' }}
+                            />
+                            <Button
+                                type="primary"
+                                href={selectedRecording.recording_url}
+                                target="_blank"
+                                rel="noreferrer"
+                            >
+                                Open / Download recording
+                            </Button>
+                            <Divider style={{ margin: '12px 0' }} />
+                            <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                                <div>
+                                    <Text type="secondary">From: </Text>
+                                    <Text strong>{selectedRecording.from_formatted || selectedRecording.from_number}</Text>
+                                </div>
+                                <div>
+                                    <Text type="secondary">To: </Text>
+                                    <Text strong>{selectedRecording.to_formatted || selectedRecording.to_number}</Text>
+                                </div>
+                                {selectedRecording.contact_name && (
+                                    <div>
+                                        <Text type="secondary">Contact: </Text>
+                                        <Text strong>{selectedRecording.contact_name}</Text>
+                                    </div>
+                                )}
+                                <div>
+                                    <Text type="secondary">Status: </Text>
+                                    <Text strong>{selectedRecording.status}</Text>
+                                </div>
+                                <div>
+                                    <Text type="secondary">Direction: </Text>
+                                    <Text strong>{selectedRecording.direction}</Text>
+                                </div>
+                                <div>
+                                    <Text type="secondary">Duration: </Text>
+                                    <Text strong>{selectedRecording.duration || selectedRecording.recording_duration}s</Text>
+                                </div>
+                                <div>
+                                    <Text type="secondary">Date: </Text>
+                                    <Text strong>{new Date(selectedRecording.createdAt || selectedRecording.start_time || '').toLocaleString()}</Text>
+                                </div>
+                            </Space>
+                            <Divider style={{ margin: '12px 0' }} />
+                            <div>
+                                <Text strong style={{ display: 'block', marginBottom: 8 }}>Transcription</Text>
+                                {selectedRecording.transcription_status === 'completed' && selectedRecording.transcription_text ? (
+                                    <div style={{ background: '#f6f6f6', padding: 12, borderRadius: 4, maxHeight: 200, overflow: 'auto' }}>
+                                        <Text>{selectedRecording.transcription_text}</Text>
+                                    </div>
+                                ) : selectedRecording.transcription_status === 'processing' ? (
+                                    <Space>
+                                        <Spin size="small" />
+                                        <Text type="secondary">Transcription in progress...</Text>
+                                    </Space>
+                                ) : (
+                                    <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                                        <Text type="secondary">No transcription available yet.</Text>
+                                        <Button
+                                            size="small"
+                                            type="primary"
+                                            onClick={async () => {
+                                                if (!selectedRecording.call_sid) return;
+                                                try {
+                                                    await transcribeCall({ call_sid: selectedRecording.call_sid });
+                                                    message.success('Transcription requested');
+                                                    queryClient.invalidateQueries({ queryKey: ['twilio-call-history'] });
+                                                    setSelectedRecording({ ...selectedRecording, transcription_status: 'processing' });
+                                                } catch (error) {
+                                                    // message handled in service
+                                                }
+                                            }}
+                                        >
+                                            Transcribe recording
+                                        </Button>
+                                    </Space>
+                                )}
+                            </div>
+                        </Space>
+                    )}
+                </Modal>
             </div>
         </App>
     );

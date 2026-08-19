@@ -345,6 +345,18 @@ export const endCall = async (callId: string) => {
   }
 };
 
+export const transcribeCall = async (data: { call_sid?: string; recording_sid?: string }) => {
+  try {
+    const url = `${BASE_URL}/api/crm/twilio/voice/calls/transcribe`;
+    const response = await axiosInstance.post(url, data);
+    message.success("Transcription requested");
+    return response.data;
+  } catch (error: unknown) {
+    message.error((error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to request transcription");
+    throw error;
+  }
+};
+
 export const generateTwiML = async (options: {
   say?: string;
   voice?: string;
