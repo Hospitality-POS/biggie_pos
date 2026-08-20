@@ -627,6 +627,8 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
         notes: values.notes,
         terms: values.terms,
         status,
+        vat_pricing_mode: vatPricingMode,
+        vat_standard_rate: standardVatRate,
         discount_type: invoiceDiscount > 0 ? discountType : undefined,
         discount_amount: invoiceDiscount > 0 ? invoiceDiscount : undefined,
         discount_percentage: invoiceDiscount > 0 && discountType === "percentage" ? discountPercentage : undefined,
@@ -636,11 +638,11 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
         lines: lines.map((l) => ({
             description: l.description,
             account_id: l.account_id,
-            quantity: l.quantity,
-            price: l.unit_price,
-            discount_amount: l.discount_amount,
-            vat_rate: vatEnabled ? l.vat_rate : 0,
-            vat_amount: parseFloat(lineVAT(l).toFixed(2)),
+            quantity: Number(l.quantity) || 0,
+            price: Number(l.unit_price) || 0,
+            discount_amount: Number(l.discount_amount) || 0,
+            vat_rate: Number(vatEnabled ? l.vat_rate : 0) || 0,
+            vat_amount: Number(parseFloat(lineVAT(l).toFixed(2))) || 0,
             item_type: l.item_type,
             item_id: l.item_id,
         })),
@@ -1486,21 +1488,31 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
             />
             <Card size="small" title="Invoice Summary">
                 <Row gutter={24}>
-                    <Col span={6}>
+                    <Col span={4}>
                         <Statistic title="Invoice No."
                             value={savedInvoice?.order_no || "—"} valueStyle={{ fontSize: 13 }} />
                     </Col>
-                    <Col span={6}>
+                    <Col span={4}>
                         <Statistic title="Customer"
                             value={savedInvoice?.counterparty_name || "—"} valueStyle={{ fontSize: 13 }} />
                     </Col>
-                    <Col span={6}>
+                    <Col span={4}>
                         <Statistic title="Due Date"
                             value={savedInvoice?.due_date
                                 ? dayjs(savedInvoice.due_date).format("DD MMM YYYY") : "—"}
                             valueStyle={{ fontSize: 13 }} />
                     </Col>
-                    <Col span={6}>
+                    <Col span={4}>
+                        <Statistic title="Subtotal (excl. VAT) (KES)"
+                            value={savedInvoice?.subtotal != null ? fmt(savedInvoice.subtotal) : "—"}
+                            valueStyle={{ fontSize: 13 }} />
+                    </Col>
+                    <Col span={4}>
+                        <Statistic title="VAT (KES)"
+                            value={savedInvoice?.total_vat_amount != null ? fmt(savedInvoice.total_vat_amount) : "—"}
+                            valueStyle={{ fontSize: 13, color: "#1890ff" }} />
+                    </Col>
+                    <Col span={4}>
                         <Statistic title="Amount Due (KES)"
                             value={savedInvoice?.grand_total != null ? fmt(savedInvoice.grand_total) : "—"}
                             valueStyle={{ fontSize: 13, color: "#fa8c16" }} />

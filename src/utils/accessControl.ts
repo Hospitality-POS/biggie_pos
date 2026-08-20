@@ -15,6 +15,7 @@ export const MODULES = {
     FEEDBACK: "Feedback",
     GALLERY: "Gallery",
     GIFT_CARDS: "Gift Cards",
+    UNIFIED_DASHBOARD: "Unified Dashboard",
     INVENTORY: "Inventory",
     MODIFIERS_ADDONS: "Modifiers & Addons",
     NOTIFICATIONS: "Notifications",
@@ -216,6 +217,10 @@ export const PERMISSIONS: Record<string, Permission> = {
     GALLERY_UPDATE: { key: "GALLERY_UPDATE", label: "Update Image", module: MODULES.GALLERY, action: "update", moduleScope: "core" },
     GALLERY_DELETE: { key: "GALLERY_DELETE", label: "Delete Image", module: MODULES.GALLERY, action: "delete", moduleScope: "core" },
     GALLERY_TOGGLE_STATUS: { key: "GALLERY_TOGGLE_STATUS", label: "Toggle Image Active Status", module: MODULES.GALLERY, action: "special", moduleScope: "core" },
+
+    // ── UNIFIED DASHBOARD ─────────────────────────────────────────────────────
+
+    UNIFIED_DASHBOARD_VIEW: { key: "UNIFIED_DASHBOARD_VIEW", label: "View Unified Home Dashboard", module: MODULES.UNIFIED_DASHBOARD, action: "read", moduleScope: "core" },
 
     // ── GIFT CARDS ────────────────────────────────────────────────────────────
 
@@ -910,6 +915,7 @@ export const ROLE_PRESETS: Record<string, string[]> = {
         "CART_PRINT_INVOICE", "CART_VIEW_INVOICES", "CART_REPRINT_INVOICE",
         "CART_VIEW_ACTIVE_SUBSCRIPTIONS",
         "ORDERS_VIEW", "ORDERS_VIEW_DASHBOARD",
+        "UNIFIED_DASHBOARD_VIEW",
         "PRODUCTS_VIEW", "INVENTORY_VIEW",
         "TABLES_VIEW", "TABLES_CREATE_AUTO_SLOT", "TABLES_TRANSFER_CART_ITEMS", "TABLE_LOCATIONS_VIEW",
         "CUSTOMERS_VIEW", "CUSTOMERS_VIEW_ONE", "CUSTOMERS_CREATE", "CUSTOMERS_LOG_VISIT",
@@ -942,6 +948,7 @@ export const ROLE_PRESETS: Record<string, string[]> = {
 
     /** ANALYST — read-only POS reporting + report emails */
     ANALYST: [
+        "UNIFIED_DASHBOARD_VIEW",
         "ORDERS_VIEW", "ORDERS_VIEW_DASHBOARD", "ORDERS_VIEW_ADMIN_DASHBOARD",
         "ORDERS_VIEW_BEST_SELLERS", "ORDERS_VIEW_SALES_CHART",
         "REPORTS_ITEM_SALES", "REPORTS_PURCHASE_SUMMARY", "REPORTS_VAT_SUMMARY",
@@ -1057,6 +1064,7 @@ export const ROLE_PRESETS: Record<string, string[]> = {
     /** PESA_ONLY — Access only to Pesa (Accounting) module */
     PESA_ONLY: [
         ...ACCOUNTING_PERMISSION_KEYS,
+        "UNIFIED_DASHBOARD_VIEW",
         "USERS_VIEW", "USERS_VIEW_ONE",
         "DOCUMENTS_VIEW", "DOCUMENTS_VIEW_ONE", "DOCUMENTS_CREATE", "DOCUMENTS_UPDATE",
         "DOCUMENTS_DELETE", "DOCUMENTS_MANAGE_FOLDERS", "DOCUMENTS_UPLOAD_ATTACHMENTS",
@@ -1080,6 +1088,7 @@ export const ROLE_PRESETS: Record<string, string[]> = {
         "DELIVERY_VIEW", "DELIVERY_CREATE", "DELIVERY_UPDATE",
         "PAYMENT_METHODS_VIEW",
         "REPORTS_VIEW", "REPORTS_ITEM_SALES", "REPORTS_PURCHASE_SUMMARY", "REPORTS_VAT_SUMMARY",
+        "UNIFIED_DASHBOARD_VIEW",
         "USERS_VIEW", "USERS_VIEW_ONE",
         "DOCUMENTS_VIEW", "DOCUMENTS_VIEW_ONE", "DOCUMENTS_CREATE", "DOCUMENTS_UPDATE",
         "DOCUMENTS_DELETE", "DOCUMENTS_MANAGE_FOLDERS", "DOCUMENTS_UPLOAD_ATTACHMENTS",
@@ -1101,6 +1110,7 @@ export const ROLE_PRESETS: Record<string, string[]> = {
     PESA_SIGNATURE: [
         ...ACCOUNTING_PERMISSION_KEYS,
         ...SIGNATURE_PERMISSION_KEYS,
+        "UNIFIED_DASHBOARD_VIEW",
         "USERS_VIEW", "USERS_VIEW_ONE",
         "DOCUMENTS_VIEW", "DOCUMENTS_VIEW_ONE", "DOCUMENTS_CREATE", "DOCUMENTS_UPDATE",
         "DOCUMENTS_DELETE", "DOCUMENTS_MANAGE_FOLDERS", "DOCUMENTS_UPLOAD_ATTACHMENTS",
@@ -1124,6 +1134,7 @@ export const ROLE_PRESETS: Record<string, string[]> = {
         "DELIVERY_VIEW", "DELIVERY_CREATE", "DELIVERY_UPDATE",
         "PAYMENT_METHODS_VIEW",
         "REPORTS_VIEW", "REPORTS_ITEM_SALES", "REPORTS_PURCHASE_SUMMARY", "REPORTS_VAT_SUMMARY",
+        "UNIFIED_DASHBOARD_VIEW",
         ...SIGNATURE_PERMISSION_KEYS,
         "USERS_VIEW", "USERS_VIEW_ONE",
         "DOCUMENTS_VIEW", "DOCUMENTS_VIEW_ONE", "DOCUMENTS_CREATE", "DOCUMENTS_UPDATE",
@@ -1136,6 +1147,7 @@ export const ROLE_PRESETS: Record<string, string[]> = {
 
     /** CRM_MANAGER — full CRM access including budget approval and workflow management */
     CRM_MANAGER: [
+        "UNIFIED_DASHBOARD_VIEW",
         // Customers (base)
         "CUSTOMERS_VIEW", "CUSTOMERS_VIEW_ONE", "CUSTOMERS_CREATE", "CUSTOMERS_UPDATE",
         // Leads — full
@@ -1157,6 +1169,7 @@ export const ROLE_PRESETS: Record<string, string[]> = {
 
     /** CRM_AGENT — sales rep; create/update leads and activities, no budget approval or workflow management */
     CRM_AGENT: [
+        "UNIFIED_DASHBOARD_VIEW",
         // Customers (base)
         "CUSTOMERS_VIEW", "CUSTOMERS_VIEW_ONE", "CUSTOMERS_CREATE", "CUSTOMERS_UPDATE",
         // Leads

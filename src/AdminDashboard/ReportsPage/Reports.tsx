@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { Button, DatePicker, Form, InputNumber, Select, Spin, Typography } from "antd";
 import {
@@ -20,9 +20,10 @@ import {
 import PurchaseReportModal from "@components/Reports/PurchaseReport";
 import VoidReportModal from "@components/Reports/VoidReport";
 import VATReportModal from "@components/Reports/VATReport";
-import { fetchItemSalesReport } from "@services/reports";
+import { fetchItemSalesReport, fetchProductTypeSalesReport } from "@services/reports";
 import { fetchAllUsersList, fetchAllUsersByShopId } from "@services/users";
 import ItemSalesModal from "./ItemSalesModal";
+import ProductTypeSalesModal from "./ProductTypeSalesModal";
 import TopEarnersModal from "./TopEarnersModal";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getTableLocation } from "@services/tables";
@@ -31,6 +32,9 @@ import InventoryUsageReportModal from "@components/Reports/InventoryUsageReport"
 import { useReport } from "@pages/Settings/hooks/useReport";
 import { fetchAllShops } from "@services/shops";
 import { getTopEarners } from "@services/orders";
+import { getAllProducts } from "@services/products";
+import { fetchAllInventory } from "@services/inventory";
+import { fetchAllCategories } from "@services/categories";
 import useSystemDetails from "@hooks/useSystemDetails";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 
@@ -81,6 +85,7 @@ const TAB_CFG = [
   { key: "delivery", icon: <CarOutlined />, iconColor: C.blue, label: "Delivery" },
   { key: "inventory_usage", icon: <BarChartOutlined />, iconColor: C.purple, label: "Inventory Usage" },
   { key: "vat", icon: <DollarOutlined />, iconColor: C.green, label: "VAT Summary" },
+  { key: "product_type", icon: <TagOutlined />, iconColor: C.blue, label: "Top sellers" },
   { key: "top_earners", icon: <TrophyOutlined />, iconColor: C.orange, label: "Top Earners" },
 ];
 
@@ -232,6 +237,12 @@ const AdminReports: React.FC = () => {
   const [earnerModalOpen, setEarnerModalOpen] = useState(false);
   const [earnerDateRange, setEarnerDateRange] = useState<[string, string]>(["", ""]);
 
+  const [productTypeSalesQueryKey, setProductTypeSalesQueryKey] = useState<any>(null);
+  const [productTypeSalesModalOpen, setProductTypeSalesModalOpen] = useState(false);
+  const [productTypeSalesDateRange, setProductTypeSalesDateRange] = useState<[string, string]>(["", ""]);
+  const [selectedProductType, setSelectedProductType] = useState<string>("");
+  const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
+
   const shopOptions = useShopOptions();
   const userOptions = useUserOptions();
   const locationOptions = useLocationOptions();
@@ -258,11 +269,15 @@ const AdminReports: React.FC = () => {
     setOpenVoidedModal(false);
     setOpenVATModal(false);
     setOpenInventoryUsageModal(false);
+    setProductTypeSalesModalOpen(false);
     setModalOpen(false);
     setEarnerResults([]);
     setEarnerSearched(false);
     setEarnerLoading(false);
     setEarnerModalOpen(false);
+    setProductTypeSalesQueryKey(null);
+    setSelectedProductType("");
+    setSelectedCategory(undefined);
     form.resetFields();
   };
 
@@ -294,6 +309,67 @@ const AdminReports: React.FC = () => {
     { enabled: !!queryKey, networkMode: "always" }
   );
 
+  const { data: productTypeSalesData, isLoading: productTypeSalesLoading } = useQuery(
+    ["product-type-sales", productTypeSalesQueryKey],
+    () => fetchProductTypeSalesReport(productTypeSalesQueryKey),
+    { enabled: !!productTypeSalesQueryKey, networkMode: "always" }
+  );
+
+  const { data: servicesList, isLoading: servicesListLoading } = useQuery(
+    ["services-list-for-report"],
+    () => getAllProducts(),
+    { enabled: selectedProductType === "services", networkMode: "always" }
+  );
+
+  const { data: inventoryList, isLoading: inventoryListLoading } = useQuery(
+    ["inventory-list-for-report"],
+    () => fetchAllInventory({}),
+    { enabled: selectedProductType === "products", networkMode: "always" }
+  );
+
+  const { data: categoryList, isLoading: categoryListLoading } = useQuery(
+    ["categories-for-report"],
+    () => fetchAllCategories({}),
+    { enabled: activeTab === "product_type", networkMode: "always" }
+  );
+
+  const categoryOptions = useMemo(() => {
+    const raw = categoryList;
+    const arr = Array.isArray(raw) ? raw : raw?.data || [];
+    return (arr || []).map((c: any) => ({ label: c.name, value: c._id }));
+  }, [categoryList]);
+
+  const itemOptions = useMemo(() => {
+    if (selectedProductType === "services") {
+      const cats = Array.isArray(servicesList)
+        ? servicesList
+        : servicesList?.data || [];
+      const products = (cats || []).flatMap((cat: any) => cat.products || []);
+      return (selectedCategory
+        ? products.filter(
+            (p: any) =>
+              p.category?._id?.toString() === selectedCategory ||
+              p.category?.toString() === selectedCategory
+          )
+        : products
+      ).map((p: any) => ({ label: p.name, value: p._id }));
+    }
+    if (selectedProductType === "products") {
+      const raw = Array.isArray(inventoryList)
+        ? inventoryList
+        : inventoryList?.items || inventoryList?.data || [];
+      return (selectedCategory
+        ? raw.filter(
+            (e: any) =>
+              e.category_id?.toString?.() === selectedCategory ||
+              e.category?.toString?.() === selectedCategory
+          )
+        : raw
+      ).map((e: any) => ({ label: e.name, value: e._id }));
+    }
+    return [];
+  }, [selectedProductType, selectedCategory, servicesList, inventoryList]);
+
   // ── Per-tab content ───────────────────────────────────────────────────────
   const renderTabContent = () => {
     switch (activeTab) {
@@ -320,7 +396,7 @@ const AdminReports: React.FC = () => {
                   style={{ marginBottom: 14 }}
                 >
                   <Select showSearch allowClear placeholder="All users" options={userOptions} style={{ width: "100%", borderRadius: 8 }}
-                    filterOption={(i, o) => (o?.label ?? "").toLowerCase().includes(i.toLowerCase())} />
+                    filterOption={(i, o) => String(o?.label ?? "").toLowerCase().includes(i.toLowerCase())} />
                 </Form.Item>
               </div>
               <div style={{ flex: "1 1 200px", minWidth: 0 }}>
@@ -330,7 +406,7 @@ const AdminReports: React.FC = () => {
                   style={{ marginBottom: 14 }}
                 >
                   <Select showSearch allowClear placeholder="All locations" options={locationOptions} style={{ width: "100%", borderRadius: 8 }}
-                    filterOption={(i, o) => (o?.label ?? "").toLowerCase().includes(i.toLowerCase())} />
+                    filterOption={(i, o) => String(o?.label ?? "").toLowerCase().includes(i.toLowerCase())} />
                 </Form.Item>
               </div>
               <div style={{ flex: "1 1 160px", minWidth: 0 }}>
@@ -482,6 +558,173 @@ const AdminReports: React.FC = () => {
             </div>
             <GenerateButton label="Generate VAT Report" icon={<DollarOutlined />} disabled={isGenerateButtonDisabled} onClick={generateReportHandler} />
             <VATReportModal openM={openVATModal} onCloseM={onCloseVATModal} startDate={vatDateTimeRange[0]} endDate={vatDateTimeRange[1]} />
+          </Form>
+        );
+
+      case "product_type":
+        return (
+          <Form
+            form={form}
+            layout="vertical"
+            onValuesChange={(changed) => {
+              if ("type" in changed) {
+                setSelectedProductType(changed.type || "");
+                setSelectedCategory(undefined);
+                form.setFieldsValue({ category: undefined, itemId: undefined });
+              }
+              if ("category" in changed) {
+                setSelectedCategory(changed.category);
+                form.setFieldsValue({ itemId: undefined });
+              }
+            }}
+            onFinish={async (values) => {
+              const { dateRange, type, category, itemId, shop_id, servedBy } = values;
+              const [start, end] = dateRange || [];
+              const startDate = start?.format("YYYY-MM-DD HH:mm") || "";
+              const endDate = end?.format("YYYY-MM-DD HH:mm") || "";
+              setProductTypeSalesDateRange([startDate, endDate]);
+              setProductTypeSalesQueryKey({
+                type,
+                categoryId: category,
+                itemId,
+                startDate,
+                endDate,
+                shop_id,
+                servedBy,
+              });
+              setProductTypeSalesModalOpen(true);
+            }}
+          >
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "0 16px" }}>
+              <div style={{ flex: "1 1 300px", minWidth: 0 }}>
+                <DateRangeField rangePresets={rangePresets} />
+              </div>
+              <div style={{ flex: "1 1 200px", minWidth: 0 }}>
+                <Form.Item
+                  name="type"
+                  label={
+                    <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.subText }}>
+                      <TagOutlined /> Service or Inventory
+                    </span>
+                  }
+                  rules={[{ required: true, message: "Please select a report type" }]}
+                  style={{ marginBottom: 14 }}
+                >
+                  <Select
+                    placeholder="Select type"
+                    options={[
+                      { label: "Inventory", value: "products" },
+                      { label: "Services", value: "services" },
+                    ]}
+                    style={{ width: "100%", borderRadius: 8 }}
+                  />
+                </Form.Item>
+              </div>
+              <div style={{ flex: "1 1 200px", minWidth: 0 }}>
+                <Form.Item
+                  name="category"
+                  label={
+                    <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.subText }}>
+                      <TagOutlined /> Category
+                    </span>
+                  }
+                  style={{ marginBottom: 14 }}
+                >
+                  <Select
+                    showSearch
+                    allowClear
+                    placeholder="All categories"
+                    disabled={categoryListLoading}
+                    loading={categoryListLoading}
+                    options={categoryOptions}
+                    filterOption={(i, o) =>
+                      (o?.label ?? "").toLowerCase().includes(i.toLowerCase())
+                    }
+                    style={{ width: "100%", borderRadius: 8 }}
+                  />
+                </Form.Item>
+              </div>
+              <div style={{ flex: "1 1 200px", minWidth: 0 }}>
+                <Form.Item
+                  name="itemId"
+                  label={
+                    <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.subText }}>
+                      <TagOutlined /> Specific Service / Inventory
+                    </span>
+                  }
+                  style={{ marginBottom: 14 }}
+                >
+                  <Select
+                    showSearch
+                    allowClear
+                    placeholder={
+                      selectedProductType ? "All items" : "Select a type first"
+                    }
+                    disabled={!selectedProductType || (selectedProductType === "services" ? servicesListLoading : inventoryListLoading)}
+                    loading={selectedProductType === "services" ? servicesListLoading : selectedProductType === "products" ? inventoryListLoading : false}
+                    options={itemOptions}
+                    filterOption={(i, o) =>
+                      (o?.label ?? "").toLowerCase().includes(i.toLowerCase())
+                    }
+                    style={{ width: "100%", borderRadius: 8 }}
+                  />
+                </Form.Item>
+              </div>
+              {isAdminRoute && (
+                <div style={{ flex: "1 1 200px", minWidth: 0 }}>
+                  <ShopField />
+                </div>
+              )}
+              <div style={{ flex: "1 1 200px", minWidth: 0 }}>
+                <Form.Item
+                  name="servedBy"
+                  label={
+                    <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.subText }}>
+                      <UserOutlined /> Served By
+                    </span>
+                  }
+                  style={{ marginBottom: 14 }}
+                >
+                  <Select
+                    showSearch
+                    allowClear
+                    placeholder="All users"
+                    options={userOptions}
+                    filterOption={(i, o) =>
+                      (o?.label ?? "").toLowerCase().includes(i.toLowerCase())
+                    }
+                    style={{ width: "100%", borderRadius: 8 }}
+                  />
+                </Form.Item>
+              </div>
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <Form.Item style={{ marginBottom: 0 }}>
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  icon={<PrinterOutlined />}
+                  style={{
+                    background: C.primary,
+                    borderColor: C.primary,
+                    borderRadius: 8,
+                    height: 40,
+                    fontWeight: 600,
+                    fontSize: 13,
+                  }}
+                >
+                  Generate Top Sellers Report
+                </Button>
+              </Form.Item>
+            </div>
+            <ProductTypeSalesModal
+              open={productTypeSalesModalOpen}
+              onClose={() => setProductTypeSalesModalOpen(false)}
+              data={productTypeSalesData}
+              loading={productTypeSalesLoading && !!productTypeSalesQueryKey}
+              startDate={productTypeSalesDateRange[0]}
+              endDate={productTypeSalesDateRange[1]}
+            />
           </Form>
         );
 
