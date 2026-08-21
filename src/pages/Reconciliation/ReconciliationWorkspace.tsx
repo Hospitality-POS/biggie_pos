@@ -10,12 +10,10 @@ import {
     Statistic,
     Row,
     Col,
-    Select,
     Tooltip,
     Popconfirm,
     Modal,
     Input,
-    Divider,
     Spin,
     Card,
     Progress,
@@ -74,7 +72,6 @@ const ReconciliationWorkspace: React.FC<Props> = ({ reconciliationId, shopId, on
 
     const [selectedStatementLineId, setSelectedStatementLineId] = useState<string | null>(null);
     const [selectedJELineId, setSelectedJELineId] = useState<string | null>(null);
-    const [selectedJEEntryId, setSelectedJEEntryId] = useState<string | null>(null);
     const [voidModalOpen, setVoidModalOpen] = useState(false);
     const [voidReason, setVoidReason] = useState("");
     const [addLinesOpen, setAddLinesOpen] = useState(false);
@@ -104,7 +101,6 @@ const ReconciliationWorkspace: React.FC<Props> = ({ reconciliationId, shopId, on
             invalidate();
             setSelectedStatementLineId(null);
             setSelectedJELineId(null);
-            setSelectedJEEntryId(null);
             setLoadingLineId(null);
         },
         onError: () => setLoadingLineId(null),
@@ -206,6 +202,18 @@ const ReconciliationWorkspace: React.FC<Props> = ({ reconciliationId, shopId, on
                 v > 0 ? (
                     <Text style={{ color: "#389e0d", fontSize: 12 }}>
                         {v.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
+                    </Text>
+                ) : "—",
+        },
+        {
+            title: "Balance",
+            key: "balance",
+            width: 95,
+            align: "right" as const,
+            render: (_: any, r: StatementLine) =>
+                r.statement_balance != null ? (
+                    <Text strong style={{ fontSize: 12 }}>
+                        {r.statement_balance.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
                     </Text>
                 ) : "—",
         },
@@ -346,7 +354,6 @@ const ReconciliationWorkspace: React.FC<Props> = ({ reconciliationId, shopId, on
                                 });
                             } else {
                                 setSelectedJELineId(r.journal_line_id);
-                                setSelectedJEEntryId(r.journal_entry_id);
                             }
                         }}
                     >
@@ -558,7 +565,8 @@ const ReconciliationWorkspace: React.FC<Props> = ({ reconciliationId, shopId, on
                                                 {(recon.total_statement_credits || 0).toLocaleString("en-KE", { minimumFractionDigits: 2 })}
                                             </Text>
                                         </Table.Summary.Cell>
-                                        <Table.Summary.Cell index={4} colSpan={2} />
+                                        <Table.Summary.Cell index={4} align="right" />
+                                        <Table.Summary.Cell index={5} colSpan={2} />
                                     </Table.Summary.Row>
                                 </Table.Summary>
                             )}

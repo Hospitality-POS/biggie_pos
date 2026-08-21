@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import {
-    Space, DatePicker, Button, Typography, Tooltip,
+    Space, DatePicker, Button, Typography,
     Switch, Tag, Divider, InputNumber, Dropdown,
 } from "antd";
 import {
@@ -113,10 +113,11 @@ interface PeriodFilterProps {
     onRun: () => void;
     loading?: boolean;
     supportComparative?: boolean;
+    extra?: React.ReactNode;
 }
 
 export const PeriodFilter: React.FC<PeriodFilterProps> = ({
-    value, onChange, onRun, loading, supportComparative = true,
+    value, onChange, onRun, loading, supportComparative = true, extra,
 }) => {
     const [activeMonths, setActiveMonths] = useState<number | null>(null);
     const [customMonths, setCustomMonths] = useState(3);
@@ -171,6 +172,7 @@ export const PeriodFilter: React.FC<PeriodFilterProps> = ({
                 <Button type="primary" icon={<SearchOutlined />} loading={loading} onClick={onRun} style={{ borderRadius: 8 }}>
                     Run Report
                 </Button>
+                {extra}
             </Space>
             {supportComparative && (
                 <>
@@ -207,10 +209,11 @@ interface AsOfFilterProps {
     onRun: () => void;
     loading?: boolean;
     supportComparative?: boolean;
+    extra?: React.ReactNode;
 }
 
 export const AsOfFilter: React.FC<AsOfFilterProps> = ({
-    value, onChange, onRun, loading, supportComparative = true,
+    value, onChange, onRun, loading, supportComparative = true, extra,
 }) => {
     const asOfPresets = [
         { label: "Today", value: dayjs() },
@@ -240,6 +243,7 @@ export const AsOfFilter: React.FC<AsOfFilterProps> = ({
                 <Button type="primary" icon={<SearchOutlined />} loading={loading} onClick={onRun} style={{ borderRadius: 8 }}>
                     Run Report
                 </Button>
+                {extra}
             </Space>
             {supportComparative && (
                 <>
@@ -274,9 +278,10 @@ interface GLPeriodFilterProps {
     onChange: (v: GLPeriodValue) => void;
     onRun: () => void;
     loading?: boolean;
+    extra?: React.ReactNode;
 }
 
-export const GLPeriodFilter: React.FC<GLPeriodFilterProps> = ({ value, onChange, onRun, loading }) => {
+export const GLPeriodFilter: React.FC<GLPeriodFilterProps> = ({ value, onChange, onRun, loading, extra }) => {
     const [activeMonths, setActiveMonths] = useState<number>(3);
     const [customMonths, setCustomMonths] = useState<number>(4);
 
@@ -343,6 +348,7 @@ export const GLPeriodFilter: React.FC<GLPeriodFilterProps> = ({ value, onChange,
                 <Button type="primary" icon={<SearchOutlined />} loading={loading} onClick={onRun} style={{ borderRadius: 8 }}>
                     Run Report
                 </Button>
+                {extra}
             </Space>
             <div style={{ marginTop: 8 }}>
                 <Tag style={{ borderRadius: 20, padding: "2px 12px", fontSize: 11, background: "#f0f5ff", borderColor: "#adc6ff", color: "#2f54eb" }}>

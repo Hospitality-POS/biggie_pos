@@ -243,11 +243,6 @@ export interface BulkCategorizeInput extends CategorizeTransactionInput {
     txn_ids: string[];
 }
 
-export interface PushToReconciliationInput {
-    reconciliation_id: string;
-    txn_ids?: string[];
-}
-
 export interface PushToJournalEntriesInput {
     bank_account_id: string;
     txn_ids?: string[];
@@ -334,6 +329,29 @@ export const deleteCategorizationRule = async (id: string) => {
         return false;
     }
 };
+
+// ── Category Mapping ───────────────────────────────────────────────────────────
+
+export interface CategoryMapping {
+    _id: string;
+    shop_id?: string;
+    pattern?: string;
+    account_id?: string;
+    account_code?: string;
+    account_name?: string;
+    is_active?: boolean;
+    [key: string]: any;
+}
+
+export interface CategoryMappingInput {
+    shop_id?: string;
+    pattern?: string;
+    account_id?: string;
+    account_code?: string;
+    account_name?: string;
+    is_active?: boolean;
+    [key: string]: any;
+}
 
 // ============================================
 // CATEGORY MAPPING SERVICES
@@ -708,28 +726,6 @@ export const uncategorizeTransaction = async (id: string, txn_id: string) => {
             message.error(axiosError.response.data.message);
         } else {
             message.error("Error uncategorizing transaction");
-        }
-        throw error;
-    }
-};
-
-export const pushToReconciliation = async (id: string, data: PushToReconciliationInput) => {
-    try {
-        const response = await axiosInstance.patch(
-            `${BASE_URL}/accounting/bank-reconciliations/bank-imports/${id}/push-to-reconciliation`,
-            data
-        );
-        message.success(`${response.data.pushed_count} transactions pushed to reconciliation`);
-        return response.data as {
-            pushed_count: number;
-            reconciliation_id: string;
-        };
-    } catch (error: unknown) {
-        const axiosError = error as { response?: { data?: { message?: string } } };
-        if (axiosError?.response?.data?.message) {
-            message.error(axiosError.response.data.message);
-        } else {
-            message.error("Error pushing to reconciliation");
         }
         throw error;
     }

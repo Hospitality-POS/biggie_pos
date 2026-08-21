@@ -319,15 +319,21 @@ export interface APAgingResponse {
 // ── Shared params ────────────────────────────────────────────────────────────
 
 export interface PeriodReportParams {
-    shop_id: string;
+    shop_id?: string;
     from?: string;
     to?: string;
+    financial_year?: number;
+    method?: "accrual" | "cash";
+    display_by?: "customer" | "quarters" | "years" | "total";
 }
 
 export interface AgingReportParams {
-    shop_id: string;
+    shop_id?: string;
     as_of_date?: string;
     buckets?: string; // comma-separated e.g. "30,60,90,120"
+    financial_year?: number;
+    method?: "accrual" | "cash";
+    display_by?: "customer" | "quarters" | "years" | "total";
 }
 
 export interface GeneralLedgerParams extends PeriodReportParams {
@@ -379,11 +385,13 @@ export const getProfitAndLoss = async (params: PeriodReportParams) => {
  * Balance Sheet — Assets = Liabilities + Equity snapshot.
  * as_of_date defaults to today if not provided.
  */
-export const getBalanceSheet = async (shop_id: string, as_of_date?: string) => {
+export const getBalanceSheet = async (params: Record<string, any>) => {
     try {
+        const { as_of, as_of_date, ...rest } = params;
+        const requestParams = { ...rest, as_of_date: as_of_date ?? as_of };
         const response = await axiosInstance.get(
             `${BASE_URL}/accounting/reports/balance-sheet`,
-            { params: { shop_id, as_of_date } }
+            { params: requestParams }
         );
         return response.data as BalanceSheetResponse;
     } catch (error) {
@@ -413,11 +421,13 @@ export const getGeneralLedger = async (params: GeneralLedgerParams) => {
  * Account Balances — current balance snapshot for every active account.
  * Returns flat list + grouped by type + totals per type.
  */
-export const getAccountBalances = async (shop_id: string, account_type?: string) => {
+export const getAccountBalances = async (params: Record<string, any>) => {
     try {
+        const { as_of, as_of_date, ...rest } = params;
+        const requestParams = { ...rest, as_of_date: as_of_date ?? as_of };
         const response = await axiosInstance.get(
             `${BASE_URL}/accounting/reports/account-balances`,
-            { params: { shop_id, account_type } }
+            { params: requestParams }
         );
         return response.data as AccountBalancesResponse;
     } catch (error) {

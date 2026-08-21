@@ -23,6 +23,7 @@ import BankDetailsSettings from "./BankDetailsSettings";
 import NotificationSettings from "./NotificationSettings";
 import WhatsAppSenderRegistration from "./WhatsAppSenderRegistration";
 import HotelSettings from "./HotelSettings";
+import TransactionLocking from "./TransactionLocking";
 import { fetchShop } from "@services/shops";
 
 const { Text } = Typography;
@@ -186,6 +187,22 @@ const SystemSetup: React.FC = () => {
               <WhatsAppSenderRegistration />
             </div>
           </ProCard.TabPane>
+
+          {hasAccounting && (
+            <ProCard.TabPane
+              key="transaction-locking"
+              tab={
+                <Space>
+                  <LockOutlined style={{ fontSize: 18, color: "#cf1322" }} />
+                  <Text strong>Transaction Locking</Text>
+                </Space>
+              }
+            >
+              <div style={{ padding: "16px", borderRadius: "8px" }}>
+                <TransactionLocking />
+              </div>
+            </ProCard.TabPane>
+          )}
 
           {isHotelMode && (
             <ProCard.TabPane

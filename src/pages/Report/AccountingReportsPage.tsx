@@ -1,11 +1,11 @@
 import React, { useState } from "react";
 import {
     Space, Typography, Alert, Spin, Select, App, Empty, Card, Tabs, Tag, Table, Button,
-    ArrowUpOutlined, ArrowDownOutlined,
+    Modal, Input, message,
 } from "antd";
 
 const { Option } = Select;
-import { BarChartOutlined } from "@ant-design/icons";
+import { BarChartOutlined, MailOutlined, DownloadOutlined } from "@ant-design/icons";
 import { ArrowUpOutlined as Up, ArrowDownOutlined as Down } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -17,8 +17,9 @@ import { fetchAllCustomers } from "@services/customers";
 import { fetchAllSuppliers } from "@services/supplier";
 import { fetchAllShops } from "@services/shops";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
+import { sendEmail } from "@services/emailReports";
 import {
-    PeriodFilter, AsOfFilter, GLPeriodFilter, ExportButton, exportToCSV,
+    PeriodFilter, AsOfFilter, GLPeriodFilter,
     ComparativePeriod, ComparativeAsOf, GLPeriodValue, suggestComparePeriod,
 } from "./ReportFilters";
 import {
@@ -204,6 +205,18 @@ const AccountingReportsPage: React.FC = () => {
     // Branch filter state
     const [selectedBranchId, setSelectedBranchId] = useState<string | undefined>();
 
+    // Shared accounting filters
+    const yearOptions = Array.from({ length: 10 }, (_, i) => dayjs().year() - 5 + i);
+    const [financialYear, setFinancialYear] = useState<number | undefined>(dayjs().year());
+    const [accountingMethod, setAccountingMethod] = useState<"accrual" | "cash">("accrual");
+    const [displayBy, setDisplayBy] = useState<"customer" | "quarters" | "years" | "total">("total");
+
+    const [emailModalOpen, setEmailModalOpen] = useState(false);
+    const [emailTo, setEmailTo] = useState("");
+    const [emailSubject, setEmailSubject] = useState("");
+    const [emailNote, setEmailNote] = useState("");
+    const [sendingEmail, setSendingEmail] = useState(false);
+
     const [runKey, setRunKey] = useState<Record<ReportTab, number>>({
         "profit-loss": 0, "balance-sheet": 0, "trial-balance": 0,
         "general-ledger": 0, "account-balances": 0, "vat": 0, "cash-flow": 0,
@@ -215,12 +228,13 @@ const AccountingReportsPage: React.FC = () => {
     const cp = (obj: Record<string, any>) =>
         Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined && v !== null));
 
-    // Helper to build query parameters with branch filter
+    // Helper to build query parameters with branch and shared filters
     const buildQueryParams = (params: Record<string, any>) => {
         const cleanParams = cp(params);
-        if (selectedBranchId) {
-            cleanParams.shop_id = selectedBranchId;
-        }
+        if (selectedBranchId) cleanParams.shop_id = selectedBranchId;
+        if (financialYear) cleanParams.financial_year = financialYear;
+        if (accountingMethod) cleanParams.method = accountingMethod;
+        if (displayBy) cleanParams.display_by = displayBy;
         return cleanParams;
     };
 
@@ -460,38 +474,38 @@ const AccountingReportsPage: React.FC = () => {
         switch (activeTab) {
 
             case "profit-loss": return <>
-                <PeriodFilter value={plPeriod} onChange={setPlPeriod} onRun={() => run("profit-loss")} loading={isLoading(plQ, plQC, plPeriod.enabled)} supportComparative />
+                <PeriodFilter value={plPeriod} onChange={setPlPeriod} onRun={() => run("profit-loss")} loading={isLoading(plQ, plQC, plPeriod.enabled)} supportComparative extra={<FilterControls />} />
                 {plQ.isFetching ? <Loading /> : plPeriod.enabled && plQ.data && plQC.data ? renderComparativePL() : plQ.data ? <ProfitAndLossTable data={plQ.data} period={{ from: plPeriod.primary[0]?.toISOString(), to: plPeriod.primary[1]?.toISOString() }} /> : <EmptyState />}
             </>;
 
             case "balance-sheet": return <>
-                <AsOfFilter value={bsAsOf} onChange={setBsAsOf} onRun={() => run("balance-sheet")} loading={isLoading(bsQ, bsQC, bsAsOf.enabled)} supportComparative />
+                <AsOfFilter value={bsAsOf} onChange={setBsAsOf} onRun={() => run("balance-sheet")} loading={isLoading(bsQ, bsQC, bsAsOf.enabled)} supportComparative extra={<FilterControls />} />
                 {bsQ.isFetching ? <Loading /> : bsAsOf.enabled && bsQ.data && bsQC.data ? renderComparativeBS() : bsQ.data ? <BalanceSheetTable data={bsQ.data} /> : <EmptyState />}
             </>;
 
             case "trial-balance": return <>
-                <PeriodFilter value={tbPeriod} onChange={setTbPeriod} onRun={() => run("trial-balance")} loading={isLoading(tbQ, tbQC, tbPeriod.enabled)} supportComparative />
+                <PeriodFilter value={tbPeriod} onChange={setTbPeriod} onRun={() => run("trial-balance")} loading={isLoading(tbQ, tbQC, tbPeriod.enabled)} supportComparative extra={<FilterControls />} />
                 {tbQ.isFetching ? <Loading /> : tbPeriod.enabled && tbQ.data && tbQC.data ? renderComparativeTB() : tbQ.data ? <TrialBalanceTable data={tbQ.data} /> : <EmptyState />}
             </>;
 
             // ── GENERAL LEDGER: GLPeriodFilter only, NO comparison ────────────
             case "general-ledger": return <>
-                <GLPeriodFilter value={glPeriod} onChange={setGlPeriod} onRun={() => run("general-ledger")} loading={glQ.isFetching} />
+                <GLPeriodFilter value={glPeriod} onChange={setGlPeriod} onRun={() => run("general-ledger")} loading={glQ.isFetching} extra={<FilterControls />} />
                 {glQ.isFetching ? <Loading /> : glQ.data ? <GeneralLedgerTable data={glQ.data} period={{ from: glPeriod.from, to: glPeriod.to }} /> : <EmptyState />}
             </>;
 
             case "account-balances": return <>
-                <AsOfFilter value={abAsOf} onChange={setAbAsOf} onRun={() => run("account-balances")} loading={isLoading(abQ, abQC, abAsOf.enabled)} supportComparative />
+                <AsOfFilter value={abAsOf} onChange={setAbAsOf} onRun={() => run("account-balances")} loading={isLoading(abQ, abQC, abAsOf.enabled)} supportComparative extra={<FilterControls />} />
                 {abQ.isFetching ? <Loading /> : abAsOf.enabled && abQ.data && abQC.data ? renderComparativeAB() : abQ.data ? <AccountBalancesTable data={abQ.data} /> : <EmptyState />}
             </>;
 
             case "vat": return <>
-                <PeriodFilter value={vatPeriod} onChange={setVatPeriod} onRun={() => run("vat")} loading={isLoading(vatQ, vatQC, vatPeriod.enabled)} supportComparative />
+                <PeriodFilter value={vatPeriod} onChange={setVatPeriod} onRun={() => run("vat")} loading={isLoading(vatQ, vatQC, vatPeriod.enabled)} supportComparative extra={<FilterControls />} />
                 {vatQ.isFetching ? <Loading /> : vatPeriod.enabled && vatQ.data && vatQC.data ? renderComparativeVAT() : vatQ.data ? <VATReportTable data={vatQ.data} /> : <EmptyState />}
             </>;
 
             case "cash-flow": return <>
-                <PeriodFilter value={cfPeriod} onChange={setCfPeriod} onRun={() => run("cash-flow")} loading={isLoading(cfQ, cfQC, cfPeriod.enabled)} supportComparative />
+                <PeriodFilter value={cfPeriod} onChange={setCfPeriod} onRun={() => run("cash-flow")} loading={isLoading(cfQ, cfQC, cfPeriod.enabled)} supportComparative extra={<FilterControls />} />
                 {cfQ.isFetching ? <Loading /> : cfPeriod.enabled && cfQ.data && cfQC.data ? renderComparativeCF() : cfQ.data ? <CashFlowTable data={cfQ.data} /> : <EmptyState />}
             </>;
 
@@ -504,7 +518,7 @@ const AccountingReportsPage: React.FC = () => {
                             options={customers.map((c: any) => ({ label: `${c.customer_name}${c.customer_phone ? ` — ${c.customer_phone}` : ""}`, value: c._id }))} />
                     )}
                 </Space>
-                <PeriodFilter value={custPeriod} onChange={setCustPeriod} onRun={() => { if (customerId) run("customer-statement"); }} loading={isLoading(custQ, custQC, custPeriod.enabled)} supportComparative />
+                <PeriodFilter value={custPeriod} onChange={setCustPeriod} onRun={() => { if (customerId) run("customer-statement"); }} loading={isLoading(custQ, custQC, custPeriod.enabled)} supportComparative extra={<FilterControls />} />
 
                 {!customerId && <Alert type="info" showIcon message="Select a customer to generate their statement." style={{ marginBottom: 12 }} />}
                 {custQ.isFetching ? <Loading /> : custPeriod.enabled && custQ.data && custQC.data ? renderComparativeCust() : custQ.data ? <CustomerStatementTable data={custQ.data} /> : !customerId ? null : <EmptyState />}
@@ -519,19 +533,19 @@ const AccountingReportsPage: React.FC = () => {
                             options={suppliers.map((s: any) => ({ label: `${s.name}${s.phone ? ` — ${s.phone}` : ""}`, value: s._id }))} />
                     )}
                 </Space>
-                <PeriodFilter value={suppPeriod} onChange={setSuppPeriod} onRun={() => { if (supplierId) run("supplier-statement"); }} loading={isLoading(suppQ, suppQC, suppPeriod.enabled)} supportComparative />
+                <PeriodFilter value={suppPeriod} onChange={setSuppPeriod} onRun={() => { if (supplierId) run("supplier-statement"); }} loading={isLoading(suppQ, suppQC, suppPeriod.enabled)} supportComparative extra={<FilterControls />} />
 
                 {!supplierId && <Alert type="info" showIcon message="Select a supplier to generate their statement." style={{ marginBottom: 12 }} />}
                 {suppQ.isFetching ? <Loading /> : suppPeriod.enabled && suppQ.data && suppQC.data ? renderComparativeSupp() : suppQ.data ? <SupplierStatementTable data={suppQ.data} /> : !supplierId ? null : <EmptyState />}
             </>;
 
             case "ar-aging": return <>
-                <PeriodFilter value={arPeriod} onChange={setArPeriod} onRun={() => run("ar-aging")} loading={isLoading(arQ, arQC, arPeriod.enabled)} supportComparative />
+                <PeriodFilter value={arPeriod} onChange={setArPeriod} onRun={() => run("ar-aging")} loading={isLoading(arQ, arQC, arPeriod.enabled)} supportComparative extra={<FilterControls />} />
                 {arQ.isFetching ? <Loading /> : arPeriod.enabled && arQ.data && arQC.data ? renderComparativeAR() : arQ.data ? <ARAgingTable data={arQ.data} /> : <EmptyState />}
             </>;
 
             case "ap-aging": return <>
-                <PeriodFilter value={apPeriod} onChange={setApPeriod} onRun={() => run("ap-aging")} loading={isLoading(apQ, apQC, apPeriod.enabled)} supportComparative />
+                <PeriodFilter value={apPeriod} onChange={setApPeriod} onRun={() => run("ap-aging")} loading={isLoading(apQ, apQC, apPeriod.enabled)} supportComparative extra={<FilterControls />} />
                 {apQ.isFetching ? <Loading /> : apPeriod.enabled && apQ.data && apQC.data ? renderComparativeAP() : apQ.data ? <APAgingTable data={apQ.data} /> : <EmptyState />}
             </>;
 
@@ -539,10 +553,211 @@ const AccountingReportsPage: React.FC = () => {
         }
     };
 
+    // ── CSV / email helpers ─────────────────────────────────────────────────────
+    const getReportRows = (tab: ReportTab): Record<string, any>[] => {
+        const empty: Record<string, any>[] = [];
+        switch (tab) {
+            case "profit-loss":
+                if (!plQ.data) return empty;
+                return [
+                    ...plQ.data.revenue.accounts.map((a: any) => ({ Section: "Revenue", Code: a.account_code, Account: a.account_name, Amount: a.amount })),
+                    ...plQ.data.expenses.accounts.map((a: any) => ({ Section: "Expenses", Code: a.account_code, Account: a.account_name, Amount: a.amount })),
+                ];
+            case "balance-sheet":
+                if (!bsQ.data) return empty;
+                return [
+                    ...bsQ.data.assets.accounts.map((a: any) => ({ Section: "Assets", Code: a.account_code, Account: a.account_name, Balance: a.balance })),
+                    ...bsQ.data.liabilities.accounts.map((a: any) => ({ Section: "Liabilities", Code: a.account_code, Account: a.account_name, Balance: a.balance })),
+                    ...bsQ.data.equity.accounts.map((a: any) => ({ Section: "Equity", Code: a.account_code, Account: a.account_name, Balance: a.balance })),
+                ];
+            case "trial-balance":
+                if (!tbQ.data) return empty;
+                return tbQ.data.rows.map((r: any) => ({ Code: r.account_code, Account: r.account_name, Type: r.account_type, "Closing Debit": r.closing_debit, "Closing Credit": r.closing_credit }));
+            case "general-ledger":
+                if (!glQ.data) return empty;
+                return glQ.data.accounts.flatMap((acc: any) => acc.lines.map((l: any) => ({ Account: `${acc.account_code} - ${acc.account_name}`, Date: dayjs(l.entry_date).format("DD MMM YYYY"), "Entry No.": l.entry_no, Description: l.description, Debit: l.debit, Credit: l.credit, Balance: l.balance })));
+            case "account-balances":
+                if (!abQ.data) return empty;
+                return abQ.data.accounts.map((a: any) => ({ Code: a.account_code, Account: a.account_name, Type: a.account_type, Normal: a.normal_balance, "Opening (KES)": a.opening_balance, "Total DR (KES)": a.total_debit, "Total CR (KES)": a.total_credit, "Balance (KES)": a.balance }));
+            case "vat":
+                if (!vatQ.data) return empty;
+                return vatQ.data.transactions.map((t: any) => ({ Date: dayjs(t.entry_date).format("DD MMM YYYY"), "Entry No.": t.entry_no, Description: t.description, Source: t.source, "VAT Collected (KES)": t.vat_collected, "VAT Paid (KES)": t.vat_paid }));
+            case "cash-flow":
+                if (!cfQ.data) return empty;
+                return cfQ.data.accounts.map((a: any) => ({ Code: a.account_code, Account: a.account_name, "Opening (KES)": a.opening_balance, "Inflows (KES)": a.inflows, "Outflows (KES)": a.outflows, "Net (KES)": a.net_cash_flow, "Closing (KES)": a.closing_balance }));
+            case "customer-statement":
+                if (!custQ.data) return empty;
+                return custQ.data.transactions.map((t: any) => ({ Date: dayjs(t.date).format("DD MMM YYYY"), Type: t.type, Reference: t.reference, Description: t.description, "Debit (KES)": t.debit, "Credit (KES)": t.credit, "Balance (KES)": t.balance }));
+            case "supplier-statement":
+                if (!suppQ.data) return empty;
+                return suppQ.data.transactions.map((t: any) => ({ Date: dayjs(t.date).format("DD MMM YYYY"), Type: t.type, Reference: t.reference, Description: t.description, "Debit (KES)": t.debit, "Credit (KES)": t.credit, "Balance (KES)": t.balance }));
+            case "ar-aging":
+                if (!arQ.data) return empty;
+                return arQ.data.customers.map((c: any) => ({ Customer: c.customer_name, ...c.buckets, "Total (KES)": c.total }));
+            case "ap-aging":
+                if (!apQ.data) return empty;
+                return apQ.data.suppliers.map((s: any) => ({ Supplier: s.supplier_name, ...s.buckets, "Total (KES)": s.total }));
+            default:
+                return empty;
+        }
+    };
+
+    const getCurrentPeriod = (): any => {
+        switch (activeTab) {
+            case "balance-sheet":
+            case "account-balances":
+                return bsAsOf.primary;
+            case "general-ledger":
+                return [dayjs(glPeriod.from), dayjs(glPeriod.to)];
+            case "trial-balance":
+                return tbPeriod.primary;
+            case "vat":
+                return vatPeriod.primary;
+            case "cash-flow":
+                return cfPeriod.primary;
+            case "customer-statement":
+                return custPeriod.primary;
+            case "supplier-statement":
+                return suppPeriod.primary;
+            case "ar-aging":
+                return arPeriod.primary;
+            case "ap-aging":
+                return apPeriod.primary;
+            case "profit-loss":
+            default:
+                return plPeriod.primary;
+        }
+    };
+
+    const buildCsvString = (rows: Record<string, any>[], periodLabel?: string) => {
+        if (!rows.length) return "";
+        const headers = Object.keys(rows[0]);
+        const escape = (val: any) => {
+            const str = String(val ?? "").replace(/"/g, '""');
+            return str.includes(",") || str.includes('"') || str.includes("\n") ? `"${str}"` : str;
+        };
+        const lines = [
+            ...(periodLabel ? [`Report Period: ${periodLabel}`] : []),
+            headers.join(","),
+            ...rows.map((r) => headers.map((h) => escape(r[h])).join(",")),
+        ];
+        return lines.join("\n");
+    };
+
+    const handleExportCSV = () => {
+        const rows = getReportRows(activeTab);
+        if (!rows.length) {
+            message.info("Run the report first to export data.");
+            return;
+        }
+        const period = buildPeriodLabel(getCurrentPeriod());
+        const csv = buildCsvString(rows, period);
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `${activeTab}_${dayjs().format("YYYY-MM-DD")}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const buildEmailHtml = (rows: Record<string, any>[], periodLabel?: string) => {
+        if (!rows.length) return "<p>No data</p>";
+        const headers = Object.keys(rows[0]);
+        const head = `<tr style="background:#f0f0f0">${headers.map((h) => `<th style="padding:8px 12px;border:1px solid #ddd">${h}</th>`).join("")}</tr>`;
+        const body = rows.map((r) => `<tr>${headers.map((h) => `<td style="padding:6px 12px;border:1px solid #ddd">${r[h] ?? ""}</td>`).join("")}</tr>`).join("");
+        return `
+            <p>${periodLabel ? `<strong>Period:</strong> ${periodLabel}<br>` : ""}${emailNote ? `<br>${emailNote}<br>` : ""}</p>
+            <table style="border-collapse:collapse;width:100%;font-family:Arial,sans-serif;font-size:13px">${head}${body}</table>
+        `;
+    };
+
+    const handleSendEmail = async () => {
+        if (!emailTo || !emailSubject) {
+            message.error("Recipient and subject are required.");
+            return;
+        }
+        const rows = getReportRows(activeTab);
+        if (!rows.length) {
+            message.info("Run the report first before emailing.");
+            return;
+        }
+        const period = buildPeriodLabel(getCurrentPeriod());
+        const csv = buildCsvString(rows, period);
+        const base64 = window.btoa(unescape(encodeURIComponent(csv)));
+        const htmlTable = buildEmailHtml(rows, period);
+        setSendingEmail(true);
+        try {
+            await sendEmail({
+                to: emailTo,
+                subject: emailSubject,
+                intro: `Please find the attached ${activeTab.replace(/-/g, " ")} report.`,
+                htmlTable,
+                bannerLabel: "Accounting Report",
+                bannerType: "Financial",
+                attachments: [{
+                    filename: `${activeTab}_${dayjs().format("YYYY-MM-DD")}.csv`,
+                    content: base64,
+                    contentType: "text/csv",
+                }],
+            });
+            setEmailModalOpen(false);
+            setEmailTo("");
+            setEmailSubject("");
+            setEmailNote("");
+        } finally {
+            setSendingEmail(false);
+        }
+    };
+
+    const FilterControls: React.FC = () => (
+        <Space wrap align="center" size={8}>
+            <Select
+                placeholder="Financial Year"
+                value={financialYear}
+                onChange={(v) => { setFinancialYear(v); run(activeTab); }}
+                style={{ width: 130 }}
+                allowClear
+            >
+                {yearOptions.map((y) => (
+                    <Option key={y} value={y}>{y}</Option>
+                ))}
+            </Select>
+            <Select
+                value={accountingMethod}
+                onChange={(v) => { setAccountingMethod(v); run(activeTab); }}
+                style={{ width: 140 }}
+            >
+                <Option value="accrual">Accrual</Option>
+                <Option value="cash">Cash</Option>
+            </Select>
+            <Select
+                value={displayBy}
+                onChange={(v) => { setDisplayBy(v); run(activeTab); }}
+                style={{ width: 150 }}
+            >
+                <Option value="customer">Customer</Option>
+                <Option value="quarters">Quarters</Option>
+                <Option value="years">Years</Option>
+                <Option value="total">Total</Option>
+            </Select>
+        </Space>
+    );
+
     return (
         <App>
             <Card bordered styles={{ body: { padding: 0 } }}
                 title={<Space><BarChartOutlined style={{ fontSize: 18, color: primaryColor }} /><Text strong style={{ fontSize: 16 }}>Reports</Text></Space>}
+                extra={
+                    <Space wrap align="center" size={8}>
+                        <Button icon={<DownloadOutlined />} onClick={handleExportCSV}>
+                            Export CSV
+                        </Button>
+                        <Button icon={<MailOutlined />} onClick={() => setEmailModalOpen(true)}>
+                            Email Report
+                        </Button>
+                    </Space>
+                }
             >
                 {isAdminRoute && (
                 <div style={{ padding: "16px 16px 0 16px" }}>
@@ -592,8 +807,37 @@ const AccountingReportsPage: React.FC = () => {
                     </Space>
                 </div>
             )}
+
                 <Tabs activeKey={activeTab} onChange={(k) => setActiveTab(k as ReportTab)} type="card" size="small" items={TAB_ITEMS} style={{ padding: "0 16px" }} tabBarStyle={{ marginBottom: 0 }} />
                 <div style={{ padding: 16 }}>{renderContent()}</div>
+
+                <Modal
+                    title="Email Accounting Report"
+                    open={emailModalOpen}
+                    onCancel={() => setEmailModalOpen(false)}
+                    onOk={handleSendEmail}
+                    okButtonProps={{ loading: sendingEmail }}
+                    okText="Send"
+                >
+                    <Space direction="vertical" style={{ width: "100%" }} size={12}>
+                        <Input
+                            placeholder="Recipient email"
+                            value={emailTo}
+                            onChange={(e) => setEmailTo(e.target.value)}
+                        />
+                        <Input
+                            placeholder="Subject"
+                            value={emailSubject}
+                            onChange={(e) => setEmailSubject(e.target.value)}
+                        />
+                        <Input.TextArea
+                            rows={3}
+                            placeholder="Optional note"
+                            value={emailNote}
+                            onChange={(e) => setEmailNote(e.target.value)}
+                        />
+                    </Space>
+                </Modal>
             </Card>
         </App>
     );

@@ -281,16 +281,42 @@ const ReceiptTab = ({
   const ref6 = useRef<HTMLDivElement>(null);
   const allRefs: Record<TemplateId, React.RefObject<HTMLDivElement>> = { 1: ref1, 2: ref2, 3: ref3, 4: ref4, 5: ref5, 6: ref6 };
 
-  const PAGE = `@page { size: A4 portrait; margin: 12mm; } @media print { * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }`;
-  const title = `Invoice-${record.order_no || record._id}`;
-
-  const p1 = useReactToPrint({ content: () => ref1.current, documentTitle: title, pageStyle: PAGE });
-  const p2 = useReactToPrint({ content: () => ref2.current, documentTitle: title, pageStyle: PAGE });
-  const p3 = useReactToPrint({ content: () => ref3.current, documentTitle: title, pageStyle: PAGE });
-  const p4 = useReactToPrint({ content: () => ref4.current, documentTitle: title, pageStyle: PAGE });
-  const p5 = useReactToPrint({ content: () => ref5.current, documentTitle: title, pageStyle: PAGE });
-  const p6 = useReactToPrint({ content: () => ref6.current, documentTitle: title, pageStyle: PAGE });
-  const printMap: Record<TemplateId, () => void> = { 1: p1, 2: p2, 3: p3, 4: p4, 5: p5, 6: p6 };
+  const handleDownloadPdf = async () => {
+    const node = allRefs[selected]?.current;
+    if (!node) return;
+    try {
+      const html2canvas = (await import("html2canvas")).default;
+      const { default: jsPDF } = await import("jspdf");
+      const clone = node.cloneNode(true) as HTMLElement;
+      clone.style.position = "fixed";
+      clone.style.top = "-9999px";
+      clone.style.left = "-9999px";
+      clone.style.maxHeight = "none";
+      clone.style.overflow = "visible";
+      clone.style.width = "730px";
+      document.body.appendChild(clone);
+      const canvas = await html2canvas(clone, { scale: 2, useCORS: true, allowTaint: true });
+      document.body.removeChild(clone);
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const pageWidth = 210;
+      const imgWidth = pageWidth;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+      heightLeft -= 297;
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+        heightLeft -= 297;
+      }
+      pdf.save(`Invoice-${record.order_no || record._id}_${dayjs().format("YYYYMMDD")}.pdf`);
+    } catch (e) {
+      console.error("PDF download failed", e);
+    }
+  };
 
   return (
     <div style={{ padding: 16 }}>
@@ -313,10 +339,10 @@ const ReceiptTab = ({
           )}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <Button type="primary" icon={<PrinterOutlined />}
-            onClick={() => printMap[selected]()}
+          <Button type="primary" icon={<FilePdfOutlined />}
+            onClick={handleDownloadPdf}
             style={{ background: C.primary, borderColor: C.primary, borderRadius: 6 }}>
-            Download / Print PDF
+            Download PDF
           </Button>
           <PrintBillModal
             cartDetails={record}
@@ -923,7 +949,7 @@ const PaymentsTab = ({
             borderRadius: 8, padding: "10px 14px", marginBottom: 16,
             display: "flex", justifyContent: "space-between", alignItems: "center",
           }}>
-            <Text style={{ fontSize: 12, color: C.subText }}>Amount Due</Text>
+            <Text style={{ fontSize: 12, color: C.subText }}>Balance Due</Text>
             <Text strong style={{ fontSize: 15, color: C.green }}>KES {fmt(amountDue)}</Text>
           </div>
           <Form.Item name="method_id" label="Payment Method" rules={[{ required: true, message: "Required" }]}>

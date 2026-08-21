@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from "react";
+import React, { useRef, useState } from "react";
 import { ProTable, ProCard, ActionType } from "@ant-design/pro-components";
 import {
     Button,
@@ -116,7 +116,7 @@ const BankReconciliationPage: React.FC = () => {
     const completedCount = reconciliations.filter((r) => r.status === "Completed").length;
 
     // ── Columns ───────────────────────────────────────────────────────────────
-    const columns = [
+    const columns: any[] = [
         {
             title: "Recon. No.",
             dataIndex: "reconciliation_no",
@@ -288,7 +288,7 @@ const BankReconciliationPage: React.FC = () => {
                         onClick={() => setOpenDrawer(true)}
                         style={{ background: primaryColor, borderColor: primaryColor }}
                     >
-                        New Session
+                        Start Reconciling
                     </Button>
                 }
                 bordered
