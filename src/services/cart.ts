@@ -74,7 +74,7 @@ export const printInvoice = async (printData: PrintData): Promise<void> => {
 
       message.success("Invoice downloaded successfully");
     }
-  } catch (error) {
+  } catch (error: any) {
     if (error?.response?.status != 403) {
       message.error("Failed to download invoice");
     }
@@ -88,7 +88,9 @@ export const getAllInvoices = async (params: ParamsType) => {
     const response = await axiosInstance.get(`${baseUrl}/cart/invoices`, {
       params: {
         orderNo: params?.order_no || params?.orderNo || params?.keyword,
+        invoiceNo: params?.invoice_no || params?.invoiceNo,
         tableName: params?.table || params?.tableName,
+        customer_id: params?.customer_id,
         start_date: params?.start_date,
         end_date: params?.end_date
       }

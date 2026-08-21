@@ -15,6 +15,7 @@ import {
     ARAgingResponse, APAgingResponse, TrialBalanceRow, GeneralLedgerAccount,
 } from "@services/accounting/reports";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
+import useSystemDetails from "@hooks/useSystemDetails";
 import dayjs from "dayjs";
 
 const { Text, Title } = Typography;
@@ -64,35 +65,27 @@ const printSection = (html: string, title: string) => {
 };
 
 // ── Export helpers ─────────────────────────────────────────────────────────────
-const exportToExcel = async (filename: string, rows: Record<string, any>[], options?: { title?: string; period?: string; boldRows?: number[] }) => {
+const exportToExcel = async (filename: string, rows: Record<string, any>[], options?: { title?: string; subtitle?: string; period?: string; boldRows?: number[] }) => {
     const XLSX = await import("xlsx");
-    const { title, period, boldRows = [] } = options || {};
-    
-    // Add header rows if title or period provided
-    let finalRows = rows;
-    if (title || period) {
-        const headerRows: Record<string, any>[] = [];
-        if (title) {
-            headerRows.push({ [Object.keys(rows[0] || {})[0]]: title });
-        }
-        if (period) {
-            headerRows.push({ [Object.keys(rows[0] || {})[0]]: period });
-        }
-        if (headerRows.length > 0) {
-            headerRows.push(BLANK_ROW(Object.keys(rows[0] || {})));
-            finalRows = [...headerRows, ...rows];
-        }
-    }
-    
+    const { title, subtitle, period, boldRows = [] } = options || {};
+
+    const headerRows: Record<string, any>[] = [];
+    if (title) headerRows.push({ [Object.keys(rows[0] || {})[0]]: title });
+    if (subtitle) headerRows.push({ [Object.keys(rows[0] || {})[0]]: subtitle });
+    if (period) headerRows.push({ [Object.keys(rows[0] || {})[0]]: period });
+    if (headerRows.length > 0) headerRows.push(BLANK_ROW(Object.keys(rows[0] || {})));
+    const finalRows = headerRows.length > 0 ? [...headerRows, ...rows] : rows;
+    const headerOffset = headerRows.length;
+
     const ws = XLSX.utils.json_to_sheet(finalRows);
     const colWidths = Object.keys(rows[0] || {}).map((k) => ({
         wch: Math.max(k.length, ...rows.map((r) => String(r[k] ?? "").length)) + 2,
     }));
     ws["!cols"] = colWidths;
-    
+
     // Apply bold formatting to specified rows
     boldRows.forEach(rowIndex => {
-        const actualRowIndex = (title ? 2 : 0) + rowIndex; // Account for header rows
+        const actualRowIndex = headerOffset + rowIndex;
         Object.keys(ws).forEach(cellKey => {
             if (cellKey.startsWith(actualRowIndex.toString()) && !cellKey.includes('!')) {
                 if (!ws[cellKey].s) ws[cellKey].s = {};
@@ -100,19 +93,24 @@ const exportToExcel = async (filename: string, rows: Record<string, any>[], opti
             }
         });
     });
-    
-    // Apply bold to title and period headers
+
+    // Apply bold to title, subtitle and period headers
     if (title) {
         const titleCell = `A1`;
         if (!ws[titleCell].s) ws[titleCell].s = {};
         ws[titleCell].s.font = { bold: true, sz: 14 };
     }
+    if (subtitle) {
+        const subtitleCell = `A${title ? 2 : 1}`;
+        if (!ws[subtitleCell].s) ws[subtitleCell].s = {};
+        ws[subtitleCell].s.font = { bold: true, sz: 12 };
+    }
     if (period) {
-        const periodCell = `A${title ? 2 : 1}`;
+        const periodCell = `A${(title ? 1 : 0) + (subtitle ? 1 : 0) + 1}`;
         if (!ws[periodCell].s) ws[periodCell].s = {};
         ws[periodCell].s.font = { bold: true };
     }
-    
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Report");
     XLSX.writeFile(wb, `${filename}_${dayjs().format("YYYYMMDD")}.xlsx`);
@@ -292,8 +290,10 @@ export const ProfitAndLossTable: React.FC<{ data: ProfitAndLossResponse; period?
     const totalNonOpExp = nonOpExpRows.reduce((s, a) => s + a.amount, 0);
     const opProfit = grossProfit - totalOpExp;
     const netProfit = data.net_profit;
+    const sys = useSystemDetails();
+    const companyName = sys.BRAND_NAME1 || "Business";
 
-    const PL_COLS = ["Section", "Code", "Account", "Amount (KES)"];
+    const PL_COLS = ["", "Total"];
 
     // ── Print ────────────────────────────────────────────────────────────────
     const handlePrint = () => {
@@ -320,8 +320,9 @@ export const ProfitAndLossTable: React.FC<{ data: ProfitAndLossResponse; period?
         const html = `
             <div class="header-block">
                 <div>
-                    <div class="company">Profit and Loss</div>
-                    <div class="subtitle">Basis: Accrual &nbsp;·&nbsp; ${periodLabel}</div>
+                    <div class="company" style="font-size:18px;font-weight:700">${companyName}</div>
+                    <div style="font-size:15px;font-weight:600;margin:4px 0">Profit and Loss (Beta)</div>
+                    <div class="subtitle">${periodLabel}</div>
                 </div>
                 <div class="meta">Generated: ${dayjs().format("DD MMM YYYY HH:mm")}</div>
             </div>
@@ -419,72 +420,71 @@ export const ProfitAndLossTable: React.FC<{ data: ProfitAndLossResponse; period?
             ? `${dayjs(period.from).format("DD MMM YYYY")} – ${dayjs(period.to).format("DD MMM YYYY")}`
             : dayjs().format("MMM YYYY");
         
+        const sectionHeader = (label: string) => ({ "": label, "Total": "" });
+        const accountRow = (r: any) => ({ "": `  ${r.account_name}`, "Total": r.amount });
+        const totalRow = (label: string, value: number) => ({ "": label, "Total": value });
+
         const rows = [
-            { Section: "Operating Income", Code: "", Account: "", "Amount (KES)": "" },
-            ...(opIncRows.length ? opIncRows : revenueRows).map((r) => ({
-                Section: "", Code: r.account_code, Account: r.account_name, "Amount (KES)": r.amount,
-            })),
-            { Section: "", Code: "", Account: "Total for Operating Income", "Amount (KES)": totalOpInc },
+            sectionHeader("Income"),
+            ...(opIncRows.length ? opIncRows : revenueRows).map(accountRow),
+            totalRow("Total for Income", totalOpInc),
             BLANK_ROW(PL_COLS),
-            { Section: "Cost of Goods Sold", Code: "", Account: "", "Amount (KES)": "" },
-            ...cogsRows.map((r) => ({ Section: "", Code: r.account_code, Account: r.account_name, "Amount (KES)": r.amount })),
-            { Section: "", Code: "", Account: "Total for Cost of Goods Sold", "Amount (KES)": totalCogs },
-            { Section: "", Code: "", Account: "Gross Profit", "Amount (KES)": grossProfit },
+            sectionHeader("Cost of Sales"),
+            ...cogsRows.map(accountRow),
+            totalRow("Total for Cost of Sales", totalCogs),
+            totalRow("Gross Profit", grossProfit),
             BLANK_ROW(PL_COLS),
-            { Section: "Operating Expense", Code: "", Account: "", "Amount (KES)": "" },
-            ...(opExpRows.length ? opExpRows : expenseRows).map((r) => ({
-                Section: "", Code: r.account_code, Account: r.account_name, "Amount (KES)": r.amount,
-            })),
-            { Section: "", Code: "", Account: "Total for Operating Expense", "Amount (KES)": totalOpExp },
-            { Section: "", Code: "", Account: "Operating Profit", "Amount (KES)": opProfit },
+            sectionHeader("Expenses"),
+            ...(opExpRows.length ? opExpRows : expenseRows).map(accountRow),
+            totalRow("Total for Expenses", totalOpExp),
             BLANK_ROW(PL_COLS),
-            { Section: "Non Operating Income", Code: "", Account: "", "Amount (KES)": "" },
-            ...nonOpIncRows.map((r) => ({ Section: "", Code: r.account_code, Account: r.account_name, "Amount (KES)": r.amount })),
-            { Section: "", Code: "", Account: "Total for Non Operating Income", "Amount (KES)": totalNonOpInc },
+            sectionHeader("Non Operating Income"),
+            ...nonOpIncRows.map(accountRow),
+            totalRow("Total for Non Operating Income", totalNonOpInc),
             BLANK_ROW(PL_COLS),
-            { Section: "Non Operating Expense", Code: "", Account: "", "Amount (KES)": "" },
-            ...nonOpExpRows.map((r) => ({ Section: "", Code: r.account_code, Account: r.account_name, "Amount (KES)": r.amount })),
-            { Section: "", Code: "", Account: "Total for Non Operating Expense", "Amount (KES)": totalNonOpExp },
+            sectionHeader("Non Operating Expense"),
+            ...nonOpExpRows.map(accountRow),
+            totalRow("Total for Non Operating Expense", totalNonOpExp),
             BLANK_ROW(PL_COLS),
-            { Section: "", Code: "", Account: netProfit >= 0 ? "NET PROFIT" : "NET LOSS", "Amount (KES)": netProfit },
+            totalRow(netProfit >= 0 ? "NET PROFIT" : "NET LOSS", netProfit),
         ];
         
         // Calculate indices for bold rows (all total/profit rows)
         const boldRows = [];
         let currentIndex = 1; // Start after section header
-        
-        // Total for Operating Income
+
+        // Total for Income
         currentIndex += (opIncRows.length ? opIncRows : revenueRows).length;
         boldRows.push(currentIndex);
         currentIndex += 2; // Skip blank row
-        
-        // Total for Cost of Goods Sold + Gross Profit
+
+        // Total for Cost of Sales + Gross Profit
         currentIndex += cogsRows.length;
         boldRows.push(currentIndex); // Total for COGS
         boldRows.push(currentIndex + 1); // Gross Profit
         currentIndex += 3; // Skip blank row
-        
-        // Total for Operating Expense + Operating Profit
+
+        // Total for Expenses
         currentIndex += (opExpRows.length ? opExpRows : expenseRows).length;
-        boldRows.push(currentIndex); // Total for Operating Expense
-        boldRows.push(currentIndex + 1); // Operating Profit
-        currentIndex += 3; // Skip blank row
-        
+        boldRows.push(currentIndex);
+        currentIndex += 2; // Skip blank row
+
         // Total for Non Operating Income
         currentIndex += nonOpIncRows.length;
         boldRows.push(currentIndex);
         currentIndex += 2; // Skip blank row
-        
+
         // Total for Non Operating Expense
         currentIndex += nonOpExpRows.length;
         boldRows.push(currentIndex);
         currentIndex += 2; // Skip blank row
-        
+
         // Net Profit/Loss
         boldRows.push(currentIndex);
-        
+
         exportToExcel("profit_loss", rows, {
-            title: "Profit and Loss",
+            title: companyName,
+            subtitle: "Profit and Loss (Beta)",
             period: periodLabel,
             boldRows: boldRows
         });
@@ -496,25 +496,46 @@ export const ProfitAndLossTable: React.FC<{ data: ProfitAndLossResponse; period?
             ? `${dayjs(period.from).format("DD MMM YYYY")} – ${dayjs(period.to).format("DD MMM YYYY")}`
             : dayjs().format("MMM YYYY");
             
+        const accountRows = (accounts: any[]) =>
+            accounts.length
+                ? accounts.map((r) => [`  ${r.account_name}`, fmt(r.amount)])
+                : [["—", ""]];
+
+        const section = (label: string) => [{ content: label, colSpan: 2, styles: { fontStyle: "bold", fillColor: [230, 230, 230] } }];
+        const total = (label: string, value: number) => [
+            { content: label, styles: { fontStyle: "bold" } },
+            { content: fmt(value), styles: { fontStyle: "bold" } },
+        ];
+
         return exportToPdf(
             "profit_loss",
-            "Profit and Loss",
-            `Report Period: ${periodLabel}  |  Basis: Accrual  |  Revenue: KES ${fmt(data.revenue.total_revenue)}  |  Expenses: KES ${fmt(data.expenses.total_expenses)}  |  ${data.is_profit ? "Net Profit" : "Net Loss"}: KES ${fmt(Math.abs(netProfit))}`,
-            ["Section", "Code", "Account", "Amount (KES)"],
-        [
-            [{ content: "Operating Income", colSpan: 4, styles: { fontStyle: "bold", fillColor: [245, 240, 245] } }],
-            ...(opIncRows.length ? opIncRows : revenueRows).map((r) => ["", r.account_code, r.account_name, fmt(r.amount)]),
-            ["", "", { content: "Total for Operating Income", styles: { fontStyle: "bold" } }, { content: fmt(totalOpInc), styles: { fontStyle: "bold", textColor: [56, 158, 13] } }],
-            [{ content: "Cost of Goods Sold", colSpan: 4, styles: { fontStyle: "bold", fillColor: [245, 240, 245] } }],
-            ...cogsRows.map((r: any) => ["", r.account_code, r.account_name, fmt(r.amount)]),
-            ["", "", { content: "Total for COGS", styles: { fontStyle: "bold" } }, { content: fmt(totalCogs), styles: { fontStyle: "bold", textColor: [207, 19, 34] } }],
-            ["", "", { content: "Gross Profit", styles: { fontStyle: "bold", fontSize: 9 } }, { content: fmt(grossProfit), styles: { fontStyle: "bold", fontSize: 9, textColor: grossProfit >= 0 ? [56, 158, 13] : [207, 19, 34] } }],
-            [{ content: "Operating Expense", colSpan: 4, styles: { fontStyle: "bold", fillColor: [245, 240, 245] } }],
-            ...(opExpRows.length ? opExpRows : expenseRows).map((r) => ["", r.account_code, r.account_name, fmt(r.amount)]),
-            ["", "", { content: "Total for Operating Expense", styles: { fontStyle: "bold" } }, { content: fmt(totalOpExp), styles: { fontStyle: "bold", textColor: [207, 19, 34] } }],
-            ["", "", { content: "Operating Profit", styles: { fontStyle: "bold", fontSize: 9 } }, { content: fmt(opProfit), styles: { fontStyle: "bold", fontSize: 9, textColor: opProfit >= 0 ? [56, 158, 13] : [207, 19, 34] } }],
-            ["", "", { content: netProfit >= 0 ? "NET PROFIT" : "NET LOSS", styles: { fontStyle: "bold", fontSize: 11 } }, { content: fmt(Math.abs(netProfit)), styles: { fontStyle: "bold", fontSize: 11, textColor: netProfit >= 0 ? [56, 158, 13] : [207, 19, 34] } }],
-        ]
+            companyName,
+            `Profit and Loss (Beta)  |  ${periodLabel}`,
+            ["", "Total (KES)"],
+            [
+                section("Income"),
+                ...accountRows(opIncRows.length ? opIncRows : revenueRows),
+                total("Total for Income", totalOpInc),
+                ["", ""],
+                section("Cost of Sales"),
+                ...accountRows(cogsRows),
+                total("Total for Cost of Sales", totalCogs),
+                total("Gross Profit", grossProfit),
+                ["", ""],
+                section("Expenses"),
+                ...accountRows(opExpRows.length ? opExpRows : expenseRows),
+                total("Total for Expenses", totalOpExp),
+                ["", ""],
+                section("Non Operating Income"),
+                ...accountRows(nonOpIncRows),
+                total("Total for Non Operating Income", totalNonOpInc),
+                ["", ""],
+                section("Non Operating Expense"),
+                ...accountRows(nonOpExpRows),
+                total("Total for Non Operating Expense", totalNonOpExp),
+                ["", ""],
+                [{ content: netProfit >= 0 ? "NET PROFIT" : "NET LOSS", styles: { fontStyle: "bold", fontSize: 11 } }, { content: fmt(Math.abs(netProfit)), styles: { fontStyle: "bold", fontSize: 11 } }],
+            ]
         );
     };
 

@@ -11,17 +11,20 @@ import {
 } from "antd";
 import {
   DollarOutlined, EditOutlined, FileDoneOutlined,
-  FileTextOutlined, FilterOutlined, MoreOutlined,
+  FileTextOutlined, FilePdfOutlined, FilterOutlined, MoreOutlined,
   PrinterOutlined, UserOutlined, SafetyCertificateOutlined,
   DeleteOutlined, PlusOutlined, CopyOutlined, StopOutlined,
 } from "@ant-design/icons";
 import { getAllInvoices } from "@services/cart";
+import { fetchAllCustomers } from "@services/customers";
 import { convertQuoteToInvoice, recordInvoicePayment, deleteInvoice, duplicateInvoice, voidInvoice } from "@services/accounting/invoice";
 import { fetchAllPaymentMethods } from "@services/paymentMethod";
 import { getAllAccounts } from "@services/accounting/accounts";
 import { generateTaxInvoice } from "@services/accounting/digiTax";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import InvoiceReprintModal from "./InvoiceReprintModal";
+import useSystemDetails from "@hooks/useSystemDetails";
+import { useTenantModules } from "@hooks/useTenantModules";
+import { Template6Clean } from "./InvoiceTemplates";
 import ManualInvoiceModal from "./ManualInvoiceModal";
 import NoteDetailDrawer from "../../Notes/NoteDetailDrawer";
 import NoteFormDrawer from "../../Notes/NoteFormDrawer";
@@ -184,9 +187,14 @@ const MobileFilterDrawer: React.FC<{
         <Form.Item name="order_no" label="Order / Quote No.">
           <Input placeholder="Enter order number" style={{ borderRadius: 8 }} />
         </Form.Item>
-        <Form.Item name="name" label="Table Name">
-          <Input placeholder="Enter table name" style={{ borderRadius: 8 }} />
+        <Form.Item name="invoice_no" label="Invoice No.">
+          <Input placeholder="Enter invoice number" style={{ borderRadius: 8 }} />
         </Form.Item>
+        {hasPOS && (
+          <Form.Item name="name" label="Table Name">
+            <Input placeholder="Enter table name" style={{ borderRadius: 8 }} />
+          </Form.Item>
+        )}
       </Form>
     </Drawer>
   );
@@ -455,7 +463,7 @@ const PaymentModal: React.FC<{
         borderRadius: 8, padding: "10px 14px", marginBottom: 16,
         display: "flex", justifyContent: "space-between", alignItems: "center",
       }}>
-        <Text style={{ fontSize: 12, color: C.subText }}>Amount Due</Text>
+        <Text style={{ fontSize: 12, color: C.subText }}>Balance Due</Text>
         <Text strong style={{ fontSize: 15, color: C.green }}>KES {fmt(amountDue)}</Text>
       </div>
       <Form form={form} layout="vertical" initialValues={{ amount: amountDue }}>
@@ -626,6 +634,44 @@ const InvoicesTable = () => {
   const [noteDetailOpen, setNoteDetailOpen] = useState(false);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [etrSubmitting, setEtrSubmitting] = useState<string | null>(null);
+  const [pdfRecord, setPdfRecord] = useState<any>(null);
+  const pdfRef = useRef<HTMLDivElement>(null);
+  const sys = useSystemDetails();
+  const { hasPOS } = useTenantModules();
+
+  useEffect(() => {
+    if (!pdfRecord || !pdfRef.current) return;
+    const capture = async () => {
+      try {
+        const html2canvas = (await import("html2canvas")).default;
+        const { default: jsPDF } = await import("jspdf");
+        const canvas = await html2canvas(pdfRef.current!, { scale: 2, useCORS: true, allowTaint: true });
+        const imgData = canvas.toDataURL("image/png");
+        const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+        const pageWidth = 210;
+        const imgWidth = pageWidth;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        let heightLeft = imgHeight;
+        let position = 0;
+        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+        heightLeft -= 297;
+        while (heightLeft > 0) {
+          position = heightLeft - imgHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+          heightLeft -= 297;
+        }
+        pdf.save(`Invoice-${pdfRecord.order_no || pdfRecord.invoice_no}_${dayjs().format("YYYYMMDD")}.pdf`);
+      } catch (e) {
+        console.error("PDF download failed", e);
+        message.error("Failed to download PDF");
+      } finally {
+        setPdfRecord(null);
+      }
+    };
+    const timer = setTimeout(capture, 250);
+    return () => clearTimeout(timer);
+  }, [pdfRecord]);
 
   const [queryParams, setQueryParams] = useState({
     page: 1, limit: 10,
@@ -712,6 +758,7 @@ const InvoicesTable = () => {
     ] : []),
     ...(record.status !== "Draft" && record.status !== "Voided" ? [
       { key: "credit-note", label: "Create Credit Note", icon: <FileTextOutlined /> },
+      { key: "download-pdf", label: "Download PDF", icon: <FilePdfOutlined /> },
     ] : []),
     ...(record.status !== "Draft" && record.status !== "Voided" && !record.etr_enabled ? [
       { key: "void", label: "Void Invoice", icon: <StopOutlined />, danger: true },
@@ -722,13 +769,14 @@ const InvoicesTable = () => {
     ...(isAdmin && !record.etr_enabled ? [{ key: "delete", label: "Delete", icon: <DeleteOutlined />, danger: true }] : []),
   ];
 
-  const handleRowMenuClick = (key: string, record: any) => {
+  const handleRowMenuClick = (key: any, record: any) => {
     if (key === "edit") setEditTarget(record);
     if (key === "duplicate") handleDuplicate(record);
     if (key === "print") printQuote(record);
     if (key === "convert") setConvertTarget(record);
     if (key === "pay") setPayTarget(record);
     if (key === "credit-note") setCreditNoteTarget(record);
+    if (key === "download-pdf") setPdfRecord(record);
     if (key === "void") setVoidTarget(record);
     if (key === "etr") handleEtrSubmit(record);
     if (key === "delete") setDeleteTarget(record);
@@ -771,7 +819,7 @@ const InvoicesTable = () => {
     {
       title: "Order / Quote No.", dataIndex: "order_no",
       hideInSearch: false, copyable: true,
-      render: (text: string, record: any) => (
+      render: (text: any, record: any) => (
         <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
           {record.status === "Draft"
             ? <FileTextOutlined style={{ color: C.orange, fontSize: 13 }} />
@@ -782,7 +830,7 @@ const InvoicesTable = () => {
     },
     {
       title: "Status", dataIndex: "status", hideInSearch: true,
-      render: (status: string, record: any) => (
+      render: (status: any, record: any) => (
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <StatusTag status={status} />
           {record.status !== "Draft" && (
@@ -801,11 +849,33 @@ const InvoicesTable = () => {
     },
     {
       title: "Customer", dataIndex: ["customer_id", "customer_name"], hideInSearch: true,
-      render: (name: string, record: any) => {
+      render: (name: any, record: any) => {
         const customerName = record.customer_id?.company_name || record.customer_id?.customer_name || record.customer_id?.name || record.counterparty_name || name;
         return customerName
           ? <Text style={{ fontSize: 12, fontWeight: 500 }}>{customerName}</Text>
           : <Text style={{ color: C.subText }}>—</Text>;
+      },
+    },
+    {
+      title: "Customer", dataIndex: "customer_id", hideInTable: true,
+      valueType: "select",
+      fieldProps: {
+        showSearch: true,
+        placeholder: "Type to search customer",
+        allowClear: true,
+        optionFilterProp: "label",
+      },
+      request: async () => {
+        try {
+          const res = await fetchAllCustomers({ limit: 1000 });
+          const customers = Array.isArray(res) ? res : res?.data || [];
+          return customers.map((c: any) => ({
+            label: c.company_name || c.customer_name || c.name || c.code || c._id,
+            value: c._id,
+          }));
+        } catch {
+          return [];
+        }
       },
     },
     {
@@ -862,8 +932,30 @@ const InvoicesTable = () => {
       sorter: (a: any, b: any) => new Date(a.due_date || 0).getTime() - new Date(b.due_date || 0).getTime(),
     },
     {
+      title: "Overdue (Days)", dataIndex: "due_date", hideInSearch: true, align: "right" as const, width: 120,
+      render: (_, record: any) => {
+        const text = record.due_date;
+        if (!text) return <Text style={{ color: C.subText }}>—</Text>;
+
+        const date = dayjs(text);
+        if (!date.isValid()) return <Text style={{ color: C.subText }}>—</Text>;
+
+        const isPayable = ["Pending", "Partially_Paid", "Overdue"].includes(record.status);
+        if (!isPayable || record.amount_due <= 0 || !dayjs().isAfter(date)) {
+          return <Text style={{ color: C.subText }}>—</Text>;
+        }
+
+        const days = dayjs().diff(date, "day");
+        return (
+          <Text style={{ fontSize: 12, color: C.red, fontWeight: 600 }}>
+            {days} {days === 1 ? "day" : "days"}
+          </Text>
+        );
+      },
+    },
+    {
       title: "Table", dataIndex: ["table_id", "name"], key: "table",
-      hideInSearch: false, fieldProps: { placeholder: "Enter table name" },
+      hideInTable: !hasPOS, hideInSearch: !hasPOS, fieldProps: { placeholder: "Enter table name" },
       render: (text: string) => <Text style={{ fontSize: 12 }}>{text || "—"}</Text>,
     },
     {
@@ -882,7 +974,7 @@ const InvoicesTable = () => {
       render: (v: number) => <Text strong style={{ fontSize: 12 }}>{v ? `KES ${fmt(v)}` : "—"}</Text>,
     },
     {
-      title: "Amount Due", dataIndex: "amount_due", hideInSearch: true, align: "right" as const,
+      title: "Balance Due", dataIndex: "amount_due", hideInSearch: true, align: "right" as const,
       render: (v: number, record: any) => {
         if (record.status === "Draft") return <Text style={{ color: C.subText }}>—</Text>;
         // Calculate amount due including sales receipts
@@ -1009,6 +1101,11 @@ const InvoicesTable = () => {
         .invoice-row.row-quote:hover td { background: #fffcf0 !important; }
         .ant-pro-table-search { background: #fff; border-radius: 10px; border: 1px solid ${C.border}; margin-bottom: 12px; }
       `}</style>
+      {pdfRecord && (
+        <div ref={pdfRef} style={{ position: "fixed", top: -9999, left: -9999, width: 730 }}>
+          <Template6Clean inv={pdfRecord} sys={sys} />
+        </div>
+      )}
       <ProTable
         rowKey="_id"
         cardBordered
@@ -1068,6 +1165,11 @@ const InvoicesTable = () => {
                 "This Year": [dayjs().startOf("year"), dayjs().endOf("year")],
               },
             },
+          },
+          {
+            title: "Invoice No", dataIndex: "invoice_no",
+            hideInTable: true,
+            valueType: "text",
           },
           ...desktopColumns,
         ]}

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import {
     ProForm,
     ProFormSelect,
+    ProFormDatePicker,
     ProFormDigit,
     ProFormTextArea,
 } from "@ant-design/pro-components";
@@ -14,7 +15,6 @@ import {
     InputNumber,
     DatePicker,
     Typography,
-    Alert,
 } from "antd";
 import {
     PlusOutlined,
@@ -82,39 +82,33 @@ const OpenReconciliationDrawer: React.FC<Props> = ({
 
     // ── Submit ─────────────────────────────────────────────────────────────────
 
-    const handleSubmit = async (values: any) => {
-        const validLines = lines.filter((l) => l.description && (l.debit > 0 || l.credit > 0));
+    const handleSubmit = async (values?: any) => {
+        if (!isAddMode && !values) return;
         setSubmitting(true);
         try {
             if (isAddMode) {
-                // Just add lines to existing reconciliation
-                await importStatementLines(reconciliationId!, validLines.map((l) => {
-                    const { key, ...rest } = l;
-                    return rest;
-                }));
+                const validLines = lines.filter((l) => l.description && ((l.debit ?? 0) > 0 || (l.credit ?? 0) > 0));
+                if (validLines.length > 0) {
+                    await importStatementLines(reconciliationId!, validLines.map((l) => {
+                        const { key, ...rest } = l;
+                        return rest;
+                    }));
+                }
                 onSuccess(reconciliationId!);
             } else {
                 // Open new reconciliation
+                const end = dayjs(values.ending_date).endOf("day");
                 const payload: OpenReconciliationParams = {
                     shop_id: shopId,
                     account_id: values.account_id,
-                    period_start: dayjs(values.period[0]).startOf("day").toISOString(),
-                    period_end: dayjs(values.period[1]).endOf("day").toISOString(),
+                    period_start: end.startOf("month").toISOString(),
+                    period_end: end.toISOString(),
                     statement_balance: values.statement_balance,
                     opening_balance: values.opening_balance,
                     notes: values.notes,
                 };
                 const res = await openReconciliation(payload);
-                const recoId = res.reconciliation._id;
-
-                // Import lines if any provided
-                if (validLines.length > 0) {
-                    await importStatementLines(recoId, validLines.map((l) => {
-                        const { key, ...rest } = l;
-                        return rest;
-                    }));
-                }
-                onSuccess(recoId);
+                onSuccess(res.reconciliation._id);
             }
             onClose();
         } finally {
@@ -227,14 +221,14 @@ const OpenReconciliationDrawer: React.FC<Props> = ({
                 )}
             />
             <Text type="secondary" style={{ fontSize: 11 }}>
-                {lines.filter((l) => l.description && (l.debit > 0 || l.credit > 0)).length} valid lines
+                {lines.filter((l) => l.description && ((l.debit ?? 0) > 0 || (l.credit ?? 0) > 0)).length} valid lines
             </Text>
         </>
     );
 
     return (
         <Drawer
-            title={isAddMode ? "Add Statement Lines" : "Open Reconciliation Session"}
+            title={isAddMode ? "Add Statement Lines" : "Start Reconciling"}
             open={open}
             onClose={onClose}
             width={820}
@@ -260,50 +254,44 @@ const OpenReconciliationDrawer: React.FC<Props> = ({
                     form={form}
                     onFinish={handleSubmit}
                     submitter={{
-                        searchConfig: { submitText: "Open Session", resetText: "Cancel" },
+                        searchConfig: { submitText: "Start Reconciling", resetText: "Cancel" },
                         onReset: onClose,
                         submitButtonProps: { loading: submitting },
                     }}
                     layout="vertical"
                 >
-                    <Space style={{ width: "100%" }} size={12}>
-                        <ProFormSelect
-                            name="account_id"
-                            label="Bank / Cash Account"
-                            showSearch
-                            rules={[{ required: true, message: "Required" }]}
-                            options={bankAccounts.map((a) => ({
-                                label: `${a.account_code} — ${a.account_name}`,
-                                value: a._id,
-                            }))}
-                            fieldProps={{ style: { width: 280 }, optionFilterProp: "label" }}
-                            placeholder="Select bank account…"
-                        />
-                        <ProForm.Item
-                            name="period"
-                            label="Statement Period"
-                            rules={[{ required: true, message: "Required" }]}
-                        >
-                            <DatePicker.RangePicker
-                                format="DD/MM/YYYY"
-                                style={{ width: 260 }}
-                            />
-                        </ProForm.Item>
-                    </Space>
+                    <ProFormSelect
+                        name="account_id"
+                        label="Bank / Cash Account"
+                        showSearch
+                        rules={[{ required: true, message: "Required" }]}
+                        options={bankAccounts.map((a) => ({
+                            label: `${a.account_code} — ${a.account_name}`,
+                            value: a._id,
+                        }))}
+                        fieldProps={{ style: { width: "100%" }, optionFilterProp: "label" }}
+                        placeholder="Select bank account…"
+                    />
 
                     <Space size={12}>
                         <ProFormDigit
+                            name="opening_balance"
+                            label="Beginning balance"
+                            placeholder="From your bank statement"
+                            fieldProps={{ precision: 2, prefix: "KES", style: { width: 220 } }}
+                        />
+                        <ProFormDigit
                             name="statement_balance"
-                            label="Closing Statement Balance"
+                            label="Statement ending balance"
                             placeholder="From your bank statement"
                             fieldProps={{ precision: 2, prefix: "KES", style: { width: 220 } }}
                             rules={[{ required: true, message: "Required" }]}
                         />
-                        <ProFormDigit
-                            name="opening_balance"
-                            label="Opening Balance (optional)"
-                            placeholder="Leave blank to auto-compute"
-                            fieldProps={{ precision: 2, prefix: "KES", style: { width: 220 } }}
+                        <ProFormDatePicker
+                            name="ending_date"
+                            label="Statement ending date"
+                            fieldProps={{ style: { width: 220 }, size: "large", format: "DD/MM/YYYY" }}
+                            rules={[{ required: true, message: "Required" }]}
                         />
                     </Space>
 
@@ -312,15 +300,6 @@ const OpenReconciliationDrawer: React.FC<Props> = ({
                         label="Notes (optional)"
                         fieldProps={{ rows: 2 }}
                     />
-
-                    <Alert
-                        type="info"
-                        showIcon
-                        message="Statement lines are optional here — you can add them after opening the session."
-                        style={{ marginBottom: 16, padding: "4px 12px" }}
-                    />
-
-                    {linesSection}
                 </ProForm>
             )}
         </Drawer>

@@ -4,13 +4,13 @@ import { usePrimaryColor } from "../../../context/PrimaryColorContext";
 
 // ── Palette ────────────────────────────────────────────────────────────────
 const C = {
-    primary: "#dc2626",
-    green: "#10b981",
-    red: "#ef4444",
-    orange: "#f59e0b",
-    blue: "#1d4ed8",
-    subText: "#64748b",
-    darkText: "#0f172a",
+    primary: "#000000",
+    green: "#000000",
+    red: "#000000",
+    orange: "#000000",
+    blue: "#000000",
+    subText: "#000000",
+    darkText: "#000000",
     border: "#e2e8f0",
     bg: "#f8fafc",
 };
@@ -256,7 +256,7 @@ const ItemsTable = ({ inv }: { inv: InvoiceForPrint }) => {
     return (
         <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 0, fontSize: 12 }}>
             <thead>
-                <tr style={{ background: "#f1f5f9" }}>
+                <tr style={{ background: "#fff" }}>
                     {["#", "Description", "Qty", "Unit (KES)", "VAT (KES)", "Total (KES)"].map((h) => (
                         <th
                             key={h}
@@ -266,7 +266,7 @@ const ItemsTable = ({ inv }: { inv: InvoiceForPrint }) => {
                                 fontWeight: 700,
                                 fontSize: 11,
                                 borderBottom: "2px solid #e2e8f0",
-                                color: "#374151",
+                                color: "#000",
                             }}
                         >
                             {h}
@@ -277,26 +277,26 @@ const ItemsTable = ({ inv }: { inv: InvoiceForPrint }) => {
             <tbody>
                 {items.length ? (
                     items.map((item, i) => (
-                        <tr key={item._id || i} style={{ background: i % 2 === 0 ? "#fff" : "#f8fafc" }}>
-                            <td style={{ padding: "7px 10px", textAlign: "center", borderBottom: "1px solid #f1f5f9", color: "#64748b" }}>{i + 1}</td>
-                            <td style={{ padding: "7px 10px", fontWeight: 600, borderBottom: "1px solid #f1f5f9" }}>
+                        <tr key={item._id || i} style={{ background: "#fff" }}>
+                            <td style={{ padding: "7px 10px", textAlign: "center", borderBottom: "1px solid #f1f5f9", color: "#000" }}>{i + 1}</td>
+                            <td style={{ padding: "7px 10px", fontWeight: 600, borderBottom: "1px solid #f1f5f9", color: "#000" }}>
                                 {item.product_id?.name || item.description || "—"}
                             </td>
-                            <td style={{ padding: "7px 10px", textAlign: "center", borderBottom: "1px solid #f1f5f9" }}>{item.quantity}</td>
-                            <td style={{ padding: "7px 10px", textAlign: "right", borderBottom: "1px solid #f1f5f9" }}>
+                            <td style={{ padding: "7px 10px", textAlign: "center", borderBottom: "1px solid #f1f5f9", color: "#000" }}>{item.quantity}</td>
+                            <td style={{ padding: "7px 10px", textAlign: "right", borderBottom: "1px solid #f1f5f9", color: "#000" }}>
                                 {fmt(item.unit_price || item.price)}
                             </td>
-                            <td style={{ padding: "7px 10px", textAlign: "right", borderBottom: "1px solid #f1f5f9", color: "#3b82f6" }}>
+                            <td style={{ padding: "7px 10px", textAlign: "right", borderBottom: "1px solid #f1f5f9", color: "#000" }}>
                                 {(item.vat_amount || 0) > 0 ? fmt(item.vat_amount!) : "—"}
                             </td>
-                            <td style={{ padding: "7px 10px", textAlign: "right", fontWeight: 700, borderBottom: "1px solid #f1f5f9" }}>
+                            <td style={{ padding: "7px 10px", textAlign: "right", fontWeight: 700, borderBottom: "1px solid #f1f5f9", color: "#000" }}>
                                 {fmt((item.unit_price || item.price || 0) * item.quantity + (item.vat_amount || 0))}
                             </td>
                         </tr>
                     ))
                 ) : (
                     <tr>
-                        <td colSpan={6} style={{ textAlign: "center", padding: 20, color: C.subText }}>No items</td>
+                        <td colSpan={6} style={{ textAlign: "center", padding: 20, color: "#000" }}>No items</td>
                     </tr>
                 )}
             </tbody>
@@ -304,43 +304,43 @@ const ItemsTable = ({ inv }: { inv: InvoiceForPrint }) => {
     );
 };
 
-const TotalsBlock = ({ inv, accentColor }: { inv: InvoiceForPrint; accentColor: string }) => (
+const TotalsBlock = ({ inv, accentColor: _accentColor }: { inv: InvoiceForPrint; accentColor?: string }) => (
     <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
-        <div style={{ width: 290, background: "#f8fafc", border: `1px solid ${C.border}`, borderRadius: 8, padding: "14px 16px" }}>
+        <div style={{ width: 290, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "14px 16px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5, fontSize: 12 }}>
-                <span style={{ color: C.subText }}>Subtotal</span>
-                <span style={{ fontWeight: 600 }}>KES {fmt(inv.subtotal || 0)}</span>
+                <span style={{ color: "#000" }}>Subtotal</span>
+                <span style={{ fontWeight: 600, color: "#000" }}>KES {fmt(inv.subtotal || 0)}</span>
             </div>
             {(inv.discount_amount || 0) > 0 && (
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5, fontSize: 12 }}>
-                    <span style={{ color: C.subText }}>Discount</span>
-                    <span style={{ fontWeight: 600, color: C.orange }}>− KES {fmt(inv.discount_amount)}</span>
+                    <span style={{ color: "#000" }}>Discount</span>
+                    <span style={{ fontWeight: 600, color: "#000" }}>− KES {fmt(inv.discount_amount)}</span>
                 </div>
             )}
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5, fontSize: 12 }}>
-                <span style={{ color: C.subText }}>VAT {inv.vat_pricing_mode ? `(${inv.vat_pricing_mode})` : ""}</span>
-                <span style={{ fontWeight: 600 }}>KES {fmt(inv.total_vat_amount || 0)}</span>
+                <span style={{ color: "#000" }}>VAT</span>
+                <span style={{ fontWeight: 600, color: "#000" }}>KES {fmt(inv.total_vat_amount || 0)}</span>
             </div>
             {(inv.notes_adjustment || 0) !== 0 && (
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5, fontSize: 12 }}>
-                    <span style={{ color: C.subText }}>Notes Adjustment</span>
-                    <span style={{ fontWeight: 600, color: C.orange }}>KES {fmt(inv.notes_adjustment!)}</span>
+                    <span style={{ color: "#000" }}>Notes Adjustment</span>
+                    <span style={{ fontWeight: 600, color: "#000" }}>KES {fmt(inv.notes_adjustment!)}</span>
                 </div>
             )}
-            <div style={{ borderTop: `2px solid ${C.border}`, margin: "8px 0 6px" }} />
+            <div style={{ borderTop: "2px solid #e2e8f0", margin: "8px 0 6px" }} />
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ fontWeight: 700, fontSize: 14 }}>Grand Total</span>
-                <span style={{ fontWeight: 700, fontSize: 14, color: accentColor }}>KES {fmt(inv.grand_total || 0)}</span>
+                <span style={{ fontWeight: 700, fontSize: 14, color: "#000" }}>Grand Total</span>
+                <span style={{ fontWeight: 700, fontSize: 14, color: "#000" }}>KES {fmt(inv.grand_total || 0)}</span>
             </div>
             {(inv.amount_paid || 0) > 0 && (
                 <>
                     <div style={{ display: "flex", justifyContent: "space-between", marginTop: 7, fontSize: 12 }}>
-                        <span style={{ color: C.green }}>Amount Paid</span>
-                        <span style={{ fontWeight: 700, color: C.green }}>KES {fmt(inv.amount_paid || 0)}</span>
+                        <span style={{ color: "#000" }}>Amount Paid</span>
+                        <span style={{ fontWeight: 700, color: "#000" }}>KES {fmt(inv.amount_paid || 0)}</span>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontSize: 12 }}>
-                        <span style={{ color: (inv.amount_due || 0) > 0 ? C.red : C.green, fontWeight: 600 }}>Balance Due</span>
-                        <span style={{ fontWeight: 700, color: (inv.amount_due || 0) > 0 ? C.red : C.green }}>
+                        <span style={{ color: "#000", fontWeight: 600 }}>Balance Due</span>
+                        <span style={{ fontWeight: 700, color: "#000" }}>
                             KES {fmt(inv.amount_due || 0)}
                         </span>
                     </div>
@@ -445,7 +445,7 @@ const PaymentDetailsBlock = ({
                 Payment Details
             </div>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" as const, marginBottom: 14 }}>
-                {sys.TILL_NO && !sys.Paybill_bs && (
+                {sys.TILL_NO && !sys.Paybill_bs && (sys.bank_details || []).filter(Boolean).length === 0 && (
                     <div
                         style={{
                             flex: "1 1 120px",
@@ -526,8 +526,8 @@ const PaymentDetailsBlock = ({
                 <div
                     style={{
                         flex: "1 1 120px",
-                        background: "#fef2f2",
-                        border: "1px solid #fecaca",
+                        background: "#ffffff",
+                        border: "1px solid #e2e8f0",
                         borderRadius: 7,
                         padding: "9px 12px",
                     }}
@@ -710,9 +710,9 @@ const PaymentDetailsBlock = ({
                                         <td style={{ padding: "5px 8px", borderBottom: "1px solid #f1f5f9" }}>
                                             <span
                                                 style={{
-                                                    background: "#eff6ff",
+                                                    background: "#ffffff",
                                                     color: C.blue,
-                                                    border: "1px solid #bfdbfe",
+                                                    border: "1px solid #e2e8f0",
                                                     borderRadius: 4,
                                                     padding: "1px 6px",
                                                     fontSize: 10,
@@ -796,7 +796,7 @@ const PaymentDetailsBlock = ({
 
 const Footer = ({ sys, borderColor = C.border, accentColor = C.primary }: { sys: SystemDetails; borderColor?: string; accentColor?: string }) => {
     // Determine which logo to use based on background color
-    // Light backgrounds (Ocean: #eff6ff, Forest: #f0fdf4) need dark logo
+    // Light backgrounds (Ocean: #ffffff, Forest: #f0fdf4) need dark logo
     // Dark backgrounds (Classic: #6c1c2c, Slate: #1e293b, Minimal: #374151) need light logo
     const isLightBackground = accentColor === '#3b82f6' || accentColor === '#16a34a';
     const logoSrc = isLightBackground ? '/relia2.png' : '/relia.png';
@@ -875,9 +875,9 @@ const LogoOrText = ({
     );
 
 // ═══════════════════════════════════════════════════════════════
-// TEMPLATE 1 — Classic (Dark Red Header)
+// TEMPLATE 1 — Classic (Black Header)
 // ═══════════════════════════════════════════════════════════════
-export const Template1Classic = React.forwardRef<HTMLDivElement, SharedProps>(({ inv, sys, accentColor = "#dc2626" }, ref) => {
+export const Template1Classic = React.forwardRef<HTMLDivElement, SharedProps>(({ inv, sys, accentColor = C.primary }, ref) => {
     const party = resolveParty(inv);
     const docLabel = inv.status === "Draft" ? "QUOTE" : inv.direction === "supplier" ? "BILL" : (inv.etr_enabled ? "TAX INVOICE" : "INVOICE");
 
@@ -1153,7 +1153,7 @@ export const Template2SlatePro = React.forwardRef<HTMLDivElement, SharedProps>((
 Template2SlatePro.displayName = "Template2SlatePro";
 
 // ═══════════════════════════════════════════════════════════════
-// TEMPLATE 3 — Ocean (Blue Gradient, Info Chips)
+// TEMPLATE 3 — Ocean (Minimal Black Header, Info Chips)
 // ═══════════════════════════════════════════════════════════════
 export const Template3Ocean = React.forwardRef<HTMLDivElement, SharedProps>(({ inv, sys }, ref) => {
     const party = resolveParty(inv);
@@ -1168,7 +1168,7 @@ export const Template3Ocean = React.forwardRef<HTMLDivElement, SharedProps>(({ i
             {/* Gradient header */}
             <div
                 style={{
-                    background: "linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%)",
+                    background: "#000000",
                     color: "#fff",
                     padding: "24px 32px",
                     display: "flex",
@@ -1220,12 +1220,12 @@ export const Template3Ocean = React.forwardRef<HTMLDivElement, SharedProps>(({ i
                         {party.kra_pin && <div style={{ fontSize: 11, color: C.subText }}>KRA: {party.kra_pin}</div>}
                     </div>
                     <div style={{ display: "flex", gap: 10, alignItems: "flex-start", flexWrap: "wrap" as const }}>
-                        <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 8, padding: "10px 14px", minWidth: 110 }}>
+                        <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "10px 14px", minWidth: 110 }}>
                             <div style={{ fontSize: 10, color: C.subText, marginBottom: 2 }}>Invoice Date</div>
                             <div style={{ fontWeight: 700, fontSize: 12, color: C.blue }}>{fmtDateShort(inv.issue_date || inv.createdAt)}</div>
                         </div>
                         {inv.due_date && (
-                            <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "10px 14px", minWidth: 110 }}>
+                            <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "10px 14px", minWidth: 110 }}>
                                 <div style={{ fontSize: 10, color: C.subText, marginBottom: 2 }}>Due Date</div>
                                 <div style={{ fontWeight: 700, fontSize: 12, color: C.red }}>{fmtDateShort(inv.due_date)}</div>
                             </div>
@@ -1235,9 +1235,9 @@ export const Template3Ocean = React.forwardRef<HTMLDivElement, SharedProps>(({ i
 
                 <ItemsTable inv={inv} />
                 <TotalsBlock inv={inv} accentColor={C.blue} />
-                <PaymentDetailsBlock inv={inv} sys={sys} bgColor="#eff6ff" borderColor="#bfdbfe" accentColor={C.blue} />
-                <BankDetailsBlock sys={sys} bgColor="#eff6ff" borderColor="#bfdbfe" accentColor={C.blue} />
-                <Footer sys={sys} borderColor="#bfdbfe" accentColor={C.blue} />
+                <PaymentDetailsBlock inv={inv} sys={sys} bgColor="#ffffff" borderColor="#e2e8f0" accentColor={C.blue} />
+                <BankDetailsBlock sys={sys} bgColor="#ffffff" borderColor="#e2e8f0" accentColor={C.blue} />
+                <Footer sys={sys} borderColor="#e2e8f0" accentColor={C.blue} />
             </div>
 
             <style>{`@media print{@page{size:A4 portrait;margin:12mm}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}.inv-root{display:flex;flex-direction:column;min-height:273mm}.inv-body{display:flex;flex-direction:column;flex:1}.inv-footer{margin-top:auto!important}}`}</style>
@@ -1251,7 +1251,7 @@ Template3Ocean.displayName = "Template3Ocean";
 // ═══════════════════════════════════════════════════════════════
 export const Template4Minimal = React.forwardRef<HTMLDivElement, SharedProps>(({ inv, sys }, ref) => {
     const party = resolveParty(inv);
-    const charcoal = "#374151";
+    const charcoal = C.darkText;
     const docLabel = inv.status === "Draft" ? "Quote" : inv.direction === "supplier" ? "Bill" : (inv.etr_enabled ? "Tax Invoice" : "Invoice");
 
     return (
@@ -1319,7 +1319,7 @@ export const Template4Minimal = React.forwardRef<HTMLDivElement, SharedProps>(({
                             fontSize: 10,
                             textTransform: "uppercase" as const,
                             letterSpacing: "1px",
-                            color: "#94a3b8",
+                            color: "C.subText",
                             marginBottom: 6,
                         }}
                     >
@@ -1351,7 +1351,7 @@ export const Template4Minimal = React.forwardRef<HTMLDivElement, SharedProps>(({
                             fontSize: 10,
                             textTransform: "uppercase" as const,
                             letterSpacing: "1px",
-                            color: "#94a3b8",
+                            color: "C.subText",
                             marginBottom: 6,
                         }}
                     >
@@ -1466,7 +1466,7 @@ export const Template5Forest = React.forwardRef<HTMLDivElement, SharedProps>(({ 
 
                     <div style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 130 }}>
                         {inv.due_date && (
-                            <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "10px 14px" }}>
+                            <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "10px 14px" }}>
                                 <div style={{ fontSize: 10, textTransform: "uppercase" as const, fontWeight: 700, color: "#991b1b", marginBottom: 2 }}>
                                     Due Date
                                 </div>
@@ -1489,6 +1489,168 @@ export const Template5Forest = React.forwardRef<HTMLDivElement, SharedProps>(({ 
 });
 Template5Forest.displayName = "Template5Forest";
 
+// ═══════════════════════════════════════════════════════════════
+// TEMPLATE 6 — Clean (Professional multi-column, black & white)
+// ═══════════════════════════════════════════════════════════════
+const ItemsTableClean = ({ inv }: { inv: InvoiceForPrint }) => {
+    const items = inv.items || [];
+    return (
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, marginTop: 12 }}>
+            <thead>
+                <tr style={{ background: "#6b7280", color: "#fff" }}>
+                    <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: 600 }}>Item</th>
+                    <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: 600 }}>Description</th>
+                    <th style={{ padding: "10px 12px", textAlign: "right", fontWeight: 600 }}>Unit Cost</th>
+                    <th style={{ padding: "10px 12px", textAlign: "center", fontWeight: 600 }}>Qty</th>
+                    <th style={{ padding: "10px 12px", textAlign: "right", fontWeight: 600 }}>Discount</th>
+                    <th style={{ padding: "10px 12px", textAlign: "right", fontWeight: 600 }}>Line Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {items.length ? items.map((item, i) => {
+                    const unit = item.unit_price || item.price || 0;
+                    const discount = (item as any).discount || 0;
+                    const lineTotal = (unit * item.quantity) - discount + (item.vat_amount || 0);
+                    return (
+                        <tr key={item._id || i}>
+                            <td style={{ padding: "10px 12px", borderBottom: "1px solid #e5e7eb", color: "#000" }}>{item.product_id?.name || `Item ${i + 1}`}</td>
+                            <td style={{ padding: "10px 12px", borderBottom: "1px solid #e5e7eb", color: "#000" }}>{item.description || "—"}</td>
+                            <td style={{ padding: "10px 12px", textAlign: "right", borderBottom: "1px solid #e5e7eb", color: "#000" }}>{fmt(unit)}</td>
+                            <td style={{ padding: "10px 12px", textAlign: "center", borderBottom: "1px solid #e5e7eb", color: "#000" }}>{item.quantity}</td>
+                            <td style={{ padding: "10px 12px", textAlign: "right", borderBottom: "1px solid #e5e7eb", color: "#000" }}>{discount ? `− ${fmt(discount)}` : "—"}</td>
+                            <td style={{ padding: "10px 12px", textAlign: "right", borderBottom: "1px solid #e5e7eb", fontWeight: 600, color: "#000" }}>{fmt(lineTotal)}</td>
+                        </tr>
+                    );
+                }) : (
+                    <tr>
+                        <td colSpan={6} style={{ textAlign: "center", padding: 24, color: "#000" }}>No items</td>
+                    </tr>
+                )}
+            </tbody>
+        </table>
+    );
+};
+
+export const Template6Clean = React.forwardRef<HTMLDivElement, SharedProps>(({ inv, sys }, ref) => {
+    const party = resolveParty(inv);
+    const companyAddress = [sys.ADDRESS_1, sys.ADDRESS_2, sys.CITY, sys.COUNTRY].filter(Boolean).join(", ");
+
+    return (
+        <div
+            ref={ref}
+            className="inv-root"
+            style={{
+                fontFamily: "'Segoe UI', Roboto, sans-serif",
+                color: "#000",
+                background: "#fff",
+                padding: 32,
+                width: "100%",
+                maxWidth: 730,
+                boxSizing: "border-box" as const,
+            }}
+        >
+            <style>{`@media print{@page{size:A4 portrait;margin:12mm}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}.inv-root{display:flex;flex-direction:column;min-height:273mm}.inv-footer{margin-top:auto!important}}`}</style>
+
+            {/* Top header */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 32 }}>
+                <div style={{ flex: 1, minWidth: 160 }}>
+                    <LogoOrText sys={sys} height={52} />
+                </div>
+                <div style={{ flex: 1, textAlign: "center", padding: "0 16px" }}>
+                    <div style={{ fontSize: 14, fontWeight: 700 }}>{sys.BRAND_NAME1 || "Business"}</div>
+                    {sys.PHONE_NO && <div style={{ fontSize: 11 }}>{sys.PHONE_NO}</div>}
+                    {sys.EMAIL_URL && <div style={{ fontSize: 11 }}>{sys.EMAIL_URL}</div>}
+                    {sys.PIN && <div style={{ fontSize: 11 }}>PIN: {sys.PIN}</div>}
+                </div>
+                <div style={{ flex: 1, textAlign: "right", fontSize: 11, minWidth: 160 }}>
+                    {companyAddress && <div>{companyAddress}</div>}
+                </div>
+            </div>
+
+            {/* Issued to + black info box */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
+                <div style={{ flex: 1, paddingRight: 20 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>Invoice issued to:</div>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>{party.name}</div>
+                    {party.phone && <div style={{ fontSize: 11 }}>{party.phone}</div>}
+                    {party.email && <div style={{ fontSize: 11 }}>{party.email}</div>}
+                    {party.address && (
+                        <div style={{ fontSize: 11 }}>
+                            {party.address.street && <div>{party.address.street}</div>}
+                            {(party.address.city || party.address.county) && (
+                                <div>
+                                    {party.address.city && party.address.city}
+                                    {party.address.city && party.address.county && ", "}
+                                    {party.address.county && party.address.county}
+                                </div>
+                            )}
+                            {party.address.country && <div>{party.address.country}</div>}
+                        </div>
+                    )}
+                    {party.location && <div style={{ fontSize: 11 }}>{party.location}</div>}
+                    {party.kra_pin && <div style={{ fontSize: 11 }}>KRA: {party.kra_pin}</div>}
+                </div>
+
+                <div style={{ width: 260, background: "#000", color: "#fff", borderRadius: 8, padding: "16px 18px" }}>
+                    <table style={{ width: "100%", color: "#fff", fontSize: 12, lineHeight: 1.6 }}>
+                        <tbody>
+                            <tr><td style={{ padding: "3px 0" }}>Invoice Number</td><td style={{ textAlign: "right", fontWeight: 600 }}>{inv.order_no || inv.invoice_no}</td></tr>
+                            <tr><td style={{ padding: "3px 0" }}>Invoice Date</td><td style={{ textAlign: "right", fontWeight: 600 }}>{fmtDateShort(inv.issue_date || inv.createdAt)}</td></tr>
+                            <tr><td style={{ padding: "3px 0" }}>Invoice Total</td><td style={{ textAlign: "right", fontWeight: 600 }}>KES {fmt(inv.grand_total || 0)}</td></tr>
+                            <tr><td style={{ padding: "3px 0" }}>Balance Due</td><td style={{ textAlign: "right", fontWeight: 600 }}>KES {fmt(inv.amount_due ?? inv.grand_total ?? 0)}</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* Items table */}
+            <ItemsTableClean inv={inv} />
+
+            {/* Totals */}
+            <div style={{ marginTop: 20, display: "flex", justifyContent: "flex-end" }}>
+                <div style={{ width: 280 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5, fontSize: 12 }}>
+                        <span style={{ color: "#000" }}>Subtotal</span>
+                        <span style={{ fontWeight: 600, color: "#000" }}>KES {fmt(inv.subtotal || 0)}</span>
+                    </div>
+                    {(inv.discount_amount || 0) > 0 && (
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5, fontSize: 12 }}>
+                            <span style={{ color: "#000" }}>Discount</span>
+                            <span style={{ fontWeight: 600, color: "#000" }}>− KES {fmt(inv.discount_amount)}</span>
+                        </div>
+                    )}
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5, fontSize: 12 }}>
+                        <span style={{ color: "#000" }}>VAT</span>
+                        <span style={{ fontWeight: 600, color: "#000" }}>KES {fmt(inv.total_vat_amount || 0)}</span>
+                    </div>
+                    <div style={{ borderTop: "2px solid #e2e8f0", margin: "8px 0 6px" }} />
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span style={{ fontWeight: 700, fontSize: 14, color: "#000" }}>Grand Total</span>
+                        <span style={{ fontWeight: 700, fontSize: 14, color: "#000" }}>KES {fmt(inv.grand_total || 0)}</span>
+                    </div>
+                    {(inv.amount_paid || 0) > 0 && (
+                        <>
+                            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 7, fontSize: 12 }}>
+                                <span style={{ color: "#000" }}>Amount Paid</span>
+                                <span style={{ fontWeight: 700, color: "#000" }}>KES {fmt(inv.amount_paid || 0)}</span>
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontSize: 12 }}>
+                                <span style={{ color: "#000", fontWeight: 600 }}>Balance Due</span>
+                                <span style={{ fontWeight: 700, color: "#000" }}>KES {fmt(inv.amount_due || 0)}</span>
+                            </div>
+                        </>
+                    )}
+                </div>
+            </div>
+
+            <div style={{ marginTop: "auto", paddingTop: 24 }}>
+                <Footer sys={sys} borderColor="#e2e8f0" accentColor="#000000" />
+            </div>
+        </div>
+    );
+});
+Template6Clean.displayName = "Template6Clean";
+
 // ── Template meta ──────────────────────────────────────────────────────────
 export const TEMPLATES = [
     {
@@ -1496,15 +1658,15 @@ export const TEMPLATES = [
         name: "Minimal",
         description: "Serif editorial, clean double-rule",
         component: Template4Minimal,
-        thumbBg: "#f1f5f9",
-        thumbAccent: "#374151",
+        thumbBg: "#ffffff",
+        thumbAccent: "#000000",
     },
     {
         id: 1,
         name: "Classic",
-        description: "Dark red header, bold & professional",
+        description: "Black header, bold & professional",
         component: Template1Classic,
-        thumbBg: "#dc2626", // Will be dynamically overridden by primary color
+        thumbBg: "#000000", // Will be dynamically overridden by primary color
         thumbAccent: "#fff",
     },
     {
@@ -1518,9 +1680,9 @@ export const TEMPLATES = [
     {
         id: 3,
         name: "Ocean",
-        description: "Blue gradient header, info chip layout",
+        description: "Minimal black header, clean chip layout",
         component: Template3Ocean,
-        thumbBg: "#1d4ed8",
+        thumbBg: "#000000",
         thumbAccent: "#fff",
     },
     {
@@ -1533,11 +1695,11 @@ export const TEMPLATES = [
     },
     {
         id: 6,
-        name: "Custom",
-        description: "Your custom color scheme",
-        component: Template1Classic, // Uses Classic template with custom accent color
-        thumbBg: "#6366f1", // Will be dynamically overridden by invoice color
-        thumbAccent: "#fff",
+        name: "Clean",
+        description: "Professional multi-column, black & white",
+        component: Template6Clean,
+        thumbBg: "#000000",
+        thumbAccent: "#ffffff",
     },
 ] as const;
 
