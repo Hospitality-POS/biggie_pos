@@ -46,7 +46,7 @@ importers:
         version: 4.44.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@tanstack/react-query-devtools':
         specifier: ^4.29.19
-        version: 4.36.1(@tanstack/react-query@4.36.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 4.44.0(@tanstack/react-query@4.44.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@twilio/voice-sdk':
         specifier: ^2.18.3
         version: 2.18.3
@@ -160,7 +160,7 @@ importers:
         version: 3.10.1(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react-is@19.2.8)(react@18.3.1)(redux@4.2.1)
       remark-gfm:
         specifier: ^4.0.1
-        version: 4.0.1
+        version: 4.0.1(supports-color@8.1.1)
       twilio-client:
         specifier: ^1.15.1
         version: 1.15.1
@@ -1825,6 +1825,10 @@ packages:
         optional: true
       react-native:
         optional: true
+
+  '@trickfilm400/rollup-plugin-off-main-thread@3.0.0-pre1':
+    resolution: {integrity: sha512-/67zpWDBLV+oYAEL682s1ktXL0HgqX76f6gaVGkGnVZlBbm1zd0v4Bz8MFF2GGhoX9rvfq3KSQHubFHwa6w6/Q==}
+    engines: {node: '>=12'}
 
   '@twilio/audioplayer@1.0.6':
     resolution: {integrity: sha512-c9cjX/ifICgXqShtyAQdVMqfe7odnxougiuRMXBJtn3dZ320mFdt7kmuKedpNnc3ZJ6irOZ9M9MZi9/vuEqHiw==}
@@ -4504,6 +4508,11 @@ packages:
     engines: {node: '>=14.18.0', npm: '>=8.0.0'}
     hasBin: true
 
+  rollup@4.62.4:
+    resolution: {integrity: sha512-RXOqwaPsBGjMNMa4sQjDjHieHEZDFoj/Rdr46l2MU5DfEs16wHJPC2RPTPHWhNl+M3aI472LLqFkFKut4SblOg==}
+    engines: {node: '>=18.0.0', npm: '>=8.0.0'}
+    hasBin: true
+
   rtcpeerconnection-shim@1.2.8:
     resolution: {integrity: sha512-5Sx90FGru1sQw9aGOM+kHU4i6mbP8eJPgxliu2X3Syhg8qgDybx8dpDTxUwfJvPnubXFnZeRNl59DWr4AttJKQ==}
     engines: {node: '>=6.0.0', npm: '>=3.10.0'}
@@ -7134,6 +7143,13 @@ snapshots:
     optionalDependencies:
       react-dom: 18.3.1(react@18.3.1)
 
+  '@trickfilm400/rollup-plugin-off-main-thread@3.0.0-pre1':
+    dependencies:
+      ejs: 3.1.10
+      json5: 2.2.3
+      magic-string: 0.30.21
+      string.prototype.matchall: 4.0.12
+
   '@twilio/audioplayer@1.0.6':
     dependencies:
       babel-runtime: 6.26.0
@@ -7782,7 +7798,7 @@ snapshots:
     dependencies:
       '@babel/runtime': 7.29.7
       '@types/raf': 3.4.3
-      core-js: 3.50.0
+      core-js: 3.37.1
       raf: 3.4.1
       regenerator-runtime: 0.13.11
       rgbcolor: 1.0.1
@@ -7884,8 +7900,7 @@ snapshots:
 
   core-js@2.6.12: {}
 
-  core-js@3.37.1:
-    optional: true
+  core-js@3.37.1: {}
 
   cosmiconfig@7.1.0:
     dependencies:
@@ -8940,7 +8955,7 @@ snapshots:
       fflate: 0.8.3
     optionalDependencies:
       canvg: 3.0.11
-      core-js: 3.50.0
+      core-js: 3.37.1
       dompurify: 2.5.9
       html2canvas: 1.4.1
 
@@ -10060,7 +10075,7 @@ snapshots:
 
   react-multi-carousel@2.8.6:
     dependencies:
-      core-js: 3.50.0
+      core-js: 3.37.1
       install: 0.13.0
       npm: 10.9.9
 
@@ -10669,7 +10684,7 @@ snapshots:
 
   tslib@2.8.1: {}
 
-  tsutils@3.21.0(typescript@5.4.5):
+  tsutils@3.21.0(typescript@5.9.3):
     dependencies:
       tslib: 1.14.1
       typescript: 5.9.3

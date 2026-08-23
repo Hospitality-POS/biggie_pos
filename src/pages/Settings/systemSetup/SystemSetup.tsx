@@ -28,6 +28,7 @@ import TwilioSettings from "./TwilioSettings";
 import TransactionLocking from "./TransactionLocking";
 import { fetchShop } from "@services/shops";
 import { getPermissionChecker } from "@utils/getPermissionChecker";
+import { useTenantModules } from "@hooks/useTenantModules";
 
 const { Text } = Typography;
 
@@ -49,6 +50,7 @@ const SystemSetup: React.FC = () => {
 
   const hasPOS = !!(tenant?.pos_integration?.enabled ?? true);
   const can = getPermissionChecker();
+  const { hasAccounting } = useTenantModules();
 
   return (
     <div style={{ padding: "24px", minHeight: "100vh" }}>
