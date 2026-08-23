@@ -232,20 +232,31 @@ axiosInstance.interceptors.response.use(
         const { response } = error;
         if (response) {
             switch (response.status) {
-                case 401:
-                    // Check if this is a Meta API endpoint (should NOT logout)
+                case 401: {
                     const url = response.config?.url || '';
-                    if (isNonAuth401Route(url)) {
-                        // For Meta API 401s, just show a channel-specific error
-                        console.warn('Meta API 401 error - channel token may be expired:', url);
+                    const data = response.data as { sessionExpired?: boolean; channelTokenExpired?: boolean } | undefined;
+
+                    // Backend explicitly told us the user's own session is invalid/expired —
+                    // always log out, regardless of which route triggered it.
+                    if (data?.sessionExpired) {
+                        handleError("Session expired. Logging out...");
+                        logoutUser();
+                        break;
+                    }
+
+                    // Backend explicitly told us this is a genuinely expired/invalid
+                    // channel (Meta/Twilio) access token — don't logout, just notify.
+                    if (data?.channelTokenExpired || isNonAuth401Route(url)) {
+                        console.warn('Channel API 401 error - channel token may be expired:', url);
                         message.error('Channel connection expired. Please reconnect the channel in settings.');
-                        // Don't logout - just reject the error
                         return Promise.reject(error);
                     }
+
                     // For auth endpoints, logout
                     handleError("Session expired. Logging out...");
                     logoutUser();
                     break;
+                }
                 case 403:
                     handleError(response.data.message);
                     break;

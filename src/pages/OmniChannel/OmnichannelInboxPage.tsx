@@ -39,6 +39,13 @@ import {
     CommentOutlined,
     CloseCircleOutlined,
     FileOutlined,
+    TeamOutlined,
+    AudioOutlined,
+    FileTextOutlined,
+    SearchOutlined,
+    CheckCircleOutlined,
+    SyncOutlined,
+    ExclamationCircleOutlined,
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -49,7 +56,7 @@ import {
 } from "@services/whatsappService";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import CallInterfaceModal from "./CallInterfaceModal";
-import { getAgentStatus, getCallHistory, initiateCall, getPhoneNumbers, getActiveCalls, answerCall, rejectCall, endCall, getTwilioVoiceToken, updateAgentStatus, updateAgentHeartbeat, getMissedCalls, getMissedCallStats, progressMissedCall, sendTwilioWhatsAppMessage, getTwilioWhatsAppConversations, getTwilioWhatsAppMessages, getTwilioWhatsAppTemplates, createTwilioWhatsAppTemplate, deleteTwilioWhatsAppTemplate, getTwilioWhatsAppTemplateStatus } from "@services/twilio";
+import { getAgentStatus, getCallHistory, initiateCall, getPhoneNumbers, getActiveCalls, answerCall, rejectCall, endCall, getTwilioVoiceToken, updateAgentStatus, updateAgentHeartbeat, getMissedCalls, getMissedCallStats, progressMissedCall, sendTwilioWhatsAppMessage, getTwilioWhatsAppConversations, getTwilioWhatsAppMessages, getTwilioWhatsAppTemplates, createTwilioWhatsAppTemplate, deleteTwilioWhatsAppTemplate, getTwilioWhatsAppTemplateStatus, getCallQueue, getCallQueueStats, transcribeCall } from "@services/twilio";
 import { fetchAllUsersList } from "@services/users";
 import { fetchAllCustomers } from "@services/customers";
 import { fetchAllLeads } from "@services/crm/leads";
@@ -64,10 +71,11 @@ const { Text, Title } = Typography;
 const { TextArea } = Input;
 
 export type Channel = "all" | "whatsapp";
-export type ActiveTab = "calls" | "whatsapp";
+export type ActiveTab = "calls" | "queue" | "transcripts" | "whatsapp";
 
 export interface Call {
     _id: string;
+    call_sid?: string;
     from_number?: string;
     to_number?: string;
     direction?: "inbound" | "outbound";
@@ -76,6 +84,22 @@ export interface Call {
     duration?: number;
     start_time?: string;
     createdAt?: string;
+    recording_sid?: string;
+    recording_url?: string;
+    transcription_text?: string;
+    transcription_status?: "processing" | "completed" | "failed" | null;
+}
+
+export interface QueuedCall {
+    _id: string;
+    call_sid: string;
+    from_number: string;
+    to_number: string;
+    status: "queued" | "ringing" | "assigned" | "completed" | "missed" | "voicemail";
+    attempts?: number;
+    createdAt?: string;
+    waiting_seconds?: number;
+    position?: number;
 }
 
 export interface Agent {
@@ -212,6 +236,11 @@ const OmnichannelInboxPage: React.FC = () => {
     const [templatesModalOpen, setTemplatesModalOpen] = useState(false);
     const [showTemplateForm, setShowTemplateForm] = useState(false);
     const [selectedTemplate, setSelectedTemplate] = useState<{ _id: string; name: string; content_sid: string; variables?: string[] } | null>(null);
+
+    // Transcription state
+    const [transcribingId, setTranscribingId] = useState<string | null>(null);
+    const [transcriptModalCall, setTranscriptModalCall] = useState<Call | null>(null);
+    const [transcriptSearch, setTranscriptSearch] = useState("");
 
     // Agent availability state
     const [isAvailable, setIsAvailable] = useState(false);
@@ -397,6 +426,26 @@ const OmnichannelInboxPage: React.FC = () => {
         staleTime: 60_000,
     });
 
+    // Live call queue (waiting/ringing callers)
+    const { data: callQueueData, refetch: refetchCallQueue, isFetching: callQueueFetching } = useQuery({
+        queryKey: ["twilio-call-queue", shopId],
+        queryFn: () => getCallQueue(shopId || ""),
+        enabled: !!shopId,
+        staleTime: 0,
+        refetchInterval: 5_000,
+    });
+
+    const queuedCalls: QueuedCall[] = useMemo(() => callQueueData?.queue || [], [callQueueData]);
+
+    // Queue + agent availability snapshot
+    const { data: callQueueStatsData } = useQuery({
+        queryKey: ["twilio-call-queue-stats", shopId],
+        queryFn: () => getCallQueueStats(shopId || ""),
+        enabled: !!shopId,
+        staleTime: 0,
+        refetchInterval: 10_000,
+    });
+
     // Twilio WhatsApp conversations
     const { data: twilioWhatsAppConversationsData, isLoading: twilioWhatsAppLoading, refetch: refetchTwilioWhatsAppConversations } = useQuery({
         queryKey: ["twilio-whatsapp-conversations", shopId, activeTab],
@@ -445,6 +494,22 @@ const OmnichannelInboxPage: React.FC = () => {
 
         return { total, successful, missed, totalDuration };
     }, [callHistory]);
+
+    // Calls that have a recording and/or a transcript
+    const transcribableCalls = useMemo(() => {
+        const calls: Call[] = callHistory?.calls || [];
+        return calls.filter((call) => call.recording_url || call.recording_sid || call.transcription_text || call.transcription_status);
+    }, [callHistory]);
+
+    const filteredTranscriptCalls = useMemo(() => {
+        const term = transcriptSearch.trim().toLowerCase();
+        if (!term) return transcribableCalls;
+        return transcribableCalls.filter((call) =>
+            (call.from_number || "").toLowerCase().includes(term) ||
+            (call.to_number || "").toLowerCase().includes(term) ||
+            (call.transcription_text || "").toLowerCase().includes(term)
+        );
+    }, [transcribableCalls, transcriptSearch]);
 
     // Handle different API response structures
     const callsArray = useMemo(() => {
@@ -794,6 +859,29 @@ const OmnichannelInboxPage: React.FC = () => {
             console.error('Failed to send Twilio WhatsApp message:', error);
             message.error('Failed to send WhatsApp message');
         }
+    };
+
+    const handleTranscribeCall = async (call: Call) => {
+        if (!call.call_sid && !call.recording_sid) {
+            message.warning("No recording available for this call");
+            return;
+        }
+        try {
+            setTranscribingId(call._id);
+            await transcribeCall({ call_sid: call.call_sid, recording_sid: call.recording_sid });
+            queryClient.invalidateQueries({ queryKey: ["twilio-call-history", shopId] });
+        } catch (error) {
+            console.error("Failed to submit transcription:", error);
+        } finally {
+            setTranscribingId(null);
+        }
+    };
+
+    const formatWaitTime = (seconds?: number) => {
+        const s = Math.max(0, seconds || 0);
+        const m = Math.floor(s / 60);
+        const rem = s % 60;
+        return `${m}:${rem.toString().padStart(2, "0")}`;
     };
 
     const handleMakeCall = async (values: CallFormValues) => {
@@ -1151,11 +1239,12 @@ const OmnichannelInboxPage: React.FC = () => {
                     </Space>
                 </div>
 
-                {/* Quick Stats */}
+                {/* Quick Stats — monitoring-board style with color-coded accents */}
                 <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
-                    <Col xs={24} sm={12} md={6}>
-                        <Card 
-                            style={{ borderRadius: 12, height: "100%", cursor: "pointer" }}
+                    <Col xs={24} sm={12} md={8} lg={4}>
+                        <Card
+                            style={{ borderRadius: 14, height: "100%", cursor: "pointer", borderLeft: "4px solid #1890ff", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}
+                            styles={{ body: { padding: "16px 20px" } }}
                             hoverable
                             onClick={() => setNewCallModalOpen(true)}
                         >
@@ -1163,22 +1252,48 @@ const OmnichannelInboxPage: React.FC = () => {
                                 title="Today's Calls"
                                 value={todayCalls}
                                 prefix={<PhoneOutlined style={{ color: "#1890ff" }} />}
-                                valueStyle={{ color: "#1890ff", fontSize: 28, fontWeight: 600 }}
+                                valueStyle={{ color: "#1890ff", fontSize: 26, fontWeight: 600 }}
                             />
                         </Card>
                     </Col>
-                    <Col xs={24} sm={12} md={6}>
-                        <Card style={{ borderRadius: 12, height: "100%" }}>
+                    <Col xs={24} sm={12} md={8} lg={4}>
+                        <Card
+                            style={{
+                                borderRadius: 14,
+                                height: "100%",
+                                cursor: "pointer",
+                                borderLeft: `4px solid ${queuedCalls.length > 0 ? "#ff4d4f" : "#52c41a"}`,
+                                boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+                            }}
+                            styles={{ body: { padding: "16px 20px" } }}
+                            hoverable
+                            onClick={() => setActiveTab("queue")}
+                        >
+                            <Statistic
+                                title={
+                                    <Space size={6}>
+                                        <span>Callers Waiting</span>
+                                        {queuedCalls.length > 0 && <Badge status="processing" />}
+                                    </Space>
+                                }
+                                value={callQueueStatsData?.queue_depth ?? queuedCalls.length}
+                                prefix={<TeamOutlined style={{ color: queuedCalls.length > 0 ? "#ff4d4f" : "#52c41a" }} />}
+                                valueStyle={{ color: queuedCalls.length > 0 ? "#ff4d4f" : "#52c41a", fontSize: 26, fontWeight: 600 }}
+                            />
+                        </Card>
+                    </Col>
+                    <Col xs={24} sm={12} md={8} lg={4}>
+                        <Card style={{ borderRadius: 14, height: "100%", borderLeft: "4px solid #52c41a", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }} styles={{ body: { padding: "16px 20px" } }}>
                             <Statistic
                                 title="CRM Agents"
                                 value={crmAgents.length}
                                 prefix={<UserOutlined style={{ color: "#52c41a" }} />}
-                                valueStyle={{ color: "#52c41a", fontSize: 28, fontWeight: 600 }}
+                                valueStyle={{ color: "#52c41a", fontSize: 26, fontWeight: 600 }}
                             />
                         </Card>
                     </Col>
-                    <Col xs={24} sm={12} md={6}>
-                        <Card style={{ borderRadius: 12, height: "100%" }}>
+                    <Col xs={24} sm={12} md={8} lg={4}>
+                        <Card style={{ borderRadius: 14, height: "100%", borderLeft: "4px solid #faad14", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }} styles={{ body: { padding: "16px 20px" } }}>
                             <Statistic
                                 title="Avg Call Duration"
                                 value={callsArray.length > 0 
@@ -1186,13 +1301,14 @@ const OmnichannelInboxPage: React.FC = () => {
                                     : 0}
                                 suffix="min"
                                 prefix={<ClockCircleOutlined style={{ color: "#faad14" }} />}
-                                valueStyle={{ color: "#faad14", fontSize: 28, fontWeight: 600 }}
+                                valueStyle={{ color: "#faad14", fontSize: 26, fontWeight: 600 }}
                             />
                         </Card>
                     </Col>
-                    <Col xs={24} sm={12} md={6}>
-                        <Card 
-                            style={{ borderRadius: 12, height: "100%", cursor: "pointer" }}
+                    <Col xs={24} sm={12} md={8} lg={4}>
+                        <Card
+                            style={{ borderRadius: 14, height: "100%", cursor: "pointer", borderLeft: "4px solid #722ed1", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}
+                            styles={{ body: { padding: "16px 20px" } }}
                             hoverable
                             onClick={() => setNewWhatsAppModalOpen(true)}
                         >
@@ -1200,7 +1316,23 @@ const OmnichannelInboxPage: React.FC = () => {
                                 title="Open Conversations"
                                 value={statusCounts.open}
                                 prefix={<MessageOutlined style={{ color: "#722ed1" }} />}
-                                valueStyle={{ color: "#722ed1", fontSize: 28, fontWeight: 600 }}
+                                valueStyle={{ color: "#722ed1", fontSize: 26, fontWeight: 600 }}
+                            />
+                        </Card>
+                    </Col>
+                    <Col xs={24} sm={12} md={8} lg={4}>
+                        <Card
+                            style={{ borderRadius: 14, height: "100%", cursor: "pointer", borderLeft: "4px solid #13c2c2", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}
+                            styles={{ body: { padding: "16px 20px" } }}
+                            hoverable
+                            onClick={() => setActiveTab("transcripts")}
+                        >
+                            <Statistic
+                                title="Transcripts"
+                                value={transcribableCalls.filter((c) => c.transcription_status === "completed" && c.transcription_text).length}
+                                suffix={`/ ${transcribableCalls.length}`}
+                                prefix={<FileTextOutlined style={{ color: "#13c2c2" }} />}
+                                valueStyle={{ color: "#13c2c2", fontSize: 26, fontWeight: 600 }}
                             />
                         </Card>
                     </Col>
@@ -1253,7 +1385,7 @@ const OmnichannelInboxPage: React.FC = () => {
                                                     <Col xs={24} sm={6}>
                                                         <Card>
                                                             <Statistic
-                                                                title="Missed Calls"
+                                                                title="Missed Calls (Total)"
                                                                 value={callStats.missed}
                                                                 prefix={<CloseCircleOutlined style={{ color: "#ff4d4f" }} />}
                                                                 valueStyle={{ color: "#ff4d4f", fontSize: 24, fontWeight: 600 }}
@@ -1298,9 +1430,75 @@ const OmnichannelInboxPage: React.FC = () => {
                                                     </Row>
                                                 </Card>
 
-                                                {/* Missed Calls Section */}
+                                                {/* Live Queue Widget */}
+                                                <Card
+                                                    title={
+                                                        <Space>
+                                                            <TeamOutlined style={{ color: queuedCalls.length > 0 ? "#ff4d4f" : "#52c41a" }} />
+                                                            <span>Live Queue</span>
+                                                            {queuedCalls.length > 0 && <Badge status="processing" text={`${queuedCalls.length} waiting`} />}
+                                                        </Space>
+                                                    }
+                                                    extra={
+                                                        <Space>
+                                                            <Tooltip title="Refresh">
+                                                                <Button icon={<ReloadOutlined />} size="small" loading={callQueueFetching} onClick={() => refetchCallQueue()} />
+                                                            </Tooltip>
+                                                            <Button size="small" onClick={() => setActiveTab("queue")}>View all</Button>
+                                                        </Space>
+                                                    }
+                                                    style={{ marginBottom: 16, borderLeft: queuedCalls.length > 0 ? "3px solid #ff4d4f" : "3px solid #52c41a" }}
+                                                >
+                                                    <Row gutter={[16, 16]} style={{ marginBottom: queuedCalls.length ? 12 : 0 }}>
+                                                        <Col xs={12} sm={8}>
+                                                            <Statistic
+                                                                title="Queue Depth"
+                                                                value={callQueueStatsData?.queue_depth ?? queuedCalls.length}
+                                                                valueStyle={{ fontSize: 20, fontWeight: 600 }}
+                                                            />
+                                                        </Col>
+                                                        <Col xs={12} sm={8}>
+                                                            <Statistic
+                                                                title="Longest Wait"
+                                                                value={formatWaitTime(callQueueData?.longest_wait_seconds)}
+                                                                valueStyle={{ fontSize: 20, fontWeight: 600 }}
+                                                            />
+                                                        </Col>
+                                                        <Col xs={12} sm={8}>
+                                                            <Statistic
+                                                                title="Agents Available"
+                                                                value={callQueueStatsData?.available_agents ?? "-"}
+                                                                valueStyle={{ fontSize: 20, fontWeight: 600 }}
+                                                            />
+                                                        </Col>
+                                                    </Row>
+                                                    {queuedCalls.length > 0 ? (
+                                                        <List
+                                                            size="small"
+                                                            dataSource={queuedCalls.slice(0, 5)}
+                                                            renderItem={(item, index) => (
+                                                                <List.Item>
+                                                                    <List.Item.Meta
+                                                                        avatar={<Avatar size="small" style={{ backgroundColor: "#ff4d4f" }}>{index + 1}</Avatar>}
+                                                                        title={<Text strong>{item.from_number}</Text>}
+                                                                        description={
+                                                                            <Space size={8}>
+                                                                                <Tag color={item.status === "ringing" ? "orange" : "blue"}>{item.status}</Tag>
+                                                                                <Text type="secondary">waiting {formatWaitTime(item.waiting_seconds)}</Text>
+                                                                            </Space>
+                                                                        }
+                                                                    />
+                                                                </List.Item>
+                                                            )}
+                                                        />
+                                                    ) : (
+                                                        <Empty description="No callers waiting" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                                                    )}
+                                                </Card>
+
+                                                {/* Missed Calls Section — pending callback assignments (distinct from total missed calls above) */}
                                                 <Card 
-                                                    title="Missed Calls" 
+                                                    title="My Pending Callbacks" 
                                                     style={{ marginBottom: 16 }}
                                                     extra={
                                                         <Badge 
@@ -1370,16 +1568,35 @@ const OmnichannelInboxPage: React.FC = () => {
                                                             )}
                                                         />
                                                     ) : (
-                                                        <Empty description="No missed calls" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                                                        <Empty description="No pending callback assignments for you right now" image={Empty.PRESENTED_IMAGE_SIMPLE} />
                                                     )}
                                                 </Card>
 
                                                 {/* Call History List */}
-                                                <Card title="Recent Calls">
+                                                <Card title="Recent Calls" extra={<Button size="small" onClick={() => setActiveTab("transcripts")}>Transcripts</Button>}>
                                                     <List
                                                         dataSource={callHistory?.calls?.slice(0, 10) || []}
                                                         renderItem={(call: Call) => (
-                                                            <List.Item>
+                                                            <List.Item
+                                                                actions={[
+                                                                    call.transcription_status === "completed" && call.transcription_text ? (
+                                                                        <Button size="small" icon={<FileTextOutlined />} onClick={() => setTranscriptModalCall(call)}>
+                                                                            View Transcript
+                                                                        </Button>
+                                                                    ) : call.transcription_status === "processing" ? (
+                                                                        <Tag icon={<SyncOutlined spin />} color="processing">Transcribing…</Tag>
+                                                                    ) : (call.recording_url || call.recording_sid) ? (
+                                                                        <Button
+                                                                            size="small"
+                                                                            icon={<AudioOutlined />}
+                                                                            loading={transcribingId === call._id}
+                                                                            onClick={() => handleTranscribeCall(call)}
+                                                                        >
+                                                                            Transcribe
+                                                                        </Button>
+                                                                    ) : null,
+                                                                ].filter(Boolean)}
+                                                            >
                                                                 <List.Item.Meta
                                                                     avatar={<Avatar icon={<PhoneOutlined />} />}
                                                                     title={
@@ -1388,6 +1605,9 @@ const OmnichannelInboxPage: React.FC = () => {
                                                                             <Tag color={call.status === 'completed' ? 'green' : call.status === 'no-answer' ? 'red' : 'blue'}>
                                                                                 {call.status}
                                                                             </Tag>
+                                                                            {(call.transcription_status === "failed" || (call.transcription_status === "completed" && !call.transcription_text)) && (
+                                                                                <Tag icon={<ExclamationCircleOutlined />} color="error">No transcript text</Tag>
+                                                                            )}
                                                                         </Space>
                                                                     }
                                                                     description={
@@ -1401,6 +1621,202 @@ const OmnichannelInboxPage: React.FC = () => {
                                                             </List.Item>
                                                         )}
                                                     />
+                                                </Card>
+                                            </div>
+                                        ),
+                                    },
+                                    {
+                                        key: 'queue',
+                                        label: (
+                                            <Space>
+                                                <TeamOutlined />
+                                                <span>Queue</span>
+                                                <Badge count={queuedCalls.length} size="small" style={{ backgroundColor: queuedCalls.length > 0 ? "#ff4d4f" : "#52c41a" }} />
+                                            </Space>
+                                        ),
+                                        children: (
+                                            <div style={{ padding: 16 }}>
+                                                <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
+                                                    <Col xs={24} sm={8}>
+                                                        <Card style={{ borderRadius: 12, borderLeft: `4px solid ${queuedCalls.length > 0 ? "#ff4d4f" : "#52c41a"}` }}>
+                                                            <Statistic
+                                                                title="Queue Depth"
+                                                                value={callQueueStatsData?.queue_depth ?? queuedCalls.length}
+                                                                prefix={<TeamOutlined style={{ color: queuedCalls.length > 0 ? "#ff4d4f" : "#52c41a" }} />}
+                                                                valueStyle={{ fontSize: 24, fontWeight: 600, color: queuedCalls.length > 0 ? "#ff4d4f" : "#52c41a" }}
+                                                            />
+                                                        </Card>
+                                                    </Col>
+                                                    <Col xs={24} sm={8}>
+                                                        <Card style={{ borderRadius: 12, borderLeft: "4px solid #faad14" }}>
+                                                            <Statistic
+                                                                title="Longest Wait"
+                                                                value={formatWaitTime(callQueueData?.longest_wait_seconds)}
+                                                                prefix={<ClockCircleOutlined style={{ color: "#faad14" }} />}
+                                                                valueStyle={{ fontSize: 24, fontWeight: 600, color: "#faad14" }}
+                                                            />
+                                                        </Card>
+                                                    </Col>
+                                                    <Col xs={24} sm={8}>
+                                                        <Card style={{ borderRadius: 12, borderLeft: "4px solid #52c41a" }}>
+                                                            <Statistic
+                                                                title="Agents Available"
+                                                                value={callQueueStatsData?.available_agents ?? "-"}
+                                                                prefix={<UserOutlined style={{ color: "#52c41a" }} />}
+                                                                valueStyle={{ fontSize: 24, fontWeight: 600, color: "#52c41a" }}
+                                                            />
+                                                        </Card>
+                                                    </Col>
+                                                </Row>
+
+                                                <Card
+                                                    title={
+                                                        <Space>
+                                                            <span>Callers Waiting</span>
+                                                            <Badge count={queuedCalls.length} size="small" />
+                                                        </Space>
+                                                    }
+                                                    extra={
+                                                        <Tooltip title="Refresh">
+                                                            <Button icon={<ReloadOutlined />} size="small" loading={callQueueFetching} onClick={() => refetchCallQueue()} />
+                                                        </Tooltip>
+                                                    }
+                                                >
+                                                    {queuedCalls.length > 0 ? (
+                                                        <List
+                                                            dataSource={queuedCalls}
+                                                            renderItem={(item, index) => (
+                                                                <List.Item
+                                                                    actions={[
+                                                                        <Button
+                                                                            key="callback"
+                                                                            size="small"
+                                                                            type="primary"
+                                                                            icon={<PhoneFilled />}
+                                                                            onClick={() => {
+                                                                                callForm.setFieldsValue({
+                                                                                    phone_number_id: phoneNumbers[0]?._id,
+                                                                                    country_code: "",
+                                                                                    phone_number: item.from_number,
+                                                                                });
+                                                                                setNewCallModalOpen(true);
+                                                                            }}
+                                                                        >
+                                                                            Call Back
+                                                                        </Button>,
+                                                                    ]}
+                                                                >
+                                                                    <List.Item.Meta
+                                                                        avatar={<Avatar style={{ backgroundColor: item.status === "ringing" ? "#faad14" : "#ff4d4f" }}>{index + 1}</Avatar>}
+                                                                        title={
+                                                                            <Space>
+                                                                                <Text strong>{item.from_number}</Text>
+                                                                                <Tag color={item.status === "ringing" ? "orange" : "blue"}>{item.status}</Tag>
+                                                                                {(item.attempts || 0) > 0 && <Tag>{item.attempts} attempt(s)</Tag>}
+                                                                            </Space>
+                                                                        }
+                                                                        description={
+                                                                            <Space>
+                                                                                <Text type="secondary">To: {item.to_number}</Text>
+                                                                                <Text type="secondary">Waiting {formatWaitTime(item.waiting_seconds)}</Text>
+                                                                                <Text type="secondary">{item.createdAt ? new Date(item.createdAt).toLocaleTimeString() : ""}</Text>
+                                                                            </Space>
+                                                                        }
+                                                                    />
+                                                                </List.Item>
+                                                            )}
+                                                        />
+                                                    ) : (
+                                                        <Empty description="No callers currently waiting in queue" />
+                                                    )}
+                                                </Card>
+                                            </div>
+                                        ),
+                                    },
+                                    {
+                                        key: 'transcripts',
+                                        label: (
+                                            <Space>
+                                                <FileTextOutlined />
+                                                <span>Transcripts</span>
+                                                <Badge count={transcribableCalls.length} size="small" />
+                                            </Space>
+                                        ),
+                                        children: (
+                                            <div style={{ padding: 16 }}>
+                                                <Card
+                                                    title="Call Transcripts"
+                                                    extra={
+                                                        <Input
+                                                            placeholder="Search by number or transcript text"
+                                                            prefix={<SearchOutlined />}
+                                                            value={transcriptSearch}
+                                                            onChange={(e) => setTranscriptSearch(e.target.value)}
+                                                            style={{ width: 280 }}
+                                                            allowClear
+                                                        />
+                                                    }
+                                                >
+                                                    {filteredTranscriptCalls.length > 0 ? (
+                                                        <List
+                                                            dataSource={filteredTranscriptCalls}
+                                                            renderItem={(call) => (
+                                                                <List.Item
+                                                                    actions={[
+                                                                        call.transcription_status === "completed" && call.transcription_text ? (
+                                                                            <Button size="small" icon={<FileTextOutlined />} onClick={() => setTranscriptModalCall(call)}>
+                                                                                View
+                                                                            </Button>
+                                                                        ) : call.transcription_status === "processing" ? (
+                                                                            <Tag icon={<SyncOutlined spin />} color="processing">Processing</Tag>
+                                                                        ) : (
+                                                                            <Button
+                                                                                size="small"
+                                                                                icon={<AudioOutlined />}
+                                                                                loading={transcribingId === call._id}
+                                                                                onClick={() => handleTranscribeCall(call)}
+                                                                            >
+                                                                                Transcribe
+                                                                            </Button>
+                                                                        ),
+                                                                    ]}
+                                                                >
+                                                                    <List.Item.Meta
+                                                                        avatar={<Avatar icon={<PhoneOutlined />} />}
+                                                                        title={
+                                                                            <Space>
+                                                                                <Text strong>{call.from_number || call.to_number}</Text>
+                                                                                {call.transcription_status === "completed" && call.transcription_text && (
+                                                                                    <Tag icon={<CheckCircleOutlined />} color="success">Transcribed</Tag>
+                                                                                )}
+                                                                                {(call.transcription_status === "failed" || (call.transcription_status === "completed" && !call.transcription_text)) && (
+                                                                                    <Tooltip title={call.transcription_status === "completed" ? "Transcription completed but returned no text — try again" : "Transcription failed"}>
+                                                                                        <Tag icon={<ExclamationCircleOutlined />} color="error">No transcript text</Tag>
+                                                                                    </Tooltip>
+                                                                                )}
+                                                                            </Space>
+                                                                        }
+                                                                        description={
+                                                                            <Space direction="vertical" size={2} style={{ width: "100%" }}>
+                                                                                <Space>
+                                                                                    <Text type="secondary">{call.direction}</Text>
+                                                                                    <Text type="secondary">{call.duration}s</Text>
+                                                                                    <Text type="secondary">{new Date(call.createdAt || call.start_time || '').toLocaleString()}</Text>
+                                                                                </Space>
+                                                                                {call.transcription_text && (
+                                                                                    <Text ellipsis style={{ maxWidth: 600, color: "#8c8c8c" }}>
+                                                                                        {call.transcription_text}
+                                                                                    </Text>
+                                                                                )}
+                                                                            </Space>
+                                                                        }
+                                                                    />
+                                                                </List.Item>
+                                                            )}
+                                                        />
+                                                    ) : (
+                                                        <Empty description="No recorded calls to transcribe yet" />
+                                                    )}
                                                 </Card>
                                             </div>
                                         ),
@@ -2686,6 +3102,39 @@ const OmnichannelInboxPage: React.FC = () => {
                     onHoldToggle={handleCallHold}
                     onSpeakerToggle={handleCallSpeaker}
                 />
+
+                {/* Transcript View Modal */}
+                <Modal
+                    title={
+                        <Space>
+                            <FileTextOutlined style={{ color: "#13c2c2" }} />
+                            <span>Call Transcript</span>
+                        </Space>
+                    }
+                    open={!!transcriptModalCall}
+                    onCancel={() => setTranscriptModalCall(null)}
+                    footer={
+                        <Button onClick={() => setTranscriptModalCall(null)}>Close</Button>
+                    }
+                    width={600}
+                >
+                    {transcriptModalCall && (
+                        <Space direction="vertical" size={12} style={{ width: "100%" }}>
+                            <Space wrap>
+                                <Tag color="blue">{transcriptModalCall.from_number || transcriptModalCall.to_number}</Tag>
+                                <Text type="secondary">{transcriptModalCall.direction}</Text>
+                                <Text type="secondary">
+                                    {new Date(transcriptModalCall.createdAt || transcriptModalCall.start_time || '').toLocaleString()}
+                                </Text>
+                            </Space>
+                            <Card size="small" style={{ background: "#fafafa", maxHeight: 400, overflowY: "auto" }}>
+                                <Text style={{ whiteSpace: "pre-wrap" }}>
+                                    {transcriptModalCall.transcription_text || "No transcript text available."}
+                                </Text>
+                            </Card>
+                        </Space>
+                    )}
+                </Modal>
             </div>
         </App>
     );

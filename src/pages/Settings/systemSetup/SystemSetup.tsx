@@ -192,7 +192,7 @@ const SystemSetup: React.FC = () => {
             tab={
               <Space>
                 <PhoneOutlined style={{ fontSize: 18, color: "#1890ff" }} />
-                <Text strong>Twilio Settings</Text>
+                <Text strong>Conversation Setup</Text>
               </Space>
             }
           >

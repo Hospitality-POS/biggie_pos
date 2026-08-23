@@ -559,6 +559,48 @@ export const callbackMissedCall = async (assignmentId: string, data: {
   }
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// CALL QUEUE (live dashboard)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const getCallQueue = async (shopId: string) => {
+  try {
+    const url = `${BASE_URL}/api/crm/twilio/voice/queue?shop_id=${shopId}`;
+    const response = await axiosInstance.get(url);
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Failed to fetch call queue:", error);
+    return { queue: [], queue_depth: 0, longest_wait_seconds: 0 };
+  }
+};
+
+export const getCallQueueStats = async (shopId: string) => {
+  try {
+    const url = `${BASE_URL}/api/crm/twilio/voice/queue/stats?shop_id=${shopId}`;
+    const response = await axiosInstance.get(url);
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Failed to fetch queue stats:", error);
+    return { queue_depth: 0 };
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CALL TRANSCRIPTION
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const transcribeCall = async (data: { call_sid?: string; recording_sid?: string }) => {
+  try {
+    const url = `${BASE_URL}/api/crm/twilio/voice/calls/transcribe`;
+    const response = await axiosInstance.post(url, data);
+    message.success("Transcription job submitted");
+    return response.data;
+  } catch (error: unknown) {
+    message.error((error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to submit transcription");
+    throw error;
+  }
+};
+
 export const getCallerContext = async (phone: string) => {
   try {
     const url = `${BASE_URL}/api/crm/twilio/voice/caller-context?phone=${encodeURIComponent(phone)}`;
