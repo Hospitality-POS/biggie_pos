@@ -1,13 +1,16 @@
 import { useState, useEffect } from "react";
 import {
-    Button, Drawer, Form, Input, Select, Typography, message, Tabs, Upload, Tag,
+    Button, Drawer, Form, Input, Select, Typography, message, Tabs, Upload, Tag, Timeline,
 } from "antd";
 import {
     FileOutlined, UploadOutlined, DeleteOutlined, UserOutlined, ShopOutlined,
     MailOutlined, PhoneOutlined, EnvironmentOutlined, IdcardOutlined,
-    DownloadOutlined, EyeOutlined,
+    DownloadOutlined, EyeOutlined, ArrowDownOutlined, ArrowUpOutlined, CloseCircleOutlined,
 } from "@ant-design/icons";
+import { useQuery } from "@tanstack/react-query";
 import { uploadCustomerDocument, deleteCustomerDocument, CustomerDocument } from "@services/customerDocuments";
+import { getCallHistory } from "@services/twilio";
+import { getPermissionChecker } from "@utils/getPermissionChecker";
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -81,6 +84,20 @@ const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ open, onClo
     const shop_id = JSON.parse(localStorage.getItem("shop") || "{}")?._id;
     const entityType = customer?.type || 'individual';
     const documentTypes = entityType === 'company' ? COMPANY_DOCUMENT_TYPES : INDIVIDUAL_DOCUMENT_TYPES;
+
+    // ── Call History ─────────────────────────────────────────────────────────
+    const can = getPermissionChecker();
+    const canViewCallHistory = can("TWILIO_VIEW_CALL_HISTORY");
+    const { data: callHistoryData, isLoading: callHistoryLoading } = useQuery({
+        queryKey: ["twilio-call-history", "customer", shop_id, customer?._id],
+        queryFn: () => getCallHistory({ shop_id, customer_id: customer?._id, limit: 50 }),
+        enabled: open && !!shop_id && !!customer?._id && canViewCallHistory,
+        staleTime: 30_000,
+    });
+    const customerCalls = (callHistoryData?.calls || []).filter((c: any) =>
+        c.customer_id === customer?._id || c.customer_id?._id === customer?._id ||
+        (!!customer?.phone && (c.to_number === customer?.phone || c.from_number === customer?.phone))
+    );
 
     // Fetch documents when drawer opens - documents are embedded in customer object
     useEffect(() => {
@@ -338,6 +355,58 @@ const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ open, onClo
                             </>
                         ),
                     },
+                    ...(canViewCallHistory ? [{
+                        key: 'calls',
+                        label: 'Call History',
+                        children: (
+                            <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 14px" }}>
+                                <SectionTitle label="Call History" />
+                                {callHistoryLoading ? (
+                                    <div style={{ textAlign: "center", padding: 20 }}>Loading...</div>
+                                ) : customerCalls.length === 0 ? (
+                                    <div style={{ textAlign: "center", padding: 20, color: C.subText }}>No calls logged yet</div>
+                                ) : (
+                                    <Timeline
+                                        items={customerCalls.map((call: any) => {
+                                            const isOutbound = call.direction === "outbound";
+                                            const isMissed = call.status === "no-answer" || call.status === "failed" || call.status === "busy";
+                                            const color = isMissed ? C.red : isOutbound ? C.blue : C.green;
+                                            const durationMins = call.duration ? Math.floor(call.duration / 60) : 0;
+                                            const durationSecs = call.duration ? call.duration % 60 : 0;
+                                            return {
+                                                color,
+                                                dot: isMissed ? <CloseCircleOutlined style={{ color }} /> : isOutbound ? <ArrowUpOutlined style={{ color }} /> : <ArrowDownOutlined style={{ color }} />,
+                                                children: (
+                                                    <div>
+                                                        <Text strong style={{ fontSize: 12 }}>
+                                                            {isOutbound ? "Outbound Call" : "Inbound Call"} · {call.to_number || call.from_number}
+                                                        </Text>
+                                                        <div>
+                                                            <Tag style={{ fontSize: 10, marginTop: 4, borderRadius: 4 }} color={isMissed ? "error" : "success"}>
+                                                                {(call.status || "unknown").replace(/-/g, " ")}
+                                                            </Tag>
+                                                            {call.duration ? (
+                                                                <Tag style={{ fontSize: 10, marginTop: 4, borderRadius: 4 }}>
+                                                                    {durationMins}m {durationSecs}s
+                                                                </Tag>
+                                                            ) : null}
+                                                        </div>
+                                                        <Text style={{ fontSize: 10, color: C.subText, display: "block", marginTop: 4 }}>
+                                                            {new Date(call.start_time || call.createdAt).toLocaleString("en-GB")}
+                                                            {call.agent_name ? ` · ${call.agent_name}` : ""}
+                                                        </Text>
+                                                        {call.recording_url && (
+                                                            <audio controls src={call.recording_url} style={{ marginTop: 6, height: 30, width: "100%" }} />
+                                                        )}
+                                                    </div>
+                                                ),
+                                            };
+                                        })}
+                                    />
+                                )}
+                            </div>
+                        ),
+                    }] : []),
                 ]}
             />
         </Drawer>

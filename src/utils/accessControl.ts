@@ -1172,8 +1172,11 @@ export const ROLE_PRESETS: Record<string, string[]> = {
         ...CRM_PERMISSION_KEYS.filter(k => k.startsWith("CRM_TARGETS_")),
         // Budgets — full including approve
         ...CRM_PERMISSION_KEYS.filter(k => k.startsWith("CRM_BUDGETS_")),
-        // Conversations
+        // Conversations — full omnichannel access (view, message, manage, connect channels, templates)
         "OMNICHANNEL_VIEW", "OMNICHANNEL_SEND_MESSAGE", "OMNICHANNEL_MANAGE_CONVERSATIONS",
+        "OMNICHANNEL_MANAGE_CHANNELS", "OMNICHANNEL_SEND_TEMPLATE",
+        // Voice calling — needed for call button / call history / agent status on the omnichannel page
+        "TWILIO_MAKE_CALLS", "TWILIO_VIEW_CALL_HISTORY", "TWILIO_MANAGE_AGENT_STATUS",
         "NOTIFICATIONS_VIEW_MY", "NOTIFICATIONS_MARK_READ",
     ],
 
@@ -1195,8 +1198,11 @@ export const ROLE_PRESETS: Record<string, string[]> = {
         "CRM_TARGETS_UPDATE_ACTUAL",
         // Budgets — read only
         "CRM_BUDGETS_VIEW", "CRM_BUDGETS_VIEW_ONE",
-        // Conversations
-        "OMNICHANNEL_VIEW", "OMNICHANNEL_SEND_MESSAGE",
+        // Conversations — full omnichannel access (view, message, manage, connect channels, templates)
+        "OMNICHANNEL_VIEW", "OMNICHANNEL_SEND_MESSAGE", "OMNICHANNEL_MANAGE_CONVERSATIONS",
+        "OMNICHANNEL_MANAGE_CHANNELS", "OMNICHANNEL_SEND_TEMPLATE",
+        // Voice calling — needed for call button / call history / agent status on the omnichannel page
+        "TWILIO_MAKE_CALLS", "TWILIO_VIEW_CALL_HISTORY", "TWILIO_MANAGE_AGENT_STATUS",
         "NOTIFICATIONS_VIEW_MY", "NOTIFICATIONS_MARK_READ",
     ],
 

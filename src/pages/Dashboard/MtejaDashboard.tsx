@@ -23,8 +23,10 @@ import { BASE_URL } from "@utils/config";
 import { fetchConversations, fetchWhatsappChannels } from "@services/whatsappService";
 import { getCallHistory, getAgentStatus } from "@services/twilio";
 import { getPermissionChecker } from "@utils/getPermissionChecker";
+import { fetchShop } from "@services/shops";
 import CallButton from "@components/Twilio/CallButton";
 import SMSButton from "@components/Twilio/SMSButton";
+import URLShareModal from "@components/URLShareModal";
 
 dayjs.extend(relativeTime);
 
@@ -369,8 +371,20 @@ const MtejaDashboard: React.FC = () => {
     const [showCustomPicker, setShowCustomPicker] = useState(false);
     const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
     const [convStatus, setConvStatus] = useState<"all" | "open" | "pending" | "resolved">("all");
+    const [urlModalOpen, setUrlModalOpen] = useState(false);
+    const [urlModalTitle, setUrlModalTitle] = useState("");
+    const [urlModalUrl, setUrlModalUrl] = useState("");
 
     const shopId = isAdminLayout ? selectedShopId : storedShopId;
+
+    // ── Shop logo (for QR code branding) ──────────────────────────────────────
+    const { data: shopData } = useQuery({
+        queryKey: ["mteja-shop-qr", shopId],
+        queryFn: () => fetchShop(shopId!),
+        enabled: !!shopId,
+        staleTime: 5 * 60 * 1000,
+    });
+    const shopLogo: string | undefined = shopData?.logo;
 
     // ── Shops ──────────────────────────────────────────────────────────────────
     const { data: shopsData } = useQuery({
@@ -521,6 +535,15 @@ const MtejaDashboard: React.FC = () => {
         queryClient.invalidateQueries({ queryKey: ["twilio-agent-status"] });
     }, [queryClient]);
 
+    const handleCopyStaffUrl = useCallback(() => {
+        const storedTenant = localStorage.getItem("tenant");
+        const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+        const staffUrl = `${import.meta.env.VITE_APP_URL}/admin/staff-clock-in?tenant_id=${tenant?._id}&tenant_code=${tenant?.tenant_code}&shop_id=${shopId}`;
+        setUrlModalUrl(staffUrl);
+        setUrlModalTitle("Staff Clock-In URL");
+        setUrlModalOpen(true);
+    }, [shopId]);
+
     const isDataLoading = statsLoading || pipelineLoading;
 
     // ── Top stat cards ───────────────────────────────────────────────────────
@@ -584,6 +607,11 @@ const MtejaDashboard: React.FC = () => {
                             size="small"
                         />
                     )}
+                    <Tooltip title="Share with staff to allow clock-in for this branch">
+                        <Button size="small" icon={<TeamOutlined />} onClick={handleCopyStaffUrl}>
+                            Staff Clock-In URL
+                        </Button>
+                    </Tooltip>
                     <Button size="small" icon={<ReloadOutlined />} onClick={handleRefresh}>Refresh</Button>
                 </Space>
             </div>
@@ -911,6 +939,16 @@ const MtejaDashboard: React.FC = () => {
                     </ProCard>
                 </Col>
             </Row>
+
+            {/* ── URL Share Modal ── */}
+            <URLShareModal
+                open={urlModalOpen}
+                onClose={() => setUrlModalOpen(false)}
+                url={urlModalUrl}
+                title={urlModalTitle}
+                shopLogo={shopLogo}
+                primaryColor={C.primary}
+            />
         </>
     );
 };

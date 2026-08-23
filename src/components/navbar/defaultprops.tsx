@@ -652,7 +652,7 @@ const useProLayoutNav = () => {
 
   // ── Mteja-only routes ─────────────────────────────────────────────────────
   const mtejaOnlyRoutes = (isMtejaOnly) ? [
-    ...(can("ORDERS_VIEW_DASHBOARD") ? [{ path: p("/home-dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/home-dashboard" }] : []),
+    ...(can("UNIFIED_DASHBOARD_VIEW") ? [{ path: p("/home-dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/home-dashboard" }] : []),
     ...mtejaCustomersRoute,
     ...mtejaConversationsRoute,
     ...(can("USERS_VIEW") ? [{ path: p("/staff-management"), name: "Staff Management", icon: <TeamOutlined />, _bare: "/staff-management" }] : []),

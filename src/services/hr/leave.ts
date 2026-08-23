@@ -292,6 +292,30 @@ export const reconcileAttendance = createAsyncThunk(
     }
 );
 
+// Admin: telepresence schedule — combines clock-in/out, breaks, and call
+// activity so supervisors can see when operators worked and how many
+// calls they handled (call-center operator overview).
+export const fetchTelepresenceSchedule = async (params: {
+    from?: string;
+    to?: string;
+    staff_id?: string;
+}) => {
+    try {
+        const response = await axiosInstance.get(`${hr_url}/attendance/telepresence`, {
+            params: {
+                from: params.from,
+                to: params.to,
+                staff_id: params.staff_id,
+            },
+        });
+        return response.data;
+    } catch (error: any) {
+        console.error("Error fetching telepresence schedule:", error);
+        message.error(error?.response?.data?.message || "Failed to fetch telepresence schedule");
+        return { schedule: [] };
+    }
+};
+
 /* ============================
    TYPES
 ============================ */
@@ -380,6 +404,34 @@ export interface ClockStatus {
         clock_in: string;
         clock_out?: string;
     };
+}
+
+export interface TelepresenceBreak {
+    started_at: string;
+    ended_at?: string;
+    duration_minutes?: number;
+}
+
+export interface TelepresenceSession {
+    clock_in: string;
+    clock_out?: string;
+    worked_hours: number | null;
+    breaks: TelepresenceBreak[];
+    total_break_minutes: number;
+}
+
+export interface TelepresenceAgent {
+    agent_id: string;
+    agent_name: string;
+    thumbnail?: string;
+    sessions: TelepresenceSession[];
+    total_sessions: number;
+    total_worked_hours: number;
+    total_breaks: number;
+    total_break_minutes: number;
+    total_calls: number;
+    answered_calls: number;
+    total_call_duration_seconds: number;
 }
 
 export interface AttendanceReport {

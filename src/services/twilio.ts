@@ -252,6 +252,8 @@ export const getCallHistory = async (params: {
   direction?: "inbound" | "outbound";
   status?: string;
   agent_id?: string;
+  customer_id?: string;
+  lead_id?: string;
   limit?: number;
   offset?: number;
 }) => {
@@ -376,8 +378,11 @@ export const getAgentStatus = async (shopId: string, agentId?: string) => {
     const response = await axiosInstance.get(url);
     return response.data;
   } catch (error: unknown) {
-    message.error((error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to fetch agent status");
-    throw error;
+    // Fail silently — this endpoint can return unrelated permission errors
+    // (e.g. ACCOUNTING_DIGITAX_VIEW_INVOICE_STATUS) for non-accounting tenants,
+    // which would otherwise break the omnichannel UI for Mteja-only users.
+    console.error("Failed to fetch agent status:", error);
+    return { agent_statuses: [] };
   }
 };
 

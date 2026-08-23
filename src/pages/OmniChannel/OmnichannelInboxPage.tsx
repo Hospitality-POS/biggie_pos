@@ -23,7 +23,10 @@ import {
     message,
     Switch,
     Divider,
+    DatePicker,
+    Collapse,
 } from "antd";
+import dayjs from "dayjs";
 import {
     PlusOutlined,
     MessageOutlined,
@@ -46,6 +49,10 @@ import {
     CheckCircleOutlined,
     SyncOutlined,
     ExclamationCircleOutlined,
+    ScheduleOutlined,
+    CoffeeOutlined,
+    LoginOutlined,
+    LogoutOutlined,
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -58,6 +65,7 @@ import { usePrimaryColor } from "@context/PrimaryColorContext";
 import CallInterfaceModal from "./CallInterfaceModal";
 import { getAgentStatus, getCallHistory, initiateCall, getPhoneNumbers, getActiveCalls, answerCall, rejectCall, endCall, getTwilioVoiceToken, updateAgentStatus, updateAgentHeartbeat, getMissedCalls, getMissedCallStats, progressMissedCall, sendTwilioWhatsAppMessage, getTwilioWhatsAppConversations, getTwilioWhatsAppMessages, getTwilioWhatsAppTemplates, createTwilioWhatsAppTemplate, deleteTwilioWhatsAppTemplate, getTwilioWhatsAppTemplateStatus, getCallQueue, getCallQueueStats, transcribeCall } from "@services/twilio";
 import { fetchAllUsersList } from "@services/users";
+import { fetchTelepresenceSchedule, TelepresenceAgent } from "@services/hr/leave";
 import { fetchAllCustomers } from "@services/customers";
 import { fetchAllLeads } from "@services/crm/leads";
 import { 
@@ -71,7 +79,7 @@ const { Text, Title } = Typography;
 const { TextArea } = Input;
 
 export type Channel = "all" | "whatsapp";
-export type ActiveTab = "calls" | "queue" | "transcripts" | "whatsapp";
+export type ActiveTab = "calls" | "queue" | "transcripts" | "telepresence" | "whatsapp";
 
 export interface Call {
     _id: string;
@@ -201,6 +209,22 @@ const OmnichannelInboxPage: React.FC = () => {
     };
 
     const userId = getUserId();
+
+    // Telepresence (call-center attendance overview) is an admin-only backend endpoint
+    const isAdminUser = useMemo(() => {
+        try {
+            const userStr = localStorage.getItem("user");
+            const user = userStr ? JSON.parse(userStr) : null;
+            return user?.role === "admin" || !!user?.isAdmin;
+        } catch {
+            return false;
+        }
+    }, []);
+
+    const [telepresenceRange, setTelepresenceRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
+        dayjs().subtract(6, "day"),
+        dayjs(),
+    ]);
     
     // New call modal state
     const [newCallModalOpen, setNewCallModalOpen] = useState(false);
@@ -445,6 +469,19 @@ const OmnichannelInboxPage: React.FC = () => {
         staleTime: 0,
         refetchInterval: 10_000,
     });
+
+    // Telepresence schedule — clock-in/out, breaks, and call activity per agent
+    const { data: telepresenceData, isFetching: telepresenceFetching, refetch: refetchTelepresence } = useQuery({
+        queryKey: ["telepresence-schedule", telepresenceRange[0].format("YYYY-MM-DD"), telepresenceRange[1].format("YYYY-MM-DD")],
+        queryFn: () => fetchTelepresenceSchedule({
+            from: telepresenceRange[0].format("YYYY-MM-DD"),
+            to: telepresenceRange[1].format("YYYY-MM-DD"),
+        }),
+        enabled: isAdminUser && activeTab === "telepresence",
+        staleTime: 30_000,
+    });
+
+    const telepresenceAgents: TelepresenceAgent[] = telepresenceData?.schedule || [];
 
     // Twilio WhatsApp conversations
     const { data: twilioWhatsAppConversationsData, isLoading: twilioWhatsAppLoading, refetch: refetchTwilioWhatsAppConversations } = useQuery({
@@ -1821,6 +1858,110 @@ const OmnichannelInboxPage: React.FC = () => {
                                             </div>
                                         ),
                                     },
+                                    ...(isAdminUser ? [{
+                                        key: 'telepresence',
+                                        label: (
+                                            <Space>
+                                                <ScheduleOutlined />
+                                                <span>Telepresence</span>
+                                            </Space>
+                                        ),
+                                        children: (
+                                            <div style={{ padding: 16 }}>
+                                                <Card
+                                                    title={
+                                                        <Space>
+                                                            <ScheduleOutlined />
+                                                            <span>Operator Telepresence Schedule</span>
+                                                        </Space>
+                                                    }
+                                                    extra={
+                                                        <Space>
+                                                            <DatePicker.RangePicker
+                                                                value={telepresenceRange}
+                                                                onChange={(dates) => {
+                                                                    if (dates && dates[0] && dates[1]) {
+                                                                        setTelepresenceRange([dates[0], dates[1]]);
+                                                                    }
+                                                                }}
+                                                                allowClear={false}
+                                                            />
+                                                            <Tooltip title="Refresh">
+                                                                <Button icon={<ReloadOutlined />} loading={telepresenceFetching} onClick={() => refetchTelepresence()} />
+                                                            </Tooltip>
+                                                        </Space>
+                                                    }
+                                                >
+                                                    <Text type="secondary" style={{ display: "block", marginBottom: 16 }}>
+                                                        See when operators started/finished work, how many breaks they took, and how many calls they handled.
+                                                    </Text>
+                                                    {telepresenceAgents.length > 0 ? (
+                                                        <List
+                                                            dataSource={telepresenceAgents}
+                                                            renderItem={(agent) => (
+                                                                <List.Item style={{ display: "block", padding: "16px 0" }}>
+                                                                    <Row gutter={16} align="middle" style={{ marginBottom: 12 }}>
+                                                                        <Col flex="none">
+                                                                            <Avatar src={agent.thumbnail} icon={<UserOutlined />} size={40} />
+                                                                        </Col>
+                                                                        <Col flex="auto">
+                                                                            <Text strong>{agent.agent_name}</Text>
+                                                                            <div>
+                                                                                <Space size={16} wrap>
+                                                                                    <Text type="secondary">
+                                                                                        <ClockCircleOutlined /> {agent.total_worked_hours.toFixed(1)}h worked
+                                                                                    </Text>
+                                                                                    <Text type="secondary">
+                                                                                        <CoffeeOutlined /> {agent.total_breaks} break(s), {agent.total_break_minutes.toFixed(0)}m
+                                                                                    </Text>
+                                                                                    <Text type="secondary">
+                                                                                        <PhoneOutlined /> {agent.total_calls} calls ({agent.answered_calls} answered)
+                                                                                    </Text>
+                                                                                    <Text type="secondary">
+                                                                                        {Math.floor((agent.total_call_duration_seconds || 0) / 60)}m talk time
+                                                                                    </Text>
+                                                                                </Space>
+                                                                            </div>
+                                                                        </Col>
+                                                                    </Row>
+                                                                    <Collapse
+                                                                        size="small"
+                                                                        items={[{
+                                                                            key: agent.agent_id,
+                                                                            label: `${agent.total_sessions} session(s)`,
+                                                                            children: (
+                                                                                <List
+                                                                                    size="small"
+                                                                                    dataSource={agent.sessions}
+                                                                                    renderItem={(session, idx) => (
+                                                                                        <List.Item key={idx}>
+                                                                                            <Space size={16} wrap>
+                                                                                                <Text><LoginOutlined style={{ color: "#52c41a" }} /> {new Date(session.clock_in).toLocaleString()}</Text>
+                                                                                                <Text>
+                                                                                                    <LogoutOutlined style={{ color: session.clock_out ? "#ff4d4f" : "#d9d9d9" }} />{" "}
+                                                                                                    {session.clock_out ? new Date(session.clock_out).toLocaleString() : "Still clocked in"}
+                                                                                                </Text>
+                                                                                                <Tag>{session.worked_hours !== null ? `${session.worked_hours}h` : "in progress"}</Tag>
+                                                                                                {session.breaks.length > 0 && (
+                                                                                                    <Tag color="orange">{session.breaks.length} break(s), {session.total_break_minutes.toFixed(0)}m</Tag>
+                                                                                                )}
+                                                                                            </Space>
+                                                                                        </List.Item>
+                                                                                    )}
+                                                                                />
+                                                                            ),
+                                                                        }]}
+                                                                    />
+                                                                </List.Item>
+                                                            )}
+                                                        />
+                                                    ) : (
+                                                        <Empty description="No attendance/telepresence data for this date range" />
+                                                    )}
+                                                </Card>
+                                            </div>
+                                        ),
+                                    }] : []),
                                     {
                                         key: 'whatsapp',
                                         label: (
