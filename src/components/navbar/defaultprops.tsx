@@ -7,7 +7,7 @@ import {
   MedicineBoxOutlined, MessageOutlined, ArrowUpOutlined,
   AuditOutlined, BankOutlined, CustomerServiceOutlined, AccountBookOutlined,
   ReconciliationOutlined, BuildOutlined, SignatureOutlined,
-  CalendarOutlined, ClockCircleOutlined, DollarOutlined,
+  CalendarOutlined, ClockCircleOutlined, DollarOutlined, ThunderboltOutlined,
 } from "@ant-design/icons";
 import { useAppSelector } from "src/store";
 import React from "react";
@@ -57,6 +57,7 @@ const ICONS = {
   campaigns: 'M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z',
   target: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z',
   budget: 'M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z',
+  workflow: 'M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3-3 1.34-3 3-3zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2-.9 2-2 2-2 .9-2-2-2zm9 7H8v-2h10v2zm0 4H8v-2h10v2zm0 4H8v-2h10v2z',
   // ── Dala icons ─────────────────────────────────────────────────────────────
   property: 'M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z',
   unit: 'M17 2H7c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-5 12c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm0-4c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z',
@@ -88,6 +89,7 @@ const POS_ROUTE_PERMISSIONS: Record<string, string> = {
   "/crm/campaigns": "CRM_CAMPAIGNS_VIEW",
   "/crm/sales-targets": "CRM_TARGETS_VIEW",
   "/crm/sales-budgets": "CRM_BUDGETS_VIEW",
+  "/crm/workflows": "CRM_WORKFLOWS_VIEW",
 };
 
 const ACCOUNTING_ROUTE_PERMISSIONS: Record<string, string> = {
@@ -125,6 +127,7 @@ const ACCOUNTING_ROUTE_PERMISSIONS: Record<string, string> = {
   "/crm/campaigns": "CRM_CAMPAIGNS_VIEW",
   "/crm/sales-targets": "CRM_TARGETS_VIEW",
   "/crm/sales-budgets": "CRM_BUDGETS_VIEW",
+  "/crm/workflows": "CRM_WORKFLOWS_VIEW",
 };
 
 const POS_APP_PERMISSIONS: Record<string, string> = {
@@ -145,6 +148,7 @@ const POS_APP_PERMISSIONS: Record<string, string> = {
   "/crm/campaigns": "CRM_CAMPAIGNS_VIEW",
   "/crm/sales-targets": "CRM_TARGETS_VIEW",
   "/crm/sales-budgets": "CRM_BUDGETS_VIEW",
+  "/crm/workflows": "CRM_WORKFLOWS_VIEW",
 };
 
 const ACCOUNTING_APP_PERMISSIONS: Record<string, string> = {
@@ -174,6 +178,7 @@ const ACCOUNTING_APP_PERMISSIONS: Record<string, string> = {
   "/crm/campaigns": "CRM_CAMPAIGNS_VIEW",
   "/crm/sales-targets": "CRM_TARGETS_VIEW",
   "/crm/sales-budgets": "CRM_BUDGETS_VIEW",
+  "/crm/workflows": "CRM_WORKFLOWS_VIEW",
 };
 
 const DALA_ROUTE_PERMISSIONS: Record<string, string> = {
@@ -310,14 +315,6 @@ const useProLayoutNav = () => {
     _bare: "/omnichannel",
   }] : [];
 
-  // ── Mteja Dashboard (sole module only) ───────────────────────────────────
-  const mtejaDashboardRoute = (isMtejaOnly && can("CUSTOMERS_VIEW")) ? [{
-    path: p("/mteja"),
-    name: "Mteja Dashboard",
-    icon: <CustomerServiceOutlined />,
-    _bare: "/mteja",
-  }] : [];
-
   // ── Mteja Customers (sole module only) ───────────────────────────────────
   const mtejaCustomersRoute = (isMtejaOnly && can("CUSTOMERS_VIEW")) ? [{
     path: p("/customers"),
@@ -354,6 +351,12 @@ const useProLayoutNav = () => {
       icon: <RiseOutlined />,
       _bare: "/crm/sales-budgets",
     }] : []),
+    ...(can("CRM_WORKFLOWS_VIEW") ? [{
+      path: p("/crm/workflows"),
+      name: "Workflows",
+      icon: <ThunderboltOutlined />,
+      _bare: "/crm/workflows",
+    }] : []),
   ] : [];
 
   // ── CRM app tiles — ONLY when hasMteja === true ───────────────────────────
@@ -385,6 +388,13 @@ const useProLayoutNav = () => {
       desc: "Plan budgets with approval workflows.",
       url: p("/crm/sales-budgets"),
       _bare: "/crm/sales-budgets",
+    },
+    {
+      icon: makeTile("#8b5cf6", ICONS.workflow),
+      title: "Workflows",
+      desc: "Automate communication workflows for leads.",
+      url: p("/crm/workflows"),
+      _bare: "/crm/workflows",
     },
   ] : [];
 
@@ -618,12 +628,6 @@ const useProLayoutNav = () => {
       url: p("/home-dashboard"),
     }] : []),
     ...(can("CUSTOMERS_VIEW") ? [{
-      icon: makeTile("#6c1c2c", ICONS.mteja),
-      title: "Mteja Dashboard",
-      desc: "CRM overview — subscriptions, conversations and customer insights.",
-      url: p("/mteja"),
-    }] : []),
-    ...(can("CUSTOMERS_VIEW") ? [{
       icon: makeTile("#06b6d4", ICONS.customers),
       title: getCustomerLabel(),
       desc: "Manage your customer relationships and subscriptions.",
@@ -649,7 +653,6 @@ const useProLayoutNav = () => {
   // ── Mteja-only routes ─────────────────────────────────────────────────────
   const mtejaOnlyRoutes = (isMtejaOnly) ? [
     ...(can("UNIFIED_DASHBOARD_VIEW") ? [{ path: p("/home-dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/home-dashboard" }] : []),
-    ...mtejaDashboardRoute,
     ...mtejaCustomersRoute,
     ...mtejaConversationsRoute,
     ...(can("USERS_VIEW") ? [{ path: p("/staff-management"), name: "Staff Management", icon: <TeamOutlined />, _bare: "/staff-management" }] : []),

@@ -11,6 +11,7 @@ import {
   BellOutlined,
   WhatsAppOutlined,
   HomeOutlined,
+  PhoneOutlined,
 } from "@ant-design/icons";
 import { Space, Typography, Card } from "antd";
 import { useQuery } from "@tanstack/react-query";
@@ -23,8 +24,11 @@ import BankDetailsSettings from "./BankDetailsSettings";
 import NotificationSettings from "./NotificationSettings";
 import WhatsAppSenderRegistration from "./WhatsAppSenderRegistration";
 import HotelSettings from "./HotelSettings";
+import TwilioSettings from "./TwilioSettings";
 import TransactionLocking from "./TransactionLocking";
 import { fetchShop } from "@services/shops";
+import { getPermissionChecker } from "@utils/getPermissionChecker";
+import { useTenantModules } from "@hooks/useTenantModules";
 
 const { Text } = Typography;
 
@@ -35,7 +39,7 @@ const SystemSetup: React.FC = () => {
 
   const { data: shopData } = useQuery({
     queryKey: ["shop", shopId],
-    queryFn: () => fetchShop(shopId!),
+    queryFn: () => fetchShop(shopId || ""),
     enabled: !!shopId,
   });
 
@@ -45,10 +49,8 @@ const SystemSetup: React.FC = () => {
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
 
   const hasPOS = !!(tenant?.pos_integration?.enabled ?? true);
-  const hasAccounting = !!(
-    tenant?.accounting_database?.enabled ||
-    tenant?.modules?.accounting
-  );
+  const can = getPermissionChecker();
+  const { hasAccounting } = useTenantModules();
 
   return (
     <div style={{ padding: "24px", minHeight: "100vh" }}>
@@ -188,6 +190,19 @@ const SystemSetup: React.FC = () => {
             </div>
           </ProCard.TabPane>
 
+          <ProCard.TabPane
+            key="twilio-settings"
+            tab={
+              <Space>
+                <PhoneOutlined style={{ fontSize: 18, color: "#1890ff" }} />
+                <Text strong>Conversation Setup</Text>
+              </Space>
+            }
+          >
+            <div style={{ padding: "16px", borderRadius: "8px" }}>
+              <TwilioSettings />
+            </div>
+          </ProCard.TabPane>
           {hasAccounting && (
             <ProCard.TabPane
               key="transaction-locking"

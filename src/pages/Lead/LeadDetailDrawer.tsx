@@ -6,12 +6,15 @@ import {
     CalendarOutlined, CheckCircleOutlined, ClockCircleOutlined,
     MailOutlined, PhoneOutlined, SwapOutlined, TeamOutlined,
     UserOutlined, UserAddOutlined, WalletOutlined, FileOutlined, UploadOutlined, DeleteOutlined,
-    DownloadOutlined, EyeOutlined,
+    DownloadOutlined, EyeOutlined, ArrowDownOutlined, ArrowUpOutlined, CloseCircleOutlined,
 } from "@ant-design/icons";
+import { useQuery } from "@tanstack/react-query";
 import { useAppDispatch } from "src/store";
 import { Lead, LeadStage, updateLeadStage, convertLead, getLeadById } from "@services/crm/leads";
 import { createLeadActivity } from "@services/crm/leadActivities";
 import { uploadLeadDocument, deleteLeadDocument, LeadDocument } from "@services/crm/leadDocuments";
+import { getCallHistory } from "@services/twilio";
+import { getPermissionChecker } from "@utils/getPermissionChecker";
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -98,6 +101,20 @@ const LeadDetailDrawer: React.FC<LeadDetailDrawerProps> = ({ open, onClose, lead
     const shop_id = JSON.parse(localStorage.getItem("shop") || "{}")?._id;
     const entityType = lead?.entity_type || 'individual';
     const documentTypes = entityType === 'company' ? COMPANY_DOCUMENT_TYPES : INDIVIDUAL_DOCUMENT_TYPES;
+
+    // ── Call History ─────────────────────────────────────────────────────────
+    const can = getPermissionChecker();
+    const canViewCallHistory = can("TWILIO_VIEW_CALL_HISTORY");
+    const { data: callHistoryData, isLoading: callHistoryLoading } = useQuery({
+        queryKey: ["twilio-call-history", "lead", shop_id, lead?._id],
+        queryFn: () => getCallHistory({ shop_id, lead_id: lead?._id, limit: 50 }),
+        enabled: open && !!shop_id && !!lead?._id && canViewCallHistory,
+        staleTime: 30_000,
+    });
+    const leadCalls = (callHistoryData?.calls || []).filter((c: any) =>
+        c.lead_id === lead?._id || c.lead_id?._id === lead?._id ||
+        (!!lead?.phone && (c.to_number === lead?.phone || c.from_number === lead?.phone))
+    );
 
     // Fetch documents when drawer opens - documents are embedded in lead object
     useEffect(() => {
@@ -562,6 +579,58 @@ const LeadDetailDrawer: React.FC<LeadDetailDrawerProps> = ({ open, onClose, lead
                             </>
                         ),
                     },
+                    ...(canViewCallHistory ? [{
+                        key: 'calls',
+                        label: 'Call History',
+                        children: (
+                            <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 14px" }}>
+                                <SectionTitle label="Call History" />
+                                {callHistoryLoading ? (
+                                    <div style={{ textAlign: "center", padding: 20 }}>Loading...</div>
+                                ) : leadCalls.length === 0 ? (
+                                    <div style={{ textAlign: "center", padding: 20, color: C.subText }}>No calls logged yet</div>
+                                ) : (
+                                    <Timeline
+                                        items={leadCalls.map((call: any) => {
+                                            const isOutbound = call.direction === "outbound";
+                                            const isMissed = call.status === "no-answer" || call.status === "failed" || call.status === "busy";
+                                            const color = isMissed ? C.red : isOutbound ? C.blue : C.green;
+                                            const durationMins = call.duration ? Math.floor(call.duration / 60) : 0;
+                                            const durationSecs = call.duration ? call.duration % 60 : 0;
+                                            return {
+                                                color,
+                                                dot: isMissed ? <CloseCircleOutlined style={{ color }} /> : isOutbound ? <ArrowUpOutlined style={{ color }} /> : <ArrowDownOutlined style={{ color }} />,
+                                                children: (
+                                                    <div>
+                                                        <Text strong style={{ fontSize: 12 }}>
+                                                            {isOutbound ? "Outbound Call" : "Inbound Call"} · {call.to_number || call.from_number}
+                                                        </Text>
+                                                        <div>
+                                                            <Tag style={{ fontSize: 10, marginTop: 4, borderRadius: 4 }} color={isMissed ? "error" : "success"}>
+                                                                {(call.status || "unknown").replace(/-/g, " ")}
+                                                            </Tag>
+                                                            {call.duration ? (
+                                                                <Tag style={{ fontSize: 10, marginTop: 4, borderRadius: 4 }}>
+                                                                    {durationMins}m {durationSecs}s
+                                                                </Tag>
+                                                            ) : null}
+                                                        </div>
+                                                        <Text style={{ fontSize: 10, color: C.subText, display: "block", marginTop: 4 }}>
+                                                            {new Date(call.start_time || call.createdAt).toLocaleString("en-GB")}
+                                                            {call.agent_name ? ` · ${call.agent_name}` : ""}
+                                                        </Text>
+                                                        {call.recording_url && (
+                                                            <audio controls src={call.recording_url} style={{ marginTop: 6, height: 30, width: "100%" }} />
+                                                        )}
+                                                    </div>
+                                                ),
+                                            };
+                                        })}
+                                    />
+                                )}
+                            </div>
+                        ),
+                    }] : []),
                 ]}
             />
         </Drawer>

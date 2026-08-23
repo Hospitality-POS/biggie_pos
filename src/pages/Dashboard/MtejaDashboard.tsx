@@ -3,17 +3,17 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
     Button, Typography, Row, Col, Table, Badge, Space, Skeleton,
-    Empty, Flex, Divider, Tag, Select, DatePicker, Radio, Drawer, Avatar, Progress, Tooltip,
+    Empty, Divider, Tag, Select, DatePicker, Radio, Tooltip,
 } from "antd";
 import {
-    ReloadOutlined, CalendarOutlined, MessageOutlined, TeamOutlined,
-    WifiOutlined, CustomerServiceOutlined, FireOutlined, RiseOutlined,
-    ArrowUpOutlined, ArrowDownOutlined, FilterOutlined, GlobalOutlined,
+    ReloadOutlined, MessageOutlined, TeamOutlined,
+    WifiOutlined, FireOutlined, RiseOutlined,
+    ArrowUpOutlined, ArrowDownOutlined,
     ShopOutlined, FundOutlined, TrophyOutlined, DollarOutlined,
-    PhoneOutlined, MailOutlined, UserAddOutlined, CheckCircleOutlined,
+    PhoneOutlined, CheckCircleOutlined,
     CloseCircleOutlined, ClockCircleOutlined, ThunderboltOutlined,
-    BarChartOutlined, PieChartOutlined, LineChartOutlined, AimOutlined,
-    StarOutlined, AlertOutlined, SyncOutlined, EyeOutlined,
+    BarChartOutlined, AimOutlined,
+    StarOutlined, AlertOutlined, SyncOutlined,
 } from "@ant-design/icons";
 import { ProCard } from "@ant-design/pro-components";
 import dayjs from "dayjs";
@@ -21,6 +21,12 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import axiosInstance from "@services/request";
 import { BASE_URL } from "@utils/config";
 import { fetchConversations, fetchWhatsappChannels } from "@services/whatsappService";
+import { getCallHistory, getAgentStatus } from "@services/twilio";
+import { getPermissionChecker } from "@utils/getPermissionChecker";
+import { fetchShop } from "@services/shops";
+import CallButton from "@components/Twilio/CallButton";
+import SMSButton from "@components/Twilio/SMSButton";
+import URLShareModal from "@components/URLShareModal";
 
 dayjs.extend(relativeTime);
 
@@ -53,11 +59,6 @@ const C = {
     border: "#e2e8f0",
     bg: "#f8fafc",
     white: "#ffffff",
-};
-
-const PERIOD_LABELS: Record<string, string> = {
-    day: "Today", week: "This Week", month: "This Month",
-    year: "This Year", custom: "Custom",
 };
 
 const LEAD_STAGES = [
@@ -106,12 +107,6 @@ const fetchShops = async () => {
     const res = await axiosInstance.get(`${BASE_URL}/shops`);
     return res.data;
 };
-const fetchRecentCustomers = async (params: { shop_id?: string; limit?: number }) => {
-    const res = await axiosInstance.get(`${BASE_URL}/api/customers`, {
-        params: { ...params, sort: "-createdAt" },
-    });
-    return Array.isArray(res.data) ? res.data : res.data?.customers || [];
-};
 const fetchMtejaStats = async (params: Record<string, any>) => {
     try {
         const res = await axiosInstance.get(`${BASE_URL}/api/customers/mteja-stats`, { params });
@@ -123,14 +118,6 @@ const fetchLeadPipeline = async (params: { shop_id?: string }) => {
         const res = await axiosInstance.get(`${BASE_URL}/api/crm/leads/pipeline-summary`, { params });
         return res.data;
     } catch { return { stages: [], total_leads: 0, total_value: 0, won_value: 0, conversion_rate: 0 }; }
-};
-const fetchRecentLeads = async (params: { shop_id?: string; limit?: number }) => {
-    try {
-        const res = await axiosInstance.get(`${BASE_URL}/api/crm/leads`, {
-            params: { ...params, limit: params.limit || 8, sort: "-createdAt" },
-        });
-        return Array.isArray(res.data) ? res.data : res.data?.leads || [];
-    } catch { return []; }
 };
 
 // ── Shared small components ───────────────────────────────────────────────────
@@ -218,17 +205,6 @@ const Pill: React.FC<{ label: string; color: string; bg: string }> = ({ label, c
     <span style={{ background: bg, color, border: `1px solid ${color}30`, borderRadius: 5, padding: "2px 8px", fontSize: 10, fontWeight: 700, letterSpacing: "0.3px" }}>{label}</span>
 );
 
-/** Section header */
-const SectionHeader: React.FC<{ icon: React.ReactNode; title: string; color: string; extra?: React.ReactNode }> = ({ icon, title, color, extra }) => (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-        <Space size={7} align="center">
-            <div style={{ background: `${color}18`, borderRadius: 7, padding: "4px 6px", color, fontSize: 14, lineHeight: 1 }}>{icon}</div>
-            <Text strong style={{ fontSize: 14, color: C.text }}>{title}</Text>
-        </Space>
-        {extra}
-    </div>
-);
-
 // ── Conversation Status Bar ───────────────────────────────────────────────────
 const ConversationStatusBar: React.FC<{ open: number; pending: number; resolved: number; closed: number; loading: boolean }> = ({
     open, pending, resolved, closed, loading,
@@ -313,72 +289,6 @@ const ConversionFunnel: React.FC<{ stages: any[]; totalLeads: number; wonValue: 
     );
 };
 
-// ── Lead source breakdown ─────────────────────────────────────────────────────
-const LeadSourceBreakdown: React.FC<{ stages: any[]; loading: boolean }> = ({ stages, loading }) => {
-    // Derive source breakdown from stage data (or show placeholder)
-    const sourceDummy = [
-        { label: "Walk-in", count: 0, color: C.teal },
-        { label: "Referral", count: 0, color: C.blue },
-        { label: "Social Media", count: 0, color: C.purple },
-        { label: "Website", count: 0, color: C.orange },
-        { label: "Cold Call", count: 0, color: C.warning },
-        { label: "Other", count: 0, color: C.gray },
-    ];
-    const total = sourceDummy.reduce((s, x) => s + x.count, 0);
-    if (loading) return <Skeleton active paragraph={{ rows: 3 }} />;
-    if (!total) return <div style={{ textAlign: "center", padding: "20px 0", color: C.subtext, fontSize: 13 }}>No source data yet</div>;
-    return (
-        <div>
-            {sourceDummy.filter(s => s.count > 0).map((s, i, arr) => (
-                <BarRow key={s.label} label={s.label} count={s.count} total={total} color={s.color} last={i === arr.length - 1} />
-            ))}
-        </div>
-    );
-};
-
-// ── Customer health grid ──────────────────────────────────────────────────────
-const CustomerHealthGrid: React.FC<{ customers: any[]; loading: boolean }> = ({ customers, loading }) => {
-    const now = Date.now();
-    const stats = useMemo(() => {
-        let recent = 0, overdue = 0, never = 0;
-        customers.forEach(c => {
-            const visits = c.visits || [];
-            if (!visits.length) { never++; return; }
-            const lastVisit = visits.reduce((p: any, x: any) =>
-                new Date(x.createdAt) > new Date(p.createdAt) ? x : p
-            ).createdAt;
-            const days = (now - new Date(lastVisit).getTime()) / 86400000;
-            if (days <= 14) recent++; else overdue++;
-        });
-        const withPhone = customers.filter(c => c.phone).length;
-        const withEmail = customers.filter(c => c.email).length;
-        const reachable = Math.max(withPhone, withEmail);
-        return { recent, overdue, never, withPhone, withEmail, reachable, total: customers.length };
-    }, [customers]);
-
-    if (loading) return <Skeleton active paragraph={{ rows: 3 }} />;
-    const t = stats.total || 1;
-
-    return (
-        <Space direction="vertical" size={12} style={{ width: "100%" }}>
-            {/* Visit health */}
-            <div>
-                <Text style={{ fontSize: 11, fontWeight: 600, color: C.subtext, textTransform: "uppercase", letterSpacing: "0.4px", display: "block", marginBottom: 8 }}>Visit Health</Text>
-                <BarRow label="Recent (≤14 days)" count={stats.recent} total={t} color={C.success} />
-                <BarRow label="Overdue (>14 days)" count={stats.overdue} total={t} color={C.warning} />
-                <BarRow label="Never visited" count={stats.never} total={t} color={C.error} last />
-            </div>
-            <Divider style={{ margin: "4px 0" }} />
-            {/* Contact coverage */}
-            <div>
-                <Text style={{ fontSize: 11, fontWeight: 600, color: C.subtext, textTransform: "uppercase", letterSpacing: "0.4px", display: "block", marginBottom: 8 }}>Contact Coverage</Text>
-                <BarRow label="Has phone" count={stats.withPhone} total={t} color={C.blue} />
-                <BarRow label="Has email" count={stats.withEmail} total={t} color={C.purple} last />
-            </div>
-        </Space>
-    );
-};
-
 // ── Conversation resolution stats ─────────────────────────────────────────────
 const ConvResolutionStats: React.FC<{ convCounts: any; total: number }> = ({ convCounts, total }) => {
     const resolutionRate = pct(convCounts.resolved + convCounts.closed, total);
@@ -407,9 +317,8 @@ const ConvResolutionStats: React.FC<{ convCounts: any; total: number }> = ({ con
 };
 
 // ── Table columns ─────────────────────────────────────────────────────────────
-const CH_COLORS: Record<string, string> = { whatsapp: "#25D366", messenger: "#0084FF", instagram: "#E1306C" };
+const CH_COLORS: Record<string, string> = { whatsapp: "#25D366", sms: "#3b82f6", calls: "#6366f1" };
 const ST_COLORS: Record<string, string> = { open: C.success, pending: C.warning, resolved: C.blue, closed: C.gray };
-const stageColorMap = Object.fromEntries(LEAD_STAGES.map(({ key, color }) => [key, color]));
 
 const convColumns = (isMobile: boolean) => isMobile ? [
     {
@@ -431,77 +340,18 @@ const convColumns = (isMobile: boolean) => isMobile ? [
             <div>
                 <Text strong style={{ fontSize: 12, color: C.text }}>{name || r.external_contact_phone || "Unknown"}</Text>
                 {r.last_message_preview && <Text style={{ fontSize: 11, color: C.subtext, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 200 }}>{r.last_message_preview}</Text>}
+                {r.external_contact_phone && (
+                    <Space size={4} style={{ marginTop: 4 }}>
+                        <CallButton phoneNumber={r.external_contact_phone} customerId={r.customer_id} size="small" type="text" />
+                        <SMSButton phoneNumber={r.external_contact_phone} customerId={r.customer_id} size="small" type="text" />
+                    </Space>
+                )}
             </div>
         ),
     },
     { title: "Status", dataIndex: "status", key: "status", width: 100, render: (s: string) => <Pill label={s?.toUpperCase()} color={ST_COLORS[s] || C.gray} bg={(ST_COLORS[s] || C.gray) + "15"} /> },
     { title: "Unread", dataIndex: "unread_count", key: "unread", width: 70, align: "center" as const, render: (n: number) => n > 0 ? <Badge count={n} style={{ backgroundColor: C.primary }} /> : <Text style={{ color: C.gray, fontSize: 11 }}>—</Text> },
     { title: "Last msg", dataIndex: "last_message_at", key: "last", width: 100, render: (t: string) => <Text style={{ fontSize: 11, color: C.subtext }}>{t ? dayjs(t).fromNow() : "—"}</Text> },
-];
-
-const custColumns = (isMobile: boolean) => isMobile ? [
-    {
-        title: "Customer", dataIndex: "customer_name", key: "name",
-        render: (name: string) => (
-            <Space size={7}>
-                <Avatar size={28} style={{ background: `${C.primary}20`, color: C.primary, fontSize: 11 }}>{(name || "?")[0].toUpperCase()}</Avatar>
-                <Text style={{ fontSize: 12 }}>{name}</Text>
-            </Space>
-        ),
-    },
-    { title: "Added", dataIndex: "createdAt", key: "added", width: 80, render: (t: string) => <Text style={{ fontSize: 11, color: C.subtext }}>{t ? dayjs(t).fromNow(true) : "—"}</Text> },
-] : [
-    {
-        title: "Customer", dataIndex: "customer_name", key: "name",
-        render: (name: string) => (
-            <Space size={8}>
-                <Avatar size={30} style={{ background: `${C.primary}20`, color: C.primary, fontSize: 12 }}>{(name || "?")[0].toUpperCase()}</Avatar>
-                <Text strong style={{ fontSize: 12 }}>{name || "—"}</Text>
-            </Space>
-        ),
-    },
-    { title: "Phone", dataIndex: "phone", key: "phone", width: 130, render: (p: string) => <Text style={{ fontSize: 12, color: C.subtext }}>{p ? String(p) : "—"}</Text> },
-    { title: "Email", dataIndex: "email", key: "email", render: (e: string) => <Text style={{ fontSize: 12, color: C.subtext }} ellipsis>{e || "—"}</Text> },
-    {
-        title: "Status", key: "visits", width: 100,
-        render: (_: any, r: any) => {
-            const v = r.visits || [];
-            if (!v.length) return <Pill label="NEW" color={C.blue} bg={C.blueLight} />;
-            const last = v.reduce((p: any, c: any) => new Date(c.createdAt) > new Date(p.createdAt) ? c : p).createdAt;
-            const days = (Date.now() - new Date(last).getTime()) / 86400000;
-            return days <= 14
-                ? <Pill label="ACTIVE" color={C.success} bg={C.successLight} />
-                : <Pill label="OVERDUE" color={C.warning} bg={C.warningLight} />;
-        },
-    },
-    { title: "Added", dataIndex: "createdAt", key: "added", width: 100, render: (t: string) => <Text style={{ fontSize: 11, color: C.subtext }}>{t ? dayjs(t).fromNow() : "—"}</Text> },
-];
-
-const leadColumns = (isMobile: boolean) => isMobile ? [
-    {
-        title: "Lead", dataIndex: "lead_name", key: "name",
-        render: (name: string, r: any) => (
-            <div>
-                <Text style={{ fontSize: 12, fontWeight: 500 }}>{name || r.company_name || "—"}</Text>
-                <Tag style={{ marginLeft: 6, fontSize: 10, border: "none", background: (stageColorMap[r.stage] || C.gray) + "20", color: stageColorMap[r.stage] || C.gray }}>{r.stage}</Tag>
-            </div>
-        ),
-    },
-    { title: "Value", dataIndex: "estimated_value", key: "value", width: 90, render: (v: number) => <Text style={{ fontSize: 11, color: C.success }}>{v ? fmtKES(v) : "—"}</Text> },
-] : [
-    {
-        title: "Lead", dataIndex: "lead_name", key: "name",
-        render: (name: string, r: any) => (
-            <div>
-                <Text strong style={{ fontSize: 12 }}>{name || "—"}</Text>
-                {r.company_name && <Text style={{ fontSize: 11, color: C.subtext, display: "block" }}>{r.company_name}</Text>}
-            </div>
-        ),
-    },
-    { title: "Stage", dataIndex: "stage", key: "stage", width: 110, render: (s: string) => <Pill label={s?.toUpperCase()} color={stageColorMap[s] || C.gray} bg={(stageColorMap[s] || C.gray) + "18"} /> },
-    { title: "Value", dataIndex: "estimated_value", key: "value", width: 120, render: (v: number) => <Text style={{ fontSize: 12, color: C.success }}>{v ? fmtKES(v) : "—"}</Text> },
-    { title: "Source", dataIndex: "source", key: "source", width: 110, render: (s: string) => <Text style={{ fontSize: 11, color: C.subtext }}>{s?.replace(/_/g, " ") || "—"}</Text> },
-    { title: "Last contact", dataIndex: "last_contacted_at", key: "last", width: 100, render: (t: string) => <Text style={{ fontSize: 11, color: C.subtext }}>{t ? dayjs(t).fromNow() : "—"}</Text> },
 ];
 
 // ── Main Dashboard ────────────────────────────────────────────────────────────
@@ -521,8 +371,20 @@ const MtejaDashboard: React.FC = () => {
     const [showCustomPicker, setShowCustomPicker] = useState(false);
     const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
     const [convStatus, setConvStatus] = useState<"all" | "open" | "pending" | "resolved">("all");
+    const [urlModalOpen, setUrlModalOpen] = useState(false);
+    const [urlModalTitle, setUrlModalTitle] = useState("");
+    const [urlModalUrl, setUrlModalUrl] = useState("");
 
     const shopId = isAdminLayout ? selectedShopId : storedShopId;
+
+    // ── Shop logo (for QR code branding) ──────────────────────────────────────
+    const { data: shopData } = useQuery({
+        queryKey: ["mteja-shop-qr", shopId],
+        queryFn: () => fetchShop(shopId!),
+        enabled: !!shopId,
+        staleTime: 5 * 60 * 1000,
+    });
+    const shopLogo: string | undefined = shopData?.logo;
 
     // ── Shops ──────────────────────────────────────────────────────────────────
     const { data: shopsData } = useQuery({
@@ -562,6 +424,9 @@ const MtejaDashboard: React.FC = () => {
     const start_date = startDate.format("YYYY-MM-DD");
     const end_date = endDate.format("YYYY-MM-DD");
 
+    // ── Permission checker ─────────────────────────────────────────────────────
+    const can = getPermissionChecker();
+
     // ── Channels ───────────────────────────────────────────────────────────────
     const { data: channelsData, isLoading: channelsLoading } = useQuery({
         queryKey: ["mteja-channels", shopId],
@@ -571,8 +436,8 @@ const MtejaDashboard: React.FC = () => {
     const channels = channelsData?.channels || [];
     const connected = {
         whatsapp: channels.some((c: any) => c.channel === "whatsapp" && c.is_active),
-        messenger: channels.some((c: any) => c.channel === "messenger" && c.is_active),
-        instagram: channels.some((c: any) => c.channel === "instagram" && c.is_active),
+        sms: can("TWILIO_MANAGE_ACCOUNTS"),
+        calls: can("TWILIO_MAKE_CALLS"),
     };
     const connectedCount = Object.values(connected).filter(Boolean).length;
 
@@ -591,24 +456,53 @@ const MtejaDashboard: React.FC = () => {
         return c;
     }, [conversations]);
 
-    const channelCounts = useMemo(() => {
-        const c = { whatsapp: 0, messenger: 0, instagram: 0 };
-        conversations.forEach(v => { if (v.channel in c) c[v.channel as keyof typeof c]++; });
-        return c;
-    }, [conversations]);
-
     const unreadCount = useMemo(
         () => conversations.reduce((s, c) => s + (c.unread_count || 0), 0),
         [conversations]
     );
 
-    // ── Customers ─────────────────────────────────────────────────────────────
-    const { data: recentCustomers, isLoading: custLoading } = useQuery({
-        queryKey: ["mteja-recent-customers", shopId],
-        queryFn: () => fetchRecentCustomers({ shop_id: shopId || undefined, limit: 50 }),
-        staleTime: 30_000,
+    // ── Twilio integration ───────────────────────────────────────────────────────
+    const canViewCallHistory = can("TWILIO_VIEW_CALL_HISTORY");
+    const userId = localStorage.getItem("userId");
+
+    const { data: callHistory } = useQuery({
+        queryKey: ["twilio-call-history", shopId],
+        queryFn: () => getCallHistory({ shop_id: shopId || "", limit: 100 }),
+        enabled: !!shopId && canViewCallHistory,
+        staleTime: 60_000,
     });
-    const customerList: any[] = Array.isArray(recentCustomers) ? recentCustomers : [];
+
+    const { data: agentStatus } = useQuery({
+        queryKey: ["twilio-agent-status", shopId, userId],
+        queryFn: () => getAgentStatus(shopId || "", userId || ""),
+        enabled: !!shopId && !!userId && can("TWILIO_MANAGE_AGENT_STATUS"),
+        staleTime: 30_000,
+        refetchInterval: 30_000,
+    });
+
+    const todayCalls = callHistory?.calls?.filter((call: any) => {
+        const callTime = call.start_time || call.createdAt;
+        if (!callTime) return false;
+        
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const callDate = new Date(callTime);
+        callDate.setHours(0, 0, 0, 0);
+        
+        return callDate.getTime() === today.getTime();
+    }).length || 0;
+
+    const channelCounts = useMemo(() => {
+        const c = { whatsapp: 0, sms: 0, calls: 0 };
+        conversations.forEach(v => { if (v.channel in c) c[v.channel as keyof typeof c]++; });
+        // Add Twilio counts
+        if (canViewCallHistory) {
+            c.calls = todayCalls;
+            c.sms = todayCalls; // Using same count for now, could be separate
+        }
+        return c;
+    }, [conversations, canViewCallHistory, todayCalls]);
 
     // ── Mteja stats ───────────────────────────────────────────────────────────
     const { data: mtejaStats, isLoading: statsLoading } = useQuery({
@@ -631,40 +525,26 @@ const MtejaDashboard: React.FC = () => {
     const wonLeadValue = pipelineData?.won_value || 0;
     const conversionRate = pipelineData?.conversion_rate || 0;
 
-    // ── Recent leads ──────────────────────────────────────────────────────────
-    const { data: recentLeadsData, isLoading: leadsLoading } = useQuery({
-        queryKey: ["mteja-recent-leads", shopId],
-        queryFn: () => fetchRecentLeads({ shop_id: shopId || undefined, limit: 8 }),
-        staleTime: 30_000,
-    });
-    const recentLeads: any[] = Array.isArray(recentLeadsData) ? recentLeadsData : [];
-
-    // ── Derived customer health stats ─────────────────────────────────────────
-    const customerHealth = useMemo(() => {
-        const now = Date.now();
-        let recent = 0, overdue = 0, never = 0;
-        const recentList = customerList.slice(0, 8);
-        customerList.forEach(c => {
-            const visits = c.visits || [];
-            if (!visits.length) { never++; return; }
-            const last = visits.reduce((p: any, x: any) => new Date(x.createdAt) > new Date(p.createdAt) ? x : p).createdAt;
-            const days = (now - new Date(last).getTime()) / 86400000;
-            if (days <= 14) recent++; else overdue++;
-        });
-        return { recent, overdue, never, recentList, total: customerList.length };
-    }, [customerList]);
-
     // ── Handlers ─────────────────────────────────────────────────────────────
     const handleRefresh = useCallback(() => {
         queryClient.invalidateQueries({ queryKey: ["mteja-conversations"] });
         queryClient.invalidateQueries({ queryKey: ["mteja-channels"] });
-        queryClient.invalidateQueries({ queryKey: ["mteja-recent-customers"] });
         queryClient.invalidateQueries({ queryKey: ["mteja-stats"] });
         queryClient.invalidateQueries({ queryKey: ["mteja-lead-pipeline"] });
-        queryClient.invalidateQueries({ queryKey: ["mteja-recent-leads"] });
+        queryClient.invalidateQueries({ queryKey: ["twilio-call-history"] });
+        queryClient.invalidateQueries({ queryKey: ["twilio-agent-status"] });
     }, [queryClient]);
 
-    const isDataLoading = statsLoading || pipelineLoading || custLoading;
+    const handleCopyStaffUrl = useCallback(() => {
+        const storedTenant = localStorage.getItem("tenant");
+        const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+        const staffUrl = `${import.meta.env.VITE_APP_URL}/admin/staff-clock-in?tenant_id=${tenant?._id}&tenant_code=${tenant?.tenant_code}&shop_id=${shopId}`;
+        setUrlModalUrl(staffUrl);
+        setUrlModalTitle("Staff Clock-In URL");
+        setUrlModalOpen(true);
+    }, [shopId]);
+
+    const isDataLoading = statsLoading || pipelineLoading;
 
     // ── Top stat cards ───────────────────────────────────────────────────────
     const topCards = [
@@ -677,6 +557,12 @@ const MtejaDashboard: React.FC = () => {
         { title: "Total Leads", value: totalLeads, color: C.purple, bg: C.purpleLight, icon: <FundOutlined /> },
         { title: "Lead Conversion", value: `${conversionRate.toFixed(1)}%`, color: C.success, bg: C.successLight, icon: <ThunderboltOutlined /> },
         { title: "Pipeline Value", value: fmtKES(totalLeadValue), color: C.blue, bg: C.blueLight, icon: <DollarOutlined /> },
+        ...(canViewCallHistory ? [
+            { title: "Today's Calls", value: todayCalls, color: C.indigo, bg: C.indigoLight, icon: <PhoneOutlined /> },
+        ] : []),
+        ...(agentStatus?.agent_statuses?.[0] ? [
+            { title: "Agent Status", value: agentStatus.agent_statuses[0].status, color: agentStatus.agent_statuses[0].status === "available" ? C.success : C.warning, bg: agentStatus.agent_statuses[0].status === "available" ? C.successLight : C.warningLight, icon: <TeamOutlined /> },
+        ] : []),
         { title: "Won Revenue", value: fmtKES(wonLeadValue), color: C.success, bg: C.successLight, icon: <TrophyOutlined /> },
         { title: "Alerts Sent", value: alertsSent, color: C.warning, bg: C.warningLight, icon: <ThunderboltOutlined /> },
         { title: "Referrals", value: referrals, color: C.indigo, bg: C.indigoLight, icon: <StarOutlined /> },
@@ -691,7 +577,7 @@ const MtejaDashboard: React.FC = () => {
                         <MessageOutlined />
                     </div>
                     <div>
-                        <Title level={4} style={{ margin: 0, color: C.text }}>Mteja Dashboard</Title>
+                        <Title level={4} style={{ margin: 0, color: C.text }}>Dashboard</Title>
                         <Text style={{ fontSize: 12, color: C.subtext }}>Customer Engagement & Lead Management</Text>
                     </div>
                 </Space>
@@ -721,6 +607,11 @@ const MtejaDashboard: React.FC = () => {
                             size="small"
                         />
                     )}
+                    <Tooltip title="Share with staff to allow clock-in for this branch">
+                        <Button size="small" icon={<TeamOutlined />} onClick={handleCopyStaffUrl}>
+                            Staff Clock-In URL
+                        </Button>
+                    </Tooltip>
                     <Button size="small" icon={<ReloadOutlined />} onClick={handleRefresh}>Refresh</Button>
                 </Space>
             </div>
@@ -844,14 +735,14 @@ const MtejaDashboard: React.FC = () => {
                 {/* Channel breakdown */}
                 <Col xs={24} lg={10}>
                     <ProCard bordered headerBordered size="small" style={{ borderRadius: 12, height: "100%" }}
-                        title={<Space size={6}><WifiOutlined style={{ color: C.teal }} /><Text strong style={{ fontSize: 14 }}>Channels</Text></Space>}
+                        title={<Space size={6}><PhoneOutlined style={{ color: C.indigo }} /><Text strong style={{ fontSize: 14 }}>Communication Channels</Text></Space>}
                     >
                         <Space direction="vertical" size={14} style={{ width: "100%" }}>
                             {/* Channel cards */}
                             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                                 <ChannelDot color="#25D366" label="WhatsApp" count={channelCounts.whatsapp} connected={connected.whatsapp} pctOfTotal={pct(channelCounts.whatsapp, totalConversations)} />
-                                <ChannelDot color="#0084FF" label="Messenger" count={channelCounts.messenger} connected={connected.messenger} pctOfTotal={pct(channelCounts.messenger, totalConversations)} />
-                                <ChannelDot color="#E1306C" label="Instagram" count={channelCounts.instagram} connected={connected.instagram} pctOfTotal={pct(channelCounts.instagram, totalConversations)} />
+                                <ChannelDot color="#3b82f6" label="SMS" count={todayCalls} connected={canViewCallHistory} pctOfTotal={canViewCallHistory ? 100 : 0} />
+                                <ChannelDot color="#6366f1" label="Calls" count={todayCalls} connected={canViewCallHistory} pctOfTotal={canViewCallHistory ? 100 : 0} />
                             </div>
 
                             <Divider style={{ margin: "4px 0" }} />
@@ -861,14 +752,14 @@ const MtejaDashboard: React.FC = () => {
                                 <Text style={{ fontSize: 11, fontWeight: 600, color: C.subtext, textTransform: "uppercase", letterSpacing: "0.4px", display: "block", marginBottom: 10 }}>Connection Status</Text>
                                 {[
                                     { ch: "whatsapp", label: "WhatsApp", color: "#25D366", connected: connected.whatsapp },
-                                    { ch: "messenger", label: "Messenger", color: "#0084FF", connected: connected.messenger },
-                                    { ch: "instagram", label: "Instagram", color: "#E1306C", connected: connected.instagram },
+                                    { ch: "sms", label: "SMS", color: "#3b82f6", connected: can("TWILIO_MANAGE_ACCOUNTS") },
+                                    { ch: "calls", label: "Voice Calls", color: "#6366f1", connected: can("TWILIO_MAKE_CALLS") },
                                 ].map(item => (
-                                    <div key={item.ch} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "7px 0", borderBottom: item.ch !== "instagram" ? `1px solid ${C.border}` : "none" }}>
+                                    <div key={item.ch} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "7px 0", borderBottom: item.ch !== "calls" ? `1px solid ${C.border}` : "none" }}>
                                         <Text style={{ fontSize: 12, color: C.text }}>{item.label}</Text>
                                         {item.connected
-                                            ? <Space size={4}><CheckCircleOutlined style={{ color: C.success, fontSize: 12 }} /><Text style={{ fontSize: 11, color: C.success }}>Connected</Text></Space>
-                                            : <Space size={4}><CloseCircleOutlined style={{ color: C.error, fontSize: 12 }} /><Text style={{ fontSize: 11, color: C.error }}>Not connected</Text></Space>
+                                            ? <Space size={4}><CheckCircleOutlined style={{ color: C.success, fontSize: 12 }} /><Text style={{ fontSize: 11, color: C.success }}>Enabled</Text></Space>
+                                            : <Space size={4}><CloseCircleOutlined style={{ color: C.error, fontSize: 12 }} /><Text style={{ fontSize: 11, color: C.error }}>Not enabled</Text></Space>
                                         }
                                     </div>
                                 ))}
@@ -900,79 +791,101 @@ const MtejaDashboard: React.FC = () => {
                 </Col>
             </Row>
 
-            {/* ── Row 3: Customer list + Customer health ────────────────────────── */}
+            {/* ── Row 3: Active Agents + Call Analysis ─────────────────────────── */}
             <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
-                {/* Recent customers table */}
-                <Col xs={24} lg={14}>
-                    <ProCard bordered headerBordered size="small" style={{ borderRadius: 12 }}
-                        title={<Space size={6}><TeamOutlined style={{ color: C.blue }} /><Text strong style={{ fontSize: 14 }}>Recent Customers</Text><Tag color="blue">{customerList.length} total</Tag></Space>}
-                        extra={<Button type="link" size="small" onClick={() => navTo("/customers")}>View All →</Button>}
-                        bodyStyle={{ padding: 0 }}
+                {/* Active Agents */}
+                <Col xs={24} lg={12}>
+                    <ProCard bordered headerBordered size="small" style={{ borderRadius: 12, height: "100%" }}
+                        title={<Space size={6}><TeamOutlined style={{ color: C.indigo }} /><Text strong style={{ fontSize: 14 }}>Active Agents</Text></Space>}
+                        extra={<Button type="link" size="small" onClick={() => navTo("/staff-management")}>View All →</Button>}
                     >
-                        {custLoading ? (
-                            <div style={{ padding: 16 }}><Skeleton active paragraph={{ rows: 4 }} /></div>
+                        {agentStatus?.agent_statuses?.length > 0 ? (
+                            <Space direction="vertical" size={12} style={{ width: "100%" }}>
+                                {agentStatus.agent_statuses.slice(0, 5).map((agent: any) => (
+                                    <div key={agent._id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", background: agent.status === "available" ? C.successLight : agent.status === "busy" ? C.warningLight : C.bg, borderRadius: 8, border: `1px solid ${agent.status === "available" ? C.success + "30" : agent.status === "busy" ? C.warning + "30" : C.border}` }}>
+                                        <Space size={8}>
+                                            <div style={{ width: 8, height: 8, borderRadius: "50%", background: agent.status === "available" ? C.success : agent.status === "busy" ? C.warning : C.gray }} />
+                                            <Text style={{ fontSize: 12, color: C.text }}>{agent.agent_name || "Unknown"}</Text>
+                                        </Space>
+                                        <Space size={4}>
+                                            <Text style={{ fontSize: 11, color: C.subtext }}>{agent.total_calls_today} calls</Text>
+                                            <Text style={{ fontSize: 11, color: C.subtext }}>{Math.floor(agent.total_call_duration_today / 60)}m</Text>
+                                        </Space>
+                                    </div>
+                                ))}
+                            </Space>
                         ) : (
-                            <Table
-                                columns={custColumns(isMobile)}
-                                dataSource={customerHealth.recentList}
-                                pagination={false}
-                                size="small" rowKey="_id"
-                                scroll={{ x: isMobile ? 280 : undefined }}
-                                locale={{ emptyText: <Empty description="No customers yet" style={{ padding: 20 }} /> }}
-                            />
+                            <Empty description="No active agents" style={{ padding: "20px 0" }} />
                         )}
                     </ProCard>
                 </Col>
 
-                {/* Customer health */}
-                <Col xs={24} lg={10}>
+                {/* Call Analysis */}
+                <Col xs={24} lg={12}>
                     <ProCard bordered headerBordered size="small" style={{ borderRadius: 12, height: "100%" }}
-                        title={<Space size={6}><BarChartOutlined style={{ color: C.success }} /><Text strong style={{ fontSize: 14 }}>Customer Health</Text></Space>}
+                        title={<Space size={6}><BarChartOutlined style={{ color: C.purple }} /><Text strong style={{ fontSize: 14 }}>Call Analysis</Text></Space>}
                     >
-                        {custLoading ? <Skeleton active paragraph={{ rows: 5 }} /> : (
+                        {callHistory?.calls ? (
                             <Space direction="vertical" size={14} style={{ width: "100%" }}>
-                                {/* Summary row */}
                                 <Row gutter={[8, 8]}>
                                     {[
-                                        { label: "Total", value: customerHealth.total, color: C.blue, bg: C.blueLight },
-                                        { label: "Active", value: customerHealth.recent, color: C.success, bg: C.successLight },
-                                        { label: "Overdue", value: customerHealth.overdue, color: C.warning, bg: C.warningLight },
-                                        { label: "New", value: customerHealth.never, color: C.purple, bg: C.purpleLight },
+                                        { label: "Today's Calls", value: todayCalls, color: C.indigo, bg: C.indigoLight },
+                                        { label: "Avg Duration", value: callHistory.calls.length > 0 ? `${Math.floor(callHistory.calls.reduce((acc: number, c: any) => acc + (c.duration || 0), 0) / callHistory.calls.length / 60)}m` : "0m", color: C.blue, bg: C.blueLight },
+                                        { label: "Connected", value: callHistory.calls.filter((c: any) => c.status === "completed").length, color: C.success, bg: C.successLight },
+                                        { label: "Missed", value: callHistory.calls.filter((c: any) => c.status === "no-answer" || c.status === "failed").length, color: C.error, bg: C.errorLight },
                                     ].map((item, i) => (
-                                        <Col span={6} key={i}>
-                                            <div style={{ background: item.bg, borderRadius: 8, padding: "8px 4px", textAlign: "center", border: `1px solid ${item.color}20` }}>
-                                                <div style={{ fontSize: 18, fontWeight: 700, color: item.color }}>{item.value}</div>
+                                        <Col span={12} key={i}>
+                                            <div style={{ background: item.bg, borderRadius: 8, padding: "10px 8px", textAlign: "center", border: `1px solid ${item.color}20` }}>
+                                                <div style={{ fontSize: 20, fontWeight: 700, color: item.color }}>{item.value}</div>
                                                 <div style={{ fontSize: 10, color: C.subtext }}>{item.label}</div>
                                             </div>
                                         </Col>
                                     ))}
                                 </Row>
-                                <CustomerHealthGrid customers={customerList} loading={custLoading} />
                             </Space>
+                        ) : (
+                            <Empty description="No call data available" style={{ padding: "20px 0" }} />
                         )}
                     </ProCard>
                 </Col>
             </Row>
 
-            {/* ── Row 4: Recent leads table ─────────────────────────────────────── */}
+            {/* ── Row 4: Top Agents ─────────────────────────────────────────────── */}
             <Row style={{ marginBottom: 12 }}>
                 <Col span={24}>
                     <ProCard bordered headerBordered size="small" style={{ borderRadius: 12 }}
-                        title={<Space size={6}><LineChartOutlined style={{ color: C.purple }} /><Text strong style={{ fontSize: 14 }}>Recent Leads</Text></Space>}
-                        extra={<Button type="link" size="small" onClick={() => navTo("/crm/leads")}>View All →</Button>}
-                        bodyStyle={{ padding: 0 }}
+                        title={<Space size={6}><TrophyOutlined style={{ color: C.orange }} /><Text strong style={{ fontSize: 14 }}>Top Agents Today</Text></Space>}
                     >
-                        {leadsLoading ? (
-                            <div style={{ padding: 16 }}><Skeleton active paragraph={{ rows: 4 }} /></div>
+                        {agentStatus?.agent_statuses?.length > 0 ? (
+                            <Row gutter={[12, 12]}>
+                                {agentStatus.agent_statuses
+                                    .sort((a: any, b: any) => b.total_calls_today - a.total_calls_today)
+                                    .slice(0, 4)
+                                    .map((agent: any, index: number) => (
+                                    <Col xs={12} sm={6} key={agent._id}>
+                                        <div style={{ background: index === 0 ? "#fffbeb" : C.bg, borderRadius: 10, padding: "12px", border: index === 0 ? "1px solid #f59e0b" : `1px solid ${C.border}`, position: "relative" }}>
+                                            {index === 0 && (
+                                                <div style={{ position: "absolute", top: -8, right: -8, background: "#f59e0b", borderRadius: "50%", width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                                    <TrophyOutlined style={{ color: "#fff", fontSize: 12 }} />
+                                                </div>
+                                            )}
+                                            <Space direction="vertical" size={4} style={{ width: "100%" }}>
+                                                <Text strong style={{ fontSize: 13, color: C.text }}>{agent.agent_name || "Unknown"}</Text>
+                                                <Space size={8}>
+                                                    <Text style={{ fontSize: 11, color: C.subtext }}>{agent.total_calls_today} calls</Text>
+                                                    <Text style={{ fontSize: 11, color: C.subtext }}>{Math.floor(agent.total_call_duration_today / 60)}m</Text>
+                                                </Space>
+                                                <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
+                                                    <div style={{ width: 6, height: 6, borderRadius: "50%", background: agent.status === "available" ? C.success : agent.status === "busy" ? C.warning : C.gray }} />
+                                                    <Text style={{ fontSize: 10, color: C.subtext, textTransform: "capitalize" }}>{agent.status}</Text>
+                                                </div>
+                                            </Space>
+                                        </div>
+                                    </Col>
+                                ))}
+                            </Row>
                         ) : (
-                            <Table
-                                columns={leadColumns(isMobile)}
-                                dataSource={recentLeads}
-                                pagination={false}
-                                size="small" rowKey="_id"
-                                scroll={{ x: isMobile ? 320 : undefined }}
-                                locale={{ emptyText: <Empty description="No leads yet — add your first lead" style={{ padding: "16px 0" }} /> }}
-                            />
+                            <Empty description="No agent data available" style={{ padding: "20px 0" }} />
                         )}
                     </ProCard>
                 </Col>
@@ -1026,6 +939,16 @@ const MtejaDashboard: React.FC = () => {
                     </ProCard>
                 </Col>
             </Row>
+
+            {/* ── URL Share Modal ── */}
+            <URLShareModal
+                open={urlModalOpen}
+                onClose={() => setUrlModalOpen(false)}
+                url={urlModalUrl}
+                title={urlModalTitle}
+                shopLogo={shopLogo}
+                primaryColor={C.primary}
+            />
         </>
     );
 };

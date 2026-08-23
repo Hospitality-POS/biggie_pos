@@ -1,8 +1,10 @@
 import { forwardRef, useImperativeHandle, useRef } from "react";
 import { ActionType, ProTable } from "@ant-design/pro-components";
-import { EditOutlined, EyeOutlined, MoreOutlined, NotificationOutlined } from "@ant-design/icons";
-import { App, Button, Dropdown, Tag, Typography } from "antd";
+import { EditOutlined, EyeOutlined, MoreOutlined, NotificationOutlined, MessageOutlined, PhoneOutlined } from "@ant-design/icons";
+import { App, Button, Dropdown, Space, Tag, Typography } from "antd";
 import { fetchAllCampaigns, Campaign, CampaignStatus } from "@services/crm/campaigns";
+import SMSButton from "@components/Twilio/SMSButton";
+import WhatsAppButton from "@components/Twilio/WhatsAppButton";
 
 const { Text } = Typography;
 
@@ -111,6 +113,25 @@ export const CampaignTable = forwardRef<CampaignTableHandle, CampaignTableProps>
                             </Tag>
                         ))
                         : <Text style={{ fontSize: 11, color: "#94a3b8" }}>—</Text>,
+            },
+            {
+                title: "Quick Actions", key: "quick_actions", search: false,
+                render: (_: any, r: Campaign) => (
+                    <Space size={4}>
+                        <SMSButton 
+                            phoneNumber="" 
+                            size="small" 
+                            type="text" 
+                            onSuccess={() => {/* Handle SMS campaign */}}
+                        />
+                        <WhatsAppButton 
+                            phoneNumber="" 
+                            size="small" 
+                            type="text"
+                            onSuccess={() => {/* Handle WhatsApp campaign */}}
+                        />
+                    </Space>
+                ),
             },
             {
                 title: "Actions", key: "actions", search: false,

@@ -5,9 +5,12 @@ import {
     EnvironmentOutlined, EyeOutlined, MoreOutlined,
     PhoneOutlined, TeamOutlined, UserOutlined,
 } from "@ant-design/icons";
-import { App, Button, Dropdown, Modal, Tag, Typography } from "antd";
+import { App, Button, Dropdown, Modal, Space, Tag, Typography } from "antd";
 import { deleteLead, fetchAllLeads, Lead, LeadStage } from "@services/crm/leads";
 import { useAppDispatch } from "src/store";
+import CallButton from "@components/Twilio/CallButton";
+import SMSButton from "@components/Twilio/SMSButton";
+import WhatsAppButton from "@components/Twilio/WhatsAppButton";
 
 const { Text } = Typography;
 
@@ -128,10 +131,15 @@ const LeadTable = forwardRef<LeadTableHandle, LeadTableProps>(({ onView, onEdit 
         },
         {
             title: "Phone", dataIndex: "phone", search: false,
-            render: (v: string) => v
-                ? <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                    <PhoneOutlined style={{ color: C.subText, fontSize: 11 }} />
-                    <Text style={{ fontSize: 12 }}>{v}</Text>
+            render: (v: string, record: Lead) => v
+                ? <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <PhoneOutlined style={{ color: C.subText, fontSize: 12 }} />
+                    <Text style={{ fontSize: 12, color: C.darkText }}>{v}</Text>
+                    <Space size={2}>
+                        <CallButton phoneNumber={v} leadId={record._id} size="small" type="text" iconOnly />
+                        <SMSButton phoneNumber={v} leadId={record._id} size="small" type="text" iconOnly />
+                        <WhatsAppButton phoneNumber={v} leadId={record._id} size="small" type="text" iconOnly />
+                    </Space>
                 </div>
                 : <Text style={{ fontSize: 12, color: C.subText }}>—</Text>,
         },

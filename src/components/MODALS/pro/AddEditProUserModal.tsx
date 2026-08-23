@@ -380,25 +380,6 @@ const MobileDetailsFields: React.FC<{
               />
             </Form.Item>
           )}
-          {isAdmin && (
-            <Form.Item
-              name="signatureAccess"
-              label={fieldLabel("Signature Access")}
-              tooltip="Grant user access to E-Signature module"
-              style={{ marginBottom: 10 }}
-            >
-              <Select
-                placeholder="Select signature access level"
-                disabled={isProfile || isEditingOwnProfile}
-                style={{ borderRadius: 8 }}
-                options={[
-                  { label: "No Access", value: "none" },
-                  { label: "View Only", value: "view" },
-                  { label: "Full Access", value: "full" },
-                ]}
-              />
-            </Form.Item>
-          )}
           <Form.Item
             name="email"
             label={fieldLabel("Email")}
@@ -890,22 +871,6 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
               showSearch
               placeholder="Select role"
               request={roleRequest}
-            />
-          )}
-          {isAdmin && (
-            <ProFormSelect
-              hasFeedback
-              width="xl"
-              name="signatureAccess"
-              label="Signature Access"
-              tooltip="Grant user access to E-Signature module"
-              disabled={isProfile || isEditingOwnProfile}
-              placeholder="Select signature access level"
-              options={[
-                { label: "No Access", value: "none" },
-                { label: "View Only", value: "view" },
-                { label: "Full Access", value: "full" },
-              ]}
             />
           )}
           <ProFormText

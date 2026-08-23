@@ -51,13 +51,15 @@ const NON_CACHEABLE_ROUTES = [
     '/invoices',
 ];
 
-// Routes that should NOT trigger logout on 401 (Meta/Webhook APIs)
+// Routes that should NOT trigger logout on 401 (Meta/Webhook/Twilio integration APIs)
 const NON_AUTH_401_ROUTES = [
     '/omnichannel',
     '/webhook',
     '/messages',
     '/conversations',
     '/channels',
+    '/twilio',
+    '/crm/twilio',
     '/users/register', // New Staff modal - don't logout on errors
 ];
 
@@ -147,7 +149,8 @@ axiosInstance.interceptors.request.use(
 
         if (raw) {
             const userObject = JSON.parse(raw);
-            const token = userObject.Token;
+            // Support both Token (legacy) and token (lowercase) fields
+            const token = userObject.Token || userObject.token;
 
             if (token) {
                 config.headers['Authorization'] = `Bearer ${token}`;
@@ -178,12 +181,17 @@ axiosInstance.interceptors.request.use(
             }
 
             if (shopId && !isExcludedRoute(config.url)) {
+                // Avoid duplicating shop_id if it's already in URL query or config.params
+                const alreadyHasShopId = config.params?.shop_id !== undefined ||
+                    (config.url && new URL(config.url, window.location.origin).searchParams.has('shop_id'));
+
                 if (config.method === 'get' || config.method === 'delete') {
-                    config.params = {
-                        ...config.params,
-                        shop_id: shopId,
-                        role: userObject?.role,
-                    };
+                    if (!alreadyHasShopId) {
+                        config.params = {
+                            ...config.params,
+                            shop_id: shopId,
+                        };
+                    }
                 } else if (
                     config.method === 'post' ||
                     config.method === 'put' ||
@@ -225,20 +233,31 @@ axiosInstance.interceptors.response.use(
         const { response } = error;
         if (response) {
             switch (response.status) {
-                case 401:
-                    // Check if this is a Meta API endpoint (should NOT logout)
+                case 401: {
                     const url = response.config?.url || '';
-                    if (isNonAuth401Route(url)) {
-                        // For Meta API 401s, just show a channel-specific error
-                        console.warn('Meta API 401 error - channel token may be expired:', url);
+                    const data = response.data as { sessionExpired?: boolean; channelTokenExpired?: boolean } | undefined;
+
+                    // Backend explicitly told us the user's own session is invalid/expired —
+                    // always log out, regardless of which route triggered it.
+                    if (data?.sessionExpired) {
+                        handleError("Session expired. Logging out...");
+                        logoutUser();
+                        break;
+                    }
+
+                    // Backend explicitly told us this is a genuinely expired/invalid
+                    // channel (Meta/Twilio) access token — don't logout, just notify.
+                    if (data?.channelTokenExpired || isNonAuth401Route(url)) {
+                        console.warn('Channel API 401 error - channel token may be expired:', url);
                         message.error('Channel connection expired. Please reconnect the channel in settings.');
-                        // Don't logout - just reject the error
                         return Promise.reject(error);
                     }
+
                     // For auth endpoints, logout
                     handleError("Session expired. Logging out...");
                     logoutUser();
                     break;
+                }
                 case 403:
                     if (response.data?.message?.toLowerCase().includes("locked")) {
                         handleError(`Transaction Lock: ${response.data.message}`);

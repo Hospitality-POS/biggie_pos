@@ -401,6 +401,16 @@ export const PERMISSIONS: Record<string, Permission> = {
     SYSTEM_SETUP_UPDATE: { key: "SYSTEM_SETUP_UPDATE", label: "Update System Setup", module: MODULES.SYSTEM_SETUP, action: "update", moduleScope: "core" },
     SYSTEM_SETUP_VIEW_PAYMENT_DETAILS: { key: "SYSTEM_SETUP_VIEW_PAYMENT_DETAILS", label: "View System Payment Details", module: MODULES.SYSTEM_SETUP, action: "read", moduleScope: "core" },
 
+    // ── TWILIO CRM ─────────────────────────────────────────────────────────────
+
+    TWILIO_VIEW: { key: "TWILIO_VIEW", label: "View Twilio Settings", module: MODULES.SYSTEM_SETUP, action: "read", moduleScope: "core" },
+    TWILIO_MANAGE_ACCOUNTS: { key: "TWILIO_MANAGE_ACCOUNTS", label: "Manage Twilio Accounts", module: MODULES.SYSTEM_SETUP, action: "update", moduleScope: "core" },
+    TWILIO_MANAGE_PHONE_NUMBERS: { key: "TWILIO_MANAGE_PHONE_NUMBERS", label: "Manage Phone Numbers", module: MODULES.SYSTEM_SETUP, action: "update", moduleScope: "core" },
+    TWILIO_MAKE_CALLS: { key: "TWILIO_MAKE_CALLS", label: "Make Voice Calls", module: MODULES.SYSTEM_SETUP, action: "create", moduleScope: "core" },
+    TWILIO_VIEW_CALL_HISTORY: { key: "TWILIO_VIEW_CALL_HISTORY", label: "View Call History", module: MODULES.SYSTEM_SETUP, action: "read", moduleScope: "core" },
+    TWILIO_MANAGE_AGENT_STATUS: { key: "TWILIO_MANAGE_AGENT_STATUS", label: "Manage Agent Status", module: MODULES.SYSTEM_SETUP, action: "update", moduleScope: "core" },
+    TWILIO_MANAGE_WORKFLOWS: { key: "TWILIO_MANAGE_WORKFLOWS", label: "Manage Twilio Workflows", module: MODULES.SYSTEM_SETUP, action: "update", moduleScope: "core" },
+
     // ── TABLES ────────────────────────────────────────────────────────────────
 
     TABLES_VIEW: { key: "TABLES_VIEW", label: "View Tables", module: MODULES.TABLES, action: "read", moduleScope: "pos" },
@@ -1162,8 +1172,11 @@ export const ROLE_PRESETS: Record<string, string[]> = {
         ...CRM_PERMISSION_KEYS.filter(k => k.startsWith("CRM_TARGETS_")),
         // Budgets — full including approve
         ...CRM_PERMISSION_KEYS.filter(k => k.startsWith("CRM_BUDGETS_")),
-        // Conversations
+        // Conversations — full omnichannel access (view, message, manage, connect channels, templates)
         "OMNICHANNEL_VIEW", "OMNICHANNEL_SEND_MESSAGE", "OMNICHANNEL_MANAGE_CONVERSATIONS",
+        "OMNICHANNEL_MANAGE_CHANNELS", "OMNICHANNEL_SEND_TEMPLATE",
+        // Voice calling — needed for call button / call history / agent status on the omnichannel page
+        "TWILIO_MAKE_CALLS", "TWILIO_VIEW_CALL_HISTORY", "TWILIO_MANAGE_AGENT_STATUS",
         "NOTIFICATIONS_VIEW_MY", "NOTIFICATIONS_MARK_READ",
     ],
 
@@ -1185,8 +1198,11 @@ export const ROLE_PRESETS: Record<string, string[]> = {
         "CRM_TARGETS_UPDATE_ACTUAL",
         // Budgets — read only
         "CRM_BUDGETS_VIEW", "CRM_BUDGETS_VIEW_ONE",
-        // Conversations
-        "OMNICHANNEL_VIEW", "OMNICHANNEL_SEND_MESSAGE",
+        // Conversations — full omnichannel access (view, message, manage, connect channels, templates)
+        "OMNICHANNEL_VIEW", "OMNICHANNEL_SEND_MESSAGE", "OMNICHANNEL_MANAGE_CONVERSATIONS",
+        "OMNICHANNEL_MANAGE_CHANNELS", "OMNICHANNEL_SEND_TEMPLATE",
+        // Voice calling — needed for call button / call history / agent status on the omnichannel page
+        "TWILIO_MAKE_CALLS", "TWILIO_VIEW_CALL_HISTORY", "TWILIO_MANAGE_AGENT_STATUS",
         "NOTIFICATIONS_VIEW_MY", "NOTIFICATIONS_MARK_READ",
     ],
 
