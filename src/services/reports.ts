@@ -45,3 +45,18 @@ export const fetchVATSummary = async (data: ParamsType) => {
     console.log(error);
   }
 };
+
+// Services / Products sales by date range
+export const fetchProductTypeSalesReport = async (data: ParamsType) => {
+  try {
+    const response = await axiosInstance.get(
+      `${BASE_URL}/orders/date-range-sales/services-or-products`,
+      {
+        params: data,
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.log(error);
+  }
+};

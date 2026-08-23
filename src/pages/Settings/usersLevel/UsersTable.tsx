@@ -758,8 +758,12 @@ const UsersTable: React.FC<UsersTableProps> = ({ actionRef: externalRef, onUserC
           },
         ]}
         request={async (params) => {
-          const data = await fetchAllUsersList(params);
-          let filtered = (data || []).filter((item: any) =>
+          // Request pagination data from API
+          const result = await fetchAllUsersList({ ...params, returnPagination: true });
+          const users = result?.users || [];
+          const pagination = result?.pagination || { total: 0, limit: 10, skip: 0, hasMore: false };
+          
+          let filtered = users.filter((item: any) =>
             user?.isAdmin && user?.id ? item._id !== user.id : true
           );
           if ((!user?.isAdmin || isShopLevel) && currentShopId) {
@@ -794,14 +798,14 @@ const UsersTable: React.FC<UsersTableProps> = ({ actionRef: externalRef, onUserC
 
           console.log('Desktop - After all filters:', filtered.length);
           console.log('Desktop - Filters:', { statusFilter, roleFilter, branchFilter, nameSearch });
+          console.log('Desktop - API Pagination total:', pagination.total);
 
-          // Client-side pagination for filtered results
-          const { current = 1, pageSize = 10 } = params;
-          const start = (current - 1) * pageSize;
-          const end = start + pageSize;
-          const paginatedData = filtered.slice(start, end);
+          // Return the filtered data directly - API already handles pagination
+          // Use the filtered count for total when filters are applied, otherwise use API total
+          const hasFilters = statusFilter !== "all" || roleFilter !== "all" || branchFilter !== "all" || nameSearch.trim();
+          const total = hasFilters ? filtered.length : pagination.total;
 
-          return { data: paginatedData, success: true, total: filtered.length };
+          return { data: filtered, success: true, total };
         }}
         params={{ _statusFilter: statusFilter, _roleFilter: roleFilter, _branchFilter: branchFilter, _nameSearch: nameSearch }}
         options={{ reload: () => actionRef.current?.reload(), density: true, setting: true }}

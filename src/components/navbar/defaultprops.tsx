@@ -70,7 +70,7 @@ const ICONS = {
 
 const POS_ROUTE_PERMISSIONS: Record<string, string> = {
   "/tables": "CART_VIEW_ITEMS",
-  "/home-dashboard": "ORDERS_VIEW_DASHBOARD",
+  "/home-dashboard": "UNIFIED_DASHBOARD_VIEW",
   "/orders": "ORDERS_VIEW",
   "/store": "PRODUCTS_VIEW",
   "/inventory": "INVENTORY_VIEW",
@@ -621,7 +621,7 @@ const useProLayoutNav = () => {
 
   // ── Mteja-only tiles ──────────────────────────────────────────────────────
   const mtejaOnlyAppList = (isMtejaOnly) ? [
-    ...(can("ORDERS_VIEW_DASHBOARD") ? [{
+    ...(can("UNIFIED_DASHBOARD_VIEW") ? [{
       icon: makeTile("#6c1c2c", ICONS.table),
       title: "Dashboard",
       desc: "Overview of your business performance and metrics.",
@@ -712,7 +712,7 @@ const useProLayoutNav = () => {
         ]),
       },
       appList: [
-        ...(can("ORDERS_VIEW_DASHBOARD") ? [{
+        ...(can("UNIFIED_DASHBOARD_VIEW") ? [{
           icon: makeTile("#6c1c2c", ICONS.table),
           title: "Dashboard",
           desc: "Overview of your business performance and metrics.",
@@ -870,7 +870,7 @@ const useProLayoutNav = () => {
         ]),
       },
       appList: [
-        ...(can("ORDERS_VIEW_DASHBOARD") ? [{
+        ...(can("UNIFIED_DASHBOARD_VIEW") ? [{
           icon: makeTile("#6c1c2c", ICONS.table),
           title: "Dashboard",
           desc: "Overview of your business performance and metrics.",

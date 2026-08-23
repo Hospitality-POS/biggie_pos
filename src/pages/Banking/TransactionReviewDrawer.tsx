@@ -16,7 +16,6 @@ import {
     bulkCategorize,
     excludeTransaction,
     uncategorizeTransaction,
-    pushToReconciliation,
     pushToJournalEntries,
     RawTransaction,
     TransactionStatus,
@@ -25,7 +24,6 @@ import {
 } from "@services/accounting/bankStatementImport";
 import { getAllAccounts } from "@services/accounting/accounts";
 import { fetchAllSuppliers } from "@services/supplier";
-import { getAllReconciliations, BankReconciliation } from "@services/accounting/reconciliation";
 import dayjs from "dayjs";
 
 const { Text, Title } = Typography;
@@ -265,7 +263,6 @@ const TransactionReviewDrawer: React.FC<Props> = ({
     const [categorizingBulk, setCategorizingBulk] = useState(false);
     const [bulkAccountId, setBulkAccountId] = useState<string | null>(null);
     const [pushModalOpen, setPushModalOpen] = useState(false);
-    const [pushMode, setPushMode] = useState<"reconciliation" | "journal">("reconciliation");
     const [pushTarget, setPushTarget] = useState<string>("");
     const [dateRange, setDateRange] = useState<[string, string] | null>(null);
 
@@ -296,15 +293,8 @@ const TransactionReviewDrawer: React.FC<Props> = ({
         enabled: open,
     });
 
-    const { data: reconciliationsData } = useQuery({
-        queryKey: ["reconciliations", shopId],
-        queryFn: () => getAllReconciliations({ shop_id: shopId, status: "Open" }),
-        enabled: open,
-    });
-
     const accounts = accountsData?.accounts || [];
     const suppliers = Array.isArray(suppliersData) ? suppliersData : [];
-    const reconciliations = reconciliationsData?.reconciliations || [];
     const accountOptions = accounts.map((a: any) => ({
         label: `${a.account_code} — ${a.account_name}`,
         value: a._id,
@@ -312,10 +302,6 @@ const TransactionReviewDrawer: React.FC<Props> = ({
     const supplierOptions = suppliers.map((s: any) => ({
         label: s.name,
         value: s._id,
-    }));
-    const reconciliationOptions = reconciliations.map((r: BankReconciliation) => ({
-        label: `${r.reconciliation_no} — ${r.account_name} (${dayjs(r.period_start).format("DD MMM YYYY")} to ${dayjs(r.period_end).format("DD MMM YYYY")})`,
-        value: r._id,
     }));
 
     const importDetail = data?.import;
@@ -381,19 +367,11 @@ const TransactionReviewDrawer: React.FC<Props> = ({
     });
 
     const pushMutation = useMutation({
-        mutationFn: () => {
-            if (pushMode === "reconciliation") {
-                return pushToReconciliation(importId!, {
-                    reconciliation_id: pushTarget,
-                    txn_ids: selectedRowKeys.length > 0 ? selectedRowKeys as string[] : undefined,
-                });
-            } else {
-                return pushToJournalEntries(importId!, {
-                    bank_account_id: pushTarget,
-                    txn_ids: selectedRowKeys.length > 0 ? selectedRowKeys as string[] : undefined,
-                });
-            }
-        },
+        mutationFn: () =>
+            pushToJournalEntries(importId!, {
+                bank_account_id: pushTarget,
+                txn_ids: selectedRowKeys.length > 0 ? selectedRowKeys as string[] : undefined,
+            }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["import-detail", importId] });
             setPushModalOpen(false);
@@ -444,10 +422,10 @@ const TransactionReviewDrawer: React.FC<Props> = ({
         {
             title: "Description",
             dataIndex: "description",
-            ellipsis: true,
+            width: 240,
             render: (v: string, r: RawTransaction) => (
                 <Space direction="vertical" size={0}>
-                    <Text style={{ fontSize: 13 }}>{v}</Text>
+                    <Text style={{ fontSize: 13, whiteSpace: "normal" }}>{v}</Text>
                     {r.reference && (
                         <Text type="secondary" style={{ fontSize: 11 }}>{r.reference}</Text>
                     )}
@@ -589,7 +567,7 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                             disabled={!importDetail?.categorized_count}
                             size="large"
                         >
-                            Push Categorized
+                            Push to Journal
                         </Button>
                     </Space>
                 }
@@ -760,7 +738,7 @@ const TransactionReviewDrawer: React.FC<Props> = ({
             {/* ── Push Modal ── */}
             <Modal
                 open={pushModalOpen}
-                title="Push Categorized Transactions"
+                title="Push to Journal Entries"
                 onCancel={() => setPushModalOpen(false)}
                 onOk={() => pushMutation.mutate()}
                 confirmLoading={pushMutation.isLoading}
@@ -778,45 +756,17 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                         description={selectedRowKeys.length > 0 ? "Selected transactions only" : "All categorized transactions"}
                     />
                     <div>
-                        <Text strong style={{ display: "block", marginBottom: 8 }}>Push to</Text>
+                        <Text strong style={{ display: "block", marginBottom: 8 }}>Bank Account</Text>
                         <Select
-                            value={pushMode}
-                            onChange={setPushMode as any}
+                            placeholder="Select bank account..."
+                            options={bankAccounts}
+                            value={pushTarget || undefined}
+                            onChange={setPushTarget}
                             style={{ width: "100%" }}
+                            showSearch
+                            optionFilterProp="label"
                             size="large"
-                            options={[
-                                { label: "Bank Reconciliation", value: "reconciliation" },
-                                { label: "Journal Entries", value: "journal" },
-                            ]}
                         />
-                    </div>
-                    <div>
-                        <Text strong style={{ display: "block", marginBottom: 8 }}>
-                            {pushMode === "reconciliation" ? "Reconciliation" : "Bank Account"}
-                        </Text>
-                        {pushMode === "reconciliation" ? (
-                            <Select
-                                placeholder="Select reconciliation..."
-                                options={reconciliationOptions}
-                                value={pushTarget || undefined}
-                                onChange={setPushTarget}
-                                style={{ width: "100%" }}
-                                showSearch
-                                optionFilterProp="label"
-                                size="large"
-                            />
-                        ) : (
-                            <Select
-                                placeholder="Select bank account..."
-                                options={bankAccounts}
-                                value={pushTarget || undefined}
-                                onChange={setPushTarget}
-                                style={{ width: "100%" }}
-                                showSearch
-                                optionFilterProp="label"
-                                size="large"
-                            />
-                        )}
                     </div>
                 </Space>
             </Modal>

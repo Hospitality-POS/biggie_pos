@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import {
     ProForm, ProFormText,
-    ProFormDateRangePicker, ProFormDigit, ProFormTextArea,
+    ProFormDatePicker, ProFormDigit, ProFormTextArea,
 } from "@ant-design/pro-components";
 import {
     Drawer, Divider, Typography, Upload, Alert, Space,
@@ -15,6 +15,7 @@ import {
 } from "@ant-design/icons";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
+import Papa from "papaparse";
 import {
     importStatement,
     uploadAndParseStatement,
@@ -50,6 +51,33 @@ const IMPORT_METHODS = [
     { key: "manual", label: "Manual Mapping", icon: <SettingOutlined /> },
     { key: "auto", label: "Auto-Detect (PDF)", icon: <FilePdfOutlined /> },
 ];
+
+const HEADER_PATTERNS: Record<string, string[]> = {
+    date: ["transaction date", "date", "value date", "posting date"],
+    description: ["description", "narrative", "details", "particulars", "transaction description"],
+    reference: ["reference", "ref", "cheque no", "cheque", "check no", "transaction id"],
+    debit: ["debits", "debit", "dr", "withdrawal", "money out", "amount out", "paid out"],
+    credit: ["credits", "credit", "cr", "deposit", "money in", "amount in", "paid in"],
+    amount: ["amount", "transaction amount", "amount (kes)", "amt"],
+};
+
+const inferColumnMap = (headers: string[]): Record<string, string> => {
+    const map: Record<string, string> = {};
+    Object.entries(HEADER_PATTERNS).forEach(([key, patterns]) => {
+        const exact = headers.find((h) =>
+            patterns.some((p) => h.toLowerCase().trim() === p)
+        );
+        if (exact) {
+            map[key] = exact;
+            return;
+        }
+        const partial = headers.find((h) =>
+            patterns.some((p) => h.toLowerCase().includes(p))
+        );
+        if (partial) map[key] = partial;
+    });
+    return map;
+};
 
 const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shopId }) => {
     const [form] = ProForm.useForm();
@@ -87,12 +115,9 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
             setUploadProgress(100);
 
             // Auto-fill form with detected data
-            if (data.statement_from || data.statement_to) {
+            if (data.statement_to) {
                 form.setFieldsValue({
-                    period: [
-                        data.statement_from ? dayjs(data.statement_from) : null,
-                        data.statement_to ? dayjs(data.statement_to) : null,
-                    ],
+                    last_date: dayjs(data.statement_to),
                     opening_balance: data.opening_balance || 0,
                     closing_balance: data.closing_balance || 0,
                 });
@@ -132,17 +157,86 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
 
     const parseExcelFile = (file: File) => {
         setFileName(file.name);
+
+        const isHeaderRow = (row: any[]) => {
+            const recognized = [
+                "transaction date", "value date", "posting date", "date",
+                "description", "narrative", "particulars", "details",
+                "reference", "ref", "cheque", "check", "transaction id",
+                "debits", "debit", "withdrawal", "money out", "dr",
+                "credits", "credit", "deposit", "money in", "cr",
+                "amount",
+            ];
+            let score = 0;
+            row.forEach((cell) => {
+                const s = String(cell || "").toLowerCase().trim();
+                if (s && recognized.some((k) => s.includes(k))) score += 1;
+            });
+            return score >= 2;
+        };
+
+        const processRows = (rawRows: any[][]) => {
+            const headerIndex = rawRows.findIndex((r) => r.length >= 3 && isHeaderRow(r));
+            if (headerIndex === -1) {
+                message.error("Could not detect a header row. Make sure the file has column headers.");
+                return;
+            }
+
+            const headers = rawRows[headerIndex].map((h) => String(h || "").trim()).filter((h) => h.length > 0);
+            const data = rawRows.slice(headerIndex + 1);
+
+            const rows: Record<string, any>[] = data.map((r) => {
+                const obj: Record<string, any> = {};
+                headers.forEach((h, i) => {
+                    obj[h] = r[i];
+                });
+                return obj;
+            }).filter((r) => Object.values(r).some((v) => v !== undefined && v !== "" && v !== null));
+
+            if (rows.length > 0) {
+                setFileHeaders(headers);
+                setRawRows(rows);
+
+                const inferredMap = inferColumnMap(headers);
+                setColumnMap(inferredMap);
+
+                if (inferredMap.debit && inferredMap.credit) {
+                    setAmountColumnType("double");
+                } else if (inferredMap.amount) {
+                    setAmountColumnType("single");
+                }
+
+                setCurrentStep(1);
+            } else {
+                message.error("No data rows found after the header.");
+            }
+        };
+
+        const fileExt = file.name.split(".").pop()?.toLowerCase();
+
+        if (fileExt === "csv") {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const text = String(e.target?.result || "").replace(/^\uFEFF/, "");
+                const parsed = Papa.parse(text, {
+                    header: false,
+                    skipEmptyLines: true,
+                    dynamicTyping: false,
+                });
+                processRows(parsed.data as any[][]);
+            };
+            reader.readAsText(file);
+            return false;
+        }
+
+        // Excel (.xlsx, .xls)
         const reader = new FileReader();
         reader.onload = (e) => {
             const data = new Uint8Array(e.target?.result as ArrayBuffer);
             const workbook = XLSX.read(data, { type: "array", cellDates: true });
             const sheet = workbook.Sheets[workbook.SheetNames[0]];
-            const rows: Record<string, any>[] = XLSX.utils.sheet_to_json(sheet, { raw: false });
-            if (rows.length > 0) {
-                setFileHeaders(Object.keys(rows[0]));
-                setRawRows(rows);
-                setCurrentStep(1);
-            }
+            const rawRows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+            processRows(rawRows);
         };
         reader.readAsArrayBuffer(file);
         return false;
@@ -230,8 +324,9 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
                     }
                 } else {
                     // Double column: separate debit and credit
-                    debit = parseFloat(String(row[debitKey] || 0).replace(/,/g, "")) || 0;
-                    credit = parseFloat(String(row[creditKey] || 0).replace(/,/g, "")) || 0;
+                    // Use abs so statements with signed values in either column still render in the right column
+                    debit = Math.abs(parseFloat(String(row[debitKey] || 0).replace(/,/g, "")) || 0);
+                    credit = Math.abs(parseFloat(String(row[creditKey] || 0).replace(/,/g, "")) || 0);
                 }
 
                 const rawDate = row[dateKey];
@@ -255,7 +350,7 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
 
         setParsedRows(parsed);
 
-        // Auto-fill statement period, opening balance, and closing balance
+        // Auto-fill last date, opening balance, and closing balance
         if (parsed.length > 0) {
             const validDates = parsed
                 .map((r) => dayjs(r.transaction_date))
@@ -263,11 +358,10 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
                 .sort((a, b) => a.valueOf() - b.valueOf());
 
             if (validDates.length > 0) {
-                const firstDate = validDates[0];
                 const lastDate = validDates[validDates.length - 1];
 
                 form.setFieldsValue({
-                    period: [firstDate, lastDate],
+                    last_date: lastDate,
                 });
             }
 
@@ -314,6 +408,18 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
             const values = await form.validateFields();
             setSubmitting(true);
 
+            const parsedDates = parsedRows
+                .map((r) => dayjs(r.transaction_date))
+                .filter((d) => d.isValid())
+                .sort((a, b) => a.valueOf() - b.valueOf());
+            const firstDate = parsedDates[0];
+            const lastDate = values.last_date
+                ? dayjs(values.last_date)
+                : parsedDates[parsedDates.length - 1];
+
+            const statement_from = firstDate ? dayjs(firstDate).startOf("day").toISOString() : undefined;
+            const statement_to = lastDate ? dayjs(lastDate).endOf("day").toISOString() : undefined;
+
             let payload: ImportStatementInput;
 
             if (importMethod === "auto" && autoDetectedData) {
@@ -323,8 +429,8 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
                     account_id: selectedAccountId || values.account_id,
                     source_type: "pdf",
                     original_filename: fileName,
-                    statement_from: values.period?.[0]?.toISOString() || autoDetectedData.statement_from,
-                    statement_to: values.period?.[1]?.toISOString() || autoDetectedData.statement_to,
+                    statement_from: statement_from || autoDetectedData.statement_from,
+                    statement_to: statement_to || autoDetectedData.statement_to,
                     opening_balance: values.opening_balance || autoDetectedData.opening_balance || 0,
                     closing_balance: values.closing_balance || autoDetectedData.closing_balance || 0,
                     amount_column_type: amountColumnType,
@@ -347,8 +453,8 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
                     account_id: selectedAccountId || values.account_id,
                     source_type: fileName.endsWith(".csv") ? "csv" : "excel",
                     original_filename: fileName,
-                    statement_from: values.period?.[0]?.toISOString(),
-                    statement_to: values.period?.[1]?.toISOString(),
+                    statement_from,
+                    statement_to,
                     opening_balance: values.opening_balance || 0,
                     closing_balance: values.closing_balance || 0,
                     amount_column_type: amountColumnType,
@@ -435,7 +541,7 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
 
     const previewColumns = [
         { title: "Date", dataIndex: "transaction_date", width: 120, render: (v: string) => dayjs(v).isValid() ? dayjs(v).format("DD MMM YYYY") : v },
-        { title: "Description", dataIndex: "description", ellipsis: true },
+        { title: "Description", dataIndex: "description", width: 240 },
         { title: "Reference", dataIndex: "reference", width: 120 },
         {
             title: "Debit", dataIndex: "debit", width: 110, align: "right" as const,
@@ -811,10 +917,11 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
                                 />
                             </Col>
                         </Row>
-                        <ProFormDateRangePicker
-                            name="period"
-                            label="Statement Period"
-                            fieldProps={{ style: { width: "100%" }, size: "large" }}
+                        <ProFormDatePicker
+                            name="last_date"
+                            label="Last date"
+                            fieldProps={{ style: { width: "100%" }, size: "large", format: "DD/MM/YYYY" }}
+                            rules={[{ required: true, message: "Required" }]}
                         />
                         <ProFormTextArea
                             name="notes"

@@ -10,6 +10,7 @@ import {
 import { useReactToPrint } from "react-to-print";
 import { useQuery } from "@tanstack/react-query";
 import useSystemDetails from "@hooks/useSystemDetails";
+import dayjs from "dayjs";
 import { getAllInvoices } from "@services/cart";
 import { getNotesByInvoice } from "@services/accounting/notes";
 import {
@@ -131,14 +132,15 @@ const InvoiceReprintModal: React.FC<InvoiceReprintModalProps> = ({
   const [open, setOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateId>(1);
 
-  // One ref per template — we always render all five (hidden) so printing is instant
+  // One ref per template — we always render all (hidden) so printing is instant
   const ref1 = useRef<HTMLDivElement>(null);
   const ref2 = useRef<HTMLDivElement>(null);
   const ref3 = useRef<HTMLDivElement>(null);
   const ref4 = useRef<HTMLDivElement>(null);
   const ref5 = useRef<HTMLDivElement>(null);
+  const ref6 = useRef<HTMLDivElement>(null);
   const allRefs: Record<TemplateId, React.RefObject<HTMLDivElement>> = {
-    1: ref1, 2: ref2, 3: ref3, 4: ref4, 5: ref5,
+    1: ref1, 2: ref2, 3: ref3, 4: ref4, 5: ref5, 6: ref6,
   };
 
   const sys: SystemDetails = useSystemDetails();
@@ -148,7 +150,7 @@ const InvoiceReprintModal: React.FC<InvoiceReprintModalProps> = ({
     queryKey: ["invoice-for-print", invoiceId],
     queryFn: async () => {
       const res = await getAllInvoices({ invoice_id: invoiceId, limit: 1 });
-      const found = Array.isArray(res) ? res[0] : res?.data?.[0];
+      const found = Array.isArray(res) ? res[0] : (res as any)?.data?.[0];
       return found ?? invoiceData;
     },
     enabled: open && !!invoiceId,
@@ -179,12 +181,50 @@ const InvoiceReprintModal: React.FC<InvoiceReprintModalProps> = ({
   const print3 = useReactToPrint({ content: () => ref3.current, documentTitle: `Invoice-${orderNo}`, pageStyle: PAGE_STYLE });
   const print4 = useReactToPrint({ content: () => ref4.current, documentTitle: `Invoice-${orderNo}`, pageStyle: PAGE_STYLE });
   const print5 = useReactToPrint({ content: () => ref5.current, documentTitle: `Invoice-${orderNo}`, pageStyle: PAGE_STYLE });
+  const print6 = useReactToPrint({ content: () => ref6.current, documentTitle: `Invoice-${orderNo}`, pageStyle: PAGE_STYLE });
 
   const printMap: Record<TemplateId, () => void> = {
-    1: print1, 2: print2, 3: print3, 4: print4, 5: print5,
+    1: print1, 2: print2, 3: print3, 4: print4, 5: print5, 6: print6,
   };
 
   const handlePrint = () => printMap[selectedTemplate]();
+
+  const handleDownloadPdf = async () => {
+    const node = allRefs[selectedTemplate].current;
+    if (!node) return;
+    try {
+      const html2canvas = (await import("html2canvas")).default;
+      const { default: jsPDF } = await import("jspdf");
+      const clone = node.cloneNode(true) as HTMLElement;
+      clone.style.position = "fixed";
+      clone.style.top = "-9999px";
+      clone.style.left = "-9999px";
+      clone.style.maxHeight = "none";
+      clone.style.overflow = "visible";
+      clone.style.width = "730px";
+      document.body.appendChild(clone);
+      const canvas = await html2canvas(clone, { scale: 2, useCORS: true, allowTaint: true });
+      document.body.removeChild(clone);
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const pageWidth = 210;
+      const imgWidth = pageWidth;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+      heightLeft -= 297;
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+        heightLeft -= 297;
+      }
+      pdf.save(`Invoice-${orderNo}_${dayjs().format("YYYYMMDD")}.pdf`);
+    } catch (e) {
+      console.error("PDF download failed", e);
+    }
+  };
 
   return (
     <>
@@ -257,7 +297,17 @@ const InvoiceReprintModal: React.FC<InvoiceReprintModalProps> = ({
             disabled={isLoading}
             style={{ background: C.primary, borderColor: C.primary, borderRadius: 8 }}
           >
-            Print / Save PDF
+            Print
+          </Button>,
+          <Button
+            key="download"
+            type="primary"
+            icon={<FilePdfOutlined />}
+            onClick={handleDownloadPdf}
+            disabled={isLoading}
+            style={{ background: C.green, borderColor: C.green, borderRadius: 8 }}
+          >
+            Download PDF
           </Button>,
         ]}
       >
@@ -341,8 +391,9 @@ const InvoiceReprintModal: React.FC<InvoiceReprintModalProps> = ({
                 overflowY: "auto",
               }}
             >
-              {([1, 2, 3, 4, 5] as TemplateId[]).map((id) => {
-                const Tpl = TEMPLATES[id - 1].component;
+              {TEMPLATES.map((tpl) => {
+                const Tpl = tpl.component;
+                const id = tpl.id;
                 return (
                   <div key={id} style={{ display: id === selectedTemplate ? "block" : "none" }}>
                     <Tpl ref={allRefs[id]} inv={inv} sys={sys} />

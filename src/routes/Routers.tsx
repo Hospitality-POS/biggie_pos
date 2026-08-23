@@ -364,7 +364,7 @@ const routes = createBrowserRouter(
           element={guardedPage(RestaurantPage, "ORDERS_VIEW_DASHBOARD")} />
 
         <Route path="home-dashboard" errorElement={<NotFound />}
-          element={guardedPage(UnifiedShopDashboardPage, "ORDERS_VIEW_DASHBOARD")} />
+          element={guardedPage(UnifiedShopDashboardPage, "UNIFIED_DASHBOARD_VIEW")} />
 
         <Route path="esign" errorElement={<NotFound />}
           element={guardedPage(ESignPage, "SIGNATURE_VIEW")} />
@@ -590,7 +590,7 @@ const routes = createBrowserRouter(
           element={guardedAdminPage(Table, "CART_VIEW_ITEMS")} />
 
         <Route path="home-dashboard" errorElement={<NotFound />}
-          element={guardedAdminPage(DashboardAdminPage, "ORDERS_VIEW_DASHBOARD")} />
+          element={guardedAdminPage(DashboardAdminPage, "UNIFIED_DASHBOARD_VIEW")} />
 
         <Route path="orders" errorElement={<NotFound />}
           element={guardedAdminPage(MainOrders, "ORDERS_VIEW")} />

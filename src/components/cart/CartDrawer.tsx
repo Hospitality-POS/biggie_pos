@@ -9,7 +9,7 @@ import SkeletonCartItemCard from "./SkeletonCartItemCard";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { useNavigate, useParams } from "react-router-dom";
 import CartLoader from "../spinner/cartLoader";
-import { fetchAllUsersByShopId } from "../../services/users";
+import { fetchAllUsersFlat } from "../../services/users";
 import { fetchMainCategories } from "../../services/categories";
 import { useQuery } from "@tanstack/react-query";
 import { fetchShop, sendCheckinInfo } from "../../services/shops";
@@ -17,6 +17,7 @@ import { getCustomerById, fetchAllCustomers } from "../../services/customers";
 import {
   Button, Space, Typography, Tag, Empty, Divider,
   Flex, Avatar, Tooltip, Select, Popconfirm, message, Modal, Form, InputNumber, Input,
+  List, Checkbox,
 } from "antd";
 import {
   ClearOutlined, CloseCircleOutlined, OrderedListOutlined,
@@ -132,6 +133,10 @@ const CartDrawer: React.FC = () => {
   const [loadingStaff, setLoadingStaff] = useState(false);
   const [editingServedBy, setEditingServedBy] = useState(false);
   const [updatingServedBy, setUpdatingServedBy] = useState(false);
+  const [pendingServedByIds, setPendingServedByIds] = useState<string[]>([]);
+  const [staffSearch, setStaffSearch] = useState("");
+  const [staffPage, setStaffPage] = useState(1);
+  const [staffPageSize, setStaffPageSize] = useState(15);
   const [delinkingCustomer, setDelinkingCustomer] = useState(false);
   const [sendingToPrinter, setSendingToPrinter] = useState(false);
   const [showSendButton, setShowSendButton] = useState(false);
@@ -323,6 +328,18 @@ const CartDrawer: React.FC = () => {
     return [];
   }, [cartDetails?.served_by, cartDetails?.created_by]);
 
+  const filteredStaff = useMemo(() => {
+    const term = staffSearch.trim().toLowerCase();
+    if (!term) return staffList;
+    return staffList.filter((s) => s.label.toLowerCase().includes(term));
+  }, [staffList, staffSearch]);
+
+  const toggleStaff = (id: string) => {
+    setPendingServedByIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
   const slotLabel = useMemo(() => {
     if (isHospitalMode) return activeTable?.name || "No Ward/Bed";
     if (isRetailMode) return activeTable?.name || "No Slot";
@@ -339,9 +356,8 @@ const CartDrawer: React.FC = () => {
     const loadStaff = async () => {
       setLoadingStaff(true);
       try {
-        const users = await fetchAllUsersByShopId();
+        const users = await fetchAllUsersFlat();
         const filtered = (users || [])
-          .filter((u: any) => u.role?.role_type?.toLowerCase() !== "admin")
           .map((u: any) => ({
             value: u._id,
             label: u.username || u.fullname || u.email || "Unknown",
@@ -356,6 +372,14 @@ const CartDrawer: React.FC = () => {
     };
     loadStaff();
   }, []);
+
+  useEffect(() => {
+    if (editingServedBy) {
+      setPendingServedByIds(servedByIds);
+      setStaffSearch("");
+      setStaffPage(1);
+    }
+  }, [editingServedBy, servedByIds]);
 
   useEffect(() => {
     // Load global captain_order setting from localStorage
@@ -877,28 +901,63 @@ const CartDrawer: React.FC = () => {
 
             {/* ── Served by ─────────────────────────────────────────────── */}
             {editingServedBy ? (
-              <div style={{ background: `${primaryColor}08`, border: `1px solid ${primaryColor}40`, borderRadius: 8, padding: "8px 10px" }}>
-                <Text style={{ fontSize: 11, color: "#94a3b8", display: "block", marginBottom: 6 }}>
-                  <SmileFilled style={{ color: "#fbbf24", marginRight: 4 }} />
-                  Assign staff members
-                </Text>
-                <Flex align="center" gap={6}>
-                  <Select
-                    mode="multiple"
-                    size="middle" style={{ flex: 1 }}
-                    loading={loadingStaff || updatingServedBy}
-                    disabled={updatingServedBy}
-                    value={servedByIds}
-                    options={staffList}
-                    placeholder={loadingStaff ? "Loading…" : staffList.length === 0 ? "No staff found" : "Select staff members"}
-                    onChange={handleServedByChange}
-                    autoFocus
-                  />
-                  <Button size="middle" onClick={() => setEditingServedBy(false)} disabled={updatingServedBy} style={{ borderRadius: 6 }}>
-                    Cancel
-                  </Button>
-                </Flex>
-              </div>
+              <Modal
+                title="Assign staff members"
+                open={editingServedBy}
+                onOk={() => { handleServedByChange(pendingServedByIds); }}
+                onCancel={() => setEditingServedBy(false)}
+                confirmLoading={updatingServedBy}
+                okText="Save"
+                cancelText="Cancel"
+                width={560}
+                destroyOnClose
+              >
+                <Input
+                  placeholder="Search staff by name…"
+                  value={staffSearch}
+                  onChange={(e) => { setStaffSearch(e.target.value); setStaffPage(1); }}
+                  allowClear
+                  style={{ marginBottom: 12 }}
+                />
+                {loadingStaff ? (
+                  <Text style={{ fontSize: 13, color: "#64748b" }}>Loading staff…</Text>
+                ) : filteredStaff.length === 0 ? (
+                  <Text style={{ fontSize: 13, color: "#64748b" }}>No staff found</Text>
+                ) : (
+                  <>
+                    <Flex align="center" justify="space-between" style={{ marginBottom: 8 }}>
+                      <Text style={{ fontSize: 12, color: "#64748b" }}>
+                        {pendingServedByIds.length} selected
+                      </Text>
+                    </Flex>
+                    <List
+                      bordered
+                      size="small"
+                      dataSource={filteredStaff}
+                      pagination={{
+                        current: staffPage,
+                        pageSize: staffPageSize,
+                        onChange: (page, size) => {
+                          setStaffPage(page);
+                          if (size) setStaffPageSize(size);
+                        },
+                        showSizeChanger: true,
+                        pageSizeOptions: ["10", "15", "30", "50"],
+                      }}
+                      renderItem={(staff) => (
+                        <List.Item key={staff.value}>
+                          <Checkbox
+                            checked={pendingServedByIds.includes(staff.value)}
+                            onChange={() => toggleStaff(staff.value)}
+                          >
+                            {staff.label}
+                          </Checkbox>
+                        </List.Item>
+                      )}
+                    />
+                  </>
+                )}
+              </Modal>
             ) : (
               <div
                 style={{

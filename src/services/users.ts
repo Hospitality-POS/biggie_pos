@@ -54,7 +54,9 @@ export const fetchAllUsersList = async (data?: ParamsType & { shop_id?: string }
     });
 
     // Backend returns { users: [...], pagination: {...} }
-    // Extract and return just the users array
+    if (safeData.returnPagination) {
+      return response.data || { users: [], pagination: { total: 0, limit: 10, skip: 0, hasMore: false } };
+    }
     return response.data?.users || response.data || [];
   } catch (error: any) {
     // Permission error — interceptor already showed a toast; return empty list silently
@@ -80,7 +82,17 @@ export const fetchAllUsersByShopId = async () => {
     const response = await axiosInstance.get(url);
     return response.data;
   } catch (error) {
-    throw new Error(error?.message);
+    throw new Error(error instanceof Error ? error.message : "Failed to fetch users");
+  }
+};
+
+export const fetchAllUsersFlat = async () => {
+  try {
+    const url = `${BASE_URL}/users/all-flat`;
+    const response = await axiosInstance.get(url);
+    return response.data?.users || [];
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : "Failed to fetch users");
   }
 };
 
@@ -198,17 +210,16 @@ export const updateUsers = async (data: ParamsType) => {
       });
 
       // Get authentication token
-      const token = localStorage.getItem("user")
-        ? JSON.parse(localStorage.getItem("user")).Token
-        : '';
+      const storedUser = localStorage.getItem("user");
+      const token = storedUser ? (JSON.parse(storedUser).Token as string) : "";
 
       // Set request headers
-      const headers = {
-        'Authorization': `Bearer ${token}`
+      const headers: Record<string, string> = {
+        Authorization: `Bearer ${token}`
       };
 
       if (companyCode) {
-        headers['companyCode'] = companyCode;
+        headers.companyCode = companyCode;
       }
 
       // Make API request
@@ -267,7 +278,7 @@ export const updateUsers = async (data: ParamsType) => {
 };
 
 // Add a new user with image upload support
-export const addUser = async (userData) => {
+export const addUser = async (userData: any) => {
   try {
     const tenant = getTenant();
     const companyCode = localStorage.getItem("companyCode");
@@ -330,17 +341,16 @@ export const addUser = async (userData) => {
       });
 
       // Get authentication token
-      const token = localStorage.getItem("user")
-        ? JSON.parse(localStorage.getItem("user")).Token
-        : '';
+      const storedUser = localStorage.getItem("user");
+      const token = storedUser ? (JSON.parse(storedUser).Token as string) : "";
 
       // Set request headers
-      const headers = {
-        'Authorization': `Bearer ${token}`
+      const headers: Record<string, string> = {
+        Authorization: `Bearer ${token}`
       };
 
       if (companyCode) {
-        headers['companyCode'] = companyCode;
+        headers.companyCode = companyCode;
       }
 
       // Make API request

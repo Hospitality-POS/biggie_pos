@@ -39,6 +39,7 @@ const EXCLUDED_ROUTES = [
     '/invoices',
     '/business-types',
     '/suppliers',
+    '/customers/other-branches',
 ];
 
 const NON_CACHEABLE_ROUTES = [
@@ -258,7 +259,11 @@ axiosInstance.interceptors.response.use(
                     break;
                 }
                 case 403:
-                    handleError(response.data.message);
+                    if (response.data?.message?.toLowerCase().includes("locked")) {
+                        handleError(`Transaction Lock: ${response.data.message}`);
+                    } else {
+                        handleError(response.data.message || "Access denied");
+                    }
                     break;
                 case 409:
                     handleError(response.data.message || "Company does not exist kindly contact support");
