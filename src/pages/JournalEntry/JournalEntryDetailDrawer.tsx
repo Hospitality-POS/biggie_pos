@@ -17,6 +17,7 @@ import {
 import {
     CheckCircleOutlined,
     StopOutlined,
+    EditOutlined,
     SwapOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -60,9 +61,10 @@ interface Props {
     onClose: () => void;
     entryId: string | null;
     onSuccess: () => void;
+    onEdit?: (id: string) => void;
 }
 
-const JournalEntryDetailDrawer: React.FC<Props> = ({ open, onClose, entryId, onSuccess }) => {
+const JournalEntryDetailDrawer: React.FC<Props> = ({ open, onClose, entryId, onSuccess, onEdit }) => {
     const queryClient = useQueryClient();
     const [voidModalOpen, setVoidModalOpen] = useState(false);
     const [voidReason, setVoidReason] = useState("");
@@ -213,6 +215,14 @@ const JournalEntryDetailDrawer: React.FC<Props> = ({ open, onClose, entryId, onS
                 extra={
                     entry && (
                         <Space>
+                            {onEdit && entry.source === "manual" && !entry.period_locked && status !== "Voided" && (
+                                <Button
+                                    icon={<EditOutlined />}
+                                    onClick={() => onEdit?.(entry._id)}
+                                >
+                                    Edit
+                                </Button>
+                            )}
                             {status === "Draft" && (
                                 <Button
                                     type="primary"

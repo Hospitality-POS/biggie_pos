@@ -19,6 +19,7 @@ import {
 import {
     PlusOutlined,
     EyeOutlined,
+    EditOutlined,
     AccountBookOutlined,
     FilterOutlined,
 } from "@ant-design/icons";
@@ -86,6 +87,7 @@ const JournalEntriesPage: React.FC = () => {
 
     const [activeStatus, setActiveStatus] = useState<JournalEntryStatus | "ALL">("ALL");
     const [formOpen, setFormOpen] = useState(false);
+    const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
     const [detailOpen, setDetailOpen] = useState(false);
     const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
     const [page, setPage] = useState(1);
@@ -133,6 +135,13 @@ const JournalEntriesPage: React.FC = () => {
     const openDetail = (id: string) => {
         setSelectedEntryId(id);
         setDetailOpen(true);
+    };
+
+    const openEdit = (id: string) => {
+        setDetailOpen(false);
+        setSelectedEntryId(null);
+        setEditingEntryId(id);
+        setFormOpen(true);
     };
 
     const onFormSuccess = useCallback(() => {
@@ -243,16 +252,27 @@ const JournalEntriesPage: React.FC = () => {
         {
             title: "Actions",
             key: "actions",
-            width: 80,
+            width: 100,
             fixed: "right" as const,
             render: (_: any, record: JournalEntry) => (
-                <Tooltip title="View Details">
-                    <Button
-                        icon={<EyeOutlined />}
-                        size="small"
-                        onClick={() => openDetail(record._id)}
-                    />
-                </Tooltip>
+                <Space size="small">
+                    <Tooltip title="View Details">
+                        <Button
+                            icon={<EyeOutlined />}
+                            size="small"
+                            onClick={() => openDetail(record._id)}
+                        />
+                    </Tooltip>
+                    {record.source === "manual" && !record.period_locked && record.status !== "Voided" && (
+                        <Tooltip title="Edit">
+                            <Button
+                                icon={<EditOutlined />}
+                                size="small"
+                                onClick={() => openEdit(record._id)}
+                            />
+                        </Tooltip>
+                    )}
+                </Space>
             ),
         },
     ];
@@ -433,15 +453,19 @@ const JournalEntriesPage: React.FC = () => {
                 />
             </ProCard>
 
-            {/* ── Create Drawer ── */}
+            {/* ── Create / Edit Drawer ── */}
             <JournalEntryFormDrawer
                 open={formOpen}
-                onClose={() => setFormOpen(false)}
+                onClose={() => {
+                    setFormOpen(false);
+                    setEditingEntryId(null);
+                }}
                 onSuccess={onFormSuccess}
                 shopId={shopId}
+                entryId={editingEntryId}
             />
 
-            {/* ── Detail / Post / Void Drawer ── */}
+            {/* ── Detail / Post / Void / Edit Drawer ── */}
             <JournalEntryDetailDrawer
                 open={detailOpen}
                 onClose={() => {
@@ -450,6 +474,7 @@ const JournalEntriesPage: React.FC = () => {
                 }}
                 entryId={selectedEntryId}
                 onSuccess={onFormSuccess}
+                onEdit={openEdit}
             />
         </App>
     );

@@ -52,6 +52,7 @@ export interface JournalEntry {
     created_by?: string | { _id: string; username: string; name: string };
     createdAt?: string;
     updatedAt?: string;
+    period_locked?: boolean;
 }
 
 export interface JournalEntrySummary {
@@ -91,6 +92,20 @@ export interface CreateManualEntryParams {
         supplier_id?: string;
     }>;
     auto_post?: boolean;
+}
+
+export interface UpdateManualEntryParams {
+    entry_date?: string;
+    description: string;
+    reference?: string;
+    lines: Array<{
+        account_id: string;
+        debit?: number;
+        credit?: number;
+        description?: string;
+        customer_id?: string;
+        supplier_id?: string;
+    }>;
 }
 
 export interface CreateExpenseEntryParams {
@@ -203,6 +218,28 @@ export const createManualEntry = async (data: CreateManualEntryParams) => {
             message.error(error.response.data.message);
         } else {
             message.error("Error creating journal entry");
+        }
+        throw error;
+    }
+};
+
+/**
+ * Update an existing Draft manual journal entry.
+ * Blocked by the server if the period is locked.
+ */
+export const updateJournalEntry = async (id: string, data: UpdateManualEntryParams) => {
+    try {
+        const response = await axiosInstance.put(
+            `${BASE_URL}/accounting/journal-entries/${id}`,
+            data
+        );
+        message.success("Journal entry updated");
+        return response.data as { message: string; entry: JournalEntry };
+    } catch (error) {
+        if (error?.response?.data?.message) {
+            message.error(error.response.data.message);
+        } else {
+            message.error("Error updating journal entry");
         }
         throw error;
     }

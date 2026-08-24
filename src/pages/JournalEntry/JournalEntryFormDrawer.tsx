@@ -22,7 +22,11 @@ import { PlusOutlined, DeleteOutlined, InfoCircleOutlined, ReloadOutlined } from
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
     createManualEntry,
+    getJournalEntryById,
+    updateJournalEntry,
     CreateManualEntryParams,
+    UpdateManualEntryParams,
+    JournalEntry,
 } from "@services/accounting/journals";
 import { getAllAccounts, ChartOfAccount } from "@services/accounting/accounts";
 import AccountFormDrawer from "@pages/ChartOfAccounts/AccountFormDrawer";
@@ -45,6 +49,7 @@ interface Props {
     onClose: () => void;
     onSuccess: () => void;
     shopId: string;
+    entryId?: string | null;
 }
 
 const TYPE_COLORS: Record<string, string> = {
@@ -76,13 +81,20 @@ const generateReferenceNumber = (): string => {
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
-const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shopId }) => {
+const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shopId, entryId }) => {
     const [form] = ProForm.useForm();
     const queryClient = useQueryClient();
     const [lines, setLines] = useState<LineItem[]>([emptyLine(), emptyLine()]);
     const [submitting, setSubmitting] = useState(false);
     const [addAccountOpen, setAddAccountOpen] = useState(false);
     const [reference, setReference] = useState<string>("");
+
+    const { data: entryData, isLoading: entryLoading } = useQuery({
+        queryKey: ["journal-entry-form", entryId],
+        queryFn: () => getJournalEntryById(entryId!),
+        enabled: open && !!entryId,
+    });
+    const editingEntry: JournalEntry | undefined = entryData?.entry;
 
     // ── Accounts ───────────────────────────────────────────────────────────────
 
@@ -110,14 +122,31 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
     // ── Reset on open ──────────────────────────────────────────────────────────
 
     useEffect(() => {
-        if (open) {
+        if (!open) return;
+        if (entryId && editingEntry) {
+            form.setFieldsValue({
+                entry_date: dayjs(editingEntry.entry_date),
+                description: editingEntry.description,
+                reference: editingEntry.reference,
+            });
+            setReference(editingEntry.reference || "");
+            setLines(
+                editingEntry.lines.map((l) => ({
+                    key: l._id || crypto.randomUUID(),
+                    account_id: typeof l.account_id === "object" ? l.account_id._id : l.account_id,
+                    debit: l.debit || 0,
+                    credit: l.credit || 0,
+                    description: l.description || "",
+                }))
+            );
+        } else if (!entryId) {
             const newReference = generateReferenceNumber();
             setReference(newReference);
             form.resetFields();
             form.setFieldValue("reference", newReference);
             setLines([emptyLine(), emptyLine()]);
         }
-    }, [open, form]);
+    }, [open, entryId, editingEntry, form]);
 
     // ── Generate new reference ─────────────────────────────────────────────────
 
@@ -163,29 +192,46 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
 
         setSubmitting(true);
         try {
-            const payload: CreateManualEntryParams = {
-                shop_id: shopId,
-                description: values.description,
-                reference: values.reference,
-                entry_date: values.entry_date
-                    ? dayjs(values.entry_date).toISOString()
-                    : undefined,
-                auto_post: values.auto_post || false,
-                lines: validLines.map((l) => ({
-                    account_id: l.account_id,
-                    debit: l.debit || 0,
-                    credit: l.credit || 0,
-                    description: l.description || undefined,
-                })),
-            };
+            const mappedLines = validLines.map((l) => ({
+                account_id: l.account_id,
+                debit: l.debit || 0,
+                credit: l.credit || 0,
+                description: l.description || undefined,
+            }));
 
-            await createManualEntry(payload);
+            if (entryId) {
+                const payload: UpdateManualEntryParams = {
+                    description: values.description,
+                    reference: values.reference,
+                    entry_date: values.entry_date
+                        ? dayjs(values.entry_date).toISOString()
+                        : undefined,
+                    lines: mappedLines,
+                };
+                await updateJournalEntry(entryId, payload);
+            } else {
+                const payload: CreateManualEntryParams = {
+                    shop_id: shopId,
+                    description: values.description,
+                    reference: values.reference,
+                    entry_date: values.entry_date
+                        ? dayjs(values.entry_date).toISOString()
+                        : undefined,
+                    auto_post: values.auto_post || false,
+                    lines: mappedLines,
+                };
+                await createManualEntry(payload);
+            }
 
             // Close drawer first, then refresh list after drawer animation completes
             onClose();
             setTimeout(() => {
                 queryClient.invalidateQueries({ queryKey: ["journal-entries"] });
                 queryClient.invalidateQueries({ queryKey: ["journal-entry-summary"] });
+                if (entryId) {
+                    queryClient.invalidateQueries({ queryKey: ["journal-entry", entryId] });
+                    queryClient.invalidateQueries({ queryKey: ["journal-entry-form", entryId] });
+                }
                 onSuccess();
             }, 300);
         } finally {
@@ -330,7 +376,7 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
     return (
         <>
             <Drawer
-                title="New Journal Entry"
+                title={entryId ? (editingEntry ? `Edit Journal Entry ${editingEntry.entry_no}` : "Edit Journal Entry") : "New Journal Entry"}
                 open={open}
                 onClose={onClose}
                 width={760}
@@ -341,16 +387,28 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
                     form={form}
                     onFinish={handleManualSubmit}
                     submitter={{
-                        searchConfig: { submitText: "Save Entry", resetText: "Cancel" },
+                        searchConfig: { submitText: entryId ? "Update Entry" : "Save Entry", resetText: "Cancel" },
                         onReset: onClose,
                         submitButtonProps: {
-                            disabled: !isBalanced,
+                            disabled: !isBalanced || !!editingEntry?.period_locked,
                             loading: submitting,
-                            title: !isBalanced ? "Entry must be balanced before saving" : undefined,
+                            title: editingEntry?.period_locked
+                                ? "Period is locked — this entry cannot be updated"
+                                : !isBalanced
+                                    ? "Entry must be balanced before saving"
+                                    : undefined,
                         },
                     }}
                     layout="vertical"
                 >
+                    {editingEntry?.period_locked && (
+                        <Alert
+                            type="error"
+                            showIcon
+                            message="This entry's period is locked and cannot be updated."
+                            style={{ marginBottom: 16 }}
+                        />
+                    )}
                     <Space style={{ width: "100%", flexWrap: "wrap" }} size={12}>
                         <ProFormDatePicker
                             name="entry_date"
@@ -388,11 +446,13 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
                         </div>
                     </Space>
 
-                    <ProFormSwitch
-                        name="auto_post"
-                        label="Post immediately (skip Draft)"
-                        initialValue={true}
-                    />
+                    {!entryId && (
+                        <ProFormSwitch
+                            name="auto_post"
+                            label="Post immediately (skip Draft)"
+                            initialValue={true}
+                        />
+                    )}
 
                     {/* ── Lines ── */}
                     <Divider orientation="left" plain>
