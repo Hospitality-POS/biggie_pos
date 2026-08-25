@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
     Drawer, Table, Typography, Space, Tag,
     Statistic, Row, Col, DatePicker, Button, Dropdown, MenuProps,
@@ -23,6 +23,8 @@ interface Props {
     onClose: () => void;
     account: ChartOfAccount | null;
     shopId: string;
+    initialFrom?: Dayjs;
+    initialTo?: Dayjs;
 }
 
 const SOURCE_COLORS: Record<string, string> = {
@@ -188,13 +190,23 @@ const exportLedgerToPdf = async (
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId }) => {
+const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId, initialFrom, initialTo }) => {
     const [page, setPage] = useState(1);
     const [exporting, setExporting] = useState(false);
     const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null]>([
-        dayjs().startOf("month"),
-        dayjs().endOf("month"),
+        initialFrom ?? dayjs().startOf("month"),
+        initialTo ?? dayjs().endOf("month"),
     ]);
+
+    useEffect(() => {
+        if (open) {
+            setPage(1);
+            setDateRange([
+                initialFrom ?? dayjs().startOf("month"),
+                initialTo ?? dayjs().endOf("month"),
+            ]);
+        }
+    }, [open, initialFrom, initialTo]);
 
     const from = dateRange[0]?.startOf("day").toISOString();
     const to = dateRange[1]?.endOf("day").toISOString();

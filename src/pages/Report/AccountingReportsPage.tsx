@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useContext, useMemo } from "react";
 import {
     Space, Typography, Alert, Spin, Select, App, Empty, Card, Tabs, Tag, Table, Button,
     Modal, Input, message,
@@ -18,6 +18,9 @@ import { fetchAllSuppliers } from "@services/supplier";
 import { fetchAllShops } from "@services/shops";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { sendEmail } from "@services/emailReports";
+import { getAllAccounts, ChartOfAccount } from "@services/accounting/accounts";
+import { getCurrentTenantId } from "@services/tenants";
+import AccountLedgerDrawer from "../ChartOfAccounts/AccountLedgerDrawer";
 import {
     PeriodFilter, AsOfFilter, GLPeriodFilter,
     ComparativePeriod, ComparativeAsOf, GLPeriodValue, suggestComparePeriod,
@@ -26,6 +29,7 @@ import {
     TrialBalanceTable, ProfitAndLossTable, BalanceSheetTable, GeneralLedgerTable,
     VATReportTable, CashFlowTable, AccountBalancesTable, CustomerStatementTable,
     SupplierStatementTable, ARAgingTable, APAgingTable,
+    LedgerContext,
 } from "./ReportTables";
 import dayjs, { Dayjs } from "dayjs";
 
@@ -111,7 +115,11 @@ const ComparativeTable: React.FC<{
     compareLabel: string;
     title?: string;
     showSummary?: boolean;
-}> = ({ rows, currentLabel, compareLabel, title, showSummary }) => (
+}> = ({ rows, currentLabel, compareLabel, title, showSummary }) => {
+    const ledger = useContext(LedgerContext);
+    const onAccountRow = (record: any) =>
+        record?.account_code ? { onClick: () => ledger?.openLedger?.(record.account_code), style: { cursor: "pointer" } } : {};
+    return (
     <div style={{ marginBottom: 16 }}>
         {title && <Text strong style={{ display: "block", fontSize: 13, marginBottom: 8, color: "#374151" }}>{title}</Text>}
         <Table
@@ -133,6 +141,7 @@ const ComparativeTable: React.FC<{
                 { title: "Variance", align: "right" as const, render: (_, row) => <VarianceCell current={row.current ?? 0} compare={row.compare ?? 0} invertColors={row.invertColors} /> },
             ]}
             style={{ borderRadius: 8, overflow: "hidden" }}
+            onRow={onAccountRow}
             summary={showSummary ? () => {
                 const totC = rows.reduce((s, r) => s + (r.current ?? 0), 0);
                 const totCo = rows.reduce((s, r) => s + (r.compare ?? 0), 0);
@@ -147,7 +156,8 @@ const ComparativeTable: React.FC<{
             } : undefined}
         />
     </div>
-);
+    );
+};
 
 const buildCompareMap = (rows: any[], valueKey: string | ((r: any) => number)) => {
     const map: Record<string, number> = {};
@@ -211,6 +221,33 @@ const AccountingReportsPage: React.FC = () => {
     const [accountingMethod, setAccountingMethod] = useState<"accrual" | "cash">("accrual");
     const [displayBy, setDisplayBy] = useState<"customer" | "quarters" | "years" | "total">("total");
 
+    const [ledgerOpen, setLedgerOpen] = useState(false);
+    const [ledgerAccount, setLedgerAccount] = useState<ChartOfAccount | null>(null);
+
+    const shopIdForLedger = selectedBranchId || getCurrentTenantId() || "";
+
+    const accountsQ = useQuery({
+        queryKey: ["coa-lookup", shopIdForLedger],
+        queryFn: () => getAllAccounts({ shop_id: shopIdForLedger }),
+        enabled: !!shopIdForLedger,
+    });
+
+    const accountMap = useMemo(() => {
+        const map: Record<string, ChartOfAccount> = {};
+        accountsQ.data?.accounts?.forEach((a: any) => { map[a.account_code] = a; });
+        return map;
+    }, [accountsQ.data]);
+
+    const openLedger = (accountCode: string) => {
+        const account = accountMap[accountCode];
+        if (!account) {
+            message.error(`Account ${accountCode} not found.`);
+            return;
+        }
+        setLedgerAccount(account);
+        setLedgerOpen(true);
+    };
+
     const [emailModalOpen, setEmailModalOpen] = useState(false);
     const [emailTo, setEmailTo] = useState("");
     const [emailSubject, setEmailSubject] = useState("");
@@ -232,7 +269,10 @@ const AccountingReportsPage: React.FC = () => {
     const buildQueryParams = (params: Record<string, any>) => {
         const cleanParams = cp(params);
         if (selectedBranchId) cleanParams.shop_id = selectedBranchId;
-        if (financialYear) cleanParams.financial_year = financialYear;
+        // financial_year should only be used for as-of / non-period reports;
+        // period reports (P&L, TB, etc.) already have from/to and should not
+        // pull in the whole financial year.
+        if (financialYear && !cleanParams.from && !cleanParams.to) cleanParams.financial_year = financialYear;
         if (accountingMethod) cleanParams.method = accountingMethod;
         if (displayBy) cleanParams.display_by = displayBy;
         return cleanParams;
@@ -744,8 +784,14 @@ const AccountingReportsPage: React.FC = () => {
         </Space>
     );
 
+    const activePeriod = getCurrentPeriod();
+    const ledgerPeriod: [Dayjs | null, Dayjs | null] = Array.isArray(activePeriod)
+        ? activePeriod
+        : [dayjs(activePeriod).startOf("month"), dayjs(activePeriod).endOf("month")];
+
     return (
         <App>
+            <LedgerContext.Provider value={{ openLedger }}>
             <Card bordered styles={{ body: { padding: 0 } }}
                 title={<Space><BarChartOutlined style={{ fontSize: 18, color: primaryColor }} /><Text strong style={{ fontSize: 16 }}>Reports</Text></Space>}
                 extra={
@@ -838,7 +884,9 @@ const AccountingReportsPage: React.FC = () => {
                         />
                     </Space>
                 </Modal>
+                <AccountLedgerDrawer open={ledgerOpen} onClose={() => setLedgerOpen(false)} account={ledgerAccount} shopId={shopIdForLedger} initialFrom={ledgerPeriod[0]} initialTo={ledgerPeriod[1]} />
             </Card>
+            </LedgerContext.Provider>
         </App>
     );
 };
