@@ -460,6 +460,7 @@ const DetailsTab = ({
     order_no, createdAt, issue_date, due_date,
     notes_adjustment, status, notes, terms,
     payments, payment_ids, salesReceipts,
+    journal_entry_id,
   } = record;
 
   // Calculate total payments including sales receipts
@@ -476,6 +477,10 @@ const DetailsTab = ({
       value: `KES ${d?.amount?.toFixed(2) || "0.00"} (${((d?.rate || 0) * 100).toFixed(0)}%)`,
     }))
     : [];
+
+  const journalCode = journal_entry_id
+    ? (typeof journal_entry_id === "object" ? journal_entry_id.entry_no : journal_entry_id)
+    : null;
 
   const statusColor = status === "Paid" ? C.green : status === "Pending" ? C.orange : status === "Overdue" ? C.red : status === "Draft" ? C.subText : C.blue;
   const statusBg = status === "Paid" ? "#f0fdf4" : status === "Pending" ? "#fffbeb" : status === "Overdue" ? "#fef2f2" : "#f8fafc";
@@ -589,6 +594,9 @@ const DetailsTab = ({
             {status || "—"}
           </span>
         </MetaRow>
+        <MetaRow label="Journal Entry">
+          <Text style={{ fontSize: 12 }}>{journalCode ? <Text code style={{ fontSize: 12 }}>{journalCode}</Text> : "—"}</Text>
+        </MetaRow>
         {served_by && <MetaRow label="Served By"><Text style={{ fontSize: 12 }}>{served_by.username}</Text></MetaRow>}
         {created_by && <MetaRow label="Created By"><Text style={{ fontSize: 12 }}>{created_by.username}</Text></MetaRow>}
         {terms && <MetaRow label="Terms"><Text style={{ fontSize: 12 }}>{terms}</Text></MetaRow>}
@@ -690,6 +698,9 @@ const DetailsTab = ({
           {due_date && <ProDescriptions.Item label="Due Date"><Text style={{ fontSize: 12, color: C.red }}>{dayjs(due_date).format("DD MMM YYYY")}</Text></ProDescriptions.Item>}
           <ProDescriptions.Item label="Status">
             <span style={{ background: statusBg, color: statusColor, border: `1px solid ${statusColor}30`, borderRadius: 5, padding: "2px 8px", fontSize: 10, fontWeight: 700 }}>{status || "—"}</span>
+          </ProDescriptions.Item>
+          <ProDescriptions.Item label="Journal Entry">
+            {journalCode ? <Text code style={{ fontSize: 12 }}>{journalCode}</Text> : <Text style={{ fontSize: 12, color: C.subText }}>—</Text>}
           </ProDescriptions.Item>
           <ProDescriptions.Item label="Pricing Mode"><Text style={{ fontSize: 12 }}>{vat_pricing_mode || "—"}</Text></ProDescriptions.Item>
           {served_by && <ProDescriptions.Item label="Served By"><Text style={{ fontSize: 12 }}>{served_by.username}</Text></ProDescriptions.Item>}

@@ -1,11 +1,11 @@
 import { ReactNode } from "react";
 import { useAppSelector } from "src/store";
-import { makePermissionChecker, PERMISSIONS } from "@utils/accessControl";
+import { hasAnyPermission, PERMISSIONS } from "@utils/accessControl";
 import AccessDenied from "@components/AccessDenied";
 
 interface PermissionRouteProps {
-    /** The permission key required to view this route, e.g. "ACCOUNTING_REPORT_PROFIT_LOSS" */
-    permission: string;
+    /** The permission key(s) required to view this route, e.g. "ACCOUNTING_REPORT_PROFIT_LOSS" */
+    permission: string | string[];
     children: ReactNode;
 }
 
@@ -40,11 +40,12 @@ function PermissionRoute({ permission, children }: PermissionRouteProps) {
     const rolePermissions: string[] =
         (user as any)?.rolePermissions ?? (user as any)?.permissions ?? [];
 
-    const can = makePermissionChecker(rolePermissions, isAdmin);
+    const keys = Array.isArray(permission) ? permission : [permission];
+    const allowed = isAdmin || hasAnyPermission(rolePermissions, keys);
 
-    if (!can(permission)) {
-        const label = PERMISSIONS[permission]?.label;
-        return <AccessDenied permissionKey={permission} permissionLabel={label} />;
+    if (!allowed) {
+        const label = keys.map((k) => PERMISSIONS[k]?.label).filter(Boolean).join(" / ");
+        return <AccessDenied permissionKey={keys.join(" / ")} permissionLabel={label} />;
     }
 
     return <>{children}</>;

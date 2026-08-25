@@ -51,13 +51,13 @@ const privatePage = (Component: React.ComponentType) => (
   </Suspense>
 );
 
-const guardedPage = (Component: React.ComponentType, permission: string) => (
+const guardedPage = (Component: React.ComponentType, permission: string | string[]) => (
   <PermissionRoute permission={permission}>
     {privatePage(Component)}
   </PermissionRoute>
 );
 
-const guardedAdminPage = (Component: React.ComponentType, permission: string) => (
+const guardedAdminPage = (Component: React.ComponentType, permission: string | string[]) => (
   <PermissionRoute permission={permission}>
     {adminPage(Component)}
   </PermissionRoute>
@@ -412,7 +412,7 @@ const routes = createBrowserRouter(
           element={guardedPage(CategoryMainSettings, "CATEGORIES_VIEW")} />
 
         <Route path="reports" errorElement={<NotFound />}
-          element={guardedPage(UnifiedReportsPage, "REPORTS_ITEM_SALES")} />
+          element={guardedPage(UnifiedReportsPage, ["REPORTS_ITEM_SALES", "REPORTS_VIEW"])} />
 
         <Route path="inventory-settings" errorElement={<NotFound />}
           element={guardedPage(InventoryMainSettings, "INVENTORY_VIEW")} />
@@ -623,7 +623,7 @@ const routes = createBrowserRouter(
 
         <Route path="reports" errorElement={<NotFound />}
           element={
-            <PermissionRoute permission="REPORTS_ITEM_SALES">
+            <PermissionRoute permission={["REPORTS_ITEM_SALES", "REPORTS_VIEW"]}>
               <Suspense fallback={fullscreenSpin}>
                 <AdminRoute><UnifiedReportsPage /></AdminRoute>
               </Suspense>

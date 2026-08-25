@@ -87,10 +87,13 @@ export const getAllInvoices = async (params: ParamsType) => {
 
     const response = await axiosInstance.get(`${baseUrl}/cart/invoices`, {
       params: {
+        shop_id: params?.shop_id || localStorage.getItem("shopId"),
         orderNo: params?.order_no || params?.orderNo || params?.keyword,
         invoiceNo: params?.invoice_no || params?.invoiceNo,
         tableName: params?.table || params?.tableName,
         customer_id: params?.customer_id,
+        status: params?.status,
+        posted: params?.posted,
         start_date: params?.start_date,
         end_date: params?.end_date
       }

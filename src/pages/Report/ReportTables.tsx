@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useContext, createContext } from "react";
 import {
     Table, Tag, Typography, Space, Alert,
     Divider, Button, Dropdown, MenuProps, Segmented, Descriptions,
@@ -22,6 +22,9 @@ const { Text, Title } = Typography;
 
 const fmt = (v: number) =>
     (v || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+export const LedgerContext = createContext<{ openLedger: (accountCode: string) => void } | null>(null);
+export const useLedger = () => useContext(LedgerContext) ?? { openLedger: () => {} };
 
 const TYPE_COLORS: Record<string, string> = {
     ASSET: "blue", LIABILITY: "red", EQUITY: "purple", REVENUE: "green", EXPENSE: "orange",
@@ -160,6 +163,10 @@ const BLANK_ROW = (keys: string[]) => Object.fromEntries(keys.map((k) => [k, ""]
 
 // ── 1. Trial Balance — NO pagination, show all ────────────────────────────────
 export const TrialBalanceTable: React.FC<{ data: TrialBalanceResponse }> = ({ data }) => {
+    const { openLedger } = useLedger();
+    const onAccountRow = (record: any) =>
+        record?.account_code ? { onClick: () => openLedger(record.account_code), style: { cursor: "pointer" } } : {};
+
     const columns = [
         { title: "Code", dataIndex: "account_code", key: "code", width: 90, render: (v: string) => <Text code style={{ fontSize: 11 }}>{v}</Text> },
         {
@@ -249,7 +256,7 @@ export const TrialBalanceTable: React.FC<{ data: TrialBalanceResponse }> = ({ da
             </div>
             {/* ✅ pagination={false} — show ALL accounts */}
             <Table rowKey={(r) => r.account_code} dataSource={data.rows} columns={columns}
-                size="small" pagination={false} scroll={{ x: 1050 }}
+                size="small" pagination={false} scroll={{ x: 1050 }} onRow={onAccountRow}
                 summary={() => (
                     <Table.Summary fixed>
                         <Table.Summary.Row style={{ background: "#fafafa" }}>
@@ -266,6 +273,9 @@ export const TrialBalanceTable: React.FC<{ data: TrialBalanceResponse }> = ({ da
 
 // ── 2. Profit & Loss (Enhanced with COGS, Operating/Non-Operating splits) ───
 export const ProfitAndLossTable: React.FC<{ data: ProfitAndLossResponse; period?: { from?: string; to?: string } }> = ({ data, period }) => {
+    const { openLedger } = useLedger();
+    const onAccountRow = (record: any) =>
+        record?.account_code ? { onClick: () => openLedger(record.account_code), style: { cursor: "pointer" } } : {};
     const amountCols = (color: string) => [
         { title: "Code", dataIndex: "account_code", width: 90, render: (v: string) => <Text code style={{ fontSize: 11 }}>{v}</Text> },
         { title: "Account", dataIndex: "account_name" },
@@ -557,7 +567,7 @@ export const ProfitAndLossTable: React.FC<{ data: ProfitAndLossResponse; period?
 
             {/* Operating Income */}
             <Text strong style={{ fontSize: 13, display: "block", marginBottom: 6, color: "#389e0d" }}>Operating Income</Text>
-            <Table rowKey="account_code" dataSource={opIncRows.length ? opIncRows : revenueRows} pagination={false} size="small" style={{ marginBottom: 8 }} columns={amountCols("#389e0d")}
+            <Table rowKey="account_code" dataSource={opIncRows.length ? opIncRows : revenueRows} pagination={false} size="small" style={{ marginBottom: 8 }} columns={amountCols("#389e0d")} onRow={onAccountRow}
                 summary={() => (<Table.Summary.Row style={{ background: "#f6ffed" }}><Table.Summary.Cell index={0} colSpan={2}><Text strong>Total for Operating Income</Text></Table.Summary.Cell><Table.Summary.Cell index={2} align="right"><Text strong style={{ color: "#389e0d" }}>{fmt(totalOpInc)}</Text></Table.Summary.Cell></Table.Summary.Row>)}
             />
 
@@ -565,7 +575,7 @@ export const ProfitAndLossTable: React.FC<{ data: ProfitAndLossResponse; period?
             {cogsRows.length > 0 && (
                 <>
                     <Text strong style={{ fontSize: 13, display: "block", margin: "16px 0 6px", color: "#fa8c16" }}>Cost of Goods Sold</Text>
-                    <Table rowKey="account_code" dataSource={cogsRows} pagination={false} size="small" style={{ marginBottom: 8 }} columns={amountCols("#fa8c16")}
+                    <Table rowKey="account_code" dataSource={cogsRows} pagination={false} size="small" style={{ marginBottom: 8 }} columns={amountCols("#fa8c16")} onRow={onAccountRow}
                         summary={() => (<Table.Summary.Row style={{ background: "#fff7e6" }}><Table.Summary.Cell index={0} colSpan={2}><Text strong>Total for Cost of Goods Sold</Text></Table.Summary.Cell><Table.Summary.Cell index={2} align="right"><Text strong style={{ color: "#fa8c16" }}>{fmt(totalCogs)}</Text></Table.Summary.Cell></Table.Summary.Row>)}
                     />
                 </>
@@ -579,7 +589,7 @@ export const ProfitAndLossTable: React.FC<{ data: ProfitAndLossResponse; period?
 
             {/* Operating Expense */}
             <Text strong style={{ fontSize: 13, display: "block", marginBottom: 6, color: "#cf1322" }}>Operating Expense</Text>
-            <Table rowKey="account_code" dataSource={opExpRows.length ? opExpRows : expenseRows} pagination={false} size="small" style={{ marginBottom: 8 }} columns={amountCols("#cf1322")}
+            <Table rowKey="account_code" dataSource={opExpRows.length ? opExpRows : expenseRows} pagination={false} size="small" style={{ marginBottom: 8 }} columns={amountCols("#cf1322")} onRow={onAccountRow}
                 summary={() => (<Table.Summary.Row style={{ background: "#fff2f0" }}><Table.Summary.Cell index={0} colSpan={2}><Text strong>Total for Operating Expense</Text></Table.Summary.Cell><Table.Summary.Cell index={2} align="right"><Text strong style={{ color: "#cf1322" }}>{fmt(totalOpExp)}</Text></Table.Summary.Cell></Table.Summary.Row>)}
             />
 
@@ -595,7 +605,7 @@ export const ProfitAndLossTable: React.FC<{ data: ProfitAndLossResponse; period?
                     {nonOpIncRows.length > 0 && (
                         <>
                             <Text strong style={{ fontSize: 13, display: "block", marginBottom: 6, color: "#10b981" }}>Non Operating Income</Text>
-                            <Table rowKey="account_code" dataSource={nonOpIncRows} pagination={false} size="small" style={{ marginBottom: 8 }} columns={amountCols("#10b981")}
+                            <Table rowKey="account_code" dataSource={nonOpIncRows} pagination={false} size="small" style={{ marginBottom: 8 }} columns={amountCols("#10b981")} onRow={onAccountRow}
                                 summary={() => (<Table.Summary.Row style={{ background: "#f0fdf4" }}><Table.Summary.Cell index={0} colSpan={2}><Text strong>Total for Non Operating Income</Text></Table.Summary.Cell><Table.Summary.Cell index={2} align="right"><Text strong style={{ color: "#10b981" }}>{fmt(totalNonOpInc)}</Text></Table.Summary.Cell></Table.Summary.Row>)}
                             />
                         </>
@@ -603,7 +613,7 @@ export const ProfitAndLossTable: React.FC<{ data: ProfitAndLossResponse; period?
                     {nonOpExpRows.length > 0 && (
                         <>
                             <Text strong style={{ fontSize: 13, display: "block", margin: "16px 0 6px", color: "#ef4444" }}>Non Operating Expense</Text>
-                            <Table rowKey="account_code" dataSource={nonOpExpRows} pagination={false} size="small" style={{ marginBottom: 8 }} columns={amountCols("#ef4444")}
+                            <Table rowKey="account_code" dataSource={nonOpExpRows} pagination={false} size="small" style={{ marginBottom: 8 }} columns={amountCols("#ef4444")} onRow={onAccountRow}
                                 summary={() => (<Table.Summary.Row style={{ background: "#fef2f2" }}><Table.Summary.Cell index={0} colSpan={2}><Text strong>Total for Non Operating Expense</Text></Table.Summary.Cell><Table.Summary.Cell index={2} align="right"><Text strong style={{ color: "#ef4444" }}>{fmt(totalNonOpExp)}</Text></Table.Summary.Cell></Table.Summary.Row>)}
                             />
                         </>
@@ -636,6 +646,9 @@ export const ProfitAndLossTable: React.FC<{ data: ProfitAndLossResponse; period?
 
 // ── 3. Balance Sheet — Print-ready layout ─────────────────────────────────────
 export const BalanceSheetTable: React.FC<{ data: BalanceSheetResponse }> = ({ data }) => {
+    const { openLedger } = useLedger();
+    const onAccountRow = (record: any) =>
+        record?.account_code ? { onClick: () => openLedger(record.account_code), style: { cursor: "pointer" } } : {};
     const primaryColor = usePrimaryColor();
     const bsCols = (color: string) => [
         { title: "Code", dataIndex: "account_code", width: 90, render: (v: string) => v === "NET-INCOME" ? <Tag color="purple" style={{ fontSize: 10 }}>AUTO</Tag> : <Text code style={{ fontSize: 11 }}>{v}</Text> },
@@ -648,7 +661,7 @@ export const BalanceSheetTable: React.FC<{ data: BalanceSheetResponse }> = ({ da
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, padding: "6px 12px", background: `${color}12`, borderLeft: `4px solid ${color}`, borderRadius: "0 6px 6px 0" }}>
                 <Text strong style={{ fontSize: 13, color }}>{title}</Text>
             </div>
-            <Table rowKey="account_code" dataSource={rows} pagination={false} size="small" columns={bsCols(color)}
+            <Table rowKey="account_code" dataSource={rows} pagination={false} size="small" columns={bsCols(color)} onRow={onAccountRow}
                 summary={() => (
                     <Table.Summary.Row style={{ background: `${color}08` }}>
                         <Table.Summary.Cell index={0} colSpan={2}>
@@ -845,7 +858,7 @@ export const BalanceSheetTable: React.FC<{ data: BalanceSheetResponse }> = ({ da
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, padding: "6px 12px", background: "#722ed112", borderLeft: "4px solid #722ed1", borderRadius: "0 6px 6px 0" }}>
                     <Text strong style={{ fontSize: 13, color: "#722ed1" }}>Equity</Text>
                 </div>
-                <Table rowKey="account_code" dataSource={data.equity.accounts} pagination={false} size="small" columns={bsCols("#722ed1")}
+                <Table rowKey="account_code" dataSource={data.equity.accounts} pagination={false} size="small" columns={bsCols("#722ed1")} onRow={onAccountRow}
                     summary={() => (
                         <Table.Summary fixed>
                             <Table.Summary.Row style={{ background: "#722ed108" }}>
@@ -993,6 +1006,9 @@ export const VATReportTable: React.FC<{ data: VATReportResponse }> = ({ data }) 
 
 // ── 6. Cash Flow ──────────────────────────────────────────────────────────────
 export const CashFlowTable: React.FC<{ data: CashFlowResponse }> = ({ data }) => {
+    const { openLedger } = useLedger();
+    const onAccountRow = (record: any) =>
+        record?.account_code ? { onClick: () => openLedger(record.account_code), style: { cursor: "pointer" } } : {};
     const CF_COLS = ["Code", "Account", "Opening (KES)", "Inflows (KES)", "Outflows (KES)", "Net Cash Flow (KES)", "Closing (KES)"];
     const handleExcel = () => {
         const rows = [...data.accounts.map((a) => ({ "Code": a.account_code, "Account": a.account_name, "Opening (KES)": a.opening_balance, "Inflows (KES)": a.inflows, "Outflows (KES)": a.outflows, "Net Cash Flow (KES)": a.net_cash_flow, "Closing (KES)": a.closing_balance })), BLANK_ROW(CF_COLS), { "Code": "TOTALS", "Account": "", "Opening (KES)": "", "Inflows (KES)": data.totals.total_inflows, "Outflows (KES)": data.totals.total_outflows, "Net Cash Flow (KES)": data.totals.net_cash_flow, "Closing (KES)": "" }];
@@ -1014,13 +1030,16 @@ export const CashFlowTable: React.FC<{ data: CashFlowResponse }> = ({ data }) =>
                 </Space>
                 <ExportDropdown onExcel={handleExcel} onPdf={handlePdf} />
             </div>
-            <Table rowKey="account_code" dataSource={data.accounts} pagination={false} size="small" scroll={{ x: 800 }} columns={[{ title: "Code", dataIndex: "account_code", width: 90, render: (v: string) => <Text code style={{ fontSize: 11 }}>{v}</Text> }, { title: "Account", dataIndex: "account_name" }, { title: "Opening", dataIndex: "opening_balance", width: 120, align: "right" as const, render: (v: number) => fmt(v) }, { title: "Inflows", dataIndex: "inflows", width: 120, align: "right" as const, render: (v: number) => <Text style={{ color: "#389e0d" }}>{fmt(v)}</Text> }, { title: "Outflows", dataIndex: "outflows", width: 120, align: "right" as const, render: (v: number) => <Text style={{ color: "#cf1322" }}>{fmt(v)}</Text> }, { title: "Net Cash Flow", dataIndex: "net_cash_flow", width: 130, align: "right" as const, render: (v: number) => <Text strong style={{ color: v >= 0 ? "#389e0d" : "#cf1322" }}>{fmt(Math.abs(v))}</Text> }, { title: "Closing", dataIndex: "closing_balance", width: 120, align: "right" as const, render: (v: number) => <Text strong style={{ color: "#1d39c4" }}>{fmt(v)}</Text> }]} />
+            <Table rowKey="account_code" dataSource={data.accounts} pagination={false} size="small" scroll={{ x: 800 }} onRow={onAccountRow} columns={[{ title: "Code", dataIndex: "account_code", width: 90, render: (v: string) => <Text code style={{ fontSize: 11 }}>{v}</Text> }, { title: "Account", dataIndex: "account_name" }, { title: "Opening", dataIndex: "opening_balance", width: 120, align: "right" as const, render: (v: number) => fmt(v) }, { title: "Inflows", dataIndex: "inflows", width: 120, align: "right" as const, render: (v: number) => <Text style={{ color: "#389e0d" }}>{fmt(v)}</Text> }, { title: "Outflows", dataIndex: "outflows", width: 120, align: "right" as const, render: (v: number) => <Text style={{ color: "#cf1322" }}>{fmt(v)}</Text> }, { title: "Net Cash Flow", dataIndex: "net_cash_flow", width: 130, align: "right" as const, render: (v: number) => <Text strong style={{ color: v >= 0 ? "#389e0d" : "#cf1322" }}>{fmt(Math.abs(v))}</Text> }, { title: "Closing", dataIndex: "closing_balance", width: 120, align: "right" as const, render: (v: number) => <Text strong style={{ color: "#1d39c4" }}>{fmt(v)}</Text> }]} />
         </>
     );
 };
 
 // ── 7. Account Balances ───────────────────────────────────────────────────────
 export const AccountBalancesTable: React.FC<{ data: AccountBalancesResponse }> = ({ data }) => {
+    const { openLedger } = useLedger();
+    const onAccountRow = (record: any) =>
+        record?.account_code ? { onClick: () => openLedger(record.account_code), style: { cursor: "pointer" } } : {};
     const handleExcel = () => exportToExcel("account_balances", data.accounts.map((a) => ({ Code: a.account_code, Account: a.account_name, Type: a.account_type, Normal: a.normal_balance, "Opening (KES)": a.opening_balance, "Total DR (KES)": a.total_debit, "Total CR (KES)": a.total_credit, "Balance (KES)": a.balance })), {
         title: "Account Balances",
         period: `As of ${dayjs().format("DD MMM YYYY")}`
@@ -1031,7 +1050,7 @@ export const AccountBalancesTable: React.FC<{ data: AccountBalancesResponse }> =
             <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
                 <ExportDropdown onExcel={handleExcel} onPdf={handlePdf} />
             </div>
-            <Table rowKey="account_code" dataSource={data.accounts} pagination={{ pageSize: 30, showSizeChanger: true }} size="small" scroll={{ x: 800 }} columns={[{ title: "Code", dataIndex: "account_code", width: 90, render: (v: string) => <Text code style={{ fontSize: 11 }}>{v}</Text> }, { title: "Account", dataIndex: "account_name" }, { title: "Type", dataIndex: "account_type", width: 100, render: (v: string) => <Tag color={TYPE_COLORS[v]}>{v}</Tag> }, { title: "Normal", dataIndex: "normal_balance", width: 80, render: (v: string) => <Tag color={v === "DEBIT" ? "blue" : "green"} style={{ fontSize: 10 }}>{v}</Tag> }, { title: "Opening", dataIndex: "opening_balance", width: 110, align: "right" as const, render: (v: number) => fmt(v) }, { title: "Total DR", dataIndex: "total_debit", width: 110, align: "right" as const, render: (v: number) => <Text style={{ color: "#cf1322" }}>{fmt(v)}</Text> }, { title: "Total CR", dataIndex: "total_credit", width: 110, align: "right" as const, render: (v: number) => <Text style={{ color: "#389e0d" }}>{fmt(v)}</Text> }, { title: "Balance", dataIndex: "balance", width: 120, align: "right" as const, render: (v: number) => <Text strong style={{ color: "#1d39c4" }}>{fmt(v)}</Text> }]} />
+            <Table rowKey="account_code" dataSource={data.accounts} pagination={{ pageSize: 30, showSizeChanger: true }} size="small" scroll={{ x: 800 }} onRow={onAccountRow} columns={[{ title: "Code", dataIndex: "account_code", width: 90, render: (v: string) => <Text code style={{ fontSize: 11 }}>{v}</Text> }, { title: "Account", dataIndex: "account_name" }, { title: "Type", dataIndex: "account_type", width: 100, render: (v: string) => <Tag color={TYPE_COLORS[v]}>{v}</Tag> }, { title: "Normal", dataIndex: "normal_balance", width: 80, render: (v: string) => <Tag color={v === "DEBIT" ? "blue" : "green"} style={{ fontSize: 10 }}>{v}</Tag> }, { title: "Opening", dataIndex: "opening_balance", width: 110, align: "right" as const, render: (v: number) => fmt(v) }, { title: "Total DR", dataIndex: "total_debit", width: 110, align: "right" as const, render: (v: number) => <Text style={{ color: "#cf1322" }}>{fmt(v)}</Text> }, { title: "Total CR", dataIndex: "total_credit", width: 110, align: "right" as const, render: (v: number) => <Text style={{ color: "#389e0d" }}>{fmt(v)}</Text> }, { title: "Balance", dataIndex: "balance", width: 120, align: "right" as const, render: (v: number) => <Text strong style={{ color: "#1d39c4" }}>{fmt(v)}</Text> }]} />
         </>
     );
 };

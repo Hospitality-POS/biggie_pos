@@ -17,7 +17,7 @@ import {
 } from "@ant-design/icons";
 import { getAllInvoices } from "@services/cart";
 import { fetchAllCustomers } from "@services/customers";
-import { convertQuoteToInvoice, recordInvoicePayment, deleteInvoice, duplicateInvoice, voidInvoice } from "@services/accounting/invoice";
+import { convertQuoteToInvoice, recordInvoicePayment, deleteInvoice, duplicateInvoice, voidInvoice, postInvoice } from "@services/accounting/invoice";
 import { fetchAllPaymentMethods } from "@services/paymentMethod";
 import { getAllAccounts } from "@services/accounting/accounts";
 import { generateTaxInvoice } from "@services/accounting/digiTax";
@@ -260,6 +260,17 @@ const MobileInvoiceCard: React.FC<{
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <StatusTag status={record.status} />
+          {record.status !== "Draft" && record.status !== "Voided" && (
+            record.journal_entry_id ? (
+              <Tag color="green" style={{ fontSize: 9, borderRadius: 4 }}>
+                Posted
+              </Tag>
+            ) : (
+              <Tag color="red" style={{ fontSize: 9, borderRadius: 4 }}>
+                Not Posted
+              </Tag>
+            )
+          )}
           {record.status !== "Draft" && (
             record.etr_enabled ? (
               <Tag color="green" style={{ fontSize: 9, borderRadius: 4 }}>
@@ -699,7 +710,7 @@ const InvoicesTable = () => {
     try {
       const { dateRange, ...rest } = filters;
       const data = await getAllInvoices({
-        ...rest, page, limit: 10,
+        ...rest, page, limit: 10, shop_id: shopId,
         start_date: dateRange?.[0] ? dayjs(dateRange[0]).startOf("day").toISOString() : dayjs().startOf("day").toISOString(),
         end_date: dateRange?.[1] ? dayjs(dateRange[1]).endOf("day").toISOString() : dayjs().endOf("day").toISOString(),
       });
@@ -753,6 +764,9 @@ const InvoicesTable = () => {
       { key: "print", label: "Print Quote", icon: <PrinterOutlined /> },
       { key: "convert", label: "Convert to Invoice", icon: <FileDoneOutlined /> },
     ] : []),
+    ...(record.status !== "Draft" && record.status !== "Voided" && !record.journal_entry_id ? [
+      { key: "post", label: "Post to Accounting", icon: <FileDoneOutlined /> },
+    ] : []),
     ...(["Pending", "Partially_Paid", "Overdue"].includes(record.status) ? [
       { key: "pay", label: "Record Payment", icon: <DollarOutlined /> },
     ] : []),
@@ -774,6 +788,7 @@ const InvoicesTable = () => {
     if (key === "duplicate") handleDuplicate(record);
     if (key === "print") printQuote(record);
     if (key === "convert") setConvertTarget(record);
+    if (key === "post") handlePostToAccounting(record);
     if (key === "pay") setPayTarget(record);
     if (key === "credit-note") setCreditNoteTarget(record);
     if (key === "download-pdf") setPdfRecord(record);
@@ -815,6 +830,19 @@ const InvoicesTable = () => {
     duplicateMutation.mutate(record._id);
   };
 
+  // Post to accounting mutation
+  const postMutation = useMutation({
+    mutationFn: (id: string) => postInvoice(id),
+    onSuccess: () => {
+      message.success("Invoice posted to accounting");
+      refreshTable();
+    },
+  });
+
+  const handlePostToAccounting = (record: any) => {
+    postMutation.mutate(record._id);
+  };
+
   const desktopColumns = [
     {
       title: "Order / Quote No.", dataIndex: "order_no",
@@ -831,8 +859,19 @@ const InvoicesTable = () => {
     {
       title: "Status", dataIndex: "status", hideInSearch: true,
       render: (status: any, record: any) => (
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
           <StatusTag status={status} />
+          {record.status !== "Draft" && record.status !== "Voided" && (
+            record.journal_entry_id ? (
+              <Tag color="green" style={{ fontSize: 10, borderRadius: 4 }}>
+                Posted
+              </Tag>
+            ) : (
+              <Tag color="red" style={{ fontSize: 10, borderRadius: 4 }}>
+                Not Posted
+              </Tag>
+            )
+          )}
           {record.status !== "Draft" && (
             record.etr_enabled ? (
               <Tag color="green" style={{ fontSize: 10, borderRadius: 4 }}>
@@ -1171,13 +1210,37 @@ const InvoicesTable = () => {
             hideInTable: true,
             valueType: "text",
           },
+          {
+            title: "Quick Filter", dataIndex: "quick_filter",
+            hideInTable: true,
+            valueType: "select",
+            valueEnum: {
+              all: { text: "All" },
+              not_posted: { text: "Not Posted" },
+              due: { text: "Due (Pending / Partial / Overdue)" },
+              pending: { text: "Pending" },
+              paid: { text: "Paid" },
+              overdue: { text: "Overdue" },
+            },
+            initialValue: "all",
+          },
           ...desktopColumns,
         ]}
         request={async (params) => {
-          const { current, pageSize, dateRange, _timestamp, ...rest } = params;
+          const { current, pageSize, dateRange, _timestamp, quick_filter, ...rest } = params;
+          const apiParams: any = { ...rest, page: current, limit: pageSize, shop_id: shopId };
+
+          if (quick_filter === "not_posted") {
+            apiParams.posted = "false";
+          } else if (quick_filter === "due") {
+            apiParams.status = "Pending,Partially_Paid,Overdue";
+          } else if (["pending", "paid", "overdue"].includes(quick_filter)) {
+            apiParams.status = quick_filter === "pending" ? "Pending" : quick_filter === "paid" ? "Paid" : "Overdue";
+          }
+
           try {
             const data = await getAllInvoices({
-              ...rest, page: current, limit: pageSize,
+              ...apiParams,
               start_date: dateRange?.[0] ? dayjs(dateRange[0]).startOf("day").toISOString() : dayjs().startOf("day").toISOString(),
               end_date: dateRange?.[1] ? dayjs(dateRange[1]).endOf("day").toISOString() : dayjs().endOf("day").toISOString(),
             });

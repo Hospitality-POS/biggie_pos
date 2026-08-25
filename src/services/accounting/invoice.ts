@@ -403,6 +403,27 @@ export const patchInvoice = async (id: string, data: Partial<{
 };
 
 /**
+ * Post an existing invoice to the accounting books.
+ * Creates the journal entry (DR AR, CR Revenue) if it is missing.
+ */
+export const postInvoice = async (id: string) => {
+    try {
+        const response = await axiosInstance.patch(
+            `${BASE_URL}/accounting/invoices/${id}/post`
+        );
+        message.success("Invoice posted to accounting");
+        return response.data as { invoice: Invoice; journal_entry: any };
+    } catch (error) {
+        if (error?.response?.data?.message) {
+            message.error(error.response.data.message);
+        } else {
+            message.error("Error posting invoice");
+        }
+        throw error;
+    }
+};
+
+/**
  * Convert a Draft quote to a Posted invoice.
  * Creates the journal entry (DR AR, CR Revenue) at this point.
  * Optionally pass due_date if not already set on the quote.

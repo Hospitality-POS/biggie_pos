@@ -12,6 +12,7 @@ import {
     App,
     DatePicker,
     Select,
+    Input,
     Tooltip,
     Alert,
     Tabs,
@@ -93,6 +94,7 @@ const JournalEntriesPage: React.FC = () => {
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(20);
     const [sourceFilter, setSourceFilter] = useState<JournalEntrySource | undefined>();
+    const [searchTerm, setSearchTerm] = useState<string>("");
     const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null]>([
         dayjs().startOf("month"),
         dayjs().endOf("month"),
@@ -104,12 +106,13 @@ const JournalEntriesPage: React.FC = () => {
     // ── Data ──────────────────────────────────────────────────────────────────
 
     const { data, isLoading, refetch, error } = useQuery({
-        queryKey: ["journal-entries", shopId, activeStatus, sourceFilter, page, pageSize, from, to],
+        queryKey: ["journal-entries", shopId, activeStatus, sourceFilter, searchTerm, page, pageSize, from, to],
         queryFn: () =>
             getAllJournalEntries({
                 shop_id: shopId,
                 status: activeStatus === "ALL" ? undefined : activeStatus,
                 source: sourceFilter,
+                search: searchTerm || undefined,
                 from,
                 to,
                 page,
@@ -411,6 +414,17 @@ const JournalEntriesPage: React.FC = () => {
                         }}
                         allowClear
                         style={{ width: 180 }}
+                    />
+                    <Input.Search
+                        placeholder="Search by entry number"
+                        allowClear
+                        value={searchTerm}
+                        onSearch={(v) => { setSearchTerm(v); setPage(1); }}
+                        onChange={(e) => {
+                            setSearchTerm(e.target.value);
+                            setPage(1);
+                        }}
+                        style={{ width: 220 }}
                     />
                 </Space>
 

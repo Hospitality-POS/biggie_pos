@@ -357,6 +357,9 @@ export const PERMISSIONS: Record<string, Permission> = {
     REPORTS_PURCHASE_SUMMARY: { key: "REPORTS_PURCHASE_SUMMARY", label: "View Payment Methods Summary Report", module: MODULES.REPORTS, action: "read", moduleScope: "pos" },
     REPORTS_VAT_SUMMARY: { key: "REPORTS_VAT_SUMMARY", label: "View VAT Summary Report (POS)", module: MODULES.REPORTS, action: "read", moduleScope: "pos" },
 
+    // ── REPORTS (Accounting / Unified) ─────────────────────────────────────────
+    REPORTS_VIEW: { key: "REPORTS_VIEW", label: "View Reports", module: MODULES.REPORTS, action: "read", moduleScope: "accounting" },
+
     // ── ROLES ─────────────────────────────────────────────────────────────────
 
     ROLES_VIEW: { key: "ROLES_VIEW", label: "View Roles", module: MODULES.ROLES, action: "read", moduleScope: "core" },
