@@ -32,14 +32,22 @@ function ClientPin({ cart }: ClientPinProps) {
 
   const { data: currentBranchCustomers = [], isLoading: loadingCurrentCustomers, refetch: refetchCustomers } = useQuery({
     queryKey: ["customers", customerSearch],
-    queryFn: () => fetchAllCustomers({ search: customerSearch, customer_name: customerSearch }),
+    queryFn: () => {
+      const digits = customerSearch.replace(/\D/g, "");
+      const search = digits.length >= 7 ? digits.replace(/^(?:254|0)/, "") : customerSearch;
+      return fetchAllCustomers({ search });
+    },
     retry: 1,
     staleTime: 30000,
   });
 
   const { data: otherBranchCustomers = [], isLoading: loadingOtherCustomers } = useQuery({
     queryKey: ["customers-other-branches-cart", customerSearch, selectedOtherShops],
-    queryFn: () => fetchOtherBranchCustomers({ shop_ids: selectedOtherShops.join(","), search: customerSearch }),
+    queryFn: () => {
+      const digits = customerSearch.replace(/\D/g, "");
+      const search = digits.length >= 7 ? digits.replace(/^(?:254|0)/, "") : customerSearch;
+      return fetchOtherBranchCustomers({ shop_ids: selectedOtherShops.join(","), search });
+    },
     enabled: selectedOtherShops.length > 0,
     retry: 1,
     staleTime: 30000,
@@ -212,11 +220,22 @@ function ClientPin({ cart }: ClientPinProps) {
   };
 
   // Filter customers based on search
+  const search = customerSearch.toLowerCase();
+  const phoneDigits = customerSearch.replace(/\D/g, "");
+  const phoneSearch = phoneDigits.length >= 7 ? phoneDigits.replace(/^(?:254|0)/, "") : "";
+
   const filteredCustomers = customers.filter((c: any) => {
-    const search = customerSearch.toLowerCase();
+    const cPhone = c.phone?.toString().toLowerCase() || "";
+    const cAlt = c.alt_phone?.toString().toLowerCase() || "";
+    const cPhoneDigits = cPhone.replace(/\D/g, "").replace(/^(?:254|0)/, "");
+    const cAltDigits = cAlt.replace(/\D/g, "").replace(/^(?:254|0)/, "");
+
     return (
       c.customer_name?.toLowerCase().includes(search) ||
-      c.phone?.toString().includes(search) ||
+      cPhone.includes(search) ||
+      cAlt.includes(search) ||
+      (phoneSearch && cPhoneDigits.includes(phoneSearch)) ||
+      (phoneSearch && cAltDigits.includes(phoneSearch)) ||
       c.email?.toLowerCase().includes(search) ||
       c.code?.toLowerCase().includes(search) ||
       c.kra_pin?.toLowerCase().includes(search) ||
