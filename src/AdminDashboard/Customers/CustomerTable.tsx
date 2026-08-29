@@ -236,6 +236,20 @@ const AdminCustomersTable = ({ nonCustomerEnabled = false }) => {
       search: false,
     },
     {
+      title: "Orders",
+      dataIndex: "order_count",
+      key: "order_count",
+      render: (count) => count || 0,
+      search: false,
+    },
+    {
+      title: "Unreplied",
+      dataIndex: "unreplied_texts",
+      key: "unreplied_texts",
+      render: (count) => count ? <Tag color="error">{count}</Tag> : 0,
+      search: false,
+    },
+    {
       title: "Last Visit",
       dataIndex: "visits",
       key: "last_visit",

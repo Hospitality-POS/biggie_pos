@@ -5,7 +5,7 @@ import {
 import {
     FileOutlined, UploadOutlined, DeleteOutlined, UserOutlined, ShopOutlined,
     MailOutlined, PhoneOutlined, EnvironmentOutlined, IdcardOutlined,
-    DownloadOutlined, EyeOutlined,
+    DownloadOutlined, EyeOutlined, ShoppingOutlined, MessageOutlined,
 } from "@ant-design/icons";
 import { uploadCustomerDocument, deleteCustomerDocument, CustomerDocument } from "@services/customerDocuments";
 
@@ -189,6 +189,14 @@ const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ open, onClo
                                     {customer.credit_limit && (
                                         <InfoRow icon={<UserOutlined />} label="Credit Limit" value={`KES ${customer.credit_limit.toLocaleString()}`} />
                                     )}
+                                </div>
+
+                                {/* ── Engagement ─────────────────────────────────────── */}
+                                <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 14px", marginBottom: 14 }}>
+                                    <SectionTitle label="Engagement" />
+                                    <InfoRow icon={<MessageOutlined />} label="Conversations" value={customer.conversation_count ?? 0} />
+                                    <InfoRow icon={<MessageOutlined />} label="Unreplied messages" value={customer.unreplied_texts ?? 0} />
+                                    <InfoRow icon={<ShoppingOutlined />} label="Orders" value={customer.order_count ?? 0} />
                                 </div>
 
                                 {/* ── Address ─────────────────────────────────────── */}

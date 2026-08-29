@@ -77,9 +77,7 @@ const useAdminProLayoutNav = () => {
   ];
 
   // ── Mteja (CRM) routes — only when Mteja is the sole module ──────────────
-  const mtejaRoutes = [
-    { path: "/admin/mteja", name: "Mteja Dashboard", icon: <CustomerServiceOutlined /> },
-  ];
+  const mtejaRoutes: any[] = [];
 
   // ── Dala (Real Estate) routes ─────────────────────────────────────────────
   const dalaRoutes: Array<{ path: string; name: string; icon: React.ReactNode }> = [];

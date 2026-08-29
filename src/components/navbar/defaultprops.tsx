@@ -311,12 +311,7 @@ const useProLayoutNav = () => {
   }] : [];
 
   // ── Mteja Dashboard (sole module only) ───────────────────────────────────
-  const mtejaDashboardRoute = (isMtejaOnly && can("CUSTOMERS_VIEW")) ? [{
-    path: p("/mteja"),
-    name: "Mteja Dashboard",
-    icon: <CustomerServiceOutlined />,
-    _bare: "/mteja",
-  }] : [];
+  const mtejaDashboardRoute = [] as any[];
 
   // ── Mteja Customers (sole module only) ───────────────────────────────────
   const mtejaCustomersRoute = (isMtejaOnly && can("CUSTOMERS_VIEW")) ? [{
@@ -617,12 +612,7 @@ const useProLayoutNav = () => {
       desc: "Overview of your business performance and metrics.",
       url: p("/home-dashboard"),
     }] : []),
-    ...(can("CUSTOMERS_VIEW") ? [{
-      icon: makeTile("#6c1c2c", ICONS.mteja),
-      title: "Mteja Dashboard",
-      desc: "CRM overview — subscriptions, conversations and customer insights.",
-      url: p("/mteja"),
-    }] : []),
+
     ...(can("CUSTOMERS_VIEW") ? [{
       icon: makeTile("#06b6d4", ICONS.customers),
       title: getCustomerLabel(),

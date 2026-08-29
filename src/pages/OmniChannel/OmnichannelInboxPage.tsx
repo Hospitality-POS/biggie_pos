@@ -59,6 +59,7 @@ export interface Conversation {
     external_contact_phone?: string;
     external_contact_id: string;
     customer_id?: string;
+    lead_id?: string;
     status: ConversationStatus;
     last_message_at: string;
     last_message_preview?: string;
@@ -262,6 +263,7 @@ const OmnichannelInboxPage: React.FC = () => {
                 </Space>
             ),
             value: ch,
+            disabled: ch !== "whatsapp",
         })),
     ];
 
