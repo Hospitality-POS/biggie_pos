@@ -187,44 +187,35 @@ const INTEGRATIONS = [
     },
     {
         id: "mteja",
-        name: "Mteja by Base",
-        category: "CRM & Customer Engagement",
-        description: "Full-stack CRM suite — leads pipeline, campaigns, sales targets, omnichannel conversations, and customer loyalty tools in one platform.",
-        longDescription: "Mteja by Base is your complete customer engagement and sales platform. Manage leads through a visual pipeline, run marketing campaigns, track sales targets and budgets, engage customers across WhatsApp and SMS, and build loyalty programmes — all deeply integrated with Duka by Base and Pesa by Base.",
+        name: "WhatsApp by Base",
+        category: "Customer Engagement",
+        description: "WhatsApp Web integration for your business — manage conversations, convert chats to customers and leads, and track engagement in one inbox.",
+        longDescription: "WhatsApp by Base lets you chat with customers through WhatsApp Web, convert conversations into customers or leads, and view customer engagement stats directly from the omnichannel inbox.",
         features: [
-            "Leads Pipeline & Stage Management",
-            "Lead Activities & Follow-up Tracking",
-            "Marketing Campaigns & ROI Tracking",
-            "Sales Targets & Leaderboard",
-            "Sales Budgets & Approval Workflows",
-            "Customer Relationship Management",
-            "Omnichannel Conversations Inbox",
-            "WhatsApp, SMS & Web Chat Integration",
+            "WhatsApp Web Conversations Inbox",
+            "Convert Chats to Customers",
+            "Convert Chats to Leads",
+            "Customer/Lead Linking",
             "Order & Payment Alerts",
-            "Customer Analytics Dashboard",
-            "Referral Programmes",
+            "Customer Engagement Dashboard",
+            "Conversation Stats",
         ],
         comingSoonFeatures: [
-            "Loyalty Points & Rewards",
-            "Tiered Membership Levels",
-            "Automated SMS Campaigns",
-            "Birthday & Anniversary Rewards",
             "AI Auto-Reply & Chatbot Builder",
+            "Loyalty Points & Rewards",
+            "Automated WhatsApp Campaigns",
         ],
         benefits: [
-            "Full lead-to-customer pipeline",
-            "Increase repeat visits & revenue",
-            "Track sales team performance",
-            "Keep customers informed in real-time",
-            "Reward your best customers",
-            "Data-driven campaigns",
-            "Reduce no-shows",
+            "Chat with customers in real-time",
+            "Turn conversations into sales",
+            "Track unconverted and resolved chats",
+            "Keep customer context in one place",
         ],
         setupTime: "5 minutes",
         status: "available",
         icon: CustomerServiceOutlined,
         color: C.primary,
-        tags: ["Base Suite", "CRM", "Leads", "Loyalty", "Conversations"],
+        tags: ["Base Suite", "WhatsApp", "CRM", "Conversations"],
     },
     {
         id: "dala",
@@ -756,15 +747,15 @@ const DiscoverPage: React.FC = () => {
         onSuccess: () => {
             setMtejaModalOpen(false);
             mtejaForm.resetFields();
-            triggerAppRefresh(queryClient, "Mteja by Base enabled successfully");
+            triggerAppRefresh(queryClient, "WhatsApp by Base enabled successfully");
         },
-        onError: (e: any) => notification.error({ message: "Failed to enable Mteja by Base", description: e.message, style: { borderRadius: 12 } }),
+        onError: (e: any) => notification.error({ message: "Failed to enable WhatsApp by Base", description: e.message, style: { borderRadius: 12 } }),
     });
 
     const disableMtejaMutation = useMutation({
         mutationFn: () => disableMteja(tenantId),
-        onSuccess: () => triggerAppRefresh(queryClient, "Mteja by Base disabled"),
-        onError: (e: any) => notification.error({ message: "Failed to disable Mteja by Base", description: e.message, style: { borderRadius: 12 } }),
+        onSuccess: () => triggerAppRefresh(queryClient, "WhatsApp by Base disabled"),
+        onError: (e: any) => notification.error({ message: "Failed to disable WhatsApp by Base", description: e.message, style: { borderRadius: 12 } }),
     });
 
     const enableDalaMutation = useMutation({
@@ -849,7 +840,7 @@ const DiscoverPage: React.FC = () => {
                 onOk: () => disableBanduMutation.mutateAsync(),
             },
             mteja: {
-                title: "Disable Mteja by Base?",
+                title: "Disable WhatsApp by Base?",
                 content: "This will hide the CRM, leads, campaigns, sales targets, conversations, and loyalty features. Your customer and lead data will be preserved.",
                 onOk: () => disableMtejaMutation.mutateAsync(),
             },
@@ -1108,11 +1099,11 @@ const DiscoverPage: React.FC = () => {
                 </Form>
             </Modal>
 
-            {/* Mteja by Base Modal */}
+            {/* WhatsApp by Base Modal */}
             <Modal open={mtejaModalOpen}
                 onCancel={() => { setMtejaModalOpen(false); mtejaForm.resetFields(); }}
                 footer={null} style={{ top: 20 }} width="min(560px, 96vw)" destroyOnClose
-                title={<ModalTitle icon={<CustomerServiceOutlined />} color={C.primary} title="Enable Mteja by Base" />}
+                title={<ModalTitle icon={<CustomerServiceOutlined />} color={C.primary} title="Enable WhatsApp by Base" />}
             >
                 <Form form={mtejaForm} layout="vertical" onFinish={v => enableMtejaMutation.mutate(v)}
                     initialValues={{ accept_terms: false, accept_charges: false }} style={{ paddingTop: 4 }}>
@@ -1169,7 +1160,7 @@ const DiscoverPage: React.FC = () => {
                         </Form.Item>
                     </FormSection>
                     <ModalFooter onCancel={() => { setMtejaModalOpen(false); mtejaForm.resetFields(); }}
-                        submitLabel="Enable Mteja by Base" loading={enableMtejaMutation.isPending}
+                        submitLabel="Enable WhatsApp by Base" loading={enableMtejaMutation.isPending}
                         cancelDisabled={enableMtejaMutation.isPending} color={C.primary} icon={<CheckCircleOutlined />} />
                 </Form>
             </Modal>
