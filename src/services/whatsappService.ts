@@ -243,6 +243,35 @@ export const connectWhatsappChannel = async (params: any) => {
 
 export const connectChannel = connectWhatsappChannel;
 
+// ── WhatsApp Web QR connection ─────────────────────────────────────────────────
+
+export const startWhatsAppWeb = async () => {
+    try {
+        const response = await axiosInstance.post(`${BASE_URL}/omnichannel/channels/whatsapp-web/start`);
+        return response.data;
+    } catch (error) {
+        handleError(error, "Could not start WhatsApp Web client.");
+    }
+};
+
+export const getWhatsAppWebQR = async () => {
+    try {
+        const response = await axiosInstance.get(`${BASE_URL}/omnichannel/channels/whatsapp-web/qr`);
+        return response.data;
+    } catch (error) {
+        handleError(error, "Could not fetch WhatsApp QR code.");
+    }
+};
+
+export const getWhatsAppWebStatus = async () => {
+    try {
+        const response = await axiosInstance.get(`${BASE_URL}/omnichannel/channels/whatsapp-web/status`);
+        return response.data;
+    } catch (error) {
+        handleError(error, "Could not fetch WhatsApp Web status.");
+    }
+};
+
 // ── Conversations ─────────────────────────────────────────────────────────────
 
 export interface FetchConversationsParams {
@@ -417,6 +446,51 @@ export const uploadMedia = async (params: { file: File; phone_number_id: string 
 };
 
 export const uploadWhatsappMedia = uploadMedia;
+
+export const convertConversationToCustomer = async (params: {
+    conversation_id: string;
+    customer_name?: string;
+    email?: string;
+    location?: string;
+}) => {
+    try {
+        const response = await axiosInstance.post(`${BASE_URL}/omnichannel/conversations/convert-customer`, params);
+        return response.data;
+    } catch (error) {
+        handleError(error, "Error converting to customer");
+    }
+};
+
+export const convertConversationToLead = async (params: {
+    conversation_id: string;
+    lead_name?: string;
+    email?: string;
+}) => {
+    try {
+        const response = await axiosInstance.post(`${BASE_URL}/omnichannel/conversations/convert-lead`, params);
+        return response.data;
+    } catch (error) {
+        handleError(error, "Error converting to lead");
+    }
+};
+
+export const linkConversationToCustomer = async (params: { conversation_id: string; customer_id: string }) => {
+    try {
+        const response = await axiosInstance.post(`${BASE_URL}/omnichannel/conversations/link-customer`, params);
+        return response.data;
+    } catch (error) {
+        handleError(error, "Error linking customer");
+    }
+};
+
+export const linkConversationToLead = async (params: { conversation_id: string; lead_id: string }) => {
+    try {
+        const response = await axiosInstance.post(`${BASE_URL}/omnichannel/conversations/link-lead`, params);
+        return response.data;
+    } catch (error) {
+        handleError(error, "Error linking lead");
+    }
+};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

@@ -83,6 +83,24 @@ const fmtKES = (v: number) =>
 
 const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0);
 
+const playChime = () => {
+    try {
+        const AC = (window as any).AudioContext || (window as any).webkitAudioContext;
+        const ctx = new AC();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(523.25, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1046.5, ctx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.12, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.6);
+    } catch {}
+};
+
 const getStoredShopId = (): string => {
     try {
         const v = localStorage.getItem("shopId");
@@ -597,10 +615,38 @@ const MtejaDashboard: React.FC = () => {
         return c;
     }, [conversations]);
 
+    const unconvertedCount = useMemo(
+        () => conversations.filter(v => !v.customer_id && !v.lead_id).length,
+        [conversations]
+    );
+
+    const avgResolutionTime = useMemo(() => {
+        const resolved = conversations.filter(v => v.status === "resolved" || v.status === "closed");
+        if (!resolved.length) return 0;
+        const ms = resolved.reduce((s, v) => s + (new Date(v.updatedAt).getTime() - new Date(v.createdAt).getTime()), 0) / resolved.length;
+        return Math.round((ms / 3600000) * 10) / 10;
+    }, [conversations]);
+
+    const avgConversionTime = useMemo(() => {
+        const converted = conversations.filter(v => v.customer_id || v.lead_id);
+        if (!converted.length) return 0;
+        const ms = converted.reduce((s, v) => s + (new Date(v.updatedAt).getTime() - new Date(v.createdAt).getTime()), 0) / converted.length;
+        return Math.round((ms / 3600000) * 10) / 10;
+    }, [conversations]);
+
     const unreadCount = useMemo(
         () => conversations.reduce((s, c) => s + (c.unread_count || 0), 0),
         [conversations]
     );
+
+    // Play chime on new unread messages
+    const previousUnreadRef = React.useRef<number | null>(null);
+    React.useEffect(() => {
+        if (previousUnreadRef.current !== null && unreadCount > previousUnreadRef.current) {
+            playChime();
+        }
+        previousUnreadRef.current = unreadCount;
+    }, [unreadCount]);
 
     // ── Customers ─────────────────────────────────────────────────────────────
     const { data: recentCustomers, isLoading: custLoading } = useQuery({
@@ -672,12 +718,15 @@ const MtejaDashboard: React.FC = () => {
         { title: "Open Conversations", value: convCounts.open, color: C.success, bg: C.successLight, icon: <CheckCircleOutlined /> },
         { title: "Pending", value: convCounts.pending, color: C.warning, bg: C.warningLight, icon: <ClockCircleOutlined /> },
         { title: "Resolved", value: convCounts.resolved, color: C.blue, bg: C.blueLight, icon: <CheckCircleOutlined /> },
+        { title: "Unconverted Chats", value: unconvertedCount, color: C.error, bg: C.errorLight, icon: <UserAddOutlined /> },
         { title: "Unread Messages", value: unreadCount, color: unreadCount > 0 ? C.orange : C.gray, bg: unreadCount > 0 ? C.orangeLight : C.bg, icon: <FireOutlined /> },
         { title: "Channels Live", value: connectedCount, color: C.teal, bg: C.tealLight, icon: <WifiOutlined /> },
         { title: "Total Leads", value: totalLeads, color: C.purple, bg: C.purpleLight, icon: <FundOutlined /> },
         { title: "Lead Conversion", value: `${conversionRate.toFixed(1)}%`, color: C.success, bg: C.successLight, icon: <ThunderboltOutlined /> },
         { title: "Pipeline Value", value: fmtKES(totalLeadValue), color: C.blue, bg: C.blueLight, icon: <DollarOutlined /> },
         { title: "Won Revenue", value: fmtKES(wonLeadValue), color: C.success, bg: C.successLight, icon: <TrophyOutlined /> },
+        { title: "Avg Resolution Time", value: `${avgResolutionTime}h`, color: C.blue, bg: C.blueLight, icon: <ClockCircleOutlined /> },
+        { title: "Avg Conversion Time", value: `${avgConversionTime}h`, color: C.purple, bg: C.purpleLight, icon: <ThunderboltOutlined /> },
         { title: "Alerts Sent", value: alertsSent, color: C.warning, bg: C.warningLight, icon: <ThunderboltOutlined /> },
         { title: "Referrals", value: referrals, color: C.indigo, bg: C.indigoLight, icon: <StarOutlined /> },
     ];
@@ -850,8 +899,6 @@ const MtejaDashboard: React.FC = () => {
                             {/* Channel cards */}
                             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                                 <ChannelDot color="#25D366" label="WhatsApp" count={channelCounts.whatsapp} connected={connected.whatsapp} pctOfTotal={pct(channelCounts.whatsapp, totalConversations)} />
-                                <ChannelDot color="#0084FF" label="Messenger" count={channelCounts.messenger} connected={connected.messenger} pctOfTotal={pct(channelCounts.messenger, totalConversations)} />
-                                <ChannelDot color="#E1306C" label="Instagram" count={channelCounts.instagram} connected={connected.instagram} pctOfTotal={pct(channelCounts.instagram, totalConversations)} />
                             </div>
 
                             <Divider style={{ margin: "4px 0" }} />
@@ -861,10 +908,8 @@ const MtejaDashboard: React.FC = () => {
                                 <Text style={{ fontSize: 11, fontWeight: 600, color: C.subtext, textTransform: "uppercase", letterSpacing: "0.4px", display: "block", marginBottom: 10 }}>Connection Status</Text>
                                 {[
                                     { ch: "whatsapp", label: "WhatsApp", color: "#25D366", connected: connected.whatsapp },
-                                    { ch: "messenger", label: "Messenger", color: "#0084FF", connected: connected.messenger },
-                                    { ch: "instagram", label: "Instagram", color: "#E1306C", connected: connected.instagram },
                                 ].map(item => (
-                                    <div key={item.ch} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "7px 0", borderBottom: item.ch !== "instagram" ? `1px solid ${C.border}` : "none" }}>
+                                    <div key={item.ch} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "7px 0" }}>
                                         <Text style={{ fontSize: 12, color: C.text }}>{item.label}</Text>
                                         {item.connected
                                             ? <Space size={4}><CheckCircleOutlined style={{ color: C.success, fontSize: 12 }} /><Text style={{ fontSize: 11, color: C.success }}>Connected</Text></Space>

@@ -8,7 +8,6 @@ import {
     Input,
     MenuProps,
     Modal,
-    Select,
     Space,
     Spin,
     Tag,
@@ -16,8 +15,6 @@ import {
     Typography,
     Upload,
     App,
-    Form,
-    Alert,
 } from "antd";
 import {
     CheckOutlined,
@@ -28,19 +25,20 @@ import {
     PaperClipOutlined,
     SendOutlined,
     UserOutlined,
+    UserAddOutlined,
     AudioOutlined,
     EnvironmentOutlined,
     ThunderboltOutlined,
     MessageOutlined,
-    WarningOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import {
     fetchMessages,
     sendTextMessage,
-    sendTemplateMessage,
     sendMediaMessage,
+    convertConversationToCustomer,
+    convertConversationToLead,
     assignConversation,
     updateConversationStatus,
     markConversationAsRead,
@@ -82,137 +80,6 @@ interface Props {
     onMessageSent: () => void;
     onConversationUpdate: () => void;
 }
-
-// ── Custom Message Modal ──────────────────────────────────────────────────
-
-const CustomMessageModal: React.FC<{
-    open: boolean;
-    onClose: () => void;
-    onSend: (message: string) => void;
-    loading: boolean;
-    isWindowOpen: boolean;
-}> = ({ open, onClose, onSend, loading, isWindowOpen }) => {
-    const [message, setMessage] = useState("");
-
-    const handleSend = () => {
-        if (message.trim()) {
-            onSend(message);
-            setMessage("");
-        }
-    };
-
-    return (
-        <Modal
-            title={
-                <Space>
-                    <MessageOutlined />
-                    <span>Send Message</span>
-                    {!isWindowOpen && (
-                        <Tag color="orange" icon={<WarningOutlined />}>
-                            Will use template
-                        </Tag>
-                    )}
-                </Space>
-            }
-            open={open}
-            onCancel={onClose}
-            onOk={handleSend}
-            confirmLoading={loading}
-            okText="Send"
-            width={500}
-        >
-            {!isWindowOpen && (
-                <Alert
-                    message="24-hour window closed"
-                    description="Your message will be sent as a template. The customer will receive it and the conversation window will reopen."
-                    type="warning"
-                    showIcon
-                    style={{ marginBottom: 16 }}
-                />
-            )}
-            <Form layout="vertical">
-                <Form.Item label="Message" required>
-                    <TextArea
-                        value={message}
-                        onChange={(e) => setMessage(e.target.value)}
-                        placeholder="Type your message here..."
-                        autoSize={{ minRows: 3, maxRows: 8 }}
-                        onPressEnter={(e) => {
-                            if (e.ctrlKey || e.metaKey) {
-                                handleSend();
-                            }
-                        }}
-                    />
-                    <div style={{ fontSize: 11, color: "#bfbfbf", marginTop: 4 }}>
-                        Press Ctrl+Enter to send
-                    </div>
-                </Form.Item>
-            </Form>
-        </Modal>
-    );
-};
-
-// ── Template Selection Modal ──────────────────────────────────────────────────
-
-const TemplateModal: React.FC<{
-    open: boolean;
-    onClose: () => void;
-    onSend: (templateName: string, params: string[]) => void;
-    loading: boolean;
-}> = ({ open, onClose, onSend, loading }) => {
-    const [templateName, setTemplateName] = useState("hello_world");
-    const [params, setParams] = useState<string[]>([]);
-
-    const templates = [
-        { name: "hello_world", label: "Hello World", params: [] },
-        { name: "order_confirmation", label: "Order Confirmation", params: ["order_number"] },
-        { name: "shipping_update", label: "Shipping Update", params: ["tracking_number"] },
-        { name: "payment_received", label: "Payment Received", params: ["amount"] },
-        { name: "support_message", label: "Support Message", params: ["issue"] },
-    ];
-
-    const selectedTemplate = templates.find(t => t.name === templateName);
-
-    const handleSend = () => {
-        onSend(templateName, params);
-        setTemplateName("hello_world");
-        setParams([]);
-    };
-
-    return (
-        <Modal
-            title="Send Template Message"
-            open={open}
-            onCancel={onClose}
-            onOk={handleSend}
-            confirmLoading={loading}
-            okText="Send Template"
-            width={500}
-        >
-            <Form layout="vertical">
-                <Form.Item label="Template" required>
-                    <Select
-                        value={templateName}
-                        onChange={setTemplateName}
-                        options={templates.map(t => ({ label: t.label, value: t.name }))}
-                    />
-                </Form.Item>
-                {selectedTemplate?.params.map((param, index) => (
-                    <Form.Item key={param} label={param.replace("_", " ").toUpperCase()}>
-                        <Input
-                            placeholder={`Enter ${param}`}
-                            onChange={(e) => {
-                                const newParams = [...params];
-                                newParams[index] = e.target.value;
-                                setParams(newParams);
-                            }}
-                        />
-                    </Form.Item>
-                ))}
-            </Form>
-        </Modal>
-    );
-};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -260,6 +127,24 @@ const MessageBubble: React.FC<{ msg: Message; channelColor: string }> = ({
                         }}
                     />
                 ) : null;
+
+            case "video":
+                return msg.media_url ? (
+                    <video
+                        src={msg.media_url}
+                        controls
+                        style={{
+                            maxWidth: 220,
+                            maxHeight: 220,
+                            borderRadius: 8,
+                            display: "block",
+                        }}
+                    />
+                ) : (
+                    <Text style={{ color: isOut ? "rgba(255,255,255,0.7)" : "#8c8c8c" }}>
+                        Video message
+                    </Text>
+                );
 
             case "document":
                 return (
@@ -445,13 +330,13 @@ const MessageThread: React.FC<Props> = ({
     const [allMessages, setAllMessages] = useState<Message[]>([]);
     const [hasMore, setHasMore] = useState(true);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
-    const [templateModalOpen, setTemplateModalOpen] = useState(false);
-    const [customMessageOpen, setCustomMessageOpen] = useState(false);
+    const [sendingMedia, setSendingMedia] = useState(false);
+    const [convertOpen, setConvertOpen] = useState(false);
+    const [convertType, setConvertType] = useState<"customer" | "lead" | null>(null);
+    const [convertName, setConvertName] = useState(conversation.external_contact_name || "");
 
     const cfg = CHANNEL_CONFIG[conversation.channel];
     const statusCfg = STATUS_CONFIG[conversation.status];
-    const isWhatsApp = conversation.channel === "whatsapp";
-    const windowOpen = conversation.is_window_open;
 
     // ── Fetch messages (oldest first, then we'll reverse for display) ─────────
 
@@ -460,6 +345,8 @@ const MessageThread: React.FC<Props> = ({
         queryFn: () => fetchMessages(conversation._id, { page, limit: 30 }),
         enabled: !!conversation._id,
         refetchInterval: 8000,
+        refetchOnMount: "always",
+        staleTime: 0,
     });
 
     // Handle pagination - load older messages (append to top)
@@ -539,99 +426,52 @@ const MessageThread: React.FC<Props> = ({
             }, 100);
         },
         onError: (error: any) => {
-            if (error?.response?.data?.window_expired) {
-                antMessage.warning("24hr window expired. Sending as template instead.");
-                sendAsTemplate(text.trim());
-            } else {
-                antMessage.error("Failed to send message");
-            }
-        },
-    });
-
-    // ── Send custom message as template ────────────────────────────────────────
-
-    const customTemplateMutation = useMutation({
-        mutationFn: (message: string) =>
-            sendTemplateMessage({
-                conversation_id: conversation._id,
-                template_name: "hello_world",
-                language_code: "en_US",
-                template_params: [message],
-            }),
-        onSuccess: () => {
-            antMessage.success("Message sent successfully via template");
-            setCustomMessageOpen(false);
-            refetch();
-            onMessageSent();
-            onConversationUpdate();
-            setTimeout(() => {
-                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-            }, 100);
-        },
-        onError: () => {
-            antMessage.error("Failed to send message. Please try a different template.");
-        },
-    });
-
-    // ── Send as template function ──────────────────────────────────────────────
-
-    const sendAsTemplate = (message: string) => {
-        customTemplateMutation.mutate(message);
-    };
-
-    // ── Send template message ──────────────────────────────────────────────────
-
-    const templateMutation = useMutation({
-        mutationFn: ({ templateName, templateParams }: { templateName: string; templateParams: string[] }) =>
-            sendTemplateMessage({
-                conversation_id: conversation._id,
-                template_name: templateName,
-                language_code: "en_US",
-                template_params: templateParams,
-            }),
-        onSuccess: () => {
-            antMessage.success("Template message sent successfully");
-            setTemplateModalOpen(false);
-            refetch();
-            onMessageSent();
-            onConversationUpdate();
-            setTimeout(() => {
-                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-            }, 100);
-        },
-        onError: () => {
-            antMessage.error("Failed to send template message");
+            antMessage.error(error?.response?.data?.message || "Failed to send message");
         },
     });
 
     const handleSend = () => {
         if (!text.trim()) return;
-
-        if (isWhatsApp && !windowOpen) {
-            setCustomMessageOpen(true);
-        } else {
-            sendMutation.mutate();
-        }
-    };
-
-    const handleSendCustomMessage = (message: string) => {
-        sendAsTemplate(message);
-        setText("");
-    };
-
-    const handleSendTemplate = (templateName: string, params: string[]) => {
-        templateMutation.mutate({ templateName, templateParams: params });
+        sendMutation.mutate();
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
-            if (isWhatsApp && !windowOpen && text.trim()) {
-                setCustomMessageOpen(true);
-            } else if (text.trim()) {
+            if (text.trim()) {
                 sendMutation.mutate();
             }
         }
+    };
+
+    const handleSendMedia = async (file: File) => {
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const media_url = e.target?.result as string;
+            if (!media_url) return;
+            const media_type = file.type.startsWith("image/")
+                ? "image"
+                : file.type.startsWith("video/")
+                    ? "video"
+                    : "document";
+            setSendingMedia(true);
+            const result = await sendMediaMessage({
+                conversation_id: conversation._id,
+                media_type,
+                media_url,
+                caption: "",
+                filename: file.name,
+            });
+            setSendingMedia(false);
+            if (result) {
+                antMessage.success("Media sent");
+                refetch();
+                onMessageSent();
+                onConversationUpdate();
+            }
+        };
+        reader.readAsDataURL(file);
     };
 
     // ── Status update ──────────────────────────────────────────────────────────
@@ -655,6 +495,47 @@ const MessageThread: React.FC<Props> = ({
                 ),
                 onClick: () => statusMutation.mutate(s),
             })),
+    };
+
+    // ── Convert / Link ─────────────────────────────────────────────────────────
+
+    const openConvert = (type: "customer" | "lead") => {
+        setConvertName(conversation.external_contact_name || "");
+        setConvertType(type);
+        setConvertOpen(true);
+    };
+
+    const handleConvert = async () => {
+        if (!convertName.trim() || !convertType) return;
+        let result;
+        if (convertType === "customer") {
+            result = await convertConversationToCustomer({
+                conversation_id: conversation._id,
+                customer_name: convertName.trim(),
+            });
+        } else {
+            result = await convertConversationToLead({
+                conversation_id: conversation._id,
+                lead_name: convertName.trim(),
+            });
+        }
+        if (result) {
+            antMessage.success(`${convertType === "customer" ? "Customer" : "Lead"} created and linked`);
+            queryClient.invalidateQueries({ queryKey: ["customers"] });
+            queryClient.invalidateQueries({ queryKey: ["mteja-recent-customers"] });
+            queryClient.invalidateQueries({ queryKey: ["leads"] });
+            queryClient.invalidateQueries({ queryKey: ["crm-leads"] });
+            queryClient.invalidateQueries({ queryKey: ["mteja-recent-leads"] });
+            onConversationUpdate();
+        }
+        setConvertOpen(false);
+    };
+
+    const convertMenu: MenuProps = {
+        items: [
+            { key: "customer", label: "Convert to Customer", icon: <UserAddOutlined />, onClick: () => openConvert("customer") },
+            { key: "lead", label: "Convert to Lead", icon: <UserAddOutlined />, onClick: () => openConvert("lead") },
+        ],
     };
 
     // ── Group messages by date ─────────────────────────────────────────────────
@@ -742,31 +623,11 @@ const MessageThread: React.FC<Props> = ({
                     </Space>
 
                     <Space>
-                        {isWhatsApp && (
-                            <Tooltip
-                                title={
-                                    windowOpen
-                                        ? "24hr window open - can send text messages"
-                                        : "24hr window closed - messages will be sent as templates"
-                                }
-                            >
-                                <Tag
-                                    style={{ cursor: "default", fontSize: 11 }}
-                                    color={windowOpen ? "success" : "orange"}
-                                >
-                                    {windowOpen ? "Window Open" : "Template Mode"}
-                                </Tag>
-                            </Tooltip>
-                        )}
-                        <Button
-                            size="small"
-                            icon={<ThunderboltOutlined />}
-                            onClick={() => setTemplateModalOpen(true)}
-                            type="primary"
-                            ghost
-                        >
-                            Templates
-                        </Button>
+                        <Dropdown menu={convertMenu} trigger={["click"]}>
+                            <Button size="small" icon={<UserAddOutlined />}>
+                                Convert
+                            </Button>
+                        </Dropdown>
                         <Dropdown menu={statusMenu} trigger={["click"]}>
                             <Button size="small" icon={<DownOutlined />}>
                                 {conversation.status.charAt(0).toUpperCase() +
@@ -848,36 +709,23 @@ const MessageThread: React.FC<Props> = ({
                         background: "#fff",
                     }}
                 >
-                    {isWhatsApp && !windowOpen && (
-                        <Alert
-                            message="Template Mode Active"
-                            description="Messages will be sent as templates to bypass the 24-hour window restriction."
-                            type="info"
-                            showIcon
-                            style={{ marginBottom: 8 }}
-                            action={
-                                <Button
-                                    size="small"
-                                    type="primary"
-                                    ghost
-                                    onClick={() => setTemplateModalOpen(true)}
-                                >
-                                    Browse Templates
-                                </Button>
-                            }
-                        />
-                    )}
-
                     <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-                        <Tooltip title="Send as template">
+                        <Upload
+                            accept="image/*,video/*"
+                            showUploadList={false}
+                            beforeUpload={(file) => {
+                                handleSendMedia(file as File);
+                                return false;
+                            }}
+                        >
                             <Button
-                                icon={<ThunderboltOutlined />}
+                                icon={<PaperClipOutlined />}
                                 size="large"
-                                type="text"
-                                onClick={() => setTemplateModalOpen(true)}
-                                style={{ color: "#faad14", height: 48 }}
+                                disabled={sendingMedia}
+                                loading={sendingMedia}
+                                style={{ height: 48, width: 48 }}
                             />
-                        </Tooltip>
+                        </Upload>
 
                         <div style={{ position: "relative", flex: 1 }}>
                             <TextArea
@@ -905,9 +753,7 @@ const MessageThread: React.FC<Props> = ({
                                     width: "100%",
                                     textAlign: "center"
                                 }}>
-                                    {isWhatsApp && !windowOpen
-                                        ? "Type your message... (will be sent as template)"
-                                        : "Type a message… (Enter to send, Shift+Enter for new line)"}
+                                    Type a message… (Enter to send, Shift+Enter for new line)
                                 </div>
                             )}
                         </div>
@@ -916,7 +762,7 @@ const MessageThread: React.FC<Props> = ({
                             type="primary"
                             icon={<SendOutlined />}
                             onClick={handleSend}
-                            loading={sendMutation.isPending || customTemplateMutation.isPending}
+                            loading={sendMutation.isPending || sendingMedia}
                             disabled={!text.trim()}
                             size="large"
                             style={{
@@ -932,22 +778,22 @@ const MessageThread: React.FC<Props> = ({
                 </div>
             </div>
 
-            {/* Custom Message Modal (for closed window) */}
-            <CustomMessageModal
-                open={customMessageOpen}
-                onClose={() => setCustomMessageOpen(false)}
-                onSend={handleSendCustomMessage}
-                loading={customTemplateMutation.isPending}
-                isWindowOpen={windowOpen}
-            />
-
-            {/* Template Modal */}
-            <TemplateModal
-                open={templateModalOpen}
-                onClose={() => setTemplateModalOpen(false)}
-                onSend={handleSendTemplate}
-                loading={templateMutation.isPending}
-            />
+            <Modal
+                title={convertType === "customer" ? "Convert to Customer" : "Convert to Lead"}
+                open={convertOpen}
+                onCancel={() => setConvertOpen(false)}
+                onOk={handleConvert}
+                okText="Convert"
+                width={400}
+            >
+                <Input
+                    value={convertName}
+                    onChange={(e) => setConvertName(e.target.value)}
+                    placeholder="Enter name"
+                    onPressEnter={handleConvert}
+                    style={{ marginTop: 8 }}
+                />
+            </Modal>
         </>
     );
 };
