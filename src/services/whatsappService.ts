@@ -601,6 +601,69 @@ export const markConversationAsRead = async (conversationId: string) => {
     }
 };
 
+// ── Agent Routing & Queue ─────────────────────────────────────────────────────
+
+export interface Agent {
+    _id: string;
+    fullname: string;
+    thumbnail?: string;
+    is_agent: boolean;
+    agent_status: "online" | "offline" | "busy";
+    open_conversations: number;
+}
+
+export const fetchAgents = async (params: { shop_id: string }) => {
+    try {
+        const response = await axiosInstance.get(`${BASE_URL}/omnichannel/agents`, { params });
+        return response.data;
+    } catch (error: any) {
+        console.warn("[fetchAgents] failed:", error?.response?.status, error?.message);
+        return { agents: [], count: 0 };
+    }
+};
+
+export const setAgentAvailability = async (agentId: string, status: "online" | "offline" | "busy") => {
+    try {
+        const response = await axiosInstance.patch(`${BASE_URL}/omnichannel/agents/${agentId}/availability`, { status });
+        message.success(`Agent status set to ${status}`);
+        return response.data;
+    } catch (error: any) {
+        handleError(error, "Could not update agent availability");
+    }
+};
+
+export const updateAgentRole = async (agentId: string, is_agent: boolean) => {
+    try {
+        const response = await axiosInstance.patch(`${BASE_URL}/omnichannel/agents/${agentId}/role`, { is_agent });
+        message.success(is_agent ? "User promoted to agent" : "Agent deactivated");
+        return response.data;
+    } catch (error: any) {
+        handleError(error, is_agent ? "Could not promote user" : "Could not deactivate agent");
+    }
+};
+
+export const fetchQueue = async (params: { shop_id: string }) => {
+    try {
+        const response = await axiosInstance.get(`${BASE_URL}/omnichannel/conversations/queue`, { params });
+        return response.data;
+    } catch (error: any) {
+        console.warn("[fetchQueue] failed:", error?.response?.status, error?.message);
+        return { queue: [], total: 0 };
+    }
+};
+
+export const handoverConversation = async (conversationId: string, assignedTo: string) => {
+    try {
+        const response = await axiosInstance.patch(`${conversationUrl}/${conversationId}/handover`, {
+            assigned_to: assignedTo,
+        });
+        message.success("Conversation handed over");
+        return response.data;
+    } catch (error: any) {
+        handleError(error, "Error handing over conversation");
+    }
+};
+
 // ── Messages ──────────────────────────────────────────────────────────────────
 
 export interface FetchMessagesParams {

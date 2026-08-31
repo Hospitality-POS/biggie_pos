@@ -8,6 +8,7 @@ import {
     Input,
     MenuProps,
     Modal,
+    Select,
     Space,
     Spin,
     Tag,
@@ -30,6 +31,7 @@ import {
     EnvironmentOutlined,
     ThunderboltOutlined,
     MessageOutlined,
+    CloseOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
@@ -43,6 +45,8 @@ import {
     assignConversation,
     updateConversationStatus,
     markConversationAsRead,
+    fetchAgents,
+    handoverConversation,
 } from "@services/whatsappService";
 import {
     Conversation,
@@ -355,6 +359,28 @@ const MessageThread: React.FC<Props> = ({
     const { message: antMessage } = App.useApp();
     const queryClient = useQueryClient();
     const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    const { data: agentsData } = useQuery({
+        queryKey: ["omnichannel-agents", shopId],
+        queryFn: () => fetchAgents({ shop_id: shopId }),
+        enabled: !!shopId,
+        staleTime: 30_000,
+    });
+
+    const handoverMutation = useMutation({
+        mutationFn: (agentId: string) => handoverConversation(conversation._id, agentId),
+        onSuccess: () => {
+            antMessage.success("Conversation handed over");
+            onConversationUpdate();
+            queryClient.invalidateQueries({ queryKey: ["omnichannel-agents"] });
+        },
+        onError: (error: any) => {
+            antMessage.error(error?.response?.data?.message || "Could not hand over");
+        },
+    });
+
+    const agents = agentsData?.agents || [];
+    const currentAgent = agents.find((a) => a._id === conversation.assigned_to?._id);
     const messagesContainerRef = useRef<HTMLDivElement>(null);
     const [isAutoScroll, setIsAutoScroll] = useState(true);
 
@@ -669,6 +695,31 @@ const MessageThread: React.FC<Props> = ({
                     </Space>
 
                     <Space>
+                        {conversation.assigned_to && (
+                            <Tooltip title={`Assigned to ${conversation.assigned_to.fullname}`}>
+                                <Tag size="small" icon={<UserOutlined />}>
+                                    {conversation.assigned_to.fullname}
+                                </Tag>
+                            </Tooltip>
+                        )}
+                        <Select
+                            size="small"
+                            placeholder="Handover to…"
+                            value={conversation.assigned_to?._id || undefined}
+                            onChange={(value: string) => {
+                                if (value && value !== conversation.assigned_to?._id) {
+                                    handoverMutation.mutate(value);
+                                }
+                            }}
+                            loading={handoverMutation.isPending}
+                            showSearch
+                            style={{ minWidth: 150 }}
+                            options={agents.map((agent) => ({
+                                value: agent._id,
+                                label: `${agent.fullname} (${agent.open_conversations})`,
+                                disabled: agent._id === conversation.assigned_to?._id,
+                            }))}
+                        />
                         <Button size="small" onClick={() => setScriptsOpen(true)}>
                             Scripts
                         </Button>
@@ -683,6 +734,15 @@ const MessageThread: React.FC<Props> = ({
                                     conversation.status.slice(1)}
                             </Button>
                         </Dropdown>
+                        <Button
+                            size="small"
+                            icon={<CloseOutlined />}
+                            disabled={conversation.status === "closed"}
+                            loading={statusMutation.isPending}
+                            onClick={() => statusMutation.mutate("closed")}
+                        >
+                            Close
+                        </Button>
                     </Space>
                 </div>
 
