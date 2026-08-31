@@ -6,6 +6,7 @@ import AccountingDashboardPage from "src/pages/AccountingDashboard/AccountingDas
 import MtejaDashboard from "src/pages/Dashboard/MtejaDashboard";
 import BanduHRDashboard from "src/pages/BanduHR/BanduHRDashboard";
 import UnifiedDalaDashboard from "src/pages/dala/UnifiedDalaDashboard";
+import BusinessImpact from "./BusinessImpact";
 
 // ── Module activation checks ─────────────────────────────────────────────────────
 const getModuleFlags = () => {
@@ -115,8 +116,16 @@ const UnifiedDashboardPage: React.FC = () => {
 
   console.log("[UnifiedDashboardPage] Rendering tabs with activeTab:", activeTab);
 
+  // The "Duka" tab already embeds its own Business Impact panel, so only show
+  // the top-level one here when that tab isn't in play (avoids duplication).
+  const showTopLevelBusinessImpact = activeTab !== "pos";
+
   return (
     <div style={{ padding: 24 }}>
+      {showTopLevelBusinessImpact && (
+        <BusinessImpact hasDuka={hasDuka} hasPesa={hasPesa} hasDala={hasDala} />
+      )}
+
       <Tabs
         activeKey={activeTab}
         onChange={setActiveTab}
