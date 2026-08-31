@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { ProCard } from "@ant-design/pro-components";
 import {
     Button,
@@ -35,7 +35,9 @@ const InstagramIcon = () => (
 );
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+    fetchAgents,
     fetchConversations,
+    fetchQueue,
     fetchWhatsappChannels,
 } from "@services/whatsappService";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
@@ -44,6 +46,7 @@ import MessageThread from "./MessageThread";
 import ScriptsManager from "./ScriptsManager";
 import WelcomeMessageManager from "./WelcomeMessageManager";
 import AnalyticsPage from "./AnalyticsPage";
+import AgentsManager from "./AgentsManager";
 import ConnectChannelDrawer from "./ConnectChannelDrawer";
 
 const { Text, Title } = Typography;
@@ -77,6 +80,21 @@ export const getShopId = (): string => {
     }
 };
 
+export const getCurrentUser = (): { _id?: string; id?: string; isAdmin?: boolean } | null => {
+    try {
+        const raw = localStorage.getItem("user");
+        if (!raw || raw === "null") return null;
+        const parsed = JSON.parse(raw);
+        return {
+            _id: parsed._id || parsed.id,
+            id: parsed.id || parsed._id,
+            isAdmin: !!parsed.isAdmin,
+        };
+    } catch {
+        return null;
+    }
+};
+
 export const CHANNEL_CONFIG: Record<
     string,
     { label: string; color: string; icon: React.ReactNode; bg: string }
@@ -98,12 +116,16 @@ export const STATUS_CONFIG: Record<
 
 const OmnichannelInboxPage: React.FC = () => {
     const shopId = getShopId();
+    const currentUser = getCurrentUser();
+    const isAdmin = !!currentUser?.isAdmin;
+    const currentUserId = currentUser?._id || currentUser?.id || "";
     const primaryColor = usePrimaryColor();
     const queryClient = useQueryClient();
 
     const [activeChannel] = useState<Channel>("whatsapp");
-    const [activeMainTab, setActiveMainTab] = useState<"inbox" | "scripts" | "welcome" | "analytics">("inbox");
-    const [activeStatus, setActiveStatus] = useState<ConversationStatus | "all">("all");
+    const [activeMainTab, setActiveMainTab] = useState<"inbox" | "scripts" | "welcome" | "analytics" | "agents">("inbox");
+    const [activeStatus, setActiveStatus] = useState<ConversationStatus | "all" | "queue">("all");
+    const [selectedAgent, setSelectedAgent] = useState<string>(isAdmin ? "" : "mine");
     const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
     const [connectDrawerOpen, setConnectDrawerOpen] = useState(false);
     const [search, setSearch] = useState("");
@@ -123,12 +145,31 @@ const OmnichannelInboxPage: React.FC = () => {
 
     const channels = channelsData?.channels || [];
 
+    const { data: agentsData, isLoading: agentsLoading } = useQuery({
+        queryKey: ["omnichannel-agents", shopId],
+        queryFn: () => fetchAgents({ shop_id: shopId }),
+        enabled: !!shopId,
+        staleTime: 60_000,
+        refetchInterval: 60_000,
+    });
+
+    const agents = agentsData?.agents || [];
+
     const connected = {
         whatsapp: channels.some((c: any) => c.channel === "whatsapp" && c.is_active),
         messenger: channels.some((c: any) => c.channel === "messenger" && c.is_active),
         instagram: channels.some((c: any) => c.channel === "instagram" && c.is_active),
     };
     const anyConnected = connected.whatsapp || connected.messenger || connected.instagram;
+
+    const getAssignedTo = () => {
+        if (activeStatus === "queue" || !currentUserId) return undefined;
+        if (isAdmin) {
+            if (selectedAgent === "mine") return currentUserId;
+            return selectedAgent || undefined;
+        }
+        return currentUserId;
+    };
 
     const {
         data: conversationsData,
@@ -141,18 +182,25 @@ const OmnichannelInboxPage: React.FC = () => {
             shopId,
             activeChannel,
             activeStatus,
+            selectedAgent,
             page,
             search,
         ],
-        queryFn: () =>
-            fetchConversations({
+        queryFn: async () => {
+            if (activeStatus === "queue") {
+                const data = await fetchQueue({ shop_id: shopId });
+                return { ...data, conversations: data.queue };
+            }
+            return fetchConversations({
                 shop_id: shopId,
                 channel: activeChannel === "all" ? undefined : activeChannel,
                 status: activeStatus === "all" ? undefined : activeStatus,
+                assigned_to: getAssignedTo(),
                 page,
                 limit: 30,
                 search: search || undefined,
-            }),
+            });
+        },
         enabled: !!shopId && anyConnected,
         staleTime: 5_000,
         retry: 1,
@@ -162,6 +210,14 @@ const OmnichannelInboxPage: React.FC = () => {
 
     const conversations = conversationsData?.conversations || [];
     const totalCount = conversationsData?.total || 0;
+
+    // Keep the selected conversation in sync with the list refetches
+    useEffect(() => {
+        if (selectedConversation && conversations.length > 0) {
+            const updated = conversations.find((c: any) => c._id === selectedConversation._id);
+            if (updated) setSelectedConversation(updated);
+        }
+    }, [conversations, selectedConversation]);
 
     // Calculate status counts from conversations array
     const statusCounts = useMemo(() => {
@@ -242,13 +298,14 @@ const OmnichannelInboxPage: React.FC = () => {
                     title={
                         <Tabs
                             activeKey={activeMainTab}
-                            onChange={(k) => setActiveMainTab(k as "inbox" | "scripts" | "welcome" | "analytics")}
+                            onChange={(k) => setActiveMainTab(k as "inbox" | "scripts" | "welcome" | "analytics" | "agents")}
                             style={{ minWidth: 200 }}
                             items={[
                                 { key: "inbox", label: "Inbox" },
                                 { key: "scripts", label: "Scripts" },
                                 { key: "welcome", label: "Auto-Reply" },
                                 { key: "analytics", label: "Analytics" },
+                                { key: "agents", label: "Agents" },
                             ]}
                         />
                     }
@@ -361,8 +418,12 @@ const OmnichannelInboxPage: React.FC = () => {
                                 page={page}
                                 pageSize={30}
                                 search={search}
+                                isAdmin={isAdmin}
+                                agents={agents}
+                                selectedAgent={selectedAgent}
                                 onSearchChange={(v) => { setSearch(v); setPage(1); }}
                                 onStatusChange={(s) => { setActiveStatus(s); setPage(1); }}
+                                onAgentChange={(v) => { setSelectedAgent(v); setPage(1); }}
                                 onPageChange={setPage}
                                 onSelect={handleConversationSelect}
                                 statusCounts={statusCounts}
@@ -420,8 +481,10 @@ const OmnichannelInboxPage: React.FC = () => {
                 <ScriptsManager shopId={shopId} />
             ) : activeMainTab === "welcome" ? (
                 <WelcomeMessageManager shopId={shopId} />
-            ) : (
+            ) : activeMainTab === "analytics" ? (
                 <AnalyticsPage shopId={shopId} />
+            ) : (
+                <AgentsManager shopId={shopId} />
             )}
             </ProCard>
             </div>

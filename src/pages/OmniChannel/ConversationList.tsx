@@ -6,6 +6,7 @@ import {
     Badge,
     Typography,
     Space,
+    Select,
     Tag,
     Spin,
     Empty,
@@ -31,31 +32,43 @@ const { Text } = Typography;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+interface AgentOption {
+    _id: string;
+    fullname: string;
+    thumbnail?: string;
+}
+
 interface Props {
     conversations: Conversation[];
     loading: boolean;
     selectedId: string | null;
-    activeStatus: ConversationStatus | "all";
+    activeStatus: ConversationStatus | "all" | "queue";
     total: number;
     page: number;
     pageSize: number;
     search: string;
     statusCounts: Record<string, number>;
+    queueCount?: number;
     primaryColor: string;
+    isAdmin?: boolean;
+    agents?: AgentOption[];
+    selectedAgent?: string;
     onSelect: (conv: Conversation) => void;
     onSearchChange: (v: string) => void;
-    onStatusChange: (s: ConversationStatus | "all") => void;
+    onStatusChange: (s: ConversationStatus | "all" | "queue") => void;
     onPageChange: (p: number) => void;
+    onAgentChange?: (v: string) => void;
 }
 
 // ── Status tab items ──────────────────────────────────────────────────────────
 
-const STATUS_TABS: { key: ConversationStatus | "all"; label: string }[] = [
+const STATUS_TABS: { key: ConversationStatus | "all" | "queue"; label: string }[] = [
     { key: "all", label: "All" },
     { key: "open", label: "Open" },
     { key: "pending", label: "Pending" },
     { key: "resolved", label: "Resolved" },
     { key: "closed", label: "Closed" },
+    { key: "queue", label: "Queue" },
 ];
 
 // ── Channel dot indicator ─────────────────────────────────────────────────────
@@ -281,25 +294,49 @@ const ConversationList: React.FC<Props> = ({
     pageSize,
     search,
     statusCounts,
+    queueCount,
     primaryColor,
+    isAdmin,
+    agents = [],
+    selectedAgent,
     onSelect,
     onSearchChange,
     onStatusChange,
     onPageChange,
+    onAgentChange,
 }) => {
     return (
         <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
 
-            {/* ── Search ── */}
+            {/* ── Search & agent filter ── */}
             <div style={{ padding: "10px 12px", borderBottom: "1px solid #f0f0f0" }}>
-                <Input
-                    placeholder="Search conversations…"
-                    prefix={<SearchOutlined style={{ color: "#bfbfbf" }} />}
-                    value={search}
-                    onChange={(e) => onSearchChange(e.target.value)}
-                    allowClear
-                    size="middle"
-                />
+                <div style={{ display: "flex", gap: 8 }}>
+                    <Input
+                        placeholder="Search conversations…"
+                        prefix={<SearchOutlined style={{ color: "#bfbfbf" }} />}
+                        value={search}
+                        onChange={(e) => onSearchChange(e.target.value)}
+                        allowClear
+                        size="middle"
+                        style={{ flex: 1 }}
+                    />
+                    {isAdmin && onAgentChange && (
+                        <Select
+                            value={selectedAgent}
+                            onChange={onAgentChange}
+                            style={{ minWidth: 170 }}
+                            size="middle"
+                            options={[
+                                { value: "", label: "All agents" },
+                                { value: "mine", label: "Assigned to me" },
+                                ...agents.map((a) => ({
+                                    value: a._id,
+                                    label: a.fullname,
+                                })),
+                            ]}
+                        />
+                    )}
+                </div>
             </div>
 
             {/* ── Status tabs ── */}
@@ -309,29 +346,34 @@ const ConversationList: React.FC<Props> = ({
                 size="small"
                 style={{ paddingLeft: 8, paddingRight: 8 }}
                 tabBarStyle={{ marginBottom: 0 }}
-                items={STATUS_TABS.map((tab) => ({
-                    key: tab.key,
-                    label: (
-                        <Space size={4}>
-                            <span style={{ fontSize: 12 }}>{tab.label}</span>
-                            {tab.key !== "all" && (statusCounts[tab.key] || 0) > 0 && (
-                                <Badge
-                                    count={statusCounts[tab.key]}
-                                    size="small"
-                                    style={{
-                                        fontSize: 9,
-                                        backgroundColor:
-                                            tab.key === "open"
-                                                ? "#52c41a"
-                                                : tab.key === "pending"
-                                                    ? "#faad14"
-                                                    : "#8c8c8c",
-                                    }}
-                                />
-                            )}
-                        </Space>
-                    ),
-                }))}
+                items={STATUS_TABS.filter(
+                    (tab) => isAdmin || tab.key !== "queue"
+                ).map((tab) => {
+                    const count = tab.key === "queue" ? (queueCount || 0) : (statusCounts[tab.key] || 0);
+                    return {
+                        key: tab.key,
+                        label: (
+                            <Space size={4}>
+                                <span style={{ fontSize: 12 }}>{tab.label}</span>
+                                {tab.key !== "all" && count > 0 && (
+                                    <Badge
+                                        count={count}
+                                        size="small"
+                                        style={{
+                                            fontSize: 9,
+                                            backgroundColor:
+                                                tab.key === "open"
+                                                    ? "#52c41a"
+                                                    : tab.key === "pending" || tab.key === "queue"
+                                                        ? "#faad14"
+                                                        : "#8c8c8c",
+                                        }}
+                                    />
+                                )}
+                            </Space>
+                        ),
+                    };
+                })}
             />
 
             {/* ── List ── */}

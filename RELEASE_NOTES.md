@@ -1,25 +1,23 @@
-# Release Notes — Accounting & Invoices Update
+# Release Notes - Omnichannel Agent Workflow
 
-## Frontend (`biggie_pos`)
+## New features
 
-### Reports
-- P&L / period reports now send `from`/`to` only and no longer incorrectly pull in the whole financial year.
-- Journal Entries page: added entry number search.
-- `/reports` route now grants access to users with either `REPORTS_ITEM_SALES` or the new `REPORTS_VIEW` permission.
+- **Agents tab** in `/omnichannel` for managing support agents.
+  - Promote users to agents.
+  - Set agent status (online / busy / offline).
+  - Deactivate agents.
+- **Agent Performance sub-tab** showing:
+  - Total conversations, resolved/closed, upsell messages, conversion rate, resolution rate, and avg messages per conversation.
+  - Top agents by outbound messages.
+- **Queue tab** for unassigned conversations (admin only).
+- **Handover** select in the conversation thread to reassign to another agent.
+- **Admin agent filter** in the conversation list to view all, own, or a specific agent's conversations.
+- **Close conversation** button in the message thread.
+- Conversation list shows assigned agent avatar on each row.
 
-### Invoices
-- Invoice table shows `Posted` / `Not Posted` badges.
-- Invoice detail view displays the linked `journal_entry_id` entry number.
-- New `Post to Accounting` row action for non-Draft, non-Voided, unposted invoices.
-- Added quick filter on `/orders` for All, Not Posted, Due, Pending, Paid, Overdue.
-- Cart/invoice requests now include `shop_id`.
+## Scoping & routing
 
-### Access Control
-- Added `REPORTS_VIEW` permission under Accounting scope.
-- `PermissionRoute` now accepts a single permission or an array (any match).
-
-## Backend (`biggie_api`)
-
-- New `PATCH /accounting/invoices/:id/post` endpoint.
-- Cart invoice list supports `status` and `posted` filters.
-- Invoice posting logic uses `item.net_amount`, falls back to system account `4100` / first `REVENUE` account, handles VAT-inclusive pricing, discounts, and invoice-level `discount_amount` by scaling revenue to keep the journal balanced.
+- Agents see only conversations assigned to them.
+- Admins see all conversations and can filter by agent.
+- New inbound conversations are auto-assigned to the best available agent.
+- Closed conversations automatically reopen when a new inbound message arrives.
