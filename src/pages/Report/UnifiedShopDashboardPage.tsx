@@ -1,11 +1,12 @@
 import React, { useState } from "react";
-import { Tabs } from "antd";
+import { Tabs, Typography } from "antd";
 import { ShopOutlined, DollarOutlined, CustomerServiceOutlined, TeamOutlined, HomeOutlined } from "@ant-design/icons";
 import Dashboard from "src/pages/Dashboard/Dashboard";
 import AccountingDashboardPage from "src/pages/AccountingDashboard/AccountingDashboardPage";
 import MtejaDashboard from "src/pages/Dashboard/MtejaDashboard";
 import BanduHRDashboard from "src/pages/BanduHR/BanduHRDashboard";
 import DalaDashboard from "src/pages/dala/Dashboard";
+import BusinessImpact from "./BusinessImpact";
 
 // ── Module activation checks ─────────────────────────────────────────────────────
 const getModuleFlags = () => {
@@ -105,7 +106,13 @@ const UnifiedShopDashboardPage: React.FC = () => {
   }
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: 24, background: "#f5f5f5", minHeight: "100%" }}>
+      <Typography.Title level={3} style={{ marginBottom: 24, fontWeight: 600 }}>
+        Home Dashboard
+      </Typography.Title>
+
+      <BusinessImpact hasDuka={hasDuka} hasPesa={hasPesa} hasDala={hasDala} />
+
       <Tabs
         activeKey={activeTab}
         onChange={setActiveTab}

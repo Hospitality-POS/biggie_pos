@@ -51,6 +51,7 @@ import {
 } from "@services/orders";
 import dayjs from "dayjs";
 import { ProCard } from "@ant-design/pro-components";
+import BusinessImpact from "src/pages/Report/BusinessImpact";
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -1084,6 +1085,9 @@ const DashboardAdminPage: React.FC = () => {
           </Space>
         </Flex>
       </div>
+
+      {/* ── AI Business Impact ── */}
+      <BusinessImpact hasDuka />
 
       {/* ── KPI Cards ── */}
       <Row gutter={[12, 12]} style={{ marginBottom: 20 }}>

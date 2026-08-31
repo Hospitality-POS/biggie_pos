@@ -37,6 +37,7 @@ import {
     fetchMessages,
     sendTextMessage,
     sendMediaMessage,
+    suggestReply,
     convertConversationToCustomer,
     convertConversationToLead,
     assignConversation,
@@ -49,6 +50,7 @@ import {
     CHANNEL_CONFIG,
     STATUS_CONFIG,
 } from "./OmnichannelInboxPage";
+import ScriptsManager from "./ScriptsManager";
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -89,6 +91,35 @@ const STATUS_ICONS: Record<string, React.ReactNode> = {
     delivered: <span style={{ fontSize: 10, color: "#bfbfbf" }}>✓✓</span>,
     read: <span style={{ fontSize: 10, color: "#53bdeb" }}>✓✓</span>,
     failed: <CloseCircleOutlined style={{ fontSize: 10, color: "#ff4d4f" }} />,
+};
+
+// ── Text formatting ───────────────────────────────────────────────────────────
+
+const FormattedText: React.FC<{ text?: string }> = ({ text }) => {
+    if (!text) return null;
+    return (
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            {text.split("\n").map((line, i) => {
+                const bullet = line.match(/^(\s*)[-*]\s+(.*)$/);
+                const numbered = line.match(/^(\s*)(\d+)\.\s+(.*)$/);
+                if (bullet) {
+                    return (
+                        <div key={i} style={{ paddingLeft: 10, textIndent: -8 }}>
+                            • {bullet[2]}
+                        </div>
+                    );
+                }
+                if (numbered) {
+                    return (
+                        <div key={i} style={{ paddingLeft: 10, textIndent: -8 }}>
+                            {numbered[2]}. {numbered[3]}
+                        </div>
+                    );
+                }
+                return <div key={i}>{line}</div>;
+            })}
+        </div>
+    );
 };
 
 // ── Message Bubble ────────────────────────────────────────────────────────────
@@ -217,7 +248,7 @@ const MessageBubble: React.FC<{ msg: Message; channelColor: string }> = ({
                         >
                             {msg.template_name || "Template"}
                         </Tag>
-                        {msg.content && <span>{msg.content}</span>}
+                        {msg.content && <FormattedText text={msg.content} />}
                     </Space>
                 );
 
@@ -235,7 +266,7 @@ const MessageBubble: React.FC<{ msg: Message; channelColor: string }> = ({
                 );
 
             default:
-                return <span>{msg.content}</span>;
+                return <FormattedText text={msg.content} />;
         }
     };
 
@@ -261,7 +292,9 @@ const MessageBubble: React.FC<{ msg: Message; channelColor: string }> = ({
                 {renderContent()}
                 {["image", "document", "video"].includes(msg.message_type) &&
                     msg.content && (
-                        <div style={{ marginTop: 4, fontSize: 12 }}>{msg.content}</div>
+                        <div style={{ marginTop: 4, fontSize: 12 }}>
+                            <FormattedText text={msg.content} />
+                        </div>
                     )}
                 <div
                     style={{
@@ -334,6 +367,7 @@ const MessageThread: React.FC<Props> = ({
     const [convertOpen, setConvertOpen] = useState(false);
     const [convertType, setConvertType] = useState<"customer" | "lead" | null>(null);
     const [convertName, setConvertName] = useState(conversation.external_contact_name || "");
+    const [scriptsOpen, setScriptsOpen] = useState(false);
 
     const cfg = CHANNEL_CONFIG[conversation.channel];
     const statusCfg = STATUS_CONFIG[conversation.status];
@@ -427,6 +461,18 @@ const MessageThread: React.FC<Props> = ({
         },
         onError: (error: any) => {
             antMessage.error(error?.response?.data?.message || "Failed to send message");
+        },
+    });
+
+    // ── AI reply suggestion ──────────────────────────────────────────────────────
+
+    const suggestMutation = useMutation({
+        mutationFn: () => suggestReply({ conversation_id: conversation._id, shop_id: shopId }),
+        onSuccess: (data: any) => {
+            if (data?.result) setText(data.result);
+        },
+        onError: (error: any) => {
+            antMessage.error(error?.response?.data?.message || "Could not get AI suggestion");
         },
     });
 
@@ -623,6 +669,9 @@ const MessageThread: React.FC<Props> = ({
                     </Space>
 
                     <Space>
+                        <Button size="small" onClick={() => setScriptsOpen(true)}>
+                            Scripts
+                        </Button>
                         <Dropdown menu={convertMenu} trigger={["click"]}>
                             <Button size="small" icon={<UserAddOutlined />}>
                                 Convert
@@ -774,6 +823,15 @@ const MessageThread: React.FC<Props> = ({
                         >
                             Send
                         </Button>
+                        <Tooltip title="AI suggestion">
+                            <Button
+                                icon={<ThunderboltOutlined />}
+                                onClick={() => suggestMutation.mutate()}
+                                loading={suggestMutation.isPending}
+                                size="large"
+                                style={{ height: 48, width: 48 }}
+                            />
+                        </Tooltip>
                     </div>
                 </div>
             </div>
@@ -792,6 +850,20 @@ const MessageThread: React.FC<Props> = ({
                     placeholder="Enter name"
                     onPressEnter={handleConvert}
                     style={{ marginTop: 8 }}
+                />
+            </Modal>
+
+            <Modal
+                title="Reply Scripts"
+                open={scriptsOpen}
+                onCancel={() => setScriptsOpen(false)}
+                width={900}
+                footer={null}
+                destroyOnClose
+            >
+                <ScriptsManager
+                    shopId={shopId}
+                    readOnly
                 />
             </Modal>
         </>

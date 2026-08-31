@@ -56,8 +56,12 @@ import {
   Slider as AntSlider,
 } from "antd";
 import { ModalForm } from "@ant-design/pro-form";
+import { useQuery } from "@tanstack/react-query";
 import { useAppSelector } from "src/store";
 import { sendEmail, refToHtmlString } from "@services/emailReports";
+import { getWhatsAppWebStatus, sendDocumentViaWhatsApp } from "@services/whatsappService";
+import { fetchAllCustomers } from "@services/customers";
+import { WhatsAppOutlined } from "@ant-design/icons";
 import {
   usePrintDocument,
   type DocumentType,
@@ -86,6 +90,10 @@ interface SendEmailValues {
   recipientName?: string;
   cc?: string;
   intro?: string;
+}
+
+interface SendWhatsAppValues {
+  phone_number: string;
 }
 
 const C = { primary: "#6c1c2c", subText: "#64748b" };
@@ -134,6 +142,114 @@ const SendEmailModal: React.FC<{
         <Form.Item name="intro" label="Personal Message (optional)">
           <Input.TextArea rows={3} placeholder="Please find your document attached." />
         </Form.Item>
+      </Form>
+    </Modal>
+  );
+};
+
+const SendWhatsAppModal: React.FC<{
+  open: boolean;
+  onClose: () => void;
+  onSend: (values: SendWhatsAppValues) => Promise<void>;
+  sending: boolean;
+  docLabel: string;
+  defaultPhone?: string;
+}> = ({ open, onClose, onSend, sending, docLabel, defaultPhone }) => {
+  const [form] = Form.useForm();
+  const [mode, setMode] = useState<"type" | "customer">("type");
+  const [customerOptions, setCustomerOptions] = useState<
+    { label: string; value: string }[]
+  >([]);
+  const [customerSearchLoading, setCustomerSearchLoading] = useState(false);
+  const customerSearchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (open) {
+      form.setFieldsValue({ phone_number: defaultPhone || "" });
+      setMode("type");
+      setCustomerOptions([]);
+    }
+  }, [open, defaultPhone, form]);
+
+  // Note: the Select's option `value` is the customer's phone number itself,
+  // so it can share the same `phone_number` form field as the "type" input.
+  const handleCustomerSearch = (search: string) => {
+    if (customerSearchTimeout.current) clearTimeout(customerSearchTimeout.current);
+    if (!search || search.trim().length < 2) {
+      setCustomerOptions([]);
+      return;
+    }
+    customerSearchTimeout.current = setTimeout(async () => {
+      setCustomerSearchLoading(true);
+      try {
+        const result = await fetchAllCustomers({ search: search.trim() });
+        const customers = Array.isArray(result) ? result : (result?.customers ?? []);
+        setCustomerOptions(
+          customers
+            .filter((c: any) => !!c.phone)
+            .map((c: any) => ({
+              label: `${c.customer_name || "Unnamed"} — ${c.phone}`,
+              value: String(c.phone),
+            }))
+        );
+      } catch {
+        setCustomerOptions([]);
+      } finally {
+        setCustomerSearchLoading(false);
+      }
+    }, 400);
+  };
+
+  const handleOk = async () => {
+    const values = await form.validateFields();
+    await onSend({ phone_number: values.phone_number });
+    form.resetFields();
+  };
+
+  return (
+    <Modal
+      open={open}
+      onCancel={() => { form.resetFields(); onClose(); }}
+      onOk={handleOk}
+      confirmLoading={sending}
+      okText={<Space><SendOutlined />Send {docLabel}</Space>}
+      okButtonProps={{ style: { background: "#25D366", borderColor: "#25D366" } }}
+      title={<Space><WhatsAppOutlined style={{ color: "#25D366" }} /><span>Send {docLabel} via WhatsApp</span></Space>}
+      width={420}
+      destroyOnClose
+    >
+      <Segmented
+        block
+        value={mode}
+        onChange={(v) => {
+          setMode(v as "type" | "customer");
+          form.setFieldsValue({ phone_number: v === "type" ? (defaultPhone || "") : undefined });
+        }}
+        options={[
+          { label: "Type Number", value: "type" },
+          { label: "Select Customer", value: "customer" },
+        ]}
+        style={{ marginTop: 4, marginBottom: 16 }}
+      />
+      <Form form={form} layout="vertical">
+        {mode === "type" ? (
+          <Form.Item name="phone_number" label="WhatsApp Number"
+            rules={[{ required: true, message: "WhatsApp number is required" }]}>
+            <Input prefix={<WhatsAppOutlined style={{ color: "#25D366" }} />} placeholder="e.g. 254712345678" />
+          </Form.Item>
+        ) : (
+          <Form.Item name="phone_number" label="Customer"
+            rules={[{ required: true, message: "Please select a customer" }]}>
+            <Select
+              showSearch
+              placeholder="Search customer by name or phone"
+              filterOption={false}
+              notFoundContent={customerSearchLoading ? "Searching..." : "No customers found"}
+              onSearch={handleCustomerSearch}
+              options={customerOptions}
+            />
+          </Form.Item>
+        )}
       </Form>
     </Modal>
   );
@@ -262,8 +378,10 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data, subtotal:
   const [showVat, setShowVat] = useState(true);
   const [documentType, setDocumentType] = useState<DocumentType>("bill");
   const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [whatsappModalOpen, setWhatsappModalOpen] = useState(false);
   const [reasonModalOpen, setReasonModalOpen] = useState(false);
   const [sending, setSending] = useState(false);
+  const [sendingWhatsapp, setSendingWhatsapp] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
   const [sendingToPrinter, setSendingToPrinter] = useState(false);
   const [autoPrinting, setAutoPrinting] = useState(false);
@@ -335,7 +453,22 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data, subtotal:
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
   const isElectronicsStore = tenant?.business_type?.name === "Electronics";
   const hasDuka = tenant?.pos_integration?.enabled === true;
+  const hasMteja = tenant?.modules?.crm === true;
   const clientLogoUrl = tenant?.tenant_logo?.url;
+
+  // ── WhatsApp connection status (only relevant when Mteja is enabled) ──────
+  // Note: the button itself is shown whenever Mteja is enabled — we don't
+  // hide it just because the live status check hasn't resolved "ready" yet
+  // (e.g. right after a reconnect/QR scan). Instead we surface a clear
+  // message if the user tries to send while it's not actually connected.
+  const { data: whatsappStatusData, isLoading: whatsappStatusLoading } = useQuery({
+    queryKey: ["whatsapp-web-status-print-bill"],
+    queryFn: getWhatsAppWebStatus,
+    enabled: hasMteja,
+    refetchInterval: 15000,
+  });
+  const isWhatsAppConnected = !!whatsappStatusData?.ready;
+  const canSendWhatsApp = hasMteja;
   
   // ETR data from invoice
   const etrEnabled = cartDetails?.etr_enabled === true;
@@ -685,39 +818,76 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data, subtotal:
     }
   };
 
-  const handleDownloadPDF = async () => {
+  // Builds the bill PDF from the printable ref and returns both the jsPDF
+  // instance and a base64 data URL — shared by download & WhatsApp send.
+  const buildPdf = async () => {
     if (!componentRef.current) {
       message.error("Document is not ready yet. Please try again.");
-      return;
+      return null;
     }
-    
+    const element = componentRef.current;
+    const canvas = await html2canvas(element, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+    });
+
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: isPdfView ? 'a4' : [80, canvas.height * 80 / canvas.width],
+    });
+
+    const imgWidth = isPdfView ? 210 : 80;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+    pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+
+    const filename = `${docConfig.label}_${cartDetails?.order_no || 'receipt'}.pdf`;
+    const base64Pdf = pdf.output('datauristring');
+
+    return { pdf, filename, base64Pdf };
+  };
+
+  const handleDownloadPDF = async () => {
     try {
-      const element = componentRef.current;
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-      });
-      
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: isPdfView ? 'a4' : [80, canvas.height * 80 / canvas.width],
-      });
-      
-      const imgWidth = isPdfView ? 210 : 80;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      
-      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-      
-      const filename = `${docConfig.label}_${cartDetails?.order_no || 'receipt'}.pdf`;
-      pdf.save(filename);
-      
+      const result = await buildPdf();
+      if (!result) return;
+      result.pdf.save(result.filename);
       message.success("PDF downloaded successfully");
     } catch (error) {
       console.error("Error downloading PDF:", error);
       message.error("Failed to download PDF");
+    }
+  };
+
+  const handleSendWhatsApp = async (values: SendWhatsAppValues) => {
+    setSendingWhatsapp(true);
+    try {
+      const result = await buildPdf();
+      if (!result) return;
+
+      const shopId = localStorage.getItem("shopId") ?? "";
+      if (!shopId) {
+        message.error("No shop selected — cannot send document.");
+        return;
+      }
+
+      const ok = await sendDocumentViaWhatsApp({
+        shop_id: shopId,
+        phone_number: values.phone_number,
+        base64_pdf: result.base64Pdf,
+        filename: result.filename,
+        caption: `${docConfig.label} — ${cartDetails?.order_no ?? "Order"}`,
+        customer_id: cartDetails?.customer_id?._id ?? cartDetails?.customer_id ?? null,
+        customer_name: customerName,
+      });
+      if (ok) setWhatsappModalOpen(false);
+    } catch (error) {
+      console.error("Error sending document via WhatsApp:", error);
+    } finally {
+      setSendingWhatsapp(false);
     }
   };
 
@@ -769,14 +939,49 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data, subtotal:
         submitter={{
           render: (_, defaultDoms) => (
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", flexWrap: "wrap", gap: 8 }}>
-              <Button
-                icon={<MailOutlined />}
-                onClick={() => setEmailModalOpen(true)}
-                style={{ borderColor: C.primary, color: C.primary, borderRadius: 7 }}
-                disabled={!canPrint || isPrinting}
-              >
-                Send via Email
-              </Button>
+              <Space wrap>
+                <Button
+                  icon={<MailOutlined />}
+                  onClick={() => setEmailModalOpen(true)}
+                  style={{ borderColor: C.primary, color: C.primary, borderRadius: 7 }}
+                  disabled={!canPrint || isPrinting}
+                >
+                  Send via Email
+                </Button>
+                {canSendWhatsApp && (
+                  <Tooltip
+                    title={
+                      whatsappStatusLoading
+                        ? "Checking WhatsApp Web connection…"
+                        : !isWhatsAppConnected
+                          ? "WhatsApp Web is not connected. Go to Omnichannel > Connect WhatsApp and scan the QR code."
+                          : undefined
+                    }
+                  >
+                    <Button
+                      icon={<WhatsAppOutlined />}
+                      loading={sendingWhatsapp}
+                      onClick={() => {
+                        if (!isWhatsAppConnected) {
+                          message.warning("WhatsApp Web is not connected. Please connect it from Omnichannel > Connect WhatsApp first.");
+                          return;
+                        }
+                        if (customerPhone) {
+                          // Customer already attached with a phone number — send straight away
+                          handleSendWhatsApp({ phone_number: customerPhone });
+                        } else {
+                          // No number on file — ask for one
+                          setWhatsappModalOpen(true);
+                        }
+                      }}
+                      style={{ borderColor: "#25D366", color: "#25D366", borderRadius: 7 }}
+                      disabled={!canPrint || isPrinting}
+                    >
+                      Send via WhatsApp
+                    </Button>
+                  </Tooltip>
+                )}
+              </Space>
               <Space wrap>
                 <Button
                   icon={<DownloadOutlined />}
@@ -1633,6 +1838,17 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data, subtotal:
         sending={sending}
         docLabel={docConfig.label}
       />
+
+      {canSendWhatsApp && (
+        <SendWhatsAppModal
+          open={whatsappModalOpen}
+          onClose={() => setWhatsappModalOpen(false)}
+          onSend={handleSendWhatsApp}
+          sending={sendingWhatsapp}
+          docLabel={docConfig.label}
+          defaultPhone={customerPhone}
+        />
+      )}
 
       <ReprintReasonModal
         open={reasonModalOpen}

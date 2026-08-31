@@ -12,6 +12,8 @@ import {
     Spin,
     App,
     Divider,
+    Input,
+    Radio,
 } from "antd";
 import {
     CheckCircleFilled,
@@ -44,7 +46,9 @@ import {
     initiateOAuthConnect,
     startWhatsAppWeb,
     getWhatsAppWebQR,
+    getWhatsAppWebPairingCode,
     getWhatsAppWebStatus,
+    disconnectWhatsAppWeb,
     connectWhatsappChannel,
 } from "@services/whatsappService";
 import { CHANNEL_CONFIG } from "./OmnichannelInboxPage";
@@ -114,21 +118,46 @@ const ConnectedCard: React.FC<{
     onDisconnect: (id: string) => void;
     disconnecting: boolean;
 }> = ({ channel, channelType, onDisconnect, disconnecting }) => {
+    const { message: antMessage } = App.useApp();
     const cfg = CHANNEL_CONFIG[channelType];
-    return (
-        <ProCard
-            size="small"
-            style={{
-                borderRadius: 12,
-                marginBottom: 12,
-                boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
-            }}
-            bodyStyle={{
-                padding: "16px 20px",
-            }}
-            actions={[
+    const [webDisconnecting, setWebDisconnecting] = useState(false);
+
+    const handleDisconnect = async () => {
+        setWebDisconnecting(true);
+        try {
+            await disconnectWhatsAppWeb();
+            onDisconnect(channel._id);
+            antMessage.success("WhatsApp disconnected");
+        } catch {}
+        setWebDisconnecting(false);
+    };
+
+    const actions: React.ReactNode[] =
+        channelType === "whatsapp"
+            ? [
                 <Popconfirm
                     key="disconnect"
+                    title="Disconnect this channel?"
+                    description="This will log the WhatsApp Web client out and remove the channel."
+                    onConfirm={handleDisconnect}
+                    okText="Disconnect"
+                    okButtonProps={{ danger: true }}
+                >
+                    <Button
+                        danger
+                        type="text"
+                        size="large"
+                        icon={<DisconnectOutlined />}
+                        loading={webDisconnecting}
+                        style={{ borderRadius: 8 }}
+                    >
+                        Disconnect
+                    </Button>
+                </Popconfirm>,
+            ]
+            : [
+                <Popconfirm
+                    key="remove"
                     title="Disconnect this channel?"
                     description="You will stop receiving messages from this account."
                     onConfirm={() => onDisconnect(channel._id)}
@@ -146,7 +175,20 @@ const ConnectedCard: React.FC<{
                         Remove
                     </Button>
                 </Popconfirm>,
-            ]}
+            ];
+
+    return (
+        <ProCard
+            size="small"
+            style={{
+                borderRadius: 12,
+                marginBottom: 12,
+                boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+            }}
+            bodyStyle={{
+                padding: "16px 20px",
+            }}
+            actions={actions}
         >
             <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
                 <Avatar
@@ -350,9 +392,9 @@ const OAuthConnectButton: React.FC<{
     );
 };
 
-// ── WhatsApp QR Connect Button ─────────────────────────────────────────────────
+// ── WhatsApp Web Connect Button (QR or phone pairing) ──────────────────────────
 
-const WhatsAppQRConnectButton: React.FC<{
+const WhatsAppWebConnectButton: React.FC<{
     label: string;
     description: string;
     icon: React.ReactNode;
@@ -363,43 +405,84 @@ const WhatsAppQRConnectButton: React.FC<{
 }> = ({ label, description, icon, color, bg, shopId, onSuccess }) => {
     const { message: antMessage } = App.useApp();
     const [loading, setLoading] = useState(false);
-    const [showQR, setShowQR] = useState(false);
+    const [showPanel, setShowPanel] = useState(false);
+    const [method, setMethod] = useState<"qr" | "phone">("qr");
+    const [phoneNumber, setPhoneNumber] = useState("");
     const [qr, setQr] = useState<string | null>(null);
+    const [pairingCode, setPairingCode] = useState<string | null>(null);
     const [status, setStatus] = useState<string>("idle");
 
+    const handleConnect = async () => {
+        if (method === "phone" && !phoneNumber.trim()) {
+            antMessage.warning("Please enter your WhatsApp phone number.");
+            return;
+        }
+        setLoading(true);
+        setShowPanel(true);
+        setStatus("starting");
+        try {
+            await startWhatsAppWeb(method === "phone" ? { method: "phone", phoneNumber } : { method: "qr" });
+        } catch (err: any) {
+            setLoading(false);
+            setShowPanel(false);
+            antMessage.error(err?.message || "Could not start WhatsApp Web");
+        }
+    };
+
+    const handleStop = async () => {
+        setLoading(false);
+        setShowPanel(false);
+        setQr(null);
+        setPairingCode(null);
+        setStatus("idle");
+        try {
+            await disconnectWhatsAppWeb();
+        } catch {}
+    };
+
     useEffect(() => {
-        if (!showQR) return;
+        if (!showPanel) return;
         let stopped = false;
         const poll = async () => {
             try {
-                const qrData = await getWhatsAppWebQR();
-                const statusData = await getWhatsAppWebStatus();
+                const [qrData, codeData, statusData] = await Promise.allSettled([
+                    getWhatsAppWebQR(),
+                    getWhatsAppWebPairingCode(),
+                    getWhatsAppWebStatus(),
+                ]);
                 if (stopped) return;
-                setQr(qrData.qr);
-                setStatus(statusData.status || qrData.status || "idle");
-                if (statusData.ready && statusData.phone) {
+
+                const qrValue = qrData.status === "fulfilled" ? qrData.value?.qr : null;
+                const codeValue = codeData.status === "fulfilled" ? codeData.value?.code : null;
+                const currentStatus = statusData.status === "fulfilled" ? statusData.value : null;
+
+                setQr(qrValue || null);
+                setPairingCode(codeValue || null);
+                setStatus(currentStatus?.status || "idle");
+
+                if (currentStatus?.ready && currentStatus?.phone) {
                     stopped = true;
                     await connectWhatsappChannel({
                         channel: "whatsapp",
                         shop_id: shopId,
-                        phone_number_id: statusData.phone,
-                        display_phone_number: statusData.phone,
+                        phone_number_id: currentStatus.phone,
+                        display_phone_number: currentStatus.phone,
                         access_token: "wwebjs",
                         verify_token: "wwebjs",
                         business_name: "WhatsApp Web",
                     });
                     antMessage.success("WhatsApp connected successfully!");
                     onSuccess();
-                    setShowQR(false);
+                    setShowPanel(false);
                     setLoading(false);
-                } else if (statusData.status === "error") {
+                } else if (currentStatus?.status === "error") {
                     stopped = true;
                     setLoading(false);
                     antMessage.error("WhatsApp Web failed to start.");
                 }
             } catch (err: any) {
                 const errorMessage = err?.response?.data?.message || err?.message || JSON.stringify(err);
-                console.error("QR poll error", err);
+                console.error("WhatsApp Web poll error", err);
                 antMessage.error(errorMessage || "Failed to connect WhatsApp.");
                 setLoading(false);
             }
@@ -407,20 +490,7 @@ const WhatsAppQRConnectButton: React.FC<{
         poll();
         const interval = setInterval(poll, 3000);
         return () => { stopped = true; clearInterval(interval); };
-    }, [showQR, shopId, onSuccess, antMessage]);
-
-    const handleConnect = async () => {
-        setLoading(true);
-        setShowQR(true);
-        setStatus("starting");
-        try {
-            await startWhatsAppWeb();
-        } catch (err: any) {
-            setLoading(false);
-            setShowQR(false);
-            antMessage.error(err?.message || "Could not start WhatsApp Web");
-        }
-    };
+    }, [showPanel, shopId, onSuccess, antMessage]);
 
     return (
         <ProCard
@@ -455,47 +525,98 @@ const WhatsAppQRConnectButton: React.FC<{
                 </div>
             </div>
 
-            {/* QR / Connect button area */}
+            {/* QR / phone connection panel */}
             <div style={{ padding: "16px 20px", background: "#fff" }}>
-                {showQR ? (
+                {showPanel ? (
                     <div style={{ textAlign: "center" }}>
-                        {qr ? (
-                            <>
-                                <QRCodeSVG value={qr} size={256} style={{ marginBottom: 16 }} />
-                                <Paragraph type="secondary">
-                                    Scan this QR code with WhatsApp on your phone.
-                                </Paragraph>
-                            </>
-                        ) : (
-                            <div style={{ padding: 40 }}>
-                                <Spin size="large" />
-                                <Paragraph type="secondary" style={{ marginTop: 16 }}>
-                                    Waiting for QR code...
-                                </Paragraph>
-                            </div>
+                        {method === "qr" && (
+                            qr ? (
+                                <>
+                                    <QRCodeSVG value={qr} size={256} style={{ marginBottom: 16 }} />
+                                    <Paragraph type="secondary">
+                                        Scan this QR code with WhatsApp on your phone.
+                                    </Paragraph>
+                                </>
+                            ) : (
+                                <div style={{ padding: 40 }}>
+                                    <Spin size="large" />
+                                    <Paragraph type="secondary" style={{ marginTop: 16 }}>
+                                        Waiting for QR code...
+                                    </Paragraph>
+                                </div>
+                            )
                         )}
-                        <Text type="secondary" style={{ display: "block", marginTop: 8 }}>
+                        {method === "phone" && (
+                            pairingCode ? (
+                                <>
+                                    <Paragraph style={{ fontSize: 16, marginBottom: 8 }}>
+                                        Your WhatsApp pairing code:
+                                    </Paragraph>
+                                    <Text strong style={{ fontSize: 28, letterSpacing: 4 }} copyable>
+                                        {pairingCode}
+                                    </Text>
+                                    <Paragraph type="secondary" style={{ marginTop: 12 }}>
+                                        Open WhatsApp &rarr; Settings &rarr; Linked Devices &rarr; Link with phone number, then enter the code.
+                                    </Paragraph>
+                                </>
+                            ) : (
+                                <div style={{ padding: 40 }}>
+                                    <Spin size="large" />
+                                    <Paragraph type="secondary" style={{ marginTop: 16 }}>
+                                        Waiting for pairing code...
+                                    </Paragraph>
+                                </div>
+                            )
+                        )}
+                        <Text type="secondary" style={{ display: "block", marginTop: 8, marginBottom: 12 }}>
                             Status: {status}
                         </Text>
+                        <Button onClick={handleStop} danger>
+                            Cancel
+                        </Button>
                     </div>
                 ) : (
-                    <Button
-                        icon={<PlusCircleOutlined />}
-                        loading={loading}
-                        onClick={handleConnect}
-                        size="large"
-                        style={{
-                            width: "100%",
-                            height: 44,
-                            borderColor: color,
-                            color: color,
-                            fontWeight: 500,
-                            fontSize: 14,
-                            borderRadius: 8,
-                        }}
-                    >
-                        {loading ? "Starting WhatsApp…" : `Connect ${label}`}
-                    </Button>
+                    <>
+                        <Radio.Group
+                            value={method}
+                            onChange={(e) => setMethod(e.target.value)}
+                            style={{ marginBottom: 12 }}
+                            optionType="button"
+                            buttonStyle="solid"
+                        >
+                            <Radio.Button value="qr">QR Code</Radio.Button>
+                            <Radio.Button value="phone">Phone Number</Radio.Button>
+                        </Radio.Group>
+
+                        {method === "phone" && (
+                            <Input
+                                placeholder="WhatsApp number e.g. 254712345678"
+                                value={phoneNumber}
+                                onChange={(e) => setPhoneNumber(e.target.value)}
+                                style={{ marginBottom: 12 }}
+                                size="large"
+                            />
+                        )}
+
+                        <Button
+                            icon={<PlusCircleOutlined />}
+                            loading={loading}
+                            onClick={handleConnect}
+                            size="large"
+                            style={{
+                                width: "100%",
+                                height: 44,
+                                borderColor: color,
+                                color: color,
+                                fontWeight: 500,
+                                fontSize: 14,
+                                borderRadius: 8,
+                            }}
+                        >
+                            {loading ? "Starting WhatsApp…" : `Connect ${label}`}
+                        </Button>
+
+                    </>
                 )}
             </div>
         </ProCard>
@@ -640,7 +761,7 @@ const ConnectChannelDrawer: React.FC<Props> = ({
                     <div style={{ marginTop: 12 }}>
                         {CHANNELS.map((ch) =>
                             ch.key === "whatsapp" ? (
-                                <WhatsAppQRConnectButton
+                                <WhatsAppWebConnectButton
                                     key={ch.key}
                                     label={ch.label}
                                     description={ch.description}

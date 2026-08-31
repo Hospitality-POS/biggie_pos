@@ -148,7 +148,7 @@ export const initiateOAuthConnect = async (
     try {
         const response = await axiosInstance.post(`${channelUrl}/oauth/initiate`, params);
         return response.data;
-    } catch (error) {
+    } catch (error: any) {
         handleError(error, "Could not initiate connection. Please try again.");
         throw error;
     }
@@ -176,7 +176,7 @@ export const completeOAuthConnect = async (params: {
     try {
         const response = await axiosInstance.post(`${channelUrl}/oauth/callback`, params);
         return response.data;
-    } catch (error) {
+    } catch (error: any) {
         handleError(error, "Failed to complete channel connection.");
         throw error;
     }
@@ -192,7 +192,7 @@ export const fetchChannels = async (params?: ParamsType) => {
     try {
         const response = await axiosInstance.get(channelUrl, { params });
         return response.data;
-    } catch (error) {
+    } catch (error: any) {
         console.warn("[fetchChannels] failed:", error?.response?.status, error?.message);
         return { channels: [], total: 0 };
     }
@@ -209,7 +209,7 @@ export const updateChannel = async (channelId: string, values: Partial<Channel>)
         const response = await axiosInstance.put(`${channelUrl}/${channelId}`, values);
         message.success("Channel updated successfully");
         return response.data;
-    } catch (error) {
+    } catch (error: any) {
         handleError(error, "Error updating channel");
     }
 };
@@ -224,7 +224,7 @@ export const disconnectChannel = async (channelId: string) => {
         const response = await axiosInstance.delete(`${channelUrl}/${channelId}`);
         message.success("Channel disconnected");
         return response.data;
-    } catch (error) {
+    } catch (error: any) {
         handleError(error, "Error disconnecting channel");
     }
 };
@@ -236,20 +236,25 @@ export const connectWhatsappChannel = async (params: any) => {
     try {
         const response = await axiosInstance.post(channelUrl, params);
         return response.data;
-    } catch (error) {
+    } catch (error: any) {
         handleError(error, `Error connecting ${params.channel} channel`);
     }
 };
 
 export const connectChannel = connectWhatsappChannel;
 
-// ── WhatsApp Web QR connection ─────────────────────────────────────────────────
+// ── WhatsApp Web QR / phone connection ─────────────────────────────────────────
 
-export const startWhatsAppWeb = async () => {
+export interface StartWhatsAppWebParams {
+    method?: "qr" | "phone";
+    phoneNumber?: string;
+}
+
+export const startWhatsAppWeb = async (params: StartWhatsAppWebParams = {}) => {
     try {
-        const response = await axiosInstance.post(`${BASE_URL}/omnichannel/channels/whatsapp-web/start`);
+        const response = await axiosInstance.post(`${BASE_URL}/omnichannel/channels/whatsapp-web/start`, params);
         return response.data;
-    } catch (error) {
+    } catch (error: any) {
         handleError(error, "Could not start WhatsApp Web client.");
     }
 };
@@ -258,8 +263,17 @@ export const getWhatsAppWebQR = async () => {
     try {
         const response = await axiosInstance.get(`${BASE_URL}/omnichannel/channels/whatsapp-web/qr`);
         return response.data;
-    } catch (error) {
+    } catch (error: any) {
         handleError(error, "Could not fetch WhatsApp QR code.");
+    }
+};
+
+export const getWhatsAppWebPairingCode = async () => {
+    try {
+        const response = await axiosInstance.get(`${BASE_URL}/omnichannel/channels/whatsapp-web/pairing-code`);
+        return response.data;
+    } catch (error: any) {
+        handleError(error, "Could not fetch WhatsApp pairing code.");
     }
 };
 
@@ -267,8 +281,252 @@ export const getWhatsAppWebStatus = async () => {
     try {
         const response = await axiosInstance.get(`${BASE_URL}/omnichannel/channels/whatsapp-web/status`);
         return response.data;
-    } catch (error) {
+    } catch (error: any) {
         handleError(error, "Could not fetch WhatsApp Web status.");
+    }
+};
+
+export const disconnectWhatsAppWeb = async () => {
+    try {
+        const response = await axiosInstance.post(`${BASE_URL}/omnichannel/channels/whatsapp-web/disconnect`);
+        message.success("WhatsApp Web disconnected");
+        return response.data;
+    } catch (error: any) {
+        handleError(error, "Could not disconnect WhatsApp Web.");
+    }
+};
+
+// ── Scripts ───────────────────────────────────────────────────────────────────
+
+export interface Script {
+    _id: string;
+    shop_id: string;
+    tenant_id: string;
+    company_code: string;
+    title: string;
+    content: string;
+    category: string;
+    is_active: boolean;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export const fetchScripts = async (params: { shop_id: string }) => {
+    try {
+        const response = await axiosInstance.get(`${BASE_URL}/omnichannel/scripts`, { params });
+        return response.data;
+    } catch (error: any) {
+        console.warn("[fetchScripts] failed:", error?.response?.status, error?.message);
+        return { scripts: [], total: 0 };
+    }
+};
+
+export const createScript = async (params: { shop_id: string; title: string; content: string; category?: string }) => {
+    try {
+        const response = await axiosInstance.post(`${BASE_URL}/omnichannel/scripts`, params);
+        message.success("Script created");
+        return response.data;
+    } catch (error: any) {
+        handleError(error, "Could not create script");
+    }
+};
+
+export const updateScript = async (scriptId: string, values: Partial<Script>) => {
+    try {
+        const response = await axiosInstance.put(`${BASE_URL}/omnichannel/scripts/${scriptId}`, values);
+        message.success("Script updated");
+        return response.data;
+    } catch (error: any) {
+        handleError(error, "Could not update script");
+    }
+};
+
+export const deleteScript = async (scriptId: string) => {
+    try {
+        const response = await axiosInstance.delete(`${BASE_URL}/omnichannel/scripts/${scriptId}`);
+        message.success("Script deleted");
+        return response.data;
+    } catch (error: any) {
+        handleError(error, "Could not delete script");
+    }
+};
+
+// ── Welcome Message ────────────────────────────────────────────────────────────
+
+export interface WelcomeMessage {
+    _id: string;
+    shop_id: string;
+    tenant_id: string;
+    company_code: string;
+    message: string;
+    is_active: boolean;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export const fetchWelcomeMessage = async (params: { shop_id: string }) => {
+    try {
+        const response = await axiosInstance.get(`${BASE_URL}/omnichannel/welcome-message`, { params });
+        return response.data;
+    } catch (error: any) {
+        console.warn("[fetchWelcomeMessage] failed:", error?.response?.status, error?.message);
+        return { welcome: null };
+    }
+};
+
+export const saveWelcomeMessage = async (params: { shop_id: string; message: string; is_active?: boolean }) => {
+    try {
+        const response = await axiosInstance.post(`${BASE_URL}/omnichannel/welcome-message`, params);
+        message.success("Welcome message saved");
+        return response.data;
+    } catch (error: any) {
+        handleError(error, "Could not save welcome message");
+    }
+};
+
+export const deleteWelcomeMessage = async (params: { shop_id: string }) => {
+    try {
+        const response = await axiosInstance.delete(`${BASE_URL}/omnichannel/welcome-message`, { params });
+        message.success("Welcome message deleted");
+        return response.data;
+    } catch (error: any) {
+        handleError(error, "Could not delete welcome message");
+    }
+};
+
+// ── AI ─────────────────────────────────────────────────────────────────────────
+
+export const refineText = async (params: { text: string; instruction?: string }) => {
+    try {
+        const response = await axiosInstance.post(`${BASE_URL}/omnichannel/ai/refine`, params);
+        return response.data;
+    } catch (error: any) {
+        handleError(error, "Could not refine text");
+    }
+};
+
+export const suggestReply = async (params: { conversation_id: string; shop_id: string }) => {
+    try {
+        const response = await axiosInstance.post(`${BASE_URL}/omnichannel/ai/suggest`, params);
+        return response.data;
+    } catch (error: any) {
+        handleError(error, "Could not get AI suggestion");
+    }
+};
+
+// ── Analytics ─────────────────────────────────────────────────────────────────
+
+export interface FetchAnalyticsParams {
+    shop_id: string;
+    days?: number;
+}
+
+export interface AgentStat {
+    user_id: string;
+    name: string;
+    thumbnail?: string;
+    messages: number;
+}
+
+export interface DailyMessages {
+    date: string;
+    inbound: number;
+    outbound: number;
+}
+
+export interface DailyConversations {
+    date: string;
+    conversations: number;
+}
+
+export interface ResponseTimeBuckets {
+    under15: number;
+    under60: number;
+    under24h: number;
+    over24h: number;
+}
+
+export interface AnalyticsData {
+    days: number;
+    totalConversations: number;
+    totalMessages: number;
+    totalInbound: number;
+    totalOutbound: number;
+    resolvedOrClosed: number;
+    resolutionRate: number;
+    averageFirstResponseMinutes: number;
+    medianFirstResponseMinutes: number;
+    upsellMessages: number;
+    conversionRate: number;
+    averageMessagesPerConversation: number;
+    totalAgents: number;
+    totalCustomers: number;
+    topAgents: AgentStat[];
+    statusBreakdown: Record<string, number>;
+    responseTimeBuckets: ResponseTimeBuckets;
+    messagesByDay: DailyMessages[];
+    conversationsByDay: DailyConversations[];
+    insights: string;
+}
+
+export const fetchAnalytics = async (params: FetchAnalyticsParams): Promise<AnalyticsData> => {
+    try {
+        const response = await axiosInstance.get(`${BASE_URL}/omnichannel/analytics`, { params });
+        return response.data;
+    } catch (error: any) {
+        handleError(error, "Could not load analytics");
+        return {} as AnalyticsData;
+    }
+};
+
+// ── Document Send (e.g. Bill/Receipt/Invoice PDF) ───────────────────────────────
+
+export interface SendDocumentViaWhatsAppParams {
+    shop_id: string;
+    phone_number: string;
+    base64_pdf: string;
+    filename?: string;
+    caption?: string;
+    customer_id?: string | null;
+    customer_name?: string | null;
+}
+
+export const sendDocumentViaWhatsApp = async (params: SendDocumentViaWhatsAppParams) => {
+    try {
+        const response = await axiosInstance.post(`${BASE_URL}/omnichannel/documents/send-whatsapp`, params);
+        message.success("Document sent via WhatsApp");
+        return response.data;
+    } catch (error: any) {
+        handleError(error, "Could not send document via WhatsApp");
+    }
+};
+
+// ── Business Impact ───────────────────────────────────────────────────────────
+
+export interface BusinessImpactData {
+    days: number;
+    totalRevenue: number;
+    totalOrders: number;
+    totalCustomers: number;
+    newCustomers: number;
+    totalConversations: number;
+    resolvedConversations: number;
+    totalInbound: number;
+    totalOutbound: number;
+    totalAgents: number;
+    averageOrderValue: number;
+    resolutionRate: number;
+    insights: string;
+}
+
+export const fetchBusinessImpact = async (params: { shop_id?: string; days?: number }) => {
+    try {
+        const payload: { shop_id?: string; days?: number } = { days: params.days };
+        if (params.shop_id) payload.shop_id = params.shop_id;
+        const response = await axiosInstance.get(`${BASE_URL}/business-impact`, { params: payload });
+        return response.data;
+    } catch (error: any) {
+        handleError(error, "Could not load business impact");
     }
 };
 
@@ -292,7 +550,7 @@ export const fetchConversations = async (params: FetchConversationsParams) => {
     try {
         const response = await axiosInstance.get(conversationUrl, { params });
         return response.data;
-    } catch (error) {
+    } catch (error: any) {
         console.warn("[fetchConversations] failed:", error?.response?.status, error?.message);
         return { conversations: [], total: 0, status_counts: {}, channel_counts: {} };
     }
@@ -302,7 +560,7 @@ export const fetchConversationById = async (conversationId: string) => {
     try {
         const response = await axiosInstance.get(`${conversationUrl}/${conversationId}`);
         return response.data;
-    } catch (error) {
+    } catch (error: any) {
         handleError(error);
     }
 };
@@ -315,7 +573,7 @@ export const assignConversation = async (conversationId: string, assignedTo: str
         );
         message.success("Conversation assigned successfully");
         return response.data;
-    } catch (error) {
+    } catch (error: any) {
         handleError(error, "Error assigning conversation");
     }
 };
@@ -328,7 +586,7 @@ export const updateConversationStatus = async (conversationId: string, status: s
         );
         message.success(`Conversation marked as ${status}`);
         return response.data;
-    } catch (error) {
+    } catch (error: any) {
         handleError(error, "Error updating conversation status");
     }
 };
@@ -337,7 +595,7 @@ export const markConversationAsRead = async (conversationId: string) => {
     try {
         const response = await axiosInstance.patch(`${conversationUrl}/${conversationId}/read`);
         return response.data;
-    } catch (error) {
+    } catch (error: any) {
         console.warn("[markConversationAsRead] failed:", error?.message);
         return null;
     }
@@ -354,7 +612,7 @@ export const fetchMessages = async (conversationId: string, params?: FetchMessag
     try {
         const response = await axiosInstance.get(`${messageUrl}/${conversationId}`, { params });
         return response.data;
-    } catch (error) {
+    } catch (error: any) {
         console.warn("[fetchMessages] failed:", error?.response?.status, error?.message);
         return { messages: [], total: 0, hasMore: false };
     }
@@ -367,7 +625,7 @@ export const sendTextMessage = async (params: { conversation_id: string; content
             content: params.content,
         });
         return response.data;
-    } catch (error) {
+    } catch (error: any) {
         handleError(error, "Error sending message");
     }
 };
@@ -387,7 +645,7 @@ export const sendTemplateMessage = async (params: {
         });
         message.success("Template message sent");
         return response.data;
-    } catch (error) {
+    } catch (error: any) {
         handleError(error, "Error sending template message");
     }
 };
@@ -410,7 +668,7 @@ export const sendMediaMessage = async (params: {
             filename: params.filename || null,
         });
         return response.data;
-    } catch (error) {
+    } catch (error: any) {
         handleError(error, "Error sending media");
     }
 };
@@ -425,7 +683,7 @@ export const sendLocationMessage = async (params: {
     try {
         const response = await axiosInstance.post(`${messageUrl}/location`, params);
         return response.data;
-    } catch (error) {
+    } catch (error: any) {
         handleError(error, "Error sending location");
     }
 };
@@ -440,7 +698,7 @@ export const uploadMedia = async (params: { file: File; phone_number_id: string 
             headers: { "Content-Type": "multipart/form-data" },
         });
         return response.data;
-    } catch (error) {
+    } catch (error: any) {
         handleError(error, "Error uploading media");
     }
 };
@@ -456,7 +714,7 @@ export const convertConversationToCustomer = async (params: {
     try {
         const response = await axiosInstance.post(`${BASE_URL}/omnichannel/conversations/convert-customer`, params);
         return response.data;
-    } catch (error) {
+    } catch (error: any) {
         handleError(error, "Error converting to customer");
     }
 };
@@ -469,7 +727,7 @@ export const convertConversationToLead = async (params: {
     try {
         const response = await axiosInstance.post(`${BASE_URL}/omnichannel/conversations/convert-lead`, params);
         return response.data;
-    } catch (error) {
+    } catch (error: any) {
         handleError(error, "Error converting to lead");
     }
 };
@@ -478,7 +736,7 @@ export const linkConversationToCustomer = async (params: { conversation_id: stri
     try {
         const response = await axiosInstance.post(`${BASE_URL}/omnichannel/conversations/link-customer`, params);
         return response.data;
-    } catch (error) {
+    } catch (error: any) {
         handleError(error, "Error linking customer");
     }
 };
@@ -487,7 +745,7 @@ export const linkConversationToLead = async (params: { conversation_id: string; 
     try {
         const response = await axiosInstance.post(`${BASE_URL}/omnichannel/conversations/link-lead`, params);
         return response.data;
-    } catch (error) {
+    } catch (error: any) {
         handleError(error, "Error linking lead");
     }
 };

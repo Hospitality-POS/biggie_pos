@@ -4,20 +4,16 @@ import {
     Button,
     Space,
     Typography,
-    Badge,
     App,
     Tooltip,
     Alert,
-    Segmented,
-    Spin,
-    Empty,
+    Tabs,
 } from "antd";
 import {
     PlusOutlined,
     MessageOutlined,
     ReloadOutlined,
     SettingOutlined,
-    WifiOutlined,
 } from "@ant-design/icons";
 
 const WhatsAppIcon = () => (
@@ -45,6 +41,9 @@ import {
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import ConversationList from "./ConversationList";
 import MessageThread from "./MessageThread";
+import ScriptsManager from "./ScriptsManager";
+import WelcomeMessageManager from "./WelcomeMessageManager";
+import AnalyticsPage from "./AnalyticsPage";
 import ConnectChannelDrawer from "./ConnectChannelDrawer";
 
 const { Text, Title } = Typography;
@@ -102,7 +101,8 @@ const OmnichannelInboxPage: React.FC = () => {
     const primaryColor = usePrimaryColor();
     const queryClient = useQueryClient();
 
-    const [activeChannel, setActiveChannel] = useState<Channel>("all");
+    const [activeChannel] = useState<Channel>("whatsapp");
+    const [activeMainTab, setActiveMainTab] = useState<"inbox" | "scripts" | "welcome" | "analytics">("inbox");
     const [activeStatus, setActiveStatus] = useState<ConversationStatus | "all">("all");
     const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
     const [connectDrawerOpen, setConnectDrawerOpen] = useState(false);
@@ -173,7 +173,7 @@ const OmnichannelInboxPage: React.FC = () => {
             resolved_today: conversationsData?.status_counts?.resolved_today || 0
         };
 
-        conversations.forEach(conv => {
+        conversations.forEach((conv: Conversation) => {
             if (conv.status === "open") counts.open++;
             else if (conv.status === "pending") counts.pending++;
             else if (conv.status === "resolved") counts.resolved++;
@@ -183,22 +183,6 @@ const OmnichannelInboxPage: React.FC = () => {
         return counts;
     }, [conversations, conversationsData]);
 
-    // Calculate channel counts from conversations array
-    const channelCounts = useMemo(() => {
-        const counts = {
-            whatsapp: 0,
-            messenger: 0,
-            instagram: 0
-        };
-
-        conversations.forEach(conv => {
-            if (conv.channel === "whatsapp") counts.whatsapp++;
-            else if (conv.channel === "messenger") counts.messenger++;
-            else if (conv.channel === "instagram") counts.instagram++;
-        });
-
-        return counts;
-    }, [conversations]);
 
     const handleConversationSelect = useCallback((conv: Conversation) => {
         setSelectedConversation(conv);
@@ -234,157 +218,78 @@ const OmnichannelInboxPage: React.FC = () => {
         );
     }
 
-    const channelOptions = [
-        {
-            label: (
-                <Space size={4}>
-                    <span>All</span>
-                    {totalCount > 0 && (
-                        <Badge count={totalCount} size="small" style={{ fontSize: 10 }} />
-                    )}
-                </Space>
-            ),
-            value: "all",
-        },
-        ...["whatsapp", "messenger", "instagram"].map((ch) => ({
-            label: (
-                <Space size={6} align="center">
-                    <span style={{ color: CHANNEL_CONFIG[ch].color, display: "flex", alignItems: "center" }}>
-                        {CHANNEL_CONFIG[ch].icon}
-                    </span>
-                    <span style={{ lineHeight: 1 }}>{CHANNEL_CONFIG[ch].label}</span>
-                    {(channelCounts[ch] || 0) > 0 && (
-                        <Badge
-                            count={channelCounts[ch]}
-                            size="small"
-                            style={{ fontSize: 10, backgroundColor: CHANNEL_CONFIG[ch].color }}
-                        />
-                    )}
-                </Space>
-            ),
-            value: ch,
-            disabled: ch !== "whatsapp",
-        })),
-    ];
+
 
     return (
         <App>
             <div style={{ 
-                minHeight: "100vh",
+                height: "100vh",
+                boxSizing: "border-box",
+                overflow: "hidden",
                 // background: "#f5f5f5",
                 padding: "24px"
             }}>
-                {!channelsLoading && !anyConnected && (
-                    <ProCard
-                        bordered={false}
-                        style={{ 
-                            marginBottom: 24,
-                            borderRadius: 16,
-                            // background: "linear-gradient(135deg, #e6f7ff 0%, #f0f9ff 100%)",
-                            // border: "1px solid #bae7ff"
-                        }}
-                    >
-                        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-                            <div style={{
-                                width: 80,
-                                height: 80,
-                                borderRadius: "50%",
-                                background: "linear-gradient(135deg, #ffffff 0%, #e6f7ff 100%)",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                boxShadow: "0 4px 12px rgba(24,144,255,0.15)"
-                            }}>
-                                <WifiOutlined style={{ fontSize: 36, color: "#1890ff" }} />
-                            </div>
-                            <div style={{ flex: 1 }}>
-                                <Title level={4} style={{ margin: 0, marginBottom: 8, color: "#262626", fontSize: 20 }}>
-                                    Welcome to Your Omnichannel Inbox
-                                </Title>
-                                <Text style={{ fontSize: 15, color: "#595959", display: "block" }}>
-                                    Connect WhatsApp, Messenger, or Instagram to start receiving messages from all your customers in one place.
-                                </Text>
-                            </div>
-                            <Button
-                                type="primary"
-                                size="large"
-                                onClick={() => setConnectDrawerOpen(true)}
-                                icon={<PlusOutlined />}
-                                style={{ 
-                                    borderRadius: 10,
-                                    fontWeight: 600,
-                                    background: primaryColor,
-                                    borderColor: primaryColor,
-                                    height: 44,
-                                    padding: "0 28px",
-                                    fontSize: 15
-                                }}
-                            >
-                                Connect Channel
-                            </Button>
-                        </div>
-                    </ProCard>
-                )}
+
 
                 <ProCard
                     bordered={false}
-                    bodyStyle={{ padding: 0 }}
+                    bodyStyle={{ padding: 0, height: "calc(100vh - 210px)" }}
                     style={{ 
                         borderRadius: 16,
                         boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
                         overflow: "hidden"
                     }}
                     title={
-                        <div style={{ display: "flex", alignItems: "center", gap: 24, flexWrap: "wrap" }}>
-                            <div style={{ 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                gap: 12,
-                                padding: '12px 20px',
-                                background: 'linear-gradient(135deg, rgba(24,144,255,0.1) 0%, rgba(24,144,255,0.05) 100%)',
-                                borderRadius: 12
-                            }}>
-                                <MessageOutlined style={{ fontSize: 24, color: primaryColor }} />
-                                <Title level={4} style={{ margin: 0, fontSize: 20, fontWeight: 600 }}>
-                                    Inbox
-                                </Title>
-                            </div>
-                            <Segmented
-                                options={channelOptions}
-                                value={activeChannel}
-                                onChange={(v) => {
-                                    setActiveChannel(v as Channel);
-                                    setPage(1);
-                                    setSelectedConversation(null);
-                                }}
-                                size="large"
-                                style={{ 
-                                    background: "#f5f5f5",
-                                    padding: 6,
-                                    borderRadius: 10
-                                }}
-                            />
-                            {isFetching && !conversationsLoading && (
-                                <Spin size="small" />
-                            )}
-                        </div>
+                        <Tabs
+                            activeKey={activeMainTab}
+                            onChange={(k) => setActiveMainTab(k as "inbox" | "scripts" | "welcome" | "analytics")}
+                            style={{ minWidth: 200 }}
+                            items={[
+                                { key: "inbox", label: "Inbox" },
+                                { key: "scripts", label: "Scripts" },
+                                { key: "welcome", label: "Auto-Reply" },
+                                { key: "analytics", label: "Analytics" },
+                            ]}
+                        />
                     }
                     extra={
                         <Space size={12}>
-                            <Tooltip title="Refresh">
-                                <Button
-                                    icon={<ReloadOutlined />}
-                                    size="large"
-                                    loading={isFetching || channelsLoading}
-                                    onClick={() => {
-                                        queryClient.invalidateQueries({ queryKey: ["omnichannel-channels"] });
-                                        if (anyConnected) {
-                                            refetch();
-                                        }
-                                    }}
-                                    style={{ borderRadius: 10, height: 40 }}
-                                />
-                            </Tooltip>
+                            {activeMainTab === "inbox" && (
+                                <>
+                                    <Tooltip title="Refresh">
+                                        <Button
+                                            icon={<ReloadOutlined />}
+                                            size="large"
+                                            loading={isFetching || channelsLoading}
+                                            onClick={() => {
+                                                queryClient.invalidateQueries({ queryKey: ["omnichannel-channels"] });
+                                                if (anyConnected) {
+                                                    refetch();
+                                                }
+                                            }}
+                                            style={{ borderRadius: 10, height: 40 }}
+                                        />
+                                    </Tooltip>
+                                    {anyConnected && (
+                                        <Button
+                                            type="primary"
+                                            icon={<PlusOutlined />}
+                                            onClick={() => setConnectDrawerOpen(true)}
+                                            style={{ 
+                                                background: primaryColor, 
+                                                borderColor: primaryColor,
+                                                borderRadius: 10,
+                                                fontWeight: 600,
+                                                height: 40,
+                                                padding: "0 20px"
+                                            }}
+                                            size="large"
+                                        >
+                                            Connect Channel
+                                        </Button>
+                                    )}
+                                </>
+                            )}
                             <Tooltip title="Channel Settings">
                                 <Button
                                     icon={<SettingOutlined />}
@@ -393,32 +298,17 @@ const OmnichannelInboxPage: React.FC = () => {
                                     style={{ borderRadius: 10, height: 40 }}
                                 />
                             </Tooltip>
-                            <Button
-                                type="primary"
-                                icon={<PlusOutlined />}
-                                onClick={() => setConnectDrawerOpen(true)}
-                                style={{ 
-                                    background: primaryColor, 
-                                    borderColor: primaryColor,
-                                    borderRadius: 10,
-                                    fontWeight: 600,
-                                    height: 40,
-                                    padding: "0 20px"
-                                }}
-                                size="large"
-                            >
-                                Connect Channel
-                            </Button>
                         </Space>
                     }
                 >
-                    <div style={{ display: "flex", height: "calc(100vh - 280px)", minHeight: 700 }}>
+                    {activeMainTab === "inbox" ? (
+                    <div style={{ display: "flex", height: "100%" }}>
                         <div
                             style={{
                                 width: 380,
                                 borderRight: "1px solid #f0f0f0",
                                 flexShrink: 0,
-                                overflowY: "auto",
+                                overflow: "hidden",
                                 background: "#fafafa"
                             }}
                         >
@@ -441,10 +331,10 @@ const OmnichannelInboxPage: React.FC = () => {
                                     <MessageOutlined style={{ fontSize: 56, color: "#1890ff" }} />
                                 </div>
                                 <Title level={4} style={{ marginBottom: 12, color: "#262626" }}>
-                                    No Channels Connected
+                                    No WhatsApp Connected
                                 </Title>
                                 <Text type="secondary" style={{ fontSize: 14, display: "block", marginBottom: 24 }}>
-                                    Connect WhatsApp, Messenger, or Instagram to start receiving messages
+                                    Connect your WhatsApp to start receiving messages
                                 </Text>
                                 <Button
                                     type="primary"
@@ -458,7 +348,7 @@ const OmnichannelInboxPage: React.FC = () => {
                                         fontWeight: 500
                                     }}
                                 >
-                                    Connect a Channel
+                                    Connect WhatsApp
                                 </Button>
                             </div>
                         ) : (
@@ -526,6 +416,13 @@ const OmnichannelInboxPage: React.FC = () => {
                         )}
                     </div>
                 </div>
+            ) : activeMainTab === "scripts" ? (
+                <ScriptsManager shopId={shopId} />
+            ) : activeMainTab === "welcome" ? (
+                <WelcomeMessageManager shopId={shopId} />
+            ) : (
+                <AnalyticsPage shopId={shopId} />
+            )}
             </ProCard>
             </div>
 
