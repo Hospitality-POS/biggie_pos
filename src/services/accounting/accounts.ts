@@ -6,6 +6,14 @@ import axiosInstance from "../request";
 // TYPES
 // ============================================
 
+interface ApiError {
+    response?: {
+        data?: {
+            message?: string;
+        };
+    };
+}
+
 export type AccountType = "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE";
 export type NormalBalance = "DEBIT" | "CREDIT";
 
@@ -73,6 +81,7 @@ export interface AccountLedgerResponse {
         account_name: string;
         account_type: AccountType;
         opening_balance: number;
+        opening_running_balance: number;
         normal_balance: NormalBalance;
     };
     ledger: LedgerLine[];
@@ -153,8 +162,9 @@ export const seedDefaultAccounts = async (shop_id: string) => {
         message.success("Default chart of accounts seeded successfully");
         return response.data;
     } catch (error) {
-        if (error?.response?.data?.message) {
-            message.error(error.response.data.message);
+        const err = error as ApiError;
+        if (err.response?.data?.message) {
+            message.error(err.response.data.message);
         } else {
             message.error("Error seeding chart of accounts");
         }
@@ -166,75 +176,55 @@ export const seedDefaultAccounts = async (shop_id: string) => {
  * Get all accounts with optional filters.
  */
 export const getAllAccounts = async (params: GetAccountsParams) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/chart-of-accounts`,
-            { params }
-        );
-        console.log('my data', response);
-        return response.data as { count: number; accounts: ChartOfAccount[] };
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/chart-of-accounts`,
+        { params }
+    );
+    console.log('my data', response);
+    return response.data as { count: number; accounts: ChartOfAccount[] };
 };
 
 /**
  * Get accounts in hierarchical tree structure grouped by type.
  */
 export const getAccountTree = async (shop_id: string) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/chart-of-accounts/tree`,
-            { params: { shop_id } }
-        );
-        return response.data as { tree: AccountTree };
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/chart-of-accounts/tree`,
+        { params: { shop_id } }
+    );
+    return response.data as { tree: AccountTree };
 };
 
 /**
  * Get accounts filtered by type (ASSET | LIABILITY | EQUITY | REVENUE | EXPENSE).
  */
 export const getAccountsByType = async (type: AccountType, shop_id: string) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/chart-of-accounts/by-type/${type}`,
-            { params: { shop_id } }
-        );
-        return response.data as { account_type: AccountType; count: number; accounts: ChartOfAccount[] };
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/chart-of-accounts/by-type/${type}`,
+        { params: { shop_id } }
+    );
+    return response.data as { account_type: AccountType; count: number; accounts: ChartOfAccount[] };
 };
 
 /**
  * Get all bank accounts (is_bank_account = true) — used in reconciliation.
  */
 export const getBankAccounts = async (shop_id: string) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/chart-of-accounts/bank`,
-            { params: { shop_id } }
-        );
-        return response.data as { count: number; accounts: ChartOfAccount[] };
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/chart-of-accounts/bank`,
+        { params: { shop_id } }
+    );
+    return response.data as { count: number; accounts: ChartOfAccount[] };
 };
 
 /**
  * Get a single account by ID.
  */
 export const getAccountById = async (id: string) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/chart-of-accounts/${id}`
-        );
-        return response.data as { account: ChartOfAccount };
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/chart-of-accounts/${id}`
+    );
+    return response.data as { account: ChartOfAccount };
 };
 
 /**
@@ -249,8 +239,9 @@ export const createAccount = async (data: CreateAccountParams) => {
         message.success("Account created successfully");
         return response.data as { account: ChartOfAccount };
     } catch (error) {
-        if (error?.response?.data?.message) {
-            message.error(error.response.data.message);
+        const err = error as ApiError;
+        if (err.response?.data?.message) {
+            message.error(err.response.data.message);
         } else {
             message.error("Error creating account");
         }
@@ -271,8 +262,9 @@ export const updateAccount = async (id: string, data: UpdateAccountParams) => {
         message.success("Account updated successfully");
         return response.data as { account: ChartOfAccount };
     } catch (error) {
-        if (error?.response?.data?.message) {
-            message.error(error.response.data.message);
+        const err = error as ApiError;
+        if (err.response?.data?.message) {
+            message.error(err.response.data.message);
         } else {
             message.error("Error updating account");
         }
@@ -296,8 +288,9 @@ export const updateOpeningBalance = async (
         message.success("Opening balance updated successfully");
         return response.data as { account: ChartOfAccount };
     } catch (error) {
-        if (error?.response?.data?.message) {
-            message.error(error.response.data.message);
+        const err = error as ApiError;
+        if (err.response?.data?.message) {
+            message.error(err.response.data.message);
         } else {
             message.error("Error updating opening balance");
         }
@@ -316,8 +309,9 @@ export const toggleAccountActive = async (id: string) => {
         message.success(response.data.message);
         return response.data as { account: ChartOfAccount };
     } catch (error) {
-        if (error?.response?.data?.message) {
-            message.error(error.response.data.message);
+        const err = error as ApiError;
+        if (err.response?.data?.message) {
+            message.error(err.response.data.message);
         } else {
             message.error("Error toggling account status");
         }
@@ -337,8 +331,9 @@ export const deleteAccount = async (id: string) => {
         message.success("Account deleted successfully");
         return true;
     } catch (error) {
-        if (error?.response?.data?.message) {
-            message.error(error.response.data.message);
+        const err = error as ApiError;
+        if (err.response?.data?.message) {
+            message.error(err.response.data.message);
         } else {
             message.error("Error deleting account");
         }
@@ -350,18 +345,14 @@ export const deleteAccount = async (id: string) => {
  * Get the full transaction ledger for an account with running balance.
  */
 export const getAccountLedger = async (id: string, params: GetLedgerParams) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/chart-of-accounts/${id}/ledger`,
-            { 
-                params: {
-                    ...params,
-                    t: Date.now() // Cache-busting timestamp
-                }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/chart-of-accounts/${id}/ledger`,
+        { 
+            params: {
+                ...params,
+                t: Date.now() // Cache-busting timestamp
             }
-        );
-        return response.data as AccountLedgerResponse;
-    } catch (error) {
-        throw error;
-    }
+        }
+    );
+    return response.data as AccountLedgerResponse;
 };

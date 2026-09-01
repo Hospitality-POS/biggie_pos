@@ -6,7 +6,6 @@ import AccountingDashboardPage from "src/pages/AccountingDashboard/AccountingDas
 import MtejaDashboard from "src/pages/Dashboard/MtejaDashboard";
 import BanduHRDashboard from "src/pages/BanduHR/BanduHRDashboard";
 import DalaDashboard from "src/pages/dala/Dashboard";
-import BusinessImpact from "./BusinessImpact";
 
 // ── Module activation checks ─────────────────────────────────────────────────────
 const getModuleFlags = () => {
@@ -110,8 +109,6 @@ const UnifiedShopDashboardPage: React.FC = () => {
       <Typography.Title level={3} style={{ marginBottom: 24, fontWeight: 600 }}>
         Home Dashboard
       </Typography.Title>
-
-      <BusinessImpact hasDuka={hasDuka} hasPesa={hasPesa} hasDala={hasDala} />
 
       <Tabs
         activeKey={activeTab}

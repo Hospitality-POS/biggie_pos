@@ -12,6 +12,7 @@ import {
     ShopOutlined, FundOutlined, TrophyOutlined, DollarOutlined,
     PhoneOutlined, MailOutlined, UserAddOutlined, CheckCircleOutlined,
     CloseCircleOutlined, ClockCircleOutlined, ThunderboltOutlined,
+    UserOutlined,
     BarChartOutlined, PieChartOutlined, LineChartOutlined, AimOutlined,
     StarOutlined, AlertOutlined, SyncOutlined, EyeOutlined,
 } from "@ant-design/icons";
@@ -21,6 +22,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import axiosInstance from "@services/request";
 import { BASE_URL } from "@utils/config";
 import { fetchConversations, fetchWhatsappChannels } from "@services/whatsappService";
+import BusinessImpact from "src/pages/Report/BusinessImpact";
 
 dayjs.extend(relativeTime);
 
@@ -98,7 +100,7 @@ const playChime = () => {
         gain.connect(ctx.destination);
         osc.start();
         osc.stop(ctx.currentTime + 0.6);
-    } catch {}
+    } catch { /* ignore */ }
 };
 
 const getStoredShopId = (): string => {
@@ -712,6 +714,17 @@ const MtejaDashboard: React.FC = () => {
 
     const isDataLoading = statsLoading || pipelineLoading || custLoading;
 
+    const mtejaImpactStats = useMemo(() => [
+        { label: "Conversations", value: fmtK(totalConversations), icon: <MessageOutlined /> },
+        { label: "Open", value: fmtK(convCounts.open), icon: <CheckCircleOutlined /> },
+        { label: "Pending", value: fmtK(convCounts.pending), icon: <ClockCircleOutlined /> },
+        { label: "Resolved", value: fmtK(convCounts.resolved), icon: <CheckCircleOutlined /> },
+        { label: "Customers", value: fmtK(customerList.length), icon: <UserOutlined /> },
+        { label: "Total Leads", value: fmtK(totalLeads), icon: <FundOutlined /> },
+        { label: "Lead Conversion", value: conversionRate.toFixed(1), suffix: "%", icon: <ThunderboltOutlined /> },
+        { label: "Pipeline Value", value: fmtK(totalLeadValue), prefix: "KES ", icon: <DollarOutlined /> },
+    ], [totalConversations, convCounts, customerList.length, totalLeads, conversionRate, totalLeadValue]);
+
     // ── Top stat cards ───────────────────────────────────────────────────────
     const topCards = [
         { title: "Total Conversations", value: totalConversations, color: C.primary, bg: C.primaryLight, icon: <MessageOutlined /> },
@@ -773,6 +786,16 @@ const MtejaDashboard: React.FC = () => {
                     <Button size="small" icon={<ReloadOutlined />} onClick={handleRefresh}>Refresh</Button>
                 </Space>
             </div>
+
+            {/* ── AI Business Impact ── */}
+            <BusinessImpact
+                product="mteja"
+                periodFilter={periodFilter}
+                startDate={startDate}
+                endDate={endDate}
+                periodLabel={PERIOD_LABELS[periodFilter]}
+                stats={mtejaImpactStats}
+            />
 
             {/* ── Top stat cards ── */}
             <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>

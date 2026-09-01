@@ -11,6 +11,7 @@ import {
   BellOutlined,
   WhatsAppOutlined,
   HomeOutlined,
+  BookOutlined,
 } from "@ant-design/icons";
 import { Space, Typography, Card } from "antd";
 import { useQuery } from "@tanstack/react-query";
@@ -24,6 +25,7 @@ import NotificationSettings from "./NotificationSettings";
 import WhatsAppSenderRegistration from "./WhatsAppSenderRegistration";
 import HotelSettings from "./HotelSettings";
 import TransactionLocking from "./TransactionLocking";
+import ChartOfAccountsSettings from "./ChartOfAccountsSettings";
 import { fetchShop } from "@services/shops";
 
 const { Text } = Typography;
@@ -200,6 +202,22 @@ const SystemSetup: React.FC = () => {
             >
               <div style={{ padding: "16px", borderRadius: "8px" }}>
                 <TransactionLocking />
+              </div>
+            </ProCard.TabPane>
+          )}
+
+          {hasAccounting && (
+            <ProCard.TabPane
+              key="chart-of-accounts"
+              tab={
+                <Space>
+                  <BookOutlined style={{ fontSize: 18, color: "#1890ff" }} />
+                  <Text strong>Chart of Accounts</Text>
+                </Space>
+              }
+            >
+              <div style={{ padding: "16px", borderRadius: "8px" }}>
+                <ChartOfAccountsSettings />
               </div>
             </ProCard.TabPane>
           )}

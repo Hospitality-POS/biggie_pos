@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { ProCard } from "@ant-design/pro-components";
 import {
   Row,
@@ -34,6 +34,7 @@ import { fetchHRDashboard, type HRDashboardData } from "@services/bandu/dashboar
 import { clockIn, clockOut, fetchClockStatus } from "@services/hr/leave";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import dayjs from "dayjs";
+import BusinessImpact from "src/pages/Report/BusinessImpact";
 import {
   LineChart,
   Line,
@@ -256,6 +257,42 @@ const BanduHRDashboard: React.FC = () => {
     }
   };
 
+  const dashboardData: HRDashboardData = data || ({} as HRDashboardData);
+
+  // ── Defensive checks for missing data ──────────────────────────────────────────
+  const employeeStats = dashboardData.employee_stats || {
+    total_employees: 0,
+    active_employees: 0,
+    on_leave: 0,
+    new_hires_this_month: 0,
+  };
+  const leaveStats = dashboardData.leave_stats || {
+    total_requests: 0,
+    pending: 0,
+    approved: 0,
+    rejected: 0,
+    on_leave_today: 0,
+  };
+  const attendanceStats = dashboardData.attendance_stats || {
+    present_today: 0,
+    absent_today: 0,
+    late_today: 0,
+    average_attendance_rate: 0,
+    on_leave_today: 0,
+  };
+
+  const banduStats = useMemo(
+    () => [
+      { label: "Total Employees", value: fmtK(employeeStats.total_employees), icon: <TeamOutlined /> },
+      { label: "Active", value: fmtK(employeeStats.active_employees), icon: <CheckCircleOutlined /> },
+      { label: "On Leave", value: fmtK(employeeStats.on_leave), icon: <ClockCircleOutlined /> },
+      { label: "New Hires", value: fmtK(employeeStats.new_hires_this_month), icon: <RiseOutlined /> },
+      { label: "Leave Requests", value: fmtK(leaveStats.total_requests), icon: <FileTextOutlined /> },
+      { label: "Attendance Rate", value: (attendanceStats.average_attendance_rate * 100).toFixed(1), suffix: "%", icon: <UserOutlined /> },
+    ],
+    [employeeStats, leaveStats, attendanceStats]
+  );
+
   if (isLoading) {
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 400, gap: 12 }}>
@@ -283,28 +320,6 @@ const BanduHRDashboard: React.FC = () => {
     );
   }
 
-  const dashboardData: HRDashboardData = data;
-
-  // ── Defensive checks for missing data ──────────────────────────────────────────
-  const employeeStats = dashboardData.employee_stats || {
-    total_employees: 0,
-    active_employees: 0,
-    on_leave: 0,
-    new_hires_this_month: 0,
-  };
-  const leaveStats = dashboardData.leave_stats || {
-    total_requests: 0,
-    pending: 0,
-    approved: 0,
-    rejected: 0,
-    on_leave_today: 0,
-  };
-  const attendanceStats = dashboardData.attendance_stats || {
-    present_today: 0,
-    absent_today: 0,
-    late_today: 0,
-    average_attendance_rate: 0,
-  };
   const payrollStats = dashboardData.payroll_stats || {
     total_payroll_this_month: 0,
     total_deductions: 0,
@@ -551,6 +566,16 @@ const BanduHRDashboard: React.FC = () => {
           </Space>
         </div>
 
+        {/* ── AI Business Impact ── */}
+        <BusinessImpact
+          product="bandu"
+          periodFilter={periodFilter}
+          startDate={startDate}
+          endDate={endDate}
+          periodLabel={PERIOD_LABELS[periodFilter]}
+          stats={banduStats}
+        />
+
         {/* ── Section 1: Employee Stats ── */}
         <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
           <Col xs={12} sm={6}>
@@ -692,7 +717,7 @@ const BanduHRDashboard: React.FC = () => {
                   <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} tickFormatter={fmtK} />
                   <ReTooltip
-                    formatter={(val: number) => [`KES ${fmt(val)}`, undefined]}
+                    formatter={(val: any) => [`KES ${fmt(val || 0)}`, undefined]}
                     contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }}
                   />
                   <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
@@ -729,7 +754,7 @@ const BanduHRDashboard: React.FC = () => {
                         ))}
                       </Pie>
                       <ReTooltip
-                        formatter={(v: number, name: string) => [v, name]}
+                        formatter={(v: any, name: any) => [v, name]}
                         contentStyle={{ borderRadius: 8, fontSize: 12 }}
                       />
                     </PieChart>
@@ -789,7 +814,7 @@ const BanduHRDashboard: React.FC = () => {
                         ))}
                       </Pie>
                       <ReTooltip
-                        formatter={(v: number, name: string) => [v, name]}
+                        formatter={(v: any, name: any) => [v, name]}
                         contentStyle={{ borderRadius: 8, fontSize: 12 }}
                       />
                     </PieChart>
@@ -841,7 +866,7 @@ const BanduHRDashboard: React.FC = () => {
                     <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
                     <ReTooltip
-                      formatter={(val: number) => [val, undefined]}
+                      formatter={(val: any) => [val, undefined]}
                       contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }}
                     />
                     <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />

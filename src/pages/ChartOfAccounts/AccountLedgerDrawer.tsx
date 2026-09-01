@@ -23,18 +23,26 @@ interface Props {
     onClose: () => void;
     account: ChartOfAccount | null;
     shopId: string;
-    initialFrom?: Dayjs;
-    initialTo?: Dayjs;
+    initialFrom?: Dayjs | null;
+    initialTo?: Dayjs | null;
 }
 
 const SOURCE_COLORS: Record<string, string> = {
     manual: "default",
+    journal: "magenta",
     pos_sale: "blue",
     pos_subscription: "cyan",
     invoice: "green",
     bill: "orange",
     payment: "purple",
     reconciliation: "geekblue",
+    bank_upload: "gold",
+    income: "green",
+    expense: "orange",
+    payroll: "purple",
+    credit_note: "cyan",
+    debit_note: "blue",
+    note_void: "red",
 };
 
 // ── Export helpers ────────────────────────────────────────────────────────────
@@ -47,12 +55,13 @@ const exportLedgerToExcel = async (
 ) => {
     const XLSX = await import("xlsx");
 
-    const period = `${dateRange[0]?.format("DD-MM-YYYY")} – ${dateRange[1]?.format("DD-MM-YYYY")}`;
+    const period = `${dateRange[0]?.format("DD/MM/YYYY")} – ${dateRange[1]?.format("DD/MM/YYYY")}`;
 
     const rows = ledger.map((l) => ({
-        Date: dayjs(l.entry_date).format("DD-MM-YYYY"),
+        Date: dayjs(l.entry_date).format("DD/MM/YYYY"),
         "Entry No.": l.entry_no,
         Description: l.description || "",
+        Reference: l.reference || "",
         Source: l.source?.replace(/_/g, " ").toUpperCase() || "",
         "Debit (KES)": l.debit || 0,
         "Credit (KES)": l.credit || 0,
@@ -64,6 +73,7 @@ const exportLedgerToExcel = async (
         Date: "",
         "Entry No.": "",
         Description: "TOTALS",
+        Reference: "",
         Source: "",
         "Debit (KES)": totals.totalDebit,
         "Credit (KES)": totals.totalCredit,
@@ -74,8 +84,8 @@ const exportLedgerToExcel = async (
 
     // Column widths
     ws["!cols"] = [
-        { wch: 14 }, { wch: 16 }, { wch: 36 }, { wch: 18 },
-        { wch: 14 }, { wch: 14 }, { wch: 14 },
+        { wch: 14 }, { wch: 16 }, { wch: 36 }, { wch: 24 }, { wch: 18 },
+        { wch: 14 }, { wch: 14 }, { wch:  14 },
     ];
 
     // Header meta rows above the data (insert before data)
@@ -83,10 +93,10 @@ const exportLedgerToExcel = async (
         [`Account Ledger Report`],
         [`${account.account_code} ${account.account_name}`],
         [`Period: ${period}`],
-        [`Generated: ${dayjs().format("DD-MM-YYYY HH:mm")}`],
+        [`Generated: ${dayjs().format("DD/MM/YYYY HH:mm")}`],
         [`Company: Biggie POS System`],
         [],
-        ["Date", "Entry No.", "Description", "Source", "Debit (KES)", "Credit (KES)", "Balance (KES)"],
+        ["Date", "Entry No.", "Description", "Reference", "Source", "Debit (KES)", "Credit (KES)", "Balance (KES)"],
     ], { origin: "A1" });
 
     // Shift data down by 3 rows to make room for the header
@@ -111,7 +121,7 @@ const exportLedgerToPdf = async (
     const { default: autoTable } = await import("jspdf-autotable");
 
     const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-    const period = `${dateRange[0]?.format("DD-MM-YYYY")} – ${dateRange[1]?.format("DD-MM-YYYY")}`;
+    const period = `${dateRange[0]?.format("DD/MM/YYYY")} – ${dateRange[1]?.format("DD/MM/YYYY")}`;
 
     // Header
     doc.setFont("helvetica", "bold");
@@ -139,12 +149,13 @@ const exportLedgerToPdf = async (
 
     autoTable(doc, {
         startY: 42,
-        head: [["Date", "Entry No.", "Description", "Source", "Debit (KES)", "Credit (KES)", "Balance (KES)"]],
+        head: [["Date", "Entry No.", "Description", "Reference", "Source", "Debit (KES)", "Credit (KES)", "Balance (KES)"]],
         body: [
             ...ledger.map((l) => [
-                dayjs(l.entry_date).format("DD-MM-YYYY"),
+                dayjs(l.entry_date).format("DD/MM/YYYY"),
                 l.entry_no,
                 l.description || "",
+                l.reference || "",
                 (l.source || "").replace(/_/g, " ").toUpperCase(),
                 l.debit > 0 ? l.debit.toLocaleString("en-KE", { minimumFractionDigits: 2 }) : "—",
                 l.credit > 0 ? l.credit.toLocaleString("en-KE", { minimumFractionDigits: 2 }) : "—",
@@ -152,7 +163,7 @@ const exportLedgerToPdf = async (
             ]),
             // Totals row
             [
-                "", "", { content: "PAGE TOTALS", styles: { fontStyle: "bold" } }, "",
+                "", "", { content: "PAGE TOTALS", styles: { fontStyle: "bold" } }, "", "",
                 { content: totals.totalDebit.toLocaleString("en-KE", { minimumFractionDigits: 2 }), styles: { fontStyle: "bold", textColor: [207, 19, 34] } },
                 { content: totals.totalCredit.toLocaleString("en-KE", { minimumFractionDigits: 2 }), styles: { fontStyle: "bold", textColor: [56, 158, 13] } },
                 { content: Math.abs(totals.closing).toLocaleString("en-KE", { minimumFractionDigits: 2 }), styles: { fontStyle: "bold", textColor: totals.closing >= 0 ? [29, 57, 196] : [207, 19, 34] } },
@@ -164,11 +175,12 @@ const exportLedgerToPdf = async (
         columnStyles: {
             0: { cellWidth: 24 },
             1: { cellWidth: 28 },
-            2: { cellWidth: 80 },
+            2: { cellWidth: 64 },
             3: { cellWidth: 28 },
-            4: { halign: "right", cellWidth: 30 },
+            4: { cellWidth: 28 },
             5: { halign: "right", cellWidth: 30 },
-            6: { halign: "right", cellWidth: 32 },
+            6: { halign: "right", cellWidth: 30 },
+            7: { halign: "right", cellWidth: 32 },
         },
     });
 
@@ -192,9 +204,10 @@ const exportLedgerToPdf = async (
 
 const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId, initialFrom, initialTo }) => {
     const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(25);
     const [exporting, setExporting] = useState(false);
     const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null]>([
-        initialFrom ?? dayjs().startOf("month"),
+        initialFrom ?? null,
         initialTo ?? dayjs().endOf("month"),
     ]);
 
@@ -202,7 +215,7 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId, 
         if (open) {
             setPage(1);
             setDateRange([
-                initialFrom ?? dayjs().startOf("month"),
+                initialFrom ?? null,
                 initialTo ?? dayjs().endOf("month"),
             ]);
         }
@@ -212,15 +225,15 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId, 
     const to = dateRange[1]?.endOf("day").toISOString();
 
     const { data, isLoading } = useQuery({
-        queryKey: ["account-ledger", account?._id, page, from, to],
+        queryKey: ["account-ledger", account?._id, page, pageSize, from, to],
         queryFn: () =>
-            getAccountLedger(account!._id, { shop_id: shopId, from, to, page, limit: 20 }),
+            getAccountLedger(account!._id, { shop_id: shopId, from, to, page, limit: pageSize }),
         enabled: open && !!account?._id,
         keepPreviousData: true,
     });
 
     // Fetch all pages for summary statistics
-    const { data: allPagesData, isLoading: isLoadingAll } = useQuery({
+    const { data: allPagesData } = useQuery({
         queryKey: ["account-ledger-all", account?._id, from, to],
         queryFn: async () => {
             const allLedger: LedgerLine[] = [];
@@ -247,12 +260,19 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId, 
 
     const ledger = data?.ledger || [];
     const pagination = data?.pagination || { total: 0, page: 1, totalPages: 1 };
+    const openingBalance = data?.account?.opening_running_balance ?? data?.account?.opening_balance ?? 0;
+    const normalBalance = data?.account?.normal_balance ?? "DEBIT";
+
+    const isDr = (val: number) =>
+        (normalBalance === "DEBIT" && val >= 0) || (normalBalance === "CREDIT" && val < 0);
 
     // Calculate totals from all pages
     const totalDebit = allPagesData?.reduce((s, l) => s + (l.debit || 0), 0) || 0;
     const totalCredit = allPagesData?.reduce((s, l) => s + (l.credit || 0), 0) || 0;
-    const closing = allPagesData && allPagesData.length > 0 ? allPagesData[allPagesData.length - 1].balance : 0;
-    
+    const closing = normalBalance === "DEBIT"
+        ? openingBalance + totalDebit - totalCredit
+        : openingBalance + totalCredit - totalDebit;
+
     // Calculate page totals for current page
     const pageTotalDebit = ledger.reduce((s, l) => s + (l.debit || 0), 0);
     const pageTotalCredit = ledger.reduce((s, l) => s + (l.credit || 0), 0);
@@ -314,13 +334,16 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId, 
             dataIndex: "entry_date",
             key: "entry_date",
             width: 110,
-            render: (d: string) => dayjs(d).format("DD-MM-YYYY"),
+            sorter: (a: LedgerLine, b: LedgerLine) => dayjs(a.entry_date).unix() - dayjs(b.entry_date).unix(),
+            defaultSortOrder: "ascend" as const,
+            render: (d: string) => dayjs(d).format("DD/MM/YYYY"),
         },
         {
             title: "Entry No.",
             dataIndex: "entry_no",
             key: "entry_no",
             width: 120,
+            sorter: (a: LedgerLine, b: LedgerLine) => (a.entry_no || "").localeCompare(b.entry_no || ""),
             render: (v: string) => <Text code style={{ fontSize: 12 }}>{v}</Text>,
         },
         {
@@ -328,6 +351,14 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId, 
             dataIndex: "description",
             key: "description",
             ellipsis: true,
+        },
+        {
+            title: "Reference",
+            dataIndex: "reference",
+            key: "reference",
+            ellipsis: true,
+            width: 120,
+            render: (v: string) => v || "—",
         },
         {
             title: "Source",
@@ -346,6 +377,7 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId, 
             key: "debit",
             width: 110,
             align: "right" as const,
+            sorter: (a: LedgerLine, b: LedgerLine) => (a.debit || 0) - (b.debit || 0),
             render: (v: number) =>
                 v > 0 ? (
                     <Text style={{ color: "#cf1322" }}>
@@ -359,6 +391,7 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId, 
             key: "credit",
             width: 110,
             align: "right" as const,
+            sorter: (a: LedgerLine, b: LedgerLine) => (a.credit || 0) - (b.credit || 0),
             render: (v: number) =>
                 v > 0 ? (
                     <Text style={{ color: "#389e0d" }}>
@@ -372,6 +405,7 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId, 
             key: "balance",
             width: 120,
             align: "right" as const,
+            sorter: (a: LedgerLine, b: LedgerLine) => (a.balance || 0) - (b.balance || 0),
             render: (v: number) => (
                 <Text strong style={{ color: v >= 0 ? "#1d39c4" : "#cf1322" }}>
                     {v.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
@@ -427,7 +461,17 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId, 
 
             {/* ── Summary Stats ── */}
             <Row gutter={16} style={{ marginBottom: 20 }}>
-                <Col span={8}>
+                <Col span={6}>
+                    <Statistic
+                        title="Opening Balance"
+                        value={Math.abs(openingBalance)}
+                        precision={2}
+                        prefix="KES"
+                        valueStyle={{ color: "#64748b", fontSize: 16 }}
+                        suffix={isDr(openingBalance) ? "(DR)" : "(CR)"}
+                    />
+                </Col>
+                <Col span={6}>
                     <Statistic
                         title="Total Debits"
                         value={totalDebit}
@@ -437,7 +481,7 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId, 
                         suffix={<ArrowUpOutlined />}
                     />
                 </Col>
-                <Col span={8}>
+                <Col span={6}>
                     <Statistic
                         title="Total Credits"
                         value={totalCredit}
@@ -447,14 +491,14 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId, 
                         suffix={<ArrowDownOutlined />}
                     />
                 </Col>
-                <Col span={8}>
+                <Col span={6}>
                     <Statistic
                         title="Closing Balance"
                         value={Math.abs(closing)}
                         precision={2}
                         prefix="KES"
                         valueStyle={{ color: closing >= 0 ? "#1d39c4" : "#cf1322", fontSize: 16 }}
-                        suffix={closing < 0 ? "(CR)" : "(DR)"}
+                        suffix={isDr(closing) ? "(DR)" : "(CR)"}
                     />
                 </Col>
             </Row>
@@ -470,10 +514,15 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId, 
                 pagination={{
                     current: pagination.page,
                     total: pagination.total,
-                    pageSize: 20,
+                    pageSize: pageSize,
+                    pageSizeOptions: [10, 25, 50, 100],
                     showTotal: (total) => `${total} transactions`,
                     onChange: (p) => setPage(p),
-                    showSizeChanger: false,
+                    onShowSizeChange: (_current, size) => {
+                        setPageSize(size);
+                        setPage(1);
+                    },
+                    showSizeChanger: true,
                 }}
                 locale={{ emptyText: "No transactions in this period" }}
                 summary={() =>

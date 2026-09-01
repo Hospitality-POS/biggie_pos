@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { ProCard } from "@ant-design/pro-components";
 import {
     Row,
@@ -22,13 +22,13 @@ import {
     ArrowDownOutlined,
     DollarOutlined,
     BankOutlined,
-    FileTextOutlined,
     WarningOutlined,
     SyncOutlined,
     DashboardOutlined,
     RiseOutlined,
     FallOutlined,
     CalendarOutlined,
+    PieChartOutlined,
 } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -49,13 +49,12 @@ import {
 import {
     getAccountingDashboard,
     PLTrendMonth,
-    RecentJournalEntry,
     TopExpenseAccount,
     CashAccount,
-    DashboardSalesReceiptsSummary,
 } from "@services/accounting/accountingDashboard";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import dayjs from "dayjs";
+import BusinessImpact, { StatItem } from "src/pages/Report/BusinessImpact";
 
 const { Text, Title } = Typography;
 const { RangePicker } = DatePicker;
@@ -91,20 +90,23 @@ const fmtK = (v: number) => {
 
 const SOURCE_COLORS: Record<string, string> = {
     manual: "#6366f1",
+    journal: "#ec4899",
     pos_sale: "#3b82f6",
     pos_subscription: "#06b6d4",
     invoice: "#10b981",
     bill: "#f59e0b",
     payment: "#8b5cf6",
     reconciliation: "#6366f1",
+    bank_upload: "#fbbf24",
+    income: "#10b981",
+    expense: "#f97316",
+    payroll: "#8b5cf6",
+    credit_note: "#06b6d4",
+    debit_note: "#3b82f6",
+    note_void: "#ef4444",
 };
 
 const EXPENSE_PALETTE = ["#ef4444", "#f97316", "#eab308", "#84cc16", "#22c55e"];
-
-const MONTH_LABELS: string[] = [
-    "", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
 
 // ── KPI Card ──────────────────────────────────────────────────────────────────
 
@@ -232,7 +234,6 @@ const AccountingDashboardPage: React.FC = () => {
     const handlePeriodChange = useCallback((value: string) => {
         setPeriodFilter(value);
         setShowCustomDatePicker(value === "custom");
-        setFilterDrawerOpen(false);
     }, []);
 
     const { data, isLoading, isFetching, isError, refetch } = useQuery({
@@ -247,6 +248,24 @@ const AccountingDashboardPage: React.FC = () => {
         enabled: true,
         retry: 1,
     });
+
+    const pesaStats: StatItem[] = useMemo(() => {
+        if (!data?.overview) return [];
+        const overview = data.overview;
+        return [
+            { label: "Revenue", value: fmtK(overview.revenue?.amount || 0), prefix: "KES ", icon: <DollarOutlined /> },
+            { label: "Expenses", value: fmtK(overview.expenses?.amount || 0), prefix: "KES ", icon: <FallOutlined /> },
+            {
+                label: overview.net_profit?.is_profit ? "Net Profit" : "Net Loss",
+                value: fmtK(Math.abs(overview.net_profit?.amount || 0)),
+                prefix: "KES ",
+                icon: <RiseOutlined />,
+                color: overview.net_profit?.is_profit ? "#6366f1" : "#ef4444",
+            },
+            { label: "Profit Margin", value: overview.profit_margin ?? 0, suffix: "%", icon: <PieChartOutlined /> },
+            { label: "Total Assets", value: fmtK(overview.total_assets ?? 0), prefix: "KES ", icon: <BankOutlined /> },
+        ];
+    }, [data]);
 
     if (isLoading) {
         return (
@@ -437,6 +456,16 @@ const AccountingDashboardPage: React.FC = () => {
                     </Space>
                 </div>
 
+                {/* ── AI Business Impact ── */}
+                <BusinessImpact
+                    product="pesa"
+                    periodFilter={periodFilter}
+                    startDate={startDate}
+                    endDate={endDate}
+                    periodLabel={PERIOD_LABELS[periodFilter]}
+                    stats={pesaStats}
+                />
+
                 {/* ── Section 1: KPI Cards ── */}
                 <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
                     <Col xs={24} sm={12} lg={6}>
@@ -497,7 +526,7 @@ const AccountingDashboardPage: React.FC = () => {
                                     <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
                                     <YAxis tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} tickFormatter={fmtK} />
                                     <ReTooltip
-                                        formatter={(val: number) => [`KES ${fmt(val)}`, undefined]}
+                                        formatter={(val: any) => [`KES ${fmt(val || 0)}`, undefined]}
                                         contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }}
                                     />
                                     <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
@@ -534,7 +563,7 @@ const AccountingDashboardPage: React.FC = () => {
                                                 ))}
                                             </Pie>
                                             <ReTooltip
-                                                formatter={(v: number, name: string) => [v, name]}
+                                                formatter={(v: any, name: any) => [v, name]}
                                                 contentStyle={{ borderRadius: 8, fontSize: 12 }}
                                             />
                                         </PieChart>
@@ -840,7 +869,7 @@ const AccountingDashboardPage: React.FC = () => {
                                                 tickFormatter={(v: string) => v.length > 18 ? v.slice(0, 18) + "…" : v}
                                             />
                                             <ReTooltip
-                                                formatter={(v: number) => [`KES ${fmt(v)}`, "Amount"]}
+                                                formatter={(v: any) => [`KES ${fmt(v || 0)}`, "Amount"]}
                                                 contentStyle={{ borderRadius: 8, fontSize: 12 }}
                                             />
                                             <Bar dataKey="total_amount" radius={[0, 4, 4, 0]}>

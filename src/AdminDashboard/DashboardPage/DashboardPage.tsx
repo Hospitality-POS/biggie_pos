@@ -818,11 +818,13 @@ const DashboardAdminPage: React.FC = () => {
     },
   });
 
+  const chartPeriod = periodFilter === "custom" ? "day" : (periodFilter as "day" | "week" | "month" | "year");
+
   const { data: chartData, isLoading: chartLoading } = useQuery({
     queryKey: ["adminSalesChartData", periodFilter, startDate.format(), endDate.format()],
     queryFn: () =>
       getSalesChartData({
-        period: periodFilter,
+        period: chartPeriod,
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString(),
       }),
@@ -905,6 +907,18 @@ const DashboardAdminPage: React.FC = () => {
   );
 
   const isDataLoading = isLoading || isRefetching || chartLoading;
+
+  const dukaStats = useMemo(() => {
+    if (!data) return [];
+    const avgOrderValue = data.totalOrderCount > 0 ? data.todayRevenue / data.totalOrderCount : 0;
+    return [
+      { label: "Revenue", value: fmtK(data.todayRevenue || 0), prefix: "KES ", icon: <DollarOutlined /> },
+      { label: "Orders", value: fmtK(data.totalOrderCount || 0), icon: <ShoppingCartOutlined /> },
+      { label: "Avg Order", value: fmtK(avgOrderValue), prefix: "KES ", icon: <RiseOutlined /> },
+      { label: "Active Shops", value: fmtK(data.activeOrders || 0), icon: <ShopOutlined /> },
+      { label: "Active Shifts", value: fmtK(data.activeShift || 0), icon: <TeamOutlined /> },
+    ];
+  }, [data]);
 
   const kpiCards = useMemo(
     () => [
@@ -1087,7 +1101,14 @@ const DashboardAdminPage: React.FC = () => {
       </div>
 
       {/* ── AI Business Impact ── */}
-      <BusinessImpact hasDuka />
+      <BusinessImpact
+        product="duka"
+        periodFilter={periodFilter}
+        startDate={startDate}
+        endDate={endDate}
+        periodLabel={PERIOD_LABELS[periodFilter]}
+        stats={dukaStats}
+      />
 
       {/* ── KPI Cards ── */}
       <Row gutter={[12, 12]} style={{ marginBottom: 20 }}>

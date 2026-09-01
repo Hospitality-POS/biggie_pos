@@ -14,6 +14,7 @@ import {
     Typography,
     notification,
 } from "antd";
+
 import {
     ApiOutlined,
     CalculatorOutlined,
@@ -328,6 +329,20 @@ const INTEGRATIONS = [
         tags: ["Documents", "Signatures", "Auto-enabled"],
     },
     {
+        id: "business_intelligence",
+        name: "Biashara AI",
+        category: "AI Business Assistant",
+        description: "Your subscription-aware AI assistant across Duka, Mteja, Pesa, Bandu, and Dala.",
+        longDescription: "Biashara AI is the intelligence layer of Basepoint Cloud. Ask plain-English questions and get answers based only on the modules you subscribe to — sales insights, customer behaviour, financial analysis, HR metrics, property performance, and cross-module intelligence.",
+        features: ["Natural Language Queries", "Cross-Module Insights", "Sales & Inventory Intelligence", "Customer & CRM Analysis", "Financial Analysis", "HR & Property Assistant"],
+        benefits: ["One AI for every Basepoint module", "Safer, subscription-aware answers", "Spot trends across the business", "Ask without knowing which module has the data"],
+        setupTime: "N/A",
+        status: "available",
+        icon: RobotOutlined,
+        color: C.primary,
+        tags: ["AI", "Enabled", "Assistant"],
+    },
+    {
         id: "pesapal",
         name: "Pesapal",
         category: "Payment Processing",
@@ -355,20 +370,7 @@ const INTEGRATIONS = [
         color: "#00a651",
         tags: ["M-Pesa", "Safaricom", "Coming Soon"],
     },
-    {
-        id: "business_intelligence",
-        name: "AI Assistant",
-        category: "Business Intelligence",
-        description: "AI-powered insights, forecasts, and smart recommendations for your business.",
-        longDescription: "The Base AI Assistant analyses your sales, inventory, and customer data to surface actionable insights — predict stock-outs, identify top performers, forecast revenue, and get plain-English answers to your business questions.",
-        features: ["Natural Language Queries", "Revenue Forecasting", "Inventory Predictions", "Customer Behaviour Analysis", "Smart Alerts", "Automated Reports"],
-        benefits: ["Make faster decisions", "Reduce dead stock", "Spot trends early", "Save hours on reporting", "Grow revenue intelligently"],
-        setupTime: "N/A",
-        status: "coming_soon",
-        icon: RobotOutlined,
-        color: C.indigo,
-        tags: ["AI", "Analytics", "Coming Soon"],
-    },
+
     {
         id: "developer_api",
         name: "Developer API",
@@ -542,7 +544,7 @@ const IntegrationCard: React.FC<{
 
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {isEnabled ? (
-                    (integration.id === "asset_manager" || integration.id === "esign") ? (
+                    (integration.id === "asset_manager" || integration.id === "esign" || integration.id === "business_intelligence") ? (
                         <Button type="primary" block icon={<CheckCircleOutlined />} disabled style={{ borderRadius: 8, background: integration.color, borderColor: integration.color }}>
                             Enabled
                         </Button>
@@ -675,6 +677,7 @@ const DiscoverPage: React.FC = () => {
         if (id === "etims") return t.etims_config?.enabled === true ? "enabled" : "not_enabled";
         if (id === "pesapal") return t.use_pesapal === true || pesapalConfig?.data?.enabled === true ? "enabled" : "not_enabled";
         if (id === "esign") return "enabled"; // Auto-enabled for all users
+        if (id === "business_intelligence") return "enabled"; // Biashara AI is enabled by default
         return "not_enabled";
     };
 
