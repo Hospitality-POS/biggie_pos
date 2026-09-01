@@ -68,6 +68,7 @@ interface Props {
     editingAccount?: ChartOfAccount | null;
     accounts: ChartOfAccount[];
     shopId: string;
+    requireAccountCode: boolean;
 }
 
 const AccountFormDrawer: React.FC<Props> = ({
@@ -77,6 +78,7 @@ const AccountFormDrawer: React.FC<Props> = ({
     editingAccount,
     accounts,
     shopId,
+    requireAccountCode,
 }) => {
     const [form] = ProForm.useForm();
     const isEdit = !!editingAccount;
@@ -117,7 +119,7 @@ const AccountFormDrawer: React.FC<Props> = ({
 
     // ── Auto-suggest next AVAILABLE account code ───────────────────────────────
     useEffect(() => {
-        if (!autoCode || !selectedParentId) return;
+        if (!requireAccountCode || !autoCode || !selectedParentId) return;
         const parent = accounts.find((a) => a._id === selectedParentId);
         if (!parent) return;
 
@@ -149,7 +151,7 @@ const AccountFormDrawer: React.FC<Props> = ({
         }
 
         form.setFieldValue("account_code", String(candidate));
-    }, [selectedParentId, autoCode, accounts, form]);
+    }, [selectedParentId, autoCode, accounts, form, requireAccountCode]);
 
     // ── Submit ─────────────────────────────────────────────────────────────────
     const handleSubmit = async (values: any) => {
@@ -294,47 +296,70 @@ const AccountFormDrawer: React.FC<Props> = ({
                 )}
 
                 {/* ── Account Code with Auto/Manual toggle ── */}
-                <ProForm.Item
-                    label={
-                        <Space>
-                            <span>Account Code</span>
-                            <Switch
-                                size="small"
-                                checked={autoCode}
-                                onChange={(v) => {
-                                    setAutoCode(v);
-                                    if (v) form.setFieldValue("account_code", undefined);
-                                }}
-                                checkedChildren="Auto"
-                                unCheckedChildren="Manual"
-                            />
-                        </Space>
-                    }
-                    name="account_code"
-                    rules={[]}
-                >
-                    <AutoComplete
-                        placeholder={
-                            autoCode
-                                ? "Auto-suggested — pick a parent first"
-                                : "Optional — e.g. 1150"
+                {requireAccountCode && (
+                    <ProForm.Item
+                        label={
+                            <Space>
+                                <span>Account Code</span>
+                                <Switch
+                                    size="small"
+                                    checked={autoCode}
+                                    onChange={(v) => {
+                                        setAutoCode(v);
+                                        if (v) form.setFieldValue("account_code", undefined);
+                                    }}
+                                    checkedChildren="Auto"
+                                    unCheckedChildren="Manual"
+                                />
+                            </Space>
                         }
-                        disabled={isEdit && editingAccount?.is_system_account}
-                        options={
-                            autoCode && form.getFieldValue("account_code")
-                                ? [{ value: form.getFieldValue("account_code") }]
-                                : []
-                        }
-                        style={{ width: "100%" }}
-                    />
-                </ProForm.Item>
+                        name="account_code"
+                        rules={[]}
+                    >
+                        <AutoComplete
+                            placeholder={
+                                autoCode
+                                    ? "Auto-suggested — pick a parent first"
+                                    : "Optional — e.g. 1150"
+                            }
+                            disabled={isEdit && editingAccount?.is_system_account}
+                            options={
+                                autoCode && form.getFieldValue("account_code")
+                                    ? [{ value: form.getFieldValue("account_code") }]
+                                    : []
+                            }
+                            style={{ width: "100%" }}
+                        />
+                    </ProForm.Item>
+                )}
 
                 {/* ── Account Name ── */}
                 <ProFormText
                     name="account_name"
                     label="Account Name"
                     placeholder="e.g. Cash at Bank"
-                    rules={[{ required: true, message: "Account name is required" }]}
+                    rules={[
+                        { required: true, message: "Account name is required" },
+                        {
+                            validator: (_, value) => {
+                                const trimmed = value?.trim();
+                                if (!trimmed) return Promise.resolve();
+                                const exists = accounts.find(
+                                    (a) =>
+                                        a._id !== editingAccount?._id &&
+                                        a.account_name?.trim().toLowerCase() ===
+                                            trimmed.toLowerCase()
+                                );
+                                return exists
+                                    ? Promise.reject(
+                                          new Error(
+                                              `An account named '${trimmed}' already exists`
+                                          )
+                                      )
+                                    : Promise.resolve();
+                            },
+                        },
+                    ]}
                 />
 
                 {/* ── Account Subtype — never disabled ── */}

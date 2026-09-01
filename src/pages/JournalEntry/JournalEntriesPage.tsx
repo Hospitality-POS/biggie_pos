@@ -58,24 +58,40 @@ const STATUS_CONFIG: Record<JournalEntryStatus, { color: string; badge: "success
 
 const SOURCE_COLORS: Record<string, string> = {
     manual: "default",
+    journal: "magenta",
     pos_sale: "blue",
     pos_subscription: "cyan",
     invoice: "green",
     bill: "orange",
     payment: "purple",
     reconciliation: "geekblue",
+    bank_upload: "gold",
+    income: "green",
+    expense: "orange",
+    payroll: "purple",
+    credit_note: "cyan",
+    debit_note: "blue",
+    note_void: "red",
 };
 
 const ALL_STATUSES: (JournalEntryStatus | "ALL")[] = ["ALL", "Draft", "Posted", "Voided"];
 
 const SOURCE_OPTIONS: { label: string; value: JournalEntrySource }[] = [
     { label: "Manual", value: "manual" },
+    { label: "Journal", value: "journal" },
     { label: "POS Sale", value: "pos_sale" },
     { label: "POS Subscription", value: "pos_subscription" },
     { label: "Invoice", value: "invoice" },
     { label: "Bill", value: "bill" },
     { label: "Payment", value: "payment" },
     { label: "Reconciliation", value: "reconciliation" },
+    { label: "Bank Upload", value: "bank_upload" },
+    { label: "Income", value: "income" },
+    { label: "Expense", value: "expense" },
+    { label: "Payroll", value: "payroll" },
+    { label: "Credit Note", value: "credit_note" },
+    { label: "Debit Note", value: "debit_note" },
+    { label: "Note Void", value: "note_void" },
 ];
 
 // ── Main Page ─────────────────────────────────────────────────────────────────

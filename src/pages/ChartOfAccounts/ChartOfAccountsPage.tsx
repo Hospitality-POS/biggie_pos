@@ -15,6 +15,7 @@ import {
     seedDefaultAccounts, ChartOfAccount, AccountType,
 } from "@services/accounting/accounts";
 import { getCurrentTenantId } from "@services/tenants";
+import { fetchSystemSetupDetailsById } from "@services/systemsetup";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import AccountFormDrawer from "./AccountFormDrawer";
 import AccountLedgerDrawer from "./AccountLedgerDrawer";
@@ -131,7 +132,13 @@ const ChartOfAccountsPage: React.FC = () => {
         enabled: !!shopId,
     });
 
+    const { data: systemSettings } = useQuery({
+        queryKey: ["systemSettings"],
+        queryFn: fetchSystemSetupDetailsById,
+    });
+
     const allAccounts: ChartOfAccount[] = data?.accounts || [];
+    const requireAccountCode = systemSettings?.require_account_code ?? true;
 
     const filteredAccounts = activeType === "ALL"
         ? allAccounts
@@ -437,6 +444,7 @@ const ChartOfAccountsPage: React.FC = () => {
                 editingAccount={editingAccount}
                 accounts={allAccounts}
                 shopId={shopId}
+                requireAccountCode={requireAccountCode}
             />
 
             <AccountLedgerDrawer

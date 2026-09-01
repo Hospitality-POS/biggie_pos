@@ -6,7 +6,6 @@ import AccountingDashboardPage from "src/pages/AccountingDashboard/AccountingDas
 import MtejaDashboard from "src/pages/Dashboard/MtejaDashboard";
 import BanduHRDashboard from "src/pages/BanduHR/BanduHRDashboard";
 import UnifiedDalaDashboard from "src/pages/dala/UnifiedDalaDashboard";
-import BusinessImpact from "./BusinessImpact";
 
 // ── Module activation checks ─────────────────────────────────────────────────────
 const getModuleFlags = () => {
@@ -43,12 +42,8 @@ const DalaDashboardContent: React.FC = () => <UnifiedDalaDashboard />;
 
 // ── Main Unified Dashboard Page ──────────────────────────────────────────────────
 const UnifiedDashboardPage: React.FC = () => {
-  console.log("[UnifiedDashboardPage] Component mounted - START");
-
   const { hasDuka, hasPesa, hasMteja, hasBandu, hasDala } = getModuleFlags();
   const [activeTab, setActiveTab] = useState("pos");
-
-  console.log("[UnifiedDashboardPage] Module flags:", { hasDuka, hasPesa, hasMteja, hasBandu, hasDala });
 
   // Build tab items based on enabled modules
   const tabItems = [
@@ -89,8 +84,6 @@ const UnifiedDashboardPage: React.FC = () => {
       : []),
   ];
 
-  console.log("[UnifiedDashboardPage] Tab items:", tabItems);
-
   // Set default tab based on available modules
   React.useEffect(() => {
     if (hasDuka) setActiveTab("pos");
@@ -102,7 +95,6 @@ const UnifiedDashboardPage: React.FC = () => {
 
   // Fallback: if no tabs, show message instead of defaulting to Duka
   if (tabItems.length === 0) {
-    console.log("[UnifiedDashboardPage] No tabs detected, showing no modules message");
     return (
       <div style={{ padding: 48, textAlign: "center", color: "#64748b" }}>
         <TeamOutlined style={{ fontSize: 48, marginBottom: 16, color: "#94a3b8" }} />
@@ -112,20 +104,8 @@ const UnifiedDashboardPage: React.FC = () => {
     );
   }
 
-  console.log("[UnifiedDashboardPage] Final tab items:", tabItems);
-
-  console.log("[UnifiedDashboardPage] Rendering tabs with activeTab:", activeTab);
-
-  // The "Duka" tab already embeds its own Business Impact panel, so only show
-  // the top-level one here when that tab isn't in play (avoids duplication).
-  const showTopLevelBusinessImpact = activeTab !== "pos";
-
   return (
     <div style={{ padding: 24 }}>
-      {showTopLevelBusinessImpact && (
-        <BusinessImpact hasDuka={hasDuka} hasPesa={hasPesa} hasDala={hasDala} />
-      )}
-
       <Tabs
         activeKey={activeTab}
         onChange={setActiveTab}

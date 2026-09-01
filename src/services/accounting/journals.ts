@@ -6,15 +6,31 @@ import axiosInstance from "../request";
 // TYPES
 // ============================================
 
+interface ApiError {
+    response?: {
+        data?: {
+            message?: string;
+        };
+    };
+}
+
 export type JournalEntryStatus = "Draft" | "Posted" | "Voided";
 export type JournalEntrySource =
     | "manual"
+    | "journal"
     | "pos_sale"
     | "pos_subscription"
     | "invoice"
     | "bill"
     | "payment"
-    | "reconciliation";
+    | "reconciliation"
+    | "bank_upload"
+    | "income"
+    | "expense"
+    | "payroll"
+    | "credit_note"
+    | "debit_note"
+    | "note_void";
 
 export interface JournalLine {
     _id?: string;
@@ -127,34 +143,26 @@ export interface CreateExpenseEntryParams {
  * Get all journal entries with filters and pagination.
  */
 export const getAllJournalEntries = async (params: GetJournalEntriesParams) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/journal-entries`,
-            { params }
-        );
-        return response.data as {
-            entries: JournalEntry[];
-            totalPages: number;
-            currentPage: number;
-            totalEntries: number;
-        };
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/journal-entries`,
+        { params }
+    );
+    return response.data as {
+        entries: JournalEntry[];
+        totalPages: number;
+        currentPage: number;
+        totalEntries: number;
+    };
 };
 
 /**
  * Get a single journal entry by ID with fully populated account info on each line.
  */
 export const getJournalEntryById = async (id: string) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/journal-entries/${id}`
-        );
-        return response.data as { entry: JournalEntry };
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/journal-entries/${id}`
+    );
+    return response.data as { entry: JournalEntry };
 };
 
 /**
@@ -165,15 +173,11 @@ export const getJournalEntrySummary = async (
     fiscal_year?: number,
     fiscal_month?: number
 ) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/journal-entries/summary`,
-            { params: { shop_id, fiscal_year, fiscal_month } }
-        );
-        return response.data as { summary: JournalEntrySummary };
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/journal-entries/summary`,
+        { params: { shop_id, fiscal_year, fiscal_month } }
+    );
+    return response.data as { summary: JournalEntrySummary };
 };
 
 /**
@@ -185,15 +189,11 @@ export const getEntriesBySource = async (
     source_id: string,
     shop_id: string
 ) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/journal-entries/by-source/${source_type}/${source_id}`,
-            { params: { shop_id } }
-        );
-        return response.data as { count: number; entries: JournalEntry[] };
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/journal-entries/by-source/${source_type}/${source_id}`,
+        { params: { shop_id } }
+    );
+    return response.data as { count: number; entries: JournalEntry[] };
 };
 
 /**
@@ -214,8 +214,9 @@ export const createManualEntry = async (data: CreateManualEntryParams) => {
         );
         return response.data as { entry: JournalEntry };
     } catch (error) {
-        if (error?.response?.data?.message) {
-            message.error(error.response.data.message);
+        const err = error as ApiError;
+        if (err.response?.data?.message) {
+            message.error(err.response.data.message);
         } else {
             message.error("Error creating journal entry");
         }
@@ -236,8 +237,9 @@ export const updateJournalEntry = async (id: string, data: UpdateManualEntryPara
         message.success("Journal entry updated");
         return response.data as { message: string; entry: JournalEntry };
     } catch (error) {
-        if (error?.response?.data?.message) {
-            message.error(error.response.data.message);
+        const err = error as ApiError;
+        if (err.response?.data?.message) {
+            message.error(err.response.data.message);
         } else {
             message.error("Error updating journal entry");
         }
@@ -258,8 +260,9 @@ export const createExpenseEntry = async (data: CreateExpenseEntryParams) => {
         message.success("Expense entry created and posted");
         return response.data as { entry: JournalEntry };
     } catch (error) {
-        if (error?.response?.data?.message) {
-            message.error(error.response.data.message);
+        const err = error as ApiError;
+        if (err.response?.data?.message) {
+            message.error(err.response.data.message);
         } else {
             message.error("Error creating expense entry");
         }
@@ -278,8 +281,9 @@ export const postJournalEntry = async (id: string) => {
         message.success("Journal entry posted successfully");
         return response.data as { entry: JournalEntry };
     } catch (error) {
-        if (error?.response?.data?.message) {
-            message.error(error.response.data.message);
+        const err = error as ApiError;
+        if (err.response?.data?.message) {
+            message.error(err.response.data.message);
         } else {
             message.error("Error posting journal entry");
         }
@@ -303,8 +307,9 @@ export const voidJournalEntry = async (id: string, reason: string) => {
             reversal_entry: JournalEntry;
         };
     } catch (error) {
-        if (error?.response?.data?.message) {
-            message.error(error.response.data.message);
+        const err = error as ApiError;
+        if (err.response?.data?.message) {
+            message.error(err.response.data.message);
         } else {
             message.error("Error voiding journal entry");
         }

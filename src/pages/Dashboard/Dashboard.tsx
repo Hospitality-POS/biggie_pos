@@ -36,7 +36,6 @@ import {
   TrophyOutlined,
   RiseOutlined,
   DollarOutlined,
-  FallOutlined,
   CheckCircleOutlined,
   FileTextOutlined,
   SyncOutlined,
@@ -62,6 +61,7 @@ import dayjs from "dayjs";
 import { ProCard } from "@ant-design/pro-components";
 import { QRCodeCanvas } from "qrcode.react";
 import { fetchShop } from "@services/shops";
+import BusinessImpact from "src/pages/Report/BusinessImpact";
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -906,15 +906,17 @@ const Dashboard: React.FC = () => {
     },
   });
 
+  const chartPeriod = periodFilter === "custom" ? "day" : (periodFilter as "day" | "week" | "month" | "year");
+
   const { data: chartData, isLoading: chartLoading } = useQuery({
     queryKey: ["salesChartData", periodFilter, startDate.format(), endDate.format(), shopId],
-    queryFn: () => getSalesChartData({ period: periodFilter, startDate: startDate.format('YYYY-MM-DD'), endDate: endDate.format('YYYY-MM-DD'), shop_id: shopId }),
+    queryFn: () => getSalesChartData({ period: chartPeriod, startDate: startDate.format('YYYY-MM-DD'), endDate: endDate.format('YYYY-MM-DD'), shop_id: shopId ?? undefined }),
     networkMode: "always", refetchOnWindowFocus: false, staleTime: 30000, retry: 2,
   });
 
   const { data: bestSellersData, isLoading: bestSellersLoading } = useQuery({
     queryKey: ["bestSellers", startDate.format(), endDate.format(), shopId],
-    queryFn: () => getBestSellers({ startDate: startDate.format('YYYY-MM-DD'), endDate: endDate.format('YYYY-MM-DD'), shop_id: shopId, limit: 10 }),
+    queryFn: () => getBestSellers({ startDate: startDate.format('YYYY-MM-DD'), endDate: endDate.format('YYYY-MM-DD'), shop_id: shopId ?? undefined, limit: 10 }),
     networkMode: "always", refetchOnWindowFocus: false, staleTime: 30000, retry: 2,
   });
 
@@ -969,6 +971,18 @@ const Dashboard: React.FC = () => {
   const growthRate = chartData?.data?.summary?.growth_rate || 0;
   const businessIndicators = useMemo(() => calculateBusinessIndicators(chartData, data, periodFilter), [chartData, data, periodFilter]);
   const isDataLoading = isLoading || isRefetching || chartLoading;
+
+  const dukaStats = useMemo(() => {
+    if (!data) return [];
+    const avgOrderValue = data.totalOrderCount > 0 ? data.todayRevenue / data.totalOrderCount : 0;
+    return [
+      { label: "Revenue", value: fmtK(data.todayRevenue || 0), prefix: "KES ", icon: <DollarOutlined /> },
+      { label: "Orders", value: fmtK(data.totalOrderCount || 0), icon: <ShoppingCartOutlined /> },
+      { label: "Avg Order", value: fmtK(avgOrderValue), prefix: "KES ", icon: <RiseOutlined /> },
+      { label: "Active Orders", value: fmtK(data.activeOrders || 0), icon: <SnippetsOutlined /> },
+      { label: "Active Shifts", value: fmtK(data.activeShift || 0), icon: <TeamOutlined /> },
+    ];
+  }, [data]);
 
   const kpiCards = useMemo(() => [
     {
@@ -1107,6 +1121,16 @@ const Dashboard: React.FC = () => {
           </Space>
         </Flex>
       </div>
+
+      {/* ── AI Business Impact ── */}
+      <BusinessImpact
+        product="duka"
+        periodFilter={periodFilter}
+        startDate={startDate}
+        endDate={endDate}
+        periodLabel={PERIOD_LABELS[periodFilter]}
+        stats={dukaStats}
+      />
 
       {/* ── KPI Cards ── */}
       <Row gutter={[12, 12]} style={{ marginBottom: 20 }}>

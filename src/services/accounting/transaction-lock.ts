@@ -28,14 +28,10 @@ export interface LockPayload {
  * Get all transaction locks for the current shop.
  */
 export const getTransactionLocks = async (shop_id: string) => {
-    try {
-        const response = await axiosInstance.get(`${BASE_URL}/accounting/transaction-locks`, {
-            params: { shop_id },
-        });
-        return response.data as { locks: TransactionLock[]; modules: LockModule[]; lockedModules: string[] };
-    } catch (error: any) {
-        throw error;
-    }
+    const response = await axiosInstance.get(`${BASE_URL}/accounting/transaction-locks`, {
+        params: { shop_id },
+    });
+    return response.data as { locks: TransactionLock[]; modules: LockModule[]; lockedModules: string[] };
 };
 
 /**
@@ -63,6 +59,20 @@ export const removeTransactionLock = async ({ id, password }: { id: string; pass
         message.success("Transaction lock removed");
     } catch (error: any) {
         message.error(error?.response?.data?.message || "Error removing transaction lock");
+        throw error;
+    }
+};
+
+/**
+ * Generate a new lock password and email it to the business email.
+ */
+export const forgotTransactionLockPassword = async (data: { shop_id: string; module: LockModule }) => {
+    try {
+        const response = await axiosInstance.post(`${BASE_URL}/accounting/transaction-locks/forgot-password`, data);
+        message.success(response.data?.message || "New password sent to business email");
+        return response.data;
+    } catch (error: any) {
+        message.error(error?.response?.data?.message || "Error resetting transaction lock password");
         throw error;
     }
 };

@@ -9,6 +9,7 @@ import {
     getTransactionLocks,
     setTransactionLock,
     removeTransactionLock,
+    forgotTransactionLockPassword,
     LockModule,
     TransactionLock,
 } from "@services/accounting/transaction-lock";
@@ -50,6 +51,13 @@ const TransactionLocking: React.FC = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["transaction-locks", shopId] });
             setUnlocking(null);
+            unlockForm.resetFields();
+        },
+    });
+
+    const forgotMutation = useMutation({
+        mutationFn: forgotTransactionLockPassword,
+        onSuccess: () => {
             unlockForm.resetFields();
         },
     });
@@ -205,6 +213,25 @@ const TransactionLocking: React.FC = () => {
                     >
                         <Input.Password placeholder="Enter the lock password" />
                     </Form.Item>
+                    <Button
+                        type="link"
+                        size="small"
+                        loading={forgotMutation.isLoading}
+                        onClick={() =>
+                            Modal.confirm({
+                                title: `Generate a new ${unlocking?.module} lock password?`,
+                                content: "A new password will be created and sent to the business email in system settings.",
+                                onOk: () =>
+                                    unlocking &&
+                                    forgotMutation.mutate({
+                                        shop_id: shopId,
+                                        module: unlocking.module,
+                                    }),
+                            })
+                        }
+                    >
+                        Forgot password? Generate & email a new one
+                    </Button>
                 </Form>
             </Modal>
         </div>

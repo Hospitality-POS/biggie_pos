@@ -19,7 +19,6 @@ import { fetchAllShops } from "@services/shops";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { sendEmail } from "@services/emailReports";
 import { getAllAccounts, ChartOfAccount } from "@services/accounting/accounts";
-import { getCurrentTenantId } from "@services/tenants";
 import AccountLedgerDrawer from "../ChartOfAccounts/AccountLedgerDrawer";
 import {
     PeriodFilter, AsOfFilter, GLPeriodFilter,
@@ -118,7 +117,7 @@ const ComparativeTable: React.FC<{
 }> = ({ rows, currentLabel, compareLabel, title, showSummary }) => {
     const ledger = useContext(LedgerContext);
     const onAccountRow = (record: any) =>
-        record?.account_code ? { onClick: () => ledger?.openLedger?.(record.account_code), style: { cursor: "pointer" } } : {};
+        record?._id ? { onClick: () => ledger?.openLedger?.(record._id), style: { cursor: "pointer" } } : {};
     return (
     <div style={{ marginBottom: 16 }}>
         {title && <Text strong style={{ display: "block", fontSize: 13, marginBottom: 8, color: "#374151" }}>{title}</Text>}
@@ -224,24 +223,30 @@ const AccountingReportsPage: React.FC = () => {
     const [ledgerOpen, setLedgerOpen] = useState(false);
     const [ledgerAccount, setLedgerAccount] = useState<ChartOfAccount | null>(null);
 
-    const shopIdForLedger = selectedBranchId || getCurrentTenantId() || "";
+    const shopIdForLedger = selectedBranchId || "";
 
     const accountsQ = useQuery({
-        queryKey: ["coa-lookup", shopIdForLedger],
-        queryFn: () => getAllAccounts({ shop_id: shopIdForLedger }),
-        enabled: !!shopIdForLedger,
+        queryKey: ["coa-lookup", shopIdForLedger || "all"],
+        queryFn: () => getAllAccounts(
+            shopIdForLedger ? { shop_id: shopIdForLedger } : ({} as any)
+        ),
+        enabled: true,
     });
 
     const accountMap = useMemo(() => {
         const map: Record<string, ChartOfAccount> = {};
-        accountsQ.data?.accounts?.forEach((a: any) => { map[a.account_code] = a; });
+        accountsQ.data?.accounts?.forEach((a: any) => {
+            map[a.account_code] = a;
+            map[String(a._id)] = a;
+            map[a.account_name] = a;
+        });
         return map;
     }, [accountsQ.data]);
 
-    const openLedger = (accountCode: string) => {
-        const account = accountMap[accountCode];
+    const openLedger = (accountKey: string) => {
+        const account = accountMap[accountKey];
         if (!account) {
-            message.error(`Account ${accountCode} not found.`);
+            message.error(`Account ${accountKey} not found.`);
             return;
         }
         setLedgerAccount(account);
@@ -787,7 +792,7 @@ const AccountingReportsPage: React.FC = () => {
     const activePeriod = getCurrentPeriod();
     const ledgerPeriod: [Dayjs | null, Dayjs | null] = Array.isArray(activePeriod)
         ? activePeriod
-        : [dayjs(activePeriod).startOf("month"), dayjs(activePeriod).endOf("month")];
+        : [null, dayjs(activePeriod).endOf("day")];
 
     return (
         <App>

@@ -30,8 +30,10 @@ const TYPE_COLORS: Record<string, string> = {
     ASSET: "blue", LIABILITY: "red", EQUITY: "purple", REVENUE: "green", EXPENSE: "orange",
 };
 const SOURCE_COLORS: Record<string, string> = {
-    manual: "default", pos_sale: "blue", pos_subscription: "cyan",
+    manual: "default", journal: "magenta", pos_sale: "blue", pos_subscription: "cyan",
     invoice: "green", bill: "orange", payment: "purple", reconciliation: "geekblue",
+    bank_upload: "gold", income: "green", expense: "orange", payroll: "purple",
+    credit_note: "cyan", debit_note: "blue", note_void: "red",
 };
 
 // ── Print helper ───────────────────────────────────────────────────────────────
@@ -165,7 +167,7 @@ const BLANK_ROW = (keys: string[]) => Object.fromEntries(keys.map((k) => [k, ""]
 export const TrialBalanceTable: React.FC<{ data: TrialBalanceResponse }> = ({ data }) => {
     const { openLedger } = useLedger();
     const onAccountRow = (record: any) =>
-        record?.account_code ? { onClick: () => openLedger(record.account_code), style: { cursor: "pointer" } } : {};
+        record?._id ? { onClick: () => openLedger(record._id), style: { cursor: "pointer" } } : {};
 
     const columns = [
         { title: "Code", dataIndex: "account_code", key: "code", width: 90, render: (v: string) => <Text code style={{ fontSize: 11 }}>{v}</Text> },
@@ -275,7 +277,7 @@ export const TrialBalanceTable: React.FC<{ data: TrialBalanceResponse }> = ({ da
 export const ProfitAndLossTable: React.FC<{ data: ProfitAndLossResponse; period?: { from?: string; to?: string } }> = ({ data, period }) => {
     const { openLedger } = useLedger();
     const onAccountRow = (record: any) =>
-        record?.account_code ? { onClick: () => openLedger(record.account_code), style: { cursor: "pointer" } } : {};
+        record?._id ? { onClick: () => openLedger(record._id), style: { cursor: "pointer" } } : {};
     const amountCols = (color: string) => [
         { title: "Code", dataIndex: "account_code", width: 90, render: (v: string) => <Text code style={{ fontSize: 11 }}>{v}</Text> },
         { title: "Account", dataIndex: "account_name" },
@@ -284,18 +286,29 @@ export const ProfitAndLossTable: React.FC<{ data: ProfitAndLossResponse; period?
 
     const revenueRows = data.revenue.accounts.map((a) => ({ ...a }));
     const expenseRows = data.expenses.accounts.map((a) => ({ ...a }));
-    const cogsRows: any[] = (data as any).cogs?.accounts || [];
-    const totalCogs: number = (data as any).cogs?.total_cogs || 0;
+
+    // Treat any Cost of Sales / COGS / Purchases accounts as COGS, not operating expenses
+    const isCogsAccount = (a: any) =>
+      (a.account_type || "").toLowerCase().includes("cogs") ||
+      /cost of (sales|goods)|purchases/i.test(a.account_name || "");
+
+    const cogsFromExpenses = expenseRows.filter(isCogsAccount);
+    const nonCogsExpenses = expenseRows.filter((a) => !isCogsAccount(a));
+    const rawCogsRows: any[] = [...((data as any).cogs?.accounts || []), ...cogsFromExpenses];
+    const cogsRows = rawCogsRows.filter(
+      (a, i, arr) => arr.findIndex((b) => b.account_code === a.account_code) === i
+    );
+    const totalCogs: number = cogsRows.reduce((s, a) => s + (a.amount || 0), 0);
     const grossProfit = data.revenue.total_revenue - totalCogs;
 
     // Split operating vs non-operating if the data carries that flag
-    const opExpRows = expenseRows.filter((a: any) => !a.is_non_operating);
-    const nonOpExpRows = expenseRows.filter((a: any) => a.is_non_operating);
+    const opExpRows = nonCogsExpenses.filter((a: any) => !a.is_non_operating);
+    const nonOpExpRows = nonCogsExpenses.filter((a: any) => a.is_non_operating);
     const opIncRows = revenueRows.filter((a: any) => !a.is_non_operating);
     const nonOpIncRows = revenueRows.filter((a: any) => a.is_non_operating);
 
-    const totalOpInc = opIncRows.reduce((s, a) => s + a.amount, 0) || data.revenue.total_revenue;
-    const totalOpExp = opExpRows.reduce((s, a) => s + a.amount, 0) || data.expenses.total_expenses;
+    const totalOpInc = opIncRows.reduce((s, a) => s + (a.amount || 0), 0) || data.revenue.total_revenue;
+    const totalOpExp = opExpRows.reduce((s, a) => s + (a.amount || 0), 0);
     const totalNonOpInc = nonOpIncRows.reduce((s, a) => s + a.amount, 0);
     const totalNonOpExp = nonOpExpRows.reduce((s, a) => s + a.amount, 0);
     const opProfit = grossProfit - totalOpExp;
@@ -344,11 +357,11 @@ export const ProfitAndLossTable: React.FC<{ data: ProfitAndLossResponse; period?
                 </thead>
                 <tbody>
 
-                    <!-- Operating Income -->
-                    <tr class="section-header"><td colspan="2">Operating Income</td></tr>
+                    <!-- Income -->
+                    <tr class="section-header"><td colspan="2">Income</td></tr>
                     ${accountRows(opIncRows.length ? opIncRows : revenueRows)}
                     <tr class="total-row">
-                        <td>Total for Operating Income</td>
+                        <td>Total for Income</td>
                         <td class="num cr">${fmt(totalOpInc)}</td>
                     </tr>
 
@@ -384,7 +397,7 @@ export const ProfitAndLossTable: React.FC<{ data: ProfitAndLossResponse; period?
                         </td>
                     </tr>
 
-                    <!-- Non-Operating Income -->
+                    <!-- Non-Income -->
                     <tr class="section-header"><td colspan="2">Non Operating Income</td></tr>
                     ${accountRows(nonOpIncRows)}
                     <tr class="total-row">
@@ -439,9 +452,9 @@ export const ProfitAndLossTable: React.FC<{ data: ProfitAndLossResponse; period?
             ...(opIncRows.length ? opIncRows : revenueRows).map(accountRow),
             totalRow("Total for Income", totalOpInc),
             BLANK_ROW(PL_COLS),
-            sectionHeader("Cost of Sales"),
+            sectionHeader("Cost of Goods Sold"),
             ...cogsRows.map(accountRow),
-            totalRow("Total for Cost of Sales", totalCogs),
+            totalRow("Total for Cost of Goods Sold", totalCogs),
             totalRow("Gross Profit", grossProfit),
             BLANK_ROW(PL_COLS),
             sectionHeader("Expenses"),
@@ -468,7 +481,7 @@ export const ProfitAndLossTable: React.FC<{ data: ProfitAndLossResponse; period?
         boldRows.push(currentIndex);
         currentIndex += 2; // Skip blank row
 
-        // Total for Cost of Sales + Gross Profit
+        // Total for Cost of Goods Sold + Gross Profit
         currentIndex += cogsRows.length;
         boldRows.push(currentIndex); // Total for COGS
         boldRows.push(currentIndex + 1); // Gross Profit
@@ -527,9 +540,9 @@ export const ProfitAndLossTable: React.FC<{ data: ProfitAndLossResponse; period?
                 ...accountRows(opIncRows.length ? opIncRows : revenueRows),
                 total("Total for Income", totalOpInc),
                 ["", ""],
-                section("Cost of Sales"),
+                section("Cost of Goods Sold"),
                 ...accountRows(cogsRows),
-                total("Total for Cost of Sales", totalCogs),
+                total("Total for Cost of Goods Sold", totalCogs),
                 total("Gross Profit", grossProfit),
                 ["", ""],
                 section("Expenses"),
@@ -565,21 +578,17 @@ export const ProfitAndLossTable: React.FC<{ data: ProfitAndLossResponse; period?
                 <ExportDropdown onExcel={handleExcel} onPdf={handlePdf} onPrint={handlePrint} />
             </div>
 
-            {/* Operating Income */}
-            <Text strong style={{ fontSize: 13, display: "block", marginBottom: 6, color: "#389e0d" }}>Operating Income</Text>
+            {/* Income */}
+            <Text strong style={{ fontSize: 13, display: "block", marginBottom: 6, color: "#389e0d" }}>Income</Text>
             <Table rowKey="account_code" dataSource={opIncRows.length ? opIncRows : revenueRows} pagination={false} size="small" style={{ marginBottom: 8 }} columns={amountCols("#389e0d")} onRow={onAccountRow}
-                summary={() => (<Table.Summary.Row style={{ background: "#f6ffed" }}><Table.Summary.Cell index={0} colSpan={2}><Text strong>Total for Operating Income</Text></Table.Summary.Cell><Table.Summary.Cell index={2} align="right"><Text strong style={{ color: "#389e0d" }}>{fmt(totalOpInc)}</Text></Table.Summary.Cell></Table.Summary.Row>)}
+                summary={() => (<Table.Summary.Row style={{ background: "#f6ffed" }}><Table.Summary.Cell index={0} colSpan={2}><Text strong>Total for Income</Text></Table.Summary.Cell><Table.Summary.Cell index={2} align="right"><Text strong style={{ color: "#389e0d" }}>{fmt(totalOpInc)}</Text></Table.Summary.Cell></Table.Summary.Row>)}
             />
 
             {/* COGS */}
-            {cogsRows.length > 0 && (
-                <>
-                    <Text strong style={{ fontSize: 13, display: "block", margin: "16px 0 6px", color: "#fa8c16" }}>Cost of Goods Sold</Text>
-                    <Table rowKey="account_code" dataSource={cogsRows} pagination={false} size="small" style={{ marginBottom: 8 }} columns={amountCols("#fa8c16")} onRow={onAccountRow}
-                        summary={() => (<Table.Summary.Row style={{ background: "#fff7e6" }}><Table.Summary.Cell index={0} colSpan={2}><Text strong>Total for Cost of Goods Sold</Text></Table.Summary.Cell><Table.Summary.Cell index={2} align="right"><Text strong style={{ color: "#fa8c16" }}>{fmt(totalCogs)}</Text></Table.Summary.Cell></Table.Summary.Row>)}
-                    />
-                </>
-            )}
+            <Text strong style={{ fontSize: 13, display: "block", margin: "16px 0 6px", color: "#fa8c16" }}>Cost of Goods Sold</Text>
+            <Table rowKey="account_code" dataSource={cogsRows} pagination={false} size="small" style={{ marginBottom: 8 }} columns={amountCols("#fa8c16")} onRow={onAccountRow}
+                summary={() => (<Table.Summary.Row style={{ background: "#fff7e6" }}><Table.Summary.Cell index={0} colSpan={2}><Text strong>Total for Cost of Goods Sold</Text></Table.Summary.Cell><Table.Summary.Cell index={2} align="right"><Text strong style={{ color: "#fa8c16" }}>{fmt(totalCogs)}</Text></Table.Summary.Cell></Table.Summary.Row>)}
+            />
 
             {/* Gross Profit line */}
             <div style={{ background: "#dbeafe", border: "1px solid #93c5fd", borderRadius: 6, padding: "10px 16px", display: "flex", justifyContent: "space-between", margin: "8px 0 16px" }}>
@@ -648,7 +657,7 @@ export const ProfitAndLossTable: React.FC<{ data: ProfitAndLossResponse; period?
 export const BalanceSheetTable: React.FC<{ data: BalanceSheetResponse }> = ({ data }) => {
     const { openLedger } = useLedger();
     const onAccountRow = (record: any) =>
-        record?.account_code ? { onClick: () => openLedger(record.account_code), style: { cursor: "pointer" } } : {};
+        record?._id ? { onClick: () => openLedger(record._id), style: { cursor: "pointer" } } : {};
     const primaryColor = usePrimaryColor();
     const bsCols = (color: string) => [
         { title: "Code", dataIndex: "account_code", width: 90, render: (v: string) => v === "NET-INCOME" ? <Tag color="purple" style={{ fontSize: 10 }}>AUTO</Tag> : <Text code style={{ fontSize: 11 }}>{v}</Text> },
@@ -1008,7 +1017,7 @@ export const VATReportTable: React.FC<{ data: VATReportResponse }> = ({ data }) 
 export const CashFlowTable: React.FC<{ data: CashFlowResponse }> = ({ data }) => {
     const { openLedger } = useLedger();
     const onAccountRow = (record: any) =>
-        record?.account_code ? { onClick: () => openLedger(record.account_code), style: { cursor: "pointer" } } : {};
+        record?._id ? { onClick: () => openLedger(record._id), style: { cursor: "pointer" } } : {};
     const CF_COLS = ["Code", "Account", "Opening (KES)", "Inflows (KES)", "Outflows (KES)", "Net Cash Flow (KES)", "Closing (KES)"];
     const handleExcel = () => {
         const rows = [...data.accounts.map((a) => ({ "Code": a.account_code, "Account": a.account_name, "Opening (KES)": a.opening_balance, "Inflows (KES)": a.inflows, "Outflows (KES)": a.outflows, "Net Cash Flow (KES)": a.net_cash_flow, "Closing (KES)": a.closing_balance })), BLANK_ROW(CF_COLS), { "Code": "TOTALS", "Account": "", "Opening (KES)": "", "Inflows (KES)": data.totals.total_inflows, "Outflows (KES)": data.totals.total_outflows, "Net Cash Flow (KES)": data.totals.net_cash_flow, "Closing (KES)": "" }];
@@ -1039,7 +1048,7 @@ export const CashFlowTable: React.FC<{ data: CashFlowResponse }> = ({ data }) =>
 export const AccountBalancesTable: React.FC<{ data: AccountBalancesResponse }> = ({ data }) => {
     const { openLedger } = useLedger();
     const onAccountRow = (record: any) =>
-        record?.account_code ? { onClick: () => openLedger(record.account_code), style: { cursor: "pointer" } } : {};
+        record?._id ? { onClick: () => openLedger(record._id), style: { cursor: "pointer" } } : {};
     const handleExcel = () => exportToExcel("account_balances", data.accounts.map((a) => ({ Code: a.account_code, Account: a.account_name, Type: a.account_type, Normal: a.normal_balance, "Opening (KES)": a.opening_balance, "Total DR (KES)": a.total_debit, "Total CR (KES)": a.total_credit, "Balance (KES)": a.balance })), {
         title: "Account Balances",
         period: `As of ${dayjs().format("DD MMM YYYY")}`

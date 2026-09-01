@@ -519,14 +519,28 @@ export interface BusinessImpactData {
     insights: string;
 }
 
-export const fetchBusinessImpact = async (params: { shop_id?: string; days?: number }) => {
+export const fetchBusinessImpact = async (params: { shop_id?: string; product?: string; days?: number; startDate?: string; endDate?: string }) => {
     try {
-        const payload: { shop_id?: string; days?: number } = { days: params.days };
+        const payload: { shop_id?: string; product?: string; days?: number; start_date?: string; end_date?: string } = {};
         if (params.shop_id) payload.shop_id = params.shop_id;
+        if (params.product) payload.product = params.product;
+        if (params.days !== undefined) payload.days = params.days;
+        if (params.startDate) payload.start_date = params.startDate;
+        if (params.endDate) payload.end_date = params.endDate;
         const response = await axiosInstance.get(`${BASE_URL}/business-impact`, { params: payload });
         return response.data;
     } catch (error: any) {
         handleError(error, "Could not load business impact");
+    }
+};
+
+export const fetchBusinessInsights = async (params: { product: string; stats: any[]; shop_id?: string; days?: number; startDate?: string; endDate?: string }) => {
+    try {
+        const response = await axiosInstance.post(`${BASE_URL}/business-impact`, params);
+        return response.data as { insights: string; stats: any[] };
+    } catch (error: any) {
+        handleError(error, "Could not generate AI insights");
+        return { insights: "", stats: params.stats };
     }
 };
 

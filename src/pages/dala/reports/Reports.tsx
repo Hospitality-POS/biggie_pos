@@ -327,9 +327,8 @@ const ReportTable: React.FC<{
         rowKey={(record, index) => record.reference || record.saleCode || index}
         pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total) => `Total ${total} items` }}
         size="small"
-        style={{ fontSize: 13 }}
         scroll={{ x: 1200, y: 400 }}
-        style={{ margin: 0 }}
+        style={{ margin: 0, fontSize: 13 }}
       />
     </div>
   </div>

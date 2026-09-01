@@ -561,7 +561,6 @@ const AssetRequestsPage = () => {
         width={modalType === "create" ? 800 : 600}
         footer={modalType === "create" ? null : undefined}
         okText={modalType === "return" ? "Return Assets" : modalType === "assign" ? "Assign Asset" : undefined}
-        onOk={modalType === "create" ? undefined : handleModalSubmit}
       >
         <Form form={form} layout="vertical">
           {modalType === "create" && (

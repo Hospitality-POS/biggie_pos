@@ -1249,20 +1249,6 @@ const InvoicesTable = () => {
             return { data: [], success: false, total: 0 };
           }
         }}
-        // ── Entire row clickable → expands details ──
-        onRow={(record) => ({
-          className: `invoice-row${record.status === "Draft" ? " row-quote" : ""}`,
-          onClick: () => {
-            // Toggle expand via actionRef
-            const key = record._id;
-            const currentKeys = actionRef.current?.getExpanded?.() || [];
-            if (currentKeys.includes(key)) {
-              actionRef.current?.setExpanded?.([]);
-            } else {
-              actionRef.current?.setExpanded?.([key]);
-            }
-          },
-        })}
         tableAlertRender={({ selectedRowKeys }) => <p>You have selected {selectedRowKeys?.length}</p>}
         rowSelection={{ alwaysShowAlert: false, selections: false }}
         scroll={{ x: "inherit" }}

@@ -42,12 +42,20 @@ const STATUS_CONFIG: Record<string, { color: string; badge: "success" | "process
 
 const SOURCE_COLORS: Record<string, string> = {
     manual: "default",
+    journal: "magenta",
     pos_sale: "blue",
     pos_subscription: "cyan",
     invoice: "green",
     bill: "orange",
     payment: "purple",
     reconciliation: "geekblue",
+    bank_upload: "gold",
+    income: "green",
+    expense: "orange",
+    payroll: "purple",
+    credit_note: "cyan",
+    debit_note: "blue",
+    note_void: "red",
 };
 
 const TYPE_COLORS: Record<string, string> = {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ProCard } from '@ant-design/pro-components';
 import {
   Row,
@@ -47,6 +47,7 @@ import {
 } from 'recharts';
 import { usePrimaryColor } from '@context/PrimaryColorContext';
 import dayjs from 'dayjs';
+import BusinessImpact from 'src/pages/Report/BusinessImpact';
 
 const { Text, Title } = Typography;
 
@@ -235,6 +236,18 @@ const DalaDashboard: React.FC = () => {
 
     const dashboardData = normalizeDashboardData(data || dashboard);
 
+    const dalaStats = useMemo(() => {
+        if (!dashboardData) return [];
+        return [
+            { label: "Total Properties", value: fmtK(dashboardData.totalProperties || 0), icon: <HomeOutlined /> },
+            { label: "For Sale", value: fmtK(dashboardData.propertiesForSale || 0), icon: <DollarOutlined /> },
+            { label: "For Lease", value: fmtK(dashboardData.propertiesForLease || 0), icon: <WalletOutlined /> },
+            { label: "Total Revenue", value: fmtK(dashboardData.totalRevenue || 0), prefix: "KES ", icon: <DollarOutlined /> },
+            { label: "Monthly Sales", value: fmtK(dashboardData.monthlySalesRevenue || 0), prefix: "KES ", icon: <CalendarOutlined /> },
+            { label: "Monthly Rent", value: fmtK(dashboardData.monthlyRentCollected || 0), prefix: "KES ", icon: <WalletOutlined /> },
+        ];
+    }, [dashboardData]);
+
     // ── Extract payment plans due from dashboard data ─────────────────────────
     const paymentPlansDue = dashboardData?.paymentPlansDue || {};
     const paymentsDue = Array.isArray(paymentPlansDue?.top5) ? paymentPlansDue.top5 : [];
@@ -369,6 +382,16 @@ const DalaDashboard: React.FC = () => {
                         </Button>
                     </Space>
                 </div>
+
+                {/* ── AI Business Impact ── */}
+                <BusinessImpact
+                    product="dala"
+                    periodFilter="month"
+                    periodLabel="This Month"
+                    startDate={dayjs().year(fiscalYear).month(fiscalMonth - 1).startOf("month")}
+                    endDate={dayjs().year(fiscalYear).month(fiscalMonth - 1).endOf("month")}
+                    stats={dalaStats}
+                />
 
                 {/* ── Section 1: KPI Cards ── */}
                 <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
