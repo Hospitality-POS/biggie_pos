@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 
 env:
-  IMAGE_NAME: biggie-pos
+  IMAGE_NAME: basepoint-ui
 
 jobs:
   build-and-push:
