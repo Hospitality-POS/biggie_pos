@@ -1,44 +1,42 @@
-# ── Stage 1: Build ────────────────────────────────────────────────────────────
+# Stage 1: Build Vite React application with Yarn
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy dependency files
-COPY package*.json ./
+# Copy dependency specifications
+COPY package.json yarn.lock* ./
 
-# Install all dependencies (including devDependencies required for vite build)
-RUN npm install --legacy-peer-deps
+# Install dependencies using Yarn
+RUN yarn install --network-timeout 100000
 
-# Copy source files
+# Copy source code
 COPY . .
 
-# Build Vite SPA production bundle
-RUN npm run build
+# Build arguments for Vite environment variables
+ARG VITE_BASE_URL
+ARG VITE_APP_URL
+ARG VITE_POS_API_KEY
+ARG VITE_TENANT_BASE_URL
+ARG VITE_APP_NAME="Relia"
 
-# ── Stage 2: Serve with Nginx ────────────────────────────────────────────────
+ENV VITE_BASE_URL=$VITE_BASE_URL
+ENV VITE_APP_URL=$VITE_APP_URL
+ENV VITE_POS_API_KEY=$VITE_POS_API_KEY
+ENV VITE_TENANT_BASE_URL=$VITE_TENANT_BASE_URL
+ENV VITE_APP_NAME=$VITE_APP_NAME
+
+# Build production bundle with increased memory limit for large builds
+RUN NODE_OPTIONS=--max-old-space-size=4096 yarn build
+
+# Stage 2: Serve with Nginx
 FROM nginx:alpine
 
-# Copy built static assets from builder stage
-COPY --from=builder /app/dist /usr/share/nginx/html
+# Copy custom Nginx configuration
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# SPA fallback & gzip configuration for React Router
-RUN echo 'server { \
-    listen 80; \
-    server_name localhost; \
-    root /usr/share/nginx/html; \
-    index index.html index.htm; \
-    gzip on; \
-    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript image/svg+xml; \
-    location / { \
-        try_files $uri $uri/ /index.html; \
-    } \
-    error_page 500 502 503 504 /50x.html; \
-    location = /50x.html { \
-        root /usr/share/nginx/html; \
-    } \
-}' > /etc/nginx/conf.d/default.conf
+# Copy build output from builder stage
+COPY --from=builder /app/dist /usr/share/nginx/html
 
 EXPOSE 80
 
 CMD ["nginx", "-g", "daemon off;"]
-
