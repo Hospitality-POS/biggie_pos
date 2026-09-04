@@ -297,12 +297,25 @@ export const updateInvoice = async (id: string, data: Partial<{
     counterparty_name: string;
     counterparty_email: string;
     counterparty_phone: string;
+    counterparty_kra_pin: string;
+    issue_date: string;
     due_date: string;
     notes: string;
     terms: string;
     internal_notes: string;
     supplier_ref: string;
     status: InvoiceStatus;
+    currency: string;
+    subtotal: number;
+    total_vat_amount: number;
+    discount_amount: number;
+    discount_type: "fixed" | "percentage";
+    discount_percentage: number;
+    discount_reason: string;
+    grand_total: number;
+    vat_pricing_mode: "INCLUSIVE" | "EXCLUSIVE";
+    vat_standard_rate: number;
+    lines?: CreateInvoiceLineParam[];
 }>) => {
     try {
         const response = await axiosInstance.put(

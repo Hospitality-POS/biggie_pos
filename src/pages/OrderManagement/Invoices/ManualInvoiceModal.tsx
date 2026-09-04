@@ -14,7 +14,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getAllAccounts } from "@services/accounting/accounts";
-import { createInvoice, convertQuoteToInvoice, recordInvoicePayment, getInvoiceById, patchInvoice } from "@services/accounting/invoice";
+import { createInvoice, convertQuoteToInvoice, recordInvoicePayment, getInvoiceById, patchInvoice, updateInvoice, Invoice } from "@services/accounting/invoice";
 import { fetchAllCustomers, fetchOtherBranchCustomers } from "@services/customers";
 import { fetchAllInventoryItems, getAllProducts } from "@services/products";
 import { fetchAllShops } from "@services/shops";
@@ -59,6 +59,7 @@ interface Props {
     open: boolean;
     onClose: () => void;
     onSuccess?: () => void;
+    invoiceToEdit?: Invoice | null;
 }
 
 interface LineItem {
@@ -87,7 +88,7 @@ const newLine = (defaultVatRate = 0): LineItem => ({
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
+const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoiceToEdit }) => {
     const [form] = Form.useForm();
     const [payForm] = Form.useForm();
     const { message } = App.useApp();
@@ -142,6 +143,17 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
     const systemSetupPath = isAdminRoute ? "/admin/system-setup" : "/system-setup";
     // Scoped per tenant so drafts don't bleed between accounts
     const DRAFT_KEY = `inv_draft_${tenantId || shopId}`;
+
+    const isEditMode = !!invoiceToEdit;
+
+    // ── Fetch fresh invoice when editing ───────────────────────────────────────
+    const { data: freshInvoiceData } = useQuery({
+        queryKey: ["invoice", invoiceToEdit?._id],
+        queryFn: () => getInvoiceById(invoiceToEdit?._id || ""),
+        enabled: open && !!invoiceToEdit?._id,
+        staleTime: 30_000,
+    });
+    const freshInvoice = freshInvoiceData?.invoice || invoiceToEdit;
 
     // ── System settings (KRA PIN check) ──────────────────────────────────────
     const { data: systemSettings } = useQuery({
@@ -316,9 +328,9 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
         }
     }, [servicesData]);
 
-    // ── Restore draft when modal opens ────────────────────────────────────────
+    // ── Restore draft when modal opens (create mode only) ──────────────────────
     useEffect(() => {
-        if (!open) return;
+        if (!open || isEditMode) return;
         const raw = localStorage.getItem(DRAFT_KEY);
         if (!raw) return;
         try {
@@ -342,11 +354,69 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
         } catch {
             localStorage.removeItem(DRAFT_KEY);
         }
-    }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [open, isEditMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // ── Auto-save draft on every change (step 0 only) ─────────────────────────
+    // ── Populate form when editing an existing invoice ─────────────────────────
     useEffect(() => {
-        if (!open || step !== 0) return;
+        if (!open || !isEditMode || !freshInvoice) return;
+        const customer = typeof freshInvoice.customer_id === "object" ? freshInvoice.customer_id : null;
+        const billingAddress = freshInvoice.billing_address || customer?.address || {};
+        form.setFieldsValue({
+            customer_id: customer?._id || freshInvoice.customer_id,
+            counterparty_kra_pin: freshInvoice.counterparty_kra_pin || customer?.kra_pin || "",
+            billing_address: {
+                use_customer_address: billingAddress.use_customer_address || false,
+                street: billingAddress.street || "",
+                building: billingAddress.building || "",
+                city: billingAddress.city || "",
+                postal_code: billingAddress.postal_code || "",
+                country: billingAddress.country || "",
+            },
+            issue_date: freshInvoice.issue_date ? dayjs(freshInvoice.issue_date) : dayjs(),
+            due_date: freshInvoice.due_date ? dayjs(freshInvoice.due_date) : null,
+            terms: freshInvoice.terms || undefined,
+            notes: freshInvoice.notes || "",
+        });
+        setDocType(freshInvoice.status === "Draft" ? "quote" : "invoice");
+        setSelectedCurrency(freshInvoice.currency || functionalCurrency?.code || "KES");
+        setEtrEnabled(freshInvoice.etr_enabled || false);
+        setDiscountType(freshInvoice.discount_type || "fixed");
+        setDiscountAmount(freshInvoice.discount_amount || 0);
+        setDiscountPercentage(freshInvoice.discount_percentage || 0);
+        setDiscountReason(freshInvoice.discount_reason || "");
+        setStep(0);
+        setSavedInvoice(null);
+        setHasDraft(false);
+
+        const invoiceLines: LineItem[] = (freshInvoice.items || []).map((item: any) => {
+            let itemType = item.item_type || "custom";
+            let itemId = item.item_id || undefined;
+            if (!itemId && item.product_id) {
+                itemId = item.product_id.toString ? item.product_id.toString() : item.product_id;
+                if (!item.item_type) {
+                    itemType = item.product_type === "Product_Inventory" ? "inventory"
+                        : item.product_type === "Product" ? "service"
+                            : "custom";
+                }
+            }
+            return {
+                key: item._id || item.key || `${Date.now()}-${Math.random()}`,
+                item_type: itemType as LineItem["item_type"],
+                item_id: itemId,
+                description: item.description || "",
+                quantity: item.quantity || 1,
+                unit_price: item.unit_price || item.price || 0,
+                discount_amount: item.discount_amount || 0,
+                vat_rate: item.vat_rate || 0,
+                account_id: typeof item.account_id === "object" ? item.account_id?._id : item.account_id || "",
+            };
+        });
+        setLines(invoiceLines.length ? invoiceLines : [newLine(vatEnabled ? standardVatRate : 0)]);
+    }, [open, isEditMode, freshInvoice, form, functionalCurrency?.code]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // ── Auto-save draft on every change (create mode, step 0 only) ──────────────
+    useEffect(() => {
+        if (!open || step !== 0 || isEditMode) return;
         if (draftDebounceRef.current) clearTimeout(draftDebounceRef.current);
         draftDebounceRef.current = setTimeout(() => {
             const fv = form.getFieldsValue();
@@ -495,6 +565,20 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
             message.error(err?.response?.data?.message || "Failed to save"),
     });
 
+    const updateMutation = useMutation({
+        mutationFn: ({ id, data }: { id: string; data: any }) =>
+            updateInvoice(id, data),
+        onSuccess: () => {
+            message.success("Invoice updated");
+            queryClient.invalidateQueries({ queryKey: ["journal-entries"] });
+            queryClient.invalidateQueries({ queryKey: ["invoices-unsettled"] });
+            onSuccess?.();
+            resetAndClose();
+        },
+        onError: (err: any) =>
+            message.error(err?.response?.data?.message || "Failed to update"),
+    });
+
     const convertMutation = useMutation({
         mutationFn: ({ id, data }: { id: string; data?: any }) =>
             convertQuoteToInvoice(id, data),
@@ -622,11 +706,44 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
         direction: "customer" as const,
         shop_id: shopId,
         customer_id: values.customer_id,
+        counterparty_name: values.counterparty_name,
+        billing_address: values.billing_address,
         issue_date: values.issue_date?.toISOString(),
         due_date: values.due_date?.toISOString(),
         notes: values.notes,
         terms: values.terms,
         status,
+        vat_pricing_mode: vatPricingMode,
+        vat_standard_rate: standardVatRate,
+        discount_type: invoiceDiscount > 0 ? discountType : undefined,
+        discount_amount: invoiceDiscount > 0 ? invoiceDiscount : undefined,
+        discount_percentage: invoiceDiscount > 0 && discountType === "percentage" ? discountPercentage : undefined,
+        discount_reason: invoiceDiscount > 0 ? discountReason : undefined,
+        etr_enabled: etrEnabled,
+        counterparty_kra_pin: values.counterparty_kra_pin || undefined,
+        lines: lines.map((l) => ({
+            description: l.description,
+            account_id: l.account_id,
+            quantity: Number(l.quantity) || 0,
+            price: Number(l.unit_price) || 0,
+            discount_amount: Number(l.discount_amount) || 0,
+            vat_rate: Number(vatEnabled ? l.vat_rate : 0) || 0,
+            vat_amount: Number(parseFloat(lineVAT(l).toFixed(2))) || 0,
+            item_type: l.item_type,
+            item_id: l.item_id,
+        })),
+    } as any);
+
+    const buildUpdatePayload = (values: any) => ({
+        direction: "customer" as const,
+        customer_id: values.customer_id,
+        counterparty_name: values.counterparty_name,
+        billing_address: values.billing_address,
+        issue_date: values.issue_date?.toISOString(),
+        due_date: values.due_date?.toISOString(),
+        notes: values.notes,
+        terms: values.terms,
+        currency: selectedCurrency,
         vat_pricing_mode: vatPricingMode,
         vat_standard_rate: standardVatRate,
         discount_type: invoiceDiscount > 0 ? discountType : undefined,
@@ -662,9 +779,16 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
             message.warning("Fill in all line items — Revenue Account is required");
             return;
         }
-        saveMutation.mutate(
-            buildPayload(values, docType === "quote" ? "Draft" : "Pending")
-        );
+        if (isEditMode) {
+            updateMutation.mutate({
+                id: freshInvoice?._id,
+                data: buildUpdatePayload(values),
+            });
+        } else {
+            saveMutation.mutate(
+                buildPayload(values, docType === "quote" ? "Draft" : "Pending")
+            );
+        }
     };
 
     const handleConvert = () => {
@@ -995,6 +1119,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
                     value={docType}
                     onChange={(v) => setDocType(v as DocType)}
                     size="large"
+                    disabled={isEditMode}
                     options={[
                         { label: <Space><FileTextOutlined />Quote</Space>, value: "quote" },
                         { label: <Space><FileDoneOutlined />Invoice</Space>, value: "invoice" },
@@ -1034,11 +1159,13 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
             <Alert
                 type={docType === "quote" ? "warning" : "info"}
                 showIcon style={{ marginBottom: 16 }}
-                message={docType === "quote" ? "Saving as Quote (Draft)" : "Creating Invoice (A/R)"}
+                message={isEditMode ? "Editing Invoice" : (docType === "quote" ? "Saving as Quote (Draft)" : "Creating Invoice (A/R)")}
                 description={
-                    docType === "quote"
-                        ? "No journal entry or AR impact until you convert it to an invoice."
-                        : "Posts to books immediately — DR Accounts Receivable (1200), CR Sales Revenue (4100)."
+                    isEditMode
+                        ? "Updates will overwrite the existing line items and recalculate the invoice totals."
+                        : (docType === "quote"
+                            ? "No journal entry or AR impact until you convert it to an invoice."
+                            : "Posts to books immediately — DR Accounts Receivable (1200), CR Sales Revenue (4100).")
                 }
             />
 
@@ -1111,7 +1238,8 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
                                 onChange={(value: string) => {
                                     const customer = customersData?.find((c: any) => c._id === value);
                                     form.setFieldValue("counterparty_kra_pin", customer?.kra_pin || "");
-                                    
+                                    form.setFieldValue("counterparty_name", customer?.company_name || customer?.customer_name || "");
+
                                     // Check if customer is a company and show company details in billing address
                                     if (customer?.entity_type === "company") {
                                         const companyDetails = customer.company_name || customer.customer_name || "";
@@ -1735,6 +1863,15 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
 
     // ── Footer buttons ────────────────────────────────────────────────────────
     const renderFooter = () => {
+        if (isEditMode) return [
+            <Button key="cancel" onClick={handleClose}>Cancel</Button>,
+            <Button key="save" type="primary"
+                loading={updateMutation.isPending}
+                icon={<FileDoneOutlined />}
+                onClick={handleSave}>
+                Save Changes
+            </Button>,
+        ];
         if (step === 0) return [
             <Button key="cancel" onClick={handleClose}>Cancel</Button>,
             <Button key="save" type="primary"
@@ -1770,18 +1907,20 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
     };
 
     // ── Steps config ──────────────────────────────────────────────────────────
-    const stepsConfig = docType === "quote"
-        ? [
-            { title: "Details", icon: <FileTextOutlined /> },
-            { title: "Convert", icon: <ArrowRightOutlined /> },
-            { title: "Payment", icon: <DollarOutlined /> },
-        ]
-        : [
-            { title: "Details", icon: <FileDoneOutlined /> },
-            { title: "Payment", icon: <DollarOutlined /> },
-        ];
+    const stepsConfig = isEditMode
+        ? [{ title: "Edit Invoice", icon: <FileDoneOutlined /> }]
+        : docType === "quote"
+            ? [
+                { title: "Details", icon: <FileTextOutlined /> },
+                { title: "Convert", icon: <ArrowRightOutlined /> },
+                { title: "Payment", icon: <DollarOutlined /> },
+            ]
+            : [
+                { title: "Details", icon: <FileDoneOutlined /> },
+                { title: "Payment", icon: <DollarOutlined /> },
+            ];
 
-    const stepsIndex = docType === "quote" ? step : step === 0 ? 0 : 1;
+    const stepsIndex = isEditMode ? 0 : docType === "quote" ? step : step === 0 ? 0 : 1;
 
     // ── Render ────────────────────────────────────────────────────────────────
     return (
@@ -1791,26 +1930,38 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
                 onCancel={handleClose}
                 title={
                     <Space>
-                        {step === 0 && (docType === "quote"
-                            ? <FileTextOutlined style={{ color: "#faad14" }} />
-                            : <FileDoneOutlined style={{ color: "#1890ff" }} />)}
-                        {step === 1 && <FileTextOutlined style={{ color: "#faad14" }} />}
-                        {step === 2 && <DollarOutlined style={{ color: "#52c41a" }} />}
-                        {step === 0 && (docType === "quote" ? "Create Quote" : "Create Invoice")}
-                        {step === 1 && "Review & Convert Quote"}
-                        {step === 2 && "Record Payment"}
+                        {isEditMode ? <FileDoneOutlined style={{ color: "#1890ff" }} /> : (
+                            <>
+                                {step === 0 && (docType === "quote"
+                                    ? <FileTextOutlined style={{ color: "#faad14" }} />
+                                    : <FileDoneOutlined style={{ color: "#1890ff" }} />)}
+                                {step === 1 && <FileTextOutlined style={{ color: "#faad14" }} />}
+                                {step === 2 && <DollarOutlined style={{ color: "#52c41a" }} />}
+                            </>
+                        )}
+                        {isEditMode
+                            ? `Edit Invoice — ${freshInvoice?.order_no || ""}`
+                            : (
+                                <>
+                                    {step === 0 && (docType === "quote" ? "Create Quote" : "Create Invoice")}
+                                    {step === 1 && "Review & Convert Quote"}
+                                    {step === 2 && "Record Payment"}
+                                </>
+                            )}
                     </Space>
                 }
                 width={1200}
                 footer={renderFooter()}
                 destroyOnClose
             >
-                <Steps
-                    current={stepsIndex}
-                    size="small"
-                    items={stepsConfig}
-                    style={{ marginBottom: 24 }}
-                />
+                {!isEditMode && (
+                    <Steps
+                        current={stepsIndex}
+                        size="small"
+                        items={stepsConfig}
+                        style={{ marginBottom: 24 }}
+                    />
+                )}
                 {step === 0 && renderStep0()}
                 {step === 1 && renderStep1()}
                 {step === 2 && renderStep2()}

@@ -1043,20 +1043,22 @@ const InvoicesTable = () => {
     {
       title: "Actions", hideInSearch: true, key: "action", width: 60,
       render: (_: any, record: any) => (
-        <Dropdown
-          menu={{
-            items: getRowActionItems(record),
-            onClick: ({ key }) => handleRowMenuClick(key, record),
-          }}
-          trigger={["click"]}
-        >
-          <Button
-            size="small"
-            icon={<MoreOutlined />}
-            style={{ borderRadius: 6, border: `1px solid ${C.border}` }}
-            onClick={(e) => e.stopPropagation()}
-          />
-        </Dropdown>
+        <div onClick={(e) => e.stopPropagation()}>
+          <Dropdown
+            menu={{
+              items: getRowActionItems(record),
+              onClick: ({ key }) => handleRowMenuClick(key, record),
+            }}
+            trigger={["click"]}
+          >
+            <Button
+              size="small"
+              icon={<MoreOutlined />}
+              style={{ borderRadius: 6, border: `1px solid ${C.border}` }}
+              onClick={(e) => e.stopPropagation()}
+            />
+          </Dropdown>
+        </div>
       ),
     },
   ];
@@ -1256,7 +1258,11 @@ const InvoicesTable = () => {
         options={{ fullScreen: true }}
         expandable={{
           // ── Invoice/receipt FIRST, then details ──
-          expandedRowRender: (record) => <ExpandedRowContent record={record} defaultTab="receipt" onOpenNote={handleOpenNote} />,
+          expandedRowRender: (record) => (
+            <div onClick={(e) => e.stopPropagation()}>
+              <ExpandedRowContent record={record} defaultTab="receipt" onOpenNote={handleOpenNote} />
+            </div>
+          ),
           defaultExpandAllRows: false,
           expandIconColumnIndex: 1,
           columnTitle: " ",
@@ -1265,16 +1271,18 @@ const InvoicesTable = () => {
         }}
         onRow={(record) => ({
           onClick: (e) => {
-            // Don't expand if clicking on action dropdown or its children
+            // Don't expand if the click came from an action or interactive element
             const target = e.target as HTMLElement;
-            if (target.closest('.ant-dropdown-trigger') || target.closest('.ant-btn')) {
-              return;
-            }
+            const interactive = target.closest(
+              '.ant-dropdown-trigger, .ant-dropdown-menu, .ant-btn, button, a, input, textarea, .ant-picker, .ant-select, .ant-select-dropdown, .ant-table-row-expand-icon'
+            );
+            if (interactive) return;
             // Toggle expansion
-            const newKeys = expandedRowKeys.includes(record._id)
-              ? expandedRowKeys.filter((k) => k !== record._id)
-              : [...expandedRowKeys, record._id];
-            setExpandedRowKeys(newKeys);
+            setExpandedRowKeys((prev) =>
+              prev.includes(record._id)
+                ? prev.filter((k) => k !== record._id)
+                : [...prev, record._id]
+            );
           },
           style: { cursor: 'pointer' },
         })}
@@ -1296,12 +1304,21 @@ const InvoicesTable = () => {
         onSuccess={refreshTable}
       />
 
+      {editTarget && (
+        <ManualInvoiceModal
+          open={!!editTarget}
+          onClose={() => setEditTarget(null)}
+          onSuccess={refreshTable}
+          invoiceToEdit={editTarget}
+        />
+      )}
+
       <NoteDetailDrawer
         open={noteDetailOpen}
         onClose={() => { setNoteDetailOpen(false); setSelectedNoteId(null); }}
         noteId={selectedNoteId}
-        onSuccess={() => {}} // No refresh needed for notes from invoice view
-        onOpenInvoice={() => {}} // No need to navigate back to invoice from here
+        onSuccess={() => undefined} // No refresh needed for notes from invoice view
+        onOpenInvoice={() => undefined} // No need to navigate back to invoice from here
       />
 
       {/* Delete Confirmation Modal */}
