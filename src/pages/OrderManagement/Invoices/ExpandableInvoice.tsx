@@ -1929,7 +1929,7 @@ const ExpandableInvoice = ({ record, onOpenNote, defaultTab = "receipt" }: Expan
   ];
 
   return (
-    <div style={{ background: C.bg }}>
+    <div style={{ background: C.bg }} onClick={(e) => e.stopPropagation()}>
       <Tabs
         size="small"
         activeKey={activeTab}
