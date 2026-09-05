@@ -292,6 +292,33 @@ export const postJournalEntry = async (id: string) => {
 };
 
 /**
+ * Delete a journal entry by ID.
+ * Errors are re-thrown so callers (e.g. bulk delete) can aggregate failures.
+ */
+export const deleteJournalEntry = async (id: string, shop_id: string) => {
+    await axiosInstance.delete(
+        `${BASE_URL}/accounting/journal-entries/${id}`,
+        { params: { shop_id } }
+    );
+};
+
+/**
+ * Delete multiple journal entries in one request.
+ * Entries in locked periods are skipped server-side — check `failed` for details.
+ */
+export const bulkDeleteJournalEntries = async (ids: string[], shop_id: string) => {
+    const response = await axiosInstance.post(
+        `${BASE_URL}/accounting/journal-entries/bulk-delete`,
+        { shop_id, ids }
+    );
+    return response.data as {
+        message: string;
+        deleted: { id: string; entry_no: string }[];
+        failed: { id: string; entry_no?: string; reason: string }[];
+    };
+};
+
+/**
  * Void a Posted journal entry.
  * Automatically creates a reversal entry (debits and credits swapped).
  */
