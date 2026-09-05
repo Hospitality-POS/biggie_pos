@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback, useEffect } from "react";
+import React, { useRef, useState, useCallback, useEffect, useMemo } from "react";
 import { ProTable, ProCard, ActionType } from "@ant-design/pro-components";
 import {
     Button,
@@ -16,6 +16,9 @@ import {
     Tooltip,
     Alert,
     Tabs,
+    Checkbox,
+    Popconfirm,
+    message,
 } from "antd";
 import {
     PlusOutlined,
@@ -23,11 +26,13 @@ import {
     EditOutlined,
     AccountBookOutlined,
     FilterOutlined,
+    DeleteOutlined,
 } from "@ant-design/icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
     getAllJournalEntries,
     getJournalEntrySummary,
+    bulkDeleteJournalEntries,
     JournalEntry,
     JournalEntryStatus,
     JournalEntrySource,
@@ -111,6 +116,9 @@ const JournalEntriesPage: React.FC = () => {
     const [pageSize, setPageSize] = useState(20);
     const [sourceFilter, setSourceFilter] = useState<JournalEntrySource | undefined>();
     const [searchTerm, setSearchTerm] = useState<string>("");
+    const [showDuplicatesOnly, setShowDuplicatesOnly] = useState(false);
+    const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+    const [deleting, setDeleting] = useState(false);
     const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null]>([
         dayjs().startOf("month"),
         dayjs().endOf("month"),
@@ -149,6 +157,28 @@ const JournalEntriesPage: React.FC = () => {
     const totalEntries = data?.totalEntries || 0;
     const summary = summaryData?.summary;
 
+    // ── Duplicate reference detection (within the loaded page) ──────────────
+
+    const referenceCounts = useMemo(() => {
+        const counts: Record<string, number> = {};
+        for (const e of entries) {
+            const ref = (e.reference || "").trim();
+            if (ref) counts[ref] = (counts[ref] || 0) + 1;
+        }
+        return counts;
+    }, [entries]);
+
+    const displayedEntries = useMemo(
+        () =>
+            showDuplicatesOnly
+                ? entries.filter((e) => {
+                      const ref = (e.reference || "").trim();
+                      return !!ref && (referenceCounts[ref] || 0) > 1;
+                  })
+                : entries,
+        [entries, showDuplicatesOnly, referenceCounts]
+    );
+
     // ── Handlers ──────────────────────────────────────────────────────────────
 
     const openDetail = (id: string) => {
@@ -167,6 +197,37 @@ const JournalEntriesPage: React.FC = () => {
         queryClient.invalidateQueries({ queryKey: ["journal-entries"] });
         queryClient.invalidateQueries({ queryKey: ["journal-entry-summary"] });
     }, [queryClient]);
+
+    const handleBulkDelete = async () => {
+        setDeleting(true);
+        try {
+            const result = await bulkDeleteJournalEntries(
+                selectedRowKeys.map(String),
+                shopId
+            );
+            if (result.deleted.length > 0) {
+                message.success(
+                    `Deleted ${result.deleted.length} journal entr${result.deleted.length === 1 ? "y" : "ies"}`
+                );
+            }
+            if (result.failed.length > 0) {
+                message.error(
+                    `${result.failed.length} entr${result.failed.length === 1 ? "y" : "ies"} could not be deleted: ` +
+                    result.failed
+                        .map((f) => `${f.entry_no || f.id} — ${f.reason}`)
+                        .join("; ")
+                );
+            }
+            setSelectedRowKeys([]);
+            onFormSuccess();
+        } catch (error: any) {
+            message.error(
+                error?.response?.data?.message || "Error deleting journal entries"
+            );
+        } finally {
+            setDeleting(false);
+        }
+    };
 
     // ── Auto-refresh every 30 seconds ─────────────────────────────────────────
     useEffect(() => {
@@ -442,6 +503,29 @@ const JournalEntriesPage: React.FC = () => {
                         }}
                         style={{ width: 220 }}
                     />
+                    <Checkbox
+                        checked={showDuplicatesOnly}
+                        onChange={(e) => setShowDuplicatesOnly(e.target.checked)}
+                    >
+                        Show duplicate references only
+                    </Checkbox>
+                    {selectedRowKeys.length > 0 && (
+                        <Popconfirm
+                            title={`Delete ${selectedRowKeys.length} journal entr${selectedRowKeys.length === 1 ? "y" : "ies"}?`}
+                            description="This action cannot be undone. Entries in locked periods will be skipped."
+                            okText="Delete"
+                            okButtonProps={{ danger: true }}
+                            onConfirm={handleBulkDelete}
+                        >
+                            <Button
+                                danger
+                                icon={<DeleteOutlined />}
+                                loading={deleting}
+                            >
+                                Delete Selected ({selectedRowKeys.length})
+                            </Button>
+                        </Popconfirm>
+                    )}
                 </Space>
 
                 {!shopId && (
@@ -451,7 +535,12 @@ const JournalEntriesPage: React.FC = () => {
                 <ProTable<JournalEntry>
                     rowKey="_id"
                     actionRef={actionRef}
-                    dataSource={entries}
+                    dataSource={displayedEntries}
+                    rowSelection={{
+                        selectedRowKeys,
+                        onChange: (keys) => setSelectedRowKeys(keys),
+                    }}
+                    tableAlertRender={false}
                     columns={columns}
                     loading={isLoading}
                     search={false}
