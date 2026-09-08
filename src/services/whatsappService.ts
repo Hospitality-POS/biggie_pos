@@ -296,6 +296,16 @@ export const disconnectWhatsAppWeb = async () => {
     }
 };
 
+export const resyncWhatsAppWeb = async () => {
+    try {
+        const response = await axiosInstance.post(`${BASE_URL}/omnichannel/channels/whatsapp-web/resync`);
+        message.success("WhatsApp chats resynced");
+        return response.data;
+    } catch (error: any) {
+        handleError(error, "Could not resync WhatsApp Web chats.");
+    }
+};
+
 // ── Scripts ───────────────────────────────────────────────────────────────────
 
 export interface Script {
@@ -615,6 +625,16 @@ export const markConversationAsRead = async (conversationId: string) => {
     }
 };
 
+export const deleteConversation = async (conversationId: string) => {
+    try {
+        const response = await axiosInstance.delete(`${conversationUrl}/${conversationId}`);
+        message.success("Conversation deleted");
+        return response.data;
+    } catch (error: any) {
+        handleError(error, "Error deleting conversation");
+    }
+};
+
 // ── Agent Routing & Queue ─────────────────────────────────────────────────────
 
 export interface Agent {
@@ -695,15 +715,66 @@ export const fetchMessages = async (conversationId: string, params?: FetchMessag
     }
 };
 
-export const sendTextMessage = async (params: { conversation_id: string; content: string }) => {
+export const sendTextMessage = async (params: { conversation_id: string; content: string; context_message_id?: string }) => {
     try {
         const response = await axiosInstance.post(`${messageUrl}/text`, {
             conversation_id: params.conversation_id,
             content: params.content,
+            context_message_id: params.context_message_id || null,
         });
         return response.data;
     } catch (error: any) {
         handleError(error, "Error sending message");
+    }
+};
+
+// ── Send to phone number / Broadcast ───────────────────────────────────────────
+
+export const sendToPhoneNumber = async (params: {
+    shop_id: string;
+    phone_number: string;
+    content: string;
+    contact_name?: string;
+}) => {
+    try {
+        const response = await axiosInstance.post(`${messageUrl}/send-to-number`, params);
+        message.success("Message sent");
+        return response.data;
+    } catch (error: any) {
+        handleError(error, "Error sending message");
+    }
+};
+
+export type BroadcastAudience = "customers" | "leads" | "both";
+
+export interface BroadcastRecipient {
+    id: string;
+    name: string;
+    phone: string;
+    source: "customer" | "lead";
+}
+
+export const fetchBroadcastRecipients = async (params: { shop_id: string; audience: BroadcastAudience }) => {
+    try {
+        const response = await axiosInstance.get(`${BASE_URL}/omnichannel/broadcast/recipients`, { params });
+        return response.data as { total: number; recipients: BroadcastRecipient[] };
+    } catch (error: any) {
+        handleError(error, "Could not load recipients");
+        return { total: 0, recipients: [] };
+    }
+};
+
+export const sendBroadcastMessage = async (params: {
+    shop_id: string;
+    content: string;
+    audience: BroadcastAudience;
+}) => {
+    try {
+        const response = await axiosInstance.post(`${BASE_URL}/omnichannel/broadcast/send`, params);
+        message.success(response.data?.message || "Broadcast queued");
+        return response.data;
+    } catch (error: any) {
+        handleError(error, "Error sending broadcast");
     }
 };
 
@@ -734,6 +805,7 @@ export const sendMediaMessage = async (params: {
     media_id?: string;
     caption?: string;
     filename?: string;
+    context_message_id?: string;
 }) => {
     try {
         const response = await axiosInstance.post(`${messageUrl}/media`, {
@@ -743,6 +815,7 @@ export const sendMediaMessage = async (params: {
             media_id: params.media_id || null,
             caption: params.caption || "",
             filename: params.filename || null,
+            context_message_id: params.context_message_id || null,
         });
         return response.data;
     } catch (error: any) {

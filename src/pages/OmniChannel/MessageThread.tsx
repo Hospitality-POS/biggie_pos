@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
     Avatar,
     Badge,
     Button,
     Divider,
     Dropdown,
+    Grid,
     Input,
     MenuProps,
     Modal,
@@ -22,7 +23,6 @@ import {
     CloseCircleOutlined,
     DownOutlined,
     FileOutlined,
-    MoreOutlined,
     PaperClipOutlined,
     SendOutlined,
     UserOutlined,
@@ -32,6 +32,8 @@ import {
     ThunderboltOutlined,
     MessageOutlined,
     CloseOutlined,
+    DeleteOutlined,
+    ArrowLeftOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
@@ -42,11 +44,11 @@ import {
     suggestReply,
     convertConversationToCustomer,
     convertConversationToLead,
-    assignConversation,
     updateConversationStatus,
     markConversationAsRead,
     fetchAgents,
     handoverConversation,
+    deleteConversation,
 } from "@services/whatsappService";
 import {
     Conversation,
@@ -73,6 +75,7 @@ interface Message {
     template_name?: string;
     status: "pending" | "sent" | "delivered" | "read" | "received" | "failed";
     meta_message_id?: string;
+    context_message_id?: string;
     sent_by?: { _id: string; fullname: string; thumbnail?: string };
     location?: { latitude: number; longitude: number; name?: string; address?: string };
     reaction?: { emoji: string; message_id: string };
@@ -85,6 +88,8 @@ interface Props {
     primaryColor: string;
     onMessageSent: () => void;
     onConversationUpdate: () => void;
+    onConversationDeleted?: () => void;
+    onBack?: () => void;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -128,14 +133,16 @@ const FormattedText: React.FC<{ text?: string }> = ({ text }) => {
 
 // ── Message Bubble ────────────────────────────────────────────────────────────
 
-const MessageBubble: React.FC<{ msg: Message; channelColor: string }> = ({
+const MessageBubble: React.FC<{ msg: Message; channelColor: string; onReply?: (msg: Message) => void; isReplying?: boolean }> = ({
     msg,
     channelColor,
+    onReply,
+    isReplying,
 }) => {
     const isOut = msg.direction === "outbound";
 
     const bubbleStyle: React.CSSProperties = {
-        maxWidth: "68%",
+        maxWidth: "85%",
         padding: "8px 12px",
         borderRadius: isOut ? "16px 4px 16px 16px" : "4px 16px 16px 16px",
         background: isOut ? channelColor : "#f0f0f0",
@@ -144,6 +151,9 @@ const MessageBubble: React.FC<{ msg: Message; channelColor: string }> = ({
         lineHeight: "1.5",
         wordBreak: "break-word",
         position: "relative",
+        cursor: onReply ? "pointer" : "default",
+        boxShadow: isReplying ? `0 0 0 2px ${channelColor}` : undefined,
+        transition: "box-shadow 0.15s ease",
     };
 
     const renderContent = () => {
@@ -292,7 +302,11 @@ const MessageBubble: React.FC<{ msg: Message; channelColor: string }> = ({
                 />
             )}
 
-            <div style={bubbleStyle}>
+            <div
+                style={bubbleStyle}
+                onClick={() => onReply?.(msg)}
+                title={onReply ? "Click to reply" : undefined}
+            >
                 {renderContent()}
                 {["image", "document", "video"].includes(msg.message_type) &&
                     msg.content && (
@@ -355,9 +369,13 @@ const MessageThread: React.FC<Props> = ({
     primaryColor,
     onMessageSent,
     onConversationUpdate,
+    onConversationDeleted,
+    onBack,
 }) => {
     const { message: antMessage } = App.useApp();
     const queryClient = useQueryClient();
+    const screens = Grid.useBreakpoint();
+    const isMobile = !screens.md;
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const { data: agentsData } = useQuery({
@@ -379,14 +397,18 @@ const MessageThread: React.FC<Props> = ({
         },
     });
 
-    const agents = agentsData?.agents || [];
-    const currentAgent = agents.find((a) => a._id === conversation.assigned_to?._id);
+    const agents: any[] = (agentsData?.agents || []) as any[];
     const messagesContainerRef = useRef<HTMLDivElement>(null);
     const [isAutoScroll, setIsAutoScroll] = useState(true);
 
     const [text, setText] = useState("");
-    const [page, setPage] = useState(1);
-    const [allMessages, setAllMessages] = useState<Message[]>([]);
+    const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+    // Older messages loaded on-demand via "scroll up to load more" — kept
+    // separate from the live latest-page poll below so that once a user has
+    // scrolled up, new incoming/sent messages keep arriving instead of the
+    // auto-refresh getting stuck re-polling an older, static page forever.
+    const [historyPage, setHistoryPage] = useState(1);
+    const [olderMessages, setOlderMessages] = useState<Message[]>([]);
     const [hasMore, setHasMore] = useState(true);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [sendingMedia, setSendingMedia] = useState(false);
@@ -398,42 +420,58 @@ const MessageThread: React.FC<Props> = ({
     const cfg = CHANNEL_CONFIG[conversation.channel];
     const statusCfg = STATUS_CONFIG[conversation.status];
 
-    // ── Fetch messages (oldest first, then we'll reverse for display) ─────────
-
+    // ── Fetch messages ──────────────────────────────────────────────────────
+    // Always poll page 1 (the newest 30 messages) on its own query key so new
+    // messages keep syncing in real time regardless of how much history the
+    // user has scrolled up to load.
     const { data, isLoading, refetch } = useQuery({
-        queryKey: ["messages", conversation._id, page],
-        queryFn: () => fetchMessages(conversation._id, { page, limit: 30 }),
+        queryKey: ["messages", conversation._id, "latest"],
+        queryFn: () => fetchMessages(conversation._id, { page: 1, limit: 30 }),
         enabled: !!conversation._id,
-        refetchInterval: 8000,
+        refetchInterval: 5000,
         refetchOnMount: "always",
         staleTime: 0,
     });
 
-    // Handle pagination - load older messages (append to top)
-    useEffect(() => {
-        if (data?.messages) {
-            // API returns messages from oldest to newest per page
-            // For page 1: messages [1-30] (oldest first)
-            // For page 2: messages [31-60] (older messages)
+    const latestMessages = data?.messages || [];
+    const total = data?.total ?? 0;
 
-            if (page === 1) {
-                // First page: store as is (oldest to newest)
-                setAllMessages(data.messages);
-            } else {
-                // Load more: prepend older messages to the beginning
-                setAllMessages(prev => [...data.messages, ...prev]);
+    // Merge older (manually loaded) history with the live latest page,
+    // de-duplicating by _id in case their ranges overlap.
+    const allMessages = useMemo(() => {
+        const merged = new Map<string, Message>();
+        [...olderMessages, ...latestMessages].forEach((m) => merged.set(m._id, m));
+        return Array.from(merged.values()).sort(
+            (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+    }, [olderMessages, latestMessages]);
+
+    useEffect(() => {
+        setHasMore(total > allMessages.length);
+    }, [total, allMessages.length]);
+
+    // Load an older page of history and prepend it (doesn't affect the live poll above).
+    const loadOlderMessages = useCallback(async () => {
+        const nextPage = historyPage + 1;
+        try {
+            const result = await fetchMessages(conversation._id, { page: nextPage, limit: 30 });
+            if (result?.messages?.length) {
+                setOlderMessages((prev) => [...result.messages, ...prev]);
+                setHistoryPage(nextPage);
             }
-            setHasMore(data.hasMore);
+            if (result && !result.hasMore) setHasMore(false);
+        } finally {
             setIsLoadingMore(false);
         }
-    }, [data, page]);
+    }, [conversation._id, historyPage]);
 
     // Reset when conversation changes
     useEffect(() => {
-        setPage(1);
-        setAllMessages([]);
+        setHistoryPage(1);
+        setOlderMessages([]);
         setHasMore(true);
         setText("");
+        setReplyingTo(null);
         setIsAutoScroll(true);
     }, [conversation._id]);
 
@@ -461,11 +499,11 @@ const MessageThread: React.FC<Props> = ({
         setIsAutoScroll(isAtBottom);
 
         // Load more messages when scrolling to top
-        if (isAtTop && hasMore && !isLoadingMore && page > 0) {
+        if (isAtTop && hasMore && !isLoadingMore) {
             setIsLoadingMore(true);
-            setPage(prev => prev + 1);
+            loadOlderMessages();
         }
-    }, [hasMore, isLoadingMore, page]);
+    }, [hasMore, isLoadingMore, loadOlderMessages]);
 
     // ── Send text message ──────────────────────────────────────────────────────
 
@@ -474,9 +512,11 @@ const MessageThread: React.FC<Props> = ({
             sendTextMessage({
                 conversation_id: conversation._id,
                 content: text.trim(),
+                context_message_id: replyingTo?._id,
             }),
         onSuccess: () => {
             setText("");
+            setReplyingTo(null);
             refetch();
             onMessageSent();
             onConversationUpdate();
@@ -534,10 +574,12 @@ const MessageThread: React.FC<Props> = ({
                 media_url,
                 caption: "",
                 filename: file.name,
+                context_message_id: replyingTo?._id,
             });
             setSendingMedia(false);
             if (result) {
                 antMessage.success("Media sent");
+                setReplyingTo(null);
                 refetch();
                 onMessageSent();
                 onConversationUpdate();
@@ -603,6 +645,24 @@ const MessageThread: React.FC<Props> = ({
         setConvertOpen(false);
     };
 
+    const handleDelete = () => {
+        Modal.confirm({
+            title: "Delete conversation?",
+            content: "This will permanently remove the conversation and all its messages.",
+            okText: "Delete",
+            okType: "danger",
+            onOk: async () => {
+                try {
+                    await deleteConversation(conversation._id);
+                    onConversationUpdate();
+                    onConversationDeleted?.();
+                } catch {
+                    // Error already handled/toasted by the service
+                }
+            },
+        });
+    };
+
     const convertMenu: MenuProps = {
         items: [
             { key: "customer", label: "Convert to Customer", icon: <UserAddOutlined />, onClick: () => openConvert("customer") },
@@ -647,6 +707,14 @@ const MessageThread: React.FC<Props> = ({
                     }}
                 >
                     <Space size={10}>
+                        {isMobile && onBack && (
+                            <Button
+                                type="text"
+                                icon={<ArrowLeftOutlined />}
+                                onClick={onBack}
+                                style={{ padding: "0 4px" }}
+                            />
+                        )}
                         <div style={{ position: "relative" }}>
                             <Avatar
                                 size={36}
@@ -694,10 +762,10 @@ const MessageThread: React.FC<Props> = ({
                         </div>
                     </Space>
 
-                    <Space>
+                    <Space wrap size={isMobile ? "small" : "middle"}>
                         {conversation.assigned_to && (
                             <Tooltip title={`Assigned to ${conversation.assigned_to.fullname}`}>
-                                <Tag size="small" icon={<UserOutlined />}>
+                                <Tag icon={<UserOutlined />}>
                                     {conversation.assigned_to.fullname}
                                 </Tag>
                             </Tooltip>
@@ -714,7 +782,7 @@ const MessageThread: React.FC<Props> = ({
                             loading={handoverMutation.isPending}
                             showSearch
                             style={{ minWidth: 150 }}
-                            options={agents.map((agent) => ({
+                            options={agents.map((agent: any) => ({
                                 value: agent._id,
                                 label: `${agent.fullname} (${agent.open_conversations})`,
                                 disabled: agent._id === conversation.assigned_to?._id,
@@ -736,6 +804,14 @@ const MessageThread: React.FC<Props> = ({
                         </Dropdown>
                         <Button
                             size="small"
+                            danger
+                            icon={<DeleteOutlined />}
+                            onClick={handleDelete}
+                        >
+                            Delete
+                        </Button>
+                        <Button
+                            size="small"
                             icon={<CloseOutlined />}
                             disabled={conversation.status === "closed"}
                             loading={statusMutation.isPending}
@@ -753,7 +829,7 @@ const MessageThread: React.FC<Props> = ({
                     style={{
                         flex: 1,
                         overflowY: "auto",
-                        padding: "12px 16px",
+                        padding: isMobile ? "8px 10px" : "12px 16px",
                         background: "#fafafa",
                         display: "flex",
                         flexDirection: "column",
@@ -778,7 +854,7 @@ const MessageThread: React.FC<Props> = ({
                         </div>
                     )}
 
-                    {isLoading && page === 1 ? (
+                    {isLoading && allMessages.length === 0 ? (
                         <div style={{ textAlign: "center", padding: 40 }}>
                             <Spin />
                         </div>
@@ -799,6 +875,8 @@ const MessageThread: React.FC<Props> = ({
                                         key={msg._id}
                                         msg={msg}
                                         channelColor={cfg?.color || primaryColor}
+                                        onReply={setReplyingTo}
+                                        isReplying={replyingTo?._id === msg._id}
                                     />
                                 ))}
                             </div>
@@ -818,7 +896,45 @@ const MessageThread: React.FC<Props> = ({
                         background: "#fff",
                     }}
                 >
-                    <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+                    {replyingTo && (
+                        <div
+                            style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                gap: 8,
+                                padding: "6px 10px",
+                                marginBottom: 8,
+                                background: "#f6f6f6",
+                                borderRadius: 8,
+                                borderLeft: `3px solid ${cfg?.color || primaryColor}`,
+                                fontSize: 12,
+                            }}
+                        >
+                            <div style={{ overflow: "hidden" }}>
+                                <Text type="secondary" style={{ fontSize: 11 }}>
+                                    Replying to {replyingTo.direction === "outbound" ? "yourself" : "customer"}
+                                </Text>
+                                <div style={{ color: "#595959", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                    {replyingTo.content || "[media]"}
+                                </div>
+                            </div>
+                            <Button
+                                type="text"
+                                size="small"
+                                icon={<CloseOutlined />}
+                                onClick={() => setReplyingTo(null)}
+                            />
+                        </div>
+                    )}
+                    <div
+                        style={{
+                            display: "flex",
+                            gap: 8,
+                            alignItems: "flex-end",
+                            flexWrap: isMobile ? "wrap" : "nowrap",
+                        }}
+                    >
                         <Upload
                             accept="image/*,video/*"
                             showUploadList={false}
@@ -829,10 +945,10 @@ const MessageThread: React.FC<Props> = ({
                         >
                             <Button
                                 icon={<PaperClipOutlined />}
-                                size="large"
+                                size={isMobile ? "middle" : "large"}
                                 disabled={sendingMedia}
                                 loading={sendingMedia}
-                                style={{ height: 48, width: 48 }}
+                                style={{ height: isMobile ? 36 : 48, width: isMobile ? 36 : 48 }}
                             />
                         </Upload>
 
@@ -842,7 +958,7 @@ const MessageThread: React.FC<Props> = ({
                                 onChange={(e) => setText(e.target.value)}
                                 onKeyDown={handleKeyDown}
                                 placeholder=""
-                                autoSize={{ minRows: 2, maxRows: 4 }}
+                                autoSize={{ minRows: isMobile ? 1 : 2, maxRows: isMobile ? 3 : 4 }}
                                 style={{ 
                                     flex: 1, 
                                     borderRadius: 8, 
@@ -873,23 +989,23 @@ const MessageThread: React.FC<Props> = ({
                             onClick={handleSend}
                             loading={sendMutation.isPending || sendingMedia}
                             disabled={!text.trim()}
-                            size="large"
+                            size={isMobile ? "middle" : "large"}
                             style={{
                                 background: cfg?.color || primaryColor,
                                 borderColor: cfg?.color || primaryColor,
                                 borderRadius: 8,
-                                height: 48,
+                                height: isMobile ? 36 : 48,
                             }}
                         >
-                            Send
+                            {!isMobile && "Send"}
                         </Button>
                         <Tooltip title="AI suggestion">
                             <Button
                                 icon={<ThunderboltOutlined />}
                                 onClick={() => suggestMutation.mutate()}
                                 loading={suggestMutation.isPending}
-                                size="large"
-                                style={{ height: 48, width: 48 }}
+                                size={isMobile ? "middle" : "large"}
+                                style={{ height: isMobile ? 36 : 48, width: isMobile ? 36 : 48 }}
                             />
                         </Tooltip>
                     </div>

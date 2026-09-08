@@ -320,7 +320,7 @@ const ConversationList: React.FC<Props> = ({
                         size="middle"
                         style={{ flex: 1 }}
                     />
-                    {isAdmin && onAgentChange && (
+                    {onAgentChange && (
                         <Select
                             value={selectedAgent}
                             onChange={onAgentChange}

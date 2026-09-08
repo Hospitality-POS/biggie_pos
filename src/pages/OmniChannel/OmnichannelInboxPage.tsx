@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { ProCard } from "@ant-design/pro-components";
 import {
     Button,
+    Grid,
     Space,
     Typography,
     App,
@@ -14,6 +15,7 @@ import {
     MessageOutlined,
     ReloadOutlined,
     SettingOutlined,
+    EditOutlined,
 } from "@ant-design/icons";
 
 const WhatsAppIcon = () => (
@@ -48,6 +50,7 @@ import WelcomeMessageManager from "./WelcomeMessageManager";
 import AnalyticsPage from "./AnalyticsPage";
 import AgentsManager from "./AgentsManager";
 import ConnectChannelDrawer from "./ConnectChannelDrawer";
+import NewMessageModal from "./NewMessageModal";
 
 const { Text, Title } = Typography;
 
@@ -80,7 +83,7 @@ export const getShopId = (): string => {
     }
 };
 
-export const getCurrentUser = (): { _id?: string; id?: string; isAdmin?: boolean } | null => {
+export const getCurrentUser = (): { _id?: string; id?: string; isAdmin?: boolean; role?: string } | null => {
     try {
         const raw = localStorage.getItem("user");
         if (!raw || raw === "null") return null;
@@ -89,6 +92,7 @@ export const getCurrentUser = (): { _id?: string; id?: string; isAdmin?: boolean
             _id: parsed._id || parsed.id,
             id: parsed.id || parsed._id,
             isAdmin: !!parsed.isAdmin,
+            role: parsed.role || "",
         };
     } catch {
         return null;
@@ -120,14 +124,17 @@ const OmnichannelInboxPage: React.FC = () => {
     const isAdmin = !!currentUser?.isAdmin;
     const currentUserId = currentUser?._id || currentUser?.id || "";
     const primaryColor = usePrimaryColor();
+    const screens = Grid.useBreakpoint();
+    const isMobile = !screens.md;
     const queryClient = useQueryClient();
 
     const [activeChannel] = useState<Channel>("whatsapp");
     const [activeMainTab, setActiveMainTab] = useState<"inbox" | "scripts" | "welcome" | "analytics" | "agents">("inbox");
     const [activeStatus, setActiveStatus] = useState<ConversationStatus | "all" | "queue">("all");
-    const [selectedAgent, setSelectedAgent] = useState<string>(isAdmin ? "" : "mine");
+    const [selectedAgent, setSelectedAgent] = useState<string>("");
     const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
     const [connectDrawerOpen, setConnectDrawerOpen] = useState(false);
+    const [newMessageOpen, setNewMessageOpen] = useState(false);
     const [search, setSearch] = useState("");
     const [page, setPage] = useState(1);
 
@@ -145,7 +152,7 @@ const OmnichannelInboxPage: React.FC = () => {
 
     const channels = channelsData?.channels || [];
 
-    const { data: agentsData, isLoading: agentsLoading } = useQuery({
+    const { data: agentsData } = useQuery({
         queryKey: ["omnichannel-agents", shopId],
         queryFn: () => fetchAgents({ shop_id: shopId }),
         enabled: !!shopId,
@@ -164,11 +171,8 @@ const OmnichannelInboxPage: React.FC = () => {
 
     const getAssignedTo = () => {
         if (activeStatus === "queue" || !currentUserId) return undefined;
-        if (isAdmin) {
-            if (selectedAgent === "mine") return currentUserId;
-            return selectedAgent || undefined;
-        }
-        return currentUserId;
+        if (selectedAgent === "mine") return currentUserId;
+        return selectedAgent || undefined;
     };
 
     const {
@@ -328,22 +332,37 @@ const OmnichannelInboxPage: React.FC = () => {
                                         />
                                     </Tooltip>
                                     {anyConnected && (
-                                        <Button
-                                            type="primary"
-                                            icon={<PlusOutlined />}
-                                            onClick={() => setConnectDrawerOpen(true)}
-                                            style={{ 
-                                                background: primaryColor, 
-                                                borderColor: primaryColor,
-                                                borderRadius: 10,
-                                                fontWeight: 600,
-                                                height: 40,
-                                                padding: "0 20px"
-                                            }}
-                                            size="large"
-                                        >
-                                            Connect Channel
-                                        </Button>
+                                        <>
+                                            <Button
+                                                icon={<EditOutlined />}
+                                                onClick={() => setNewMessageOpen(true)}
+                                                style={{
+                                                    borderRadius: 10,
+                                                    fontWeight: 600,
+                                                    height: 40,
+                                                    padding: "0 20px"
+                                                }}
+                                                size="large"
+                                            >
+                                                New Message
+                                            </Button>
+                                            <Button
+                                                type="primary"
+                                                icon={<PlusOutlined />}
+                                                onClick={() => setConnectDrawerOpen(true)}
+                                                style={{ 
+                                                    background: primaryColor, 
+                                                    borderColor: primaryColor,
+                                                    borderRadius: 10,
+                                                    fontWeight: 600,
+                                                    height: 40,
+                                                    padding: "0 20px"
+                                                }}
+                                                size="large"
+                                            >
+                                                Connect Channel
+                                            </Button>
+                                        </>
                                     )}
                                 </>
                             )}
@@ -359,14 +378,18 @@ const OmnichannelInboxPage: React.FC = () => {
                     }
                 >
                     {activeMainTab === "inbox" ? (
-                    <div style={{ display: "flex", height: "100%" }}>
+                    <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", height: "100%" }}>
                         <div
                             style={{
-                                width: 380,
-                                borderRight: "1px solid #f0f0f0",
+                                width: isMobile ? "100%" : 380,
+                                height: isMobile ? (selectedConversation ? 0 : "45%") : "100%",
+                                borderRight: isMobile ? "none" : "1px solid #f0f0f0",
+                                borderBottom: isMobile ? "1px solid #f0f0f0" : "none",
                                 flexShrink: 0,
                                 overflow: "hidden",
-                                background: "#fafafa"
+                                background: "#fafafa",
+                                display: isMobile && selectedConversation ? "none" : "flex",
+                                flexDirection: "column",
                             }}
                         >
                         {!anyConnected && !channelsLoading ? (
@@ -432,13 +455,23 @@ const OmnichannelInboxPage: React.FC = () => {
                         )}
                     </div>
 
-                    <div style={{ flex: 1, overflow: "hidden", background: "#fff" }}>
+                    <div
+                        style={{
+                            flex: 1,
+                            overflow: "hidden",
+                            background: "#fff",
+                            display: isMobile && !selectedConversation ? "none" : "flex",
+                            flexDirection: "column",
+                        }}
+                    >
                         {selectedConversation ? (
                             <MessageThread
                                 conversation={selectedConversation}
                                 shopId={shopId}
                                 onMessageSent={handleMessageSent}
                                 onConversationUpdate={handleConversationUpdate}
+                                onConversationDeleted={() => setSelectedConversation(null)}
+                                onBack={() => setSelectedConversation(null)}
                                 primaryColor={primaryColor}
                             />
                         ) : (
@@ -495,6 +528,15 @@ const OmnichannelInboxPage: React.FC = () => {
                 onSuccess={handleConnectSuccess}
                 shopId={shopId}
                 connectedChannels={connected}
+            />
+
+            <NewMessageModal
+                open={newMessageOpen}
+                onClose={() => setNewMessageOpen(false)}
+                shopId={shopId}
+                onSent={() => {
+                    queryClient.invalidateQueries({ queryKey: ["omnichannel-conversations"] });
+                }}
             />
         </App>
     );

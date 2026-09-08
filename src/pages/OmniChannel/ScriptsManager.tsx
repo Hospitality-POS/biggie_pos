@@ -8,7 +8,6 @@ import {
     Space,
     Popconfirm,
     Modal,
-    Typography,
 } from "antd";
 import { PlusOutlined, EditOutlined, DeleteOutlined, ThunderboltOutlined } from "@ant-design/icons";
 import {
@@ -19,9 +18,8 @@ import {
     refineText,
     type Script,
 } from "@services/whatsappService";
+import TinyMCEInput from "@components/TinyMCEInput";
 
-const { TextArea } = Input;
-const { Paragraph } = Typography;
 
 interface Props {
     shopId: string;
@@ -124,14 +122,25 @@ const ScriptsManager: React.FC<Props> = ({ shopId, readOnly = false, onSelect })
     };
 
     const columns = [
-        { title: "Title", dataIndex: "title", key: "title" },
-        { title: "Category", dataIndex: "category", key: "category" },
+        { title: "Title", dataIndex: "title", key: "title", width: 220, ellipsis: true },
+        { title: "Category", dataIndex: "category", key: "category", width: 140, ellipsis: true },
+        {
+            title: "Content Preview",
+            key: "content",
+            ellipsis: true,
+            render: (_: any, script: Script) =>
+                script.content
+                    ? script.content.replace(/<[^>]*>/g, "").slice(0, 80)
+                    : "—",
+        },
         ...(readOnly
             ? []
             : [
                 {
                     title: "Actions",
                     key: "actions",
+                    width: 120,
+                    align: "right" as const,
                     render: (_: any, script: Script) => (
                         <Space>
                             <Button
@@ -191,6 +200,7 @@ const ScriptsManager: React.FC<Props> = ({ shopId, readOnly = false, onSelect })
                 onCancel={() => setIsModalOpen(false)}
                 onOk={() => form.submit()}
                 confirmLoading={createMutation.isLoading || updateMutation.isLoading}
+                width={700}
                 destroyOnClose
             >
                 <Form form={form} layout="vertical" onFinish={handleSubmit}>
@@ -212,8 +222,8 @@ const ScriptsManager: React.FC<Props> = ({ shopId, readOnly = false, onSelect })
                         label="Script Content"
                         rules={[{ required: true, message: "Content is required" }]}
                     >
-                        <TextArea
-                            rows={6}
+                        <TinyMCEInput
+                            height={220}
                             placeholder="Type the script an agent can reference..."
                         />
                     </Form.Item>
@@ -265,7 +275,11 @@ const ScriptsManager: React.FC<Props> = ({ shopId, readOnly = false, onSelect })
                     ) : null,
                 ]}
             >
-                <Paragraph style={{ whiteSpace: "pre-wrap" }}>{preview?.content}</Paragraph>
+                <div
+                    className="script-preview"
+                    dangerouslySetInnerHTML={{ __html: preview?.content || "" }}
+                    style={{ whiteSpace: "pre-wrap", minHeight: 60 }}
+                />
             </Modal>
         </div>
     );

@@ -8,8 +8,8 @@ import {
     refineText,
     type WelcomeMessage,
 } from "@services/whatsappService";
+import TinyMCEInput from "@components/TinyMCEInput";
 
-const { TextArea } = Input;
 const { Title, Paragraph } = Typography;
 
 interface Props {
@@ -88,8 +88,9 @@ const WelcomeMessageManager: React.FC<Props> = ({ shopId }) => {
                         label="Welcome message"
                         rules={[{ required: true, message: "Please enter a welcome message" }]}
                     >
-                        <TextArea
-                            rows={6}
+                        <TinyMCEInput
+                            height={220}
+                            plainText
                             placeholder="Hi! Welcome to our shop. How can we help you today?"
                         />
                     </Form.Item>
