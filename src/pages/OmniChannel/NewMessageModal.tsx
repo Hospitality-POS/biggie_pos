@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
     Modal,
     Tabs,
@@ -37,6 +37,7 @@ const AUDIENCE_LABELS: Record<BroadcastAudience, string> = {
     customers: "All Customers",
     leads: "All Leads",
     both: "Customers + Leads",
+    all_chats: "All WhatsApp Chats",
 };
 
 const NewMessageModal: React.FC<Props> = ({ open, onClose, shopId, onSent }) => {
@@ -59,6 +60,26 @@ const NewMessageModal: React.FC<Props> = ({ open, onClose, shopId, onSent }) => 
     const [sendingBroadcast, setSendingBroadcast] = useState(false);
     const [queuedCount, setQueuedCount] = useState(0);
 
+    // Live recipient count shown as soon as an audience is picked
+    const [audienceCount, setAudienceCount] = useState<number | null>(null);
+    const [countLoading, setCountLoading] = useState(false);
+
+    useEffect(() => {
+        if (!open || activeTab !== "broadcast" || step !== "compose" || !shopId) return;
+        let cancelled = false;
+        setCountLoading(true);
+        fetchBroadcastRecipients({ shop_id: shopId, audience })
+            .then((data) => {
+                if (!cancelled) setAudienceCount(data?.total ?? 0);
+            })
+            .finally(() => {
+                if (!cancelled) setCountLoading(false);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [open, activeTab, audience, step, shopId]);
+
     const resetState = () => {
         phoneForm.resetFields();
         setActiveTab("number");
@@ -67,6 +88,7 @@ const NewMessageModal: React.FC<Props> = ({ open, onClose, shopId, onSent }) => 
         setStep("compose");
         setPreview({ total: 0, recipients: [] });
         setQueuedCount(0);
+        setAudienceCount(null);
     };
 
     const handleClose = () => {
@@ -197,12 +219,23 @@ const NewMessageModal: React.FC<Props> = ({ open, onClose, shopId, onSent }) => 
                                         <Radio.Group
                                             value={audience}
                                             onChange={(e) => setAudience(e.target.value)}
-                                            style={{ marginBottom: 16 }}
+                                            style={{ marginBottom: 4 }}
                                         >
                                             <Radio.Button value="customers">Customers</Radio.Button>
                                             <Radio.Button value="leads">Leads</Radio.Button>
                                             <Radio.Button value="both">Both</Radio.Button>
+                                            <Radio.Button value="all_chats">All Chats</Radio.Button>
                                         </Radio.Group>
+                                        <Text
+                                            type="secondary"
+                                            style={{ display: "block", marginBottom: 16, fontSize: 12 }}
+                                        >
+                                            {countLoading
+                                                ? "Counting recipients…"
+                                                : audienceCount !== null
+                                                    ? `Will send to ${audienceCount} recipient(s)`
+                                                    : " "}
+                                        </Text>
                                         <Text strong style={{ display: "block", marginBottom: 8 }}>
                                             Message
                                         </Text>
@@ -265,7 +298,7 @@ const NewMessageModal: React.FC<Props> = ({ open, onClose, shopId, onSent }) => 
                                                             description={
                                                                 <Text type="secondary" style={{ fontSize: 12 }}>
                                                                     {r.phone} ·{" "}
-                                                                    {r.source === "customer" ? "Customer" : "Lead"}
+                                                                    {r.source === "customer" ? "Customer" : r.source === "lead" ? "Lead" : "Chat"}
                                                                 </Text>
                                                             }
                                                         />

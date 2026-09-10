@@ -762,13 +762,15 @@ export const sendToPhoneNumber = async (params: {
     }
 };
 
-export type BroadcastAudience = "customers" | "leads" | "both";
+export type BroadcastAudience = "customers" | "leads" | "both" | "all_chats";
 
 export interface BroadcastRecipient {
     id: string;
     name: string;
     phone: string;
-    source: "customer" | "lead";
+    source: "customer" | "lead" | "chat";
+    jid?: string | null;
+    conversation_id?: string;
 }
 
 export const fetchBroadcastRecipients = async (params: { shop_id: string; audience: BroadcastAudience }) => {
