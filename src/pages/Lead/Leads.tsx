@@ -1,11 +1,13 @@
 import { useRef, useState } from "react";
-import { Button, Typography } from "antd";
-import { PlusOutlined, TeamOutlined } from "@ant-design/icons";
+import { Button, message, Typography } from "antd";
+import { FileExcelOutlined, PlusOutlined, TeamOutlined } from "@ant-design/icons";
+import dayjs from "dayjs";
 import LeadTable, { LeadTableHandle } from "./LeadTable";
 import LeadFormModal from "./LeadFormModal";
 import LeadDetailDrawer from "./LeadDetailDrawer";
 import ImportLeadsModal from "./ImportLeadsModal";
-import { Lead, getLeadById } from "@services/crm/leads";
+import { Lead, fetchAllLeads, getLeadById } from "@services/crm/leads";
+import { exportToExcel } from "@utils/exportUtils";
 
 const { Text } = Typography;
 
@@ -41,6 +43,52 @@ const Leads: React.FC<LeadsProps> = ({ onConvertWithForm }) => {
     const handleEdit = (l: Lead) => { setFormMode("edit"); setSelectedLead(l); setFormOpen(true); };
     const handleView = (l: Lead) => { setSelectedLead(l); setDrawerOpen(true); };
     const handleSuccess = () => tableRef.current?.reload();
+
+    // ── Excel export ───────────────────────────────────────────────────────
+    const [exporting, setExporting] = useState(false);
+
+    const handleExportLeads = async () => {
+        setExporting(true);
+        try {
+            const shopData = localStorage.getItem("shop");
+            const shop = shopData ? JSON.parse(shopData) : null;
+            const res = await fetchAllLeads({ shop_id: shop?._id, limit: 10000 });
+            const leads = res?.leads || [];
+            if (!leads.length) {
+                message.warning("No leads to export");
+                return;
+            }
+            const rows = leads.map((l) => ({
+                "Name": l.entity_type === "company" ? (l.company_name || "") : (l.lead_name || ""),
+                "Company": l.company_name || "",
+                "Contact Person": l.contact_person || "",
+                "Email": l.email || "",
+                "Phone": l.phone || "",
+                "Website": l.website || "",
+                "Stage": l.stage || "",
+                "Source": l.source || "",
+                "Estimated Value": l.estimated_value ?? "",
+                "Currency": l.currency || "KES",
+                "Probability (%)": l.probability ?? "",
+                "Expected Close": l.expected_close_date ? dayjs(l.expected_close_date).format("YYYY-MM-DD") : "",
+                "Assigned To": l.assigned_to?.name || l.assigned_to?.username || "",
+                "City": l.address?.city || "",
+                "County": l.address?.county || "",
+                "Country": l.address?.country || "",
+                "Next Follow Up": l.next_follow_up ? dayjs(l.next_follow_up).format("YYYY-MM-DD") : "",
+                "Tags": (l.tags || []).join(", "),
+                "Notes": l.notes || "",
+                "Created At": l.createdAt ? dayjs(l.createdAt).format("YYYY-MM-DD") : "",
+            }));
+            exportToExcel(rows, `leads_${dayjs().format("YYYYMMDD_HHmm")}`);
+            message.success(`Exported ${rows.length} lead(s)`);
+        } catch (e) {
+            console.error("Export leads error:", e);
+            message.error("Failed to export leads");
+        } finally {
+            setExporting(false);
+        }
+    };
 
     const handleRefreshLead = async () => {
         if (selectedLead) {
@@ -79,6 +127,10 @@ const Leads: React.FC<LeadsProps> = ({ onConvertWithForm }) => {
                     </div>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
+                    <Button icon={<FileExcelOutlined />} onClick={handleExportLeads} loading={exporting}
+                        style={{ borderRadius: 8, height: 36, fontSize: 13 }}>
+                        Export
+                    </Button>
                     <ImportLeadsModal onSuccess={handleSuccess} />
                     <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}
                         style={{ background: C.primary, borderColor: C.primary, borderRadius: 8, height: 36, fontSize: 13 }}>

@@ -10,6 +10,8 @@ import {
     UserOutlined,
     TeamOutlined,
     FieldTimeOutlined,
+    RocketOutlined,
+    HourglassOutlined,
 } from "@ant-design/icons";
 import {
     ResponsiveContainer,
@@ -171,6 +173,24 @@ const AnalyticsPage: React.FC<Props> = ({ shopId }) => {
                                 />
                             </Card>
                         </Col>
+                        <Col xs={24} sm={12} md={8} lg={6}>
+                            <Card>
+                                <Statistic
+                                    title="Pending Dispatch"
+                                    value={stats.pendingDispatch || 0}
+                                    prefix={<RocketOutlined />}
+                                />
+                            </Card>
+                        </Col>
+                        <Col xs={24} sm={12} md={8} lg={6}>
+                            <Card>
+                                <Statistic
+                                    title="Avg Dispatch Wait"
+                                    value={formatMinutes(stats.avgDispatchWaitMinutes)}
+                                    prefix={<HourglassOutlined />}
+                                />
+                            </Card>
+                        </Col>
                     </Row>
 
                     <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
@@ -289,6 +309,47 @@ const AnalyticsPage: React.FC<Props> = ({ shopId }) => {
                                         <YAxis type="category" dataKey="name" width={100} />
                                         <Tooltip />
                                         <Bar dataKey="messages" fill="#13c2c2" />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </Card>
+                        </Col>
+
+                        <Col xs={24} lg={12}>
+                            <Card title="Dispatches per Day">
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <LineChart
+                                        data={stats.dispatchesByDay || []}
+                                        margin={{ top: 10, right: 20, left: 0, bottom: 0 }}
+                                    >
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis dataKey="date" />
+                                        <YAxis />
+                                        <Tooltip />
+                                        <Line
+                                            type="monotone"
+                                            dataKey="dispatches"
+                                            stroke="#faad14"
+                                            strokeWidth={2}
+                                            dot={false}
+                                        />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            </Card>
+                        </Col>
+
+                        <Col xs={24} lg={12}>
+                            <Card title="Pending Dispatch by Agent">
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <BarChart
+                                        data={stats.dispatchByAgent || []}
+                                        layout="vertical"
+                                        margin={{ top: 10, right: 20, left: 40, bottom: 0 }}
+                                    >
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis type="number" allowDecimals={false} />
+                                        <YAxis type="category" dataKey="name" width={100} />
+                                        <Tooltip />
+                                        <Bar dataKey="conversations" fill="#722ed1" />
                                     </BarChart>
                                 </ResponsiveContainer>
                             </Card>

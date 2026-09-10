@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { ProCard } from "@ant-design/pro-components";
 import {
     Button,
+    Dropdown,
     Grid,
     Space,
     Typography,
@@ -55,7 +56,7 @@ import NewMessageModal from "./NewMessageModal";
 const { Text, Title } = Typography;
 
 export type Channel = "all" | "whatsapp" | "messenger" | "instagram";
-export type ConversationStatus = "open" | "pending" | "resolved" | "closed";
+export type ConversationStatus = "open" | "pending" | "pending_dispatch" | "resolved" | "closed";
 
 export interface Conversation {
     _id: string;
@@ -114,6 +115,7 @@ export const STATUS_CONFIG: Record<
 > = {
     open: { label: "Open", badge: "success", color: "#52c41a" },
     pending: { label: "Pending", badge: "warning", color: "#faad14" },
+    pending_dispatch: { label: "Pending Dispatch", badge: "processing", color: "#722ed1" },
     resolved: { label: "Resolved", badge: "default", color: "#8c8c8c" },
     closed: { label: "Closed", badge: "error", color: "#ff4d4f" },
 };
@@ -228,6 +230,7 @@ const OmnichannelInboxPage: React.FC = () => {
         const counts = {
             open: 0,
             pending: 0,
+            pending_dispatch: 0,
             resolved: 0,
             closed: 0,
             resolved_today: conversationsData?.status_counts?.resolved_today || 0
@@ -236,6 +239,7 @@ const OmnichannelInboxPage: React.FC = () => {
         conversations.forEach((conv: Conversation) => {
             if (conv.status === "open") counts.open++;
             else if (conv.status === "pending") counts.pending++;
+            else if (conv.status === "pending_dispatch") counts.pending_dispatch++;
             else if (conv.status === "resolved") counts.resolved++;
             else if (conv.status === "closed") counts.closed++;
         });
@@ -282,99 +286,155 @@ const OmnichannelInboxPage: React.FC = () => {
 
     return (
         <App>
-            <div style={{ 
+            <div style={{
                 height: "100vh",
                 boxSizing: "border-box",
                 overflow: "hidden",
-                // background: "#f5f5f5",
-                padding: "24px"
+                padding: isMobile ? 0 : "12px 0",
             }}>
 
 
                 <ProCard
                     bordered={false}
-                    bodyStyle={{ padding: 0, height: "calc(100vh - 210px)" }}
-                    style={{ 
-                        borderRadius: 16,
-                        boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
+                    bodyStyle={{
+                        padding: 0,
+                        height: isMobile ? "calc(100vh - 110px)" : "calc(100vh - 155px)",
+                    }}
+                    style={{
+                        borderRadius: isMobile ? 0 : 16,
+                        boxShadow: isMobile ? "none" : "0 4px 16px rgba(0,0,0,0.08)",
                         overflow: "hidden"
                     }}
                     title={
                         <Tabs
                             activeKey={activeMainTab}
                             onChange={(k) => setActiveMainTab(k as "inbox" | "scripts" | "welcome" | "analytics" | "agents")}
-                            style={{ minWidth: 200 }}
+                            size={isMobile ? "small" : "middle"}
+                            style={{ minWidth: isMobile ? 0 : 200 }}
                             items={[
                                 { key: "inbox", label: "Inbox" },
                                 { key: "scripts", label: "Scripts" },
-                                { key: "welcome", label: "Auto-Reply" },
+                                { key: "welcome", label: isMobile ? "Auto" : "Auto-Reply" },
                                 { key: "analytics", label: "Analytics" },
                                 { key: "agents", label: "Agents" },
                             ]}
                         />
                     }
                     extra={
-                        <Space size={12}>
-                            {activeMainTab === "inbox" && (
-                                <>
-                                    <Tooltip title="Refresh">
+                        isMobile ? (
+                            <Space size={4} wrap>
+                                <Tooltip title="Refresh">
+                                    <Button
+                                        icon={<ReloadOutlined />}
+                                        size="small"
+                                        loading={isFetching || channelsLoading}
+                                        onClick={() => {
+                                            queryClient.invalidateQueries({ queryKey: ["omnichannel-channels"] });
+                                            if (anyConnected) {
+                                                refetch();
+                                            }
+                                        }}
+                                        style={{ borderRadius: 8, height: 32, width: 32 }}
+                                    />
+                                </Tooltip>
+                                {activeMainTab === "inbox" && anyConnected && (
+                                    <Tooltip title="New Message">
                                         <Button
-                                            icon={<ReloadOutlined />}
-                                            size="large"
-                                            loading={isFetching || channelsLoading}
-                                            onClick={() => {
-                                                queryClient.invalidateQueries({ queryKey: ["omnichannel-channels"] });
-                                                if (anyConnected) {
-                                                    refetch();
-                                                }
-                                            }}
-                                            style={{ borderRadius: 10, height: 40 }}
+                                            icon={<EditOutlined />}
+                                            size="small"
+                                            onClick={() => setNewMessageOpen(true)}
+                                            style={{ borderRadius: 8, height: 32, width: 32 }}
                                         />
                                     </Tooltip>
-                                    {anyConnected && (
-                                        <>
+                                )}
+                                <Dropdown
+                                    menu={{
+                                        items: [
+                                            { key: "connect", icon: <PlusOutlined />, label: "Connect Channel" },
+                                            { key: "settings", icon: <SettingOutlined />, label: "Channel Settings" },
+                                        ],
+                                        onClick: () => setConnectDrawerOpen(true),
+                                    }}
+                                    trigger={["click"]}
+                                    placement="bottomRight"
+                                >
+                                    <Button
+                                        icon={<PlusOutlined />}
+                                        size="small"
+                                        type="primary"
+                                        style={{
+                                            background: primaryColor,
+                                            borderColor: primaryColor,
+                                            borderRadius: 8,
+                                            height: 32,
+                                            width: 32,
+                                        }}
+                                    />
+                                </Dropdown>
+                            </Space>
+                        ) : (
+                            <Space size={12} wrap>
+                                {activeMainTab === "inbox" && (
+                                    <>
+                                        <Tooltip title="Refresh">
                                             <Button
-                                                icon={<EditOutlined />}
-                                                onClick={() => setNewMessageOpen(true)}
-                                                style={{
-                                                    borderRadius: 10,
-                                                    fontWeight: 600,
-                                                    height: 40,
-                                                    padding: "0 20px"
-                                                }}
+                                                icon={<ReloadOutlined />}
                                                 size="large"
-                                            >
-                                                New Message
-                                            </Button>
-                                            <Button
-                                                type="primary"
-                                                icon={<PlusOutlined />}
-                                                onClick={() => setConnectDrawerOpen(true)}
-                                                style={{ 
-                                                    background: primaryColor, 
-                                                    borderColor: primaryColor,
-                                                    borderRadius: 10,
-                                                    fontWeight: 600,
-                                                    height: 40,
-                                                    padding: "0 20px"
+                                                loading={isFetching || channelsLoading}
+                                                onClick={() => {
+                                                    queryClient.invalidateQueries({ queryKey: ["omnichannel-channels"] });
+                                                    if (anyConnected) {
+                                                        refetch();
+                                                    }
                                                 }}
-                                                size="large"
-                                            >
-                                                Connect Channel
-                                            </Button>
-                                        </>
-                                    )}
-                                </>
-                            )}
-                            <Tooltip title="Channel Settings">
-                                <Button
-                                    icon={<SettingOutlined />}
-                                    size="large"
-                                    onClick={() => setConnectDrawerOpen(true)}
-                                    style={{ borderRadius: 10, height: 40 }}
-                                />
-                            </Tooltip>
-                        </Space>
+                                                style={{ borderRadius: 10, height: 40 }}
+                                            />
+                                        </Tooltip>
+                                        {anyConnected && (
+                                            <>
+                                                <Button
+                                                    icon={<EditOutlined />}
+                                                    onClick={() => setNewMessageOpen(true)}
+                                                    style={{
+                                                        borderRadius: 10,
+                                                        fontWeight: 600,
+                                                        height: 40,
+                                                        padding: "0 20px"
+                                                    }}
+                                                    size="large"
+                                                >
+                                                    New Message
+                                                </Button>
+                                                <Button
+                                                    type="primary"
+                                                    icon={<PlusOutlined />}
+                                                    onClick={() => setConnectDrawerOpen(true)}
+                                                    style={{
+                                                        background: primaryColor,
+                                                        borderColor: primaryColor,
+                                                        borderRadius: 10,
+                                                        fontWeight: 600,
+                                                        height: 40,
+                                                        padding: "0 20px"
+                                                    }}
+                                                    size="large"
+                                                >
+                                                    Connect Channel
+                                                </Button>
+                                            </>
+                                        )}
+                                    </>
+                                )}
+                                <Tooltip title="Channel Settings">
+                                    <Button
+                                        icon={<SettingOutlined />}
+                                        size="large"
+                                        onClick={() => setConnectDrawerOpen(true)}
+                                        style={{ borderRadius: 10, height: 40 }}
+                                    />
+                                </Tooltip>
+                            </Space>
+                        )
                     }
                 >
                     {activeMainTab === "inbox" ? (

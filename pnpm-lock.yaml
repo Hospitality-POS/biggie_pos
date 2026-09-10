@@ -213,6 +213,9 @@ importers:
       electron-vite:
         specifier: ^2.0.0
         version: 2.3.0(supports-color@8.1.1)(vite@4.5.14(@types/node@26.2.0)(terser@5.50.0))
+      esbuild:
+        specifier: 0.18.20
+        version: 0.18.20
       eslint:
         specifier: ^8.38.0
         version: 8.57.1(supports-color@8.1.1)

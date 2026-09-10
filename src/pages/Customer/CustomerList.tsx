@@ -1,18 +1,22 @@
 import { useEffect, useRef, useState, useMemo } from "react";
-import { App, Button, Typography } from "antd";
+import { App, Button, message, Typography } from "antd";
 import {
-    CalendarOutlined, CreditCardOutlined, GiftOutlined,
+    CalendarOutlined, CreditCardOutlined, FileExcelOutlined, GiftOutlined,
     LockOutlined, StarOutlined, UserAddOutlined,
     UserOutlined, WalletOutlined,
 } from "@ant-design/icons";
+import dayjs from "dayjs";
 import CustomerTable from "./CustomerTable";
 import Schedule from "../staff/schedule";
 import SubscriptionPackagesTable from "./SubscriptionPackagesTable";
 import CustomerSubscriptionsTable from "./CustomerSubscriptionsTable";
 import AddCustomerModal from "./AddCustomerModal";
+import ImportCustomersModal from "./ImportCustomersModal";
 import GiftCardsTab from "./GiftCardsTab";
 import { getPermissionChecker } from "@utils/getPermissionChecker";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
+import { fetchAllCustomers } from "@services/customers";
+import { exportToExcel } from "@utils/exportUtils";
 
 const { Text } = Typography;
 
@@ -230,6 +234,53 @@ function Customers() {
 
     const handleCustomerAdded = () => customerTableRef.current?.reload();
 
+    // ── Excel export ───────────────────────────────────────────────────────
+    const [exporting, setExporting] = useState(false);
+
+    const handleExportCustomers = async () => {
+        setExporting(true);
+        try {
+            const customers = await fetchAllCustomers({});
+            if (!customers?.length) {
+                message.warning("No customers to export");
+                return;
+            }
+            const rows = customers.map((c: any) => ({
+                "Code": c.code || "",
+                "Entity Type": c.entity_type === "company" ? "Company" : "Individual",
+                "Name": c.entity_type === "company" ? (c.company_name || "") : (c.customer_name || ""),
+                "Company": c.company_name || "",
+                "Contact Person": c.contact_person?.name || "",
+                "Phone": c.phone || "",
+                "Alt Phone": c.alt_phone || "",
+                "Email": c.email || "",
+                "Location": c.location || "",
+                "KRA PIN": c.kra_pin || "",
+                "VAT Number": c.vat_number || "",
+                "Industry": c.industry || "",
+                "Website": c.website || "",
+                "Source": c.source || "",
+                "Lifecycle Stage": c.lifecycle_stage || "",
+                "Assigned To": c.assigned_to?.name || c.assigned_to?.username || "",
+                "City": c.address?.city || "",
+                "County": c.address?.county || "",
+                "Country": c.address?.country || "",
+                "Credit Limit": c.credit_limit ?? 0,
+                "Tags": (c.tags || []).join(", "),
+                "Lifetime Value": c.lifetime_value ?? 0,
+                "Total Orders": c.total_orders ?? 0,
+                "Created At": c.createdAt ? dayjs(c.createdAt).format("YYYY-MM-DD") : "",
+            }));
+            exportToExcel(rows, `customers_${dayjs().format("YYYYMMDD_HHmm")}`);
+            message.success(`Exported ${rows.length} customer(s)`);
+        } catch (e) {
+            console.error("Export customers error:", e);
+            message.error("Failed to export customers");
+        } finally {
+            setExporting(false);
+        }
+    };
+
     // ── Tab renderer ──────────────────────────────────────────────────────
     const activeTabCfg = tabsWithAccess.find((t) => t.key === activeTab);
 
@@ -279,16 +330,27 @@ function Customers() {
                                 : `${hasDala ? "Clients" : "Customers"}, subscriptions, bookings & more`}
                 </Text>
             </div>
-            {showAdd && can("CUSTOMERS_CREATE") && (
-                <Button
-                    type="primary" icon={<UserAddOutlined />} onClick={handleAddCustomer}
-                    style={{
-                        background: colors.primary, borderColor: colors.primary, borderRadius: 8,
-                        height: isMobile ? 34 : 36, fontSize: isMobile ? 12 : 13,
-                    }}
-                >
-                    {isMobile ? "Add" : "Add Customer"}
-                </Button>
+            {showAdd && (
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <Button
+                        icon={<FileExcelOutlined />} onClick={handleExportCustomers} loading={exporting}
+                        style={{ borderRadius: 8, height: isMobile ? 34 : 36, fontSize: isMobile ? 12 : 13 }}
+                    >
+                        {isMobile ? "" : "Export"}
+                    </Button>
+                    {can("CUSTOMERS_CREATE") && <ImportCustomersModal onSuccess={handleCustomerAdded} />}
+                    {can("CUSTOMERS_CREATE") && (
+                        <Button
+                            type="primary" icon={<UserAddOutlined />} onClick={handleAddCustomer}
+                            style={{
+                                background: colors.primary, borderColor: colors.primary, borderRadius: 8,
+                                height: isMobile ? 34 : 36, fontSize: isMobile ? 12 : 13,
+                            }}
+                        >
+                            {isMobile ? "Add" : "Add Customer"}
+                        </Button>
+                    )}
+                </div>
             )}
         </div>
     );

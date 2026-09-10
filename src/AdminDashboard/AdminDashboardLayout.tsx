@@ -72,7 +72,6 @@ interface MobileNavItemProps {
 const MobileNavItem: React.FC<MobileNavItemProps> = ({
   icon,
   label,
-  path,
   isActive,
   onClick,
   primaryColor,
@@ -399,7 +398,6 @@ const SmartOverflowNav: React.FC<SmartNavProps> = ({ routes, primaryColor }) => 
 // ── Main component ─────────────────────────────────────────────────────────────
 const AdminDashboard: React.FC = () => {
   const storedTenant = localStorage.getItem("tenant");
-  const storedUser = localStorage.getItem("user");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
 
   const allNavRoutes = useProLayoutNav();
@@ -546,7 +544,7 @@ const AdminDashboard: React.FC = () => {
           <Button
             type="link"
             size="small"
-            onClick={() => markAllAsReadMutation.mutate()}
+            onClick={() => markAllAsReadMutation.mutate({})}
             style={{ padding: 0, fontSize: 12 }}
           >
             Mark all read
@@ -726,23 +724,26 @@ const AdminDashboard: React.FC = () => {
           {tenant?.tenant_logo?.url ? (
             <Image
               src={tenant.tenant_logo.url}
-              height={70}
+              height={56}
               preview={false}
               alt="logo"
               style={{
                 objectFit: "contain",
-                maxWidth: 120,
+                maxWidth: 140,
                 filter: "brightness(0) invert(1)",
               }}
             />
           ) : (
             <Image
               src="/relia.png"
-              height={70}
-              width={90}
+              height={56}
               preview={false}
               alt="logo"
-              style={{ filter: "brightness(0) invert(1)" }}
+              style={{
+                objectFit: "contain",
+                maxWidth: 140,
+                filter: "brightness(0) invert(1)",
+              }}
             />
           )}
         </div>
@@ -1171,19 +1172,18 @@ const AdminDashboard: React.FC = () => {
         {tenant?.tenant_logo?.url ? (
           <Image
             src={tenant.tenant_logo.url}
-            height={70}
+            height={56}
             preview={false}
             alt="tenant-logo"
-            style={{ padding: 4, objectFit: "contain", maxWidth: 110 }}
+            style={{ padding: 4, objectFit: "contain", maxWidth: 140 }}
           />
         ) : (
           <Image
             src="/relia.png"
-            height={70}
-            width={100}
+            height={56}
             preview={false}
             alt="relia-logo"
-            style={{ padding: 6 }}
+            style={{ padding: 6, objectFit: "contain", maxWidth: 140 }}
           />
         )}
       </div>
@@ -1239,11 +1239,17 @@ const AdminDashboard: React.FC = () => {
           background: rgba(255, 255, 255, 0.1) !important;
         }
 
-        /* Mobile page container padding */
-        @media (max-width: 767px) {
+        /* Mobile/tablet page container padding */
+        @media (max-width: 992px) {
           .ant-pro-page-container {
-            padding: 12px !important;
+            padding: 0 !important;
             margin: 0 !important;
+          }
+          .ant-pro-page-container-children-container {
+            padding: 8px 12px !important;
+          }
+          .ant-pro-page-container-children-content {
+            padding: 0 !important;
           }
           .ant-pro-page-container-warp-page-header {
             padding: 8px 12px !important;
@@ -1344,28 +1350,34 @@ const AdminDashboard: React.FC = () => {
                   position: "absolute",
                   left: "50%",
                   transform: "translateX(-50%)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}
               >
                 {tenant?.tenant_logo?.url ? (
                   <Image
                     src={tenant.tenant_logo.url}
-                    height={70}
+                    height={36}
                     preview={false}
                     alt="logo"
                     style={{
                       objectFit: "contain",
-                      maxWidth: 80,
+                      maxWidth: 96,
                       filter: "brightness(0) invert(1)",
                     }}
                   />
                 ) : (
                   <Image
                     src="/relia.png"
-                    height={70}
-                    width={75}
+                    height={32}
                     preview={false}
                     alt="logo"
-                    style={{ filter: "brightness(0) invert(1)" }}
+                    style={{
+                      objectFit: "contain",
+                      maxWidth: 96,
+                      filter: "brightness(0) invert(1)",
+                    }}
                   />
                 )}
               </div>

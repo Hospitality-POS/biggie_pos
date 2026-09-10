@@ -563,3 +563,144 @@ export interface Customer {
   // ── Attached by getById ────────────────────────────────────────────────────
   activities?: any[];
 }
+
+/* ============================
+   EXCEL IMPORT
+============================ */
+
+export interface AnalyseCustomerResult {
+  sheetUsed: string;
+  headerRowDetectedAt: number;
+  totalDataRows: number;
+  mappedColumns: string[];
+  columnMapping: Record<string, string>;
+  missingRequired: string[];
+  missingRecommended: string[];
+  unmappedColumns: string[];
+  advice: Array<{ level: "error" | "warning" | "info"; message: string }>;
+  canImport: boolean;
+  previewRows: any[];
+}
+
+export interface ImportCustomerResult {
+  summary: {
+    total: number;
+    created: number;
+    updated: number;
+    skipped: number;
+    errors: number;
+    auto_created?: {
+      staff?: string[];
+    };
+    format_detected?: {
+      sheet: string;
+      header_row: number;
+      mapped_columns: number;
+    };
+  };
+  errors: Array<{ row: number; name: string; reason: string }>;
+}
+
+export const downloadCustomerTemplate = async (): Promise<void> => {
+  try {
+    const response = await axiosInstance.get(`${categ_url}/template`, {
+      responseType: "blob",
+    });
+
+    const blob = new Blob([response.data], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "customers_import_template.xlsx";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+
+    message.success("Template downloaded successfully");
+  } catch (error) {
+    console.error("Error downloading customer template:", error);
+    message.error("Failed to download template");
+    throw new Error("Failed to download customer template");
+  }
+};
+
+export const analyseCustomerFile = async (file: File): Promise<AnalyseCustomerResult> => {
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await axiosInstance.post<AnalyseCustomerResult>(
+      `${categ_url}/analyse-import`,
+      formData,
+      { headers: { "Content-Type": undefined } }
+    );
+
+    return response.data;
+  } catch (error: any) {
+    console.error("Error analysing customer file:", error);
+    const errMsg =
+      error?.response?.data?.error ||
+      error?.response?.data?.message ||
+      "Failed to analyse file. Please check the file format and try again.";
+    if (error?.response?.status !== 403) message.error(errMsg);
+    throw error;
+  }
+};
+
+export const importCustomersFromExcel = async (
+  file: File,
+  shopId: string,
+  assignedTo?: string,
+  rowAssignments?: Record<number, string>
+): Promise<ImportCustomerResult> => {
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("shop_id", shopId);
+    if (assignedTo) {
+      formData.append("assigned_to", assignedTo);
+    }
+    if (rowAssignments && Object.keys(rowAssignments).length > 0) {
+      formData.append("row_assignments", JSON.stringify(rowAssignments));
+    }
+
+    const response = await axiosInstance.post<ImportCustomerResult>(
+      `${categ_url}/import`,
+      formData,
+      { headers: { "Content-Type": undefined } }
+    );
+
+    const data = response.data;
+
+    if (data.summary.created > 0 || data.summary.updated > 0) {
+      const createdMsg = data.summary.created > 0 ? `${data.summary.created} customer(s) created` : "";
+      const updatedMsg = data.summary.updated > 0 ? `${data.summary.updated} customer(s) updated` : "";
+      const itemsMsg = [createdMsg, updatedMsg].filter(Boolean).join(", ");
+      const skippedMsg = data.summary.skipped > 0 ? `, ${data.summary.skipped} skipped` : "";
+      message.success(`Import complete — ${itemsMsg}${skippedMsg}`);
+    } else if (data.summary.errors > 0) {
+      const firstErr = data.errors?.[0];
+      message.warning(
+        firstErr
+          ? `Import issue: ${firstErr.reason}`
+          : "No customers were imported — check the error details below."
+      );
+    } else {
+      message.warning("No customers were imported. Check the error details.");
+    }
+
+    return data;
+  } catch (error: any) {
+    console.error("Error importing customers from Excel:", error);
+    const errMsg =
+      error?.response?.data?.error ||
+      error?.response?.data?.message ||
+      "Failed to import customers. Please check the file format and try again.";
+    message.error(errMsg);
+    throw error;
+  }
+};

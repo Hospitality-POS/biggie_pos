@@ -66,6 +66,7 @@ const STATUS_TABS: { key: ConversationStatus | "all" | "queue"; label: string }[
     { key: "all", label: "All" },
     { key: "open", label: "Open" },
     { key: "pending", label: "Pending" },
+    { key: "pending_dispatch", label: "Dispatch" },
     { key: "resolved", label: "Resolved" },
     { key: "closed", label: "Closed" },
     { key: "queue", label: "Queue" },
