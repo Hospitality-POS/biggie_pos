@@ -306,73 +306,94 @@ const OmnichannelInboxPage: React.FC = () => {
                         overflow: "hidden"
                     }}
                     title={
-                        <Tabs
-                            activeKey={activeMainTab}
-                            onChange={(k) => setActiveMainTab(k as "inbox" | "scripts" | "welcome" | "analytics" | "agents")}
-                            size={isMobile ? "small" : "middle"}
-                            style={{ minWidth: isMobile ? 0 : 200 }}
-                            items={[
-                                { key: "inbox", label: "Inbox" },
-                                { key: "scripts", label: "Scripts" },
-                                { key: "welcome", label: isMobile ? "Auto" : "Auto-Reply" },
-                                { key: "analytics", label: "Analytics" },
-                                { key: "agents", label: "Agents" },
-                            ]}
-                        />
-                    }
-                    extra={
+                        // On mobile the tabs must shrink (flex:1 + minWidth:0
+                        // lets antd show its own scroll arrows) so the action
+                        // buttons stay visible instead of being clipped by the
+                        // card's overflow:hidden.
                         isMobile ? (
-                            <Space size={4} wrap>
-                                <Tooltip title="Refresh">
-                                    <Button
-                                        icon={<ReloadOutlined />}
-                                        size="small"
-                                        loading={isFetching || channelsLoading}
-                                        onClick={() => {
-                                            queryClient.invalidateQueries({ queryKey: ["omnichannel-channels"] });
-                                            if (anyConnected) {
-                                                refetch();
-                                            }
-                                        }}
-                                        style={{ borderRadius: 8, height: 32, width: 32 }}
-                                    />
-                                </Tooltip>
-                                {activeMainTab === "inbox" && anyConnected && (
-                                    <Tooltip title="New Message">
+                            <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
+                                <Tabs
+                                    activeKey={activeMainTab}
+                                    onChange={(k) => setActiveMainTab(k as "inbox" | "scripts" | "welcome" | "analytics" | "agents")}
+                                    size="small"
+                                    style={{ flex: 1, minWidth: 0 }}
+                                    items={[
+                                        { key: "inbox", label: "Inbox" },
+                                        { key: "scripts", label: "Scripts" },
+                                        { key: "welcome", label: "Auto" },
+                                        { key: "analytics", label: "Analytics" },
+                                        { key: "agents", label: "Agents" },
+                                    ]}
+                                />
+                                <Space size={4} style={{ flexShrink: 0 }}>
+                                    <Tooltip title="Refresh">
                                         <Button
-                                            icon={<EditOutlined />}
+                                            icon={<ReloadOutlined />}
                                             size="small"
-                                            onClick={() => setNewMessageOpen(true)}
+                                            loading={isFetching || channelsLoading}
+                                            onClick={() => {
+                                                queryClient.invalidateQueries({ queryKey: ["omnichannel-channels"] });
+                                                if (anyConnected) {
+                                                    refetch();
+                                                }
+                                            }}
                                             style={{ borderRadius: 8, height: 32, width: 32 }}
                                         />
                                     </Tooltip>
-                                )}
-                                <Dropdown
-                                    menu={{
-                                        items: [
-                                            { key: "connect", icon: <PlusOutlined />, label: "Connect Channel" },
-                                            { key: "settings", icon: <SettingOutlined />, label: "Channel Settings" },
-                                        ],
-                                        onClick: () => setConnectDrawerOpen(true),
-                                    }}
-                                    trigger={["click"]}
-                                    placement="bottomRight"
-                                >
-                                    <Button
-                                        icon={<PlusOutlined />}
-                                        size="small"
-                                        type="primary"
-                                        style={{
-                                            background: primaryColor,
-                                            borderColor: primaryColor,
-                                            borderRadius: 8,
-                                            height: 32,
-                                            width: 32,
+                                    {activeMainTab === "inbox" && anyConnected && (
+                                        <Tooltip title="New Message">
+                                            <Button
+                                                icon={<EditOutlined />}
+                                                size="small"
+                                                onClick={() => setNewMessageOpen(true)}
+                                                style={{ borderRadius: 8, height: 32, width: 32 }}
+                                            />
+                                        </Tooltip>
+                                    )}
+                                    <Dropdown
+                                        menu={{
+                                            items: [
+                                                { key: "connect", icon: <PlusOutlined />, label: "Connect Channel" },
+                                                { key: "settings", icon: <SettingOutlined />, label: "Channel Settings" },
+                                            ],
+                                            onClick: () => setConnectDrawerOpen(true),
                                         }}
-                                    />
-                                </Dropdown>
-                            </Space>
+                                        trigger={["click"]}
+                                        placement="bottomRight"
+                                    >
+                                        <Button
+                                            icon={<PlusOutlined />}
+                                            size="small"
+                                            type="primary"
+                                            style={{
+                                                background: primaryColor,
+                                                borderColor: primaryColor,
+                                                borderRadius: 8,
+                                                height: 32,
+                                                width: 32,
+                                            }}
+                                        />
+                                    </Dropdown>
+                                </Space>
+                            </div>
                         ) : (
+                            <Tabs
+                                activeKey={activeMainTab}
+                                onChange={(k) => setActiveMainTab(k as "inbox" | "scripts" | "welcome" | "analytics" | "agents")}
+                                size="middle"
+                                style={{ minWidth: 200 }}
+                                items={[
+                                    { key: "inbox", label: "Inbox" },
+                                    { key: "scripts", label: "Scripts" },
+                                    { key: "welcome", label: "Auto-Reply" },
+                                    { key: "analytics", label: "Analytics" },
+                                    { key: "agents", label: "Agents" },
+                                ]}
+                            />
+                        )
+                    }
+                    extra={
+                        isMobile ? null : (
                             <Space size={12} wrap>
                                 {activeMainTab === "inbox" && (
                                     <>
