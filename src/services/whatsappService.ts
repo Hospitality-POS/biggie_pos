@@ -934,6 +934,7 @@ export interface StartCallResponse {
 export const startWhatsAppCall = async (params: {
     conversation_id: string;
     call_type?: "voice" | "video";
+    phone_number?: string;
 }): Promise<StartCallResponse | undefined> => {
     try {
         const response = await axiosInstance.post(`${BASE_URL}/omnichannel/calls/start`, params);

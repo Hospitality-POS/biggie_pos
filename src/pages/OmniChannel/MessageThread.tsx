@@ -770,6 +770,7 @@ const MessageThread: React.FC<Props> = ({
             const res = await startWhatsAppCall({
                 conversation_id: conversation._id,
                 call_type: callType,
+                phone_number: conversation.external_contact_phone || conversation.external_contact_id,
             });
             if (res?.call_link) {
                 window.open(res.call_link, "_blank", "noopener");
