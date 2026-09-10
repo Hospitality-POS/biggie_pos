@@ -456,6 +456,7 @@ const MessageThread: React.FC<Props> = ({
     const [docResults, setDocResults] = useState<any[]>([]);
     const [docLoading, setDocLoading] = useState(false);
     const [startingCall, setStartingCall] = useState<"voice" | "video" | null>(null);
+    const [callModal, setCallModal] = useState<{ link: string; type: "voice" | "video" } | null>(null);
 
     const cfg = CHANNEL_CONFIG[conversation.channel];
     const statusCfg = STATUS_CONFIG[conversation.status];
@@ -773,7 +774,7 @@ const MessageThread: React.FC<Props> = ({
                 phone_number: conversation.external_contact_phone || conversation.external_contact_id,
             });
             if (res?.call_link) {
-                window.open(res.call_link, "_blank", "noopener");
+                setCallModal({ link: res.call_link, type: callType });
                 refetch();
                 onMessageSent();
                 onConversationUpdate();
@@ -1362,6 +1363,69 @@ const MessageThread: React.FC<Props> = ({
                             );
                         }}
                     />
+                )}
+            </Modal>
+
+            <Modal
+                open={!!callModal}
+                onCancel={() => setCallModal(null)}
+                footer={null}
+                width={420}
+                centered
+                destroyOnClose
+            >
+                {callModal && (
+                    <div style={{ textAlign: "center", padding: "8px 0 4px" }}>
+                        <div
+                            style={{
+                                width: 64,
+                                height: 64,
+                                borderRadius: "50%",
+                                background: "#f0fdf4",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontSize: 28,
+                                color: "#25D366",
+                                marginBottom: 12,
+                            }}
+                        >
+                            {callModal.type === "video" ? <VideoCameraOutlined /> : <PhoneOutlined />}
+                        </div>
+                        <Typography.Title level={5} style={{ marginTop: 0 }}>
+                            {callModal.type === "video" ? "Video" : "Voice"} call invite sent
+                        </Typography.Title>
+                        <Text type="secondary" style={{ display: "block", marginBottom: 16 }}>
+                            {conversation.external_contact_name || "The contact"} got a message with a
+                            link to join this call. WhatsApp calls can't run inside this page — tap
+                            Join to open it in WhatsApp.
+                        </Text>
+                        <Text
+                            copyable={{ text: callModal.link }}
+                            style={{
+                                display: "block",
+                                fontSize: 12,
+                                wordBreak: "break-all",
+                                background: "#fafafa",
+                                border: "1px solid #f0f0f0",
+                                borderRadius: 8,
+                                padding: "8px 12px",
+                                marginBottom: 16,
+                            }}
+                        >
+                            {callModal.link}
+                        </Text>
+                        <Space style={{ width: "100%", justifyContent: "center" }}>
+                            <Button onClick={() => setCallModal(null)}>Done</Button>
+                            <Button
+                                type="primary"
+                                icon={callModal.type === "video" ? <VideoCameraOutlined /> : <PhoneOutlined />}
+                                onClick={() => window.open(callModal.link, "_blank", "noopener")}
+                            >
+                                Join Call
+                            </Button>
+                        </Space>
+                    </div>
                 )}
             </Modal>
         </>
