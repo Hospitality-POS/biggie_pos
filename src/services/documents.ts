@@ -126,6 +126,9 @@ export interface DocumentRecord {
     updatedAt?: string;
     /** AI search only — cosine similarity score (0–1) */
     _similarity?: number;
+    /** OCR / Vision extracted text from attachments (populated by embedDocument) */
+    extracted_text?: string;
+    content_extracted_at?: string;
 }
 
 export interface PaginatedResponse<T> {
@@ -588,7 +591,7 @@ export const deleteDocument = async (documentId: string): Promise<void> => {
  * Both modes support all the same structural filters (status, type, date,
  * amount, shop_id, etc.). The response always includes `search_mode` so
  * the UI can reflect which engine ran — useful when AI falls back to normal
- * because OPENAI_API_KEY is not configured on the server.
+ * because no AI provider is configured on the server.
  *
  * Examples:
  *   // Normal keyword search

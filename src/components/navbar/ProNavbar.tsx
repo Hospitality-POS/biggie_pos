@@ -38,16 +38,11 @@ import {
   FileDoneOutlined,
   AppstoreOutlined,
   GlobalOutlined,
-  WalletOutlined,
-  SwapOutlined,
   // ── CRM ──────────────────────────────────────────────────────────────────
   NotificationOutlined,
   AimOutlined,
   CustomerServiceOutlined,
   // ── Dala ───────────────────────────────────────────────────────────────────
-  HomeOutlined,
-  AccountBookOutlined,
-  ReconciliationOutlined,
   BuildOutlined,
   ApartmentOutlined,
   FileProtectOutlined,
@@ -157,7 +152,7 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
   const primaryColor = usePrimaryColor();
   const isMobile = useIsMobile();
 
-  const shopId = getCurrentTenantId();
+  const shopId = getCurrentTenantId() || "";
 
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [detailsModalVisible, setDetailsModalVisible] = useState(false);
@@ -548,7 +543,7 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
       }}>
         <Text strong style={{ fontSize: 14 }}>Notifications</Text>
         {unreadNotificationsCount > 0 && (
-          <Button type="link" size="small" onClick={() => markAllAsReadMutation.mutate()}
+          <Button type="link" size="small" onClick={() => markAllAsReadMutation.mutate({})}
             style={{ padding: 0, fontSize: 12 }}>
             Mark all read
           </Button>
@@ -827,12 +822,13 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
           <CloseOutlined />
         </button>
 
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "center" }}>
           {tenant?.tenant_logo?.url ? (
             <img src={tenant.tenant_logo.url} alt="logo"
-              style={{ height: 38, maxWidth: 110, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
+              style={{ height: 48, maxWidth: 140, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
           ) : (
-            <img src="/relia.png" alt="logo" style={{ height: 34, width: 85, filter: "brightness(0) invert(1)" }} />
+            <img src="/relia.png" alt="logo"
+              style={{ height: 44, maxWidth: 140, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
           )}
         </div>
 
@@ -1007,7 +1003,13 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         .ant-menu-overflow-item-rest { padding: 0 !important; }
         .ant-menu-overflow-item-rest > .ant-menu-submenu-title { padding: 0 !important; margin: 0 !important; background: transparent !important; }
         .ant-menu-overflow-item-rest > .ant-menu-submenu-title::after { display: none !important; }
-        @media (max-width: 767px) { .ant-pro-page-container { padding: 12px !important; } .ant-pro-global-header { padding: 0 12px !important; } }
+        @media (max-width: 992px) {
+          .ant-pro-page-container { padding: 0 !important; }
+          .ant-pro-page-container-children-container { padding: 8px 12px !important; }
+          .ant-pro-page-container-children-content { padding: 0 !important; }
+          .ant-pro-page-container-warp-page-header { padding: 8px 12px !important; }
+          .ant-pro-global-header { padding: 0 12px !important; }
+        }
         .notification-popover-overlay .ant-popover-inner { padding: 0 !important; }
         /* ── Module dropdown (Duka / Pesa / Mteja / Dala / Setup) submenus ── */
         /* Lay items out 3 per row in a grid so long menus (e.g. Pesa) stay compact. */
@@ -1246,16 +1248,16 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         style={{ maxWidth: "1920px" }}
         logo={
           tenant?.tenant_logo?.url ? (
-            <Image src={tenant.tenant_logo.url} height={isMobile ? 44 : 60} preview={false} alt="tenant-logo"
-              style={{ padding: isMobile ? 3 : 5, objectFit: "contain", maxWidth: isMobile ? 90 : 120 }} />
+            <Image src={tenant.tenant_logo.url} height={isMobile ? 40 : 60} preview={false} alt="tenant-logo"
+              style={{ padding: isMobile ? 3 : 5, objectFit: "contain", maxWidth: isMobile ? 100 : 140 }} />
           ) : (
-            <Image src="/relia.png" height={isMobile ? 38 : 90} width={isMobile ? 90 : 120}
-              preview={false} alt="relia-logo" style={{ padding: isMobile ? 6 : 12 }} />
+            <Image src="/relia.png" height={isMobile ? 34 : 90} preview={false} alt="relia-logo"
+              style={{ padding: isMobile ? 4 : 12, objectFit: "contain", maxWidth: isMobile ? 100 : 140 }} />
           )
         }
         title=""
         menuHeaderRender={(logo: any, title: any) => (
-          <div id="customize_menu_header" style={{ height: 32, display: "flex", alignItems: "center", gap: 8 }}>
+          <div id="customize_menu_header" style={{ height: 48, display: "flex", alignItems: "center", gap: 8 }}>
             {logo}{title}
           </div>
         )}
@@ -1287,11 +1289,11 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
                 >
                   <MenuOutlined style={{ color: "white" }} />
                 </button>
-                <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)" }}>
+                <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   {tenant?.tenant_logo?.url ? (
-                    <img src={tenant.tenant_logo.url} alt="logo" style={{ height: 34, maxWidth: 80, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
+                    <img src={tenant.tenant_logo.url} alt="logo" style={{ height: 36, maxWidth: 96, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
                   ) : (
-                    <img src="/relia.png" alt="logo" style={{ height: 28, width: 70, filter: "brightness(0) invert(1)" }} />
+                    <img src="/relia.png" alt="logo" style={{ height: 32, maxWidth: 96, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
                   )}
                 </div>
                 {user ? headerActions : (

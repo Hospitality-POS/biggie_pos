@@ -73,7 +73,7 @@ export interface Message {
     conversation_id: string;
     shop_id: string;
     direction: "inbound" | "outbound";
-    message_type: "text" | "image" | "video" | "audio" | "document" | "location" | "template" | "reaction" | "unsupported";
+    message_type: "text" | "image" | "video" | "audio" | "document" | "location" | "template" | "reaction" | "call" | "unsupported";
     content: string;
     media_url?: string;
     media_id?: string;
@@ -449,6 +449,18 @@ export interface DailyConversations {
     conversations: number;
 }
 
+export interface DispatchAgentStat {
+    user_id: string;
+    name: string;
+    thumbnail?: string;
+    conversations: number;
+}
+
+export interface DailyDispatches {
+    date: string;
+    dispatches: number;
+}
+
 export interface ResponseTimeBuckets {
     under15: number;
     under60: number;
@@ -476,6 +488,11 @@ export interface AnalyticsData {
     responseTimeBuckets: ResponseTimeBuckets;
     messagesByDay: DailyMessages[];
     conversationsByDay: DailyConversations[];
+    pendingDispatch: number;
+    dispatchUnassigned: number;
+    avgDispatchWaitMinutes: number;
+    dispatchByAgent: DispatchAgentStat[];
+    dispatchesByDay: DailyDispatches[];
     insights: string;
 }
 
@@ -602,11 +619,11 @@ export const assignConversation = async (conversationId: string, assignedTo: str
     }
 };
 
-export const updateConversationStatus = async (conversationId: string, status: string) => {
+export const updateConversationStatus = async (conversationId: string, status: string, assignedTo?: string) => {
     try {
         const response = await axiosInstance.patch(
             `${conversationUrl}/${conversationId}/status`,
-            { status }
+            { status, ...(assignedTo ? { assigned_to: assignedTo } : {}) }
         );
         message.success(`Conversation marked as ${status}`);
         return response.data;
@@ -819,7 +836,7 @@ export const sendMediaMessage = async (params: {
         });
         return response.data;
     } catch (error: any) {
-        handleError(error, "Error sending media");
+        handleError(error);
     }
 };
 
@@ -860,6 +877,7 @@ export const convertConversationToCustomer = async (params: {
     customer_name?: string;
     email?: string;
     location?: string;
+    phone?: string;
 }) => {
     try {
         const response = await axiosInstance.post(`${BASE_URL}/omnichannel/conversations/convert-customer`, params);
@@ -897,6 +915,39 @@ export const linkConversationToLead = async (params: { conversation_id: string; 
         return response.data;
     } catch (error: any) {
         handleError(error, "Error linking lead");
+    }
+};
+
+// ── Calls ─────────────────────────────────────────────────────────────────────
+
+export interface StartCallResponse {
+    call_link: string;
+    message: Message;
+}
+
+/**
+ * Generate a WhatsApp call link (voice or video) and send it to the contact.
+ * The agent joins the call by opening the returned link.
+ */
+export const startWhatsAppCall = async (params: {
+    conversation_id: string;
+    call_type?: "voice" | "video";
+}): Promise<StartCallResponse | undefined> => {
+    try {
+        const response = await axiosInstance.post(`${BASE_URL}/omnichannel/calls/start`, params);
+        return response.data;
+    } catch (error: any) {
+        handleError(error, "Could not start WhatsApp call");
+    }
+};
+
+/** Reject an incoming WhatsApp call that is still ringing. */
+export const rejectWhatsAppCall = async (callId: string) => {
+    try {
+        const response = await axiosInstance.post(`${BASE_URL}/omnichannel/calls/reject`, { call_id: callId });
+        return response.data;
+    } catch (error: any) {
+        handleError(error, "Could not reject call");
     }
 };
 

@@ -23,6 +23,8 @@ interface User {
   isAdmin?: boolean;
   role?: any;
   roleId?: string;
+  thumbnail?: string;
+  avatar?: string;
 }
 
 interface AuthState {
@@ -38,7 +40,7 @@ interface AuthState {
   IsError?: boolean;
 }
 
-const user = JSON.parse(localStorage.getItem("user"));
+const user = JSON.parse(localStorage.getItem("user") || "null");
 
 const initialState: AuthState = {
   user: user ? user : null,
@@ -129,6 +131,7 @@ export const authSlice = createSlice({
         state.isSuccess = true;
         state.IsError = false;
         state.newmessage = "User created successfully";
+        state.users = state.users || [];
         state.users.push(action.payload);
       })
       .addCase(deleteUser.pending, (state) => {
@@ -143,7 +146,7 @@ export const authSlice = createSlice({
         state.isLoading = false;
         state.isSuccess = true;
         state.message = "User deleted successfully";
-        state.users = state.users.filter((user) => user.username !== action.payload);
+        state.users = (state.users || []).filter((user) => user.username !== action.payload);
       })
       .addCase(fetchUserById.pending, (state) => {
         state.isLoading = true;
@@ -168,7 +171,7 @@ export const authSlice = createSlice({
         state.isSuccess = true;
         state.isError = false;
         state.message = "User updated successfully";
-        state.users = state.users.map((user) =>
+        state.users = (state.users || []).map((user) =>
           user.id === action.payload.id ? action.payload : user
         );
         state.selected = action.payload;
