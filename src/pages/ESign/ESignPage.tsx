@@ -39,6 +39,7 @@ import {
     MailOutlined,
     CopyOutlined,
     SaveOutlined,
+    LinkOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axiosInstance from "@services/request";
@@ -271,6 +272,39 @@ const eSignService = {
             data
         );
         return response.data;
+    },
+
+    createPublicLink: async (documentId: string) => {
+        const response = await axiosInstance.post(
+            `${BASE_URL}/documents/${documentId}/signing/public-link`
+        );
+        return response.data as { token: string; expires_at: string };
+    },
+
+    getPublicLink: async (documentId: string) => {
+        const response = await axiosInstance.get(
+            `${BASE_URL}/documents/${documentId}/signing/public-link`
+        );
+        return response.data as {
+            active: boolean;
+            token: string | null;
+            expires_at: string | null;
+            signed_at: string | null;
+            signer_name: string | null;
+            signer_email: string | null;
+        };
+    },
+
+    revokePublicLink: async (documentId: string) => {
+        const response = await axiosInstance.delete(
+            `${BASE_URL}/documents/${documentId}/signing/public-link`
+        );
+        return response.data;
+    },
+
+    buildPublicSignUrl: (token: string): string => {
+        const companyCode = localStorage.getItem("companyCode") || "";
+        return `${window.location.origin}/esign/sign/${token}?c=${encodeURIComponent(companyCode)}`;
     },
 
     downloadSignedDocument: async (documentId: string) => {
@@ -1884,6 +1918,11 @@ const ESignPage: React.FC = () => {
     const [shareEmails, setShareEmails] = useState<string[]>([]);
     const [shareMessage, setShareMessage] = useState("");
     const [shareLoading, setShareLoading] = useState(false);
+    // Public signing link state
+    const [linkModalOpen, setLinkModalOpen] = useState(false);
+    const [linkDocId, setLinkDocId] = useState<string | null>(null);
+    const [linkInfo, setLinkInfo] = useState<{ active: boolean; token: string | null; expires_at: string | null; signed_at: string | null; signer_name: string | null; signer_email: string | null } | null>(null);
+    const [linkLoading, setLinkLoading] = useState(false);
     const [libraryModalOpen, setLibraryModalOpen] = useState(false);
     const [libraryType, setLibraryType] = useState<"signature" | "stamp">("signature");
     const [editingLibraryItem, setEditingLibraryItem] = useState<any | null>(null);
@@ -1907,6 +1946,66 @@ const ESignPage: React.FC = () => {
             message.error("Failed to share document");
         } finally {
             setShareLoading(false);
+        }
+    };
+
+    // ── Public signing link handlers ─────────────────────────────────────────
+    const openLinkModal = async (docId: string) => {
+        setLinkDocId(docId);
+        setLinkModalOpen(true);
+        setLinkLoading(true);
+        setLinkInfo(null);
+        try {
+            const info = await eSignService.getPublicLink(docId);
+            setLinkInfo(info);
+        } catch {
+            setLinkInfo(null);
+        } finally {
+            setLinkLoading(false);
+        }
+    };
+
+    const handleCreateLink = async () => {
+        if (!linkDocId) return;
+        setLinkLoading(true);
+        try {
+            const { token, expires_at } = await eSignService.createPublicLink(linkDocId);
+            const url = eSignService.buildPublicSignUrl(token);
+            setLinkInfo({ active: true, token, expires_at, signed_at: null, signer_name: null, signer_email: null });
+            try {
+                await navigator.clipboard.writeText(url);
+                message.success("Signing link created and copied to clipboard");
+            } catch {
+                message.success("Signing link created");
+            }
+        } catch (error: any) {
+            message.error(error?.response?.data?.error || "Failed to create signing link");
+        } finally {
+            setLinkLoading(false);
+        }
+    };
+
+    const handleRevokeLink = async () => {
+        if (!linkDocId) return;
+        setLinkLoading(true);
+        try {
+            await eSignService.revokePublicLink(linkDocId);
+            setLinkInfo((prev) => prev ? { ...prev, active: false, token: null } : prev);
+            message.success("Signing link revoked");
+        } catch {
+            message.error("Failed to revoke link");
+        } finally {
+            setLinkLoading(false);
+        }
+    };
+
+    const copyLink = async () => {
+        if (!linkInfo?.token) return;
+        try {
+            await navigator.clipboard.writeText(eSignService.buildPublicSignUrl(linkInfo.token));
+            message.success("Link copied");
+        } catch {
+            message.error("Could not copy — copy it manually");
         }
     };
     // Local position overrides - persists positions across renders without server refetch
@@ -2446,6 +2545,11 @@ const ESignPage: React.FC = () => {
                                             </PermissionButton>
                                         </>
                                     )}
+                                    {!!doc.attachments?.length && doc.status !== "signed" && (
+                                        <PermissionButton permission="SIGNATURE_SEND_FOR_SIGNING">
+                                            <Button icon={<LinkOutlined />} onClick={() => openLinkModal(doc._id)} style={{ borderRadius: 8 }} title="Share signing link (expires in 24h)" />
+                                        </PermissionButton>
+                                    )}
                                     <PermissionButton permission="SIGNATURE_DELETE">
                                         <Button danger icon={<DeleteOutlined />} style={{ borderRadius: 8 }} title="Delete" onClick={() => Modal.confirm({ title: "Delete Document", content: `Delete "${doc.name}"? This cannot be undone.`, okText: "Delete", okButtonProps: { danger: true }, onOk: async () => { await eSignService.deleteDocument(doc._id); message.success("Deleted"); queryClient.invalidateQueries({ queryKey: ["documents"] }); } })} />
                                     </PermissionButton>
@@ -2515,6 +2619,11 @@ const ESignPage: React.FC = () => {
                                                 <Button size="small" icon={<EditOutlined />} onClick={() => handleAddSignatureField(doc)} style={{ borderRadius: 6 }} title="Add field" />
                                             </PermissionButton>
                                         </>
+                                    )}
+                                    {!!doc.attachments?.length && doc.status !== "signed" && (
+                                        <PermissionButton permission="SIGNATURE_SEND_FOR_SIGNING">
+                                            <Button size="small" icon={<LinkOutlined />} onClick={() => openLinkModal(doc._id)} style={{ borderRadius: 6 }} title="Share signing link (expires in 24h)" />
+                                        </PermissionButton>
                                     )}
                                     <PermissionButton permission="SIGNATURE_DELETE">
                                         <Button size="small" danger icon={<DeleteOutlined />} style={{ borderRadius: 6 }} title="Delete" onClick={() => Modal.confirm({ title: "Delete Document", content: `Delete "${doc.name}"? This cannot be undone.`, okText: "Delete", okButtonProps: { danger: true }, onOk: async () => { await eSignService.deleteDocument(doc._id); message.success("Deleted"); queryClient.invalidateQueries({ queryKey: ["documents"] }); } })} />
@@ -3776,6 +3885,83 @@ const ESignPage: React.FC = () => {
             defaultTab={libraryType === 'stamp' ? 'stamp' : 'signature'}
             libraryOnly={true}
         />
+
+        {/* ── Public signing link modal ── */}
+        <Modal
+            open={linkModalOpen}
+            onCancel={() => { setLinkModalOpen(false); setLinkDocId(null); setLinkInfo(null); }}
+            title={<span><LinkOutlined style={{ marginRight: 8, color: "#1677ff" }} />Share signing link</span>}
+            footer={null}
+            width={520}
+        >
+            {linkLoading && !linkInfo ? (
+                <div style={{ textAlign: "center", padding: 32 }}><Spin /></div>
+            ) : linkInfo?.active && linkInfo.token ? (
+                <div>
+                    <Alert
+                        type="info"
+                        showIcon
+                        style={{ marginBottom: 14 }}
+                        message={
+                            <span>
+                                Anyone with this link can sign the document — no login needed.
+                                It expires {dayjs(linkInfo.expires_at).fromNow()}
+                                {linkInfo.expires_at ? ` (${dayjs(linkInfo.expires_at).format("DD MMM YYYY, HH:mm")})` : ""}.
+                            </span>
+                        }
+                    />
+                    {linkInfo.signed_at && (
+                        <Alert
+                            type="success"
+                            showIcon
+                            style={{ marginBottom: 14 }}
+                            message={`Signed by ${linkInfo.signer_name || "external signer"} ${dayjs(linkInfo.signed_at).fromNow()}`}
+                        />
+                    )}
+                    <Space.Compact style={{ width: "100%" }}>
+                        <Input
+                            readOnly
+                            value={eSignService.buildPublicSignUrl(linkInfo.token)}
+                            onFocus={(e) => e.target.select()}
+                            style={{ fontSize: 12 }}
+                        />
+                        <Button type="primary" icon={<CopyOutlined />} onClick={copyLink}>
+                            Copy
+                        </Button>
+                    </Space.Compact>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: 16 }}>
+                        <Button danger onClick={() => Modal.confirm({
+                            title: "Revoke link",
+                            content: "The link will stop working immediately. Continue?",
+                            okText: "Revoke",
+                            okButtonProps: { danger: true },
+                            onOk: handleRevokeLink,
+                        })}>
+                            Revoke link
+                        </Button>
+                        <Button loading={linkLoading} onClick={() => Modal.confirm({
+                            title: "Regenerate link",
+                            content: "The current link will stop working and a new 24-hour link will be created.",
+                            okText: "Regenerate",
+                            onOk: handleCreateLink,
+                        })}>
+                            Regenerate (new 24h link)
+                        </Button>
+                    </div>
+                </div>
+            ) : (
+                <div style={{ textAlign: "center", padding: "8px 0 4px" }}>
+                    <LinkOutlined style={{ fontSize: 36, color: "#1677ff" }} />
+                    <p style={{ margin: "12px 0 20px", color: "#555", fontSize: 13 }}>
+                        Create a shareable link to let someone sign this document on their
+                        phone or laptop — no login required. The link expires after 24 hours.
+                    </p>
+                    <Button type="primary" size="large" icon={<LinkOutlined />} loading={linkLoading} onClick={handleCreateLink} style={{ borderRadius: 8 }}>
+                        Create signing link
+                    </Button>
+                </div>
+            )}
+        </Modal>
         </div>
     );
 };

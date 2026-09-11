@@ -11,7 +11,6 @@ import Private, { AdminRoute } from "@components/layout/private/Private";
 import MainCategory from "@pages/main_category/Main_category";
 import NotFound from "@routes/NotFound";
 import { Spin } from "antd/lib";
-import { COOP_NAME } from "@utils/config";
 import MainOrders from "@pages/OrderManagement/MainOrders";
 import NubaLoader from "@components/spinner/NubaLoader";
 import StaffLoginPage from "@pages/Login/login";
@@ -92,16 +91,13 @@ const DocumentCenter = lazy(() => import("@pages/Documents/DocumentCenter"));
 
 // ─── E-Signature ───────────────────────────────────────────────────────────────
 const ESignPage = lazy(() => import("@pages/ESign/ESignPage"));
+const PublicSignPage = lazy(() => import("@pages/ESign/PublicSignPage"));
 
 // ─── Omnichannel Inbox ────────────────────────────────────────────────────────
 const OmnichannelInboxPage = lazy(() => import("src/pages/OmniChannel/OmnichannelInboxPage"));
 const OAuthCallbackPage = lazy(() => import("src/pages/OmniChannel/OAuthCallbackPage"));
 
-// ─── Mteja Dashboard ──────────────────────────────────────────────────────────
-const MtejaDashboard = lazy(() => import("src/pages/Dashboard/MtejaDashboard"));
-
 // ─── Accounting Module ────────────────────────────────────────────────────────
-const AccountingDashboardPage = lazy(() => import("src/pages/AccountingDashboard/AccountingDashboardPage"));
 const ChartOfAccountsPage = lazy(() => import("src/pages/ChartOfAccounts/ChartOfAccountsPage"));
 const JournalEntriesPage = lazy(() => import("src/pages/JournalEntry/JournalEntriesPage"));
 const SalesReceiptsPage = lazy(() => import("src/pages/SalesReceipts/SalesReceiptsPage"));
@@ -332,6 +328,13 @@ const routes = createBrowserRouter(
         path="/terms-and-conditions"
         errorElement={<NotFound />}
         element={<Suspense fallback={fullscreenSpin}><TermsAndConditions /></Suspense>}
+      />
+
+      {/* Public — document signing via shareable link (unauthenticated) */}
+      <Route
+        path="/esign/sign/:token"
+        errorElement={<NotFound />}
+        element={<Suspense fallback={fullscreenSpin}><PublicSignPage /></Suspense>}
       />
 
       {/* ══════════════════════════════════════════════════════════════════
