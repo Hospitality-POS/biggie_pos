@@ -248,6 +248,7 @@ export const connectChannel = connectWhatsappChannel;
 export interface StartWhatsAppWebParams {
     method?: "qr" | "phone";
     phoneNumber?: string;
+    shop_id?: string;
 }
 
 export const startWhatsAppWeb = async (params: StartWhatsAppWebParams = {}) => {
@@ -259,36 +260,44 @@ export const startWhatsAppWeb = async (params: StartWhatsAppWebParams = {}) => {
     }
 };
 
-export const getWhatsAppWebQR = async () => {
+// WhatsApp Web sessions are per tenant+shop on the backend — always pass the
+// shop_id so the poll hits this shop's session, not another tenant's.
+export const getWhatsAppWebQR = async (shop_id?: string) => {
     try {
-        const response = await axiosInstance.get(`${BASE_URL}/omnichannel/channels/whatsapp-web/qr`);
+        const response = await axiosInstance.get(`${BASE_URL}/omnichannel/channels/whatsapp-web/qr`, {
+            params: { shop_id },
+        });
         return response.data;
     } catch (error: any) {
         handleError(error, "Could not fetch WhatsApp QR code.");
     }
 };
 
-export const getWhatsAppWebPairingCode = async () => {
+export const getWhatsAppWebPairingCode = async (shop_id?: string) => {
     try {
-        const response = await axiosInstance.get(`${BASE_URL}/omnichannel/channels/whatsapp-web/pairing-code`);
+        const response = await axiosInstance.get(`${BASE_URL}/omnichannel/channels/whatsapp-web/pairing-code`, {
+            params: { shop_id },
+        });
         return response.data;
     } catch (error: any) {
         handleError(error, "Could not fetch WhatsApp pairing code.");
     }
 };
 
-export const getWhatsAppWebStatus = async () => {
+export const getWhatsAppWebStatus = async (shop_id?: string) => {
     try {
-        const response = await axiosInstance.get(`${BASE_URL}/omnichannel/channels/whatsapp-web/status`);
+        const response = await axiosInstance.get(`${BASE_URL}/omnichannel/channels/whatsapp-web/status`, {
+            params: { shop_id },
+        });
         return response.data;
     } catch (error: any) {
         handleError(error, "Could not fetch WhatsApp Web status.");
     }
 };
 
-export const disconnectWhatsAppWeb = async () => {
+export const disconnectWhatsAppWeb = async (shop_id?: string) => {
     try {
-        const response = await axiosInstance.post(`${BASE_URL}/omnichannel/channels/whatsapp-web/disconnect`);
+        const response = await axiosInstance.post(`${BASE_URL}/omnichannel/channels/whatsapp-web/disconnect`, { shop_id });
         message.success("WhatsApp Web disconnected");
         return response.data;
     } catch (error: any) {
@@ -296,9 +305,9 @@ export const disconnectWhatsAppWeb = async () => {
     }
 };
 
-export const resyncWhatsAppWeb = async () => {
+export const resyncWhatsAppWeb = async (shop_id?: string) => {
     try {
-        const response = await axiosInstance.post(`${BASE_URL}/omnichannel/channels/whatsapp-web/resync`);
+        const response = await axiosInstance.post(`${BASE_URL}/omnichannel/channels/whatsapp-web/resync`, { shop_id });
         message.success("WhatsApp chats resynced");
         return response.data;
     } catch (error: any) {

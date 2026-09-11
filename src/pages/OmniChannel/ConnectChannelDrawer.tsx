@@ -74,6 +74,7 @@ interface Props {
 interface Channel {
     _id: string;
     channel: string;
+    shop_id?: string;
     phone_number_id?: string;
     page_id?: string;
     instagram_account_id?: string;
@@ -138,7 +139,7 @@ const ConnectedCard: React.FC<{
     const handleDisconnect = async () => {
         setWebDisconnecting(true);
         try {
-            await disconnectWhatsAppWeb();
+            await disconnectWhatsAppWeb(channel.shop_id);
             onDisconnect(channel._id);
             antMessage.success("WhatsApp disconnected");
         } catch {}
@@ -148,7 +149,7 @@ const ConnectedCard: React.FC<{
     const handleResync = async () => {
         setResyncing(true);
         try {
-            await resyncWhatsAppWeb();
+            await resyncWhatsAppWeb(channel.shop_id);
         } catch {}
         setResyncing(false);
     };
@@ -159,8 +160,8 @@ const ConnectedCard: React.FC<{
         const poll = async () => {
             try {
                 const [qrData, statusData] = await Promise.allSettled([
-                    getWhatsAppWebQR(),
-                    getWhatsAppWebStatus(),
+                    getWhatsAppWebQR(channel.shop_id),
+                    getWhatsAppWebStatus(channel.shop_id),
                 ]);
                 if (stopped) return;
                 const qrValue = qrData.status === "fulfilled" ? qrData.value?.qr : null;
@@ -186,7 +187,7 @@ const ConnectedCard: React.FC<{
         setReconnecting(true);
         setReconnectQr(null);
         try {
-            await startWhatsAppWeb({ method: "qr" });
+            await startWhatsAppWeb({ method: "qr", shop_id: channel.shop_id });
         } catch (err: any) {
             setReconnecting(false);
             antMessage.error(err?.message || "Could not start WhatsApp Web reconnection");
@@ -540,7 +541,7 @@ const WhatsAppWebConnectButton: React.FC<{
         setShowPanel(true);
         setStatus("starting");
         try {
-            await startWhatsAppWeb(method === "phone" ? { method: "phone", phoneNumber } : { method: "qr" });
+            await startWhatsAppWeb(method === "phone" ? { method: "phone", phoneNumber, shop_id: shopId } : { method: "qr", shop_id: shopId });
         } catch (err: any) {
             setLoading(false);
             setShowPanel(false);
@@ -555,7 +556,7 @@ const WhatsAppWebConnectButton: React.FC<{
         setPairingCode(null);
         setStatus("idle");
         try {
-            await disconnectWhatsAppWeb();
+            await disconnectWhatsAppWeb(shopId);
         } catch {}
     };
 
@@ -565,9 +566,9 @@ const WhatsAppWebConnectButton: React.FC<{
         const poll = async () => {
             try {
                 const [qrData, codeData, statusData] = await Promise.allSettled([
-                    getWhatsAppWebQR(),
-                    getWhatsAppWebPairingCode(),
-                    getWhatsAppWebStatus(),
+                    getWhatsAppWebQR(shopId),
+                    getWhatsAppWebPairingCode(shopId),
+                    getWhatsAppWebStatus(shopId),
                 ]);
                 if (stopped) return;
 
@@ -773,7 +774,7 @@ const ConnectChannelDrawer: React.FC<Props> = ({
     // logged out (needs a fresh QR scan) doesn't keep showing as "Active".
     const { data: liveWaStatus } = useQuery({
         queryKey: ["whatsapp-web-live-status", shopId],
-        queryFn: getWhatsAppWebStatus,
+        queryFn: () => getWhatsAppWebStatus(shopId),
         enabled: open && channelsByType.whatsapp.length > 0,
         refetchInterval: 10000,
     });
