@@ -20,6 +20,8 @@ export type LeadStage =
     | "lost"
     | "disqualified";
 
+// Built-in defaults — tenants can also define custom sources when creating a
+// lead, so `Lead.source` is typed as `LeadSource | string` where it is used.
 export type LeadSource =
     | "walk_in"
     | "referral"
@@ -56,7 +58,7 @@ export interface Lead {
     website?: string;
     address?: LeadAddress;
     stage: LeadStage;
-    source?: LeadSource;
+    source?: LeadSource | string;
     estimated_value?: number;
     currency?: string;
     probability?: number;
@@ -101,7 +103,7 @@ export interface LeadListResponse {
 export interface FetchLeadsParams {
     shop_id?: string;
     stage?: LeadStage;
-    source?: LeadSource;
+    source?: string;
     assigned_to?: string;
     campaign_id?: string;
     search?: string;
@@ -143,6 +145,22 @@ export const getLeadById = async (
         const msg = error?.response?.data?.message || "Failed to fetch lead";
         message.error(msg);
         throw new Error(msg);
+    }
+};
+
+/* ============================================================
+   LEAD SOURCES — defaults + custom sources already used by the shop
+============================================================ */
+
+export const fetchLeadSources = async (shop_id?: string): Promise<string[]> => {
+    try {
+        const response = await axiosInstance.get(`${BASE}/sources`, {
+            params: { shop_id },
+        });
+        return response.data?.sources || [];
+    } catch (error: any) {
+        console.error("Error fetching lead sources:", error);
+        return [];
     }
 };
 

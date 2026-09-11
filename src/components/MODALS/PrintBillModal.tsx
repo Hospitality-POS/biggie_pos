@@ -463,7 +463,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data, subtotal:
   // message if the user tries to send while it's not actually connected.
   const { data: whatsappStatusData, isLoading: whatsappStatusLoading } = useQuery({
     queryKey: ["whatsapp-web-status-print-bill"],
-    queryFn: getWhatsAppWebStatus,
+    queryFn: () => getWhatsAppWebStatus(localStorage.getItem("shopId") || undefined),
     enabled: hasMteja,
     refetchInterval: 15000,
   });

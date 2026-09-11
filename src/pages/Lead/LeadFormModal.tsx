@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import {
-    Button, DatePicker, Form, Input, InputNumber, Modal, Select, Typography, message, Spin, Radio,
+    Button, DatePicker, Divider, Form, Input, InputNumber, Modal, Select, Typography, message, Spin, Radio,
 } from "antd";
 import {
-    EditOutlined, MailOutlined, PhoneOutlined, SaveOutlined,
+    EditOutlined, MailOutlined, PhoneOutlined, PlusOutlined, SaveOutlined,
     TeamOutlined, UserOutlined, UserSwitchOutlined, ShopOutlined,
 } from "@ant-design/icons";
 import { useAppDispatch } from "../../store";
-import { createLead, updateLead, Lead } from "@services/crm/leads";
+import { createLead, updateLead, fetchLeadSources, Lead } from "@services/crm/leads";
 import { fetchAllUsersList } from "@services/users";
 import dayjs from "dayjs";
 
@@ -42,6 +42,11 @@ interface User {
 const STAGES = ["new", "contacted", "qualified", "proposal", "negotiation", "won", "lost", "disqualified"];
 const SOURCES = ["walk_in", "referral", "social_media", "website", "cold_call", "email_campaign", "exhibition", "partner", "other"];
 
+// Custom sources are stored in the same snake_case style as the defaults so
+// "TikTok Ads" and "tiktok_ads" don't end up as two different options.
+const slugifySource = (v: string) =>
+    v.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+
 const LeadFormModal: React.FC<LeadFormModalProps> = ({
     visible, onClose, onSuccess, lead, mode = "add",
 }) => {
@@ -49,6 +54,8 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
     const [loading, setLoading] = useState(false);
     const [usersLoading, setUsersLoading] = useState(false);
     const [users, setUsers] = useState<User[]>([]);
+    const [sourceOptions, setSourceOptions] = useState<string[]>(SOURCES);
+    const [newSource, setNewSource] = useState("");
     const [entityType, setEntityType] = useState<'individual' | 'company'>('individual');
     const dispatch = useAppDispatch();
     const isEdit = mode === "edit";
@@ -81,6 +88,34 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
 
         fetchUsers();
     }, [visible]);
+
+    // Load source options: defaults + custom sources already saved on leads
+    // for this shop (custom sources are persisted on the lead itself, so they
+    // show up here on the next open).
+    useEffect(() => {
+        if (!visible) return;
+        const load = async () => {
+            const shopData = localStorage.getItem("shop");
+            const shop = shopData ? JSON.parse(shopData) : null;
+            const list = await fetchLeadSources(shop?._id || undefined);
+            setSourceOptions(prev => {
+                const merged = [...new Set([...SOURCES, ...list])];
+                if (lead?.source && !merged.includes(lead.source)) merged.push(lead.source);
+                return merged;
+            });
+        };
+        load();
+    }, [visible, lead]);
+
+    const addCustomSource = () => {
+        const slug = slugifySource(newSource);
+        if (!slug) return;
+        if (!sourceOptions.includes(slug)) {
+            setSourceOptions(prev => [...prev, slug]);
+        }
+        form.setFieldsValue({ source: slug });
+        setNewSource("");
+    };
 
     useEffect(() => {
         if (!visible) return;
@@ -260,8 +295,40 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
                         </Select>
                     </Form.Item>
                     <Form.Item name="source" label="Source" style={{ flex: "1 1 180px" }}>
-                        <Select placeholder="Lead source" allowClear style={{ borderRadius: 8 }}>
-                            {SOURCES.map(s => (
+                        <Select
+                            placeholder="Select or add a source"
+                            allowClear
+                            showSearch
+                            optionFilterProp="children"
+                            style={{ borderRadius: 8 }}
+                            dropdownRender={(menu) => (
+                                <>
+                                    {menu}
+                                    <Divider style={{ margin: "8px 0" }} />
+                                    <div style={{ display: "flex", gap: 8, padding: "0 8px 8px" }}>
+                                        <Input
+                                            size="small"
+                                            placeholder="New source (e.g. TikTok)"
+                                            value={newSource}
+                                            onChange={(e) => setNewSource(e.target.value)}
+                                            onKeyDown={(e) => e.stopPropagation()}
+                                            onPressEnter={(e) => { e.preventDefault(); addCustomSource(); }}
+                                            style={{ borderRadius: 6 }}
+                                        />
+                                        <Button
+                                            type="text"
+                                            size="small"
+                                            icon={<PlusOutlined />}
+                                            onClick={addCustomSource}
+                                            disabled={!newSource.trim()}
+                                        >
+                                            Add
+                                        </Button>
+                                    </div>
+                                </>
+                            )}
+                        >
+                            {sourceOptions.map(s => (
                                 <Option key={s} value={s}>{s.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}</Option>
                             ))}
                         </Select>
