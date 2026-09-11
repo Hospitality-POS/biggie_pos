@@ -56,9 +56,9 @@ import {
     fetchAgents,
     handoverConversation,
     deleteConversation,
-    startWhatsAppCall,
 } from "@services/whatsappService";
 import { searchDocuments } from "@services/documents";
+import { formatCurrency } from "@utils/formatters";
 import {
     Conversation,
     ConversationStatus,
@@ -91,6 +91,17 @@ interface Message {
     createdAt: string;
 }
 
+interface SuggestedProduct {
+    _id: string;
+    name: string;
+    // The exact catalog phrase the reply mentioned (variant name when a
+    // variant was matched) — used to re-check mentions before sending.
+    match_name?: string;
+    price?: number | null;
+    image_url?: string | null;
+    source?: "product" | "inventory";
+}
+
 interface Props {
     conversation: Conversation;
     shopId: string;
@@ -109,6 +120,15 @@ const STATUS_ICONS: Record<string, React.ReactNode> = {
     delivered: <span style={{ fontSize: 10, color: "#bfbfbf" }}>✓✓</span>,
     read: <span style={{ fontSize: 10, color: "#53bdeb" }}>✓✓</span>,
     failed: <CloseCircleOutlined style={{ fontSize: 10, color: "#ff4d4f" }} />,
+};
+
+// Mirrors the backend mention check: a suggested product's image is only sent
+// if its name still appears in the message the agent actually sends.
+const isProductMentioned = (text: string, name?: string): boolean => {
+    const n = (name || "").trim();
+    if (!text || n.length < 3) return false;
+    const escaped = n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`(^|[^\\w])${escaped}([^\\w]|$)`, "i").test(text);
 };
 
 // ── Text formatting ───────────────────────────────────────────────────────────
@@ -455,8 +475,10 @@ const MessageThread: React.FC<Props> = ({
     const [docSearch, setDocSearch] = useState("");
     const [docResults, setDocResults] = useState<any[]>([]);
     const [docLoading, setDocLoading] = useState(false);
-    const [startingCall, setStartingCall] = useState<"voice" | "video" | null>(null);
-    const [callModal, setCallModal] = useState<{ link: string; type: "voice" | "video" } | null>(null);
+    // Products the AI suggestion referenced that have an image — their photos
+    // are attached to the reply so the customer sees what they are buying.
+    const [suggestedProducts, setSuggestedProducts] = useState<SuggestedProduct[]>([]);
+
 
     const cfg = CHANNEL_CONFIG[conversation.channel];
     const statusCfg = STATUS_CONFIG[conversation.status];
@@ -513,6 +535,7 @@ const MessageThread: React.FC<Props> = ({
         setHasMore(true);
         setText("");
         setReplyingTo(null);
+        setSuggestedProducts([]);
         setIsAutoScroll(true);
     }, [conversation._id]);
 
@@ -549,15 +572,32 @@ const MessageThread: React.FC<Props> = ({
     // ── Send text message ──────────────────────────────────────────────────────
 
     const sendMutation = useMutation({
-        mutationFn: () =>
-            sendTextMessage({
+        mutationFn: async (productsToSend: (SuggestedProduct & { image_url: string })[]) => {
+            await sendTextMessage({
                 conversation_id: conversation._id,
                 content: text.trim(),
                 context_message_id: replyingTo?._id,
-            }),
+            });
+            // Send each suggested product's photo so the customer sees what
+            // they are buying. Failures are toasted by sendMediaMessage — keep
+            // going so one bad image doesn't block the rest.
+            for (const p of productsToSend) {
+                try {
+                    await sendMediaMessage({
+                        conversation_id: conversation._id,
+                        media_type: "image",
+                        media_url: p.image_url,
+                        caption: p.price != null ? `${p.name} — ${formatCurrency(p.price)}` : p.name,
+                    });
+                } catch {
+                    // continue with remaining product images
+                }
+            }
+        },
         onSuccess: () => {
             setText("");
             setReplyingTo(null);
+            setSuggestedProducts([]);
             refetch();
             onMessageSent();
             onConversationUpdate();
@@ -577,23 +617,36 @@ const MessageThread: React.FC<Props> = ({
         mutationFn: () => suggestReply({ conversation_id: conversation._id, shop_id: shopId }),
         onSuccess: (data: any) => {
             if (data?.result) setText(data.result);
+            setSuggestedProducts(
+                (data?.suggested_products || []).filter((p: SuggestedProduct) => p.image_url)
+            );
         },
         onError: (error: any) => {
             antMessage.error(error?.response?.data?.message || "Could not get AI suggestion");
         },
     });
 
+    // Suggested products whose names still appear in the drafted text and that
+    // have an image — these get sent as WhatsApp photos with the reply.
+    const pendingProductImages = suggestedProducts
+        .filter((p): p is SuggestedProduct & { image_url: string } =>
+            !!p.image_url && isProductMentioned(text, p.match_name || p.name)
+        )
+        .slice(0, 5);
+
     const handleSend = () => {
-        if (!text.trim()) return;
-        sendMutation.mutate();
+        const content = text.trim();
+        if (!content) return;
+        // Only attach images for products still mentioned in the final text —
+        // if the agent edited the suggestion to drop a product, its image
+        // should not go out either.
+        sendMutation.mutate(pendingProductImages);
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
-            if (text.trim()) {
-                sendMutation.mutate();
-            }
+            handleSend();
         }
     };
 
@@ -765,23 +818,8 @@ const MessageThread: React.FC<Props> = ({
 
     // ── WhatsApp calls ─────────────────────────────────────────────────────────
 
-    const handleStartCall = async (callType: "voice" | "video") => {
-        setStartingCall(callType);
-        try {
-            const res = await startWhatsAppCall({
-                conversation_id: conversation._id,
-                call_type: callType,
-                phone_number: conversation.external_contact_phone || conversation.external_contact_id,
-            });
-            if (res?.call_link) {
-                setCallModal({ link: res.call_link, type: callType });
-                refetch();
-                onMessageSent();
-                onConversationUpdate();
-            }
-        } finally {
-            setStartingCall(null);
-        }
+    const showCallComingSoon = () => {
+        antMessage.info("WhatsApp calls are coming soon");
     };
 
     const handleDelete = () => {
@@ -815,15 +853,15 @@ const MessageThread: React.FC<Props> = ({
                 ? [
                       {
                           key: "voice-call",
-                          label: "Voice call",
+                          label: "Voice call · Coming soon",
                           icon: <PhoneOutlined />,
-                          onClick: () => handleStartCall("voice"),
+                          onClick: showCallComingSoon,
                       },
                       {
                           key: "video-call",
-                          label: "Video call",
+                          label: "Video call · Coming soon",
                           icon: <VideoCameraOutlined />,
-                          onClick: () => handleStartCall("video"),
+                          onClick: showCallComingSoon,
                       },
                   ]
                 : []),
@@ -965,20 +1003,18 @@ const MessageThread: React.FC<Props> = ({
                         <Space wrap size="middle">
                             {conversation.channel === "whatsapp" && (
                                 <>
-                                    <Tooltip title="Start a WhatsApp voice call">
+                                    <Tooltip title="Voice calls — coming soon">
                                         <Button
                                             size="small"
                                             icon={<PhoneOutlined />}
-                                            loading={startingCall === "voice"}
-                                            onClick={() => handleStartCall("voice")}
+                                            onClick={showCallComingSoon}
                                         />
                                     </Tooltip>
-                                    <Tooltip title="Start a WhatsApp video call">
+                                    <Tooltip title="Video calls — coming soon">
                                         <Button
                                             size="small"
                                             icon={<VideoCameraOutlined />}
-                                            loading={startingCall === "video"}
-                                            onClick={() => handleStartCall("video")}
+                                            onClick={showCallComingSoon}
                                         />
                                     </Tooltip>
                                 </>
@@ -1146,6 +1182,73 @@ const MessageThread: React.FC<Props> = ({
                                 icon={<CloseOutlined />}
                                 onClick={() => setReplyingTo(null)}
                             />
+                        </div>
+                    )}
+                    {pendingProductImages.length > 0 && (
+                        <div
+                            style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 8,
+                                padding: "6px 10px",
+                                marginBottom: 8,
+                                background: "#f6f6f6",
+                                borderRadius: 8,
+                                overflowX: "auto",
+                                fontSize: 12,
+                            }}
+                        >
+                            <Text type="secondary" style={{ fontSize: 11, flexShrink: 0 }}>
+                                Product images will be sent with this reply:
+                            </Text>
+                            {pendingProductImages.map((p) => (
+                                    <Tooltip key={p._id} title={p.name}>
+                                        <div
+                                            style={{
+                                                position: "relative",
+                                                flexShrink: 0,
+                                                width: 44,
+                                                height: 44,
+                                            }}
+                                        >
+                                            <img
+                                                src={p.image_url}
+                                                alt={p.name}
+                                                style={{
+                                                    width: 44,
+                                                    height: 44,
+                                                    objectFit: "cover",
+                                                    borderRadius: 6,
+                                                    display: "block",
+                                                }}
+                                            />
+                                            <Button
+                                                type="text"
+                                                size="small"
+                                                icon={<CloseOutlined style={{ fontSize: 8, color: "#fff" }} />}
+                                                onClick={() =>
+                                                    setSuggestedProducts((prev) =>
+                                                        prev.filter((sp) => sp._id !== p._id)
+                                                    )
+                                                }
+                                                style={{
+                                                    position: "absolute",
+                                                    top: -5,
+                                                    right: -5,
+                                                    width: 16,
+                                                    height: 16,
+                                                    minWidth: 16,
+                                                    padding: 0,
+                                                    borderRadius: "50%",
+                                                    background: "rgba(0,0,0,0.6)",
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    justifyContent: "center",
+                                                }}
+                                            />
+                                        </div>
+                                    </Tooltip>
+                                ))}
                         </div>
                     )}
                     <div
@@ -1366,68 +1469,6 @@ const MessageThread: React.FC<Props> = ({
                 )}
             </Modal>
 
-            <Modal
-                open={!!callModal}
-                onCancel={() => setCallModal(null)}
-                footer={null}
-                width={420}
-                centered
-                destroyOnClose
-            >
-                {callModal && (
-                    <div style={{ textAlign: "center", padding: "8px 0 4px" }}>
-                        <div
-                            style={{
-                                width: 64,
-                                height: 64,
-                                borderRadius: "50%",
-                                background: "#f0fdf4",
-                                display: "inline-flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                fontSize: 28,
-                                color: "#25D366",
-                                marginBottom: 12,
-                            }}
-                        >
-                            {callModal.type === "video" ? <VideoCameraOutlined /> : <PhoneOutlined />}
-                        </div>
-                        <Typography.Title level={5} style={{ marginTop: 0 }}>
-                            {callModal.type === "video" ? "Video" : "Voice"} call invite sent
-                        </Typography.Title>
-                        <Text type="secondary" style={{ display: "block", marginBottom: 16 }}>
-                            {conversation.external_contact_name || "The contact"} got a message with a
-                            link to join this call. WhatsApp calls can't run inside this page — tap
-                            Join to open it in WhatsApp.
-                        </Text>
-                        <Text
-                            copyable={{ text: callModal.link }}
-                            style={{
-                                display: "block",
-                                fontSize: 12,
-                                wordBreak: "break-all",
-                                background: "#fafafa",
-                                border: "1px solid #f0f0f0",
-                                borderRadius: 8,
-                                padding: "8px 12px",
-                                marginBottom: 16,
-                            }}
-                        >
-                            {callModal.link}
-                        </Text>
-                        <Space style={{ width: "100%", justifyContent: "center" }}>
-                            <Button onClick={() => setCallModal(null)}>Done</Button>
-                            <Button
-                                type="primary"
-                                icon={callModal.type === "video" ? <VideoCameraOutlined /> : <PhoneOutlined />}
-                                onClick={() => window.open(callModal.link, "_blank", "noopener")}
-                            >
-                                Join Call
-                            </Button>
-                        </Space>
-                    </div>
-                )}
-            </Modal>
         </>
     );
 };

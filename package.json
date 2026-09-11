@@ -40,6 +40,7 @@
     "libphonenumber-js": "^1.10.61",
     "lodash": "^4.17.23",
     "lottie-react": "^2.4.0",
+    "mammoth": "^1.12.2",
     "moment": "^2.29.4",
     "papaparse": "^5.5.3",
     "pdfjs-dist": "4.4.168",
