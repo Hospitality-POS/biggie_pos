@@ -370,6 +370,19 @@ export const deleteScript = async (scriptId: string) => {
     }
 };
 
+export const extractScriptFromFile = async (file: File) => {
+    try {
+        const formData = new FormData();
+        formData.append("file", file);
+        const response = await axiosInstance.post(`${BASE_URL}/omnichannel/scripts/extract`, formData, {
+            headers: { "Content-Type": "multipart/form-data" },
+        });
+        return response.data as { title: string; content: string };
+    } catch (error: any) {
+        handleError(error, "Could not extract text from file");
+    }
+};
+
 // ── Welcome Message ────────────────────────────────────────────────────────────
 
 export interface WelcomeMessage {

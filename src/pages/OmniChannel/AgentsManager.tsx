@@ -1,16 +1,22 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
     Avatar,
     Badge,
     Button,
     Card,
+    Col,
+    Popconfirm,
+    Row,
     Select,
     Space,
+    Statistic,
     Table,
     Tabs,
+    Tag,
+    Tooltip,
     Typography,
 } from "antd";
-import { UserOutlined } from "@ant-design/icons";
+import { UserOutlined, UserAddOutlined, TeamOutlined } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
     fetchAgents,
@@ -20,7 +26,7 @@ import {
 import { fetchAllUsersByShopId } from "@services/users";
 import AgentStats from "./AgentStats";
 
-const { Text } = Typography;
+const { Title, Text } = Typography;
 
 interface User {
     _id: string;
@@ -93,28 +99,51 @@ const AgentsManager: React.FC<Props> = ({ shopId }) => {
 
     const nonAgents = users.filter((u) => !u.is_agent);
 
+    const stats = useMemo(
+        () => ({
+            total: agents.length,
+            online: agents.filter((a) => a.agent_status === "online").length,
+            busy: agents.filter((a) => a.agent_status === "busy").length,
+            openConversations: agents.reduce((sum, a) => sum + (a.open_conversations || 0), 0),
+        }),
+        [agents]
+    );
+
     const columns = [
         {
             title: "Agent",
             dataIndex: "fullname",
             render: (_: any, record: Agent) => (
-                <Space>
-                    <Avatar
-                        size="small"
-                        src={record.thumbnail}
-                        icon={<UserOutlined />}
-                    />
-                    <Text>{record.fullname}</Text>
+                <Space size={12}>
+                    <Badge
+                        dot
+                        status={
+                            record.agent_status === "online"
+                                ? "success"
+                                : record.agent_status === "busy"
+                                  ? "warning"
+                                  : "default"
+                        }
+                        offset={[-4, 32]}
+                    >
+                        <Avatar
+                            size={40}
+                            src={record.thumbnail}
+                            icon={<UserOutlined />}
+                        />
+                    </Badge>
+                    <Text strong>{record.fullname}</Text>
                 </Space>
             ),
         },
         {
             title: "Status",
             dataIndex: "agent_status",
+            width: 160,
             render: (status: string, record: Agent) => (
                 <Select
                     value={status}
-                    style={{ width: 120 }}
+                    style={{ width: 130 }}
                     size="small"
                     onChange={(value) =>
                         statusMutation.mutate({
@@ -122,7 +151,7 @@ const AgentsManager: React.FC<Props> = ({ shopId }) => {
                             status: value as "online" | "offline" | "busy",
                         })
                     }
-                    loading={statusMutation.isPending}
+                    loading={statusMutation.isLoading}
                 >
                     <Select.Option value="online">
                         <Badge status="success" text="Online" />
@@ -140,68 +169,136 @@ const AgentsManager: React.FC<Props> = ({ shopId }) => {
             title: "Open Conversations",
             dataIndex: "open_conversations",
             align: "center" as const,
+            width: 160,
+            render: (count: number) =>
+                count > 0 ? (
+                    <Tag color="blue">{count}</Tag>
+                ) : (
+                    <Text type="secondary">0</Text>
+                ),
         },
         {
-            title: "Actions",
+            title: "",
+            width: 120,
+            align: "right" as const,
             render: (_: any, record: Agent) => (
-                <Button
-                    size="small"
-                    danger
-                    loading={roleMutation.isPending}
-                    onClick={() =>
+                <Popconfirm
+                    title="Remove agent?"
+                    description={`${record.fullname} will no longer receive conversations.`}
+                    okText="Remove"
+                    okButtonProps={{ danger: true }}
+                    onConfirm={() =>
                         roleMutation.mutate({ userId: record._id, is_agent: false })
                     }
                 >
-                    Deactivate
-                </Button>
+                    <Tooltip title="Remove from agents">
+                        <Button size="small" danger loading={roleMutation.isLoading}>
+                            Remove
+                        </Button>
+                    </Tooltip>
+                </Popconfirm>
             ),
         },
     ];
 
     const agentsContent = (
         <div style={{ paddingTop: 24 }}>
-            <Card
-                title="Assign a user as support agent"
-                size="small"
-                style={{ marginBottom: 24 }}
-            >
-                <Space>
-                    <Select
-                        showSearch
-                        placeholder="Select a user…"
-                        value={selectedUserId || undefined}
-                        onChange={(value) => setSelectedUserId(value)}
-                        style={{ minWidth: 240 }}
-                        loading={usersLoading}
-                        disabled={nonAgents.length === 0}
-                        options={nonAgents.map((u) => ({
-                            value: u._id,
-                            label: u.fullname,
-                        }))}
-                    />
-                    <Button
-                        type="primary"
-                        disabled={!selectedUserId}
-                        loading={roleMutation.isPending}
-                        onClick={() =>
-                            selectedUserId &&
-                            roleMutation.mutate({ userId: selectedUserId, is_agent: true })
-                        }
-                    >
-                        Make Agent
-                    </Button>
+            <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+                <Col xs={12} sm={6}>
+                    <Card size="small">
+                        <Statistic
+                            title="Total agents"
+                            value={stats.total}
+                            loading={agentsLoading}
+                            prefix={<TeamOutlined style={{ fontSize: 16, color: "#8c8c8c" }} />}
+                        />
+                    </Card>
+                </Col>
+                <Col xs={12} sm={6}>
+                    <Card size="small">
+                        <Statistic
+                            title="Online now"
+                            value={stats.online}
+                            loading={agentsLoading}
+                            valueStyle={{ color: "#52c41a" }}
+                        />
+                    </Card>
+                </Col>
+                <Col xs={12} sm={6}>
+                    <Card size="small">
+                        <Statistic
+                            title="Busy"
+                            value={stats.busy}
+                            loading={agentsLoading}
+                            valueStyle={{ color: "#faad14" }}
+                        />
+                    </Card>
+                </Col>
+                <Col xs={12} sm={6}>
+                    <Card size="small">
+                        <Statistic
+                            title="Open conversations"
+                            value={stats.openConversations}
+                            loading={agentsLoading}
+                        />
+                    </Card>
+                </Col>
+            </Row>
+
+            <Card size="small" style={{ marginBottom: 24 }}>
+                <Space direction="vertical" size={12} style={{ width: "100%" }}>
+                    <div>
+                        <Title level={5} style={{ margin: 0 }}>
+                            Add an agent
+                        </Title>
+                        <Text type="secondary">
+                            Assign a team member to handle omnichannel conversations
+                        </Text>
+                    </div>
+                    <Space wrap>
+                        <Select
+                            showSearch
+                            placeholder="Select a user…"
+                            value={selectedUserId || undefined}
+                            onChange={(value) => setSelectedUserId(value)}
+                            style={{ minWidth: 260 }}
+                            loading={usersLoading}
+                            disabled={nonAgents.length === 0}
+                            options={nonAgents.map((u) => ({
+                                value: u._id,
+                                label: u.fullname,
+                            }))}
+                            notFoundContent={
+                                usersLoading ? "Loading…" : "All users are already agents"
+                            }
+                        />
+                        <Button
+                            type="primary"
+                            icon={<UserAddOutlined />}
+                            disabled={!selectedUserId}
+                            loading={roleMutation.isLoading}
+                            onClick={() =>
+                                selectedUserId &&
+                                roleMutation.mutate({ userId: selectedUserId, is_agent: true })
+                            }
+                        >
+                            Make Agent
+                        </Button>
+                    </Space>
                 </Space>
             </Card>
 
-            <Table
-                columns={columns as any}
-                dataSource={agents}
-                rowKey="_id"
-                loading={agentsLoading}
-                pagination={false}
-                size="small"
-                locale={{ emptyText: "No agents assigned yet" }}
-            />
+            <Card size="small" styles={{ body: { padding: 0 } }}>
+                <Table
+                    columns={columns as any}
+                    dataSource={agents}
+                    rowKey="_id"
+                    loading={agentsLoading}
+                    pagination={false}
+                    size="middle"
+                    locale={{ emptyText: "No agents assigned yet" }}
+                />
+            </Card>
         </div>
     );
 
