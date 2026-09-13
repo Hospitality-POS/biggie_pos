@@ -520,7 +520,7 @@ const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
                                 <Box sx={{ px: isMobile ? 1.5 : 2, pb: 1.5, display: "flex", alignItems: "center", gap: 1 }}>
                                     <QrCodeScanner sx={{ color: "rgba(255,255,255,0.85)", fontSize: 16 }} />
                                     <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.85)", fontWeight: 600, letterSpacing: 0.5 }}>
-                                        Barcode scanner — ready
+                                        Ready to scan
                                     </Typography>
                                 </Box>
                             )}

@@ -655,7 +655,7 @@ const RestaurantPage: React.FC = () => {
                     variant="caption"
                     sx={{ color: "rgba(255,255,255,0.85)", fontWeight: 600, letterSpacing: 0.5 }}
                   >
-                    Scanner mode — ready to scan
+                    Ready to scan
                   </Typography>
                 </Box>
               )}
