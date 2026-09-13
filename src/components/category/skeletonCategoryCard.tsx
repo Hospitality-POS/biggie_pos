@@ -1,11 +1,10 @@
-import { Card, Skeleton } from '@mui/material';
+import { Card, Skeleton } from "antd";
 
 function SkeletonCategoryCard() {
   return (
-    <Card sx={{ backgroundColor: 'white', width: '120px', height: '100px' }}>
-      <Skeleton variant="rectangular" height={120} animation="wave" />
-      <Skeleton variant="text" height={40} animation="wave" />
-      <Skeleton variant="text" height={20} animation="wave" />
+    <Card style={{ backgroundColor: "white", width: 120, height: 100 }} bodyStyle={{ padding: 8 }}>
+      <Skeleton.Button active block style={{ height: 50, marginBottom: 8, borderRadius: 6 }} />
+      <Skeleton active paragraph={{ rows: 1 }} title={false} />
     </Card>
   );
 }

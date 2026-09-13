@@ -1,17 +1,32 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { QRCodeCanvas } from "qrcode.react";
-import {
-  Box,
-  TableContainer,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  Paper,
-  Divider,
-  Slider,
-} from "@mui/material";
+const Box: React.FC<any> = ({ sx, style, children, ...props }) => (
+  <div style={{ ...sx, ...style }} {...props}>{children}</div>
+);
+const TableContainer: React.FC<any> = ({ sx, style, children, component, elevation, ...props }) => (
+  <div style={{ ...sx, ...style }} {...props}>{children}</div>
+);
+const Table: React.FC<any> = ({ sx, style, children, ...props }) => (
+  <table style={{ width: "100%", borderCollapse: "collapse", ...sx, ...style }} {...props}>{children}</table>
+);
+const TableHead: React.FC<any> = ({ sx, style, children, ...props }) => (
+  <thead style={{ ...sx, ...style }} {...props}>{children}</thead>
+);
+const TableBody: React.FC<any> = ({ sx, style, children, ...props }) => (
+  <tbody style={{ ...sx, ...style }} {...props}>{children}</tbody>
+);
+const TableRow: React.FC<any> = ({ sx, style, children, ...props }) => (
+  <tr style={{ ...sx, ...style }} {...props}>{children}</tr>
+);
+const TableCell: React.FC<any> = ({ sx, style, children, ...props }) => (
+  <td style={{ ...sx, ...style }} {...props}>{children}</td>
+);
+const Divider: React.FC<any> = ({ sx, style, ...props }) => (
+  <hr style={{ border: "none", borderTop: "1px solid #e2e8f0", margin: "12px 0", ...sx, ...style }} {...props} />
+);
+const Paper: React.FC<any> = ({ sx, style, children, ...props }) => (
+  <div style={{ ...sx, ...style }} {...props}>{children}</div>
+);
 import "./bill.css";
 import { useReactToPrint } from "react-to-print";
 import { BASE_URL } from "@utils/config";
