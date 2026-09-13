@@ -36,7 +36,7 @@ import {
 } from '@ant-design/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchProperty, fetchUnits, fetchBlocks, fetchFloors } from '@services/dala';
-import { useDalaSelectedProperty, useDalaUnitsByProperty, useDalaBlocksByProperty } from '../../../stores/dalaStore';
+import { useDalaSelectedProperty, useDalaUnitsByProperty, useDalaBlocksByProperty, useDalaActions } from '../../../stores/dalaStore';
 import {
   fetchPropertyDocuments,
   uploadPropertyDocument,
@@ -68,6 +68,7 @@ const PropertyDetail: React.FC = () => {
   const queryClient = useQueryClient();
   
   const [activeTab, setActiveTab] = useState('overview');
+  const { setSelectedProperty } = useDalaActions();
   const selectedProperty = useDalaSelectedProperty();
   const propertyUnits = useDalaUnitsByProperty(id || '');
   const propertyBlocks = useDalaBlocksByProperty(id || '');
@@ -164,7 +165,7 @@ const PropertyDetail: React.FC = () => {
     queryFn: () => fetchProperty(id!),
     enabled: !!id,
     onSuccess: (data) => {
-      selectedProperty.setSelectedProperty(data.data);
+      setSelectedProperty(data.data);
     },
   });
 
@@ -190,11 +191,11 @@ const PropertyDetail: React.FC = () => {
     return <div>Loading property details...</div>;
   }
 
-  if (error || !selectedProperty) {
+  if (error || (!selectedProperty && !data?.data)) {
     return <div>Error loading property details</div>;
   }
 
-  const property = selectedProperty;
+  const property = selectedProperty || data?.data;
 
   const unitColumns = [
     {

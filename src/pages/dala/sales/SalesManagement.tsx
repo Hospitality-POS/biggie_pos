@@ -1327,7 +1327,7 @@ const SalesManagement: React.FC = () => {
                           style={{ width: '100%' }}
                           allowClear
                         >
-                          {properties && properties.length > 0 && properties.map((property) => (
+                          {(properties?.data || properties)?.length > 0 && (properties?.data || properties).map((property: any) => (
                             <Option key={property._id} value={property._id}>
                               {property.name}
                             </Option>
