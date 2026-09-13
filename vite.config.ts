@@ -8,6 +8,19 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 5374,
   },
+  build: {
+    chunkSizeWarningLimit: 1200,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-antd': ['antd', '@ant-design/icons'],
+          'vendor-query-redux': ['@tanstack/react-query', '@reduxjs/toolkit', 'react-redux'],
+          'vendor-pdf': ['jspdf', 'jspdf-autotable'],
+        },
+      },
+    },
+  },
   plugins: [
     react(),
     tsconfigPaths(),
