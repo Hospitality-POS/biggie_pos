@@ -85,10 +85,10 @@ const getSectionIcon = (name: string) =>
 
 // ── Skeletons ─────────────────────────────────────────────────────────────────
 const SkeletonTabs = () => (
-    <Box sx={{ display: "flex", gap: 1, overflowX: "auto", "&::-webkit-scrollbar": { height: 3 } }}>
-        {[...Array(5)].map((_, i) => (
-            <Skeleton key={i} variant="rectangular" width={110} height={40}
-                sx={{ borderRadius: 1, flexShrink: 0, bgcolor: "rgba(255,255,255,0.15)" }} />
+    <Box sx={{ display: "flex", gap: 1, overflowX: "auto", py: 0.5, "&::-webkit-scrollbar": { height: 3 } }}>
+        {[...Array(6)].map((_, i) => (
+            <Skeleton key={i} variant="rectangular" width={110} height={34}
+                sx={{ borderRadius: "20px", flexShrink: 0, bgcolor: "rgba(255,255,255,0.15)" }} />
         ))}
     </Box>
 );
@@ -451,23 +451,46 @@ const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
                                         <Tabs
                                             value={tabValue}
                                             onChange={(_, v) => setTabValue(v)}
-                                            indicatorColor="secondary"
                                             textColor="inherit"
                                             variant="scrollable"
                                             scrollButtons="auto"
                                             allowScrollButtonsMobile
                                             sx={{
-                                                minHeight: 44,
-                                                "& .MuiTabs-scrollButtons": { color: "white", "&.Mui-disabled": { opacity: 0.3 } },
-                                                "& .MuiTab-root": {
-                                                    minWidth: "auto", fontSize: isMobile ? "0.78rem" : "0.85rem",
-                                                    fontWeight: 500, textTransform: "none",
-                                                    padding: isMobile ? "8px 10px" : "10px 14px",
-                                                    minHeight: 44, color: "rgba(255,255,255,0.75)",
-                                                    "&.Mui-selected": { color: "white" },
-                                                    gap: 0.5,
+                                                minHeight: 46,
+                                                px: 1,
+                                                pb: 0.75,
+                                                "& .MuiTabs-flexContainer": {
+                                                    gap: "8px",
+                                                    alignItems: "center",
                                                 },
-                                                "& .MuiTabs-indicator": { backgroundColor: "white", height: 2.5 },
+                                                "& .MuiTabs-scrollButtons": { color: "white", "&.Mui-disabled": { opacity: 0.25 } },
+                                                "& .MuiTab-root": {
+                                                    minWidth: "auto",
+                                                    fontSize: isMobile ? "0.78rem" : "0.86rem",
+                                                    fontWeight: 500,
+                                                    textTransform: "none",
+                                                    padding: isMobile ? "6px 12px" : "6px 16px",
+                                                    minHeight: 34,
+                                                    borderRadius: "20px",
+                                                    color: "rgba(255,255,255,0.85)",
+                                                    bgcolor: "rgba(255,255,255,0.12)",
+                                                    transition: "all 0.18s ease-in-out",
+                                                    gap: 0.5,
+                                                    "&:hover": {
+                                                        bgcolor: "rgba(255,255,255,0.22)",
+                                                        color: "#ffffff",
+                                                    },
+                                                    "&.Mui-selected": {
+                                                        bgcolor: "#ffffff",
+                                                        color: `${barColor} !important`,
+                                                        fontWeight: 700,
+                                                        boxShadow: "0 2px 8px rgba(0,0,0,0.18)",
+                                                        "& .MuiTab-iconWrapper": {
+                                                            color: `${barColor} !important`,
+                                                        },
+                                                    },
+                                                },
+                                                "& .MuiTabs-indicator": { display: "none" },
                                             }}
                                         >
                                             {Maincategories?.map((categ: any, i: number) => (
@@ -502,15 +525,18 @@ const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
                             ) : (
                                 <>
                                     {mainCategoriesLoading ? (
-                                        <Box sx={{ display: "flex", p: 2, height: "100%" }}>
+                                        <Box sx={{ display: "flex", flex: 1, overflow: "hidden" }}>
                                             {!isMobile && (
-                                                <Box sx={{ width: 130, mr: 1, flexShrink: 0, display: "flex", flexDirection: "column", gap: 1 }}>
+                                                <Box sx={{ width: 185, flexShrink: 0, display: "flex", flexDirection: "column", gap: 1, bgcolor: "#f8fafc", borderRight: "1px solid #e2e8f0", p: 1.5 }}>
+                                                    <Skeleton variant="rectangular" width="60%" height={20} sx={{ borderRadius: 1, mb: 0.5 }} />
                                                     {[...Array(5)].map((_, i) => (
-                                                        <Skeleton key={i} variant="rectangular" width="100%" height={44} sx={{ borderRadius: 1, bgcolor: `${barColor}18` }} />
+                                                        <Skeleton key={i} variant="rectangular" width="100%" height={40} sx={{ borderRadius: 1.5 }} />
                                                     ))}
                                                 </Box>
                                             )}
-                                            <SkeletonCards cols={6} isMobile={isMobile} isTablet={isTablet} />
+                                            <Box sx={{ flex: 1, p: isMobile ? 1.5 : 2, overflow: "auto" }}>
+                                                <SkeletonCards cols={6} isMobile={isMobile} isTablet={isTablet} />
+                                            </Box>
                                         </Box>
                                     ) : subcategories.length ? (
                                         <Box sx={{ display: "flex", flexDirection: "row", flex: 1, overflow: "hidden" }}>

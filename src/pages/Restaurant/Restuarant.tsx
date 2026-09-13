@@ -66,7 +66,8 @@ const SkeletonTabs = () => (
       width: "100%",
       overflowX: "auto",
       gap: 1,
-      "&::-webkit-scrollbar": { height: "4px" },
+      py: 0.5,
+      "&::-webkit-scrollbar": { height: "3px" },
       "&::-webkit-scrollbar-track": { backgroundColor: "rgba(255,255,255,0.1)" },
       "&::-webkit-scrollbar-thumb": {
         backgroundColor: "rgba(255,255,255,0.3)",
@@ -74,13 +75,17 @@ const SkeletonTabs = () => (
       },
     }}
   >
-    {[...Array(5)].map((_, i) => (
+    {[...Array(6)].map((_, i) => (
       <Skeleton
         key={i}
         variant="rectangular"
-        width={120}
-        height={44}
-        sx={{ borderRadius: 1, flexShrink: 0 }}
+        width={110}
+        height={34}
+        sx={{
+          borderRadius: "20px",
+          flexShrink: 0,
+          bgcolor: "rgba(255,255,255,0.15)",
+        }}
       />
     ))}
   </Box>
@@ -125,18 +130,27 @@ const SkeletonVerticalTabs = () => (
       display: "flex",
       flexDirection: "column",
       gap: 1,
-      width: 130,
-      mr: 1,
+      width: 190,
       flexShrink: 0,
+      bgcolor: "#f8fafc",
+      borderRight: "1px solid #e2e8f0",
+      p: 1.5,
+      height: "100%",
     }}
   >
+    <Skeleton
+      variant="rectangular"
+      width="60%"
+      height={20}
+      sx={{ borderRadius: 1, mb: 0.5 }}
+    />
     {[...Array(5)].map((_, i) => (
       <Skeleton
         key={i}
         variant="rectangular"
         width="100%"
-        height={44}
-        sx={{ borderRadius: 1 }}
+        height={40}
+        sx={{ borderRadius: 1.5 }}
       />
     ))}
   </Box>
@@ -531,30 +545,46 @@ const RestaurantPage: React.FC = () => {
                     <Tabs
                       value={tabValue}
                       onChange={(_, v) => setTabValue(v)}
-                      indicatorColor="secondary"
                       textColor="inherit"
                       variant="scrollable"
                       scrollButtons="auto"
                       allowScrollButtonsMobile
                       sx={{
-                        minHeight: 44,
+                        minHeight: 46,
+                        px: 1,
+                        pb: 0.75,
+                        "& .MuiTabs-flexContainer": {
+                          gap: "8px",
+                          alignItems: "center",
+                        },
                         "& .MuiTabs-scrollButtons": {
                           color: "white",
-                          "&.Mui-disabled": { opacity: 0.3 },
+                          "&.Mui-disabled": { opacity: 0.25 },
                         },
                         "& .MuiTab-root": {
                           minWidth: "auto",
-                          fontSize: isMobile ? "0.8rem" : "0.9rem",
+                          fontSize: isMobile ? "0.8rem" : "0.86rem",
                           fontWeight: 500,
                           textTransform: "none",
-                          padding: isMobile ? "8px 12px" : "10px 16px",
-                          minHeight: 44,
-                          color: "rgba(255,255,255,0.8)",
-                          "&.Mui-selected": { color: "white" },
+                          padding: isMobile ? "6px 14px" : "6px 18px",
+                          minHeight: 34,
+                          borderRadius: "20px",
+                          color: "rgba(255,255,255,0.85)",
+                          bgcolor: "rgba(255,255,255,0.12)",
+                          transition: "all 0.18s ease-in-out",
+                          "&:hover": {
+                            bgcolor: "rgba(255,255,255,0.22)",
+                            color: "#ffffff",
+                          },
+                          "&.Mui-selected": {
+                            bgcolor: "#ffffff",
+                            color: `${primaryColor} !important`,
+                            fontWeight: 700,
+                            boxShadow: "0 2px 8px rgba(0,0,0,0.18)",
+                          },
                         },
                         "& .MuiTabs-indicator": {
-                          backgroundColor: "white",
-                          height: 3,
+                          display: "none",
                         },
                       }}
                     >
@@ -602,9 +632,11 @@ const RestaurantPage: React.FC = () => {
                 // ── Browse mode (original UI, fully unchanged) ──
                 <>
                   {mainCategoriesLoading ? (
-                    <Box sx={{ display: "flex", p: 2, height: "100%" }}>
+                    <Box sx={{ display: "flex", flex: 1, overflow: "hidden" }}>
                       {!isMobile && <SkeletonVerticalTabs />}
-                      <SkeletonCategoryCards isMobile={isMobile} isTablet={isTablet} />
+                      <Box sx={{ flex: 1, p: isMobile ? 1.5 : 2, overflow: "auto" }}>
+                        <SkeletonCategoryCards isMobile={isMobile} isTablet={isTablet} />
+                      </Box>
                     </Box>
                   ) : subcategories.length ? (
                     <Box

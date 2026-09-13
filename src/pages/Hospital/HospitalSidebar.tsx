@@ -38,12 +38,6 @@ const HospitalSidebar: React.FC<HospitalSidebarProps> = ({
     const drawerRef = useRef<HTMLDivElement>(null);
     const primaryColor = usePrimaryColor();
 
-    // Derive slightly darkened shade for header bg
-    const bgDeep = `${primaryColor}dd`;
-    const active = "rgba(255,255,255,0.16)";
-    const hover = "rgba(255,255,255,0.09)";
-    const textMuted = "rgba(255,255,255,0.5)";
-    const textColor = "rgba(255,255,255,0.85)";
 
     useEffect(() => {
         const check = () => setIsMobile(window.innerWidth < 768);
@@ -101,43 +95,39 @@ const HospitalSidebar: React.FC<HospitalSidebarProps> = ({
                         justifyContent: collapsed ? "center" : "flex-start",
                         width: "100%",
                         padding: collapsed ? "11px 0" : "10px 12px",
-                        margin: "2px 0",
+                        margin: "3px 0",
                         border: "none",
                         borderRadius: 8,
                         cursor: "pointer",
-                        background: isSelected ? active : "transparent",
-                        color: isSelected ? "#fff" : textColor,
+                        background: isSelected ? primaryColor : "transparent",
+                        color: isSelected ? "#ffffff" : "#334155",
                         fontSize: 12,
-                        fontWeight: isSelected ? 600 : 400,
+                        fontWeight: isSelected ? 600 : 500,
                         letterSpacing: 0.2,
-                        transition: "background 0.15s",
+                        transition: "all 0.15s ease",
                         outline: "none",
                         position: "relative",
                         overflow: "hidden",
+                        boxShadow: isSelected ? "0 2px 8px rgba(0,0,0,0.18)" : "none",
                     }}
                     onMouseEnter={(e) => {
-                        if (!isSelected) (e.currentTarget as HTMLButtonElement).style.background = hover;
+                        if (!isSelected) {
+                            (e.currentTarget as HTMLButtonElement).style.background = "#e2e8f0";
+                            (e.currentTarget as HTMLButtonElement).style.color = "#0f172a";
+                        }
                     }}
                     onMouseLeave={(e) => {
-                        if (!isSelected) (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+                        if (!isSelected) {
+                            (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+                            (e.currentTarget as HTMLButtonElement).style.color = "#334155";
+                        }
                     }}
                 >
-                    {/* Active side bar */}
-                    {isSelected && (
-                        <span
-                            style={{
-                                position: "absolute", left: 0, top: "20%",
-                                height: "60%", width: 3,
-                                borderRadius: "0 3px 3px 0",
-                                background: primaryColor,
-                            }}
-                        />
-                    )}
-
                     {/* Icon */}
                     <span style={{
-                        fontSize: 14, flexShrink: 0,
-                        color: isSelected ? primaryColor : textMuted,
+                        fontSize: 14,
+                        flexShrink: 0,
+                        color: isSelected ? "#ffffff" : "#64748b",
                         display: "flex",
                     }}>
                         {icon}
@@ -146,9 +136,12 @@ const HospitalSidebar: React.FC<HospitalSidebarProps> = ({
                     {!collapsed && (
                         <span
                             style={{
-                                flex: 1, textAlign: "left",
-                                whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                                color: isSelected ? "#fff" : textColor,
+                                flex: 1,
+                                textAlign: "left",
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                color: isSelected ? "#ffffff" : "#334155",
                             }}
                         >
                             {sub.name}
@@ -166,8 +159,10 @@ const HospitalSidebar: React.FC<HospitalSidebarProps> = ({
                 {drawerOpen && (
                     <div
                         style={{
-                            position: "fixed", inset: 0,
-                            background: "rgba(0,0,0,0.4)", zIndex: 1100,
+                            position: "fixed",
+                            inset: 0,
+                            background: "rgba(0,0,0,0.4)",
+                            zIndex: 1100,
                             backdropFilter: "blur(2px)",
                         }}
                         onClick={() => setDrawerOpen(false)}
@@ -177,22 +172,28 @@ const HospitalSidebar: React.FC<HospitalSidebarProps> = ({
                 <div
                     ref={drawerRef}
                     style={{
-                        position: "fixed", top: 0,
+                        position: "fixed",
+                        top: 0,
                         left: drawerOpen ? 0 : "-260px",
-                        height: "100dvh", width: 240,
-                        background: primaryColor, zIndex: 1200,
+                        height: "100dvh",
+                        width: 240,
+                        background: "#ffffff",
+                        zIndex: 1200,
                         transition: "left 0.26s cubic-bezier(0.4,0,0.2,1)",
-                        display: "flex", flexDirection: "column",
-                        boxShadow: drawerOpen ? "4px 0 24px rgba(0,0,0,0.22)" : "none",
+                        display: "flex",
+                        flexDirection: "column",
+                        boxShadow: drawerOpen ? "4px 0 24px rgba(0,0,0,0.18)" : "none",
                     }}
                 >
                     {/* Header */}
                     <div
                         style={{
-                            display: "flex", alignItems: "center", justifyContent: "space-between",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
                             padding: "16px 14px 12px",
-                            borderBottom: "1px solid rgba(255,255,255,0.1)",
-                            background: bgDeep,
+                            borderBottom: "1px solid #e2e8f0",
+                            background: "#f8fafc",
                         }}
                     >
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -200,8 +201,11 @@ const HospitalSidebar: React.FC<HospitalSidebarProps> = ({
                                 <MedicineBoxOutlined />
                             </span>
                             <span style={{
-                                color: "white", fontWeight: 700, fontSize: 12,
-                                letterSpacing: 1.2, textTransform: "uppercase", opacity: 0.9,
+                                color: "#334155",
+                                fontWeight: 700,
+                                fontSize: 12,
+                                letterSpacing: 1.2,
+                                textTransform: "uppercase",
                             }}>
                                 Departments
                             </span>
@@ -209,9 +213,14 @@ const HospitalSidebar: React.FC<HospitalSidebarProps> = ({
                         <button
                             onClick={() => setDrawerOpen(false)}
                             style={{
-                                background: "rgba(255,255,255,0.12)", border: "none",
-                                borderRadius: 6, color: "white", cursor: "pointer",
-                                padding: "4px 6px", display: "flex", alignItems: "center",
+                                background: "#e2e8f0",
+                                border: "none",
+                                borderRadius: 6,
+                                color: "#475569",
+                                cursor: "pointer",
+                                padding: "4px 6px",
+                                display: "flex",
+                                alignItems: "center",
                             }}
                         >
                             <CloseOutlined style={{ fontSize: 12 }} />
@@ -230,12 +239,22 @@ const HospitalSidebar: React.FC<HospitalSidebarProps> = ({
                 <button
                     onClick={() => setDrawerOpen(true)}
                     style={{
-                        position: "fixed", left: 14, bottom: 80, zIndex: 1050,
-                        background: primaryColor, border: "none", borderRadius: 24,
-                        color: "white", padding: "10px 16px",
-                        display: "flex", alignItems: "center", gap: 7,
-                        fontSize: 12, fontWeight: 600, cursor: "pointer",
-                        boxShadow: "0 4px 16px rgba(13,148,136,0.45)",
+                        position: "fixed",
+                        left: 14,
+                        bottom: 80,
+                        zIndex: 1050,
+                        background: primaryColor,
+                        border: "none",
+                        borderRadius: 24,
+                        color: "white",
+                        padding: "10px 16px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 7,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
                         transition: "transform 0.15s",
                     }}
                     onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1.04)"; }}
@@ -258,23 +277,26 @@ const HospitalSidebar: React.FC<HospitalSidebarProps> = ({
             style={{
                 width: isCollapsed ? 60 : 185,
                 minWidth: isCollapsed ? 60 : 185,
-                background: primaryColor,
+                background: "#f8fafc",
                 height: "100%",
-                display: "flex", flexDirection: "column",
+                display: "flex",
+                flexDirection: "column",
                 transition: "width 0.24s cubic-bezier(0.4,0,0.2,1), min-width 0.24s cubic-bezier(0.4,0,0.2,1)",
-                borderRadius: "10px 0 0 10px",
+                borderRadius: 0,
                 overflow: "hidden",
-                boxShadow: "inset -1px 0 0 rgba(255,255,255,0.06)",
+                borderRight: "1px solid #e2e8f0",
             }}
         >
             {/* Header / collapse toggle */}
             <div
                 style={{
-                    display: "flex", alignItems: "center",
+                    display: "flex",
+                    alignItems: "center",
                     justifyContent: isCollapsed ? "center" : "space-between",
                     padding: isCollapsed ? "12px 0" : "12px 10px 10px",
-                    borderBottom: "1px solid rgba(255,255,255,0.08)",
-                    background: bgDeep, flexShrink: 0,
+                    borderBottom: "1px solid #e2e8f0",
+                    background: "#f1f5f9",
+                    flexShrink: 0,
                 }}
             >
                 {!isCollapsed && (
@@ -283,8 +305,11 @@ const HospitalSidebar: React.FC<HospitalSidebarProps> = ({
                             <MedicineBoxOutlined />
                         </span>
                         <span style={{
-                            color: textMuted, fontSize: 10,
-                            letterSpacing: 1.4, textTransform: "uppercase", fontWeight: 700,
+                            color: "#475569",
+                            fontSize: 10,
+                            letterSpacing: 1.4,
+                            textTransform: "uppercase",
+                            fontWeight: 700,
                         }}>
                             Dept.
                         </span>
@@ -294,13 +319,18 @@ const HospitalSidebar: React.FC<HospitalSidebarProps> = ({
                     <button
                         onClick={() => setIsCollapsed(!isCollapsed)}
                         style={{
-                            background: "rgba(255,255,255,0.1)", border: "none",
-                            borderRadius: 6, color: "white", cursor: "pointer",
-                            padding: "5px 7px", display: "flex", alignItems: "center",
+                            background: "#e2e8f0",
+                            border: "none",
+                            borderRadius: 6,
+                            color: "#334155",
+                            cursor: "pointer",
+                            padding: "5px 7px",
+                            display: "flex",
+                            alignItems: "center",
                             transition: "background 0.15s",
                         }}
-                        onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.2)")}
-                        onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.1)")}
+                        onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.background = "#cbd5e1")}
+                        onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.background = "#e2e8f0")}
                     >
                         <MenuOutlined style={{ fontSize: 11 }} />
                     </button>
@@ -310,15 +340,18 @@ const HospitalSidebar: React.FC<HospitalSidebarProps> = ({
             {/* Items */}
             <div
                 style={{
-                    flex: 1, overflowY: "auto",
+                    flex: 1,
+                    overflowY: "auto",
                     padding: isCollapsed ? "8px 6px" : "8px 7px",
                     scrollbarWidth: "thin",
-                    scrollbarColor: "rgba(255,255,255,0.15) transparent",
+                    scrollbarColor: "#cbd5e1 transparent",
                 }}
             >
                 {subcategories.map((sub) => (
                     <MenuItem
-                        key={sub._id} sub={sub} collapsed={isCollapsed}
+                        key={sub._id}
+                        sub={sub}
+                        collapsed={isCollapsed}
                         onClick={() => handleSelect(sub._id)}
                     />
                 ))}
@@ -329,20 +362,26 @@ const HospitalSidebar: React.FC<HospitalSidebarProps> = ({
                 <div
                     style={{
                         padding: "8px 12px",
-                        borderTop: "1px solid rgba(255,255,255,0.07)",
-                        display: "flex", alignItems: "center", gap: 6,
+                        borderTop: "1px solid #e2e8f0",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        background: "#f8fafc",
                     }}
                 >
                     <span
                         style={{
-                            background: "rgba(94,234,212,0.2)", borderRadius: 10,
-                            padding: "1px 8px", fontSize: 11,
-                            color: primaryColor, fontWeight: 700,
+                            background: "#e2e8f0",
+                            borderRadius: 10,
+                            padding: "1px 8px",
+                            fontSize: 11,
+                            color: "#475569",
+                            fontWeight: 700,
                         }}
                     >
                         {subcategories.length}
                     </span>
-                    <span style={{ fontSize: 11, color: textMuted }}>departments</span>
+                    <span style={{ fontSize: 11, color: "#94a3b8" }}>departments</span>
                 </div>
             )}
         </div>
