@@ -540,16 +540,16 @@ const useProLayoutNav = () => {
   };
 
   const posAppListBase = [
-    { icon: makeTile("#6366f1", ICONS.checklist), title: "Category", desc: "Organize categories.", url: p("/Category-settings"), _bare: "/Category-settings" },
+    // 1. Core POS & Stock
     { icon: makeTile("#0ea5e9", ICONS.table), title: homeRouteName, desc: isHospitalMode ? "Manage wards & beds." : "Manage tables.", url: p("/table-settings"), _bare: "/table-settings" },
     { icon: makeTile("#10b981", ICONS.inventory), title: isHospitalMode ? "Pharmacy" : "Inventory", desc: isHospitalMode ? "Pharmacy stock." : "Track stock levels.", url: p("/inventory"), _bare: "/inventory" },
+    // 2. Catalog & Payments
+    { icon: makeTile("#6366f1", ICONS.checklist), title: "Category", desc: "Organize categories.", url: p("/Category-settings"), _bare: "/Category-settings" },
     { icon: makeTile("#f59e0b", ICONS.payment), title: "Payment Methods", desc: "Payment options.", url: p("/payment-methods"), _bare: "/payment-methods" },
-    { icon: makeTile("#8b5cf6", ICONS.supplier), title: "Suppliers", desc: "Suppliers & vendors.", url: p("/suppliers"), _bare: "/suppliers" },
-    { icon: makeTile("#6c1c2c", ICONS.settings), title: "System Setup", desc: "System settings.", url: p("/system-setup"), _bare: "/system-setup" },
+    // 3. Team & Operations
     { icon: makeTile("#3b82f6", ICONS.customers), title: "Staff Management", desc: "Staff & permissions.", url: p("/staff-management"), _bare: "/staff-management" },
-    { icon: makeTile("#64748b", ICONS.faq), title: "FAQs", desc: "Common questions.", url: p("/fss-faqs"), _bare: "/fss-faqs" },
-    { icon: makeTile("#06b6d4", ICONS.web), title: "Gallery", desc: "Store images & media.", url: p("/website-builder"), _bare: "/website-builder" },
-    { icon: makeTile("#2f54eb", ICONS.documents), title: "Document Center", desc: "Documents & files.", url: p("/documents"), _bare: "/documents" },
+    { icon: makeTile("#8b5cf6", ICONS.supplier), title: "Suppliers", desc: "Suppliers & vendors.", url: p("/suppliers"), _bare: "/suppliers" },
+    // 4. Communications & Currency
     ...(hasMteja && can("OMNICHANNEL_VIEW") ? [{
       icon: makeTile("#7c3aed", ICONS.omnichannel),
       title: "Conversations",
@@ -558,8 +558,14 @@ const useProLayoutNav = () => {
       _bare: "/omnichannel",
     }] : []),
     { ...currencyTile },
-    // CRM tiles — appended only when hasMteja; already permission-filtered inside crmAppTiles
+    // 5. CRM & Sales Growth (only when hasMteja)
     ...crmAppTilesBase.map(t => ({ ...t })),
+    // 6. Documents & Media Assets
+    { icon: makeTile("#2f54eb", ICONS.documents), title: "Document Center", desc: "Documents & files.", url: p("/documents"), _bare: "/documents" },
+    { icon: makeTile("#06b6d4", ICONS.web), title: "Gallery", desc: "Store images & media.", url: p("/website-builder"), _bare: "/website-builder" },
+    // 7. System Administration & Help
+    { icon: makeTile("#6c1c2c", ICONS.settings), title: "System Setup", desc: "System settings.", url: p("/system-setup"), _bare: "/system-setup" },
+    { icon: makeTile("#64748b", ICONS.faq), title: "FAQs", desc: "Common questions.", url: p("/fss-faqs"), _bare: "/fss-faqs" },
   ];
 
   const posAppList = posAppListBase
