@@ -541,9 +541,9 @@ const RestaurantPage: React.FC = () => {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
-                  px: 1.5,
-                  pt: 0.75,
-                  pb: isRetailMode ? 0.25 : 0.75,
+                  px: isMobile ? 1.5 : 2,
+                  pt: isMobile ? 1.25 : 1.5,
+                  pb: posMode === "browse" ? 1 : 1.5,
                   gap: 1,
                 }}
               >
@@ -591,7 +591,7 @@ const RestaurantPage: React.FC = () => {
               {posMode === "browse" && (
                 <>
                   {mainCategoriesLoading ? (
-                    <Box sx={{ p: 1.5 }}>
+                    <Box sx={{ px: isMobile ? 1.5 : 2, pb: 1 }}>
                       <SkeletonTabs />
                     </Box>
                   ) : (
@@ -603,9 +603,9 @@ const RestaurantPage: React.FC = () => {
                       scrollButtons="auto"
                       allowScrollButtonsMobile
                       sx={{
-                        minHeight: 46,
-                        px: 1,
-                        pb: 0.75,
+                        minHeight: 40,
+                        px: isMobile ? 1.5 : 2,
+                        pb: 1,
                         "& .MuiTabs-flexContainer": {
                           gap: "8px",
                           alignItems: "center",

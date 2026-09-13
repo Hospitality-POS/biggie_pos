@@ -34,7 +34,6 @@ import {
     Science,
     LocalHospital,
     MonitorHeart,
-    Bed,
     Store,
 } from "@mui/icons-material";
 import ProductCard from "../../components/product/productCard";
@@ -130,41 +129,6 @@ const SkeletonCards = ({
     </Box>
 );
 
-// ── Patient / ward / slot indicator strip ─────────────────────────────────────
-const WardStrip: React.FC<{ activeTable: any; mode?: "hospital" | "retail" }> = ({ activeTable, mode = "hospital" }) => {
-    if (!activeTable) return null;
-    const isRetail = mode === "retail";
-    return (
-        <Box
-            sx={{
-                display: "flex", alignItems: "center", gap: 1,
-                px: 1.5, py: 0.75,
-                background: "rgba(255,255,255,0.1)",
-                borderBottom: "1px solid rgba(255,255,255,0.12)",
-            }}
-        >
-            {isRetail ? (
-                <ShoppingCart sx={{ fontSize: 14, color: "rgba(255,255,255,0.8)" }} />
-            ) : (
-                <Bed sx={{ fontSize: 14, color: "rgba(255,255,255,0.8)" }} />
-            )}
-            <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.9)", fontWeight: 600 }}>
-                {isRetail ? `Slot: ${activeTable.name}` : activeTable.name}
-            </Typography>
-            <Box
-                sx={{
-                    ml: "auto",
-                    width: 8, height: 8, borderRadius: "50%",
-                    background: activeTable.isOccupied ? H.warning : H.ok,
-                    boxShadow: `0 0 6px ${activeTable.isOccupied ? H.warning : H.ok}`,
-                }}
-            />
-            <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.7)", fontSize: 10 }}>
-                {activeTable.isOccupied ? (isRetail ? "Active" : "Occupied") : "Available"}
-            </Typography>
-        </Box>
-    );
-};
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 interface HospitalPageProps {
@@ -179,7 +143,7 @@ const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
     const { products, services, loading: productsLoading } = useAppSelector((s) => s.product);
     const dispatch = useAppDispatch();
     const { id } = useParams();
-    const { activeTable, refreshSlots } = useRetailQueue();
+    const { activeTable } = useRetailQueue();
 
     const shopId = localStorage.getItem("shopId");
     const { data: shopData } = useQuery({
@@ -439,61 +403,50 @@ const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
                     >
                         {/* ── Teal app bar ── */}
                         <AppBar position="static" elevation={0} sx={{ bgcolor: barColor, flexShrink: 0 }}>
-                            {/* Ward/patient strip */}
-                            <WardStrip activeTable={activeTable} mode={mode} />
-
-                            {/* Row: shop badge + POS mode (left) + mode toggle (right) */}
+                            {/* Row: shop badge (left) + mode toggle (right) */}
                             <Box
                                 sx={{
                                     display: "flex", alignItems: "center", justifyContent: "space-between",
-                                    px: 1.5, pt: 0.75, pb: posMode === "browse" ? 0 : 0.75,
+                                    px: isMobile ? 1.5 : 2,
+                                    pt: isMobile ? 1.25 : 1.5,
+                                    pb: posMode === "browse" ? 1 : 1.5,
                                     gap: 1,
                                 }}
                             >
-                                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                                    {shopName && (
-                                        <Box
+                                {shopName ? (
+                                    <Box
+                                        sx={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: 0.6,
+                                            bgcolor: "rgba(255,255,255,0.15)",
+                                            border: "1px solid rgba(255,255,255,0.25)",
+                                            borderRadius: "20px",
+                                            px: 1.25,
+                                            py: 0.4,
+                                            color: "#ffffff",
+                                            flexShrink: 0,
+                                        }}
+                                    >
+                                        <Store sx={{ fontSize: 14, opacity: 0.9 }} />
+                                        <Typography
+                                            variant="caption"
                                             sx={{
-                                                display: "flex",
-                                                alignItems: "center",
-                                                gap: 0.6,
-                                                bgcolor: "rgba(255,255,255,0.15)",
-                                                border: "1px solid rgba(255,255,255,0.25)",
-                                                borderRadius: "20px",
-                                                px: 1.25,
-                                                py: 0.4,
-                                                color: "#ffffff",
-                                                flexShrink: 0,
+                                                fontWeight: 700,
+                                                fontSize: "0.78rem",
+                                                letterSpacing: 0.3,
+                                                whiteSpace: "nowrap",
+                                                maxWidth: isMobile ? 120 : 200,
+                                                overflow: "hidden",
+                                                textOverflow: "ellipsis",
                                             }}
                                         >
-                                            <Store sx={{ fontSize: 14, opacity: 0.9 }} />
-                                            <Typography
-                                                variant="caption"
-                                                sx={{
-                                                    fontWeight: 700,
-                                                    fontSize: "0.78rem",
-                                                    letterSpacing: 0.3,
-                                                    whiteSpace: "nowrap",
-                                                    maxWidth: isMobile ? 120 : 200,
-                                                    overflow: "hidden",
-                                                    textOverflow: "ellipsis",
-                                                }}
-                                            >
-                                                {shopName}
-                                            </Typography>
-                                        </Box>
-                                    )}
-                                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-                                        {mode === "retail" ? (
-                                            <ShoppingCart sx={{ color: "rgba(255,255,255,0.8)", fontSize: 16 }} />
-                                        ) : (
-                                            <LocalHospital sx={{ color: "rgba(255,255,255,0.8)", fontSize: 16 }} />
-                                        )}
-                                        <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.85)", fontWeight: 700, letterSpacing: 0.8 }}>
-                                            {mode === "retail" ? "RETAIL POS" : "HOSPITAL POS"}
+                                            {shopName}
                                         </Typography>
                                     </Box>
-                                </Box>
+                                ) : (
+                                    <Box />
+                                )}
                                 <ModeToggle />
                             </Box>
 
@@ -501,7 +454,7 @@ const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
                             {posMode === "browse" && (
                                 <>
                                     {mainCategoriesLoading ? (
-                                        <Box sx={{ p: 1.5 }}><SkeletonTabs /></Box>
+                                        <Box sx={{ px: isMobile ? 1.5 : 2, pb: 1 }}><SkeletonTabs /></Box>
                                     ) : (
                                         <Tabs
                                             value={tabValue}
@@ -511,9 +464,9 @@ const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
                                             scrollButtons="auto"
                                             allowScrollButtonsMobile
                                             sx={{
-                                                minHeight: 46,
-                                                px: 1,
-                                                pb: 0.75,
+                                                minHeight: 40,
+                                                px: isMobile ? 1.5 : 2,
+                                                pb: 1,
                                                 "& .MuiTabs-flexContainer": {
                                                     gap: "8px",
                                                     alignItems: "center",
@@ -564,7 +517,7 @@ const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
                             )}
 
                             {posMode === "scan" && (
-                                <Box sx={{ px: 2, pb: 1, display: "flex", alignItems: "center", gap: 1 }}>
+                                <Box sx={{ px: isMobile ? 1.5 : 2, pb: 1.5, display: "flex", alignItems: "center", gap: 1 }}>
                                     <QrCodeScanner sx={{ color: "rgba(255,255,255,0.85)", fontSize: 16 }} />
                                     <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.85)", fontWeight: 600, letterSpacing: 0.5 }}>
                                         Barcode scanner — ready

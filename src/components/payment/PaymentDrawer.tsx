@@ -411,20 +411,25 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
 
   const handleModalClose = () => { setOpenModal(false); setSecondMethod(null); setAmount1(0); setAmount2(0); };
 
-  const handleSplitConfirm = async () => {
-    if (!amount1 || amount1 < 1 || !amount2 || amount2 < 1 || amount1 + amount2 !== grandTotal) {
+  const handleSplitConfirm = async (splitAmount1?: number, splitAmount2?: number, splitMethod1?: string, splitMethod2?: string) => {
+    const a1 = splitAmount1 !== undefined ? splitAmount1 : amount1;
+    const a2 = splitAmount2 !== undefined ? splitAmount2 : amount2;
+    const m1 = splitMethod1 || selectedMethod;
+    const m2 = splitMethod2 || secondMethod;
+    if (!a1 || a1 < 1 || !a2 || a2 < 1 || Math.abs(a1 + a2 - grandTotal) > 0.01) {
       message.error("Split amounts must equal the total."); return;
     }
     if (!id) { message.error("No active table or slot."); return; }
     try {
       const result = await dispatch(createOrder({
-        cart_id: cartDetails?._id, order_amount: [amount1, amount2], table_id: id,
+        cart_id: cartDetails?._id, order_amount: [a1, a2], table_id: id,
         updated_by: user?.id, order_no: cartDetails?.order_no, cart_items: cartDetails.items,
-        method_id: [selectedMethod, secondMethod], customer_id: resolveCustomerId(),
+        method_id: [m1, m2], customer_id: resolveCustomerId(),
         customer_name: resolveCustomerName(), customer_phone: resolveCustomerPhone(),
         customer_email: resolveCustomerEmail(),
       }));
       if (result.type.endsWith("/fulfilled")) {
+        setOpenModal(false);
         setDrawerVisible(false); setSelectedCustomerId(null);
         dispatch(createCart(id)); afterPaymentRedirect(); message.success("Payment successful!");
       }
