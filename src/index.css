@@ -129,3 +129,31 @@ input[type="checkbox" i]:active {
   max-width: 230px !important;
 }
 
+/* Category CheckCard: perfect centering of icon and text */
+.category-checkcard.ant-pro-checkcard {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.category-checkcard .ant-pro-checkcard-content {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  padding: 14px 10px !important;
+}
+
+.category-checkcard .ant-pro-checkcard-detail {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+}
+
+.category-checkcard .ant-pro-checkcard-description {
+  width: 100% !important;
+}
+
+
