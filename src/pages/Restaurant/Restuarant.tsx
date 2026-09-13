@@ -226,7 +226,8 @@ const RestaurantPage: React.FC = () => {
       {/* Left panel: browsing or scanning */}
       <div
         style={{
-          flex: isMobile ? "none" : "1 1 65%",
+          flex: isMobile ? "none" : 1,
+          minWidth: 0,
           height: isMobile ? "auto" : "100%",
           display: "flex",
           flexDirection: "column",
@@ -470,7 +471,7 @@ const RestaurantPage: React.FC = () => {
       {!isMobile && (
         <div
           style={{
-            flex: "0 0 380px",
+            flex: "0 0 clamp(440px, 32vw, 520px)",
             height: "100%",
             backgroundColor: "#ffffff",
             borderRadius: 8,

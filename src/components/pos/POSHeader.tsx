@@ -1,5 +1,11 @@
-import React from "react";
-import { ShopOutlined, AppstoreOutlined, ScanOutlined } from "@ant-design/icons";
+import React, { useRef, useState, useEffect } from "react";
+import {
+  ShopOutlined,
+  AppstoreOutlined,
+  ScanOutlined,
+  LeftOutlined,
+  RightOutlined,
+} from "@ant-design/icons";
 import { POSSkeletonTabs } from "./POSSkeletons";
 
 export interface POSCategoryItem {
@@ -33,6 +39,52 @@ export const POSHeader: React.FC<POSHeaderProps> = ({
   onSelectCategory,
   slotIndicator,
 }) => {
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const checkScrollability = () => {
+    if (!tabsRef.current) return;
+    const { scrollLeft, scrollWidth, clientWidth } = tabsRef.current;
+    setCanScrollLeft(scrollLeft > 4);
+    setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 4);
+  };
+
+  useEffect(() => {
+    checkScrollability();
+    const el = tabsRef.current;
+    if (el) {
+      el.addEventListener("scroll", checkScrollability, { passive: true });
+      window.addEventListener("resize", checkScrollability);
+      return () => {
+        el.removeEventListener("scroll", checkScrollability);
+        window.removeEventListener("resize", checkScrollability);
+      };
+    }
+  }, [categories, posMode]);
+
+  // Scroll active category into view when changed
+  useEffect(() => {
+    if (!tabsRef.current || !selectedCategoryId) return;
+    const activeBtn = tabsRef.current.querySelector(
+      `[data-category-id="${selectedCategoryId}"]`
+    );
+    if (activeBtn) {
+      activeBtn.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "center",
+      });
+    }
+  }, [selectedCategoryId]);
+
+  const handleScroll = (direction: "left" | "right") => {
+    if (tabsRef.current) {
+      const offset = direction === "left" ? -240 : 240;
+      tabsRef.current.scrollBy({ left: offset, behavior: "smooth" });
+    }
+  };
+
   return (
     <div
       style={{
@@ -145,60 +197,125 @@ export const POSHeader: React.FC<POSHeaderProps> = ({
         </div>
       </div>
 
-      {/* Row 2: Browse Category Tabs */}
+      {/* Row 2: Browse Category Tabs with Scroll Helpers */}
       {posMode === "browse" && (
         <div
           style={{
-            paddingLeft: isMobile ? 12 : 16,
-            paddingRight: isMobile ? 12 : 16,
+            paddingLeft: isMobile ? 8 : 12,
+            paddingRight: isMobile ? 8 : 12,
             paddingBottom: 8,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
           }}
         >
           {categoriesLoading ? (
             <POSSkeletonTabs />
           ) : (
-            <div
-              style={{
-                display: "flex",
-                overflowX: "auto",
-                gap: 8,
-                alignItems: "center",
-                scrollbarWidth: "none",
-                WebkitOverflowScrolling: "touch",
-                paddingBottom: 2,
-              }}
-            >
-              {categories.map((category) => {
-                const isSelected = selectedCategoryId === category._id;
-                return (
-                  <button
-                    key={category._id}
-                    type="button"
-                    onClick={() => onSelectCategory(category._id)}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 6,
-                      whiteSpace: "nowrap",
-                      fontSize: isMobile ? "0.8rem" : "0.86rem",
-                      fontWeight: isSelected ? 700 : 500,
-                      padding: isMobile ? "6px 14px" : "6px 18px",
-                      borderRadius: 20,
-                      border: "none",
-                      cursor: "pointer",
-                      backgroundColor: isSelected ? "#ffffff" : "rgba(255, 255, 255, 0.12)",
-                      color: isSelected ? primaryColor : "rgba(255, 255, 255, 0.88)",
-                      boxShadow: isSelected ? "0 2px 8px rgba(0, 0, 0, 0.18)" : "none",
-                      transition: "all 0.18s ease-in-out",
-                      outline: "none",
-                    }}
-                  >
-                    {category.icon}
-                    <span>{category.name}</span>
-                  </button>
-                );
-              })}
-            </div>
+            <>
+              {/* Left Scroll Helper */}
+              <button
+                type="button"
+                onClick={() => handleScroll("left")}
+                disabled={!canScrollLeft}
+                aria-label="Scroll left"
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: "50%",
+                  backgroundColor: canScrollLeft
+                    ? "rgba(255, 255, 255, 0.25)"
+                    : "rgba(255, 255, 255, 0.08)",
+                  border: "none",
+                  color: canScrollLeft ? "#ffffff" : "rgba(255, 255, 255, 0.3)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: canScrollLeft ? "pointer" : "default",
+                  flexShrink: 0,
+                  transition: "all 0.15s ease",
+                  boxShadow: canScrollLeft ? "0 1px 4px rgba(0,0,0,0.15)" : "none",
+                }}
+              >
+                <LeftOutlined style={{ fontSize: 11 }} />
+              </button>
+
+              {/* Scrollable category tabs */}
+              <div
+                ref={tabsRef}
+                style={{
+                  display: "flex",
+                  overflowX: "auto",
+                  gap: 8,
+                  alignItems: "center",
+                  scrollbarWidth: "none",
+                  WebkitOverflowScrolling: "touch",
+                  paddingBottom: 2,
+                  flex: 1,
+                  minWidth: 0,
+                }}
+              >
+                {categories.map((category) => {
+                  const isSelected = selectedCategoryId === category._id;
+                  return (
+                    <button
+                      key={category._id}
+                      data-category-id={category._id}
+                      type="button"
+                      onClick={() => onSelectCategory(category._id)}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        whiteSpace: "nowrap",
+                        fontSize: isMobile ? "0.8rem" : "0.86rem",
+                        fontWeight: isSelected ? 700 : 500,
+                        padding: isMobile ? "6px 14px" : "6px 18px",
+                        borderRadius: 20,
+                        border: "none",
+                        cursor: "pointer",
+                        backgroundColor: isSelected ? "#ffffff" : "rgba(255, 255, 255, 0.12)",
+                        color: isSelected ? primaryColor : "rgba(255, 255, 255, 0.88)",
+                        boxShadow: isSelected ? "0 2px 8px rgba(0, 0, 0, 0.18)" : "none",
+                        transition: "all 0.18s ease-in-out",
+                        outline: "none",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {category.icon}
+                      <span>{category.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Right Scroll Helper */}
+              <button
+                type="button"
+                onClick={() => handleScroll("right")}
+                disabled={!canScrollRight}
+                aria-label="Scroll right"
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: "50%",
+                  backgroundColor: canScrollRight
+                    ? "rgba(255, 255, 255, 0.25)"
+                    : "rgba(255, 255, 255, 0.08)",
+                  border: "none",
+                  color: canScrollRight ? "#ffffff" : "rgba(255, 255, 255, 0.3)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: canScrollRight ? "pointer" : "default",
+                  flexShrink: 0,
+                  transition: "all 0.15s ease",
+                  boxShadow: canScrollRight ? "0 1px 4px rgba(0,0,0,0.15)" : "none",
+                }}
+              >
+                <RightOutlined style={{ fontSize: 11 }} />
+              </button>
+            </>
           )}
         </div>
       )}
