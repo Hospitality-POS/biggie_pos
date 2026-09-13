@@ -1081,7 +1081,7 @@ const CartDrawer: React.FC = () => {
                 onConfirm={() => dispatch(deleteAllCartItems(cartDetails?._id))}
                 okText="Clear" okButtonProps={{ danger: true }} cancelText="Cancel"
               >
-                <Button danger block size="small" icon={<CloseCircleOutlined />} style={{ borderRadius: 6 }}>
+                <Button danger block size="middle" icon={<CloseCircleOutlined />} style={{ borderRadius: 6 }}>
                   Clear Cart
                 </Button>
               </Popconfirm>
