@@ -442,7 +442,7 @@ const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
                             {/* Ward/patient strip */}
                             <WardStrip activeTable={activeTable} mode={mode} />
 
-                            {/* Row: cross icon + mode toggle + shop badge */}
+                            {/* Row: shop badge + POS mode (left) + mode toggle (right) */}
                             <Box
                                 sx={{
                                     display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -451,17 +451,6 @@ const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
                                 }}
                             >
                                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                                    {mode === "retail" ? (
-                                        <ShoppingCart sx={{ color: "rgba(255,255,255,0.8)", fontSize: 16 }} />
-                                    ) : (
-                                        <LocalHospital sx={{ color: "rgba(255,255,255,0.8)", fontSize: 16 }} />
-                                    )}
-                                    <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.85)", fontWeight: 700, letterSpacing: 0.8 }}>
-                                        {mode === "retail" ? "RETAIL POS" : "HOSPITAL POS"}
-                                    </Typography>
-                                </Box>
-                                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                                    <ModeToggle />
                                     {shopName && (
                                         <Box
                                             sx={{
@@ -485,7 +474,7 @@ const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
                                                     fontSize: "0.78rem",
                                                     letterSpacing: 0.3,
                                                     whiteSpace: "nowrap",
-                                                    maxWidth: isMobile ? 100 : 180,
+                                                    maxWidth: isMobile ? 120 : 200,
                                                     overflow: "hidden",
                                                     textOverflow: "ellipsis",
                                                 }}
@@ -494,7 +483,18 @@ const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
                                             </Typography>
                                         </Box>
                                     )}
+                                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                                        {mode === "retail" ? (
+                                            <ShoppingCart sx={{ color: "rgba(255,255,255,0.8)", fontSize: 16 }} />
+                                        ) : (
+                                            <LocalHospital sx={{ color: "rgba(255,255,255,0.8)", fontSize: 16 }} />
+                                        )}
+                                        <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.85)", fontWeight: 700, letterSpacing: 0.8 }}>
+                                            {mode === "retail" ? "RETAIL POS" : "HOSPITAL POS"}
+                                        </Typography>
+                                    </Box>
                                 </Box>
+                                <ModeToggle />
                             </Box>
 
                             {/* Department tabs — browse mode only */}

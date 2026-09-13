@@ -535,7 +535,7 @@ const RestaurantPage: React.FC = () => {
           >
             {/* ── Top app bar ── */}
             <AppBar position="static" elevation={0} sx={{ bgcolor: primaryColor, flexShrink: 0 }}>
-              {/* Row: retail slot indicator + mode toggle + shop badge */}
+              {/* Row: shop badge (left) + mode toggle (right) */}
               <Box
                 sx={{
                   display: "flex",
@@ -548,12 +548,6 @@ const RestaurantPage: React.FC = () => {
                 }}
               >
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  {isRetailMode && (
-                    <RetailSlotIndicator onQueueOrder={handleQueueOrder} />
-                  )}
-                </Box>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <ModeToggle />
                   {shopName && (
                     <Box
                       sx={{
@@ -577,7 +571,7 @@ const RestaurantPage: React.FC = () => {
                           fontSize: "0.78rem",
                           letterSpacing: 0.3,
                           whiteSpace: "nowrap",
-                          maxWidth: isMobile ? 100 : 180,
+                          maxWidth: isMobile ? 120 : 200,
                           overflow: "hidden",
                           textOverflow: "ellipsis",
                         }}
@@ -586,7 +580,11 @@ const RestaurantPage: React.FC = () => {
                       </Typography>
                     </Box>
                   )}
+                  {isRetailMode && (
+                    <RetailSlotIndicator onQueueOrder={handleQueueOrder} />
+                  )}
                 </Box>
+                <ModeToggle />
               </Box>
 
               {/* Main category tabs — only shown in browse mode */}
