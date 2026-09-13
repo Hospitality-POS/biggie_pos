@@ -1,11 +1,8 @@
 import React, { useState, useEffect, useMemo } from "react";
 import {
-    Alert,
-    AlertTitle,
     AppBar,
     Box,
     Chip,
-    Divider,
     Drawer,
     Fab,
     Grid,
@@ -54,7 +51,7 @@ import PurchasePackageModal from "../../components/MODALS/pro/PurchasePackageMod
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { useRetailQueue } from "@context/RetailQueueContext";
 import BarcodeScanPanel from "../Restaurant/Barcodescanner";
-import { message } from "antd";
+import { Alert } from "antd";
 
 // ── Shared neutral tokens ─────────────────────────────────────────────────────
 const H = {
@@ -339,13 +336,21 @@ const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
                     ))
                 )
             ) : searchTerm ? (
-                <Alert severity="info" sx={{ width: "100%", borderRadius: 2 }}>
-                    <AlertTitle>No Results</AlertTitle>No items match "{searchTerm}"
-                </Alert>
+                <Alert
+                    message="No Results"
+                    description={`No items match "${searchTerm}"`}
+                    type="info"
+                    showIcon
+                    style={{ width: "100%", borderRadius: 8 }}
+                />
             ) : categoryChosen ? (
-                <Alert severity="info" sx={{ width: "100%", borderRadius: 2 }}>
-                    <AlertTitle>Empty</AlertTitle>This section has no items yet.
-                </Alert>
+                <Alert
+                    message="Empty"
+                    description="This section has no items yet."
+                    type="info"
+                    showIcon
+                    style={{ width: "100%", borderRadius: 8 }}
+                />
             ) : (
                 <Box sx={{ width: "100%", textAlign: "center", py: 6, color: "text.secondary" }}>
                     <LocalHospital sx={{ fontSize: 36, color: "#cbd5e1", mb: 1 }} />
@@ -606,9 +611,13 @@ const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
                                                             ))}
                                                         </Box>
                                                     ) : (
-                                                        <Alert severity="info" sx={{ width: "100%", borderRadius: 2 }}>
-                                                            <AlertTitle>Empty</AlertTitle>No items in this department.
-                                                        </Alert>
+                                                        <Alert
+                                                            message="Empty"
+                                                            description="No items in this department."
+                                                            type="info"
+                                                            showIcon
+                                                            style={{ width: "100%", borderRadius: 8 }}
+                                                        />
                                                     )
                                                 ) : (
                                                     <Box>
@@ -661,10 +670,13 @@ const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
                                         </Box>
                                     ) : (
                                         <Box sx={{ p: 2 }}>
-                                            <Alert severity="info" sx={{ borderRadius: 2, borderLeft: `4px solid ${barColor}` }}>
-                                                <AlertTitle>No Departments</AlertTitle>
-                                                No departments configured yet.
-                                            </Alert>
+                                            <Alert
+                                                message="No Departments"
+                                                description="No departments configured yet."
+                                                type="info"
+                                                showIcon
+                                                style={{ borderRadius: 8, borderLeft: `4px solid ${barColor}` }}
+                                            />
                                         </Box>
                                     )}
                                 </>
