@@ -1020,8 +1020,8 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
           grid-auto-rows: 42px !important;
           align-content: start !important;
           gap: 6px !important;
-          width: 684px !important;
-          max-width: 684px !important;
+          width: min(684px, 94vw) !important;
+          max-width: min(684px, 94vw) !important;
           height: auto !important;
           min-height: 0 !important;
           box-sizing: border-box !important;
@@ -1323,7 +1323,7 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         }}
         selectedKeys={[selectedKey]}
         token={{
-          bgLayout: "#f6ffed",
+          bgLayout: "#f8fafc",
           colorPrimary: primaryColor,
           colorTextAppListIconHover: "black",
           colorTextAppListIcon: "white",

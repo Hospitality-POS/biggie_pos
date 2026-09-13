@@ -25,6 +25,7 @@ import { fetchAllPackages } from "@services/subscription";
 import SubscriptionPaymentOption from "./SubscriptionPaymentOption";
 import { usePOSMode } from "@context/POSModeContext";
 import { useRetailQueue } from "@context/RetailQueueContext";
+import { useNavigate } from "react-router-dom";
 
 const { Text, Title } = Typography;
 
@@ -129,7 +130,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
   const [form] = Form.useForm();
   const [drawerVisible, setDrawerVisible] = useState(false);
   const dispatch = useAppDispatch();
-  const navigate = (path: string) => (window.location.href = path);
+  const navigate = useNavigate();
 
   const rawId = window.location.pathname.split("/").pop();
   const { isRetailMode, isHospitalMode, isHotelMode } = usePOSMode();
@@ -160,6 +161,11 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
     : isHotelMode
       ? (cartDetails?.table_id as unknown as string | undefined)
       : (rawId && rawId !== "tables" ? rawId : undefined);
+
+  const afterPaymentRedirect = () => {
+    if (isSlotMode) return;
+    navigate("/tables");
+  };
   const { loading } = useAppSelector((s) => s.order);
   const { user } = useAppSelector((s) => s.auth);
 
@@ -234,12 +240,12 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
     customerInfo.email || cartDetails?.client_email || customerDetails?.customer_email;
 
   const isValidKenyanPhone = (phone: string) => {
-    const c = phone.replace(/[\s\-\(\)]/g, "");
+    const c = phone.replace(/[\s\-()]/g, "");
     return [/^\+254[17]\d{8}$/, /^254[17]\d{8}$/, /^0[17]\d{8}$/, /^[17]\d{8}$/].some((p) => p.test(c));
   };
 
   const formatPhoneNumber = (phone: string) => {
-    const c = phone.replace(/[\s\-\(\)]/g, "");
+    const c = phone.replace(/[\s\-()]/g, "");
     if (c.startsWith("+254")) return c;
     if (c.startsWith("254")) return "+" + c;
     if (c.startsWith("0")) return "+254" + c.substring(1);
@@ -262,7 +268,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
     try {
       setSearchingCustomers(true);
       const result = await fetchAllCustomers({ search: term.trim() });
-      let arr: any[] = Array.isArray(result) ? result : result?.customers || result?.data || [];
+      const arr: any[] = Array.isArray(result) ? result : result?.customers || result?.data || [];
       setCustomers(filterCustomers(arr, term));
     } catch { setCustomers([]); message.error("Failed to search customers"); }
     finally { setSearchingCustomers(false); }
@@ -341,13 +347,15 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
               resetPesapalModal();
               setDrawerVisible(false);
               dispatch(createCart(id));
-              navigate("/tables");
+              afterPaymentRedirect();
             }, 2000);
           } else if (data.payment_status === "FAILED") {
             setStkPaymentStatus("failed");
             message.error("Payment failed. Please try again.");
           }
-        } catch { }
+        } catch (error) {
+          console.warn("STK status check failed:", error);
+        }
       }, 3000);
     }
     return () => { if (intervalId) clearInterval(intervalId); };
@@ -418,9 +426,11 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
       }));
       if (result.type.endsWith("/fulfilled")) {
         setDrawerVisible(false); setSelectedCustomerId(null);
-        dispatch(createCart(id)); navigate("/tables"); message.success("Payment successful!");
+        dispatch(createCart(id)); afterPaymentRedirect(); message.success("Payment successful!");
       }
-    } catch { }
+    } catch (error) {
+      console.warn("Split payment error:", error);
+    }
   };
 
   const handlePayment = async () => {
@@ -438,9 +448,11 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
         if (result.type.endsWith("/fulfilled")) {
           message.success("Order placed using subscription visit!");
           setDrawerVisible(false); setSelectedSubscription(null); setUseSubscription(false);
-          setSelectedCustomerId(null); dispatch(createCart(id)); navigate("/tables");
+          setSelectedCustomerId(null); dispatch(createCart(id)); afterPaymentRedirect();
         }
-      } catch { }
+      } catch (error) {
+        console.warn("Subscription payment error:", error);
+      }
       return;
     }
     if (!selectedMethod) { message.error("Please select a payment method."); return; }
@@ -458,9 +470,11 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
       }));
       if (result.type.endsWith("/fulfilled")) {
         setDrawerVisible(false); setSelectedCustomerId(null);
-        dispatch(createCart(id)); navigate("/tables"); message.success("Payment successful!");
+        dispatch(createCart(id)); afterPaymentRedirect(); message.success("Payment successful!");
       }
-    } catch { }
+    } catch (error) {
+      console.warn("Order payment error:", error);
+    }
   };
 
   const handleSTKPushPayment = async () => {
@@ -511,7 +525,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
         setSelectedSubscription(null);
         setUseSubscription(false);
         message.success("Bill voided.");
-        navigate("/tables");
+        afterPaymentRedirect();
       },
     });
   };

@@ -3,6 +3,7 @@ import {
   Alert,
   AlertTitle,
   AppBar,
+  Badge,
   Divider,
   Grid,
   IconButton,
@@ -138,6 +139,7 @@ const RestaurantPage: React.FC = () => {
   const { products, services, loading: productsLoading } = useAppSelector(
     (state) => state.product
   );
+  const { cartItems } = useAppSelector((state) => state.cart);
   const dispatch = useAppDispatch();
   const { id } = useParams();
 
@@ -770,7 +772,9 @@ const RestaurantPage: React.FC = () => {
               "&:hover": { bgcolor: primaryColor },
             }}
           >
-            <ShoppingCartIcon />
+            <Badge badgeContent={cartItems?.length || 0} color="error">
+              <ShoppingCartIcon />
+            </Badge>
           </Fab>
 
           <Drawer

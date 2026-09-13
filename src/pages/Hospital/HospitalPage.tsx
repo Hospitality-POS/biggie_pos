@@ -103,9 +103,10 @@ const SkeletonCards = ({ cols }: { cols: number }) => (
     </Box>
 );
 
-// ── Patient / ward indicator strip ────────────────────────────────────────────
-const WardStrip: React.FC<{ activeTable: any }> = ({ activeTable }) => {
+// ── Patient / ward / slot indicator strip ─────────────────────────────────────
+const WardStrip: React.FC<{ activeTable: any; mode?: "hospital" | "retail" }> = ({ activeTable, mode = "hospital" }) => {
     if (!activeTable) return null;
+    const isRetail = mode === "retail";
     return (
         <Box
             sx={{
@@ -115,9 +116,13 @@ const WardStrip: React.FC<{ activeTable: any }> = ({ activeTable }) => {
                 borderBottom: "1px solid rgba(255,255,255,0.12)",
             }}
         >
-            <Bed sx={{ fontSize: 14, color: "rgba(255,255,255,0.8)" }} />
+            {isRetail ? (
+                <ShoppingCart sx={{ fontSize: 14, color: "rgba(255,255,255,0.8)" }} />
+            ) : (
+                <Bed sx={{ fontSize: 14, color: "rgba(255,255,255,0.8)" }} />
+            )}
             <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.9)", fontWeight: 600 }}>
-                {activeTable.name}
+                {isRetail ? `Slot: ${activeTable.name}` : activeTable.name}
             </Typography>
             <Box
                 sx={{
@@ -128,7 +133,7 @@ const WardStrip: React.FC<{ activeTable: any }> = ({ activeTable }) => {
                 }}
             />
             <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.7)", fontSize: 10 }}>
-                {activeTable.isOccupied ? "Occupied" : "Available"}
+                {activeTable.isOccupied ? (isRetail ? "Active" : "Occupied") : "Available"}
             </Typography>
         </Box>
     );
@@ -264,7 +269,12 @@ const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
 
         const chips = [
             { type: "services" as const, icon: <MedicalServices sx={{ fontSize: 13 }} />, label: `Services (${filteredServices.length})`, show: hasServices },
-            { type: "products" as const, icon: <Medication sx={{ fontSize: 13 }} />, label: `Pharmacy (${filteredProducts.length})`, show: hasProducts },
+            {
+                type: "products" as const,
+                icon: mode === "retail" ? <ShoppingCart sx={{ fontSize: 13 }} /> : <Medication sx={{ fontSize: 13 }} />,
+                label: mode === "retail" ? `Products (${filteredProducts.length})` : `Pharmacy (${filteredProducts.length})`,
+                show: hasProducts,
+            },
             { type: "packages" as const, icon: <LocalHospital sx={{ fontSize: 13 }} />, label: `Packages (${availablePackages.length})`, show: hasPackages },
         ];
 
@@ -385,7 +395,7 @@ const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
                         {/* ── Teal app bar ── */}
                         <AppBar position="static" elevation={0} sx={{ bgcolor: barColor, flexShrink: 0 }}>
                             {/* Ward/patient strip */}
-                            <WardStrip activeTable={activeTable} />
+                            <WardStrip activeTable={activeTable} mode={mode} />
 
                             {/* Row: cross icon + mode toggle */}
                             <Box
@@ -395,7 +405,11 @@ const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
                                 }}
                             >
                                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                                    <LocalHospital sx={{ color: "rgba(255,255,255,0.8)", fontSize: 16 }} />
+                                    {mode === "retail" ? (
+                                        <ShoppingCart sx={{ color: "rgba(255,255,255,0.8)", fontSize: 16 }} />
+                                    ) : (
+                                        <LocalHospital sx={{ color: "rgba(255,255,255,0.8)", fontSize: 16 }} />
+                                    )}
                                     <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.85)", fontWeight: 700, letterSpacing: 0.8 }}>
                                         {mode === "retail" ? "RETAIL POS" : "HOSPITAL POS"}
                                     </Typography>

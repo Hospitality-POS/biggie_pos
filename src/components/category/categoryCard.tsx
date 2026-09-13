@@ -8,6 +8,7 @@ function CategoryCard({
   name,
   id,
   handleSelectedCard,
+  style,
 }: any) {
   
   const primaryColor = usePrimaryColor();
@@ -16,7 +17,7 @@ function CategoryCard({
     <CheckCard
       onClick={() => handleSelectedCard(id)}
       title={
-        <Space style={{ justifyContent: "center", width: "100vw" }}>
+        <Space style={{ justifyContent: "center", width: "100%" }}>
           <div style={{ position: "relative", display: "inline-block" }}>
             <Image
               preview={false}
@@ -26,27 +27,15 @@ function CategoryCard({
                 filter: "brightness(0) saturate(100%) invert(0%) sepia(100%) saturate(7500%) hue-rotate(0deg) brightness(50%) contrast(100%)",
               }}
             />
-            {/* Color overlay to apply primary color to icon */}
-            <div
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                mixBlendMode: "multiply",
-                pointerEvents: "none",
-              }}
-            />
           </div>
         </Space>
       }
       description={
-        <Typography.Title level={5} ellipsis={{ rows: 3 }} style={{ textAlign: "center" }}>
+        <Typography.Title level={5} ellipsis={{ rows: 3 }} style={{ textAlign: "center", margin: 0, fontSize: 13 }}>
           {name}
         </Typography.Title>
       }
-      style={{ width: 200, overflow: "hidden" }}
+      style={{ minWidth: 140, overflow: "hidden", ...style }}
     />
   );
 }

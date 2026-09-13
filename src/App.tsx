@@ -27,7 +27,7 @@ const App = () => {
 
     const storedTenant = localStorage.getItem("tenant");
     const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-    if (tenant && tenant.color_scheme.primary) {
+    if (tenant?.color_scheme?.primary) {
       document.documentElement.style.setProperty('--primary-color', tenant.color_scheme.primary);
     }
   }, []);

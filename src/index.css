@@ -10,12 +10,9 @@
   box-sizing: border-box;
 }
 
-/* Apply Poppins to all text elements */
-body,
-body *,
-body *::before,
-body *::after {
-  font-family: var(--font-poppins) !important;
+/* Apply Poppins font */
+body, input, button, select, textarea {
+  font-family: var(--font-poppins);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -24,7 +21,6 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  font-family: var(--font-poppins) !important;
 }
 
 .staff-section {
@@ -59,10 +55,6 @@ body {
 
 input[type="checkbox" i]:active {
   background-color: var(--primary-color) !important;
-}
-
-:where(.css-dev-only-do-not-override-v3wdz2) a:hover {
-  color: var(--primary-color);
 }
 
 .wrapper {

@@ -609,10 +609,10 @@ export default function TablePro() {
         theme={{
           components: {
             Tabs: {
-              itemColor: "#fff",
-              itemActiveColor: "#000",
-              itemHoverColor: "#aa846f",
-              itemSelectedColor: "#000",
+              itemColor: "rgba(255, 255, 255, 0.85)",
+              itemActiveColor: "#ffffff",
+              itemHoverColor: "#ffffff",
+              itemSelectedColor: "#ffffff",
               cardBg: primaryColor,
             },
           },

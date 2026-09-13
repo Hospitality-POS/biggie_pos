@@ -31,6 +31,8 @@ interface menudetails {
 
 interface ProductCardProps {
   menu: menudetails;
+  handleCart?: () => void;
+  style?: React.CSSProperties;
 }
 
 function formatPrice(price: number) {
@@ -47,7 +49,7 @@ function formatDuration(duration: number) {
   }
 }
 
-const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
+const ProductCard: React.FC<ProductCardProps> = ({ menu, handleCart, style }) => {
   const { user } = useAppSelector((state) => state.auth);
   const { cartDetails, cartItems, loading } = useAppSelector((state) => state.cart);
   const [isHovered, setIsHovered] = useState(false);
@@ -59,7 +61,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
   const { isRetailMode } = usePOSMode();
   const { activeTable } = useRetailQueue();
 
-  const lightenColor = (color: string, percent: number = 20) => {
+  const lightenColor = (color: string, percent = 20) => {
     const hex = color.replace('#', '');
     const r = parseInt(hex.substr(0, 2), 16);
     const g = parseInt(hex.substr(2, 2), 16);
@@ -144,6 +146,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
         );
       }
       invalidate();
+      handleCart?.();
     } catch (error) {
       console.error('Failed to add item to cart:', error);
     } finally {
@@ -164,6 +167,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
     formattedQuantity,
     invalidate,
     existingCartItem,
+    handleCart,
   ]);
 
   const formattedPrice = useMemo(() => formatPrice(menu.price), [menu.price]);
@@ -231,8 +235,8 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
           flexDirection: "column",
           alignItems: "center",
           padding: "0",
-          width: "180px",
-          height: "250px",
+          minWidth: "150px",
+          minHeight: "260px",
           overflow: "hidden",
           cursor: (loading || isProcessing || !tableId) ? "wait" : "pointer",
           backgroundColor: isHovered ? hoverColor : primaryColor,
@@ -240,6 +244,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
           borderRadius: "8px",
           position: "relative",
           opacity: (loading || isProcessing) ? 0.7 : 1,
+          ...style,
         }}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
