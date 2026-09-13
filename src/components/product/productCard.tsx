@@ -247,27 +247,8 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu, handleCart, style }) =>
             </div>
           )}
 
-          {/* Service / Addon Tag (Top-Right) */}
-          {menu.type === "service" ? (
-            <div
-              style={{
-                position: "absolute",
-                top: 8,
-                right: 8,
-                backgroundColor: "rgba(14, 165, 233, 0.9)",
-                color: "#ffffff",
-                padding: "2px 8px",
-                borderRadius: 12,
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: 0.5,
-                boxShadow: "0 2px 4px rgba(0,0,0,0.15)",
-                zIndex: 2,
-              }}
-            >
-              SERVICE
-            </div>
-          ) : menu.addons && menu.addons.length > 0 ? (
+          {/* Addon Tag (Top-Right) */}
+          {menu.addons && menu.addons.length > 0 && (
             <div
               style={{
                 position: "absolute",
@@ -285,7 +266,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu, handleCart, style }) =>
             >
               + Addons
             </div>
-          ) : null}
+          )}
 
           {/* Image or Branded Vector Placeholder */}
           {hasValidImage ? (

@@ -10,7 +10,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { deleteCartItem, addQtyCart, removeQtyCart, updateCartItemQty, updateCartItems, addItemToCart } from "../../features/Cart/CartActions";
 import { useAppDispatch, useAppSelector } from "../../store";
 import AddTaskIcon from "@mui/icons-material/AddTask";
-import { Button, Typography, notification, Tooltip, Input, Popconfirm, Checkbox, Space, Tag } from "antd";
+import { Button, Typography, notification, Tooltip, Input, Checkbox, Space, Tag } from "antd";
 import { DeleteOutlined, LoadingOutlined, EditOutlined, FileTextOutlined, TagOutlined, CloseCircleOutlined } from "@ant-design/icons";
 import useCartItemsData from "@hooks/cartItemsData";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
@@ -715,8 +715,8 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                       icon={<DeleteOutlined />}
                       onClick={() => {
                         if (cartItem._id) {
-                          setSelectedItem(cartItem);
-                          setIsModalOpen(true);
+                          dispatch(deleteCartItem(cartItem._id));
+                          invalidate();
                         }
                       }}
                     />
@@ -742,8 +742,8 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                     icon={<DeleteOutlined />}
                     onClick={() => {
                       if (cartItem._id) {
-                        setSelectedItem(cartItem);
-                        setIsModalOpen(true);
+                        dispatch(deleteCartItem(cartItem._id));
+                        invalidate();
                       }
                     }}
                   />
@@ -975,4 +975,5 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
   );
 };
 
-export default React.memo(CartItemCard);
+const MemoizedCartItemCard = React.memo(CartItemCard);
+export default MemoizedCartItemCard;
