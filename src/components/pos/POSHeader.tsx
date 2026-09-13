@@ -5,8 +5,10 @@ import {
   ScanOutlined,
   LeftOutlined,
   RightOutlined,
+  SyncOutlined,
 } from "@ant-design/icons";
 import { POSSkeletonTabs } from "./POSSkeletons";
+import { useNetworkStatus } from "../../services/offlineSync";
 
 export interface POSCategoryItem {
   _id: string;
@@ -39,6 +41,7 @@ export const POSHeader: React.FC<POSHeaderProps> = ({
   onSelectCategory,
   slotIndicator,
 }) => {
+  const { isOnline, pendingCount, isSyncing, triggerSync } = useNetworkStatus();
   const tabsRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -140,6 +143,75 @@ export const POSHeader: React.FC<POSHeaderProps> = ({
             </div>
           )}
           {slotIndicator}
+
+          {/* Offline / Pending Sync Indicator */}
+          {!isOnline ? (
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                backgroundColor: "#ef4444",
+                color: "#ffffff",
+                borderRadius: 20,
+                padding: "3px 8px",
+                fontSize: "0.72rem",
+                fontWeight: 600,
+                boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+              }}
+              title="Working offline. Orders will be saved locally and synced automatically when online."
+            >
+              <span
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: "50%",
+                  backgroundColor: "#ffffff",
+                  display: "inline-block",
+                }}
+              />
+              <span>Offline</span>
+              {pendingCount > 0 && <span>({pendingCount})</span>}
+            </div>
+          ) : pendingCount > 0 ? (
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                backgroundColor: "rgba(255, 255, 255, 0.18)",
+                border: "1px solid rgba(255, 255, 255, 0.3)",
+                color: "#ffffff",
+                borderRadius: 20,
+                padding: "2px 8px",
+                fontSize: "0.72rem",
+                fontWeight: 600,
+              }}
+            >
+              <span>{pendingCount} offline order{pendingCount > 1 ? "s" : ""}</span>
+              <button
+                type="button"
+                onClick={triggerSync}
+                disabled={isSyncing}
+                style={{
+                  backgroundColor: "#ffffff",
+                  color: primaryColor,
+                  border: "none",
+                  borderRadius: 12,
+                  padding: "2px 8px",
+                  fontSize: "0.7rem",
+                  fontWeight: 700,
+                  cursor: isSyncing ? "not-allowed" : "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                }}
+              >
+                {isSyncing && <SyncOutlined spin style={{ fontSize: 10 }} />}
+                {isSyncing ? "Syncing…" : "Sync"}
+              </button>
+            </div>
+          ) : null}
         </div>
 
         {/* Mode Toggle */}

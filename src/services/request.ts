@@ -275,18 +275,25 @@ export const getRequest = async (
     config: Record<string, unknown> = {},
     ttlMs?: number,
 ) => {
-    if (!isNonCacheableRoute(url)) {
-        const shopId = getValidShopId();
-        const cacheKey = buildCacheKey(url, (config.params as Record<string, unknown>) ?? {}, shopId);
-        const cached = await getCache<unknown>(cacheKey);
-        if (cached !== null) {
-            return { data: cached, fromCache: true };
-        }
+    try {
         const response = await axiosInstance.get(url, config);
-        await setCache(cacheKey, response.data, ttlMs);
+        if (!isNonCacheableRoute(url)) {
+            const shopId = getValidShopId();
+            const cacheKey = buildCacheKey(url, (config.params as Record<string, unknown>) ?? {}, shopId);
+            setCache(cacheKey, response.data, ttlMs).catch(() => {/* ignore cache write error */});
+        }
         return response;
+    } catch (error) {
+        if (!isNonCacheableRoute(url)) {
+            const shopId = getValidShopId();
+            const cacheKey = buildCacheKey(url, (config.params as Record<string, unknown>) ?? {}, shopId);
+            const cached = await getCache<unknown>(cacheKey);
+            if (cached !== null) {
+                return { data: cached, fromCache: true };
+            }
+        }
+        throw error;
     }
-    return axiosInstance.get(url, config);
 };
 
 export const postRequest = (url: string, data: unknown, config = {}) =>
