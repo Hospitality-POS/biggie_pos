@@ -41,7 +41,7 @@ import { fetchMainCategories } from "@services/categories";
 import { fetchShop } from "@services/shops";
 import { fetchActivePackages, Package } from "@services/subscription";
 import PurchasePackageModal from "../../components/MODALS/pro/PurchasePackageModal";
-import { ShoppingCart, Build, CardGiftcard } from "@mui/icons-material";
+import { ShoppingCart, SupportAgent, CardGiftcard } from "@mui/icons-material";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { usePOSMode } from "@context/POSModeContext";
 import { useRetailQueue } from "@context/RetailQueueContext";
@@ -341,7 +341,7 @@ const RestaurantPage: React.FC = () => {
     const chips = [
       {
         type: "services" as const,
-        icon: <Build sx={{ fontSize: 14 }} />,
+        icon: <SupportAgent sx={{ fontSize: 14 }} />,
         label: `Services (${filteredServices.length})`,
         show: hasServices,
       },

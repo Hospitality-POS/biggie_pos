@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback } from "react";
 import { Typography, Button } from "antd";
 import {
   ShoppingOutlined,
-  ToolOutlined,
+  CustomerServiceOutlined,
   PlusOutlined,
   CheckOutlined,
   ClockCircleOutlined,
@@ -307,7 +307,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu, handleCart, style }) =>
                 }}
               >
                 {menu.type === "service" ? (
-                  <ToolOutlined style={{ fontSize: 24, color: primaryColor }} />
+                  <CustomerServiceOutlined style={{ fontSize: 24, color: primaryColor }} />
                 ) : (
                   <ShoppingOutlined style={{ fontSize: 24, color: primaryColor }} />
                 )}
