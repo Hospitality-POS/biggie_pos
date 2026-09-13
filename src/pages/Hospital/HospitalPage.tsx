@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
     Alert,
     AlertTitle,
@@ -35,6 +35,7 @@ import {
     LocalHospital,
     MonitorHeart,
     Bed,
+    Store,
 } from "@mui/icons-material";
 import ProductCard from "../../components/product/productCard";
 import PackageCard from "../../components/cart/PackageCard";
@@ -42,6 +43,7 @@ import { useQuery } from "@tanstack/react-query";
 import SkeletonProductCard from "../../components/product/skeletonProductCard";
 import CategoryCard from "../../components/category/categoryCard";
 import CartDrawer from "../../components/cart/CartDrawer";
+import { fetchShop } from "@services/shops";
 import { useParams } from "react-router-dom";
 import { getCart } from "../../features/Cart/CartActions";
 import { fetchProductsByCategory } from "../../features/Product/ProductAction";
@@ -178,6 +180,24 @@ const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
     const dispatch = useAppDispatch();
     const { id } = useParams();
     const { activeTable, refreshSlots } = useRetailQueue();
+
+    const shopId = localStorage.getItem("shopId");
+    const { data: shopData } = useQuery({
+        queryKey: ["shop", shopId],
+        queryFn: () => (shopId ? fetchShop(shopId) : null),
+        enabled: !!shopId,
+    });
+
+    const tenant = useMemo(() => {
+        try {
+            const stored = localStorage.getItem("tenant");
+            return stored ? JSON.parse(stored) : null;
+        } catch {
+            return null;
+        }
+    }, []);
+
+    const shopName = shopData?.name || tenant?.name || "";
 
     const [posMode, setPosMode] = useState<"browse" | "scan">("browse");
     const [selectedCard, setSelectedCard] = useState(null);
@@ -422,11 +442,12 @@ const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
                             {/* Ward/patient strip */}
                             <WardStrip activeTable={activeTable} mode={mode} />
 
-                            {/* Row: cross icon + mode toggle */}
+                            {/* Row: cross icon + mode toggle + shop badge */}
                             <Box
                                 sx={{
                                     display: "flex", alignItems: "center", justifyContent: "space-between",
                                     px: 1.5, pt: 0.75, pb: posMode === "browse" ? 0 : 0.75,
+                                    gap: 1,
                                 }}
                             >
                                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -439,7 +460,41 @@ const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
                                         {mode === "retail" ? "RETAIL POS" : "HOSPITAL POS"}
                                     </Typography>
                                 </Box>
-                                <ModeToggle />
+                                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                    <ModeToggle />
+                                    {shopName && (
+                                        <Box
+                                            sx={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: 0.6,
+                                                bgcolor: "rgba(255,255,255,0.15)",
+                                                border: "1px solid rgba(255,255,255,0.25)",
+                                                borderRadius: "20px",
+                                                px: 1.25,
+                                                py: 0.4,
+                                                color: "#ffffff",
+                                                flexShrink: 0,
+                                            }}
+                                        >
+                                            <Store sx={{ fontSize: 14, opacity: 0.9 }} />
+                                            <Typography
+                                                variant="caption"
+                                                sx={{
+                                                    fontWeight: 700,
+                                                    fontSize: "0.78rem",
+                                                    letterSpacing: 0.3,
+                                                    whiteSpace: "nowrap",
+                                                    maxWidth: isMobile ? 100 : 180,
+                                                    overflow: "hidden",
+                                                    textOverflow: "ellipsis",
+                                                }}
+                                            >
+                                                {shopName}
+                                            </Typography>
+                                        </Box>
+                                    )}
+                                </Box>
                             </Box>
 
                             {/* Department tabs — browse mode only */}

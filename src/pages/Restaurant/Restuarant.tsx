@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Alert,
   AlertTitle,
@@ -34,12 +34,14 @@ import SearchIcon from "@mui/icons-material/Search";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import QrCodeScannerIcon from "@mui/icons-material/QrCodeScanner";
 import GridViewIcon from "@mui/icons-material/GridView";
+import StoreIcon from "@mui/icons-material/Store";
 import { useParams } from "react-router-dom";
 import { getCart } from "../../features/Cart/CartActions";
 import { fetchProductsByCategory } from "../../features/Product/ProductAction";
 import VerticalTabs from "./Sidetabs";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { fetchMainCategories } from "@services/categories";
+import { fetchShop } from "@services/shops";
 import { fetchActivePackages, Package } from "@services/subscription";
 import PurchasePackageModal from "../../components/MODALS/pro/PurchasePackageModal";
 import { ShoppingCart, Build, CardGiftcard } from "@mui/icons-material";
@@ -172,6 +174,24 @@ const RestaurantPage: React.FC = () => {
 
   const { isRetailMode } = usePOSMode();
   const { activeTable, refreshSlots } = useRetailQueue();
+
+  const shopId = localStorage.getItem("shopId");
+  const { data: shopData } = useQuery({
+    queryKey: ["shop", shopId],
+    queryFn: () => (shopId ? fetchShop(shopId) : null),
+    enabled: !!shopId,
+  });
+
+  const tenant = useMemo(() => {
+    try {
+      const stored = localStorage.getItem("tenant");
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const shopName = shopData?.name || tenant?.name || "";
 
   const [posMode, setPosMode] = useState<"browse" | "scan">("browse");
   const [selectedCard, setSelectedCard] = useState(null);
@@ -515,7 +535,7 @@ const RestaurantPage: React.FC = () => {
           >
             {/* ── Top app bar ── */}
             <AppBar position="static" elevation={0} sx={{ bgcolor: primaryColor, flexShrink: 0 }}>
-              {/* Row: retail slot indicator + mode toggle */}
+              {/* Row: retail slot indicator + mode toggle + shop badge */}
               <Box
                 sx={{
                   display: "flex",
@@ -524,6 +544,7 @@ const RestaurantPage: React.FC = () => {
                   px: 1.5,
                   pt: 0.75,
                   pb: isRetailMode ? 0.25 : 0.75,
+                  gap: 1,
                 }}
               >
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -531,7 +552,41 @@ const RestaurantPage: React.FC = () => {
                     <RetailSlotIndicator onQueueOrder={handleQueueOrder} />
                   )}
                 </Box>
-                <ModeToggle />
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <ModeToggle />
+                  {shopName && (
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 0.6,
+                        bgcolor: "rgba(255,255,255,0.15)",
+                        border: "1px solid rgba(255,255,255,0.25)",
+                        borderRadius: "20px",
+                        px: 1.25,
+                        py: 0.4,
+                        color: "#ffffff",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <StoreIcon sx={{ fontSize: 14, opacity: 0.9 }} />
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          fontWeight: 700,
+                          fontSize: "0.78rem",
+                          letterSpacing: 0.3,
+                          whiteSpace: "nowrap",
+                          maxWidth: isMobile ? 100 : 180,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                        }}
+                      >
+                        {shopName}
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
               </Box>
 
               {/* Main category tabs — only shown in browse mode */}
