@@ -23,7 +23,6 @@ import {
   CloseOutlined,
   DownOutlined,
   GlobalOutlined,
-  HomeFilled,
   MenuOutlined,
   PoweroffOutlined,
   SettingOutlined,
@@ -636,31 +635,6 @@ const AdminDashboard: React.FC = () => {
     </div>
   );
 
-  // ── Breadcrumbs ──────────────────────────────────────────────────────────────
-  const breadcrumbItems = location.pathname
-    .split("/")
-    .filter((p) => p)
-    .map((path, index, arr) => {
-      const isLast = index === arr.length - 1;
-      const url = `/${arr.slice(0, index + 1).join("/")}`;
-      const isDynamicSegment =
-        /^[a-f0-9]{24}$/i.test(path) || /^[0-9]+$/.test(path);
-      const label = isDynamicSegment
-        ? "Details"
-        : path
-          .replace(/-/g, " ")
-          .replace(/(^\w|\s\w)/g, (m) => m.toUpperCase());
-      return {
-        title: isLast ? (
-          <span key={path}>{label}</span>
-        ) : (
-          <NavLink to={url} key={path}>
-            {label}
-          </NavLink>
-        ),
-      };
-    });
-
   // ── Mobile menu drawer ────────────────────────────────────────────────────────
   const buildMobileNavItems = (routes: any[]): MobileNavItemProps[] =>
     routes.map((route) => ({
@@ -1246,6 +1220,10 @@ const AdminDashboard: React.FC = () => {
           color: #ffffff !important;
         }
 
+        .ant-pro-page-container-warp-page-header {
+          display: none !important;
+        }
+
         /* Mobile/tablet page container padding */
         @media (max-width: 992px) {
           .ant-pro-page-container {
@@ -1312,6 +1290,7 @@ const AdminDashboard: React.FC = () => {
         layout="mix"
         splitMenus={false}
         fixedHeader={false}
+        breadcrumbProps={{ items: [] }}
         {...navRoutes}
         // Suppress ProLayout's built-in top menu — we render our own SmartOverflowNav
         menuRender={false}
@@ -1424,18 +1403,9 @@ const AdminDashboard: React.FC = () => {
         )}
       >
         <PageContainer
-          breadcrumb={{
-            items: [
-              {
-                title: (
-                  <NavLink to="/admin">
-                    <HomeFilled /> {!isMobile && "Home"}
-                  </NavLink>
-                ),
-              },
-              ...breadcrumbItems,
-            ],
-          }}
+          pageHeaderRender={false}
+          breadcrumbRender={false}
+          title={false}
           style={{ padding: isMobile ? "0 4px" : undefined }}
         >
           <Outlet />
