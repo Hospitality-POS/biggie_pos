@@ -1,6 +1,6 @@
 import { CheckCircleOutlined, StarOutlined } from '@ant-design/icons';
 import { Card, Col, Empty, Row, Skeleton, Statistic, Tooltip } from 'antd';
-import moment from 'moment';
+import dayjs from 'dayjs';
 import { useMemo } from 'react';
 
 interface PaymentRecord {
@@ -29,7 +29,7 @@ function PaymentStats({ paymentsData, loading, error }: PaymentStatsProps) {
     }
 
     const payments = paymentsData;
-    const thirtyDaysAgo = moment().subtract(30, 'days');
+    const thirtyDaysAgo = dayjs().subtract(30, 'day');
 
     // Calculate total amount in one pass
     const { sum, recentCount, methodCounts } = payments.reduce(
@@ -37,7 +37,7 @@ function PaymentStats({ paymentsData, loading, error }: PaymentStatsProps) {
         const amount = Number(payment?.amount) || 0;
 
         // Count recent payments
-        if (moment(payment.paymentDate).isAfter(thirtyDaysAgo)) {
+        if (dayjs(payment.paymentDate).isAfter(thirtyDaysAgo)) {
           acc.recentCount += 1;
         }
 
