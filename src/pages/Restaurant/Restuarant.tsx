@@ -445,9 +445,21 @@ const RestaurantPage: React.FC = () => {
           ))
         )
       ) : searchTerm ? (
-        <Alert message={`No items found matching "${searchTerm}"`} type="info" showIcon />
+        <Alert
+          message="No Results"
+          description={`No items found matching "${searchTerm}"`}
+          type="info"
+          showIcon
+          style={{ width: "100%", borderRadius: 8 }}
+        />
       ) : categoryChosen ? (
-        <Alert message="No items found in this category" type="info" showIcon />
+        <Alert
+          message="Empty"
+          description="No items found in this category."
+          type="info"
+          showIcon
+          style={{ width: "100%", borderRadius: 8 }}
+        />
       ) : (
         <Box sx={{ width: "100%", textAlign: "center", py: 6, color: "text.secondary" }}>
           <Typography variant="body2">Select a category to browse items</Typography>
@@ -745,7 +757,13 @@ const RestaurantPage: React.FC = () => {
                               ))}
                             </Box>
                           ) : (
-                            <Alert message="No categories found" type="info" showIcon />
+                            <Alert
+                              message="No Categories"
+                              description="No categories found."
+                              type="info"
+                              showIcon
+                              style={{ width: "100%", borderRadius: 8 }}
+                            />
                           )
                         ) : (
                           <Box>
@@ -821,7 +839,13 @@ const RestaurantPage: React.FC = () => {
                     </Box>
                   ) : (
                     <Box sx={{ p: 2 }}>
-                      <Alert message="No subcategories found" type="info" showIcon />
+                      <Alert
+                        message="No Subcategories"
+                        description="No subcategories found in this category."
+                        type="info"
+                        showIcon
+                        style={{ width: "100%", borderRadius: 8 }}
+                      />
                     </Box>
                   )}
                 </>
