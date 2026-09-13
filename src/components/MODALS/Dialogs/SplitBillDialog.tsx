@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { ModalForm, ProFormDigit, ProFormSelect } from "@ant-design/pro-components";
-import { Form, Row, Col, Typography, Space, Button, Card, Tag, Alert } from "antd";
+import { ModalForm, ProCard, ProFormDigit, ProFormSelect } from "@ant-design/pro-components";
+import { Form, Row, Col, Typography, Space, Button, Tag, Alert } from "antd";
 import {
   SplitCellsOutlined,
   CheckCircleOutlined,
@@ -245,7 +245,7 @@ const SplitBillDialog: React.FC<SplitBillDialogProps> = ({
       {/* Two payment columns */}
       <Row gutter={16}>
         <Col span={12}>
-          <Card
+          <ProCard
             size="small"
             title={
               <Space size={6}>
@@ -291,11 +291,11 @@ const SplitBillDialog: React.FC<SplitBillDialogProps> = ({
                 onChange: handleAmount1Change,
               }}
             />
-          </Card>
+          </ProCard>
         </Col>
 
         <Col span={12}>
-          <Card
+          <ProCard
             size="small"
             title={
               <Space size={6}>
@@ -341,7 +341,7 @@ const SplitBillDialog: React.FC<SplitBillDialogProps> = ({
                 onChange: handleAmount2Change,
               }}
             />
-          </Card>
+          </ProCard>
         </Col>
       </Row>
 

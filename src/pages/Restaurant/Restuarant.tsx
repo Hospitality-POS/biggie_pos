@@ -1,10 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import {
-  Alert,
-  AlertTitle,
   AppBar,
   Badge,
-  Divider,
   Grid,
   IconButton,
   Tab,
@@ -50,7 +47,7 @@ import { usePOSMode } from "@context/POSModeContext";
 import { useRetailQueue } from "@context/RetailQueueContext";
 import RetailSlotIndicator from "@components/retail/RetailSlotIndicator";
 import BarcodeScanPanel from "./BarcodeScanPanel";
-import { message } from "antd";
+import { Alert, message } from "antd";
 
 function a11yProps(index) {
   return {
@@ -246,14 +243,14 @@ const RestaurantPage: React.FC = () => {
     }
 
     const term = searchTerm.toLowerCase();
-    
+
     // Search by name or price/amount
-    setFilteredProducts(enabledProducts.filter((p) => 
-      p.name.toLowerCase().includes(term) || 
+    setFilteredProducts(enabledProducts.filter((p) =>
+      p.name.toLowerCase().includes(term) ||
       (p.price && p.price.toString().includes(term))
     ));
-    setFilteredServices(enabledServices.filter((s) => 
-      s.name.toLowerCase().includes(term) || 
+    setFilteredServices(enabledServices.filter((s) =>
+      s.name.toLowerCase().includes(term) ||
       (s.price && s.price.toString().includes(term))
     ));
   }, [searchTerm, products, services]);
@@ -446,21 +443,9 @@ const RestaurantPage: React.FC = () => {
           ))
         )
       ) : searchTerm ? (
-        <Alert
-          severity="info"
-          sx={{ width: "100%", bgcolor: "#DEAC80", color: "white", borderRadius: 2 }}
-        >
-          <AlertTitle>No Results</AlertTitle>
-          No items match "{searchTerm}"
-        </Alert>
+        <Alert message={`No items found matching "${searchTerm}"`} type="info" showIcon />
       ) : categoryChosen ? (
-        <Alert
-          severity="info"
-          sx={{ width: "100%", bgcolor: "#DEAC80", color: "white", borderRadius: 2 }}
-        >
-          <AlertTitle>Empty</AlertTitle>
-          This category has no items yet.
-        </Alert>
+        <Alert message="No items found in this category" type="info" showIcon />
       ) : (
         <Box sx={{ width: "100%", textAlign: "center", py: 6, color: "text.secondary" }}>
           <Typography variant="body2">Select a category to browse items</Typography>
@@ -758,15 +743,9 @@ const RestaurantPage: React.FC = () => {
                               ))}
                             </Box>
                           ) : (
-                              <Alert
-                                severity="info"
-                                sx={{ width: "100%", bgcolor: "#DEAC80", borderRadius: 2 }}
-                              >
-                                <AlertTitle>Empty</AlertTitle>
-                                No categories here yet.
-                              </Alert>
-                            )
-                          ) : (
+                            <Alert message="No categories found" type="info" showIcon />
+                          )
+                        ) : (
                           <Box>
                             {/* Search + back row */}
                             <Box
@@ -840,10 +819,7 @@ const RestaurantPage: React.FC = () => {
                     </Box>
                   ) : (
                     <Box sx={{ p: 2 }}>
-                      <Alert severity="info" sx={{ bgcolor: "#DEAC80", borderRadius: 2 }}>
-                        <AlertTitle>Empty</AlertTitle>
-                        This category has no subcategories yet.
-                      </Alert>
+                      <Alert message="No subcategories found" type="info" showIcon />
                     </Box>
                   )}
                 </>
