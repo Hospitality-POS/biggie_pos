@@ -39,7 +39,12 @@ function Layout() {
         <div style={{ maxWidth: "1920px" }}>
           <App>
             <ProNavbar>
-              <PageContainer header={false} ghost>
+              <PageContainer
+                pageHeaderRender={false}
+                breadcrumbRender={false}
+                title={false}
+                ghost
+              >
                 <Outlet />
               </PageContainer>
             </ProNavbar>

@@ -1003,11 +1003,11 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         .ant-menu-overflow-item-rest { padding: 0 !important; }
         .ant-menu-overflow-item-rest > .ant-menu-submenu-title { padding: 0 !important; margin: 0 !important; background: transparent !important; }
         .ant-menu-overflow-item-rest > .ant-menu-submenu-title::after { display: none !important; }
+        .ant-pro-page-container-warp-page-header { display: none !important; }
         @media (max-width: 992px) {
           .ant-pro-page-container { padding: 0 !important; }
           .ant-pro-page-container-children-container { padding: 8px 12px !important; }
           .ant-pro-page-container-children-content { padding: 0 !important; }
-          .ant-pro-page-container-warp-page-header { padding: 8px 12px !important; }
           .ant-pro-global-header { padding: 0 12px !important; }
         }
         .notification-popover-overlay .ant-popover-inner { padding: 0 !important; }
@@ -1268,6 +1268,7 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         layout="top"
         splitMenus={false}
         fixedHeader={true}
+        breadcrumbProps={{ items: [] }}
         menuRender={isMobile ? false : undefined}
         menuProps={{
           overflowedIndicatorPopupClassName: "nav-overflow-popup",
