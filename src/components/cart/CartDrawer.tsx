@@ -714,7 +714,13 @@ const CartDrawer: React.FC = () => {
         {/* Action buttons */}
         {memoizedData?.length > 0 && (
           <Space direction="vertical" style={{ width: "100%" }} size={8}>
-            <Flex gap={8} wrap="wrap">
+            <Flex
+              gap={8}
+              wrap="wrap"
+              justify="space-evenly"
+              align="center"
+              style={{ width: "100%" }}
+            >
               <ClientPin cart={cartDetails} />
               <Button
                 icon={<PlusCircleOutlined />}
