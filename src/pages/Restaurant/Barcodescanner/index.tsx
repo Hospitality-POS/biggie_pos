@@ -17,8 +17,8 @@ import {
     Space,
     Typography,
     Spin,
-    Card,
 } from "antd";
+import { ProCard } from "@ant-design/pro-components";
 import type { InputRef } from "antd";
 import {
     BarcodeOutlined,
@@ -260,55 +260,56 @@ export const BarcodeScanPanel: React.FC<BarcodeScanPanelProps> = ({ tableId, onC
                 </Space>
             )}
 
-            {/* 3 ways to scan guidance card */}
-            <Card
+            {/* 3 ways to scan guidance card using ProCard */}
+            <ProCard
                 size="small"
+                bordered
+                headerBordered
+                title={
+                    <Typography.Text
+                        strong
+                        style={{
+                            fontSize: 12,
+                            color: "#334155",
+                            textTransform: "uppercase",
+                            letterSpacing: 0.5,
+                        }}
+                    >
+                        3 Ways to Scan
+                    </Typography.Text>
+                }
                 style={{
                     maxWidth: 460,
                     width: "100%",
                     borderRadius: 10,
-                    background: "#ffffff",
                     borderColor: "#cbd5e1",
                     boxShadow: "0 1px 4px rgba(0, 0, 0, 0.05)",
                 }}
             >
-                <Typography.Text
-                    strong
-                    style={{
-                        fontSize: 12,
-                        color: "#334155",
-                        textTransform: "uppercase",
-                        letterSpacing: 0.5,
-                        display: "block",
-                        marginBottom: 10,
-                    }}
-                >
-                    3 Ways to Scan
-                </Typography.Text>
                 <Space direction="vertical" size={8} style={{ width: "100%" }}>
                     <div style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13, color: "#334155", lineHeight: 1.5 }}>
                         <ScanOutlined style={{ color: primaryColor, fontSize: 16, marginTop: 2, flexShrink: 0 }} />
                         <div>
                             <Typography.Text strong style={{ color: "#0f172a" }}>Scanner Gun:</Typography.Text>{" "}
-                            <span>Point and trigger — detects barcode and adds to cart automatically</span>
+                            <span>Point and scan to add items automatically to your cart</span>
                         </div>
                     </div>
                     <div style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13, color: "#334155", lineHeight: 1.5 }}>
                         <CameraOutlined style={{ color: primaryColor, fontSize: 16, marginTop: 2, flexShrink: 0 }} />
                         <div>
                             <Typography.Text strong style={{ color: "#0f172a" }}>Camera:</Typography.Text>{" "}
-                            <span>Tap the camera button to scan with your device webcam</span>
+                            <span>Tap the camera button to scan with your device camera</span>
                         </div>
                     </div>
                     <div style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13, color: "#334155", lineHeight: 1.5 }}>
                         <BarcodeOutlined style={{ color: primaryColor, fontSize: 16, marginTop: 2, flexShrink: 0 }} />
                         <div>
                             <Typography.Text strong style={{ color: "#0f172a" }}>Manual:</Typography.Text>{" "}
-                            <span>Type barcode number in the box and press Enter</span>
+                            <span>Enter the barcode number and press Enter</span>
                         </div>
                     </div>
                 </Space>
-            </Card>
+            </ProCard>
         </div>
     );
 };
