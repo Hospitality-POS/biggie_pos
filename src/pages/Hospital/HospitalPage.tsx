@@ -93,12 +93,37 @@ const SkeletonTabs = () => (
     </Box>
 );
 
-const SkeletonCards = ({ cols }: { cols: number }) => (
-    <Box sx={{ display: "flex", flexWrap: "wrap", gap: "10px", mt: 1 }}>
+const SkeletonCards = ({
+    cols = 6,
+    isMobile = false,
+    isTablet = false,
+}: {
+    cols?: number;
+    isMobile?: boolean;
+    isTablet?: boolean;
+}) => (
+    <Box
+        sx={{
+            display: "grid",
+            gridTemplateColumns: isMobile
+                ? "repeat(auto-fit, minmax(130px, 1fr))"
+                : isTablet
+                    ? "repeat(auto-fit, minmax(160px, 1fr))"
+                    : "repeat(auto-fit, minmax(190px, 1fr))",
+            gap: "12px",
+            flex: 1,
+            width: "100%",
+            alignContent: "start",
+            pt: 1,
+        }}
+    >
         {[...Array(cols)].map((_, i) => (
-            <Skeleton key={i} variant="rectangular"
-                width={`calc(${100 / Math.min(cols, 3)}% - 8px)`} height={80}
-                sx={{ borderRadius: 2 }} />
+            <Skeleton
+                key={i}
+                variant="rectangular"
+                height={95}
+                sx={{ borderRadius: 2, width: "100%" }}
+            />
         ))}
     </Box>
 );
@@ -485,7 +510,7 @@ const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
                                                     ))}
                                                 </Box>
                                             )}
-                                            <SkeletonCards cols={6} />
+                                            <SkeletonCards cols={6} isMobile={isMobile} isTablet={isTablet} />
                                         </Box>
                                     ) : subcategories.length ? (
                                         <Box sx={{ display: "flex", flexDirection: "row", flex: 1, overflow: "hidden" }}>
@@ -507,11 +532,23 @@ const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
                                                 }}
                                             >
                                                 {showCategories ? (
-                                                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: "10px", pt: 1 }}>
-                                                        {isLoading ? (
-                                                            <SkeletonCards cols={6} />
-                                                        ) : categories.length ? (
-                                                            categories.map((category: any) => (
+                                                    isLoading ? (
+                                                        <SkeletonCards cols={6} isMobile={isMobile} isTablet={isTablet} />
+                                                    ) : categories.length ? (
+                                                        <Box
+                                                            sx={{
+                                                                display: "grid",
+                                                                gridTemplateColumns: isMobile
+                                                                    ? "repeat(auto-fit, minmax(130px, 1fr))"
+                                                                    : isTablet
+                                                                        ? "repeat(auto-fit, minmax(160px, 1fr))"
+                                                                        : "repeat(auto-fit, minmax(190px, 1fr))",
+                                                                gap: "12px",
+                                                                width: "100%",
+                                                                pt: 1,
+                                                            }}
+                                                        >
+                                                            {categories.map((category: any) => (
                                                                 <CategoryCard
                                                                     key={category._id}
                                                                     handleSelectedCard={handleSelectCard}
@@ -521,19 +558,21 @@ const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
                                                                     itemCount={1}
                                                                     id={category._id}
                                                                     style={{
-                                                                        flex: isMobile ? "0 0 calc(50% - 5px)" : isTablet ? "0 0 calc(50% - 5px)" : `0 0 calc(${100 / Math.min(categories.length, 3)}% - 8px)`,
+                                                                        maxWidth: categories.length === 1 ? 280 : "none",
                                                                         border: `1px solid ${H.border}`,
                                                                         borderRadius: 8,
                                                                         borderTop: `3px solid ${barColor}`,
+                                                                        width: "100%",
+                                                                        margin: 0,
                                                                     }}
                                                                 />
-                                                            ))
-                                                        ) : (
-                                                            <Alert severity="info" sx={{ width: "100%", borderRadius: 2 }}>
-                                                                <AlertTitle>Empty</AlertTitle>No items in this department.
-                                                            </Alert>
-                                                        )}
-                                                    </Box>
+                                                            ))}
+                                                        </Box>
+                                                    ) : (
+                                                        <Alert severity="info" sx={{ width: "100%", borderRadius: 2 }}>
+                                                            <AlertTitle>Empty</AlertTitle>No items in this department.
+                                                        </Alert>
+                                                    )
                                                 ) : (
                                                     <Box>
                                                         {/* Search + back */}

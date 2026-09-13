@@ -93,14 +93,27 @@ const SkeletonCategoryCards = ({
   isMobile: boolean;
   isTablet: boolean;
 }) => (
-  <Box sx={{ display: "flex", flexWrap: "wrap", gap: "10px", mt: 2, width: "100%" }}>
+  <Box
+    sx={{
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "repeat(auto-fit, minmax(130px, 1fr))"
+        : isTablet
+          ? "repeat(auto-fit, minmax(160px, 1fr))"
+          : "repeat(auto-fit, minmax(190px, 1fr))",
+      gap: "12px",
+      flex: 1,
+      width: "100%",
+      pt: 1,
+      alignContent: "start",
+    }}
+  >
     {[...Array(6)].map((_, i) => (
       <Skeleton
         key={i}
         variant="rectangular"
-        width={isMobile ? "100%" : isTablet ? "45%" : "30%"}
-        height={80}
-        sx={{ borderRadius: 2 }}
+        height={95}
+        sx={{ borderRadius: 2, width: "100%" }}
       />
     ))}
   </Box>
@@ -624,11 +637,23 @@ const RestaurantPage: React.FC = () => {
                         }}
                       >
                         {showCategories ? (
-                          <Box sx={{ display: "flex", flexWrap: "wrap", gap: "10px", pt: 1 }}>
-                            {isLoading ? (
-                              <SkeletonCategoryCards isMobile={isMobile} isTablet={isTablet} />
-                            ) : categories.length ? (
-                              categories.map((category) => (
+                          isLoading ? (
+                            <SkeletonCategoryCards isMobile={isMobile} isTablet={isTablet} />
+                          ) : categories.length ? (
+                            <Box
+                              sx={{
+                                display: "grid",
+                                gridTemplateColumns: isMobile
+                                  ? "repeat(auto-fit, minmax(130px, 1fr))"
+                                  : isTablet
+                                    ? "repeat(auto-fit, minmax(160px, 1fr))"
+                                    : "repeat(auto-fit, minmax(190px, 1fr))",
+                                gap: "12px",
+                                width: "100%",
+                                pt: 1,
+                              }}
+                            >
+                              {categories.map((category) => (
                                 <CategoryCard
                                   key={category._id}
                                   handleSelectedCard={handleSelectCard}
@@ -638,18 +663,16 @@ const RestaurantPage: React.FC = () => {
                                   itemCount={1}
                                   id={category._id}
                                   style={{
-                                    flex: isMobile
-                                      ? "0 0 calc(50% - 5px)"
-                                      : isTablet
-                                        ? "0 0 calc(50% - 5px)"
-                                        : `0 0 calc(${100 / Math.min(categories.length, 3)
-                                        }% - 8px)`,
+                                    maxWidth: categories.length === 1 ? 280 : "none",
                                     border: "1px solid #e2e8f0",
                                     borderRadius: 8,
+                                    width: "100%",
+                                    margin: 0,
                                   }}
                                 />
-                              ))
-                            ) : (
+                              ))}
+                            </Box>
+                          ) : (
                               <Alert
                                 severity="info"
                                 sx={{ width: "100%", bgcolor: "#DEAC80", borderRadius: 2 }}
@@ -657,9 +680,8 @@ const RestaurantPage: React.FC = () => {
                                 <AlertTitle>Empty</AlertTitle>
                                 No categories here yet.
                               </Alert>
-                            )}
-                          </Box>
-                        ) : (
+                            )
+                          ) : (
                           <Box>
                             {/* Search + back row */}
                             <Box

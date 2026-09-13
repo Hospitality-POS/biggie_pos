@@ -129,11 +129,16 @@ input[type="checkbox" i]:active {
   max-width: 230px !important;
 }
 
-/* Category CheckCard: perfect centering of icon and text */
+/* Category CheckCard: perfect centering of icon and text & full grid expansion */
 .category-checkcard.ant-pro-checkcard {
-  display: inline-flex !important;
+  display: flex !important;
   align-items: center !important;
   justify-content: center !important;
+  margin: 0 !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  min-height: 95px !important;
 }
 
 .category-checkcard .ant-pro-checkcard-content {

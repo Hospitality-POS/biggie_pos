@@ -67,7 +67,12 @@ function CategoryCard({
           </Typography.Title>
         </div>
       }
-      style={{ minWidth: 140, overflow: "hidden", ...style }}
+      style={{
+        width: "100%",
+        margin: 0,
+        overflow: "hidden",
+        ...style,
+      }}
     />
   );
 }
