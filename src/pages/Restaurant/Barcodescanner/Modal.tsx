@@ -11,17 +11,13 @@ import { BrowserMultiFormatReader, NotFoundException } from "@zxing/library";
 import type { BarcodeScannerModalProps } from "./types";
 
 export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
-    open,
-    visible,
     onClose,
     onOpenChange,
     onScan,
     primaryColor = "#10b981",
     trigger,
 }) => {
-    const isControlled = typeof open !== "undefined" || typeof visible !== "undefined";
-    const isOpen = typeof open !== "undefined" ? open : visible;
-
+    const [isOpen, setIsOpen] = useState(false);
     const videoRef = useRef<HTMLVideoElement>(null);
     const readerRef = useRef<BrowserMultiFormatReader | null>(null);
     const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
@@ -47,6 +43,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
         stopScanner();
         setScanned(null);
         setError(null);
+        setIsOpen(false);
         onClose?.();
         onOpenChange?.(false);
     }, [stopScanner, onClose, onOpenChange]);
@@ -67,7 +64,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
     }, [selectedCamera]);
 
     useEffect(() => {
-        if (isControlled && !isOpen) return;
+        if (!isOpen) return;
 
         setScanned(null);
         setError(null);
@@ -110,10 +107,10 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
         return () => {
             stopScanner();
         };
-    }, [isControlled, isOpen, stopScanner]);
+    }, [isOpen, stopScanner]);
 
     useEffect(() => {
-        if ((isControlled && !isOpen) || !selectedCamera || !videoRef.current || loading) return;
+        if (!isOpen || !selectedCamera || !videoRef.current || loading) return;
         stopScanner();
         setScanned(null);
         setError(null);
@@ -138,7 +135,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
         return () => {
             stopScanner();
         };
-    }, [isControlled, isOpen, selectedCamera, loading, stopScanner]);
+    }, [isOpen, selectedCamera, loading, stopScanner]);
 
     return (
         <ModalForm
@@ -150,15 +147,17 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                     </Typography.Text>
                 </Space>
             }
-            open={isOpen}
-            onOpenChange={(v) => {
-                if (!v) {
-                    handleClose();
-                } else {
-                    onOpenChange?.(true);
-                }
-            }}
             trigger={trigger}
+            onOpenChange={(v) => {
+                setIsOpen(v);
+                if (!v) {
+                    stopScanner();
+                    setScanned(null);
+                    setError(null);
+                    onClose?.();
+                }
+                onOpenChange?.(v);
+            }}
             width={440}
             modalProps={{
                 centered: true,
@@ -177,7 +176,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                 return false;
             }}
             submitter={{
-                render: () => {
+                render: (props, defaultDoms) => {
                     if (scanned) {
                         return [
                             <Button key="rescan" icon={<ReloadOutlined />} onClick={handleRescan}>
@@ -187,7 +186,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                                 key="confirm"
                                 type="primary"
                                 icon={<CheckOutlined />}
-                                onClick={handleConfirm}
+                                onClick={() => props.submit()}
                                 style={{ backgroundColor: "#059669", borderColor: "#059669" }}
                             >
                                 Use This Barcode
@@ -195,9 +194,11 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                         ];
                     }
                     return [
-                        <Button key="cancel" onClick={handleClose} block>
-                            Cancel
-                        </Button>,
+                        React.cloneElement(defaultDoms[0], {
+                            key: "cancel",
+                            block: true,
+                            onClick: handleClose,
+                        }),
                     ];
                 },
             }}

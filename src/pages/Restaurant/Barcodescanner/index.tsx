@@ -2,9 +2,9 @@
  * Barcodescanner/index.tsx
  *
  * POS barcode scanning panel with:
- *  - Camera scanner via BarcodeScannerModal (@zxing/library) using Ant Design Pro ModalForm
+ *  - Camera scanner via BarcodeScannerModal (@zxing/library) using Ant Design Pro ModalForm (trigger way)
  *  - Physical USB/Bluetooth scanner via useBarcodeScanner hook
- *  - Manual barcode entry with Ant Design Space.Compact input & button
+ *  - Manual barcode entry with Ant Design Space.Compact input & trigger button
  *  - Real-time Ant Design feedback alerts and session badges
  */
 
@@ -43,11 +43,11 @@ export const BarcodeScanPanel: React.FC<BarcodeScanPanelProps> = ({ tableId, onC
     const [lastResult, setLastResult] = useState<ScanResult | null>(null);
     const [scanCount, setScanCount] = useState(0);
     const [isProcessing, setIsProcessing] = useState(false);
-    const [cameraOpen, setCameraOpen] = useState(false);
+    const [isCameraActive, setIsCameraActive] = useState(false);
 
     const refocusInput = useCallback(() => {
-        if (inputRef.current && !cameraOpen) inputRef.current.focus();
-    }, [cameraOpen]);
+        if (inputRef.current && !isCameraActive) inputRef.current.focus();
+    }, [isCameraActive]);
 
     // Focus on mount and when tab regains visibility
     useEffect(() => {
@@ -98,9 +98,9 @@ export const BarcodeScanPanel: React.FC<BarcodeScanPanelProps> = ({ tableId, onC
         [dispatch, tableId, isProcessing, onCartUpdate, refocusInput]
     );
 
-    // USB/BT scanner gun hook
+    // USB/BT scanner gun hook (paused while camera scanner modal is active)
     useBarcodeScanner({
-        enabled: !cameraOpen,
+        enabled: !isCameraActive,
         onScan: useCallback((code: string) => processBarcode(code), [processBarcode]),
     });
 
@@ -217,7 +217,7 @@ export const BarcodeScanPanel: React.FC<BarcodeScanPanelProps> = ({ tableId, onC
                 />
             )}
 
-            {/* Input row: Ant Design Input + Camera Button */}
+            {/* Input row: Ant Design Input + Camera Trigger via ModalForm */}
             <Space.Compact style={{ width: "100%", maxWidth: 460 }}>
                 <Input
                     ref={inputRef}
@@ -234,18 +234,24 @@ export const BarcodeScanPanel: React.FC<BarcodeScanPanelProps> = ({ tableId, onC
                     autoFocus
                     style={{ borderRadius: "8px 0 0 8px" }}
                 />
-                <Button
-                    size="large"
-                    type="primary"
-                    icon={<CameraOutlined />}
-                    onClick={() => setCameraOpen(true)}
-                    disabled={isProcessing}
-                    title="Scan with camera"
-                    style={{
-                        backgroundColor: primaryColor,
-                        borderColor: primaryColor,
-                        borderRadius: "0 8px 8px 0",
-                    }}
+                <BarcodeScannerModal
+                    trigger={
+                        <Button
+                            size="large"
+                            type="primary"
+                            icon={<CameraOutlined />}
+                            disabled={isProcessing}
+                            title="Scan with camera"
+                            style={{
+                                backgroundColor: primaryColor,
+                                borderColor: primaryColor,
+                                borderRadius: "0 8px 8px 0",
+                            }}
+                        />
+                    }
+                    onOpenChange={setIsCameraActive}
+                    onScan={processBarcode}
+                    primaryColor={primaryColor}
                 />
             </Space.Compact>
 
@@ -296,19 +302,8 @@ export const BarcodeScanPanel: React.FC<BarcodeScanPanelProps> = ({ tableId, onC
                     </Typography.Text>
                 </Space>
             </Card>
-
-            {/* Camera scanner modal using ModalForm */}
-            <BarcodeScannerModal
-                open={cameraOpen}
-                onOpenChange={setCameraOpen}
-                onClose={() => setCameraOpen(false)}
-                onScan={(code) => {
-                    processBarcode(code);
-                    setCameraOpen(false);
-                }}
-                primaryColor={primaryColor}
-            />
         </div>
     );
 };
+
 export default BarcodeScanPanel;

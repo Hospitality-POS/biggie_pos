@@ -13,8 +13,6 @@ export interface BarcodeScanPanelProps {
 }
 
 export interface BarcodeScannerModalProps {
-    open?: boolean;
-    visible?: boolean;
     onClose?: () => void;
     onOpenChange?: (open: boolean) => void;
     onScan: (barcode: string) => void;
