@@ -82,7 +82,7 @@ const TableCard: React.FC<itemProps> = ({ item, openModal }) => {
 
 
   // Helper function to lighten color (reduced percentage to maintain color identity)
-  const lightenColor = (color: string, percent: number = 15) => {
+  const lightenColor = (color: string, percent = 15) => {
     const hex = color.replace('#', '');
     const r = parseInt(hex.substr(0, 2), 16);
     const g = parseInt(hex.substr(2, 2), 16);
@@ -147,17 +147,6 @@ const TableCard: React.FC<itemProps> = ({ item, openModal }) => {
     filter: createColorFilter(currentColor),
   };
 
-  const overlayStyles = {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    mixBlendMode: "multiply",
-    pointerEvents: "none",
-    zIndex: 0,
-  };
-
   const textOverlayStyles = {
     position: "absolute",
     top: "47%",
@@ -185,9 +174,6 @@ const TableCard: React.FC<itemProps> = ({ item, openModal }) => {
             image={item.isOccupied ? "/table.svg" : "/table3.svg"}
             className={classes.image}
           />
-
-          {/* Color overlay using currentColor */}
-          <Box sx={overlayStyles} />
 
           <Box sx={textOverlayStyles}>
             {isLocked && (
@@ -220,7 +206,7 @@ const TableCard: React.FC<itemProps> = ({ item, openModal }) => {
                 marginBottom: "4px",
               }}
             >
-              Amount: {item.cart_amount.toLocaleString()}
+              Amount: KES {item.cart_amount.toLocaleString()}
             </Typography>
             {item?.served_by && item.cart_amount > 0 && (
               <Typography

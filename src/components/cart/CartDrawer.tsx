@@ -805,12 +805,19 @@ const CartDrawer: React.FC = () => {
         )}
 
         {/* ── Column headers ────────────────────────────────────────────── */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 52px 80px 32px", gap: 4, padding: "4px 6px", background: "#f8fafc", borderRadius: 6, marginBottom: 6 }}>
-          {["Item", "Qty", "Price", ""].map((h, i) => (
-            <Text key={i} style={{ fontSize: 11, fontWeight: 600, color: "#94a3b8", letterSpacing: 0.5, textTransform: "uppercase", textAlign: i > 0 ? "center" : "left" }}>
-              {h}
-            </Text>
-          ))}
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 96px 74px minmax(36px, auto)", gap: 6, padding: "6px 10px", background: "#f8fafc", borderRadius: 6, marginBottom: 6, alignItems: "center" }}>
+          <Text style={{ fontSize: 11, fontWeight: 600, color: "#94a3b8", letterSpacing: 0.5, textTransform: "uppercase", textAlign: "left" }}>
+            Item
+          </Text>
+          <Text style={{ fontSize: 11, fontWeight: 600, color: "#94a3b8", letterSpacing: 0.5, textTransform: "uppercase", textAlign: "center" }}>
+            Qty
+          </Text>
+          <Text style={{ fontSize: 11, fontWeight: 600, color: "#94a3b8", letterSpacing: 0.5, textTransform: "uppercase", textAlign: "right" }}>
+            Price
+          </Text>
+          <Text style={{ fontSize: 11, fontWeight: 600, color: "#94a3b8", letterSpacing: 0.5, textTransform: "uppercase", textAlign: "center" }}>
+            
+          </Text>
         </div>
 
         {/* ── Cart items ────────────────────────────────────────────────── */}
@@ -837,7 +844,7 @@ const CartDrawer: React.FC = () => {
               onClick={() => setIsCustomItemModalOpen(true)}
               style={{ marginTop: 12, borderColor: primaryColor, color: primaryColor, borderRadius: 6 }}
             >
-              Add Miscellaneous Item
+              Add Custom Item
             </Button>
           </div>
         )}
@@ -1036,7 +1043,7 @@ const CartDrawer: React.FC = () => {
                   onClick={() => setIsCustomItemModalOpen(true)}
                   style={{ borderColor: primaryColor, color: primaryColor, borderRadius: 6 }}
                 >
-                  Add Miscellaneous Item
+                  Custom Item
                 </Button>
           
               {showSendButton && (
@@ -1074,7 +1081,7 @@ const CartDrawer: React.FC = () => {
                 onConfirm={() => dispatch(deleteAllCartItems(cartDetails?._id))}
                 okText="Clear" okButtonProps={{ danger: true }} cancelText="Cancel"
               >
-                <Button danger block size="small" icon={<CloseCircleOutlined />} style={{ borderRadius: 6 }}>
+                <Button danger block size="middle" icon={<CloseCircleOutlined />} style={{ borderRadius: 6 }}>
                   Clear Cart
                 </Button>
               </Popconfirm>
@@ -1085,7 +1092,7 @@ const CartDrawer: React.FC = () => {
 
       {/* ── Sticky checkout footer ────────────────────────────────────────── */}
       {canCheckout && (
-        <div style={{ flexShrink: 0, padding: "10px 14px", borderTop: "1px solid #e2e8f0", background: "#fff", boxShadow: "0 -2px 8px rgba(0,0,0,0.04)" }}>
+        <div style={{ flexShrink: 0, padding: "10px 14px", paddingBottom: "max(10px, env(safe-area-inset-bottom))", borderTop: "1px solid #e2e8f0", background: "#fff", boxShadow: "0 -2px 8px rgba(0,0,0,0.04)" }}>
           <PaymentDrawer customerDetails={customerDetails} />
         </div>
       )}
@@ -1100,7 +1107,7 @@ const CartDrawer: React.FC = () => {
         title={
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <PlusCircleOutlined style={{ color: primaryColor }} />
-            <span>Add Miscellaneous Item</span>
+            <span>Add Custom Item</span>
           </div>
         }
         onOk={handleAddCustomItem}

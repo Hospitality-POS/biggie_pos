@@ -4,14 +4,13 @@ import {
   Card,
   CardContent,
   Divider,
-  Grid,
   IconButton,
 } from "@mui/material";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { deleteCartItem, addQtyCart, removeQtyCart, updateCartItemQty, updateCartItems, addItemToCart } from "../../features/Cart/CartActions";
 import { useAppDispatch, useAppSelector } from "../../store";
 import AddTaskIcon from "@mui/icons-material/AddTask";
-import { Button, Typography, notification, Tooltip, Input, Popconfirm, Checkbox, Space, Tag } from "antd";
+import { Button, Typography, notification, Tooltip, Input, Checkbox, Space, Tag } from "antd";
 import { DeleteOutlined, LoadingOutlined, EditOutlined, FileTextOutlined, TagOutlined, CloseCircleOutlined } from "@ant-design/icons";
 import useCartItemsData from "@hooks/cartItemsData";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
@@ -416,17 +415,19 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
         key={cartItem._id}
         sx={{
           mb: 1,
-          boxShadow: "none",
-          backgroundColor: isSent ? primaryColor : "#f6ffed",
+          boxShadow: isSent ? "0 2px 4px rgba(0,0,0,0.1)" : "0 1px 2px rgba(0,0,0,0.04)",
+          border: isSent ? "none" : "1px solid #e2e8f0",
+          borderRadius: "8px",
+          backgroundColor: isSent ? primaryColor : "#ffffff",
           color: textColor,
-          transition: "background-color 0.2s ease",
+          transition: "background-color 0.2s ease, border-color 0.2s ease",
         }}
       >
-        <CardContent sx={{ pb: "8px !important", pt: "10px !important", px: "12px !important" }}>
-          <Grid container spacing={1} alignItems="center">
+        <CardContent sx={{ pb: "8px !important", pt: "10px !important", px: "10px !important" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 96px 74px minmax(36px, auto)", gap: 6, alignItems: "center" }}>
 
             {/* Item Name */}
-            <Grid item xs={4}>
+            <div style={{ minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                 <Typography.Text
                   ellipsis={{ tooltip: getItemName() }}
@@ -443,9 +444,10 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                       borderRadius: 4,
                       margin: 0,
                       padding: "0 6px",
-                      background: primaryColor,
-                      color: "#fff",
+                      background: isSent ? "#ffffff" : primaryColor,
+                      color: isSent ? primaryColor : "#ffffff",
                       border: "none",
+                      fontWeight: 600,
                     }}
                   >
                     Custom
@@ -458,7 +460,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                     <TagOutlined
                       style={{
                         fontSize: 14,
-                        color: primaryColor,
+                        color: isSent ? "#ffffff" : primaryColor,
                         cursor: "pointer",
                         flexShrink: 0
                       }}
@@ -487,7 +489,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                     <FileTextOutlined
                       style={{
                         fontSize: 14,
-                        color: cartItem?.notes ? primaryColor : "#94a3b8",
+                        color: cartItem?.notes ? (isSent ? "#ffffff" : primaryColor) : (isSent ? "rgba(255,255,255,0.7)" : "#94a3b8"),
                         cursor: "pointer",
                         flexShrink: 0
                       }}
@@ -500,7 +502,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                       <CloseCircleOutlined
                         style={{
                           fontSize: 14,
-                          color: "#ff4d4f",
+                          color: isSent ? "#ffffff" : "#ff4d4f",
                           cursor: "pointer",
                           flexShrink: 0
                         }}
@@ -510,221 +512,233 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                   </div>
                 </Tooltip>
               </div>
-            {/* Notes editing input */}
-            {isEditingNotes && (
-              <div style={{ marginTop: 6 }}>
-                <Input.TextArea
-                  autoSize={{ minRows: 2, maxRows: 4 }}
-                  value={notesValue}
-                  onChange={(e) => setNotesValue(e.target.value)}
-                  onBlur={handleSaveNotes}
-                  onPressEnter={handleSaveNotes}
-                  placeholder="Add notes (e.g., extra spicy, no onions)"
-                  style={{ fontSize: 12 }}
-                  autoFocus
-                />
-              </div>
-            )}
-          </Grid>
+            </div>
 
-          {/* Quantity Controls */}
-          <Grid item xs={4}>
-            {canEditQty ? (
-              <Box sx={{ display: "flex", alignItems: "center", gap: "4px" }}>
+            {/* Quantity Controls */}
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
+              {canEditQty ? (
+                <Box sx={{ display: "flex", alignItems: "center", gap: "4px" }}>
 
-                {/* Minus */}
-                <button
-                  onClick={handleStepRemove}
-                  disabled={!!stepLoading || qtyLoading || cartItem.quantity <= 0.01}
-                  style={{
-                    width: 22,
-                    height: 22,
-                    borderRadius: "50%",
-                    border: `1.5px solid ${isSent ? "rgba(255,255,255,0.5)" : primaryColor}`,
-                    backgroundColor: "transparent",
-                    color: isSent ? "#fff" : primaryColor,
-                    cursor: (cartItem.quantity <= 0.01 || !!stepLoading) ? "not-allowed" : "pointer",
-                    opacity: cartItem.quantity <= 0.01 ? 0.35 : 1,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    padding: 0,
-                    fontSize: 16,
-                    fontWeight: "bold",
-                    lineHeight: 1,
-                    transition: "all 0.15s ease",
-                    flexShrink: 0,
-                  }}
-                >
-                  {stepLoading === "remove"
-                    ? <LoadingOutlined style={{ fontSize: 10 }} />
-                    : "−"}
-                </button>
+                  {/* Minus */}
+                  <button
+                    onClick={handleStepRemove}
+                    disabled={!!stepLoading || qtyLoading || cartItem.quantity <= 0.01}
+                    style={{
+                      width: 26,
+                      height: 26,
+                      borderRadius: "50%",
+                      border: `1.5px solid ${isSent ? "rgba(255,255,255,0.5)" : primaryColor}`,
+                      backgroundColor: "transparent",
+                      color: isSent ? "#fff" : primaryColor,
+                      cursor: (cartItem.quantity <= 0.01 || stepLoading) ? "not-allowed" : "pointer",
+                      opacity: cartItem.quantity <= 0.01 ? 0.35 : 1,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: 0,
+                      fontSize: 16,
+                      fontWeight: "bold",
+                      lineHeight: 1,
+                      transition: "all 0.15s ease",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {stepLoading === "remove"
+                      ? <LoadingOutlined style={{ fontSize: 10 }} />
+                      : "−"}
+                  </button>
 
-                {/* Quantity: click to type */}
-                {isEditingQty ? (
-                  <Box sx={{ display: "flex", alignItems: "center", gap: "2px" }}>
-                    <input
-                      ref={inputRef}
-                      type="text"
-                      inputMode="decimal"
-                      value={qtyInputValue}
-                      onChange={(e) => setQtyInputValue(e.target.value)}
-                      onBlur={commitQtyChange}
-                      onKeyDown={handleKeyDown}
-                      placeholder="0.00"
-                      style={{
-                        width: 38,
-                        height: 26,
-                        textAlign: "center",
-                        border: `2px solid ${primaryColor}`,
-                        borderRadius: 5,
-                        fontSize: 13,
-                        fontWeight: 700,
-                        color: "#000",
-                        backgroundColor: "#fff",
-                        outline: "none",
-                        padding: "0 2px",
-                        boxShadow: `0 0 0 2px ${primaryColor}22`,
-                      }}
-                    />
-                    {/* Confirm tick */}
-                    <button
-                      onMouseDown={(e) => { e.preventDefault(); commitQtyChange(); }}
-                      style={{
-                        width: 20,
-                        height: 20,
-                        borderRadius: "50%",
-                        border: "none",
-                        backgroundColor: "#52c41a",
-                        color: "#fff",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        padding: 0,
-                        fontSize: 11,
-                        flexShrink: 0,
-                      }}
-                    >
-                      ✓
-                    </button>
-                  </Box>
-                ) : (
-                  <Tooltip title="Click to set quantity (supports decimals)" placement="top" mouseEnterDelay={0.5}>
-                    <button
-                      onClick={() => {
-                        if (!qtyLoading && !stepLoading) {
-                          setQtyInputValue(String(cartItem.quantity));
-                          setIsEditingQty(true);
+                  {/* Quantity: click to type */}
+                  {isEditingQty ? (
+                    <Box sx={{ display: "flex", alignItems: "center", gap: "2px" }}>
+                      <input
+                        ref={inputRef}
+                        type="text"
+                        inputMode="decimal"
+                        value={qtyInputValue}
+                        onChange={(e) => setQtyInputValue(e.target.value)}
+                        onBlur={commitQtyChange}
+                        onKeyDown={handleKeyDown}
+                        placeholder="0.00"
+                        style={{
+                          width: 36,
+                          height: 26,
+                          textAlign: "center",
+                          border: `2px solid ${primaryColor}`,
+                          borderRadius: 5,
+                          fontSize: 13,
+                          fontWeight: 700,
+                          color: "#000",
+                          backgroundColor: "#fff",
+                          outline: "none",
+                          padding: "0 2px",
+                          boxShadow: `0 0 0 2px ${primaryColor}22`,
+                        }}
+                      />
+                      {/* Confirm tick */}
+                      <button
+                        onMouseDown={(e) => { e.preventDefault(); commitQtyChange(); }}
+                        style={{
+                          width: 20,
+                          height: 20,
+                          borderRadius: "50%",
+                          border: "none",
+                          backgroundColor: "#52c41a",
+                          color: "#fff",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          padding: 0,
+                          fontSize: 11,
+                          flexShrink: 0,
+                        }}
+                      >
+                        ✓
+                      </button>
+                    </Box>
+                  ) : (
+                    <Tooltip title="Click to set quantity (supports decimals)" placement="top" mouseEnterDelay={0.5}>
+                      <button
+                        onClick={() => {
+                          if (!qtyLoading && !stepLoading) {
+                            setQtyInputValue(String(cartItem.quantity));
+                            setIsEditingQty(true);
+                          }
+                        }}
+                        style={{
+                          minWidth: 30,
+                          height: 26,
+                          border: `1px dashed ${isSent ? "rgba(255,255,255,0.4)" : `${primaryColor}55`}`,
+                          borderRadius: 5,
+                          backgroundColor: isSent ? "rgba(255,255,255,0.15)" : `${primaryColor}0f`,
+                          color: textColor,
+                          cursor: qtyLoading ? "wait" : "pointer",
+                          fontSize: 13,
+                          fontWeight: 700,
+                          padding: "0 4px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          transition: "all 0.15s ease",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {qtyLoading
+                          ? <LoadingOutlined style={{ fontSize: 11, color: textColor }} />
+                          : cartItem.quantity !== undefined && cartItem.quantity !== null
+                            ? formattedQuantity
+                            : <LoadingOutlined style={{ fontSize: 11 }} />
                         }
-                      }}
-                      style={{
-                        minWidth: 30,
-                        height: 26,
-                        border: `1px dashed ${isSent ? "rgba(255,255,255,0.4)" : `${primaryColor}55`}`,
-                        borderRadius: 5,
-                        backgroundColor: isSent ? "rgba(255,255,255,0.15)" : `${primaryColor}0f`,
-                        color: textColor,
-                        cursor: qtyLoading ? "wait" : "pointer",
-                        fontSize: 13,
-                        fontWeight: 700,
-                        padding: "0 6px",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        transition: "all 0.15s ease",
-                        flexShrink: 0,
-                      }}
-                    >
-                      {qtyLoading
-                        ? <LoadingOutlined style={{ fontSize: 11, color: textColor }} />
-                        : cartItem.quantity !== undefined && cartItem.quantity !== null
-                          ? formattedQuantity
-                          : <LoadingOutlined style={{ fontSize: 11 }} />
-                      }
-                    </button>
-                  </Tooltip>
-                )}
+                      </button>
+                    </Tooltip>
+                  )}
 
-                {/* Plus */}
-                <button
-                  onClick={handleStepAdd}
-                  disabled={!!stepLoading || qtyLoading}
-                  style={{
-                    width: 22,
-                    height: 22,
-                    borderRadius: "50%",
-                    border: `1.5px solid ${isSent ? "rgba(255,255,255,0.5)" : primaryColor}`,
-                    backgroundColor: "transparent",
-                    color: isSent ? "#fff" : primaryColor,
-                    cursor: !!stepLoading ? "not-allowed" : "pointer",
-                    opacity: !!stepLoading ? 0.4 : 1,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    padding: 0,
-                    fontSize: 16,
-                    fontWeight: "bold",
-                    lineHeight: 1,
-                    transition: "all 0.15s ease",
-                    flexShrink: 0,
-                  }}
-                >
-                  {stepLoading === "add"
-                    ? <LoadingOutlined style={{ fontSize: 10 }} />
-                    : "+"}
-                </button>
+                  {/* Plus */}
+                  <button
+                    onClick={handleStepAdd}
+                    disabled={Boolean(stepLoading) || qtyLoading}
+                    style={{
+                      width: 26,
+                      height: 26,
+                      borderRadius: "50%",
+                      border: `1.5px solid ${isSent ? "rgba(255,255,255,0.5)" : primaryColor}`,
+                      backgroundColor: "transparent",
+                      color: isSent ? "#fff" : primaryColor,
+                      cursor: stepLoading ? "not-allowed" : "pointer",
+                      opacity: stepLoading ? 0.4 : 1,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: 0,
+                      fontSize: 16,
+                      fontWeight: "bold",
+                      lineHeight: 1,
+                      transition: "all 0.15s ease",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {stepLoading === "add"
+                      ? <LoadingOutlined style={{ fontSize: 10 }} />
+                      : "+"}
+                  </button>
 
-              </Box>
-            ) : (
-              // Read-only for non-admin/cashier
-              <Typography.Text strong style={{ color: textColor }}>
-                x {cartItem.quantity !== undefined && cartItem.quantity !== null
-                  ? formattedQuantity
-                  : <LoadingOutlined />}
-              </Typography.Text>
-            )}
-          </Grid>
+                </Box>
+              ) : (
+                // Read-only for non-admin/cashier
+                <Typography.Text strong style={{ color: textColor, textAlign: "center" }}>
+                  x {cartItem.quantity !== undefined && cartItem.quantity !== null
+                    ? formattedQuantity
+                    : <LoadingOutlined />}
+                </Typography.Text>
+              )}
+            </div>
 
-          {/* Price */}
-          <Grid item xs={2} sx={{ ml: -1 }}>
-            {discountedPrice ? (
-              <div>
-                <Typography.Text
-                  delete
-                  style={{ color: textColor, opacity: 0.6, fontSize: 11, display: "block" }}
-                >
+            {/* Price */}
+            <div style={{ textAlign: "right", minWidth: 0 }}>
+              {discountedPrice ? (
+                <div>
+                  <Typography.Text
+                    delete
+                    style={{ color: textColor, opacity: 0.6, fontSize: 11, display: "block" }}
+                  >
+                    {formattedPrice}
+                  </Typography.Text>
+                  <Typography.Text strong style={{ color: textColor, fontSize: 12 }}>
+                    {discountedPrice}
+                  </Typography.Text>
+                </div>
+              ) : (
+                <Typography.Text strong style={{ color: textColor, fontSize: 12 }}>
                   {formattedPrice}
                 </Typography.Text>
-                <Typography.Text strong style={{ color: textColor, fontSize: 12 }}>
-                  {discountedPrice}
-                </Typography.Text>
-              </div>
-            ) : (
-              <Typography.Text strong style={{ color: textColor, fontSize: 12 }}>
-                {formattedPrice}
-              </Typography.Text>
-            )}
-          </Grid>
+              )}
+            </div>
 
-          {/* Delete / Sent */}
-          <Grid item xs={2}>
-            {isSent ? (
-              <Space>
-                {isMiscellaneous && (
-                  <Button
-                    size="small"
-                    style={{ width: "32px", padding: 0 }}
-                    icon={<EditOutlined />}
-                    onClick={handleEditMiscItem}
-                  />
-                )}
-                {user?.role === "admin" && (
+            {/* Delete / Sent */}
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
+              {isSent ? (
+                <Space size={2}>
+                  {isMiscellaneous && (
+                    <Button
+                      size="small"
+                      style={{ width: "28px", height: "28px", padding: 0 }}
+                      icon={<EditOutlined />}
+                      onClick={handleEditMiscItem}
+                    />
+                  )}
+                  {user?.role === "admin" && (
+                    <Button
+                      danger
+                      size="small"
+                      style={{ width: "28px", height: "28px", padding: 0 }}
+                      icon={<DeleteOutlined />}
+                      onClick={() => {
+                        if (cartItem._id) {
+                          dispatch(deleteCartItem(cartItem._id));
+                          invalidate();
+                        }
+                      }}
+                    />
+                  )}
+                  <IconButton size="small" sx={{ p: "2px" }}>
+                    <AddTaskIcon sx={{ color: isSent ? "#fff" : "success.main", fontSize: 18 }} />
+                  </IconButton>
+                </Space>
+              ) : (
+                <Space size={2}>
+                  {isMiscellaneous && (
+                    <Button
+                      size="small"
+                      style={{ width: "28px", height: "28px", padding: 0 }}
+                      icon={<EditOutlined />}
+                      onClick={handleEditMiscItem}
+                    />
+                  )}
                   <Button
                     danger
                     size="small"
-                    style={{ width: "32px", padding: 0 }}
+                    style={{ width: "28px", height: "28px", padding: 0 }}
                     icon={<DeleteOutlined />}
                     onClick={() => {
                       if (cartItem._id) {
@@ -733,41 +747,29 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                       }
                     }}
                   />
-                )}
-                <IconButton size="small">
-                  <AddTaskIcon color="success" fontSize="small" />
-                </IconButton>
-              </Space>
-            ) : (
-              <Space>
-                {isMiscellaneous && (
-                  <Button
-                    size="small"
-                    style={{ width: "32px", padding: 0 }}
-                    icon={<EditOutlined />}
-                    onClick={handleEditMiscItem}
-                  />
-                )}
-                <Button
-                  danger
-                  size="small"
-                  style={{ width: "32px", padding: 0 }}
-                  icon={<DeleteOutlined />}
-                  onClick={() => {
-                    if (cartItem._id) {
-                      dispatch(deleteCartItem(cartItem._id));
-                      invalidate();
-                    }
-                  }}
-                />
-              </Space>
-            )}
-          </Grid>
+                </Space>
+              )}
+            </div>
+          </div>
 
-        </Grid>
-      </CardContent>
-      <Divider sx={{ my: 0 }} />
-    </Card>
+          {/* Notes editing input */}
+          {isEditingNotes && (
+            <div style={{ marginTop: 8 }}>
+              <Input.TextArea
+                autoSize={{ minRows: 2, maxRows: 4 }}
+                value={notesValue}
+                onChange={(e) => setNotesValue(e.target.value)}
+                onBlur={handleSaveNotes}
+                onPressEnter={handleSaveNotes}
+                placeholder="Add notes (e.g., extra spicy, no onions)"
+                style={{ fontSize: 12 }}
+                autoFocus
+              />
+            </div>
+          )}
+        </CardContent>
+        <Divider sx={{ my: 0 }} />
+      </Card>
 
     {/* Addons Modal - disabled for miscellaneous items */}
     {!isMiscellaneous && (
@@ -973,4 +975,5 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
   );
 };
 
-export default React.memo(CartItemCard);
+const MemoizedCartItemCard = React.memo(CartItemCard);
+export default MemoizedCartItemCard;

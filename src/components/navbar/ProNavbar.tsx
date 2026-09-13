@@ -694,7 +694,8 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
       danger: true,
       style: {
         padding: "8px 12px", margin: "2px 4px", borderRadius: 6,
-        border: "1px solid rgba(255,77,79,0.1)",
+        border: "1px solid rgba(255,77,79,0.15)",
+        transition: "all 0.15s ease",
       },
     },
   ];
@@ -990,10 +991,19 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         .ant-pro-global-header svg,
         .ant-pro-global-header .anticon { color: white !important; }
         .ant-pro-global-header-collapsed-button,
-        .ant-pro-sider-collapsed-button { color: white !important; }
-        .ant-dropdown-menu-item:hover { background: rgba(255, 255, 255, 0.15) !important; }
-        .ant-dropdown-menu-item-active { background: rgba(255, 255, 255, 0.1) !important; }
-        .nav-overflow-popup .ant-menu { background: ${primaryColor} !important; border-radius: 10px !important; padding: 4px !important; border: none !important; box-shadow: 0 8px 24px rgba(0,0,0,0.14) !important; }
+        .ant-dropdown-menu-item:not(.ant-dropdown-menu-item-danger):hover,
+        .ant-dropdown-menu-item:not(.ant-dropdown-menu-item-danger).ant-dropdown-menu-item-active {
+          background-color: #f1f5f9 !important;
+        }
+        .ant-dropdown-menu-item-danger:hover,
+        .ant-dropdown-menu-item-danger.ant-dropdown-menu-item-active {
+          background-color: #ff4d4f !important;
+          border-color: #ff4d4f !important;
+        }
+        .ant-dropdown-menu-item-danger:hover *,
+        .ant-dropdown-menu-item-danger.ant-dropdown-menu-item-active * {
+          color: #ffffff !important;
+        }
         .nav-overflow-popup .ant-menu-item { color: rgba(255,255,255,0.85) !important; border-radius: 6px !important; margin: 2px 0 !important; height: 38px !important; line-height: 38px !important; }
         .nav-overflow-popup .ant-menu-item:hover { background: rgba(255,255,255,0.15) !important; color: #fff !important; }
         .nav-overflow-popup .ant-menu-item-selected { background: rgba(255,255,255,0.2) !important; color: #fff !important; font-weight: 600; }
@@ -1003,11 +1013,11 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         .ant-menu-overflow-item-rest { padding: 0 !important; }
         .ant-menu-overflow-item-rest > .ant-menu-submenu-title { padding: 0 !important; margin: 0 !important; background: transparent !important; }
         .ant-menu-overflow-item-rest > .ant-menu-submenu-title::after { display: none !important; }
+        .ant-pro-page-container-warp-page-header { display: none !important; }
         @media (max-width: 992px) {
           .ant-pro-page-container { padding: 0 !important; }
           .ant-pro-page-container-children-container { padding: 8px 12px !important; }
           .ant-pro-page-container-children-content { padding: 0 !important; }
-          .ant-pro-page-container-warp-page-header { padding: 8px 12px !important; }
           .ant-pro-global-header { padding: 0 12px !important; }
         }
         .notification-popover-overlay .ant-popover-inner { padding: 0 !important; }
@@ -1020,8 +1030,8 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
           grid-auto-rows: 42px !important;
           align-content: start !important;
           gap: 6px !important;
-          width: 684px !important;
-          max-width: 684px !important;
+          width: min(684px, 94vw) !important;
+          max-width: min(684px, 94vw) !important;
           height: auto !important;
           min-height: 0 !important;
           box-sizing: border-box !important;
@@ -1268,6 +1278,7 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         layout="top"
         splitMenus={false}
         fixedHeader={true}
+        breadcrumbProps={{ items: [] }}
         menuRender={isMobile ? false : undefined}
         menuProps={{
           overflowedIndicatorPopupClassName: "nav-overflow-popup",
@@ -1323,7 +1334,7 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         }}
         selectedKeys={[selectedKey]}
         token={{
-          bgLayout: "#f6ffed",
+          bgLayout: "#f8fafc",
           colorPrimary: primaryColor,
           colorTextAppListIconHover: "black",
           colorTextAppListIcon: "white",

@@ -44,10 +44,8 @@ const AppWithColor = () => {
       theme={{
         token: {
           colorPrimary: primaryColor,
-          colorBgContainer: "#f6ffed",
         },
         components: {
-          Button: { primaryShadow: "#f6ffed" },
           Card: { actionsBg: primaryColor },
         },
       }}

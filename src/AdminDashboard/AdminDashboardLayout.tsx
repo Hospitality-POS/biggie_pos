@@ -23,7 +23,6 @@ import {
   CloseOutlined,
   DownOutlined,
   GlobalOutlined,
-  HomeFilled,
   MenuOutlined,
   PoweroffOutlined,
   SettingOutlined,
@@ -230,30 +229,56 @@ const SmartOverflowNav: React.FC<SmartNavProps> = ({ routes, primaryColor }) => 
 
   const isMeasuring = visibleCount === -1;
 
-  const isActive = (path?: string) =>
-    !!path &&
-    (location.pathname === path || location.pathname.startsWith(path + "/"));
+  const activePath = (() => {
+    const currentPath = location.pathname === "/admin" ? "/admin/dashboard" : location.pathname;
+    const matchingRoutes = routes.filter((route) =>
+      route?.path &&
+      (currentPath === route.path ||
+        (route.path !== "/" && route.path !== "/admin" && currentPath.startsWith(route.path + "/")))
+    );
+    if (matchingRoutes.length === 0) return currentPath;
+    const mostSpecific = matchingRoutes.reduce((longest, current) =>
+      (current.path?.length || 0) > (longest?.path?.length || 0) ? current : longest
+    );
+    return mostSpecific.path;
+  })();
+
+  const isRouteActive = (path?: string) => {
+    if (!path) return false;
+    if (path === activePath) return true;
+    if (path === "/admin/dashboard" && location.pathname === "/admin") return true;
+    return false;
+  };
 
   const overflowRoutes = isMeasuring ? [] : routes.slice(visibleCount);
   const hasOverflow = overflowRoutes.length > 0;
-  const overflowHasActive = overflowRoutes.some((r) => isActive(r.path));
+  const overflowHasActive = overflowRoutes.some((r) => isRouteActive(r.path));
 
-  const overflowMenuItems = overflowRoutes.map((route) => ({
-    key: route.path || route.key || route.name || "",
-    icon: <span style={{ fontSize: 14, color: "white" }}>{route.icon}</span>,
-    label: (
-      <span style={{ fontSize: 13, color: "white" }}>
-        {route.name || route.label || ""}
-      </span>
-    ),
-    onClick: () => navigate(route.path || "/admin"),
-    style: {
-      backgroundColor: isActive(route.path) ? "rgba(255,255,255,0.2)" : "transparent",
-      borderRadius: 6,
-      fontWeight: isActive(route.path) ? 600 : 400,
-      marginBottom: 2,
-    },
-  }));
+  const overflowMenuItems = overflowRoutes.map((route) => {
+    const active = isRouteActive(route.path);
+    return {
+      key: route.path || route.key || route.name || "",
+      icon: (
+        <span style={{ fontSize: 15, color: active ? "#ffffff" : "rgba(255,255,255,0.85)", display: "inline-flex", alignItems: "center" }}>
+          {route.icon}
+        </span>
+      ),
+      label: (
+        <span style={{ fontSize: 13, color: active ? "#ffffff" : "rgba(255,255,255,0.85)", fontWeight: active ? 600 : 400 }}>
+          {route.name || route.label || ""}
+        </span>
+      ),
+      onClick: () => navigate(route.path || "/admin"),
+      style: {
+        backgroundColor: active ? "rgba(255,255,255,0.22)" : "transparent",
+        borderRadius: 6,
+        margin: "2px 0",
+        height: 38,
+        display: "flex",
+        alignItems: "center",
+      },
+    };
+  });
 
   return (
     <div
@@ -265,10 +290,29 @@ const SmartOverflowNav: React.FC<SmartNavProps> = ({ routes, primaryColor }) => 
         // Hide overflow so invisible measurement items don't cause scrollbars
         overflow: "hidden",
         minWidth: 0,
+        gap: 4,
       }}
     >
+      <style>{`
+        .smart-nav-item:hover {
+          background-color: rgba(255, 255, 255, 0.12) !important;
+          color: #ffffff !important;
+        }
+        .smart-nav-item:hover span {
+          color: #ffffff !important;
+        }
+        .smart-nav-item.active {
+          background-color: rgba(255, 255, 255, 0.22) !important;
+          color: #ffffff !important;
+          font-weight: 600 !important;
+        }
+        .smart-nav-item.active span {
+          color: #ffffff !important;
+        }
+      `}</style>
+
       {routes.map((route, idx) => {
-        const active = isActive(route.path);
+        const active = isRouteActive(route.path);
         // During measurement: all items visible (but container is overflow:hidden)
         // After measurement: items beyond visibleCount get display:none
         const hidden = !isMeasuring && idx >= visibleCount;
@@ -278,29 +322,29 @@ const SmartOverflowNav: React.FC<SmartNavProps> = ({ routes, primaryColor }) => 
             key={route.path || idx}
             ref={(el) => { itemRefsRef.current[idx] = el; }}
             onClick={() => { if (!hidden) navigate(route.path || "/admin"); }}
+            className={`smart-nav-item ${active ? "active" : ""}`}
             style={{
               display: hidden ? "none" : "flex",
               // During measurement phase keep invisible so layout is accurate
               // but the user never sees the flash
               visibility: isMeasuring ? "hidden" : "visible",
               alignItems: "center",
-              gap: 6,
+              gap: 8,
               padding: "0 14px",
-              height: 40,
+              height: 38,
+              borderRadius: 6,
               cursor: hidden ? "default" : "pointer",
-              color: active ? "#fff" : "rgba(255,255,255,0.78)",
+              color: active ? "#ffffff" : "rgba(255,255,255,0.85)",
+              background: active ? "rgba(255,255,255,0.22)" : "transparent",
               fontWeight: active ? 600 : 400,
               fontSize: 14,
-              borderBottom: active
-                ? "2px solid rgba(255,255,255,0.9)"
-                : "2px solid transparent",
-              transition: "color 0.2s, border-color 0.2s",
+              transition: "all 0.15s ease",
               whiteSpace: "nowrap",
               flexShrink: 0,
               userSelect: "none",
             }}
           >
-            <span style={{ fontSize: 14, display: "flex", alignItems: "center" }}>
+            <span style={{ fontSize: 15, display: "flex", alignItems: "center", color: active ? "#ffffff" : "rgba(255,255,255,0.85)" }}>
               {route.icon}
             </span>
             <span>{route.name || route.label}</span>
@@ -314,15 +358,28 @@ const SmartOverflowNav: React.FC<SmartNavProps> = ({ routes, primaryColor }) => 
           <style>{`
             .smart-nav-overflow-dropdown .ant-dropdown-menu {
               background-color: ${primaryColor} !important;
-              box-shadow: none !important;
+              border-radius: 10px !important;
+              box-shadow: 0 8px 24px rgba(0,0,0,0.14) !important;
               padding: 4px !important;
+              border: none !important;
             }
             .smart-nav-overflow-dropdown .ant-dropdown-menu-item {
               border-radius: 6px !important;
-              margin-bottom: 2px !important;
+              margin: 2px 0 !important;
+              height: 38px !important;
+              color: rgba(255,255,255,0.85) !important;
             }
             .smart-nav-overflow-dropdown .ant-dropdown-menu-item:hover {
               background-color: rgba(255,255,255,0.15) !important;
+              color: #ffffff !important;
+            }
+            .smart-nav-overflow-dropdown .ant-dropdown-menu-item:hover * {
+              color: #ffffff !important;
+            }
+            .smart-nav-overflow-dropdown .ant-dropdown-menu-item-selected {
+              background-color: rgba(255,255,255,0.2) !important;
+              color: #ffffff !important;
+              font-weight: 600 !important;
             }
           `}</style>
           <Dropdown
@@ -347,46 +404,28 @@ const SmartOverflowNav: React.FC<SmartNavProps> = ({ routes, primaryColor }) => 
           >
             <div
               ref={moreBtnRef}
+              className={`smart-nav-item ${overflowHasActive ? "active" : ""}`}
               style={{
                 display: "flex",
                 alignItems: "center",
                 gap: 5,
                 padding: "0 14px",
-                height: 40,
+                height: 38,
+                borderRadius: 6,
                 cursor: "pointer",
-                color: overflowHasActive ? "#fff" : "rgba(255,255,255,0.78)",
+                color: overflowHasActive ? "#ffffff" : "rgba(255,255,255,0.85)",
+                background: overflowHasActive ? "rgba(255,255,255,0.22)" : "transparent",
                 fontWeight: overflowHasActive ? 600 : 400,
                 fontSize: 14,
-                borderBottom: overflowHasActive
-                  ? "2px solid rgba(255,255,255,0.9)"
-                  : "2px solid transparent",
-                transition: "all 0.2s",
+                transition: "all 0.15s ease",
                 userSelect: "none",
                 whiteSpace: "nowrap",
                 flexShrink: 0,
               }}
             >
-              <AppstoreOutlined style={{ fontSize: 14 }} />
+              <AppstoreOutlined style={{ fontSize: 14, color: overflowHasActive ? "#ffffff" : "rgba(255,255,255,0.85)" }} />
               <span>More</span>
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  background: "rgba(255,255,255,0.25)",
-                  color: "#fff",
-                  fontSize: 10,
-                  fontWeight: 700,
-                  borderRadius: 10,
-                  minWidth: 18,
-                  height: 18,
-                  padding: "0 5px",
-                  lineHeight: 1,
-                }}
-              >
-                {overflowRoutes.length}
-              </span>
-              <DownOutlined style={{ fontSize: 9, opacity: 0.7 }} />
+              <DownOutlined style={{ fontSize: 9, opacity: 0.7, color: overflowHasActive ? "#ffffff" : "rgba(255,255,255,0.85)" }} />
             </div>
           </Dropdown>
         </>
@@ -635,31 +674,6 @@ const AdminDashboard: React.FC = () => {
       </div>
     </div>
   );
-
-  // ── Breadcrumbs ──────────────────────────────────────────────────────────────
-  const breadcrumbItems = location.pathname
-    .split("/")
-    .filter((p) => p)
-    .map((path, index, arr) => {
-      const isLast = index === arr.length - 1;
-      const url = `/${arr.slice(0, index + 1).join("/")}`;
-      const isDynamicSegment =
-        /^[a-f0-9]{24}$/i.test(path) || /^[0-9]+$/.test(path);
-      const label = isDynamicSegment
-        ? "Details"
-        : path
-          .replace(/-/g, " ")
-          .replace(/(^\w|\s\w)/g, (m) => m.toUpperCase());
-      return {
-        title: isLast ? (
-          <span key={path}>{label}</span>
-        ) : (
-          <NavLink to={url} key={path}>
-            {label}
-          </NavLink>
-        ),
-      };
-    });
 
   // ── Mobile menu drawer ────────────────────────────────────────────────────────
   const buildMobileNavItems = (routes: any[]): MobileNavItemProps[] =>
@@ -1231,12 +1245,23 @@ const AdminDashboard: React.FC = () => {
         }
 
         /* Hover effect for dropdown menu items */
-        .ant-dropdown-menu-item:hover {
-          background: rgba(255, 255, 255, 0.15) !important;
+        .ant-dropdown-menu-item:not(.ant-dropdown-menu-item-danger):hover,
+        .ant-dropdown-menu-item:not(.ant-dropdown-menu-item-danger).ant-dropdown-menu-item-active {
+          background-color: #f1f5f9 !important;
         }
         
-        .ant-dropdown-menu-item-active {
-          background: rgba(255, 255, 255, 0.1) !important;
+        .ant-dropdown-menu-item-danger:hover,
+        .ant-dropdown-menu-item-danger.ant-dropdown-menu-item-active {
+          background-color: #ff4d4f !important;
+          border-color: #ff4d4f !important;
+        }
+        .ant-dropdown-menu-item-danger:hover *,
+        .ant-dropdown-menu-item-danger.ant-dropdown-menu-item-active * {
+          color: #ffffff !important;
+        }
+
+        .ant-pro-page-container-warp-page-header {
+          display: none !important;
         }
 
         /* Mobile/tablet page container padding */
@@ -1305,6 +1330,7 @@ const AdminDashboard: React.FC = () => {
         layout="mix"
         splitMenus={false}
         fixedHeader={false}
+        breadcrumbProps={{ items: [] }}
         {...navRoutes}
         // Suppress ProLayout's built-in top menu — we render our own SmartOverflowNav
         menuRender={false}
@@ -1417,18 +1443,9 @@ const AdminDashboard: React.FC = () => {
         )}
       >
         <PageContainer
-          breadcrumb={{
-            items: [
-              {
-                title: (
-                  <NavLink to="/admin">
-                    <HomeFilled /> {!isMobile && "Home"}
-                  </NavLink>
-                ),
-              },
-              ...breadcrumbItems,
-            ],
-          }}
+          pageHeaderRender={false}
+          breadcrumbRender={false}
+          title={false}
           style={{ padding: isMobile ? "0 4px" : undefined }}
         >
           <Outlet />

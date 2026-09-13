@@ -609,17 +609,17 @@ export default function TablePro() {
         theme={{
           components: {
             Tabs: {
-              itemColor: "#fff",
-              itemActiveColor: "#000",
-              itemHoverColor: "#aa846f",
-              itemSelectedColor: "#000",
+              itemColor: "rgba(255, 255, 255, 0.85)",
+              itemActiveColor: primaryColor,
+              itemHoverColor: "#ffffff",
+              itemSelectedColor: primaryColor,
               cardBg: primaryColor,
             },
           },
         }}
       >
         {isLoading ? (
-          <ProCard title={cardTitle} bordered boxShadow style={{ borderRadius: 12 }}>
+          <ProCard title={cardTitle} style={{ borderRadius: 12, boxShadow: "none", border: "none" }}>
             <LoadingTabs />
             <LoadingTabContent isMobile={false} />
           </ProCard>
@@ -633,9 +633,7 @@ export default function TablePro() {
               activeKey: safeActiveTabId,
               destroyInactiveTabPane: false,
             }}
-            bordered
-            boxShadow
-            style={{ borderRadius: 12 }}
+            style={{ borderRadius: 12, boxShadow: "none", border: "none" }}
           />
         )}
       </ConfigProvider>

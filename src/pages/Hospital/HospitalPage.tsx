@@ -1,11 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
-    Alert,
-    AlertTitle,
     AppBar,
     Box,
     Chip,
-    Divider,
     Drawer,
     Fab,
     Grid,
@@ -34,7 +31,7 @@ import {
     Science,
     LocalHospital,
     MonitorHeart,
-    Bed,
+    Store,
 } from "@mui/icons-material";
 import ProductCard from "../../components/product/productCard";
 import PackageCard from "../../components/cart/PackageCard";
@@ -42,6 +39,7 @@ import { useQuery } from "@tanstack/react-query";
 import SkeletonProductCard from "../../components/product/skeletonProductCard";
 import CategoryCard from "../../components/category/categoryCard";
 import CartDrawer from "../../components/cart/CartDrawer";
+import { fetchShop } from "@services/shops";
 import { useParams } from "react-router-dom";
 import { getCart } from "../../features/Cart/CartActions";
 import { fetchProductsByCategory } from "../../features/Product/ProductAction";
@@ -52,8 +50,8 @@ import { fetchActivePackages, Package } from "@services/subscription";
 import PurchasePackageModal from "../../components/MODALS/pro/PurchasePackageModal";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { useRetailQueue } from "@context/RetailQueueContext";
-import BarcodeScanPanel from "../Restaurant/BarcodeScanPanel";
-import { message } from "antd";
+import BarcodeScanPanel from "../Restaurant/Barcodescanner";
+import { Alert } from "antd";
 
 // ── Shared neutral tokens ─────────────────────────────────────────────────────
 const H = {
@@ -85,54 +83,49 @@ const getSectionIcon = (name: string) =>
 
 // ── Skeletons ─────────────────────────────────────────────────────────────────
 const SkeletonTabs = () => (
-    <Box sx={{ display: "flex", gap: 1, overflowX: "auto", "&::-webkit-scrollbar": { height: 3 } }}>
-        {[...Array(5)].map((_, i) => (
-            <Skeleton key={i} variant="rectangular" width={110} height={40}
-                sx={{ borderRadius: 1, flexShrink: 0, bgcolor: "rgba(255,255,255,0.15)" }} />
+    <Box sx={{ display: "flex", gap: 1, overflowX: "auto", py: 0.5, "&::-webkit-scrollbar": { height: 3 } }}>
+        {[...Array(6)].map((_, i) => (
+            <Skeleton key={i} variant="rectangular" width={110} height={34}
+                sx={{ borderRadius: "20px", flexShrink: 0, bgcolor: "rgba(255,255,255,0.15)" }} />
         ))}
     </Box>
 );
 
-const SkeletonCards = ({ cols }: { cols: number }) => (
-    <Box sx={{ display: "flex", flexWrap: "wrap", gap: "10px", mt: 1 }}>
+const SkeletonCards = ({
+    cols = 6,
+    isMobile = false,
+    isTablet = false,
+}: {
+    cols?: number;
+    isMobile?: boolean;
+    isTablet?: boolean;
+}) => (
+    <Box
+        sx={{
+            display: "grid",
+            gridTemplateColumns: isMobile
+                ? "repeat(auto-fit, minmax(130px, 1fr))"
+                : isTablet
+                    ? "repeat(auto-fit, minmax(160px, 1fr))"
+                    : "repeat(auto-fit, minmax(190px, 1fr))",
+            gap: "12px",
+            flex: 1,
+            width: "100%",
+            alignContent: "start",
+            pt: 1,
+        }}
+    >
         {[...Array(cols)].map((_, i) => (
-            <Skeleton key={i} variant="rectangular"
-                width={`calc(${100 / Math.min(cols, 3)}% - 8px)`} height={80}
-                sx={{ borderRadius: 2 }} />
+            <Skeleton
+                key={i}
+                variant="rectangular"
+                height={95}
+                sx={{ borderRadius: 2, width: "100%" }}
+            />
         ))}
     </Box>
 );
 
-// ── Patient / ward indicator strip ────────────────────────────────────────────
-const WardStrip: React.FC<{ activeTable: any }> = ({ activeTable }) => {
-    if (!activeTable) return null;
-    return (
-        <Box
-            sx={{
-                display: "flex", alignItems: "center", gap: 1,
-                px: 1.5, py: 0.75,
-                background: "rgba(255,255,255,0.1)",
-                borderBottom: "1px solid rgba(255,255,255,0.12)",
-            }}
-        >
-            <Bed sx={{ fontSize: 14, color: "rgba(255,255,255,0.8)" }} />
-            <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.9)", fontWeight: 600 }}>
-                {activeTable.name}
-            </Typography>
-            <Box
-                sx={{
-                    ml: "auto",
-                    width: 8, height: 8, borderRadius: "50%",
-                    background: activeTable.isOccupied ? H.warning : H.ok,
-                    boxShadow: `0 0 6px ${activeTable.isOccupied ? H.warning : H.ok}`,
-                }}
-            />
-            <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.7)", fontSize: 10 }}>
-                {activeTable.isOccupied ? "Occupied" : "Available"}
-            </Typography>
-        </Box>
-    );
-};
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 interface HospitalPageProps {
@@ -147,7 +140,25 @@ const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
     const { products, services, loading: productsLoading } = useAppSelector((s) => s.product);
     const dispatch = useAppDispatch();
     const { id } = useParams();
-    const { activeTable, refreshSlots } = useRetailQueue();
+    const { activeTable } = useRetailQueue();
+
+    const shopId = localStorage.getItem("shopId");
+    const { data: shopData } = useQuery({
+        queryKey: ["shop", shopId],
+        queryFn: () => (shopId ? fetchShop(shopId) : null),
+        enabled: !!shopId,
+    });
+
+    const tenant = useMemo(() => {
+        try {
+            const stored = localStorage.getItem("tenant");
+            return stored ? JSON.parse(stored) : null;
+        } catch {
+            return null;
+        }
+    }, []);
+
+    const shopName = shopData?.name || tenant?.name || "";
 
     const [posMode, setPosMode] = useState<"browse" | "scan">("browse");
     const [selectedCard, setSelectedCard] = useState(null);
@@ -264,7 +275,12 @@ const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
 
         const chips = [
             { type: "services" as const, icon: <MedicalServices sx={{ fontSize: 13 }} />, label: `Services (${filteredServices.length})`, show: hasServices },
-            { type: "products" as const, icon: <Medication sx={{ fontSize: 13 }} />, label: `Pharmacy (${filteredProducts.length})`, show: hasProducts },
+            {
+                type: "products" as const,
+                icon: mode === "retail" ? <ShoppingCart sx={{ fontSize: 13 }} /> : <Medication sx={{ fontSize: 13 }} />,
+                label: mode === "retail" ? `Products (${filteredProducts.length})` : `Pharmacy (${filteredProducts.length})`,
+                show: hasProducts,
+            },
             { type: "packages" as const, icon: <LocalHospital sx={{ fontSize: 13 }} />, label: `Packages (${availablePackages.length})`, show: hasPackages },
         ];
 
@@ -296,7 +312,10 @@ const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
             sx={{
                 display: "flex", flexWrap: "wrap", gap: "10px", width: "100%",
                 maxHeight: isMobile ? "none" : "calc(100vh - 290px)",
-                overflowY: isMobile ? "visible" : "auto", pb: 1,
+                overflowY: isMobile ? "visible" : "auto",
+                pt: "8px",
+                px: "4px",
+                pb: 2,
                 "&::-webkit-scrollbar": { width: "4px" },
                 "&::-webkit-scrollbar-thumb": { background: "#cbd5e1", borderRadius: 2 },
             }}
@@ -317,13 +336,21 @@ const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
                     ))
                 )
             ) : searchTerm ? (
-                <Alert severity="info" sx={{ width: "100%", borderRadius: 2 }}>
-                    <AlertTitle>No Results</AlertTitle>No items match "{searchTerm}"
-                </Alert>
+                <Alert
+                    message="No Results"
+                    description={`No items match "${searchTerm}"`}
+                    type="info"
+                    showIcon
+                    style={{ width: "100%", borderRadius: 8 }}
+                />
             ) : categoryChosen ? (
-                <Alert severity="info" sx={{ width: "100%", borderRadius: 2 }}>
-                    <AlertTitle>Empty</AlertTitle>This section has no items yet.
-                </Alert>
+                <Alert
+                    message="Empty"
+                    description="This section has no items yet."
+                    type="info"
+                    showIcon
+                    style={{ width: "100%", borderRadius: 8 }}
+                />
             ) : (
                 <Box sx={{ width: "100%", textAlign: "center", py: 6, color: "text.secondary" }}>
                     <LocalHospital sx={{ fontSize: 36, color: "#cbd5e1", mb: 1 }} />
@@ -384,22 +411,50 @@ const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
                     >
                         {/* ── Teal app bar ── */}
                         <AppBar position="static" elevation={0} sx={{ bgcolor: barColor, flexShrink: 0 }}>
-                            {/* Ward/patient strip */}
-                            <WardStrip activeTable={activeTable} />
-
-                            {/* Row: cross icon + mode toggle */}
+                            {/* Row: shop badge (left) + mode toggle (right) */}
                             <Box
                                 sx={{
                                     display: "flex", alignItems: "center", justifyContent: "space-between",
-                                    px: 1.5, pt: 0.75, pb: posMode === "browse" ? 0 : 0.75,
+                                    px: isMobile ? 1.5 : 2,
+                                    pt: isMobile ? 1.25 : 1.5,
+                                    pb: posMode === "browse" ? 1 : 1.5,
+                                    gap: 1,
                                 }}
                             >
-                                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                                    <LocalHospital sx={{ color: "rgba(255,255,255,0.8)", fontSize: 16 }} />
-                                    <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.85)", fontWeight: 700, letterSpacing: 0.8 }}>
-                                        {mode === "retail" ? "RETAIL POS" : "HOSPITAL POS"}
-                                    </Typography>
-                                </Box>
+                                {shopName ? (
+                                    <Box
+                                        sx={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: 0.6,
+                                            bgcolor: "rgba(255,255,255,0.15)",
+                                            border: "1px solid rgba(255,255,255,0.25)",
+                                            borderRadius: "20px",
+                                            px: 1.25,
+                                            py: 0.4,
+                                            color: "#ffffff",
+                                            flexShrink: 0,
+                                        }}
+                                    >
+                                        <Store sx={{ fontSize: 14, opacity: 0.9 }} />
+                                        <Typography
+                                            variant="caption"
+                                            sx={{
+                                                fontWeight: 700,
+                                                fontSize: "0.78rem",
+                                                letterSpacing: 0.3,
+                                                whiteSpace: "nowrap",
+                                                maxWidth: isMobile ? 120 : 200,
+                                                overflow: "hidden",
+                                                textOverflow: "ellipsis",
+                                            }}
+                                        >
+                                            {shopName}
+                                        </Typography>
+                                    </Box>
+                                ) : (
+                                    <Box />
+                                )}
                                 <ModeToggle />
                             </Box>
 
@@ -407,28 +462,51 @@ const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
                             {posMode === "browse" && (
                                 <>
                                     {mainCategoriesLoading ? (
-                                        <Box sx={{ p: 1.5 }}><SkeletonTabs /></Box>
+                                        <Box sx={{ px: isMobile ? 1.5 : 2, pb: 1 }}><SkeletonTabs /></Box>
                                     ) : (
                                         <Tabs
                                             value={tabValue}
                                             onChange={(_, v) => setTabValue(v)}
-                                            indicatorColor="secondary"
                                             textColor="inherit"
                                             variant="scrollable"
                                             scrollButtons="auto"
                                             allowScrollButtonsMobile
                                             sx={{
-                                                minHeight: 44,
-                                                "& .MuiTabs-scrollButtons": { color: "white", "&.Mui-disabled": { opacity: 0.3 } },
-                                                "& .MuiTab-root": {
-                                                    minWidth: "auto", fontSize: isMobile ? "0.78rem" : "0.85rem",
-                                                    fontWeight: 500, textTransform: "none",
-                                                    padding: isMobile ? "8px 10px" : "10px 14px",
-                                                    minHeight: 44, color: "rgba(255,255,255,0.75)",
-                                                    "&.Mui-selected": { color: "white" },
-                                                    gap: 0.5,
+                                                minHeight: 40,
+                                                px: isMobile ? 1.5 : 2,
+                                                pb: 1,
+                                                "& .MuiTabs-flexContainer": {
+                                                    gap: "8px",
+                                                    alignItems: "center",
                                                 },
-                                                "& .MuiTabs-indicator": { backgroundColor: "white", height: 2.5 },
+                                                "& .MuiTabs-scrollButtons": { color: "white", "&.Mui-disabled": { opacity: 0.25 } },
+                                                "& .MuiTab-root": {
+                                                    minWidth: "auto",
+                                                    fontSize: isMobile ? "0.78rem" : "0.86rem",
+                                                    fontWeight: 500,
+                                                    textTransform: "none",
+                                                    padding: isMobile ? "6px 12px" : "6px 16px",
+                                                    minHeight: 34,
+                                                    borderRadius: "20px",
+                                                    color: "rgba(255,255,255,0.85)",
+                                                    bgcolor: "rgba(255,255,255,0.12)",
+                                                    transition: "all 0.18s ease-in-out",
+                                                    gap: 0.5,
+                                                    "&:hover": {
+                                                        bgcolor: "rgba(255,255,255,0.22)",
+                                                        color: "#ffffff",
+                                                    },
+                                                    "&.Mui-selected": {
+                                                        bgcolor: "#ffffff",
+                                                        color: `${barColor} !important`,
+                                                        fontWeight: 700,
+                                                        boxShadow: "0 2px 8px rgba(0,0,0,0.18)",
+                                                        "& .MuiTab-iconWrapper": {
+                                                            color: `${barColor} !important`,
+                                                        },
+                                                    },
+                                                },
+                                                "& .MuiTabs-indicator": { display: "none" },
                                             }}
                                         >
                                             {Maincategories?.map((categ: any, i: number) => (
@@ -447,10 +525,10 @@ const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
                             )}
 
                             {posMode === "scan" && (
-                                <Box sx={{ px: 2, pb: 1, display: "flex", alignItems: "center", gap: 1 }}>
+                                <Box sx={{ px: isMobile ? 1.5 : 2, pb: 1.5, display: "flex", alignItems: "center", gap: 1 }}>
                                     <QrCodeScanner sx={{ color: "rgba(255,255,255,0.85)", fontSize: 16 }} />
                                     <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.85)", fontWeight: 600, letterSpacing: 0.5 }}>
-                                        Barcode scanner — ready
+                                        Ready to scan
                                     </Typography>
                                 </Box>
                             )}
@@ -463,15 +541,18 @@ const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
                             ) : (
                                 <>
                                     {mainCategoriesLoading ? (
-                                        <Box sx={{ display: "flex", p: 2, height: "100%" }}>
+                                        <Box sx={{ display: "flex", flex: 1, overflow: "hidden" }}>
                                             {!isMobile && (
-                                                <Box sx={{ width: 130, mr: 1, flexShrink: 0, display: "flex", flexDirection: "column", gap: 1 }}>
+                                                <Box sx={{ width: 185, flexShrink: 0, display: "flex", flexDirection: "column", gap: 1, bgcolor: "#f8fafc", borderRight: "1px solid #e2e8f0", p: 1.5 }}>
+                                                    <Skeleton variant="rectangular" width="60%" height={20} sx={{ borderRadius: 1, mb: 0.5 }} />
                                                     {[...Array(5)].map((_, i) => (
-                                                        <Skeleton key={i} variant="rectangular" width="100%" height={44} sx={{ borderRadius: 1, bgcolor: `${barColor}18` }} />
+                                                        <Skeleton key={i} variant="rectangular" width="100%" height={40} sx={{ borderRadius: 1.5 }} />
                                                     ))}
                                                 </Box>
                                             )}
-                                            <SkeletonCards cols={6} />
+                                            <Box sx={{ flex: 1, p: isMobile ? 1.5 : 2, overflow: "auto" }}>
+                                                <SkeletonCards cols={6} isMobile={isMobile} isTablet={isTablet} />
+                                            </Box>
                                         </Box>
                                     ) : subcategories.length ? (
                                         <Box sx={{ display: "flex", flexDirection: "row", flex: 1, overflow: "hidden" }}>
@@ -493,11 +574,23 @@ const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
                                                 }}
                                             >
                                                 {showCategories ? (
-                                                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: "10px", pt: 1 }}>
-                                                        {isLoading ? (
-                                                            <SkeletonCards cols={6} />
-                                                        ) : categories.length ? (
-                                                            categories.map((category: any) => (
+                                                    isLoading ? (
+                                                        <SkeletonCards cols={6} isMobile={isMobile} isTablet={isTablet} />
+                                                    ) : categories.length ? (
+                                                        <Box
+                                                            sx={{
+                                                                display: "grid",
+                                                                gridTemplateColumns: isMobile
+                                                                    ? "repeat(auto-fit, minmax(130px, 1fr))"
+                                                                    : isTablet
+                                                                        ? "repeat(auto-fit, minmax(160px, 1fr))"
+                                                                        : "repeat(auto-fit, minmax(190px, 1fr))",
+                                                                gap: "12px",
+                                                                width: "100%",
+                                                                pt: 1,
+                                                            }}
+                                                        >
+                                                            {categories.map((category: any) => (
                                                                 <CategoryCard
                                                                     key={category._id}
                                                                     handleSelectedCard={handleSelectCard}
@@ -507,19 +600,25 @@ const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
                                                                     itemCount={1}
                                                                     id={category._id}
                                                                     style={{
-                                                                        flex: isMobile ? "0 0 calc(50% - 5px)" : isTablet ? "0 0 calc(50% - 5px)" : `0 0 calc(${100 / Math.min(categories.length, 3)}% - 8px)`,
+                                                                        maxWidth: categories.length === 1 ? 280 : "none",
                                                                         border: `1px solid ${H.border}`,
                                                                         borderRadius: 8,
                                                                         borderTop: `3px solid ${barColor}`,
+                                                                        width: "100%",
+                                                                        margin: 0,
                                                                     }}
                                                                 />
-                                                            ))
-                                                        ) : (
-                                                            <Alert severity="info" sx={{ width: "100%", borderRadius: 2 }}>
-                                                                <AlertTitle>Empty</AlertTitle>No items in this department.
-                                                            </Alert>
-                                                        )}
-                                                    </Box>
+                                                            ))}
+                                                        </Box>
+                                                    ) : (
+                                                        <Alert
+                                                            message="Empty"
+                                                            description="No items in this department."
+                                                            type="info"
+                                                            showIcon
+                                                            style={{ width: "100%", borderRadius: 8 }}
+                                                        />
+                                                    )
                                                 ) : (
                                                     <Box>
                                                         {/* Search + back */}
@@ -571,10 +670,13 @@ const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
                                         </Box>
                                     ) : (
                                         <Box sx={{ p: 2 }}>
-                                            <Alert severity="info" sx={{ borderRadius: 2, borderLeft: `4px solid ${barColor}` }}>
-                                                <AlertTitle>No Departments</AlertTitle>
-                                                No departments configured yet.
-                                            </Alert>
+                                            <Alert
+                                                message="No Departments"
+                                                description="No departments configured yet."
+                                                type="info"
+                                                showIcon
+                                                style={{ borderRadius: 8, borderLeft: `4px solid ${barColor}` }}
+                                            />
                                         </Box>
                                     )}
                                 </>

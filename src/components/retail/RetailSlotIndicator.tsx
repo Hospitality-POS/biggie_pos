@@ -59,17 +59,17 @@ const RetailSlotIndicator: React.FC<RetailSlotIndicatorProps> = ({ onQueueOrder 
                 >
                     <Button
                         type="default"
-                        icon={<TableOutlined />}
+                        icon={<TableOutlined style={{ color: "white" }} />}
                         onClick={() => setQueueModalOpen(true)}
                         size="small"
                         style={{
-                            borderColor: primaryColor,
-                            color: primaryColor,
+                            borderColor: "rgba(255,255,255,0.4)",
+                            color: "white",
                             fontWeight: 600,
                             display: 'flex',
                             alignItems: 'center',
                             gap: 4,
-                            backgroundColor: 'rgba(255,255,255,0.15)',
+                            backgroundColor: 'rgba(255,255,255,0.18)',
                             borderRadius: 6,
                         }}
                     >
@@ -93,8 +93,8 @@ const RetailSlotIndicator: React.FC<RetailSlotIndicatorProps> = ({ onQueueOrder 
             >
                 {/* Current active slot */}
                 <div style={{
-                    background: '#f6ffed',
-                    border: `1px solid ${primaryColor}`,
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
                     borderRadius: 8,
                     padding: '12px 16px',
                     marginBottom: 16,

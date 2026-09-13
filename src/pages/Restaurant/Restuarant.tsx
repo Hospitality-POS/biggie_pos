@@ -1,9 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
-  Alert,
-  AlertTitle,
   AppBar,
-  Divider,
+  Badge,
   Grid,
   IconButton,
   Tab,
@@ -33,21 +31,23 @@ import SearchIcon from "@mui/icons-material/Search";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import QrCodeScannerIcon from "@mui/icons-material/QrCodeScanner";
 import GridViewIcon from "@mui/icons-material/GridView";
+import StoreIcon from "@mui/icons-material/Store";
 import { useParams } from "react-router-dom";
 import { getCart } from "../../features/Cart/CartActions";
 import { fetchProductsByCategory } from "../../features/Product/ProductAction";
 import VerticalTabs from "./Sidetabs";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { fetchMainCategories } from "@services/categories";
+import { fetchShop } from "@services/shops";
 import { fetchActivePackages, Package } from "@services/subscription";
 import PurchasePackageModal from "../../components/MODALS/pro/PurchasePackageModal";
-import { ShoppingCart, Build, CardGiftcard } from "@mui/icons-material";
+import { ShoppingCart, SupportAgent, CardGiftcard } from "@mui/icons-material";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { usePOSMode } from "@context/POSModeContext";
 import { useRetailQueue } from "@context/RetailQueueContext";
 import RetailSlotIndicator from "@components/retail/RetailSlotIndicator";
-import BarcodeScanPanel from "./BarcodeScanPanel";
-import { message } from "antd";
+import BarcodeScanPanel from "./Barcodescanner";
+import { Alert, message } from "antd";
 
 function a11yProps(index) {
   return {
@@ -65,7 +65,8 @@ const SkeletonTabs = () => (
       width: "100%",
       overflowX: "auto",
       gap: 1,
-      "&::-webkit-scrollbar": { height: "4px" },
+      py: 0.5,
+      "&::-webkit-scrollbar": { height: "3px" },
       "&::-webkit-scrollbar-track": { backgroundColor: "rgba(255,255,255,0.1)" },
       "&::-webkit-scrollbar-thumb": {
         backgroundColor: "rgba(255,255,255,0.3)",
@@ -73,13 +74,17 @@ const SkeletonTabs = () => (
       },
     }}
   >
-    {[...Array(5)].map((_, i) => (
+    {[...Array(6)].map((_, i) => (
       <Skeleton
         key={i}
         variant="rectangular"
-        width={120}
-        height={44}
-        sx={{ borderRadius: 1, flexShrink: 0 }}
+        width={110}
+        height={34}
+        sx={{
+          borderRadius: "20px",
+          flexShrink: 0,
+          bgcolor: "rgba(255,255,255,0.15)",
+        }}
       />
     ))}
   </Box>
@@ -92,14 +97,27 @@ const SkeletonCategoryCards = ({
   isMobile: boolean;
   isTablet: boolean;
 }) => (
-  <Box sx={{ display: "flex", flexWrap: "wrap", gap: "10px", mt: 2, width: "100%" }}>
+  <Box
+    sx={{
+      display: "grid",
+      gridTemplateColumns: isMobile
+        ? "repeat(auto-fit, minmax(130px, 1fr))"
+        : isTablet
+          ? "repeat(auto-fit, minmax(160px, 1fr))"
+          : "repeat(auto-fit, minmax(190px, 1fr))",
+      gap: "12px",
+      flex: 1,
+      width: "100%",
+      pt: 1,
+      alignContent: "start",
+    }}
+  >
     {[...Array(6)].map((_, i) => (
       <Skeleton
         key={i}
         variant="rectangular"
-        width={isMobile ? "100%" : isTablet ? "45%" : "30%"}
-        height={80}
-        sx={{ borderRadius: 2 }}
+        height={95}
+        sx={{ borderRadius: 2, width: "100%" }}
       />
     ))}
   </Box>
@@ -111,18 +129,27 @@ const SkeletonVerticalTabs = () => (
       display: "flex",
       flexDirection: "column",
       gap: 1,
-      width: 130,
-      mr: 1,
+      width: 190,
       flexShrink: 0,
+      bgcolor: "#f8fafc",
+      borderRight: "1px solid #e2e8f0",
+      p: 1.5,
+      height: "100%",
     }}
   >
+    <Skeleton
+      variant="rectangular"
+      width="60%"
+      height={20}
+      sx={{ borderRadius: 1, mb: 0.5 }}
+    />
     {[...Array(5)].map((_, i) => (
       <Skeleton
         key={i}
         variant="rectangular"
         width="100%"
-        height={44}
-        sx={{ borderRadius: 1 }}
+        height={40}
+        sx={{ borderRadius: 1.5 }}
       />
     ))}
   </Box>
@@ -138,11 +165,30 @@ const RestaurantPage: React.FC = () => {
   const { products, services, loading: productsLoading } = useAppSelector(
     (state) => state.product
   );
+  const { cartItems } = useAppSelector((state) => state.cart);
   const dispatch = useAppDispatch();
   const { id } = useParams();
 
   const { isRetailMode } = usePOSMode();
   const { activeTable, refreshSlots } = useRetailQueue();
+
+  const shopId = localStorage.getItem("shopId");
+  const { data: shopData } = useQuery({
+    queryKey: ["shop", shopId],
+    queryFn: () => (shopId ? fetchShop(shopId) : null),
+    enabled: !!shopId,
+  });
+
+  const tenant = useMemo(() => {
+    try {
+      const stored = localStorage.getItem("tenant");
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const shopName = shopData?.name || tenant?.name || "";
 
   const [posMode, setPosMode] = useState<"browse" | "scan">("browse");
   const [selectedCard, setSelectedCard] = useState(null);
@@ -197,14 +243,14 @@ const RestaurantPage: React.FC = () => {
     }
 
     const term = searchTerm.toLowerCase();
-    
+
     // Search by name or price/amount
-    setFilteredProducts(enabledProducts.filter((p) => 
-      p.name.toLowerCase().includes(term) || 
+    setFilteredProducts(enabledProducts.filter((p) =>
+      p.name.toLowerCase().includes(term) ||
       (p.price && p.price.toString().includes(term))
     ));
-    setFilteredServices(enabledServices.filter((s) => 
-      s.name.toLowerCase().includes(term) || 
+    setFilteredServices(enabledServices.filter((s) =>
+      s.name.toLowerCase().includes(term) ||
       (s.price && s.price.toString().includes(term))
     ));
   }, [searchTerm, products, services]);
@@ -295,7 +341,7 @@ const RestaurantPage: React.FC = () => {
     const chips = [
       {
         type: "services" as const,
-        icon: <Build sx={{ fontSize: 14 }} />,
+        icon: <SupportAgent sx={{ fontSize: 14 }} />,
         label: `Services (${filteredServices.length})`,
         show: hasServices,
       },
@@ -355,7 +401,9 @@ const RestaurantPage: React.FC = () => {
         width: "100%",
         maxHeight: isMobile ? "none" : "calc(100vh - 280px)",
         overflowY: isMobile ? "visible" : "auto",
-        pb: 1,
+        pt: "8px",
+        px: "4px",
+        pb: 2,
         "&::-webkit-scrollbar": { width: "4px" },
         "&::-webkit-scrollbar-track": { background: "transparent" },
         "&::-webkit-scrollbar-thumb": { background: "#cbd5e1", borderRadius: "2px" },
@@ -398,20 +446,20 @@ const RestaurantPage: React.FC = () => {
         )
       ) : searchTerm ? (
         <Alert
-          severity="info"
-          sx={{ width: "100%", bgcolor: "#DEAC80", color: "white", borderRadius: 2 }}
-        >
-          <AlertTitle>No Results</AlertTitle>
-          No items match "{searchTerm}"
-        </Alert>
+          message="No Results"
+          description={`No items found matching "${searchTerm}"`}
+          type="info"
+          showIcon
+          style={{ width: "100%", borderRadius: 8 }}
+        />
       ) : categoryChosen ? (
         <Alert
-          severity="info"
-          sx={{ width: "100%", bgcolor: "#DEAC80", color: "white", borderRadius: 2 }}
-        >
-          <AlertTitle>Empty</AlertTitle>
-          This category has no items yet.
-        </Alert>
+          message="Empty"
+          description="No items found in this category."
+          type="info"
+          showIcon
+          style={{ width: "100%", borderRadius: 8 }}
+        />
       ) : (
         <Box sx={{ width: "100%", textAlign: "center", py: 6, color: "text.secondary" }}>
           <Typography variant="body2">Select a category to browse items</Typography>
@@ -486,18 +534,51 @@ const RestaurantPage: React.FC = () => {
           >
             {/* ── Top app bar ── */}
             <AppBar position="static" elevation={0} sx={{ bgcolor: primaryColor, flexShrink: 0 }}>
-              {/* Row: retail slot indicator + mode toggle */}
+              {/* Row: shop badge (left) + mode toggle (right) */}
               <Box
                 sx={{
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
-                  px: 1.5,
-                  pt: 0.75,
-                  pb: isRetailMode ? 0.25 : 0.75,
+                  px: isMobile ? 1.5 : 2,
+                  pt: isMobile ? 1.25 : 1.5,
+                  pb: posMode === "browse" ? 1 : 1.5,
+                  gap: 1,
                 }}
               >
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  {shopName && (
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 0.6,
+                        bgcolor: "rgba(255,255,255,0.15)",
+                        border: "1px solid rgba(255,255,255,0.25)",
+                        borderRadius: "20px",
+                        px: 1.25,
+                        py: 0.4,
+                        color: "#ffffff",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <StoreIcon sx={{ fontSize: 14, opacity: 0.9 }} />
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          fontWeight: 700,
+                          fontSize: "0.78rem",
+                          letterSpacing: 0.3,
+                          whiteSpace: "nowrap",
+                          maxWidth: isMobile ? 120 : 200,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                        }}
+                      >
+                        {shopName}
+                      </Typography>
+                    </Box>
+                  )}
                   {isRetailMode && (
                     <RetailSlotIndicator onQueueOrder={handleQueueOrder} />
                   )}
@@ -509,37 +590,53 @@ const RestaurantPage: React.FC = () => {
               {posMode === "browse" && (
                 <>
                   {mainCategoriesLoading ? (
-                    <Box sx={{ p: 1.5 }}>
+                    <Box sx={{ px: isMobile ? 1.5 : 2, pb: 1 }}>
                       <SkeletonTabs />
                     </Box>
                   ) : (
                     <Tabs
                       value={tabValue}
                       onChange={(_, v) => setTabValue(v)}
-                      indicatorColor="secondary"
                       textColor="inherit"
                       variant="scrollable"
                       scrollButtons="auto"
                       allowScrollButtonsMobile
                       sx={{
-                        minHeight: 44,
+                        minHeight: 40,
+                        px: isMobile ? 1.5 : 2,
+                        pb: 1,
+                        "& .MuiTabs-flexContainer": {
+                          gap: "8px",
+                          alignItems: "center",
+                        },
                         "& .MuiTabs-scrollButtons": {
                           color: "white",
-                          "&.Mui-disabled": { opacity: 0.3 },
+                          "&.Mui-disabled": { opacity: 0.25 },
                         },
                         "& .MuiTab-root": {
                           minWidth: "auto",
-                          fontSize: isMobile ? "0.8rem" : "0.9rem",
+                          fontSize: isMobile ? "0.8rem" : "0.86rem",
                           fontWeight: 500,
                           textTransform: "none",
-                          padding: isMobile ? "8px 12px" : "10px 16px",
-                          minHeight: 44,
-                          color: "rgba(255,255,255,0.8)",
-                          "&.Mui-selected": { color: "white" },
+                          padding: isMobile ? "6px 14px" : "6px 18px",
+                          minHeight: 34,
+                          borderRadius: "20px",
+                          color: "rgba(255,255,255,0.85)",
+                          bgcolor: "rgba(255,255,255,0.12)",
+                          transition: "all 0.18s ease-in-out",
+                          "&:hover": {
+                            bgcolor: "rgba(255,255,255,0.22)",
+                            color: "#ffffff",
+                          },
+                          "&.Mui-selected": {
+                            bgcolor: "#ffffff",
+                            color: `${primaryColor} !important`,
+                            fontWeight: 700,
+                            boxShadow: "0 2px 8px rgba(0,0,0,0.18)",
+                          },
                         },
                         "& .MuiTabs-indicator": {
-                          backgroundColor: "white",
-                          height: 3,
+                          display: "none",
                         },
                       }}
                     >
@@ -572,7 +669,7 @@ const RestaurantPage: React.FC = () => {
                     variant="caption"
                     sx={{ color: "rgba(255,255,255,0.85)", fontWeight: 600, letterSpacing: 0.5 }}
                   >
-                    Scanner mode — ready to scan
+                    Ready to scan
                   </Typography>
                 </Box>
               )}
@@ -587,9 +684,11 @@ const RestaurantPage: React.FC = () => {
                 // ── Browse mode (original UI, fully unchanged) ──
                 <>
                   {mainCategoriesLoading ? (
-                    <Box sx={{ display: "flex", p: 2, height: "100%" }}>
+                    <Box sx={{ display: "flex", flex: 1, overflow: "hidden" }}>
                       {!isMobile && <SkeletonVerticalTabs />}
-                      <SkeletonCategoryCards isMobile={isMobile} isTablet={isTablet} />
+                      <Box sx={{ flex: 1, p: isMobile ? 1.5 : 2, overflow: "auto" }}>
+                        <SkeletonCategoryCards isMobile={isMobile} isTablet={isTablet} />
+                      </Box>
                     </Box>
                   ) : subcategories.length ? (
                     <Box
@@ -622,11 +721,23 @@ const RestaurantPage: React.FC = () => {
                         }}
                       >
                         {showCategories ? (
-                          <Box sx={{ display: "flex", flexWrap: "wrap", gap: "10px", pt: 1 }}>
-                            {isLoading ? (
-                              <SkeletonCategoryCards isMobile={isMobile} isTablet={isTablet} />
-                            ) : categories.length ? (
-                              categories.map((category) => (
+                          isLoading ? (
+                            <SkeletonCategoryCards isMobile={isMobile} isTablet={isTablet} />
+                          ) : categories.length ? (
+                            <Box
+                              sx={{
+                                display: "grid",
+                                gridTemplateColumns: isMobile
+                                  ? "repeat(auto-fit, minmax(130px, 1fr))"
+                                  : isTablet
+                                    ? "repeat(auto-fit, minmax(160px, 1fr))"
+                                    : "repeat(auto-fit, minmax(190px, 1fr))",
+                                gap: "12px",
+                                width: "100%",
+                                pt: 1,
+                              }}
+                            >
+                              {categories.map((category) => (
                                 <CategoryCard
                                   key={category._id}
                                   handleSelectedCard={handleSelectCard}
@@ -636,27 +747,24 @@ const RestaurantPage: React.FC = () => {
                                   itemCount={1}
                                   id={category._id}
                                   style={{
-                                    flex: isMobile
-                                      ? "0 0 calc(50% - 5px)"
-                                      : isTablet
-                                        ? "0 0 calc(50% - 5px)"
-                                        : `0 0 calc(${100 / Math.min(categories.length, 3)
-                                        }% - 8px)`,
+                                    maxWidth: categories.length === 1 ? 280 : "none",
                                     border: "1px solid #e2e8f0",
                                     borderRadius: 8,
+                                    width: "100%",
+                                    margin: 0,
                                   }}
                                 />
-                              ))
-                            ) : (
-                              <Alert
-                                severity="info"
-                                sx={{ width: "100%", bgcolor: "#DEAC80", borderRadius: 2 }}
-                              >
-                                <AlertTitle>Empty</AlertTitle>
-                                No categories here yet.
-                              </Alert>
-                            )}
-                          </Box>
+                              ))}
+                            </Box>
+                          ) : (
+                            <Alert
+                              message="No Categories"
+                              description="No categories found."
+                              type="info"
+                              showIcon
+                              style={{ width: "100%", borderRadius: 8 }}
+                            />
+                          )
                         ) : (
                           <Box>
                             {/* Search + back row */}
@@ -731,10 +839,13 @@ const RestaurantPage: React.FC = () => {
                     </Box>
                   ) : (
                     <Box sx={{ p: 2 }}>
-                      <Alert severity="info" sx={{ bgcolor: "#DEAC80", borderRadius: 2 }}>
-                        <AlertTitle>Empty</AlertTitle>
-                        This category has no subcategories yet.
-                      </Alert>
+                      <Alert
+                        message="No Subcategories"
+                        description="No subcategories found in this category."
+                        type="info"
+                        showIcon
+                        style={{ width: "100%", borderRadius: 8 }}
+                      />
                     </Box>
                   )}
                 </>
@@ -770,7 +881,9 @@ const RestaurantPage: React.FC = () => {
               "&:hover": { bgcolor: primaryColor },
             }}
           >
-            <ShoppingCartIcon />
+            <Badge badgeContent={cartItems?.length || 0} color="error">
+              <ShoppingCartIcon />
+            </Badge>
           </Fab>
 
           <Drawer
