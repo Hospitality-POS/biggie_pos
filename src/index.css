@@ -104,3 +104,28 @@ input[type="checkbox" i]:active {
   align-items: center !important;
   width: 100% !important;
 }
+
+/* ProLayout AppList popover: ensure short, clean ellipsis and no horizontal scrollbar */
+.ant-pro-layout-apps-content {
+  overflow-x: hidden !important;
+}
+
+.ant-pro-layout-apps-content-list-item {
+  box-sizing: border-box !important;
+}
+
+.ant-pro-layout-apps-content-list-item a > div {
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  max-width: 230px !important;
+}
+
+.ant-pro-layout-apps-content-list-item a > div > span {
+  display: block !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  max-width: 230px !important;
+}
+
