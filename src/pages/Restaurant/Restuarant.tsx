@@ -46,7 +46,7 @@ import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { usePOSMode } from "@context/POSModeContext";
 import { useRetailQueue } from "@context/RetailQueueContext";
 import RetailSlotIndicator from "@components/retail/RetailSlotIndicator";
-import BarcodeScanPanel from "./BarcodeScanPanel";
+import BarcodeScanPanel from "./Barcodescanner";
 import { Alert, message } from "antd";
 
 function a11yProps(index) {

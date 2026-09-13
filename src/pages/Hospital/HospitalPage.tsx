@@ -53,7 +53,7 @@ import { fetchActivePackages, Package } from "@services/subscription";
 import PurchasePackageModal from "../../components/MODALS/pro/PurchasePackageModal";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { useRetailQueue } from "@context/RetailQueueContext";
-import BarcodeScanPanel from "../Restaurant/BarcodeScanPanel";
+import BarcodeScanPanel from "../Restaurant/Barcodescanner";
 import { message } from "antd";
 
 // ── Shared neutral tokens ─────────────────────────────────────────────────────
