@@ -1,738 +1,577 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { Alert, Badge, Button, Drawer } from "antd";
 import {
-    AppBar,
-    Box,
-    Chip,
-    Drawer,
-    Fab,
-    Grid,
-    IconButton,
-    InputAdornment,
-    Paper,
-    Skeleton,
-    Tab,
-    Tabs,
-    TextField,
-    ToggleButton,
-    ToggleButtonGroup,
-    Typography,
-    useMediaQuery,
-    useTheme,
-} from "@mui/material";
-import {
-    Medication,
-    MedicalServices,
-    Search,
-    ShoppingCart,
-    Backspace,
-    GridView,
-    QrCodeScanner,
-    Vaccines,
-    Science,
-    LocalHospital,
-    MonitorHeart,
-    Store,
-} from "@mui/icons-material";
+  MedicineBoxOutlined,
+  ExperimentOutlined,
+  HeartOutlined,
+  PlusCircleOutlined,
+  ShoppingCartOutlined,
+} from "@ant-design/icons";
+import { useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+
 import ProductCard from "../../components/product/productCard";
 import PackageCard from "../../components/cart/PackageCard";
-import { useQuery } from "@tanstack/react-query";
 import SkeletonProductCard from "../../components/product/skeletonProductCard";
 import CategoryCard from "../../components/category/categoryCard";
 import CartDrawer from "../../components/cart/CartDrawer";
-import { fetchShop } from "@services/shops";
-import { useParams } from "react-router-dom";
+import HospitalSidebar from "./HospitalSidebar";
+import BarcodeScanPanel from "../Restaurant/Barcodescanner";
+import PurchasePackageModal from "../../components/MODALS/pro/PurchasePackageModal";
+
+import { useAppDispatch, useAppSelector } from "../../store";
 import { getCart } from "../../features/Cart/CartActions";
 import { fetchProductsByCategory } from "../../features/Product/ProductAction";
-import HospitalSidebar from "./HospitalSidebar";
-import { useAppDispatch, useAppSelector } from "../../store";
 import { fetchMainCategories } from "@services/categories";
+import { fetchShop } from "@services/shops";
 import { fetchActivePackages, Package } from "@services/subscription";
-import PurchasePackageModal from "../../components/MODALS/pro/PurchasePackageModal";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { useRetailQueue } from "@context/RetailQueueContext";
-import BarcodeScanPanel from "../Restaurant/Barcodescanner";
-import { Alert } from "antd";
 
-// ── Shared neutral tokens ─────────────────────────────────────────────────────
-const H = {
-    slateLight: "#f8fafc",
-    border: "#e2e8f0",
-    white: "#ffffff",
-    warning: "#f59e0b",
-    ok: "#10b981",
-};
-
-function a11yProps(index: number) {
-    return { id: `hospital-tab-${index}`, "aria-controls": `hospital-tabpanel-${index}` };
-}
-
-// ── Section chip types ────────────────────────────────────────────────────────
-type ItemType = "services" | "products" | "packages";
+import POSHeader from "@components/pos/POSHeader";
+import POSSearchHeader from "@components/pos/POSSearchHeader";
+import POSItemTypeFilters, { POSItemType } from "@components/pos/POSItemTypeFilters";
+import {
+  POSSkeletonCategoryCards,
+  POSSkeletonVerticalTabs,
+} from "@components/pos/POSSkeletons";
 
 const SECTION_ICONS: Record<string, React.ReactNode> = {
-    Pharmacy: <Medication sx={{ fontSize: 13 }} />,
-    Laboratory: <Science sx={{ fontSize: 13 }} />,
-    Radiology: <MonitorHeart sx={{ fontSize: 13 }} />,
-    Procedures: <MedicalServices sx={{ fontSize: 13 }} />,
-    Vaccines: <Vaccines sx={{ fontSize: 13 }} />,
-    default: <LocalHospital sx={{ fontSize: 13 }} />,
+  Pharmacy: <MedicineBoxOutlined style={{ fontSize: 13 }} />,
+  Laboratory: <ExperimentOutlined style={{ fontSize: 13 }} />,
+  Radiology: <HeartOutlined style={{ fontSize: 13 }} />,
+  Procedures: <PlusCircleOutlined style={{ fontSize: 13 }} />,
+  Vaccines: <MedicineBoxOutlined style={{ fontSize: 13 }} />,
+  default: <MedicineBoxOutlined style={{ fontSize: 13 }} />,
 };
 
-const getSectionIcon = (name: string) =>
-    SECTION_ICONS[name] ?? SECTION_ICONS.default;
+const getSectionIcon = (name: string) => SECTION_ICONS[name] ?? SECTION_ICONS.default;
 
-// ── Skeletons ─────────────────────────────────────────────────────────────────
-const SkeletonTabs = () => (
-    <Box sx={{ display: "flex", gap: 1, overflowX: "auto", py: 0.5, "&::-webkit-scrollbar": { height: 3 } }}>
-        {[...Array(6)].map((_, i) => (
-            <Skeleton key={i} variant="rectangular" width={110} height={34}
-                sx={{ borderRadius: "20px", flexShrink: 0, bgcolor: "rgba(255,255,255,0.15)" }} />
-        ))}
-    </Box>
-);
-
-const SkeletonCards = ({
-    cols = 6,
-    isMobile = false,
-    isTablet = false,
-}: {
-    cols?: number;
-    isMobile?: boolean;
-    isTablet?: boolean;
-}) => (
-    <Box
-        sx={{
-            display: "grid",
-            gridTemplateColumns: isMobile
-                ? "repeat(auto-fit, minmax(130px, 1fr))"
-                : isTablet
-                    ? "repeat(auto-fit, minmax(160px, 1fr))"
-                    : "repeat(auto-fit, minmax(190px, 1fr))",
-            gap: "12px",
-            flex: 1,
-            width: "100%",
-            alignContent: "start",
-            pt: 1,
-        }}
-    >
-        {[...Array(cols)].map((_, i) => (
-            <Skeleton
-                key={i}
-                variant="rectangular"
-                height={95}
-                sx={{ borderRadius: 2, width: "100%" }}
-            />
-        ))}
-    </Box>
-);
-
-
-// ── Main ──────────────────────────────────────────────────────────────────────
 interface HospitalPageProps {
-    mode?: "hospital" | "retail";
+  mode?: "hospital" | "retail";
 }
 
 const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
-    const theme = useTheme();
-    const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-    const isTablet = useMediaQuery(theme.breakpoints.between("sm", "md"));
+  const [windowWidth, setWindowWidth] = useState(
+    typeof window !== "undefined" ? window.innerWidth : 1024
+  );
 
-    const { products, services, loading: productsLoading } = useAppSelector((s) => s.product);
-    const dispatch = useAppDispatch();
-    const { id } = useParams();
-    const { activeTable } = useRetailQueue();
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
-    const shopId = localStorage.getItem("shopId");
-    const { data: shopData } = useQuery({
-        queryKey: ["shop", shopId],
-        queryFn: () => (shopId ? fetchShop(shopId) : null),
-        enabled: !!shopId,
-    });
+  const isMobile = windowWidth < 768;
+  const isTablet = windowWidth >= 768 && windowWidth < 1024;
 
-    const tenant = useMemo(() => {
-        try {
-            const stored = localStorage.getItem("tenant");
-            return stored ? JSON.parse(stored) : null;
-        } catch {
-            return null;
-        }
-    }, []);
+  const { products, services, loading: productsLoading } = useAppSelector((s) => s.product);
+  const { cartItems } = useAppSelector((s) => s.cart);
+  const dispatch = useAppDispatch();
+  const { id } = useParams();
+  const { activeTable } = useRetailQueue();
 
-    const shopName = shopData?.name || tenant?.name || "";
+  const shopId = localStorage.getItem("shopId");
+  const { data: shopData } = useQuery({
+    queryKey: ["shop", shopId],
+    queryFn: () => (shopId ? fetchShop(shopId) : null),
+    enabled: !!shopId,
+  });
 
-    const [posMode, setPosMode] = useState<"browse" | "scan">("browse");
-    const [selectedCard, setSelectedCard] = useState(null);
-    const [showCategories, setShowCategories] = useState(true);
-    const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
-    const [categoryChosen, setCategoryChosen] = useState(false);
-    const [tabValue, setTabValue] = useState(0);
-    const [subcategories, setSubcategories] = useState([]);
-    const [categories, setCategories] = useState([]);
-    const [searchTerm, setSearchTerm] = useState("");
-    const [filteredProducts, setFilteredProducts] = useState([]);
-    const [filteredServices, setFilteredServices] = useState([]);
-    const [activeItemType, setActiveItemType] = useState<ItemType>("services");
-    const [purchaseModalVisible, setPurchaseModalVisible] = useState(false);
-    const [selectedPackage, setSelectedPackage] = useState<Package | null>(null);
+  const tenant = useMemo(() => {
+    try {
+      const stored = localStorage.getItem("tenant");
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  }, []);
 
-    const primaryColor = usePrimaryColor();
-    const tableId = id && id !== "tables" ? id : activeTable?._id ?? null;
+  const shopName = shopData?.name || tenant?.name || "";
 
-    const { data: packagesData, isLoading: packagesLoading, refetch: refetchPackages } = useQuery({
-        queryKey: ["active-packages"],
-        queryFn: fetchActivePackages,
-    });
-    const availablePackages = packagesData?.packages || [];
+  const [posMode, setPosMode] = useState<"browse" | "scan">("browse");
+  const [selectedCard, setSelectedCard] = useState<any>(null);
+  const [showCategories, setShowCategories] = useState(true);
+  const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
+  const [categoryChosen, setCategoryChosen] = useState(false);
+  const [selectedMainCategoryId, setSelectedMainCategoryId] = useState<string>("");
+  const [subcategories, setSubcategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
+  const [filteredServices, setFilteredServices] = useState<any[]>([]);
+  const [activeItemType, setActiveItemType] = useState<POSItemType>("services");
+  const [purchaseModalVisible, setPurchaseModalVisible] = useState(false);
+  const [selectedPackage, setSelectedPackage] = useState<Package | null>(null);
 
-    const { data: Maincategories, isLoading: mainCategoriesLoading } = useQuery({
-        queryKey: ["Maincategories"],
-        queryFn: fetchMainCategories,
-        retry: 3,
-        networkMode: "always",
-    });
+  const primaryColor = usePrimaryColor();
+  const tableId = id && id !== "tables" ? id : activeTable?._id ?? null;
 
-    // ── Effects ──────────────────────────────────────────────────────────────
-    useEffect(() => {
-        if (!searchTerm.trim()) {
-            setFilteredProducts(products || []);
-            setFilteredServices(services || []);
-            return;
-        }
-        const t = searchTerm.toLowerCase();
-        setFilteredProducts((products || []).filter((p) => p.name.toLowerCase().includes(t)));
-        setFilteredServices((services || []).filter((s) => s.name.toLowerCase().includes(t)));
-    }, [searchTerm, products, services]);
+  const {
+    data: packagesData,
+    isLoading: packagesLoading,
+    refetch: refetchPackages,
+  } = useQuery({
+    queryKey: ["active-packages"],
+    queryFn: fetchActivePackages,
+  });
+  const availablePackages = packagesData?.packages || [];
 
-    useEffect(() => {
-        if (services && products) {
-            if (services.length === 0 && products.length > 0) setActiveItemType("products");
-            else if (services.length > 0) setActiveItemType("services");
-        }
-    }, [services, products]);
+  const { data: Maincategories, isLoading: mainCategoriesLoading } = useQuery({
+    queryKey: ["Maincategories"],
+    queryFn: fetchMainCategories,
+    retry: 3,
+    networkMode: "always",
+  });
 
-    useEffect(() => {
-        if (Maincategories?.length > 0) handleChangeMainCategory(Maincategories[0]._id);
-    }, [Maincategories]);
+  // Attach icons to departments
+  const categoriesWithIcons = useMemo(() => {
+    return (Maincategories || []).map((c: any) => ({
+      ...c,
+      icon: getSectionIcon(c.name),
+    }));
+  }, [Maincategories]);
 
-    // ── Handlers ──────────────────────────────────────────────────────────────
-    const handleChangeMainCategory = (id: string) => {
-        if (!Maincategories) return;
-        const main = Maincategories.find((c) => c._id === id);
-        if (main) {
-            setSubcategories(main.sub_categories || []);
-            setCategories(main.sub_categories?.[0]?.categories || []);
-        }
-        setSearchTerm(""); setShowCategories(true); setCategoryChosen(false);
-    };
+  useEffect(() => {
+    if (!searchTerm.trim()) {
+      setFilteredProducts(products || []);
+      setFilteredServices(services || []);
+      return;
+    }
+    const t = searchTerm.toLowerCase();
+    setFilteredProducts((products || []).filter((p: any) => p.name.toLowerCase().includes(t)));
+    setFilteredServices((services || []).filter((s: any) => s.name.toLowerCase().includes(t)));
+  }, [searchTerm, products, services]);
 
-    const handleChangeSubCategory = (subcategoryid: string) => {
-        const sub = subcategories.find((s) => s._id === subcategoryid);
-        if (sub) setCategories((sub as any).categories || []);
-        setSearchTerm(""); setShowCategories(true); setCategoryChosen(false);
-    };
+  useEffect(() => {
+    if (services && products) {
+      if (services.length === 0 && products.length > 0) setActiveItemType("products");
+      else if (services.length > 0) setActiveItemType("services");
+    }
+  }, [services, products]);
 
-    const handleCartOpen = () => {
-        setCartDrawerOpen(true);
-        if (tableId) dispatch(getCart(tableId));
-    };
+  useEffect(() => {
+    if (Maincategories?.length > 0) {
+      handleChangeMainCategory(Maincategories[0]._id);
+    }
+  }, [Maincategories]);
 
-    const handleBack = () => {
-        setShowCategories(true);
-        setSearchTerm("");
-        setActiveItemType("services");
-    };
+  const handleChangeMainCategory = (idValue: string) => {
+    if (!Maincategories) return;
+    const main = Maincategories.find((c: any) => c._id === idValue);
+    if (main) {
+      setSelectedMainCategoryId(idValue);
+      setSubcategories(main.sub_categories || []);
+      setCategories(main.sub_categories?.[0]?.categories || []);
+    }
+    setSearchTerm("");
+    setShowCategories(true);
+    setCategoryChosen(false);
+  };
 
-    const handleSelectCard = (card: any) => {
-        setSelectedCard(card);
-        dispatch(fetchProductsByCategory(card));
-        setCategoryChosen(true);
-        setShowCategories(false);
-        setSearchTerm("");
-        setActiveItemType("services");
-    };
+  const handleChangeSubCategory = (subcategoryid: string) => {
+    const sub = subcategories.find((s) => s._id === subcategoryid);
+    if (sub) setCategories((sub as any).categories || []);
+    setSearchTerm("");
+    setShowCategories(true);
+    setCategoryChosen(false);
+  };
 
-    const displayItems =
-        activeItemType === "products" ? filteredProducts
-            : activeItemType === "services" ? filteredServices
-                : availablePackages;
+  const handleCartOpen = () => {
+    setCartDrawerOpen(true);
+    if (tableId) dispatch(getCart(tableId));
+  };
 
-    const sortedItems =
-        activeItemType === "packages"
-            ? displayItems
-            : [...displayItems].sort((a, b) => (a as any).name.localeCompare((b as any).name));
+  const handleBack = () => {
+    setShowCategories(true);
+    setSearchTerm("");
+    setActiveItemType("services");
+  };
 
-    const isLoading = mainCategoriesLoading || productsLoading || packagesLoading;
+  const handleSelectCard = (card: any) => {
+    setSelectedCard(card);
+    dispatch(fetchProductsByCategory(card));
+    setCategoryChosen(true);
+    setShowCategories(false);
+    setSearchTerm("");
+    setActiveItemType("services");
+  };
 
-    // ── Use tenant primary color throughout ──────────────────────────────────
-    const barColor = primaryColor;
+  const displayItems =
+    activeItemType === "products"
+      ? filteredProducts
+      : activeItemType === "services"
+      ? filteredServices
+      : availablePackages;
 
-    // ── Item type chips ───────────────────────────────────────────────────────
-    const ItemTypeFilters = () => {
-        const hasServices = filteredServices.length > 0;
-        const hasProducts = filteredProducts.length > 0;
-        const hasPackages = availablePackages.length > 0;
-        if (!hasProducts && !hasServices && !hasPackages) return null;
+  const sortedItems =
+    activeItemType === "packages"
+      ? displayItems
+      : [...displayItems].sort((a: any, b: any) => a.name.localeCompare(b.name));
 
-        const chips = [
-            { type: "services" as const, icon: <MedicalServices sx={{ fontSize: 13 }} />, label: `Services (${filteredServices.length})`, show: hasServices },
-            {
-                type: "products" as const,
-                icon: mode === "retail" ? <ShoppingCart sx={{ fontSize: 13 }} /> : <Medication sx={{ fontSize: 13 }} />,
-                label: mode === "retail" ? `Products (${filteredProducts.length})` : `Pharmacy (${filteredProducts.length})`,
-                show: hasProducts,
-            },
-            { type: "packages" as const, icon: <LocalHospital sx={{ fontSize: 13 }} />, label: `Packages (${availablePackages.length})`, show: hasPackages },
-        ];
+  const areItemsAvailable = sortedItems.length > 0;
+  const isLoading = mainCategoriesLoading || productsLoading || packagesLoading;
 
-        return (
-            <Box sx={{ display: "flex", gap: 1, mb: 1.5, flexWrap: "wrap" }}>
-                {chips.filter((c) => c.show).map((c) => (
-                    <Chip
-                        key={c.type} size="small" icon={c.icon} label={c.label}
-                        variant={activeItemType === c.type ? "filled" : "outlined"}
-                        onClick={() => setActiveItemType(c.type)}
-                        sx={{
-                            fontSize: 12, height: 28,
-                            backgroundColor: activeItemType === c.type ? barColor : "transparent",
-                            color: activeItemType === c.type ? "white" : barColor,
-                            borderColor: barColor,
-                            "& .MuiChip-icon": { color: "inherit" },
-                            "&:hover": { backgroundColor: activeItemType === c.type ? barColor : `${barColor}18` },
-                            transition: "all 0.2s ease",
-                        }}
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: isMobile ? "column" : "row",
+        gap: isMobile ? 0 : 16,
+        height: isMobile ? "auto" : "calc(100vh - 80px)",
+        width: "100%",
+        overflow: "hidden",
+      }}
+    >
+      {/* Left panel */}
+      <div
+        style={{
+          flex: isMobile ? "none" : "1 1 65%",
+          height: isMobile ? "auto" : "100%",
+          display: "flex",
+          flexDirection: "column",
+          backgroundColor: "#ffffff",
+          borderRadius: isMobile ? 0 : 8,
+          boxShadow: isMobile ? "none" : "0 2px 8px rgba(0,0,0,0.06)",
+          border: isMobile ? "none" : "1px solid #e2e8f0",
+          overflow: "hidden",
+        }}
+      >
+        {/* Unified POS Header */}
+        <POSHeader
+          shopName={shopName}
+          primaryColor={primaryColor}
+          isMobile={isMobile}
+          posMode={posMode}
+          onModeChange={setPosMode}
+          categoriesLoading={mainCategoriesLoading}
+          categories={categoriesWithIcons}
+          selectedCategoryId={selectedMainCategoryId}
+          onSelectCategory={handleChangeMainCategory}
+        />
+
+        {/* Content area */}
+        <div
+          style={{
+            flex: 1,
+            overflow: "hidden",
+            display: "flex",
+            flexDirection: "column",
+            backgroundColor: "#f8fafc",
+          }}
+        >
+          {posMode === "scan" ? (
+            <BarcodeScanPanel tableId={tableId} onCartUpdate={handleCartOpen} />
+          ) : (
+            <>
+              {mainCategoriesLoading ? (
+                <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
+                  {!isMobile && <POSSkeletonVerticalTabs />}
+                  <div style={{ flex: 1, padding: isMobile ? 12 : 16, overflow: "auto" }}>
+                    <POSSkeletonCategoryCards isMobile={isMobile} isTablet={isTablet} />
+                  </div>
+                </div>
+              ) : subcategories.length ? (
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "row",
+                    flex: 1,
+                    overflow: "hidden",
+                  }}
+                >
+                  {/* Hospital sidebar */}
+                  <div style={{ flexShrink: 0, overflow: "hidden" }}>
+                    <HospitalSidebar
+                      subcategories={subcategories}
+                      handleSubCategoryChange={handleChangeSubCategory}
                     />
-                ))}
-            </Box>
-        );
-    };
+                  </div>
 
-    // ── Product/service grid ──────────────────────────────────────────────────
-    const ProductGrid = () => (
-        <Box
-            sx={{
-                display: "flex", flexWrap: "wrap", gap: "10px", width: "100%",
-                maxHeight: isMobile ? "none" : "calc(100vh - 290px)",
-                overflowY: isMobile ? "visible" : "auto",
-                pt: "8px",
-                px: "4px",
-                pb: 2,
-                "&::-webkit-scrollbar": { width: "4px" },
-                "&::-webkit-scrollbar-thumb": { background: "#cbd5e1", borderRadius: 2 },
-            }}
-        >
-            {sortedItems.length > 0 ? (
-                activeItemType === "packages" ? (
-                    sortedItems.map((pkg: any) => (
-                        <PackageCard key={pkg._id} package={pkg}
-                            onPurchase={(p) => { setSelectedPackage(p); setPurchaseModalVisible(true); }}
-                            style={{ flex: isMobile ? "0 0 100%" : isTablet ? "0 0 calc(50% - 5px)" : "0 0 calc(33% - 7px)" }}
+                  {/* Main content */}
+                  <div
+                    style={{
+                      flex: 1,
+                      overflow: isMobile ? "visible" : "auto",
+                      padding: isMobile ? 12 : 16,
+                      scrollbarWidth: "thin",
+                      scrollbarColor: "#cbd5e1 transparent",
+                    }}
+                  >
+                    {showCategories ? (
+                      isLoading ? (
+                        <POSSkeletonCategoryCards isMobile={isMobile} isTablet={isTablet} />
+                      ) : categories.length ? (
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: isMobile
+                              ? "repeat(auto-fit, minmax(130px, 1fr))"
+                              : isTablet
+                              ? "repeat(auto-fit, minmax(160px, 1fr))"
+                              : "repeat(auto-fit, minmax(190px, 1fr))",
+                            gap: 12,
+                            width: "100%",
+                            paddingTop: 8,
+                          }}
+                        >
+                          {categories.map((category: any) => (
+                            <CategoryCard
+                              key={category._id}
+                              handleSelectedCard={handleSelectCard}
+                              selectedCard={selectedCard}
+                              icon="/categoryIcon.svg"
+                              name={category.name}
+                              itemCount={1}
+                              id={category._id}
+                              style={{
+                                maxWidth: categories.length === 1 ? 280 : "none",
+                                border: "1px solid #e2e8f0",
+                                borderRadius: 8,
+                                borderTop: `3px solid ${primaryColor}`,
+                                width: "100%",
+                                margin: 0,
+                              }}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <Alert
+                          message="Empty"
+                          description="No items in this department."
+                          type="info"
+                          showIcon
+                          style={{ width: "100%", borderRadius: 8 }}
                         />
-                    ))
-                ) : (
-                    sortedItems.map((item: any) => (
-                        <ProductCard key={item._id} menu={item} handleCart={handleCartOpen}
-                            style={{ flex: isMobile ? "0 0 100%" : isTablet ? "0 0 calc(50% - 5px)" : "0 0 calc(33% - 7px)" }}
+                      )
+                    ) : (
+                      <div>
+                        {/* Search + Back row */}
+                        <POSSearchHeader
+                          searchTerm={searchTerm}
+                          onSearchChange={setSearchTerm}
+                          onBack={handleBack}
+                          primaryColor={primaryColor}
+                          placeholder="Search medications, services…"
                         />
-                    ))
-                )
-            ) : searchTerm ? (
-                <Alert
-                    message="No Results"
-                    description={`No items match "${searchTerm}"`}
+
+                        {/* Item type filters */}
+                        <POSItemTypeFilters
+                          activeType={activeItemType}
+                          onChange={setActiveItemType}
+                          servicesCount={filteredServices.length}
+                          productsCount={filteredProducts.length}
+                          packagesCount={availablePackages.length}
+                          primaryColor={primaryColor}
+                          isHospitalMode={mode !== "retail"}
+                        />
+
+                        {/* Products / Services loading or grid */}
+                        {productsLoading || packagesLoading ? (
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                            {Array.from({ length: 6 }).map((_, i) => (
+                              <SkeletonProductCard key={i} />
+                            ))}
+                          </div>
+                        ) : areItemsAvailable ? (
+                          <div
+                            style={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              gap: 10,
+                              width: "100%",
+                              maxHeight: isMobile ? "none" : "calc(100vh - 290px)",
+                              overflowY: isMobile ? "visible" : "auto",
+                              paddingTop: 8,
+                              paddingLeft: 4,
+                              paddingRight: 4,
+                              paddingBottom: 16,
+                              scrollbarWidth: "thin",
+                              scrollbarColor: "#cbd5e1 transparent",
+                            }}
+                          >
+                            {activeItemType === "packages"
+                              ? sortedItems.map((pkg: any) => (
+                                  <PackageCard
+                                    key={pkg._id}
+                                    package={pkg}
+                                    onPurchase={(p) => {
+                                      setSelectedPackage(p);
+                                      setPurchaseModalVisible(true);
+                                    }}
+                                    style={{
+                                      flex: isMobile
+                                        ? "0 0 100%"
+                                        : isTablet
+                                        ? "0 0 calc(50% - 5px)"
+                                        : "0 0 calc(33% - 7px)",
+                                    }}
+                                  />
+                                ))
+                              : sortedItems.map((item: any) => (
+                                  <ProductCard
+                                    key={item._id}
+                                    menu={item}
+                                    handleCart={handleCartOpen}
+                                    style={{
+                                      flex: isMobile
+                                        ? "0 0 100%"
+                                        : isTablet
+                                        ? "0 0 calc(50% - 5px)"
+                                        : "0 0 calc(33% - 7px)",
+                                    }}
+                                  />
+                                ))}
+                          </div>
+                        ) : searchTerm ? (
+                          <Alert
+                            message="No Results"
+                            description={`No items match "${searchTerm}"`}
+                            type="info"
+                            showIcon
+                            style={{ width: "100%", borderRadius: 8 }}
+                          />
+                        ) : categoryChosen ? (
+                          <Alert
+                            message="Empty"
+                            description="This section has no items yet."
+                            type="info"
+                            showIcon
+                            style={{ width: "100%", borderRadius: 8 }}
+                          />
+                        ) : (
+                          <div
+                            style={{
+                              width: "100%",
+                              textAlign: "center",
+                              padding: "48px 0",
+                              color: "#64748b",
+                            }}
+                          >
+                            <MedicineBoxOutlined
+                              style={{
+                                fontSize: 36,
+                                color: "#cbd5e1",
+                                marginBottom: 8,
+                                display: "block",
+                              }}
+                            />
+                            <p style={{ fontSize: 13, margin: 0 }}>
+                              Select a department to browse items
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div style={{ padding: 16 }}>
+                  <Alert
+                    message="No Departments"
+                    description="No departments configured yet."
                     type="info"
                     showIcon
-                    style={{ width: "100%", borderRadius: 8 }}
-                />
-            ) : categoryChosen ? (
-                <Alert
-                    message="Empty"
-                    description="This section has no items yet."
-                    type="info"
-                    showIcon
-                    style={{ width: "100%", borderRadius: 8 }}
-                />
-            ) : (
-                <Box sx={{ width: "100%", textAlign: "center", py: 6, color: "text.secondary" }}>
-                    <LocalHospital sx={{ fontSize: 36, color: "#cbd5e1", mb: 1 }} />
-                    <Typography variant="body2" color="text.secondary">
-                        Select a department to browse items
-                    </Typography>
-                </Box>
-            )}
-        </Box>
-    );
+                    style={{
+                      borderRadius: 8,
+                      borderLeft: `4px solid ${primaryColor}`,
+                    }}
+                  />
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
 
-    // ── Mode toggle ───────────────────────────────────────────────────────────
-    const ModeToggle = () => (
-        <ToggleButtonGroup
-            value={posMode} exclusive onChange={(_, v) => v && setPosMode(v)}
-            size="small"
-            sx={{
-                "& .MuiToggleButton-root": {
-                    color: "rgba(255,255,255,0.7)", borderColor: "rgba(255,255,255,0.25)",
-                    fontSize: 11, fontWeight: 600, textTransform: "none",
-                    px: 1.5, py: 0.5, gap: 0.5, minHeight: 30,
-                },
-                "& .MuiToggleButton-root.Mui-selected": {
-                    color: "white", bgcolor: "rgba(255,255,255,0.18)",
-                    borderColor: "rgba(255,255,255,0.5)",
-                    "&:hover": { bgcolor: "rgba(255,255,255,0.22)" },
-                },
-                "& .MuiToggleButton-root:hover": { bgcolor: "rgba(255,255,255,0.08)" },
-            }}
+      {/* Right panel: cart (desktop) */}
+      {!isMobile && (
+        <div
+          style={{
+            flex: "0 0 380px",
+            height: "100%",
+            backgroundColor: "#ffffff",
+            borderRadius: 8,
+            boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+            border: "1px solid #e2e8f0",
+            overflow: "hidden",
+          }}
         >
-            <ToggleButton value="browse">
-                <GridView sx={{ fontSize: 13 }} />
-                {!isMobile && <span style={{ marginLeft: 4 }}>Browse</span>}
-            </ToggleButton>
-            <ToggleButton value="scan">
-                <QrCodeScanner sx={{ fontSize: 13 }} />
-                {!isMobile && <span style={{ marginLeft: 4 }}>Scan</span>}
-            </ToggleButton>
-        </ToggleButtonGroup>
-    );
+          <CartDrawer />
+        </div>
+      )}
 
-    // ── Render ────────────────────────────────────────────────────────────────
-    return (
+      {/* Mobile: cart FAB + drawer */}
+      {isMobile && (
         <>
-            <Grid
-                container spacing={isMobile ? 0 : 2}
-                sx={{ height: isMobile ? "auto" : "calc(100vh - 80px)" }}
+          <div
+            style={{
+              position: "fixed",
+              bottom: 20,
+              right: 16,
+              zIndex: 1000,
+            }}
+          >
+            <Badge count={cartItems?.length || 0}>
+              <Button
+                type="primary"
+                shape="circle"
+                size="large"
+                icon={<ShoppingCartOutlined style={{ fontSize: 22 }} />}
+                onClick={handleCartOpen}
+                style={{
+                  width: 56,
+                  height: 56,
+                  backgroundColor: primaryColor,
+                  borderColor: primaryColor,
+                  boxShadow: `0 4px 16px ${primaryColor}55`,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              />
+            </Badge>
+          </div>
+
+          <Drawer
+            placement="bottom"
+            open={cartDrawerOpen}
+            onClose={() => setCartDrawerOpen(false)}
+            height="85vh"
+            bodyStyle={{ padding: 0 }}
+            headerStyle={{ display: "none" }}
+            style={{ borderRadius: "16px 16px 0 0", overflow: "hidden" }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                paddingTop: 10,
+                paddingBottom: 6,
+              }}
             >
-                {/* ── Left panel ── */}
-                <Grid item xs={12} md={8} sx={{ height: isMobile ? "auto" : "100%" }}>
-                    <Paper
-                        elevation={isMobile ? 0 : 3}
-                        sx={{
-                            height: isMobile ? "auto" : "100%",
-                            display: "flex", flexDirection: "column",
-                            borderRadius: isMobile ? 0 : 2, overflow: "hidden",
-                        }}
-                    >
-                        {/* ── Teal app bar ── */}
-                        <AppBar position="static" elevation={0} sx={{ bgcolor: barColor, flexShrink: 0 }}>
-                            {/* Row: shop badge (left) + mode toggle (right) */}
-                            <Box
-                                sx={{
-                                    display: "flex", alignItems: "center", justifyContent: "space-between",
-                                    px: isMobile ? 1.5 : 2,
-                                    pt: isMobile ? 1.25 : 1.5,
-                                    pb: posMode === "browse" ? 1 : 1.5,
-                                    gap: 1,
-                                }}
-                            >
-                                {shopName ? (
-                                    <Box
-                                        sx={{
-                                            display: "flex",
-                                            alignItems: "center",
-                                            gap: 0.6,
-                                            bgcolor: "rgba(255,255,255,0.15)",
-                                            border: "1px solid rgba(255,255,255,0.25)",
-                                            borderRadius: "20px",
-                                            px: 1.25,
-                                            py: 0.4,
-                                            color: "#ffffff",
-                                            flexShrink: 0,
-                                        }}
-                                    >
-                                        <Store sx={{ fontSize: 14, opacity: 0.9 }} />
-                                        <Typography
-                                            variant="caption"
-                                            sx={{
-                                                fontWeight: 700,
-                                                fontSize: "0.78rem",
-                                                letterSpacing: 0.3,
-                                                whiteSpace: "nowrap",
-                                                maxWidth: isMobile ? 120 : 200,
-                                                overflow: "hidden",
-                                                textOverflow: "ellipsis",
-                                            }}
-                                        >
-                                            {shopName}
-                                        </Typography>
-                                    </Box>
-                                ) : (
-                                    <Box />
-                                )}
-                                <ModeToggle />
-                            </Box>
-
-                            {/* Department tabs — browse mode only */}
-                            {posMode === "browse" && (
-                                <>
-                                    {mainCategoriesLoading ? (
-                                        <Box sx={{ px: isMobile ? 1.5 : 2, pb: 1 }}><SkeletonTabs /></Box>
-                                    ) : (
-                                        <Tabs
-                                            value={tabValue}
-                                            onChange={(_, v) => setTabValue(v)}
-                                            textColor="inherit"
-                                            variant="scrollable"
-                                            scrollButtons="auto"
-                                            allowScrollButtonsMobile
-                                            sx={{
-                                                minHeight: 40,
-                                                px: isMobile ? 1.5 : 2,
-                                                pb: 1,
-                                                "& .MuiTabs-flexContainer": {
-                                                    gap: "8px",
-                                                    alignItems: "center",
-                                                },
-                                                "& .MuiTabs-scrollButtons": { color: "white", "&.Mui-disabled": { opacity: 0.25 } },
-                                                "& .MuiTab-root": {
-                                                    minWidth: "auto",
-                                                    fontSize: isMobile ? "0.78rem" : "0.86rem",
-                                                    fontWeight: 500,
-                                                    textTransform: "none",
-                                                    padding: isMobile ? "6px 12px" : "6px 16px",
-                                                    minHeight: 34,
-                                                    borderRadius: "20px",
-                                                    color: "rgba(255,255,255,0.85)",
-                                                    bgcolor: "rgba(255,255,255,0.12)",
-                                                    transition: "all 0.18s ease-in-out",
-                                                    gap: 0.5,
-                                                    "&:hover": {
-                                                        bgcolor: "rgba(255,255,255,0.22)",
-                                                        color: "#ffffff",
-                                                    },
-                                                    "&.Mui-selected": {
-                                                        bgcolor: "#ffffff",
-                                                        color: `${barColor} !important`,
-                                                        fontWeight: 700,
-                                                        boxShadow: "0 2px 8px rgba(0,0,0,0.18)",
-                                                        "& .MuiTab-iconWrapper": {
-                                                            color: `${barColor} !important`,
-                                                        },
-                                                    },
-                                                },
-                                                "& .MuiTabs-indicator": { display: "none" },
-                                            }}
-                                        >
-                                            {Maincategories?.map((categ: any, i: number) => (
-                                                <Tab
-                                                    key={categ._id}
-                                                    label={categ.name}
-                                                    icon={getSectionIcon(categ.name) as React.ReactElement}
-                                                    iconPosition="start"
-                                                    onClick={() => handleChangeMainCategory(categ._id)}
-                                                    {...a11yProps(i)}
-                                                />
-                                            ))}
-                                        </Tabs>
-                                    )}
-                                </>
-                            )}
-
-                            {posMode === "scan" && (
-                                <Box sx={{ px: isMobile ? 1.5 : 2, pb: 1.5, display: "flex", alignItems: "center", gap: 1 }}>
-                                    <QrCodeScanner sx={{ color: "rgba(255,255,255,0.85)", fontSize: 16 }} />
-                                    <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.85)", fontWeight: 600, letterSpacing: 0.5 }}>
-                                        Ready to scan
-                                    </Typography>
-                                </Box>
-                            )}
-                        </AppBar>
-
-                        {/* ── Content ── */}
-                        <Box sx={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", bgcolor: H.slateLight }}>
-                            {posMode === "scan" ? (
-                                <BarcodeScanPanel tableId={tableId} onCartUpdate={handleCartOpen} />
-                            ) : (
-                                <>
-                                    {mainCategoriesLoading ? (
-                                        <Box sx={{ display: "flex", flex: 1, overflow: "hidden" }}>
-                                            {!isMobile && (
-                                                <Box sx={{ width: 185, flexShrink: 0, display: "flex", flexDirection: "column", gap: 1, bgcolor: "#f8fafc", borderRight: "1px solid #e2e8f0", p: 1.5 }}>
-                                                    <Skeleton variant="rectangular" width="60%" height={20} sx={{ borderRadius: 1, mb: 0.5 }} />
-                                                    {[...Array(5)].map((_, i) => (
-                                                        <Skeleton key={i} variant="rectangular" width="100%" height={40} sx={{ borderRadius: 1.5 }} />
-                                                    ))}
-                                                </Box>
-                                            )}
-                                            <Box sx={{ flex: 1, p: isMobile ? 1.5 : 2, overflow: "auto" }}>
-                                                <SkeletonCards cols={6} isMobile={isMobile} isTablet={isTablet} />
-                                            </Box>
-                                        </Box>
-                                    ) : subcategories.length ? (
-                                        <Box sx={{ display: "flex", flexDirection: "row", flex: 1, overflow: "hidden" }}>
-                                            {/* ── Hospital sidebar ── */}
-                                            <Box sx={{ flexShrink: 0, overflow: "hidden" }}>
-                                                <HospitalSidebar
-                                                    subcategories={subcategories}
-                                                    handleSubCategoryChange={handleChangeSubCategory}
-                                                />
-                                            </Box>
-
-                                            {/* ── Main content ── */}
-                                            <Box
-                                                sx={{
-                                                    flex: 1, overflow: isMobile ? "visible" : "auto",
-                                                    p: isMobile ? 1.5 : 2,
-                                                    "&::-webkit-scrollbar": { width: "4px" },
-                                                    "&::-webkit-scrollbar-thumb": { background: "#cbd5e1", borderRadius: 2 },
-                                                }}
-                                            >
-                                                {showCategories ? (
-                                                    isLoading ? (
-                                                        <SkeletonCards cols={6} isMobile={isMobile} isTablet={isTablet} />
-                                                    ) : categories.length ? (
-                                                        <Box
-                                                            sx={{
-                                                                display: "grid",
-                                                                gridTemplateColumns: isMobile
-                                                                    ? "repeat(auto-fit, minmax(130px, 1fr))"
-                                                                    : isTablet
-                                                                        ? "repeat(auto-fit, minmax(160px, 1fr))"
-                                                                        : "repeat(auto-fit, minmax(190px, 1fr))",
-                                                                gap: "12px",
-                                                                width: "100%",
-                                                                pt: 1,
-                                                            }}
-                                                        >
-                                                            {categories.map((category: any) => (
-                                                                <CategoryCard
-                                                                    key={category._id}
-                                                                    handleSelectedCard={handleSelectCard}
-                                                                    selectedCard={selectedCard}
-                                                                    icon="/categoryIcon.svg"
-                                                                    name={category.name}
-                                                                    itemCount={1}
-                                                                    id={category._id}
-                                                                    style={{
-                                                                        maxWidth: categories.length === 1 ? 280 : "none",
-                                                                        border: `1px solid ${H.border}`,
-                                                                        borderRadius: 8,
-                                                                        borderTop: `3px solid ${barColor}`,
-                                                                        width: "100%",
-                                                                        margin: 0,
-                                                                    }}
-                                                                />
-                                                            ))}
-                                                        </Box>
-                                                    ) : (
-                                                        <Alert
-                                                            message="Empty"
-                                                            description="No items in this department."
-                                                            type="info"
-                                                            showIcon
-                                                            style={{ width: "100%", borderRadius: 8 }}
-                                                        />
-                                                    )
-                                                ) : (
-                                                    <Box>
-                                                        {/* Search + back */}
-                                                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
-                                                            <TextField
-                                                                placeholder="Search medications, services…"
-                                                                variant="outlined" size="small" fullWidth
-                                                                value={searchTerm}
-                                                                onChange={(e) => setSearchTerm(e.target.value)}
-                                                                sx={{
-                                                                    "& .MuiOutlinedInput-root": {
-                                                                        borderRadius: 6, fontSize: 13,
-                                                                        "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: barColor },
-                                                                        "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: barColor },
-                                                                    },
-                                                                }}
-                                                                InputProps={{
-                                                                    startAdornment: (
-                                                                        <InputAdornment position="start">
-                                                                            <Search sx={{ color: barColor, fontSize: 18 }} />
-                                                                        </InputAdornment>
-                                                                    ),
-                                                                }}
-                                                            />
-                                                            <IconButton
-                                                                onClick={handleBack} size="small"
-                                                                sx={{
-                                                                    color: barColor, border: `1px solid ${barColor}30`,
-                                                                    borderRadius: 2, p: "6px",
-                                                                    "&:hover": { bgcolor: `${barColor}10` },
-                                                                }}
-                                                            >
-                                                                <Backspace fontSize="small" />
-                                                            </IconButton>
-                                                        </Box>
-
-                                                        <ItemTypeFilters />
-
-                                                        {productsLoading || packagesLoading ? (
-                                                            <Box sx={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
-                                                                {[...Array(6)].map((_, i) => <SkeletonProductCard key={i} />)}
-                                                            </Box>
-                                                        ) : (
-                                                            <ProductGrid />
-                                                        )}
-                                                    </Box>
-                                                )}
-                                            </Box>
-                                        </Box>
-                                    ) : (
-                                        <Box sx={{ p: 2 }}>
-                                            <Alert
-                                                message="No Departments"
-                                                description="No departments configured yet."
-                                                type="info"
-                                                showIcon
-                                                style={{ borderRadius: 8, borderLeft: `4px solid ${barColor}` }}
-                                            />
-                                        </Box>
-                                    )}
-                                </>
-                            )}
-                        </Box>
-                    </Paper>
-                </Grid>
-
-                {/* ── Right panel: cart (desktop) ── */}
-                {!isMobile && (
-                    <Grid item md={4} sx={{ height: "100%" }}>
-                        <Paper elevation={3} sx={{ height: "100%", borderRadius: 2, overflow: "hidden" }}>
-                            <CartDrawer />
-                        </Paper>
-                    </Grid>
-                )}
-            </Grid>
-
-            {/* ── Mobile: cart FAB + drawer ── */}
-            {isMobile && (
-                <>
-                    <Fab
-                        onClick={handleCartOpen} size="medium"
-                        sx={{
-                            position: "fixed", bottom: 20, right: 16,
-                            bgcolor: barColor, color: "white", zIndex: 1100,
-                            boxShadow: `0 4px 16px ${barColor}55`,
-                            "&:hover": { bgcolor: barColor },
-                        }}
-                    >
-                        <ShoppingCart />
-                    </Fab>
-
-                    <Drawer
-                        anchor="bottom" open={cartDrawerOpen}
-                        onClose={() => setCartDrawerOpen(false)}
-                        PaperProps={{ sx: { borderRadius: "16px 16px 0 0", maxHeight: "85dvh", overflow: "hidden" } }}
-                    >
-                        <Box sx={{ display: "flex", justifyContent: "center", pt: 1.5, pb: 0.5 }}>
-                            <Box sx={{ width: 36, height: 4, borderRadius: 2, bgcolor: "#cbd5e1" }} />
-                        </Box>
-                        <Box sx={{ overflow: "auto", flex: 1 }}>
-                            <CartDrawer />
-                        </Box>
-                    </Drawer>
-                </>
-            )}
-
-            <PurchasePackageModal
-                visible={purchaseModalVisible}
-                package={selectedPackage}
-                onClose={() => { setPurchaseModalVisible(false); setSelectedPackage(null); }}
-                onSuccess={refetchPackages}
-            />
+              <div
+                style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: "#cbd5e1" }}
+              />
+            </div>
+            <div style={{ flex: 1, overflow: "auto", height: "calc(100% - 20px)" }}>
+              <CartDrawer />
+            </div>
+          </Drawer>
         </>
-    );
+      )}
+
+      <PurchasePackageModal
+        visible={purchaseModalVisible}
+        package={selectedPackage}
+        onClose={() => {
+          setPurchaseModalVisible(false);
+          setSelectedPackage(null);
+        }}
+        onSuccess={refetchPackages}
+      />
+    </div>
+  );
 };
 
 export default HospitalPage;

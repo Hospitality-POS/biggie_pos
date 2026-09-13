@@ -1,25 +1,21 @@
-import { Badge, Box, Fab, keyframes } from "@mui/material";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import React, { useRef } from "react";
+import { Badge } from "antd";
 import Draggable from "react-draggable";
-import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
+import { ShoppingCartOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
-import { useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import axiosInstance from "../../services/request";
+import { usePrimaryColor } from "@context/PrimaryColorContext";
 
-import {usePrimaryColor} from "@context/PrimaryColorContext"
+interface AddToCartIconProps {
+  OpenCart: () => void;
+}
 
-function AddToCartIcon({ OpenCart }: any) {
+function AddToCartIcon({ OpenCart }: AddToCartIconProps) {
   const { cartDetails } = useSelector((state: any) => state.cart);
-  
   const primaryColor = usePrimaryColor();
-
-  const { data: cartItems } = useQuery(
-    ["cartItems", cartDetails?._id],
-    () => fetchCartItems(cartDetails?._id),
-    {
-      refetchInterval: 1000,
-    }
-  );
+  const draggableRef = useRef<HTMLDivElement>(null);
 
   const fetchCartItems = async (cartId: string) => {
     try {
@@ -27,62 +23,65 @@ function AddToCartIcon({ OpenCart }: any) {
         process.env.VITE_BASE_URL + `/cart/cart-items/${cartId}`
       );
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       throw new Error("Error fetching cart items: " + error.message);
     }
   };
 
-  const draggableRef = useRef(null);
-  const glowAnimation = keyframes`
-  0% {
-    box-shadow: 0 0 0 rgba(0, 0, 0, 0.2);
-  }
-  50% {
-    box-shadow: 0 0 10px 5px rgba(0, 0, 0, 0.4);
-  }
-  100% {
-    box-shadow: 0 0 0 rgba(0, 0, 0, 0.2);
-  }
-`;
+  const { data: cartItems } = useQuery(
+    ["cartItems", cartDetails?._id],
+    () => fetchCartItems(cartDetails?._id),
+    {
+      refetchInterval: 1000,
+      enabled: !!cartDetails?._id,
+    }
+  );
+
   return (
     <>
+      <style>{`
+        @keyframes cartGlowAnimation {
+          0% { box-shadow: 0 0 0 rgba(0, 0, 0, 0.2); }
+          50% { box-shadow: 0 0 10px 5px rgba(0, 0, 0, 0.35); }
+          100% { box-shadow: 0 0 0 rgba(0, 0, 0, 0.2); }
+        }
+      `}</style>
       <Draggable nodeRef={draggableRef}>
-        <Box
+        <div
           ref={draggableRef}
-          sx={{
+          style={{
             position: "fixed",
             bottom: "20px",
             right: "40px",
             zIndex: 999,
-            animation: `${glowAnimation} 2s ease-in-out infinite`,
             borderRadius: "50%",
+            animation: "cartGlowAnimation 2s ease-in-out infinite",
           }}
         >
-          <Fab
-            color="primary"
-            onClick={OpenCart}
-            sx={{
-              backgroundColor: primaryColor,
-              width: "60px",
-              height: "60px",
-              "&:hover": {
+          <Badge count={cartItems?.length || 0} overflowCount={50} offset={[-4, 4]}>
+            <button
+              type="button"
+              onClick={OpenCart}
+              style={{
+                width: 60,
+                height: 60,
+                borderRadius: "50%",
                 backgroundColor: primaryColor,
-              },
-            }}
-          >
-            <Badge
-              badgeContent={cartItems?.length}
-              max={50}
-              color="error"
-              anchorOrigin={{
-                vertical: "top",
-                horizontal: "left",
+                color: "#ffffff",
+                border: "none",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                outline: "none",
+                transition: "transform 0.15s ease",
               }}
             >
-              <ShoppingCartIcon sx={{ fontSize: 36 }} />
-            </Badge>
-          </Fab>
-        </Box>
+              <ShoppingCartOutlined style={{ fontSize: 28, color: "#ffffff" }} />
+            </button>
+          </Badge>
+        </div>
       </Draggable>
     </>
   );
