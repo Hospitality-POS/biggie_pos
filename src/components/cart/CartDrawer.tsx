@@ -1,7 +1,6 @@
 import React, { Key, useEffect, useMemo, useState } from "react";
 import CartItemCard from "./CartItemCard";
 import PrintBillModal from "../MODALS/PrintBillModal";
-import PrintBillSpaModal from "../MODALS/printBillSpaModal";
 import {
   deleteAllCartItems,
   getCart,
@@ -735,11 +734,12 @@ const CartDrawer: React.FC = () => {
                   Send
                 </Button>
               )}
-              {isSpa ? (
-                <PrintBillSpaModal cartDetails={cartDetails} data={data} {...printProps} />
-              ) : (
-                <PrintBillModal cartDetails={cartDetails} data={data} {...printProps} />
-              )}
+              <PrintBillModal
+                cartDetails={cartDetails}
+                data={data}
+                isSpa={isSpa}
+                {...printProps}
+              />
               {(user?.role === "admin" || user?.role === "cashier") && (
                 <DiscountModal data={cartDetails} />
               )}

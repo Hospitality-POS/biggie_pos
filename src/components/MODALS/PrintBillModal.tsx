@@ -1,32 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { QRCodeCanvas } from "qrcode.react";
-const Box: React.FC<any> = ({ sx, style, children, ...props }) => (
-  <div style={{ ...sx, ...style }} {...props}>{children}</div>
-);
-const TableContainer: React.FC<any> = ({ sx, style, children, component, elevation, ...props }) => (
-  <div style={{ ...sx, ...style }} {...props}>{children}</div>
-);
-const Table: React.FC<any> = ({ sx, style, children, ...props }) => (
-  <table style={{ width: "100%", borderCollapse: "collapse", ...sx, ...style }} {...props}>{children}</table>
-);
-const TableHead: React.FC<any> = ({ sx, style, children, ...props }) => (
-  <thead style={{ ...sx, ...style }} {...props}>{children}</thead>
-);
-const TableBody: React.FC<any> = ({ sx, style, children, ...props }) => (
-  <tbody style={{ ...sx, ...style }} {...props}>{children}</tbody>
-);
-const TableRow: React.FC<any> = ({ sx, style, children, ...props }) => (
-  <tr style={{ ...sx, ...style }} {...props}>{children}</tr>
-);
-const TableCell: React.FC<any> = ({ sx, style, children, ...props }) => (
-  <td style={{ ...sx, ...style }} {...props}>{children}</td>
-);
-const Divider: React.FC<any> = ({ sx, style, ...props }) => (
-  <hr style={{ border: "none", borderTop: "1px solid #e2e8f0", margin: "12px 0", ...sx, ...style }} {...props} />
-);
-const Paper: React.FC<any> = ({ sx, style, children, ...props }) => (
-  <div style={{ ...sx, ...style }} {...props}>{children}</div>
-);
 import "./bill.css";
 import { useReactToPrint } from "react-to-print";
 import { BASE_URL } from "@utils/config";
@@ -42,24 +15,18 @@ import {
   DollarOutlined,
   ReconciliationOutlined,
   MailOutlined,
-  PlusOutlined,
   SendOutlined,
-  UserOutlined,
   LockOutlined,
-  WarningOutlined,
   FontColorsOutlined,
   PercentageOutlined,
   IdcardOutlined,
   ZoomInOutlined,
   ZoomOutOutlined,
   DownloadOutlined,
+  WhatsAppOutlined,
 } from "@ant-design/icons";
 import {
   Button,
-  Form,
-  Input,
-  Modal,
-  Switch,
   Space,
   Select,
   Tag,
@@ -75,14 +42,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useAppSelector } from "src/store";
 import { sendEmail, refToHtmlString } from "@services/emailReports";
 import { getWhatsAppWebStatus, sendDocumentViaWhatsApp } from "@services/whatsappService";
-import { fetchAllCustomers } from "@services/customers";
-import { WhatsAppOutlined } from "@ant-design/icons";
 import {
   usePrintDocument,
   type DocumentType,
   type PrintFormat,
-  type PrintStatusResult,
-  type SavePrintResult,
 } from "../MODALS/Hooks/usePrintDocument";
 import { useIPPrinter } from "../../hooks/useIPPrinter";
 import {
@@ -91,283 +54,42 @@ import {
 } from "@services/printAgent";
 import { fetchMainCategories } from "@services/categories";
 
+import {
+  C,
+  DashedLine,
+  SolidLine,
+  DoubleLine,
+  MetaRow,
+  makeReceiptStyles,
+  fontSizes,
+  fmtN,
+  attemptSave,
+  type SendEmailValues,
+  type SendWhatsAppValues,
+} from "./print/printHelpers";
+import SendEmailModal from "./print/SendEmailModal";
+import SendWhatsAppModal from "./print/SendWhatsAppModal";
+import ReprintReasonModal from "./print/ReprintReasonModal";
+
 // ── Props ──────────────────────────────────────────────────────────────────
-interface PrintBillProps {
+export interface PrintBillProps {
   cartDetails: any;
   data: any;
   subtotal?: number;
   totalVatAmount?: number;
   grandTotal?: number;
+  isSpa?: boolean;
 }
-
-interface SendEmailValues {
-  to: string;
-  recipientName?: string;
-  cc?: string;
-  intro?: string;
-}
-
-interface SendWhatsAppValues {
-  phone_number: string;
-}
-
-const C = { primary: "#6c1c2c", subText: "#64748b" };
-
-// ── Sub-modals ─────────────────────────────────────────────────────────────
-
-const SendEmailModal: React.FC<{
-  open: boolean;
-  onClose: () => void;
-  onSend: (values: SendEmailValues) => Promise<void>;
-  sending: boolean;
-  docLabel: string;
-}> = ({ open, onClose, onSend, sending, docLabel }) => {
-  const [form] = Form.useForm();
-  const handleOk = async () => {
-    const values = await form.validateFields();
-    await onSend(values);
-    form.resetFields();
-  };
-  return (
-    <Modal
-      open={open}
-      onCancel={() => { form.resetFields(); onClose(); }}
-      onOk={handleOk}
-      confirmLoading={sending}
-      okText={<Space><SendOutlined />Send {docLabel}</Space>}
-      okButtonProps={{ style: { background: C.primary, borderColor: C.primary } }}
-      title={<Space><MailOutlined style={{ color: C.primary }} /><span>Send {docLabel} via Email</span></Space>}
-      width={480}
-      destroyOnClose
-    >
-      <Form form={form} layout="vertical" style={{ marginTop: 12 }}>
-        <Form.Item name="to" label="Recipient Email"
-          rules={[
-            { required: true, message: "Recipient email is required" },
-            { type: "email", message: "Enter a valid email address" },
-          ]}>
-          <Input prefix={<MailOutlined style={{ color: C.subText }} />} placeholder="customer@email.com" />
-        </Form.Item>
-        <Form.Item name="recipientName" label="Recipient Name">
-          <Input prefix={<UserOutlined style={{ color: C.subText }} />} placeholder="e.g. John Kamau" />
-        </Form.Item>
-        <Form.Item name="cc" label="CC (optional)" extra="Separate multiple addresses with commas">
-          <Input prefix={<PlusOutlined style={{ color: C.subText }} />} placeholder="accounts@company.com" />
-        </Form.Item>
-        <Form.Item name="intro" label="Personal Message (optional)">
-          <Input.TextArea rows={3} placeholder="Please find your document attached." />
-        </Form.Item>
-      </Form>
-    </Modal>
-  );
-};
-
-const SendWhatsAppModal: React.FC<{
-  open: boolean;
-  onClose: () => void;
-  onSend: (values: SendWhatsAppValues) => Promise<void>;
-  sending: boolean;
-  docLabel: string;
-  defaultPhone?: string;
-}> = ({ open, onClose, onSend, sending, docLabel, defaultPhone }) => {
-  const [form] = Form.useForm();
-  const [mode, setMode] = useState<"type" | "customer">("type");
-  const [customerOptions, setCustomerOptions] = useState<
-    { label: string; value: string }[]
-  >([]);
-  const [customerSearchLoading, setCustomerSearchLoading] = useState(false);
-  const customerSearchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    if (open) {
-      form.setFieldsValue({ phone_number: defaultPhone || "" });
-      setMode("type");
-      setCustomerOptions([]);
-    }
-  }, [open, defaultPhone, form]);
-
-  // Note: the Select's option `value` is the customer's phone number itself,
-  // so it can share the same `phone_number` form field as the "type" input.
-  const handleCustomerSearch = (search: string) => {
-    if (customerSearchTimeout.current) clearTimeout(customerSearchTimeout.current);
-    if (!search || search.trim().length < 2) {
-      setCustomerOptions([]);
-      return;
-    }
-    customerSearchTimeout.current = setTimeout(async () => {
-      setCustomerSearchLoading(true);
-      try {
-        const result = await fetchAllCustomers({ search: search.trim() });
-        const customers = Array.isArray(result) ? result : (result?.customers ?? []);
-        setCustomerOptions(
-          customers
-            .filter((c: any) => !!c.phone)
-            .map((c: any) => ({
-              label: `${c.customer_name || "Unnamed"} — ${c.phone}`,
-              value: String(c.phone),
-            }))
-        );
-      } catch {
-        setCustomerOptions([]);
-      } finally {
-        setCustomerSearchLoading(false);
-      }
-    }, 400);
-  };
-
-  const handleOk = async () => {
-    const values = await form.validateFields();
-    await onSend({ phone_number: values.phone_number });
-    form.resetFields();
-  };
-
-  return (
-    <Modal
-      open={open}
-      onCancel={() => { form.resetFields(); onClose(); }}
-      onOk={handleOk}
-      confirmLoading={sending}
-      okText={<Space><SendOutlined />Send {docLabel}</Space>}
-      okButtonProps={{ style: { background: "#25D366", borderColor: "#25D366" } }}
-      title={<Space><WhatsAppOutlined style={{ color: "#25D366" }} /><span>Send {docLabel} via WhatsApp</span></Space>}
-      width={420}
-      destroyOnClose
-    >
-      <Segmented
-        block
-        value={mode}
-        onChange={(v) => {
-          setMode(v as "type" | "customer");
-          form.setFieldsValue({ phone_number: v === "type" ? (defaultPhone || "") : undefined });
-        }}
-        options={[
-          { label: "Type Number", value: "type" },
-          { label: "Select Customer", value: "customer" },
-        ]}
-        style={{ marginTop: 4, marginBottom: 16 }}
-      />
-      <Form form={form} layout="vertical">
-        {mode === "type" ? (
-          <Form.Item name="phone_number" label="WhatsApp Number"
-            rules={[{ required: true, message: "WhatsApp number is required" }]}>
-            <Input prefix={<WhatsAppOutlined style={{ color: "#25D366" }} />} placeholder="e.g. 254712345678" />
-          </Form.Item>
-        ) : (
-          <Form.Item name="phone_number" label="Customer"
-            rules={[{ required: true, message: "Please select a customer" }]}>
-            <Select
-              showSearch
-              placeholder="Search customer by name or phone"
-              filterOption={false}
-              notFoundContent={customerSearchLoading ? "Searching..." : "No customers found"}
-              onSearch={handleCustomerSearch}
-              options={customerOptions}
-            />
-          </Form.Item>
-        )}
-      </Form>
-    </Modal>
-  );
-};
-
-const ReprintReasonModal: React.FC<{
-  open: boolean;
-  onConfirm: (reason: string) => void;
-  onCancel: () => void;
-}> = ({ open, onConfirm, onCancel }) => {
-  const [form] = Form.useForm();
-  return (
-    <Modal
-      open={open}
-      onOk={async () => {
-        const { reason } = await form.validateFields();
-        form.resetFields();
-        onConfirm(reason);
-      }}
-      onCancel={() => { form.resetFields(); onCancel(); }}
-      okText="Confirm Reprint"
-      okButtonProps={{ style: { background: C.primary, borderColor: C.primary } }}
-      title={<Space><WarningOutlined style={{ color: "#f59e0b" }} />Reprint Reason Required</Space>}
-      destroyOnClose
-    >
-      <Form form={form} layout="vertical" style={{ marginTop: 12 }}>
-        <Form.Item name="reason" label="Reason for reprint"
-          rules={[{ required: true, message: "Please enter a reason" }]}>
-          <Input.TextArea rows={3} placeholder="e.g. Customer lost original receipt" />
-        </Form.Item>
-      </Form>
-    </Modal>
-  );
-};
-
-// ── attemptSave ────────────────────────────────────────────────────────────
-async function attemptSave(
-  recordPrint: (...args: any[]) => Promise<SavePrintResult | null>,
-  opts: { print_format: PrintFormat; reason?: string }
-): Promise<{ saved: boolean; blocked: boolean }> {
-  try {
-    const result = await recordPrint(opts);
-    if (result) return { saved: true, blocked: false };
-    return { saved: false, blocked: true };
-  } catch {
-    return { saved: false, blocked: false };
-  }
-}
-
-// ── Receipt styles helper — supports font size and weight ─────────────────
-// fontSize is clamped at 14px for thermal so large UI selections don't
-// cause right-side overflow on the 80mm roll. The UI slider still shows
-// the user's chosen value; only the printed output is clamped.
-const makeReceiptStyles = (bold: boolean, fontSize: number) => {
-  // Clamp: never smaller than 12px (prevents unreadable output from a mis-set system setting)
-  const clampedSize = Math.min(Math.max(fontSize, 12), 22);
-  const weight = bold ? 700 : 500;
-  const headerWeight = bold ? 900 : 700;
-  const base = { fontFamily: "'Courier New', Courier, monospace", color: "#000000" };
-  const baseFontSize = `${clampedSize}px`;
-  const smallFontSize = `${clampedSize - 1}px`;
-  const smallerFontSize = `${clampedSize - 1.5}px`;
-
-  return {
-    shopName: { ...base, fontSize: `${clampedSize + 2}px`, fontWeight: headerWeight, letterSpacing: "0.5px" },
-    docType: { ...base, fontSize: `${clampedSize + 4}px`, fontWeight: headerWeight, textAlign: "center" as const, letterSpacing: "2px" },
-    meta: { ...base, fontSize: smallFontSize, fontWeight: weight },
-    label: { ...base, fontSize: baseFontSize, fontWeight: bold ? 700 : 600 },
-    value: { ...base, fontSize: baseFontSize, fontWeight: weight },
-    // ── table cells ──────────────────────────────────────────────────────
-    tblHdr: { padding: "5px 3px", fontWeight: headerWeight, fontSize: baseFontSize, color: "#000", borderBottom: "2px solid #000" },
-    tblData: { padding: "4px 3px", fontWeight: weight, fontSize: smallFontSize, color: "#000" },
-    tblSub: { ...base, fontSize: smallerFontSize, fontWeight: weight, color: "#555" },
-    // ── totals ───────────────────────────────────────────────────────────
-    total: { ...base, fontSize: `${clampedSize + 3}px`, fontWeight: headerWeight },
-    footer: { ...base, fontSize: smallerFontSize, fontWeight: weight, textAlign: "center" as const },
-  };
-};
-
-// ── Divider helpers ────────────────────────────────────────────────────────
-const DashedLine = () => (
-  <div style={{ borderTop: "1px dashed #000", margin: "6px 0" }} />
-);
-const SolidLine = () => (
-  <div style={{ borderTop: "1px solid #000", margin: "6px 0" }} />
-);
-const DoubleLine = () => (
-  <div style={{ margin: "6px 0" }}>
-    <div style={{ borderTop: "2px solid #000" }} />
-    <div style={{ borderTop: "1px solid #000", marginTop: "2px" }} />
-  </div>
-);
-
-// ── Thermal row — label + value aligned with space-between ─────────────────
-const MetaRow: React.FC<{ left: React.ReactNode; right?: React.ReactNode; style?: React.CSSProperties }> = ({ left, right, style }) => (
-  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2, ...style }}>
-    <span>{left}</span>
-    {right !== undefined && <span>{right}</span>}
-  </div>
-);
 
 // ── Main component ─────────────────────────────────────────────────────────
-const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data, subtotal: customSubtotal, totalVatAmount: customTotalVat, grandTotal: customGrandTotal }) => {
+const PrintBillModal: React.FC<PrintBillProps> = ({
+  cartDetails,
+  data,
+  subtotal: customSubtotal,
+  totalVatAmount: customTotalVat,
+  grandTotal: customGrandTotal,
+  isSpa = false,
+}) => {
   const { subtotal, totalVatAmount, grandTotal } = useAppSelector((s) => s.cart);
   const { user } = useAppSelector((state) => state.auth);
   const { loading: ipPrinterLoading } = useIPPrinter();
@@ -923,27 +645,33 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data, subtotal:
   const printTimeStr = `${String(printDate.getHours()).padStart(2, "0")}:${String(printDate.getMinutes()).padStart(2, "0")}`;
 
   // Customer details with KRA PIN
-  const customerName = cartDetails?.client_name || cartDetails?.clientName || "Walk-in Customer";
-  const customerPhone = cartDetails?.client_phone || cartDetails?.clientPhone || "";
-  const customerEmail = cartDetails?.client_email || cartDetails?.clientEmail || "";
-  const customerAddress = cartDetails?.client_address || cartDetails?.clientAddress || "";
-  const customerKraPin = cartDetails?.client_kra_pin || cartDetails?.clientKraPin || cartDetails?.client_pin || "";
-
-  // ── Font size presets — extended for larger options ────────────────────
-  const fontSizes = [
-    { value: 10, label: "Small" },
-    { value: 13, label: "Normal" },
-    { value: 15, label: "Large" },
-    { value: 17, label: "X-Large" },
-    { value: 19, label: "XX-Large" },
-    { value: 22, label: "Huge" },
-    { value: 25, label: "25px" },
-    { value: 30, label: "30px" },
-    { value: 35, label: "35px" },
-    { value: 40, label: "40px" },
-    { value: 45, label: "45px" },
-    { value: 50, label: "50px" },
-  ];
+  const customerName =
+    cartDetails?.client_name ||
+    cartDetails?.clientName ||
+    cartDetails?.customer_id?.customer_name ||
+    (isSpa ? "" : "Walk-in Customer");
+  const customerPhone =
+    cartDetails?.client_phone ||
+    cartDetails?.clientPhone ||
+    cartDetails?.customer_id?.phone ||
+    "";
+  const customerEmail =
+    cartDetails?.client_email ||
+    cartDetails?.clientEmail ||
+    cartDetails?.customer_id?.email ||
+    "";
+  const customerAddress =
+    cartDetails?.client_address ||
+    cartDetails?.clientAddress ||
+    cartDetails?.customer_id?.address ||
+    "";
+  const customerKraPin =
+    cartDetails?.client_kra_pin ||
+    cartDetails?.clientKraPin ||
+    cartDetails?.client_pin ||
+    cartDetails?.customer_id?.kra_pin ||
+    "";
+  const hasClient = !!(customerName || customerPhone || customerEmail || customerKraPin);
 
   // ── Render ─────────────────────────────────────────────────────────────
   return (
@@ -1307,24 +1035,26 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data, subtotal:
             <SolidLine />
           </div>
 
-          {/* ── BILL TO ──────────────────────────────────────────────── */}
-          <div style={{
-            marginBottom: 6,
-            border: "1px solid #ccc",
-            padding: "5px 6px",
-            background: "#f9f9f9",
-          }}>
-            <div style={{ ...S.label, marginBottom: 2 }}>BILL TO:</div>
-            <div style={S.value}>{customerName}</div>
-            {customerPhone && <div style={S.meta}>Tel: {customerPhone}</div>}
-            {customerEmail && <div style={S.meta}>Email: {customerEmail}</div>}
-            {customerAddress && <div style={S.meta}>Addr: {customerAddress}</div>}
-            {customerKraPin && (
-              <div style={{ ...S.meta, marginTop: 2, display: "flex", alignItems: "center", gap: 4 }}>
-                <IdcardOutlined style={{ fontSize: fontSize - 2 }} /> KRA PIN: {customerKraPin}
-              </div>
-            )}
-          </div>
+          {/* ── BILL TO / CLIENT ──────────────────────────────────────────────── */}
+          {(hasClient || !isSpa) && (
+            <div style={{
+              marginBottom: 6,
+              border: "1px solid #ccc",
+              padding: "5px 6px",
+              background: "#f9f9f9",
+            }}>
+              <div style={{ ...S.label, marginBottom: 2 }}>{isSpa ? "CLIENT:" : "BILL TO:"}</div>
+              <div style={S.value}>{customerName || "Walk-in Customer"}</div>
+              {customerPhone && <div style={S.meta}>Tel: {customerPhone}</div>}
+              {customerEmail && <div style={S.meta}>Email: {customerEmail}</div>}
+              {customerAddress && <div style={S.meta}>Addr: {customerAddress}</div>}
+              {customerKraPin && (
+                <div style={{ ...S.meta, marginTop: 2, display: "flex", alignItems: "center", gap: 4 }}>
+                  <IdcardOutlined style={{ fontSize: fontSize - 2 }} /> KRA PIN: {customerKraPin}
+                </div>
+              )}
+            </div>
+          )}
 
           <DashedLine />
 
@@ -1567,12 +1297,12 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data, subtotal:
             style={{ backgroundColor: "#fff", padding: "40px", maxWidth: "800px", margin: "0 auto", boxShadow: "0 0 10px rgba(0,0,0,0.1)" }}
           >
             {/* PDF Header */}
-            <Box sx={{ borderBottom: "3px solid #333", paddingBottom: 3, marginBottom: 3 }}>
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 2 }}>
-                <Box sx={{ display: "flex", alignItems: "flex-start", gap: 3 }}>
+            <div style={{ borderBottom: "3px solid #333", paddingBottom: 16, marginBottom: 16 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
                   {/* Client Logo */}
                   {clientLogoUrl && user && (
-                    <Box sx={{ flexShrink: 0 }}>
+                    <div style={{ flexShrink: 0 }}>
                       <img
                         src={clientLogoUrl}
                         alt="Client Logo"
@@ -1584,96 +1314,96 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data, subtotal:
                           border: "1px solid #e2e8f0"
                         }}
                       />
-                    </Box>
+                    </div>
                   )}
-                  <Box>
-                    <Typography variant="h3" style={pdfHdr}>{BRAND_NAME1}</Typography>
-                    <Typography variant="body1" style={pdfNorm}>PIN: {PIN || "N/A"}</Typography>
-                    <Typography variant="body1" style={pdfNorm}>P.O. Box {PO_BOX || "N/A"}</Typography>
-                    <Typography variant="body1" style={pdfNorm}>Tel: {PHONE_NO}</Typography>
-                    <Typography variant="body1" style={pdfNorm}>Email: {EMAIL_URL}</Typography>
-                  </Box>
-                </Box>
-                <Box sx={{ textAlign: "right" }}>
-                  <Box sx={{ backgroundColor: docConfig.color, color: "#fff", padding: "8px 20px", borderRadius: "8px", display: "inline-flex", alignItems: "center", gap: 1, mb: 2 }}>
+                  <div>
+                    <div style={pdfHdr}>{BRAND_NAME1}</div>
+                    <div style={pdfNorm}>PIN: {PIN || "N/A"}</div>
+                    <div style={pdfNorm}>P.O. Box {PO_BOX || "N/A"}</div>
+                    <div style={pdfNorm}>Tel: {PHONE_NO}</div>
+                    <div style={pdfNorm}>Email: {EMAIL_URL}</div>
+                  </div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ backgroundColor: docConfig.color, color: "#fff", padding: "8px 20px", borderRadius: "8px", display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
                     {docConfig.icon}
-                    <Typography variant="h5" style={{ fontSize: "20px", fontWeight: 700, color: "#fff", margin: 0 }}>{docConfig.label}</Typography>
-                  </Box>
-                  <Typography variant="body1" style={pdfNorm}>Date: {printDateStr}</Typography>
-                  <Typography variant="body1" style={pdfNorm}>Invoice No: {cartDetails?.order_no || "N/A"}</Typography>
-                  <Typography variant="body1" style={pdfNorm}>LPO No: {cartDetails?.lpo_no || "N/A"}</Typography>
+                    <div style={{ fontSize: "20px", fontWeight: 700, color: "#fff", margin: 0 }}>{docConfig.label}</div>
+                  </div>
+                  <div style={pdfNorm}>Date: {printDateStr}</div>
+                  <div style={pdfNorm}>Invoice No: {cartDetails?.order_no || "N/A"}</div>
+                  <div style={pdfNorm}>LPO No: {cartDetails?.lpo_no || "N/A"}</div>
                   
                   {/* ETR Information */}
                   {etrEnabled && digitax && digitax.receipt_number && digitax.receipt_number !== 0 && (
-                    <Box sx={{ mt: 1, p: 1, backgroundColor: "#f6ffed", border: "1px solid #b7eb8f", borderRadius: 1 }}>
-                      <Typography variant="body2" style={{ color: "#389e0d", fontSize: "11px" }}>
+                    <div style={{ marginTop: 6, padding: 6, backgroundColor: "#f6ffed", border: "1px solid #b7eb8f", borderRadius: 4 }}>
+                      <div style={{ color: "#389e0d", fontSize: "11px" }}>
                         Receipt No: {digitax.receipt_number}
-                      </Typography>
-                    </Box>
+                      </div>
+                    </div>
                   )}
-                </Box>
-              </Box>
-              <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2 }}>
+                </div>
+              </div>
+              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
                 {/* ETR QR Code - replaces regular QR code when present */}
                 {etrEnabled && digitax?.offline_url ? (
-                  <Box sx={{ textAlign: "center" }}>
-                    <Typography variant="body2" style={{ color: "#52c41a", fontWeight: 600, fontSize: "10px", marginBottom: 1 }}>
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ color: "#52c41a", fontWeight: 600, fontSize: "10px", marginBottom: 4 }}>
                       ETR VERIFICATION
-                    </Typography>
+                    </div>
                     <QRCodeCanvas value={digitax.offline_url} size={100} />
-                    <Typography variant="body2" style={{ color: "#666", fontSize: "8px", marginTop: 1 }}>
+                    <div style={{ color: "#666", fontSize: "8px", marginTop: 4 }}>
                       Scan to verify tax receipt
-                    </Typography>
-                  </Box>
+                    </div>
+                  </div>
                 ) : (
                   /* Regular QR Code - only shown when ETR is not enabled */
                   <QRCodeCanvas value={QR_Code} size={100} />
                 )}
-              </Box>
-            </Box>
+              </div>
+            </div>
 
             {/* Bill To */}
-            <Box sx={{ mb: 3, backgroundColor: "#f8fafc", borderRadius: 2, padding: 2, border: "1px solid #e2e8f0" }}>
-              <Typography variant="h6" style={pdfSub}>BILL TO:</Typography>
-              <Typography variant="body1" style={pdfNorm}><strong>{customerName}</strong></Typography>
-              {customerPhone && <Typography variant="body1" style={pdfNorm}>Phone: {customerPhone}</Typography>}
-              {customerEmail && <Typography variant="body1" style={pdfNorm}>Email: {customerEmail}</Typography>}
-              {customerAddress && <Typography variant="body1" style={pdfNorm}>Address: {customerAddress}</Typography>}
+            <div style={{ marginBottom: 16, backgroundColor: "#f8fafc", borderRadius: 6, padding: 12, border: "1px solid #e2e8f0" }}>
+              <div style={pdfSub}>{isSpa ? "CLIENT:" : "BILL TO:"}</div>
+              <div style={pdfNorm}><strong>{customerName || "Walk-in Customer"}</strong></div>
+              {customerPhone && <div style={pdfNorm}>Phone: {customerPhone}</div>}
+              {customerEmail && <div style={pdfNorm}>Email: {customerEmail}</div>}
+              {customerAddress && <div style={pdfNorm}>Address: {customerAddress}</div>}
               {customerKraPin && (
-                <Typography variant="body1" style={pdfNorm}>
+                <div style={pdfNorm}>
                   <IdcardOutlined style={{ marginRight: 4 }} /> KRA PIN: {customerKraPin}
-                </Typography>
+                </div>
               )}
-            </Box>
+            </div>
 
             {/* Order meta */}
-            <Box sx={{ display: "flex", justifyContent: "space-between", marginBottom: 3, backgroundColor: "#f8fafc", borderRadius: 2, padding: 2 }}>
-              <Box>
-                <Typography variant="body1" style={pdfSub}>{documentType === "quotation" ? "Quote" : "Order"} No: {cartDetails?.order_no}</Typography>
-                <Typography variant="body1" style={pdfNorm}>Table: {cartDetails?.table_id?.name}</Typography>
-              </Box>
-              <Box sx={{ textAlign: "right" }}>
-                <Typography variant="body1" style={pdfNorm}>Date: {printDateStr}</Typography>
-                <Typography variant="body1" style={pdfNorm}>Time: {printTimeStr}</Typography>
-                <Typography variant="body1" style={pdfNorm}>Cashier: {cartDetails?.served_by?.username || cartDetails?.created_by?.username || "Staff"}</Typography>
-              </Box>
-            </Box>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16, backgroundColor: "#f8fafc", borderRadius: 6, padding: 12 }}>
+              <div>
+                <div style={pdfSub}>{documentType === "quotation" ? "Quote" : "Order"} No: {cartDetails?.order_no}</div>
+                <div style={pdfNorm}>Table: {cartDetails?.table_id?.name}</div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={pdfNorm}>Date: {printDateStr}</div>
+                <div style={pdfNorm}>Time: {printTimeStr}</div>
+                <div style={pdfNorm}>Cashier: {cartDetails?.served_by?.username || cartDetails?.created_by?.username || "Staff"}</div>
+              </div>
+            </div>
 
             {/* ── PDF Items table — includes Description column ───────── */}
-            <TableContainer component={Paper} elevation={0} sx={{ mb: 3 }}>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ ...pdfTH, width: "5%" }}>#</TableCell>
-                    <TableCell sx={{ ...pdfTH, width: "7%" }}>Qty</TableCell>
+            <div style={{ marginBottom: 16 }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr>
+                    <th style={{ ...pdfTH, width: "5%" }}>#</th>
+                    <th style={{ ...pdfTH, width: "7%" }}>Qty</th>
                     {/* Description column added — wider to accommodate both name + desc */}
-                    <TableCell sx={{ ...pdfTH }}>Item &amp; Description</TableCell>
-                    <TableCell sx={{ ...pdfTH, textAlign: "right", width: "13%" }}>Unit Price</TableCell>
-                    <TableCell sx={{ ...pdfTH, textAlign: "right", width: "10%" }}>VAT</TableCell>
-                    <TableCell sx={{ ...pdfTH, textAlign: "right", width: "12%" }}>Total</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
+                    <th style={{ ...pdfTH }}>Item &amp; Description</th>
+                    <th style={{ ...pdfTH, textAlign: "right", width: "13%" }}>Unit Price</th>
+                    <th style={{ ...pdfTH, textAlign: "right", width: "10%" }}>VAT</th>
+                    <th style={{ ...pdfTH, textAlign: "right", width: "12%" }}>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
                   {data?.map((item: any, index: number) => {
                     // Inline VAT-exclusive computation
                     const rawPrice = typeof item.price === "string" ? parseFloat(item.price) : (item.price || 0);
@@ -1684,11 +1414,11 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data, subtotal:
                     // Support both nested product_id.desc and flat item.desc
                     const itemDesc = item?.product_id?.desc || item?.product_id?.description || item?.desc || item?.description || "";
                     return (
-                      <TableRow key={item._id || index}>
-                        <TableCell sx={pdfTD}>{index + 1}</TableCell>
-                        <TableCell sx={pdfTD}>{item.quantity}</TableCell>
+                      <tr key={item._id || index}>
+                        <td style={pdfTD}>{index + 1}</td>
+                        <td style={pdfTD}>{item.quantity}</td>
                         {/* Name + description stacked in one cell */}
-                        <TableCell sx={pdfTD}>
+                        <td style={pdfTD}>
                           <div style={{ fontWeight: 600, color: "#1a1a1a", fontSize: "14px" }}>
                             {item?.product_id?.name || item?.description || 'Item'}
                           </div>
@@ -1713,111 +1443,111 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data, subtotal:
                               {itemDesc}
                             </div>
                           )}
-                        </TableCell>
-                        <TableCell sx={{ ...pdfTD, textAlign: "right" }}>{unitExcl.toFixed(2)}</TableCell>
-                        <TableCell sx={{ ...pdfTD, textAlign: "right" }}>{itemVat.toFixed(2)}</TableCell>
-                        <TableCell sx={{ ...pdfTD, textAlign: "right" }}>{lineTotal.toFixed(2)}</TableCell>
-                      </TableRow>
+                        </td>
+                        <td style={{ ...pdfTD, textAlign: "right" }}>{unitExcl.toFixed(2)}</td>
+                        <td style={{ ...pdfTD, textAlign: "right" }}>{itemVat.toFixed(2)}</td>
+                        <td style={{ ...pdfTD, textAlign: "right" }}>{lineTotal.toFixed(2)}</td>
+                      </tr>
                     );
                   })}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                </tbody>
+              </table>
+            </div>
 
             {/* PDF Totals */}
-            <Box sx={{ marginLeft: "auto", maxWidth: "380px", padding: 2, backgroundColor: "#f9f9f9", borderRadius: 2, border: "1px solid #e2e8f0" }}>
+            <div style={{ marginLeft: "auto", maxWidth: "380px", padding: 12, backgroundColor: "#f9f9f9", borderRadius: 6, border: "1px solid #e2e8f0" }}>
               {(showDiscount || discountAmount === 0) && (
-                <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
-                  <Typography style={pdfNorm}>Subtotal</Typography>
-                  <Typography style={pdfNorm}>Ksh {netSubtotal.toLocaleString()}</Typography>
-                </Box>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                  <div style={pdfNorm}>Subtotal</div>
+                  <div style={pdfNorm}>Ksh {netSubtotal.toLocaleString()}</div>
+                </div>
               )}
               {showDiscount && discountAmount > 0 && (
-                <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
-                  <Typography style={pdfNorm}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                  <div style={pdfNorm}>
                     {cartDetails.discount_type === "percentage" ? "Discount (" + String(cartDetails.discount) + "%)" : "Discount"}
-                  </Typography>
-                  <Typography style={{ ...pdfNorm, color: "#d32f2f" }}>- Ksh {discountAmount.toFixed(2)}</Typography>
-                </Box>
+                  </div>
+                  <div style={{ ...pdfNorm, color: "#d32f2f" }}>- Ksh {discountAmount.toFixed(2)}</div>
+                </div>
               )}
               {showVat && (
-                <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
-                  <Typography style={pdfNorm}>VAT</Typography>
-                  <Typography style={pdfNorm}>Ksh {finalTotalVat.toFixed(2)}</Typography>
-                </Box>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                  <div style={pdfNorm}>VAT</div>
+                  <div style={pdfNorm}>Ksh {finalTotalVat.toFixed(2)}</div>
+                </div>
               )}
-              <Divider sx={{ my: 1.5, borderColor: "#333", borderWidth: 2 }} />
-              <Box sx={{ display: "flex", justifyContent: "space-between" }}>
-                <Typography style={{ ...pdfHdr, fontSize: "20px" }}>{docConfig.amountLabel}</Typography>
-                <Typography style={{ ...pdfHdr, fontSize: "20px" }}>Ksh {finalGrandTotal.toLocaleString()}</Typography>
-              </Box>
-            </Box>
+              <hr style={{ border: "none", borderTop: "2px solid #333", margin: "10px 0" }} />
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <div style={{ ...pdfHdr, fontSize: "20px" }}>{docConfig.amountLabel}</div>
+                <div style={{ ...pdfHdr, fontSize: "20px" }}>Ksh {finalGrandTotal.toLocaleString()}</div>
+              </div>
+            </div>
 
             {/* Payment Details — PDF: always show if Paybill or Till No exists */}
             {(Paybill_bs || TILL_NO) && (
-              <Box sx={{ mt: 3, mb: 2, backgroundColor: "#f0f9ff", borderRadius: 2, padding: 2, border: "1px solid #bae6fd" }}>
-                <Typography variant="h6" style={pdfSub} sx={{ textAlign: "center" }}>Payment Details</Typography>
+              <div style={{ marginTop: 16, marginBottom: 12, backgroundColor: "#f0f9ff", borderRadius: 6, padding: 12, border: "1px solid #bae6fd" }}>
+                <div style={{ ...pdfSub, textAlign: "center" }}>Payment Details</div>
                 {Paybill_bs && (
-                  <Typography style={pdfNorm} sx={{ textAlign: "center" }}>
+                  <div style={{ ...pdfNorm, textAlign: "center" }}>
                     Paybill: {Paybill_bs}{Paybill_ac ? " | Account: " + Paybill_ac : ""}
-                  </Typography>
+                  </div>
                 )}
                 {TILL_NO && (
-                  <Typography style={pdfNorm} sx={{ textAlign: "center" }}>
+                  <div style={{ ...pdfNorm, textAlign: "center" }}>
                     Till No: {TILL_NO}
-                  </Typography>
+                  </div>
                 )}
-              </Box>
+              </div>
             )}
 
             {/* Bank Details */}
             {bank_details && (bank_details.bank_name || bank_details.account_no) && (
-              <Box sx={{ mt: 3, mb: 2, backgroundColor: "#fef3c7", borderRadius: 2, padding: 2, border: "1px solid #fde68a" }}>
-                <Typography variant="h6" style={pdfSub} sx={{ textAlign: "center" }}>Bank Details</Typography>
-                {bank_details.account_no && <Typography style={pdfNorm} sx={{ textAlign: "center" }}>Account: {bank_details.account_no}</Typography>}
-                {bank_details.account_name && <Typography style={pdfNorm} sx={{ textAlign: "center" }}>Account Name: {bank_details.account_name}</Typography>}
-                {bank_details.bank_name && <Typography style={pdfNorm} sx={{ textAlign: "center" }}>Bank: {bank_details.bank_name}</Typography>}
-                {bank_details.branch && <Typography style={pdfNorm} sx={{ textAlign: "center" }}>Branch: {bank_details.branch}</Typography>}
-                {bank_details.swift_code && <Typography style={pdfNorm} sx={{ textAlign: "center" }}>SWIFT: {bank_details.swift_code}</Typography>}
-                {bank_details.paybill_no && <Typography style={pdfNorm} sx={{ textAlign: "center" }}>Paybill: {bank_details.paybill_no}</Typography>}
-              </Box>
+              <div style={{ marginTop: 16, marginBottom: 12, backgroundColor: "#fef3c7", borderRadius: 6, padding: 12, border: "1px solid #fde68a" }}>
+                <div style={{ ...pdfSub, textAlign: "center" }}>Bank Details</div>
+                {bank_details.account_no && <div style={{ ...pdfNorm, textAlign: "center" }}>Account: {bank_details.account_no}</div>}
+                {bank_details.account_name && <div style={{ ...pdfNorm, textAlign: "center" }}>Account Name: {bank_details.account_name}</div>}
+                {bank_details.bank_name && <div style={{ ...pdfNorm, textAlign: "center" }}>Bank: {bank_details.bank_name}</div>}
+                {bank_details.branch && <div style={{ ...pdfNorm, textAlign: "center" }}>Branch: {bank_details.branch}</div>}
+                {bank_details.swift_code && <div style={{ ...pdfNorm, textAlign: "center" }}>SWIFT: {bank_details.swift_code}</div>}
+                {bank_details.paybill_no && <div style={{ ...pdfNorm, textAlign: "center" }}>Paybill: {bank_details.paybill_no}</div>}
+              </div>
             )}
 
             {/* Warranty */}
             {isElectronicsStore && documentType !== "quotation" && (
-              <Box sx={{ mt: 4, mb: 3 }}>
-                <Typography style={pdfWarranty}>
+              <div style={{ marginTop: 20, marginBottom: 16 }}>
+                <div style={pdfWarranty}>
                   <SafetyCertificateFilled style={{ marginRight: 8 }} />WARRANTY: 6 MONTHS<SafetyCertificateFilled style={{ marginLeft: 8 }} />
-                </Typography>
-                <Box sx={{ textAlign: "center", mt: 1 }}>
-                  <Typography style={pdfNorm}>This receipt serves as your warranty certificate</Typography>
-                  <Typography style={pdfNorm}>Please retain for warranty claims</Typography>
-                </Box>
-              </Box>
+                </div>
+                <div style={{ textAlign: "center", marginTop: 6 }}>
+                  <div style={pdfNorm}>This receipt serves as your warranty certificate</div>
+                  <div style={pdfNorm}>Please retain for warranty claims</div>
+                </div>
+              </div>
             )}
 
             {/* Quotation terms */}
             {documentType === "quotation" && (
-              <Box sx={{ mt: 4, mb: 3, backgroundColor: "#fffbe6", border: "2px solid #faad14", borderRadius: "8px", p: 2 }}>
-                <Typography style={{ ...pdfSub, textAlign: "center", marginBottom: 8 }}>Quotation Terms & Conditions</Typography>
-                <Typography style={{ ...pdfNorm, marginBottom: 4 }}>• Valid for 30 days from date of issue</Typography>
-                <Typography style={{ ...pdfNorm, marginBottom: 4 }}>• Prices subject to change without prior notice</Typography>
-                <Typography style={{ ...pdfNorm, marginBottom: 4 }}>• Final pricing may vary based on product availability</Typography>
-              </Box>
+              <div style={{ marginTop: 20, marginBottom: 16, backgroundColor: "#fffbe6", border: "2px solid #faad14", borderRadius: "8px", padding: 12 }}>
+                <div style={{ ...pdfSub, textAlign: "center", marginBottom: 8 }}>Quotation Terms & Conditions</div>
+                <div style={{ ...pdfNorm, marginBottom: 4 }}>• Valid for 30 days from date of issue</div>
+                <div style={{ ...pdfNorm, marginBottom: 4 }}>• Prices subject to change without prior notice</div>
+                <div style={{ ...pdfNorm, marginBottom: 4 }}>• Final pricing may vary based on product availability</div>
+              </div>
             )}
 
             {/* PDF Footer */}
-            <Box sx={{ borderTop: "2px solid #ddd", pt: 3, mt: 4, textAlign: "center" }}>
-              <Typography style={{ ...pdfSub, marginBottom: 8 }}>
+            <div style={{ borderTop: "2px solid #ddd", paddingTop: 16, marginTop: 20, textAlign: "center" }}>
+              <div style={{ ...pdfSub, marginBottom: 8 }}>
                 Thank you for your {documentType === "quotation" ? "interest" : "business"}!
-              </Typography>
-              <Typography style={{ ...pdfNorm, mb: 0.5 }}>Email: {EMAIL_URL}</Typography>
-              <Typography style={{ ...pdfNorm, mb: 0.5 }}>Printed: {printDateStr} {printTimeStr}</Typography>
-            </Box>
+              </div>
+              <div style={{ ...pdfNorm, marginBottom: 4 }}>Email: {EMAIL_URL}</div>
+              <div style={{ ...pdfNorm, marginBottom: 4 }}>Printed: {printDateStr} {printTimeStr}</div>
+            </div>
           </div>
         ) : (
           isPdfView && (
-            <Box sx={{ 
+            <div style={{ 
               display: 'flex', 
               flexDirection: 'column', 
               alignItems: 'center', 
@@ -1831,19 +1561,19 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data, subtotal:
               borderRadius: '8px'
             }}>
               <LockOutlined style={{ fontSize: '48px', color: '#6c1c2c', marginBottom: '16px' }} />
-              <Typography variant="h4" sx={{ color: '#6c1c2c', marginBottom: '8px', textAlign: 'center' }}>
+              <div style={{ color: '#6c1c2c', marginBottom: '8px', textAlign: 'center', fontSize: '24px', fontWeight: 600 }}>
                 Authentication Required
-              </Typography>
-              <Typography variant="body1" sx={{ color: '#666', textAlign: 'center', maxWidth: '400px' }}>
+              </div>
+              <div style={{ color: '#666', textAlign: 'center', maxWidth: '400px', fontSize: '14px' }}>
                 Please log in to view and print PDF documents. This feature requires user authentication for security purposes.
-              </Typography>
-            </Box>
+              </div>
+            </div>
           )
         )}
           </>
         )}
 
-        <Box sx={{ mt: 2 }} />
+        <div style={{ marginTop: 8 }} />
       </ModalForm>
 
       <SendEmailModal
