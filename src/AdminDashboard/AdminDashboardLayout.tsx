@@ -1231,12 +1231,19 @@ const AdminDashboard: React.FC = () => {
         }
 
         /* Hover effect for dropdown menu items */
-        .ant-dropdown-menu-item:hover {
-          background: rgba(255, 255, 255, 0.15) !important;
+        .ant-dropdown-menu-item:not(.ant-dropdown-menu-item-danger):hover,
+        .ant-dropdown-menu-item:not(.ant-dropdown-menu-item-danger).ant-dropdown-menu-item-active {
+          background-color: #f1f5f9 !important;
         }
         
-        .ant-dropdown-menu-item-active {
-          background: rgba(255, 255, 255, 0.1) !important;
+        .ant-dropdown-menu-item-danger:hover,
+        .ant-dropdown-menu-item-danger.ant-dropdown-menu-item-active {
+          background-color: #ff4d4f !important;
+          border-color: #ff4d4f !important;
+        }
+        .ant-dropdown-menu-item-danger:hover *,
+        .ant-dropdown-menu-item-danger.ant-dropdown-menu-item-active * {
+          color: #ffffff !important;
         }
 
         /* Mobile/tablet page container padding */

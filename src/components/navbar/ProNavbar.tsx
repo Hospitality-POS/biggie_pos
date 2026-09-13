@@ -694,7 +694,8 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
       danger: true,
       style: {
         padding: "8px 12px", margin: "2px 4px", borderRadius: 6,
-        border: "1px solid rgba(255,77,79,0.1)",
+        border: "1px solid rgba(255,77,79,0.15)",
+        transition: "all 0.15s ease",
       },
     },
   ];
@@ -990,10 +991,19 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         .ant-pro-global-header svg,
         .ant-pro-global-header .anticon { color: white !important; }
         .ant-pro-global-header-collapsed-button,
-        .ant-pro-sider-collapsed-button { color: white !important; }
-        .ant-dropdown-menu-item:hover { background: rgba(255, 255, 255, 0.15) !important; }
-        .ant-dropdown-menu-item-active { background: rgba(255, 255, 255, 0.1) !important; }
-        .nav-overflow-popup .ant-menu { background: ${primaryColor} !important; border-radius: 10px !important; padding: 4px !important; border: none !important; box-shadow: 0 8px 24px rgba(0,0,0,0.14) !important; }
+        .ant-dropdown-menu-item:not(.ant-dropdown-menu-item-danger):hover,
+        .ant-dropdown-menu-item:not(.ant-dropdown-menu-item-danger).ant-dropdown-menu-item-active {
+          background-color: #f1f5f9 !important;
+        }
+        .ant-dropdown-menu-item-danger:hover,
+        .ant-dropdown-menu-item-danger.ant-dropdown-menu-item-active {
+          background-color: #ff4d4f !important;
+          border-color: #ff4d4f !important;
+        }
+        .ant-dropdown-menu-item-danger:hover *,
+        .ant-dropdown-menu-item-danger.ant-dropdown-menu-item-active * {
+          color: #ffffff !important;
+        }
         .nav-overflow-popup .ant-menu-item { color: rgba(255,255,255,0.85) !important; border-radius: 6px !important; margin: 2px 0 !important; height: 38px !important; line-height: 38px !important; }
         .nav-overflow-popup .ant-menu-item:hover { background: rgba(255,255,255,0.15) !important; color: #fff !important; }
         .nav-overflow-popup .ant-menu-item-selected { background: rgba(255,255,255,0.2) !important; color: #fff !important; font-weight: 600; }
