@@ -36,6 +36,7 @@ import {
   Tooltip,
   Segmented,
   Slider as AntSlider,
+  Switch,
 } from "antd";
 import { ModalForm } from "@ant-design/pro-form";
 import { useQuery } from "@tanstack/react-query";
