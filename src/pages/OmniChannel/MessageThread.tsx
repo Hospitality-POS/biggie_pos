@@ -549,7 +549,7 @@ const MessageThread: React.FC<Props> = ({
     // Mark as read when conversation is opened
     useEffect(() => {
         if (conversation.unread_count > 0) {
-            markConversationAsRead(conversation._id).catch(() => { });
+            markConversationAsRead(conversation._id).catch(() => { /* ignore read error */ });
         }
     }, [conversation._id, conversation.unread_count]);
 

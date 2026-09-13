@@ -161,7 +161,7 @@ const HRAnalytics: React.FC = () => {
                 setAttendance(attData?.records || []);
                 setLeaves(leaveData?.leaves || []);
             })
-            .catch(() => { })
+            .catch(() => { /* ignore error */ })
             .finally(() => setLoading(false));
     }, [banduEnabled]);
 

@@ -354,15 +354,11 @@ export interface GeneralLedgerParams extends PeriodReportParams {
  * Includes is_balanced flag to confirm the books are balanced.
  */
 export const getTrialBalance = async (params: PeriodReportParams) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/reports/trial-balance`,
-            { params }
-        );
-        return response.data as TrialBalanceResponse;
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/reports/trial-balance`,
+        { params }
+    );
+    return response.data as TrialBalanceResponse;
 };
 
 /**
@@ -370,15 +366,11 @@ export const getTrialBalance = async (params: PeriodReportParams) => {
  * Returns gross revenue, total expenses, and net profit/loss.
  */
 export const getProfitAndLoss = async (params: PeriodReportParams) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/reports/profit-loss`,
-            { params }
-        );
-        return response.data as ProfitAndLossResponse;
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/reports/profit-loss`,
+        { params }
+    );
+    return response.data as ProfitAndLossResponse;
 };
 
 /**
@@ -386,17 +378,13 @@ export const getProfitAndLoss = async (params: PeriodReportParams) => {
  * as_of_date defaults to today if not provided.
  */
 export const getBalanceSheet = async (params: Record<string, any>) => {
-    try {
-        const { as_of, as_of_date, ...rest } = params;
-        const requestParams = { ...rest, as_of_date: as_of_date ?? as_of };
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/reports/balance-sheet`,
-            { params: requestParams }
-        );
-        return response.data as BalanceSheetResponse;
-    } catch (error) {
-        throw error;
-    }
+    const { as_of, as_of_date, ...rest } = params;
+    const requestParams = { ...rest, as_of_date: as_of_date ?? as_of };
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/reports/balance-sheet`,
+        { params: requestParams }
+    );
+    return response.data as BalanceSheetResponse;
 };
 
 // ── Detailed Ledger ───────────────────────────────────────────────────────────
@@ -406,15 +394,11 @@ export const getBalanceSheet = async (params: Record<string, any>) => {
  * Paginated by account. Use account_id to drill into a single account.
  */
 export const getGeneralLedger = async (params: GeneralLedgerParams) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/reports/general-ledger`,
-            { params }
-        );
-        return response.data as GeneralLedgerResponse;
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/reports/general-ledger`,
+        { params }
+    );
+    return response.data as GeneralLedgerResponse;
 };
 
 /**
@@ -422,17 +406,13 @@ export const getGeneralLedger = async (params: GeneralLedgerParams) => {
  * Returns flat list + grouped by type + totals per type.
  */
 export const getAccountBalances = async (params: Record<string, any>) => {
-    try {
-        const { as_of, as_of_date, ...rest } = params;
-        const requestParams = { ...rest, as_of_date: as_of_date ?? as_of };
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/reports/account-balances`,
-            { params: requestParams }
-        );
-        return response.data as AccountBalancesResponse;
-    } catch (error) {
-        throw error;
-    }
+    const { as_of, as_of_date, ...rest } = params;
+    const requestParams = { ...rest, as_of_date: as_of_date ?? as_of };
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/reports/account-balances`,
+        { params: requestParams }
+    );
+    return response.data as AccountBalancesResponse;
 };
 
 // ── Tax & Cash ────────────────────────────────────────────────────────────────
@@ -442,30 +422,22 @@ export const getAccountBalances = async (params: Record<string, any>) => {
  * Breakdown by transaction source (pos_sale, subscription, manual, etc.)
  */
 export const getVATReport = async (params: PeriodReportParams) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/reports/vat`,
-            { params }
-        );
-        return response.data as VATReportResponse;
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/reports/vat`,
+        { params }
+    );
+    return response.data as VATReportResponse;
 };
 
 /**
  * Cash Flow Summary — inflows/outflows for all bank/cash accounts.
  */
 export const getCashFlowSummary = async (params: PeriodReportParams) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/reports/cash-flow`,
-            { params }
-        );
-        return response.data as CashFlowResponse;
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/reports/cash-flow`,
+        { params }
+    );
+    return response.data as CashFlowResponse;
 };
 
 // ── Customer & Supplier Statements ───────────────────────────────────────────
@@ -478,15 +450,11 @@ export const getCustomerStatement = async (
     customer_id: string,
     params: PeriodReportParams
 ) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/reports/customer-statement/${customer_id}`,
-            { params }
-        );
-        return response.data as CustomerStatementResponse;
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/reports/customer-statement/${customer_id}`,
+        { params }
+    );
+    return response.data as CustomerStatementResponse;
 };
 
 /**
@@ -497,15 +465,11 @@ export const getSupplierStatement = async (
     supplier_id: string,
     params: PeriodReportParams
 ) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/reports/supplier-statement/${supplier_id}`,
-            { params }
-        );
-        return response.data as SupplierStatementResponse;
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/reports/supplier-statement/${supplier_id}`,
+        { params }
+    );
+    return response.data as SupplierStatementResponse;
 };
 
 // ── Aging Reports ─────────────────────────────────────────────────────────────
@@ -516,15 +480,11 @@ export const getSupplierStatement = async (
  * buckets defaults to "30,60,90,120" — override with e.g. "15,30,45,60"
  */
 export const getARAgingReport = async (params: AgingReportParams) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/reports/ar-aging`,
-            { params }
-        );
-        return response.data as ARAgingResponse;
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/reports/ar-aging`,
+        { params }
+    );
+    return response.data as ARAgingResponse;
 };
 
 /**
@@ -532,13 +492,9 @@ export const getARAgingReport = async (params: AgingReportParams) => {
  * Sorted by total outstanding (largest creditors first).
  */
 export const getAPAgingReport = async (params: AgingReportParams) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/reports/ap-aging`,
-            { params }
-        );
-        return response.data as APAgingResponse;
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/reports/ap-aging`,
+        { params }
+    );
+    return response.data as APAgingResponse;
 };

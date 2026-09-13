@@ -1304,7 +1304,7 @@ const LibraryModal: React.FC<{
             ),
             okText: "Cancel",
             cancelText: null,
-            onOk: () => {},
+            onOk: () => { /* close modal */ },
         });
     };
 
@@ -1543,7 +1543,7 @@ const DocumentSigningInterface: React.FC<{
         },
     });
 
-    const handleSignatureSave = async (data: string, type: string, duplicateToAllPages: boolean = false) => {
+    const handleSignatureSave = async (data: string, type: string, duplicateToAllPages = false) => {
         const basePosition = { 
             x: positionRef.current.x, 
             y: positionRef.current.y, 

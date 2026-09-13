@@ -261,8 +261,7 @@ const ExpandedRowContent: React.FC<ExpandedRowContentProps> = ({ record }) => {
       ];
     });
 
-    // @ts-ignore
-    doc.autoTable({
+    (doc as any).autoTable({
       startY: tableStartY + 10,
       head: [["Date", "Day", "Clock In", "Clock Out", "Duration", "Status"]],
       body: tableData,

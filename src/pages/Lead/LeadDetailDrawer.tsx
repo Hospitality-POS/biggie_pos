@@ -151,7 +151,9 @@ const LeadDetailDrawer: React.FC<LeadDetailDrawerProps> = ({ open, onClose, lead
             stageForm.resetFields();
             onUpdated?.();
             message.success("Stage updated");
-        } catch { } finally {
+        } catch {
+            /* error handled by thunk */
+        } finally {
             setStageLoading(false);
         }
     };
@@ -163,7 +165,9 @@ const LeadDetailDrawer: React.FC<LeadDetailDrawerProps> = ({ open, onClose, lead
             await dispatch(convertLead({ id: lead._id, shop_id })).unwrap();
             onUpdated?.();
             onClose();
-        } catch { } finally {
+        } catch {
+            /* error handled by thunk */
+        } finally {
             setConvertLoading(false);
         }
     };
@@ -207,7 +211,9 @@ const LeadDetailDrawer: React.FC<LeadDetailDrawerProps> = ({ open, onClose, lead
             onUpdated?.();
             onRefreshLead?.();
             message.success("Activity logged");
-        } catch { } finally {
+        } catch {
+            /* error handled by thunk */
+        } finally {
             setActivityLoading(false);
         }
     };

@@ -61,13 +61,13 @@ const NON_AUTH_401_ROUTES = [
     '/users/register', // New Staff modal - don't logout on errors
 ];
 
-const isExcludedRoute = (url: string = ''): boolean =>
+const isExcludedRoute = (url = ''): boolean =>
     EXCLUDED_ROUTES.some(route => url.includes(route));
 
-const isNonCacheableRoute = (url: string = ''): boolean =>
+const isNonCacheableRoute = (url = ''): boolean =>
     NON_CACHEABLE_ROUTES.some(route => url.includes(route));
 
-const isNonAuth401Route = (url: string = ''): boolean =>
+const isNonAuth401Route = (url = ''): boolean =>
     NON_AUTH_401_ROUTES.some(route => url.includes(route));
 
 const formDataHasKey = (formData: FormData, key: string): boolean => {
@@ -94,8 +94,8 @@ const METHOD_TO_ACTION: Record<string, string> = {
 };
 
 const resolvePermissionKey = (
-    url: string = '',
-    method: string = 'get',
+    url = '',
+    method = 'get',
     explicitKey?: string,
 ): string | null => {
     if (explicitKey) return explicitKey;
@@ -225,7 +225,7 @@ axiosInstance.interceptors.response.use(
         const { response } = error;
         if (response) {
             switch (response.status) {
-                case 401:
+                case 401: {
                     // Check if this is a Meta API endpoint (should NOT logout)
                     const url = response.config?.url || '';
                     if (isNonAuth401Route(url)) {
@@ -239,6 +239,7 @@ axiosInstance.interceptors.response.use(
                     handleError("Session expired. Logging out...");
                     logoutUser();
                     break;
+                }
                 case 403:
                     if (response.data?.message?.toLowerCase().includes("locked")) {
                         handleError(`Transaction Lock: ${response.data.message}`);

@@ -51,7 +51,7 @@ const useGooglePlaces = () => {
 
   useEffect(() => {
     if (sdkReady) return;
-    loadGoogleMaps().then(() => setSdkReady(true)).catch(() => { });
+    loadGoogleMaps().then(() => setSdkReady(true)).catch(() => { /* ignore maps load failure */ });
   }, []);
 
   const ensureServices = useCallback(() => {

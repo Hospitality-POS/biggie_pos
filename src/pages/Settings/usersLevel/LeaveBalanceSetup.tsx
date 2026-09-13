@@ -415,7 +415,7 @@ const LeaveBalanceSetup: React.FC = () => {
                 filteredStaff.map((s) => (
                     <StaffBalanceCard
                         key={s._id} staff={s} year={year}
-                        isMobile={isMobile} onSaved={() => { }}
+                        isMobile={isMobile} onSaved={() => { /* no-op */ }}
                     />
                 ))
             )}

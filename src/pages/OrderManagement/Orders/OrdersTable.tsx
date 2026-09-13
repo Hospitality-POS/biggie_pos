@@ -517,7 +517,11 @@ const OrdersTable = () => {
       setDateModalVisible(false); setEditingOrderId(null); dateForm.resetFields();
       actionRef.current?.reload();
       if (isMobile) refreshMobile();
-    } catch { } finally { setLoading(false); }
+    } catch {
+      /* validation or update error */
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCancelEdit = () => { setDateModalVisible(false); setEditingOrderId(null); dateForm.resetFields(); };

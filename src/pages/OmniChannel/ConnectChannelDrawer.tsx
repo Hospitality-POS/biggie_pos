@@ -142,7 +142,9 @@ const ConnectedCard: React.FC<{
             await disconnectWhatsAppWeb(channel.shop_id);
             onDisconnect(channel._id);
             antMessage.success("WhatsApp disconnected");
-        } catch {}
+        } catch {
+            /* ignore disconnect error */
+        }
         setWebDisconnecting(false);
     };
 
@@ -150,7 +152,9 @@ const ConnectedCard: React.FC<{
         setResyncing(true);
         try {
             await resyncWhatsAppWeb(channel.shop_id);
-        } catch {}
+        } catch {
+            /* ignore resync error */
+        }
         setResyncing(false);
     };
 
@@ -173,7 +177,9 @@ const ConnectedCard: React.FC<{
                     antMessage.success("WhatsApp reconnected");
                     onReconnected?.();
                 }
-            } catch {}
+            } catch {
+                /* ignore poll error */
+            }
         };
         poll();
         const interval = setInterval(poll, 2000);
@@ -557,7 +563,9 @@ const WhatsAppWebConnectButton: React.FC<{
         setStatus("idle");
         try {
             await disconnectWhatsAppWeb(shopId);
-        } catch {}
+        } catch {
+            /* ignore stop disconnect error */
+        }
     };
 
     useEffect(() => {

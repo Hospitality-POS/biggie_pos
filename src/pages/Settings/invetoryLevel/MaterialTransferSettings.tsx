@@ -370,7 +370,7 @@ export const MaterialTransferSettings: React.FC = () => {
   }, []);
 
   // ── View (pass-through — table handles its own modal) ───────────────────────
-  const handleViewTransfer = useCallback((_record: Transfer) => { }, []);
+  const handleViewTransfer = useCallback((_record: Transfer) => { /* pass-through */ }, []);
 
   return (
     <MaterialTransferTable

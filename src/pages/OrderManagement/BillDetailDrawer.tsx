@@ -66,7 +66,7 @@ const BillDetailDrawer: React.FC<Props> = ({
         isLoading: supplierLoading,
     } = useQuery({
         queryKey: ["supplier", bill?.supplier_id?._id],
-        queryFn: () => getSupplierById(bill?.supplier_id?._id!),
+        queryFn: () => getSupplierById(bill!.supplier_id!._id),
         enabled: !!bill?.supplier_id?._id,
     });
 

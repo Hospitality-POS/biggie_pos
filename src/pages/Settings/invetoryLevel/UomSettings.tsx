@@ -147,7 +147,9 @@ const MobileUomList: React.FC<{ actionRef: React.MutableRefObject<ActionType | u
           const r = await deleteMultipleUom(Array.from(selectedIds));
           message.success(`${r.deleted} UoM(s) deleted`);
           setSelectMode(false); setSelectedIds(new Set()); loadItems();
-        } catch { } finally { setBulkDeleting(false); }
+        } catch {
+          /* delete failed */
+        } finally { setBulkDeleting(false); }
       },
     });
   };
@@ -164,7 +166,9 @@ const MobileUomList: React.FC<{ actionRef: React.MutableRefObject<ActionType | u
           const r = await deleteAllUom(shopId);
           message.success(`${r.deleted} UoM(s) deleted`);
           setSelectMode(false); setSelectedIds(new Set()); loadItems();
-        } catch { } finally { setBulkDeleting(false); }
+        } catch {
+          /* delete failed */
+        } finally { setBulkDeleting(false); }
       },
     });
   };
@@ -273,7 +277,9 @@ function UomSettings() {
           const r = await deleteMultipleUom(selectedRowKeys as string[]);
           message.success(`${r.deleted} UoM(s) deleted`);
           setSelectedRowKeys([]); actionRef.current?.reload();
-        } catch { } finally { setBulkDeleting(false); }
+        } catch {
+          /* delete failed */
+        } finally { setBulkDeleting(false); }
       },
     });
   };
@@ -290,7 +296,9 @@ function UomSettings() {
           const r = await deleteAllUom(shopId);
           message.success(`${r.deleted} UoM(s) deleted`);
           setSelectedRowKeys([]); actionRef.current?.reload();
-        } catch { } finally { setBulkDeleting(false); }
+        } catch {
+          /* delete failed */
+        } finally { setBulkDeleting(false); }
       },
     });
   };

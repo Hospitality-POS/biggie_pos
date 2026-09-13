@@ -654,7 +654,7 @@ const MobileInventoryList: React.FC<{
       onOk: async () => {
         setBulkDeleting(true);
         try { const r = await deleteMultipleInventory(Array.from(selectedIds)); message.success(`${r.deleted} item(s) deleted`); setSelectMode(false); setSelectedIds(new Set()); loadItems(); }
-        catch { } finally { setBulkDeleting(false); }
+        catch { /* delete failed */ } finally { setBulkDeleting(false); }
       },
     });
   };
@@ -668,7 +668,7 @@ const MobileInventoryList: React.FC<{
       onOk: async () => {
         setBulkDeleting(true);
         try { const r = await deleteAllInventory(shopId); message.success(`${r.deleted} item(s) deleted`); setSelectMode(false); setSelectedIds(new Set()); loadItems(); }
-        catch { } finally { setBulkDeleting(false); }
+        catch { /* delete failed */ } finally { setBulkDeleting(false); }
       },
     });
   };
@@ -770,7 +770,7 @@ const InventorySettings = () => {
       onOk: async () => {
         setBulkDeleting(true);
         try { const r = await deleteMultipleInventory(selectedRowKeys as string[]); message.success(`${r.deleted} item(s) deleted`); setSelectedRowKeys([]); paymentRef.current?.reload(); }
-        catch { } finally { setBulkDeleting(false); }
+        catch { /* delete failed */ } finally { setBulkDeleting(false); }
       },
     });
   };
@@ -784,7 +784,7 @@ const InventorySettings = () => {
       onOk: async () => {
         setBulkDeleting(true);
         try { const r = await deleteAllInventory(shopId); message.success(`${r.deleted} item(s) deleted`); setSelectedRowKeys([]); paymentRef.current?.reload(); }
-        catch { } finally { setBulkDeleting(false); }
+        catch { /* delete failed */ } finally { setBulkDeleting(false); }
       },
     });
   };

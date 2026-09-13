@@ -398,6 +398,7 @@ const StaffLeavePortal: React.FC = () => {
             const data = await fetchLeaveBalance(user.id);
             setBalances(data?.balances || []);
         } catch {
+            /* ignore balance fetch error */
         } finally {
             setLoadingBalances(false);
         }

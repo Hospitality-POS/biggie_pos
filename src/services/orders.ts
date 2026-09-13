@@ -21,50 +21,38 @@ export const getAllOrders = async (data: ParamsType) => {
 };
 
 export const getDashboardAnalysis = async (startDate: string, endDate: string, shopId?: string) => {
-  try {
-    const params = new URLSearchParams();
-    if (startDate) params.append('startDate', startDate);
-    if (endDate) params.append('endDate', endDate);
-    if (shopId) params.append('shop_id', shopId);
+  const params = new URLSearchParams();
+  if (startDate) params.append('startDate', startDate);
+  if (endDate) params.append('endDate', endDate);
+  if (shopId) params.append('shop_id', shopId);
 
-    const queryString = params.toString();
-    const url = `${BASE_URL}/orders/dashboard/summary${queryString ? `?${queryString}` : ''}`;
+  const queryString = params.toString();
+  const url = `${BASE_URL}/orders/dashboard/summary${queryString ? `?${queryString}` : ''}`;
 
-    const response = await axiosInstance.get(url);
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
+  const response = await axiosInstance.get(url);
+  return response.data;
 };
 
 export const getAdminDashboardAnalysis = async (startDate: string, endDate: string) => {
-  try {
-    const params = new URLSearchParams();
-    if (startDate) params.append('startDate', startDate);
-    if (endDate) params.append('endDate', endDate);
+  const params = new URLSearchParams();
+  if (startDate) params.append('startDate', startDate);
+  if (endDate) params.append('endDate', endDate);
 
-    const queryString = params.toString();
-    const url = `${BASE_URL}/orders/admin-dashboard/summary${queryString ? `?${queryString}` : ''}`;
+  const queryString = params.toString();
+  const url = `${BASE_URL}/orders/admin-dashboard/summary${queryString ? `?${queryString}` : ''}`;
 
-    const response = await axiosInstance.get(url);
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
+  const response = await axiosInstance.get(url);
+  return response.data;
 };
 
 export const getTodayOrdersCount = async (data: ParamsType) => {
-  try {
-    const response = await axiosInstance.get(`${BASE_URL}/orders`, {
-      params: {
-        order_no: data?.order_no || data?.keyword,
-        name: data?.name,
-      },
-    });
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
+  const response = await axiosInstance.get(`${BASE_URL}/orders`, {
+    params: {
+      order_no: data?.order_no || data?.keyword,
+      name: data?.name,
+    },
+  });
+  return response.data;
 };
 
 export const deleteOrderById = async (id: string) => {
@@ -90,21 +78,17 @@ interface BestSellersParams {
 }
 
 export const getBestSellers = async (params: BestSellersParams = {}) => {
-  try {
-    const response = await axiosInstance.get(`${BASE_URL}/orders/product/best-sellers`, {
-      params: {
-        startDate: params.startDate,
-        endDate: params.endDate,
-        shop_id: params.shop_id,
-        category_id: params.category_id,
-        product_type: params.product_type,
-        limit: params.limit || 10,
-      },
-    });
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
+  const response = await axiosInstance.get(`${BASE_URL}/orders/product/best-sellers`, {
+    params: {
+      startDate: params.startDate,
+      endDate: params.endDate,
+      shop_id: params.shop_id,
+      category_id: params.category_id,
+      product_type: params.product_type,
+      limit: params.limit || 10,
+    },
+  });
+  return response.data;
 };
 
 interface BestSellersByCategoryParams {
@@ -115,19 +99,15 @@ interface BestSellersByCategoryParams {
 }
 
 export const getBestSellersByCategory = async (params: BestSellersByCategoryParams = {}) => {
-  try {
-    const response = await axiosInstance.get(`${BASE_URL}/orders/best-sellers/by-category`, {
-      params: {
-        startDate: params.startDate,
-        endDate: params.endDate,
-        shop_id: params.shop_id,
-        limit: params.limit || 5,
-      },
-    });
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
+  const response = await axiosInstance.get(`${BASE_URL}/orders/best-sellers/by-category`, {
+    params: {
+      startDate: params.startDate,
+      endDate: params.endDate,
+      shop_id: params.shop_id,
+      limit: params.limit || 5,
+    },
+  });
+  return response.data;
 };
 
 interface SalesChartParams {
@@ -138,19 +118,15 @@ interface SalesChartParams {
 }
 
 export const getSalesChartData = async (params: SalesChartParams = {}) => {
-  try {
-    const response = await axiosInstance.get(`${BASE_URL}/orders/dashboard/sales-chart`, {
-      params: {
-        startDate: params.startDate,
-        endDate: params.endDate,
-        shop_id: params.shop_id,
-        period: params.period || 'day',
-      },
-    });
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
+  const response = await axiosInstance.get(`${BASE_URL}/orders/dashboard/sales-chart`, {
+    params: {
+      startDate: params.startDate,
+      endDate: params.endDate,
+      shop_id: params.shop_id,
+      period: params.period || 'day',
+    },
+  });
+  return response.data;
 };
 
 // ============================================
@@ -374,7 +350,7 @@ export const repostOrderPayment = async (
  */
 export const batchRepostOrderPayments = async (
   orderIds: string[],
-  forceRecreate: boolean = false
+  forceRecreate = false
 ) => {
   const results = {
     success: [] as string[],

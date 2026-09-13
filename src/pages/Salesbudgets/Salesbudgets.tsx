@@ -200,7 +200,9 @@ const SalesBudgetFormModal: React.FC<SalesBudgetFormModalProps> = ({
                 await dispatch(createSalesBudget(payload)).unwrap();
             }
             form.resetFields(); onClose(); onSuccess?.();
-        } catch { } finally { setLoading(false); }
+        } catch {
+            /* error handled by thunk */
+        } finally { setLoading(false); }
     };
 
     return (
@@ -310,8 +312,14 @@ const SalesBudgetDetailDrawer: React.FC<SalesBudgetDetailDrawerProps> = ({
 
     const handleSubmit = async () => {
         setSubmitLoading(true);
-        try { await dispatch(submitSalesBudget({ id: budget._id, shop_id })).unwrap(); onUpdated?.(); }
-        catch { } finally { setSubmitLoading(false); }
+        try {
+            await dispatch(submitSalesBudget({ id: budget._id, shop_id })).unwrap();
+            onUpdated?.();
+        } catch {
+            /* error handled by thunk */
+        } finally {
+            setSubmitLoading(false);
+        }
     };
 
     const handleApprove = async (action: "approve" | "reject", reason?: string) => {
@@ -319,7 +327,11 @@ const SalesBudgetDetailDrawer: React.FC<SalesBudgetDetailDrawerProps> = ({
         try {
             await dispatch(approveSalesBudget({ id: budget._id, shop_id, action, rejection_reason: reason })).unwrap();
             onUpdated?.();
-        } catch { } finally { setApproveLoading(false); }
+        } catch {
+            /* error handled by thunk */
+        } finally {
+            setApproveLoading(false);
+        }
     };
 
     const MetricRow = ({ label, budgeted, actual }: { label: string; budgeted?: number; actual?: number }) => {
