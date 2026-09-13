@@ -26,6 +26,7 @@ import {
     CheckCircleOutlined,
     CloseCircleOutlined,
     ExclamationCircleOutlined,
+    ScanOutlined,
 } from "@ant-design/icons";
 import { useAppDispatch } from "../../../store";
 import { addToCartByBarcode } from "../../../features/Cart/CartActions";
@@ -232,7 +233,6 @@ export const BarcodeScanPanel: React.FC<BarcodeScanPanelProps> = ({ tableId, onC
                     allowClear
                     disabled={isProcessing}
                     autoFocus
-                    style={{ borderRadius: "8px 0 0 8px" }}
                 />
                 <BarcodeScannerModal
                     trigger={
@@ -242,11 +242,6 @@ export const BarcodeScanPanel: React.FC<BarcodeScanPanelProps> = ({ tableId, onC
                             icon={<CameraOutlined />}
                             disabled={isProcessing}
                             title="Scan with camera"
-                            style={{
-                                backgroundColor: primaryColor,
-                                borderColor: primaryColor,
-                                borderRadius: "0 8px 8px 0",
-                            }}
                         />
                     }
                     onOpenChange={setIsCameraActive}
@@ -259,7 +254,7 @@ export const BarcodeScanPanel: React.FC<BarcodeScanPanelProps> = ({ tableId, onC
             {isProcessing && (
                 <Space size={8} align="center">
                     <Spin size="small" />
-                    <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+                    <Typography.Text style={{ fontSize: 13, color: "#475569" }}>
                         Looking up barcode & adding to cart…
                     </Typography.Text>
                 </Space>
@@ -273,33 +268,45 @@ export const BarcodeScanPanel: React.FC<BarcodeScanPanelProps> = ({ tableId, onC
                     width: "100%",
                     borderRadius: 10,
                     background: "#ffffff",
-                    borderColor: "#e2e8f0",
-                    boxShadow: "0 1px 3px rgba(0, 0, 0, 0.04)",
+                    borderColor: "#cbd5e1",
+                    boxShadow: "0 1px 4px rgba(0, 0, 0, 0.05)",
                 }}
             >
                 <Typography.Text
                     strong
                     style={{
                         fontSize: 12,
-                        color: "#64748b",
+                        color: "#334155",
                         textTransform: "uppercase",
                         letterSpacing: 0.5,
                         display: "block",
-                        marginBottom: 8,
+                        marginBottom: 10,
                     }}
                 >
                     3 Ways to Scan
                 </Typography.Text>
-                <Space direction="vertical" size={6} style={{ width: "100%" }}>
-                    <Typography.Text type="secondary" style={{ fontSize: 12, display: "block" }}>
-                        🎯 <b>Scanner Gun:</b> Point and trigger — detects barcode and adds to cart automatically
-                    </Typography.Text>
-                    <Typography.Text type="secondary" style={{ fontSize: 12, display: "block" }}>
-                        📷 <b>Camera:</b> Tap the camera button to scan with your device webcam
-                    </Typography.Text>
-                    <Typography.Text type="secondary" style={{ fontSize: 12, display: "block" }}>
-                        ⌨️ <b>Manual:</b> Type barcode number in the box and press Enter
-                    </Typography.Text>
+                <Space direction="vertical" size={8} style={{ width: "100%" }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13, color: "#334155", lineHeight: 1.5 }}>
+                        <ScanOutlined style={{ color: primaryColor, fontSize: 16, marginTop: 2, flexShrink: 0 }} />
+                        <div>
+                            <Typography.Text strong style={{ color: "#0f172a" }}>Scanner Gun:</Typography.Text>{" "}
+                            <span>Point and trigger — detects barcode and adds to cart automatically</span>
+                        </div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13, color: "#334155", lineHeight: 1.5 }}>
+                        <CameraOutlined style={{ color: primaryColor, fontSize: 16, marginTop: 2, flexShrink: 0 }} />
+                        <div>
+                            <Typography.Text strong style={{ color: "#0f172a" }}>Camera:</Typography.Text>{" "}
+                            <span>Tap the camera button to scan with your device webcam</span>
+                        </div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13, color: "#334155", lineHeight: 1.5 }}>
+                        <BarcodeOutlined style={{ color: primaryColor, fontSize: 16, marginTop: 2, flexShrink: 0 }} />
+                        <div>
+                            <Typography.Text strong style={{ color: "#0f172a" }}>Manual:</Typography.Text>{" "}
+                            <span>Type barcode number in the box and press Enter</span>
+                        </div>
+                    </div>
                 </Space>
             </Card>
         </div>
