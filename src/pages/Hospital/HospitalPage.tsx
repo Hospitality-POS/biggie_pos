@@ -315,7 +315,10 @@ const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
             sx={{
                 display: "flex", flexWrap: "wrap", gap: "10px", width: "100%",
                 maxHeight: isMobile ? "none" : "calc(100vh - 290px)",
-                overflowY: isMobile ? "visible" : "auto", pb: 1,
+                overflowY: isMobile ? "visible" : "auto",
+                pt: "8px",
+                px: "4px",
+                pb: 2,
                 "&::-webkit-scrollbar": { width: "4px" },
                 "&::-webkit-scrollbar-thumb": { background: "#cbd5e1", borderRadius: 2 },
             }}

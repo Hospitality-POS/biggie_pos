@@ -62,6 +62,7 @@ const PackageCard: React.FC<PackageCardProps> = ({ package: pkg, onPurchase, sty
         position: "relative",
         opacity: isProcessing ? 0.75 : 1,
         transform: isHovered ? "translateY(-2px)" : "translateY(0)",
+        boxSizing: "border-box",
         ...style,
       }}
     >

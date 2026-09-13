@@ -208,6 +208,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu, handleCart, style }) =>
           position: "relative",
           opacity: loading || isProcessing ? 0.75 : 1,
           transform: isHovered ? "translateY(-2px)" : "translateY(0)",
+          boxSizing: "border-box",
           ...style,
         }}
       >
