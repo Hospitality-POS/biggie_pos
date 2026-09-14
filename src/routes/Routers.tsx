@@ -8,27 +8,29 @@ import {
 } from "react-router-dom";
 import { Suspense, lazy } from "react";
 import Private, { AdminRoute } from "@components/layout/private/Private";
-import MainCategory from "@pages/main_category/Main_category";
 import NotFound from "@routes/NotFound";
-import { Spin } from "antd/lib";
-import MainOrders from "@pages/OrderManagement/MainOrders";
+import { Spin } from "antd";
 import NubaLoader from "@components/spinner/NubaLoader";
 import StaffLoginPage from "@pages/Login/login";
-import UnifiedShopDashboardPage from "src/pages/Report/UnifiedShopDashboardPage";
-import StaffClockTracker from "@pages/staff/ClockInTracker";
-import HelpCenter from "src/AdminDashboard/HelpCenter/HelpCenterPage";
-import DashboardAdminPage from "src/AdminDashboard/DashboardPage/DashboardPage";
-import UnifiedDashboardPage from "src/pages/Report/UnifiedDashboardPage";
-import ShopManagement from "src/AdminDashboard/Shops/MainShopPage";
-import Customer from "src/pages/Customer/CustomerList";
-import PaymentSubscriptionPage from "src/components/billing/Billing";
-import AdminCustomersList from "src/AdminDashboard/Customers/CustomerList";
-import TenantSettings from "src/AdminDashboard/Settings/TenantSettings";
-import DiscoverPage from "src/AdminDashboard/DiscoverPage";
 import PaymentCallback from "@components/payment/PaymentCallback";
 import PermissionRoute from "@components/PermissionRoute";
-import PrivacyPolicy from "@pages/Legal/PrivacyPolicy";
-import TermsAndConditions from "@pages/Legal/TermsAndConditions";
+
+// ─── Lazily Loaded Core & Admin Pages ─────────────────────────────────────────
+const MainCategory = lazy(() => import("@pages/main_category/Main_category"));
+const MainOrders = lazy(() => import("@pages/OrderManagement/MainOrders"));
+const StaffClockTracker = lazy(() => import("@pages/staff/ClockInTracker"));
+const HelpCenter = lazy(() => import("src/AdminDashboard/HelpCenter/HelpCenterPage"));
+const DashboardAdminPage = lazy(() => import("src/AdminDashboard/DashboardPage/DashboardPage"));
+const UnifiedDashboardPage = lazy(() => import("src/pages/Report/UnifiedDashboardPage"));
+const UnifiedShopDashboardPage = lazy(() => import("src/pages/Report/UnifiedShopDashboardPage"));
+const ShopManagement = lazy(() => import("src/AdminDashboard/Shops/MainShopPage"));
+const Customer = lazy(() => import("src/pages/Customer/CustomerList"));
+const PaymentSubscriptionPage = lazy(() => import("src/components/billing/Billing"));
+const AdminCustomersList = lazy(() => import("src/AdminDashboard/Customers/CustomerList"));
+const TenantSettings = lazy(() => import("src/AdminDashboard/Settings/TenantSettings"));
+const DiscoverPage = lazy(() => import("src/AdminDashboard/DiscoverPage"));
+const PrivacyPolicy = lazy(() => import("@pages/Legal/PrivacyPolicy"));
+const TermsAndConditions = lazy(() => import("@pages/Legal/TermsAndConditions"));
 
 // ─── Fallback spinners ────────────────────────────────────────────────────────
 const fullscreenSpin = <NubaLoader />;

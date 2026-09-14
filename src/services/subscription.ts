@@ -412,7 +412,7 @@ export const fetchShopSubscriptionStatistics = async () => {
     return response.data;
 };
 
-export const fetchExpiringSubscriptions = async (days: number = 7) => {
+export const fetchExpiringSubscriptions = async (days = 7) => {
     const shopId = localStorage.getItem("shopId");
     const response = await axiosInstance.get(`${baseUrl}/expiring`, {
         params: {

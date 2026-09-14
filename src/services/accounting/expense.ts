@@ -158,20 +158,16 @@ export interface UpdateExpenseParams {
  * Get all expenses with filters and pagination.
  */
 export const getAllExpenses = async (params: GetExpensesParams = {}) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/expenses`,
-            { params }
-        );
-        return response.data as {
-            expenses: Expense[];
-            total: number;
-            page: number;
-            totalPages: number;
-        };
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/expenses`,
+        { params }
+    );
+    return response.data as {
+        expenses: Expense[];
+        total: number;
+        page: number;
+        totalPages: number;
+    };
 };
 
 /**
@@ -182,32 +178,24 @@ export const getExpenseSummary = async (params?: {
     to?: string;
     payment_method?: ExpensePaymentMethod;
 }) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/expenses/summary`,
-            { params }
-        );
-        return response.data as {
-            summary: ExpenseSummaryItem[];
-            by_payment_method: ExpenseByMethodItem[];
-        };
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/expenses/summary`,
+        { params }
+    );
+    return response.data as {
+        summary: ExpenseSummaryItem[];
+        by_payment_method: ExpenseByMethodItem[];
+    };
 };
 
 /**
  * Get a single expense by ID — includes populated lines and journal entry.
  */
 export const getExpenseById = async (id: string) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/expenses/${id}`
-        );
-        return response.data as { expense: Expense };
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/expenses/${id}`
+    );
+    return response.data as { expense: Expense };
 };
 
 /**

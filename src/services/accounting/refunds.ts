@@ -144,68 +144,52 @@ export interface UpdateRefundParams {
  * Get all refunds with filters and pagination.
  */
 export const getAllRefunds = async (params: GetRefundsParams = {}) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/refunds`,
-            { params }
-        );
-        return response.data as {
-            refunds: Refund[];
-            total: number;
-            page: number;
-            totalPages: number;
-        };
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/refunds`,
+        { params }
+    );
+    return response.data as {
+        refunds: Refund[];
+        total: number;
+        page: number;
+        totalPages: number;
+    };
 };
 
 /**
  * Get refund summary statistics.
  */
 export const getRefundSummary = async (params?: GetRefundSummaryParams) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/refunds/summary`,
-            { params }
-        );
-        return response.data as {
-            summary: RefundSummaryItem[];
-            by_refund_type: RefundSummaryItem[];
-            by_refund_reason: RefundSummaryItem[];
-            by_refund_method: RefundSummaryItem[];
-        };
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/refunds/summary`,
+        { params }
+    );
+    return response.data as {
+        summary: RefundSummaryItem[];
+        by_refund_type: RefundSummaryItem[];
+        by_refund_reason: RefundSummaryItem[];
+        by_refund_method: RefundSummaryItem[];
+    };
 };
 
 /**
  * Get a single refund by ID.
  */
 export const getRefundById = async (id: string) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/refunds/${id}`
-        );
-        return response.data as { refund: Refund };
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/refunds/${id}`
+    );
+    return response.data as { refund: Refund };
 };
 
 /**
  * Get refunds by invoice ID.
  */
 export const getRefundsByInvoice = async (invoiceId: string) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/refunds/invoice/${invoiceId}`
-        );
-        return response.data as { refunds: Refund[] };
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/refunds/invoice/${invoiceId}`
+    );
+    return response.data as { refunds: Refund[] };
 };
 
 /**

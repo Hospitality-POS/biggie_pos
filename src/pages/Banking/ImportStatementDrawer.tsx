@@ -373,7 +373,7 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
 
             // Calculate closing balance from the data
             let closingBalance = 0;
-            let openingBalance = 0;
+            const openingBalance = 0;
 
             // Try to get balance from raw data if available
             if (lastTransaction.raw_row && Object.keys(lastTransaction.raw_row).length > 0) {

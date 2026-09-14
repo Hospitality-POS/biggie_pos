@@ -1,22 +1,21 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import {
-  Box,
-  Card,
-  CardContent,
-  Divider,
-  IconButton,
-} from "@mui/material";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { deleteCartItem, addQtyCart, removeQtyCart, updateCartItemQty, updateCartItems, addItemToCart } from "../../features/Cart/CartActions";
 import { useAppDispatch, useAppSelector } from "../../store";
-import AddTaskIcon from "@mui/icons-material/AddTask";
-import { Button, Typography, notification, Tooltip, Input, Checkbox, Space, Tag } from "antd";
-import { DeleteOutlined, LoadingOutlined, EditOutlined, FileTextOutlined, TagOutlined, CloseCircleOutlined } from "@ant-design/icons";
+import { Button, Typography, notification, Tooltip, Input, Checkbox, Space, Tag, Modal, Form, InputNumber, Select } from "antd";
+import {
+  DeleteOutlined,
+  LoadingOutlined,
+  EditOutlined,
+  FileTextOutlined,
+  TagOutlined,
+  CloseCircleOutlined,
+  CheckCircleOutlined,
+} from "@ant-design/icons";
 import useCartItemsData from "@hooks/cartItemsData";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import axiosInstance from "../../services/request";
 import { BASE_URL } from "@utils/config";
-import { Modal, Form, InputNumber, Select } from "antd";
 import { fetchMainCategories } from "../../services/categories";
 
 interface cartItemCardProps {
@@ -411,20 +410,20 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
 
   return (
     <>
-      <Card
+      <div
         key={cartItem._id}
-        sx={{
-          mb: 1,
+        style={{
+          marginBottom: 8,
           boxShadow: isSent ? "0 2px 4px rgba(0,0,0,0.1)" : "0 1px 2px rgba(0,0,0,0.04)",
           border: isSent ? "none" : "1px solid #e2e8f0",
-          borderRadius: "8px",
+          borderRadius: 8,
           backgroundColor: isSent ? primaryColor : "#ffffff",
           color: textColor,
           transition: "background-color 0.2s ease, border-color 0.2s ease",
+          padding: "10px 10px 8px",
         }}
       >
-        <CardContent sx={{ pb: "8px !important", pt: "10px !important", px: "10px !important" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 96px 74px minmax(36px, auto)", gap: 6, alignItems: "center" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 96px 74px minmax(36px, auto)", gap: 6, alignItems: "center" }}>
 
             {/* Item Name */}
             <div style={{ minWidth: 0 }}>
@@ -517,7 +516,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
             {/* Quantity Controls */}
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
               {canEditQty ? (
-                <Box sx={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
 
                   {/* Minus */}
                   <button
@@ -550,7 +549,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
 
                   {/* Quantity: click to type */}
                   {isEditingQty ? (
-                    <Box sx={{ display: "flex", alignItems: "center", gap: "2px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
                       <input
                         ref={inputRef}
                         type="text"
@@ -596,7 +595,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                       >
                         ✓
                       </button>
-                    </Box>
+                    </div>
                   ) : (
                     <Tooltip title="Click to set quantity (supports decimals)" placement="top" mouseEnterDelay={0.5}>
                       <button
@@ -663,7 +662,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                       : "+"}
                   </button>
 
-                </Box>
+                </div>
               ) : (
                 // Read-only for non-admin/cashier
                 <Typography.Text strong style={{ color: textColor, textAlign: "center" }}>
@@ -721,9 +720,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                       }}
                     />
                   )}
-                  <IconButton size="small" sx={{ p: "2px" }}>
-                    <AddTaskIcon sx={{ color: isSent ? "#fff" : "success.main", fontSize: 18 }} />
-                  </IconButton>
+                  <CheckCircleOutlined style={{ color: isSent ? "#fff" : "#10b981", fontSize: 18, padding: 2 }} />
                 </Space>
               ) : (
                 <Space size={2}>
@@ -767,9 +764,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
               />
             </div>
           )}
-        </CardContent>
-        <Divider sx={{ my: 0 }} />
-      </Card>
+        </div>
 
     {/* Addons Modal - disabled for miscellaneous items */}
     {!isMiscellaneous && (

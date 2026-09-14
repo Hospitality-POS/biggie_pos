@@ -18,7 +18,7 @@ import {
   Modal,
   Spin,
 } from 'antd';
-import moment from 'moment';
+import dayjs from 'dayjs';
 import React, { useRef, useState } from 'react';
 import { printHtmlDirect } from '@utils/printHtmlDirect';
 
@@ -112,7 +112,7 @@ export const PaymentDrawer: React.FC<PaymentDrawerProps> = ({
 
   const formatDate = (dateString?: string): string => {
     if (!dateString) return 'N/A';
-    return moment(dateString).format('DD MMM YYYY');
+    return dayjs(dateString).format('DD MMM YYYY');
   };
 
   // Format payment method display
@@ -140,7 +140,7 @@ export const PaymentDrawer: React.FC<PaymentDrawerProps> = ({
     if (!status) return <Tag>Unknown</Tag>;
 
     let color = 'default';
-    let text = status.charAt(0).toUpperCase() + status.slice(1);
+    const text = status.charAt(0).toUpperCase() + status.slice(1);
 
     switch (status) {
       case 'pending':
@@ -467,7 +467,7 @@ export const PaymentDrawer: React.FC<PaymentDrawerProps> = ({
         <div class="center">Payment Amount</div>
         <div class="border-bottom"></div>
         <table>
-          <tr><td class="bold">Payment Date:</td><td>${record.paymentDate ? moment(record.paymentDate).format('DD MMM YYYY') : 'N/A'}</td><td class="bold">Payment Method:</td><td>${paymentMethodDisplay}</td></tr>
+          <tr><td class="bold">Payment Date:</td><td>${record.paymentDate ? dayjs(record.paymentDate).format('DD MMM YYYY') : 'N/A'}</td><td class="bold">Payment Method:</td><td>${paymentMethodDisplay}</td></tr>
           <tr><td class="bold">Payment Type:</td><td>${(record as any).paymentType || 'N/A'}</td><td class="bold">Status:</td><td>${statusDisplay}</td></tr>
           <tr><td class="bold">Reference:</td><td>${record.reference || '85e347d4'}</td></tr>
         </table>
@@ -499,7 +499,7 @@ export const PaymentDrawer: React.FC<PaymentDrawerProps> = ({
         ` : ''}
         <div class="border-top"></div>
         <div class="footer">
-          <div>Processed By: ${currentUserName} | ${moment().format('DD MMM YYYY HH:mm')} | Thank you for your payment!</div>
+          <div>Processed By: ${currentUserName} | ${dayjs().format('DD MMM YYYY HH:mm')} | Thank you for your payment!</div>
         </div>
       `;
 

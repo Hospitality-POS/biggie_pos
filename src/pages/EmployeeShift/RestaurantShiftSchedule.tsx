@@ -417,7 +417,7 @@ const RestaurantShiftSchedule: React.FC = () => {
     const width = useWindowWidth();
     const isMobile = width < 768;
 
-    const actionRef = useRef<{ reset: () => void }>({ reset: () => { } });
+    const actionRef = useRef<{ reset: () => void }>({ reset: () => { /* no-op */ } });
     const scheduleRef = useRef<HTMLDivElement>(null);
     const newBtnRef = useRef<HTMLDivElement>(null);
     const editBtnRef = useRef<HTMLDivElement>(null);

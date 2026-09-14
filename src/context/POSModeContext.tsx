@@ -15,7 +15,7 @@ interface POSModeContextType {
 
 const POSModeContext = createContext<POSModeContextType>({
     posMode: 'restaurant',
-    setPosMode: async () => { },
+    setPosMode: async () => { /* no-op default */ },
     isRetailMode: false,
     isHospitalMode: false,
     isHotelMode: false,

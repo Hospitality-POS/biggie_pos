@@ -26,6 +26,7 @@ import SubscriptionPaymentOption from "./SubscriptionPaymentOption";
 import { usePOSMode } from "@context/POSModeContext";
 import { useRetailQueue } from "@context/RetailQueueContext";
 import { useNavigate } from "react-router-dom";
+import { saveOfflineOrder } from "../../services/offlineSync";
 
 const { Text, Title } = Typography;
 
@@ -420,6 +421,40 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
       message.error("Split amounts must equal the total."); return;
     }
     if (!id) { message.error("No active table or slot."); return; }
+
+    const recordOfflineSplit = async () => {
+      try {
+        await saveOfflineOrder({
+          offlineId: `OFF-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          orderNumber: String(cartDetails?.order_no || Date.now()),
+          cartId: cartDetails?._id,
+          tableId: id,
+          orderAmount: [a1, a2],
+          methodId: [m1 || "", m2 || ""],
+          cartItems: cartDetails?.items || [],
+          customerName: resolveCustomerName(),
+          customerPhone: resolveCustomerPhone(),
+          customerEmail: resolveCustomerEmail(),
+          customerId: resolveCustomerId(),
+          servedBy: user?.id,
+        });
+        setOpenModal(false);
+        setDrawerVisible(false);
+        setSelectedCustomerId(null);
+        dispatch(createCart(id));
+        afterPaymentRedirect();
+        message.info("Working offline: Split order saved locally and will sync when internet returns.");
+      } catch (e) {
+        console.error("Failed to save offline split order:", e);
+        message.error("Failed to save order locally.");
+      }
+    };
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      await recordOfflineSplit();
+      return;
+    }
+
     try {
       const result = await dispatch(createOrder({
         cart_id: cartDetails?._id, order_amount: [a1, a2], table_id: id,
@@ -432,9 +467,20 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
         setOpenModal(false);
         setDrawerVisible(false); setSelectedCustomerId(null);
         dispatch(createCart(id)); afterPaymentRedirect(); message.success("Payment successful!");
+      } else {
+        const errPayload = String((result as any)?.payload || (result as any)?.error?.message || "");
+        if (
+          !navigator.onLine ||
+          errPayload.includes("Network Error") ||
+          errPayload.includes("fetch") ||
+          errPayload.includes("connect")
+        ) {
+          await recordOfflineSplit();
+        }
       }
     } catch (error) {
       console.warn("Split payment error:", error);
+      await recordOfflineSplit();
     }
   };
 
@@ -463,6 +509,39 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
     if (!selectedMethod) { message.error("Please select a payment method."); return; }
     if (isPesapalMethod(selectedMethod)) { setPesapalModalVisible(true); return; }
     if (secondMethod) { setOpenModal(true); return; }
+
+    const recordOfflineOrder = async () => {
+      try {
+        await saveOfflineOrder({
+          offlineId: `OFF-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          orderNumber: String(cartDetails?.order_no || Date.now()),
+          cartId: cartDetails?._id,
+          tableId: id,
+          orderAmount: grandTotal,
+          methodId: selectedMethod,
+          cartItems: cartDetails?.items || [],
+          customerName: resolveCustomerName(),
+          customerPhone: resolveCustomerPhone(),
+          customerEmail: resolveCustomerEmail(),
+          customerId: resolveCustomerId(),
+          servedBy: user?.id,
+        });
+        setDrawerVisible(false);
+        setSelectedCustomerId(null);
+        dispatch(createCart(id));
+        afterPaymentRedirect();
+        message.info("Working offline: Order saved locally and will sync when internet returns.");
+      } catch (e) {
+        console.error("Failed to save offline order:", e);
+        message.error("Failed to save order locally.");
+      }
+    };
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      await recordOfflineOrder();
+      return;
+    }
+
     try {
       const result = await dispatch(createOrder({
         cart_id: cartDetails?._id,
@@ -476,9 +555,20 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
       if (result.type.endsWith("/fulfilled")) {
         setDrawerVisible(false); setSelectedCustomerId(null);
         dispatch(createCart(id)); afterPaymentRedirect(); message.success("Payment successful!");
+      } else {
+        const errPayload = String((result as any)?.payload || (result as any)?.error?.message || "");
+        if (
+          !navigator.onLine ||
+          errPayload.includes("Network Error") ||
+          errPayload.includes("fetch") ||
+          errPayload.includes("connect")
+        ) {
+          await recordOfflineOrder();
+        }
       }
     } catch (error) {
       console.warn("Order payment error:", error);
+      await recordOfflineOrder();
     }
   };
 

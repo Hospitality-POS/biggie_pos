@@ -89,7 +89,9 @@ const DeptFormModal: React.FC<DeptFormModalProps> = ({
             form.resetFields();
             onClose();
             onSuccess?.();
-        } catch { } finally { setLoading(false); }
+        } catch {
+            /* error handled by thunk */
+        } finally { setLoading(false); }
     };
 
     // Exclude self from parent dropdown when editing

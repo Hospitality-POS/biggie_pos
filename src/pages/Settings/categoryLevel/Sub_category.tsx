@@ -3,14 +3,7 @@ import { useRef } from "react";
 import { ActionType, ProTable } from "@ant-design/pro-components";
 import { Tooltip, Button, Space, message, Popconfirm } from "antd";
 import { DeleteOutlined } from "@ant-design/icons";
-import {
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-} from "@mui/material";
 import { deleteSubCategory, fetchSubCategories } from "@services/categories";
-import useCategorySettings from "../hooks/useCategorySettings";
 import SubCategoryModal from "@components/MODALS/pro/SubCategoryModal";
 import { useMutation } from "@tanstack/react-query";
 import { useAppSelector } from "src/store";

@@ -19,7 +19,6 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "baseUrl": "./",
-    "ignoreDeprecations": "6.0",
     /* Linting */
     "strict": true,
     "noUnusedLocals": true,
@@ -48,7 +47,7 @@
       "@hooks/*": [
         "./src/hooks/*"
       ],
-      "@context*":[
+      "@context/*": [
         "./src/context/*"
       ],
       "@stores/*": [

@@ -174,18 +174,14 @@ export const settleInvoice = async (
  * Excludes POS order payments (those have order_id set).
  */
 export const getIncomeHistory = async (params: GetIncomeHistoryParams = {}) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/income/history`,
-            { params }
-        );
-        return response.data as {
-            payments: IncomePayment[];
-            total: number;
-            page: number;
-            totalPages: number;
-        };
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/income/history`,
+        { params }
+    );
+    return response.data as {
+        payments: IncomePayment[];
+        total: number;
+        page: number;
+        totalPages: number;
+    };
 };

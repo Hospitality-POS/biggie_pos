@@ -5,7 +5,7 @@ import { PlusOutlined, HolderOutlined, EditOutlined, DeleteOutlined, TagOutlined
 import { ModalForm, ProFormDatePicker, ProFormDigit, ProFormSelect, ProFormText, ProTable } from '@ant-design/pro-components';
 import { useQuery } from '@tanstack/react-query';
 import { message, Row, Col, Form, Button, Input, Space, Tag, Popconfirm, Table, Tabs, Divider, Switch, InputNumber, Modal, Checkbox, Radio, Steps, Select } from 'antd';
-import moment from 'moment';
+import dayjs from 'dayjs';
 import React, { useEffect, useState } from 'react'
 
 interface AddEditPropertyModalProps {
@@ -327,11 +327,12 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
         case 'sequential':
           apartmentName = `${baseUnitNumber}-${globalIndex + 1}`;
           break;
-        case 'letters':
+        case 'letters': {
           const letterIndex = globalIndex % 26;
           const letterPrefix = globalIndex >= 26 ? String.fromCharCode(65 + Math.floor(globalIndex / 26) - 1) : '';
           apartmentName = `${baseUnitNumber}-${letterPrefix}${String.fromCharCode(65 + letterIndex)}`;
           break;
+        }
         case 'custom':
           apartmentName = `${baseUnitNumber}-${globalIndex + 1}`;
           break;
@@ -498,8 +499,8 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
         setPhases(propertyPhases.map((phase: any, index: number) => ({
           ...phase,
           key: phase._id || `phase_${index}`,
-          startDate: phase.startDate ? moment(phase.startDate) : moment(),
-          endDate: phase.endDate ? moment(phase.endDate) : moment(),
+          startDate: phase.startDate ? dayjs(phase.startDate) : dayjs(),
+          endDate: phase.endDate ? dayjs(phase.endDate) : dayjs(),
           order: index
         })));
       }

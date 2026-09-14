@@ -1,7 +1,7 @@
 import { EditOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons';
 import { Button, Card, Col, DatePicker, Descriptions, Form, Input, InputNumber, message, Modal, Radio, Row, Select, Spin, Steps, Tag, Typography, Upload } from 'antd';
 import type { UploadFile } from 'antd/es/upload/interface';
-import moment from 'moment';
+import dayjs, { Dayjs } from 'dayjs';
 import React, { useState, useEffect, useMemo } from 'react';
 import { fetchAllCustomers } from '../../../services/customers';
 import { recordSalePayment, fetchProperties, fetchSalesByCustomer } from '../../../services/dala';
@@ -78,7 +78,7 @@ interface PaymentFormValues {
   customer?: string;
   selectedSale?: string;
   amount?: number;
-  paymentDate?: moment.Moment | string;
+  paymentDate?: Dayjs | string;
   paymentMethod?: string;
   reference?: string;
   receiptNumber?: string;
@@ -415,8 +415,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         propertyId: nextPendingPlan.propertyId,
         unitId: nextPendingPlan.unitId,
         paymentDate: values?.paymentDate
-          ? (moment.isMoment(values.paymentDate) ? values.paymentDate.format('YYYY-MM-DD') : moment(values.paymentDate).format('YYYY-MM-DD'))
-          : moment().format('YYYY-MM-DD'),
+          ? (dayjs.isDayjs(values.paymentDate) ? values.paymentDate.format('YYYY-MM-DD') : dayjs(values.paymentDate).format('YYYY-MM-DD'))
+          : dayjs().format('YYYY-MM-DD'),
         amount: values.amount || 0,
         paymentMethod: values.paymentMethod || 'mpesa',
         paymentType: nextPendingPlan.isInitialDeposit ? 'Property_Reservation' : 'Property_Installment',
@@ -531,7 +531,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       {showButton && !edit ? (
         <Button type="primary" key="button" icon={<PlusOutlined />} onClick={() => {
           form.resetFields();
-          form.setFieldsValue({ paymentDate: moment(), paymentMethod: 'mpesa' });
+          form.setFieldsValue({ paymentDate: dayjs(), paymentMethod: 'mpesa' });
           setIsModalOpen(true);
           if (externalOnCancel) {
             // Don't call onCancel here since we're opening the modal
@@ -578,7 +578,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             </Col>
             <Col span={18}>
               <Form form={form} layout="vertical" initialValues={{
-                paymentDate: moment(),
+                paymentDate: dayjs(),
                 paymentMethod: 'mpesa',
               }}>
                 {/* Step 1: Customer Selection */}

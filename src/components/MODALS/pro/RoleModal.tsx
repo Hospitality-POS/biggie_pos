@@ -289,7 +289,7 @@ const StepBasicInfo: React.FC<{
             <button
               key={p.value}
               type="button"
-              onClick={() => onApplyPreset(p.keys, () => { })}
+              onClick={() => onApplyPreset(p.keys, () => { /* no-op callback */ })}
               style={{
                 background: "#fff", border: `1.5px solid ${C.border}`,
                 borderRadius: 7, padding: "5px 12px", fontSize: 12,

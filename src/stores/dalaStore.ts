@@ -1,6 +1,6 @@
-import { create } from 'zustand';
-import { devtools } from 'zustand/middleware';
-import { shallow } from 'zustand/shallow';
+import { useCallback, useMemo } from 'react';
+import { useAppDispatch, useAppSelector } from '../store';
+import { dalaActions, DalaState } from '../features/Dala/dalaSlice';
 import type {
   Property,
   PropertyType,
@@ -11,720 +11,384 @@ import type {
   PropertySale,
   Commission,
   Lease,
-  RentPayment
+  RentPayment,
 } from '@services/dala';
 
-// ── Store Types ───────────────────────────────────────────────────────────────
+export type { DalaState };
 
-interface DalaState {
-  // Loading states
-  loading: {
-    properties: boolean;
-    propertyTypes: boolean;
-    blocks: boolean;
-    floors: boolean;
-    units: boolean;
-    sales: boolean;
-    commissions: boolean;
-    leases: boolean;
-    rentPayments: boolean;
-    dashboard: boolean;
-  };
-  
-  // Data
-  properties: Property[];
-  propertyTypes: PropertyType[];
-  blocks: Block[];
-  floors: Floor[];
-  units: Unit[];
-  phases: Phase[];
-  sales: PropertySale[];
-  commissions: Commission[];
-  leases: Lease[];
-  rentPayments: RentPayment[];
-  dashboard: any;
-  
-  // Selected items
-  selectedProperty: Property | null;
-  selectedUnit: Unit | null;
-  selectedSale: PropertySale | null;
-  selectedLease: Lease | null;
-  
-  // Filters and pagination
-  filters: {
-    propertySearch: string;
-    propertyTypeFilter: string;
-    propertyStatusFilter: string;
-    unitStatusFilter: string;
-    saleStatusFilter: string;
-    commissionStatusFilter: string;
-    leaseStatusFilter: string;
-    rentPaymentStatusFilter: string;
-  };
-  pagination: {
-    properties: { page: number; limit: number; total: number };
-    units: { page: number; limit: number; total: number };
-    sales: { page: number; limit: number; total: number };
-    commissions: { page: number; limit: number; total: number };
-    leases: { page: number; limit: number; total: number };
-    rentPayments: { page: number; limit: number; total: number };
-  };
-}
+// ── Action Hook ─────────────────────────────────────────────────────────────
 
-interface DalaActions {
-  // Loading actions
-  setLoading: (key: keyof DalaState['loading'], value: boolean) => void;
-  
-  // Property actions
-  setProperties: (properties: Property[]) => void;
-  addProperty: (property: Property) => void;
-  updateProperty: (id: string, property: Partial<Property>) => void;
-  removeProperty: (id: string) => void;
-  setSelectedProperty: (property: Property | null) => void;
-  
-  // Property type actions
-  setPropertyTypes: (types: PropertyType[]) => void;
-  addPropertyType: (type: PropertyType) => void;
-  updatePropertyType: (id: string, type: Partial<PropertyType>) => void;
-  removePropertyType: (id: string) => void;
-  
-  // Block actions
-  setBlocks: (blocks: Block[]) => void;
-  addBlock: (block: Block) => void;
-  updateBlock: (id: string, block: Partial<Block>) => void;
-  removeBlock: (id: string) => void;
-  
-  // Floor actions
-  setFloors: (floors: Floor[]) => void;
-  addFloor: (floor: Floor) => void;
-  updateFloor: (id: string, floor: Partial<Floor>) => void;
-  removeFloor: (id: string) => void;
-  
-  // Unit actions
-  setUnits: (units: Unit[]) => void;
-  addUnit: (unit: Unit) => void;
-  updateUnit: (id: string, unit: Partial<Unit>) => void;
-  removeUnit: (id: string) => void;
-  setSelectedUnit: (unit: Unit | null) => void;
-  
-  // Phase actions
-  setPhases: (phases: Phase[]) => void;
-  addPhase: (phase: Phase) => void;
-  updatePhase: (id: string, phase: Partial<Phase>) => void;
-  removePhase: (id: string) => void;
-  
-  // Sales actions
-  setSales: (sales: PropertySale[]) => void;
-  addSale: (sale: PropertySale) => void;
-  updateSale: (id: string, sale: Partial<PropertySale>) => void;
-  removeSale: (id: string) => void;
-  setSelectedSale: (sale: PropertySale | null) => void;
-  
-  // Commission actions
-  setCommissions: (commissions: Commission[]) => void;
-  addCommission: (commission: Commission) => void;
-  updateCommission: (id: string, commission: Partial<Commission>) => void;
-  removeCommission: (id: string) => void;
-  
-  // Lease actions
-  setLeases: (leases: Lease[]) => void;
-  addLease: (lease: Lease) => void;
-  updateLease: (id: string, lease: Partial<Lease>) => void;
-  removeLease: (id: string) => void;
-  setSelectedLease: (lease: Lease | null) => void;
-  
-  // Rent payment actions
-  setRentPayments: (payments: RentPayment[]) => void;
-  addRentPayment: (payment: RentPayment) => void;
-  updateRentPayment: (id: string, payment: Partial<RentPayment>) => void;
-  removeRentPayment: (id: string) => void;
-  
-  // Dashboard actions
-  setDashboard: (data: any) => void;
-  
-  // Filter actions
-  setFilter: (key: keyof DalaState['filters'], value: string) => void;
-  clearFilters: () => void;
-  
-  // Pagination actions
-  setPagination: (key: keyof DalaState['pagination'], value: { page: number; limit: number; total?: number }) => void;
-  
-  // Reset actions
-  resetStore: () => void;
-}
+export const useDalaActions = () => {
+  const dispatch = useAppDispatch();
 
-// ── Initial State ─────────────────────────────────────────────────────────────
+  return useMemo(
+    () => ({
+      setLoading: (key: keyof DalaState['loading'], value: boolean) =>
+        dispatch(dalaActions.setLoading({ key, value })),
 
-const initialState: DalaState = {
-  loading: {
-    properties: false,
-    propertyTypes: false,
-    blocks: false,
-    floors: false,
-    units: false,
-    sales: false,
-    commissions: false,
-    leases: false,
-    rentPayments: false,
-    dashboard: false,
-  },
-  properties: [],
-  propertyTypes: [],
-  blocks: [],
-  floors: [],
-  units: [],
-  phases: [],
-  sales: [],
-  commissions: [],
-  leases: [],
-  rentPayments: [],
-  dashboard: null,
-  selectedProperty: null,
-  selectedUnit: null,
-  selectedSale: null,
-  selectedLease: null,
-  filters: {
-    propertySearch: '',
-    propertyTypeFilter: '',
-    propertyStatusFilter: '',
-    unitStatusFilter: '',
-    saleStatusFilter: '',
-    commissionStatusFilter: '',
-    leaseStatusFilter: '',
-    rentPaymentStatusFilter: '',
-  },
-  pagination: {
-    properties: { page: 1, limit: 20, total: 0 },
-    units: { page: 1, limit: 20, total: 0 },
-    sales: { page: 1, limit: 20, total: 0 },
-    commissions: { page: 1, limit: 20, total: 0 },
-    leases: { page: 1, limit: 20, total: 0 },
-    rentPayments: { page: 1, limit: 20, total: 0 },
-  },
-};
+      // Properties
+      setProperties: (properties: Property[]) =>
+        dispatch(dalaActions.setProperties(properties)),
+      addProperty: (property: Property) =>
+        dispatch(dalaActions.addProperty(property)),
+      updateProperty: (id: string, property: Partial<Property>) =>
+        dispatch(dalaActions.updateProperty({ id, property })),
+      removeProperty: (id: string) => dispatch(dalaActions.removeProperty(id)),
+      setSelectedProperty: (property: Property | null) =>
+        dispatch(dalaActions.setSelectedProperty(property)),
 
-// ── Store Creation ─────────────────────────────────────────────────────────────
+      // Property types
+      setPropertyTypes: (types: PropertyType[]) =>
+        dispatch(dalaActions.setPropertyTypes(types)),
+      addPropertyType: (type: PropertyType) =>
+        dispatch(dalaActions.addPropertyType(type)),
+      updatePropertyType: (id: string, type: Partial<PropertyType>) =>
+        dispatch(dalaActions.updatePropertyType({ id, type })),
+      removePropertyType: (id: string) =>
+        dispatch(dalaActions.removePropertyType(id)),
 
-export const useDalaStore = create<DalaState & DalaActions>()(
-  devtools(
-    (set, get) => ({
-      ...initialState,
-      
-      // Loading actions
-      setLoading: (key, value) =>
-        set(
-          (state) => ({
-            loading: { ...state.loading, [key]: value },
-          }),
-          false,
-          `dala-loading-${key}`
-        ),
-      
-      // Property actions
-      setProperties: (properties) =>
-        set({ properties }, false, 'dala-set-properties'),
-      
-      addProperty: (property) =>
-        set(
-          (state) => ({
-            properties: [...state.properties, property],
-          }),
-          false,
-          'dala-add-property'
-        ),
-      
-      updateProperty: (id, updatedProperty) =>
-        set(
-          (state) => ({
-            properties: state.properties.map((property) =>
-              property._id === id ? { ...property, ...updatedProperty } : property
-            ),
-            selectedProperty:
-              state.selectedProperty?._id === id
-                ? { ...state.selectedProperty, ...updatedProperty }
-                : state.selectedProperty,
-          }),
-          false,
-          'dala-update-property'
-        ),
-      
-      removeProperty: (id) =>
-        set(
-          (state) => ({
-            properties: state.properties.filter((property) => property._id !== id),
-            selectedProperty: state.selectedProperty?._id === id ? null : state.selectedProperty,
-          }),
-          false,
-          'dala-remove-property'
-        ),
-      
-      setSelectedProperty: (property) =>
-        set({ selectedProperty: property }, false, 'dala-set-selected-property'),
-      
-      // Property type actions
-      setPropertyTypes: (propertyTypes) =>
-        set({ propertyTypes }, false, 'dala-set-property-types'),
-      
-      addPropertyType: (type) =>
-        set(
-          (state) => ({
-            propertyTypes: [...state.propertyTypes, type],
-          }),
-          false,
-          'dala-add-property-type'
-        ),
-      
-      updatePropertyType: (id, updatedType) =>
-        set(
-          (state) => ({
-            propertyTypes: state.propertyTypes.map((type) =>
-              type._id === id ? { ...type, ...updatedType } : type
-            ),
-          }),
-          false,
-          'dala-update-property-type'
-        ),
-      
-      removePropertyType: (id) =>
-        set(
-          (state) => ({
-            propertyTypes: state.propertyTypes.filter((type) => type._id !== id),
-          }),
-          false,
-          'dala-remove-property-type'
-        ),
-      
-      // Block actions
-      setBlocks: (blocks) =>
-        set({ blocks }, false, 'dala-set-blocks'),
-      
-      addBlock: (block) =>
-        set(
-          (state) => ({
-            blocks: [...state.blocks, block],
-          }),
-          false,
-          'dala-add-block'
-        ),
-      
-      updateBlock: (id, updatedBlock) =>
-        set(
-          (state) => ({
-            blocks: state.blocks.map((block) =>
-              block._id === id ? { ...block, ...updatedBlock } : block
-            ),
-          }),
-          false,
-          'dala-update-block'
-        ),
-      
-      removeBlock: (id) =>
-        set(
-          (state) => ({
-            blocks: state.blocks.filter((block) => block._id !== id),
-          }),
-          false,
-          'dala-remove-block'
-        ),
-      
-      // Floor actions
-      setFloors: (floors) =>
-        set({ floors }, false, 'dala-set-floors'),
-      
-      addFloor: (floor) =>
-        set(
-          (state) => ({
-            floors: [...state.floors, floor],
-          }),
-          false,
-          'dala-add-floor'
-        ),
-      
-      updateFloor: (id, updatedFloor) =>
-        set(
-          (state) => ({
-            floors: state.floors.map((floor) =>
-              floor._id === id ? { ...floor, ...updatedFloor } : floor
-            ),
-          }),
-          false,
-          'dala-update-floor'
-        ),
-      
-      removeFloor: (id) =>
-        set(
-          (state) => ({
-            floors: state.floors.filter((floor) => floor._id !== id),
-          }),
-          false,
-          'dala-remove-floor'
-        ),
-      
-      // Unit actions
-      setUnits: (units) =>
-        set({ units }, false, 'dala-set-units'),
-      
-      addUnit: (unit) =>
-        set(
-          (state) => ({
-            units: [...state.units, unit],
-          }),
-          false,
-          'dala-add-unit'
-        ),
-      
-      updateUnit: (id, updatedUnit) =>
-        set(
-          (state) => ({
-            units: state.units.map((unit) =>
-              unit._id === id ? { ...unit, ...updatedUnit } : unit
-            ),
-            selectedUnit:
-              state.selectedUnit?._id === id ? { ...state.selectedUnit, ...updatedUnit } : state.selectedUnit,
-          }),
-          false,
-          'dala-update-unit'
-        ),
-      
-      removeUnit: (id) =>
-        set(
-          (state) => ({
-            units: state.units.filter((unit) => unit._id !== id),
-            selectedUnit: state.selectedUnit?._id === id ? null : state.selectedUnit,
-          }),
-          false,
-          'dala-remove-unit'
-        ),
-      
-      setSelectedUnit: (unit) =>
-        set({ selectedUnit: unit }, false, 'dala-set-selected-unit'),
-      
-      // Phase actions
-      setPhases: (phases) =>
-        set({ phases }, false, 'dala-set-phases'),
-      
-      addPhase: (phase) =>
-        set(
-          (state) => ({
-            phases: [...state.phases, phase],
-          }),
-          false,
-          'dala-add-phase'
-        ),
-      
-      updatePhase: (id, updatedPhase) =>
-        set(
-          (state) => ({
-            phases: state.phases.map((phase) =>
-              phase._id === id ? { ...phase, ...updatedPhase } : phase
-            ),
-          }),
-          false,
-          'dala-update-phase'
-        ),
-      
-      removePhase: (id) =>
-        set(
-          (state) => ({
-            phases: state.phases.filter((phase) => phase._id !== id),
-          }),
-          false,
-          'dala-remove-phase'
-        ),
-      
-      // Sales actions
-      setSales: (sales) =>
-        set({ sales }, false, 'dala-set-sales'),
-      
-      addSale: (sale) =>
-        set(
-          (state) => ({
-            sales: [...state.sales, sale],
-          }),
-          false,
-          'dala-add-sale'
-        ),
-      
-      updateSale: (id, updatedSale) =>
-        set(
-          (state) => ({
-            sales: state.sales.map((sale) =>
-              sale._id === id ? { ...sale, ...updatedSale } : sale
-            ),
-            selectedSale:
-              state.selectedSale?._id === id ? { ...state.selectedSale, ...updatedSale } : state.selectedSale,
-          }),
-          false,
-          'dala-update-sale'
-        ),
-      
-      removeSale: (id) =>
-        set(
-          (state) => ({
-            sales: state.sales.filter((sale) => sale._id !== id),
-            selectedSale: state.selectedSale?._id === id ? null : state.selectedSale,
-          }),
-          false,
-          'dala-remove-sale'
-        ),
-      
-      setSelectedSale: (sale) =>
-        set({ selectedSale: sale }, false, 'dala-set-selected-sale'),
-      
-      // Commission actions
-      setCommissions: (commissions) =>
-        set({ commissions }, false, 'dala-set-commissions'),
-      
-      addCommission: (commission) =>
-        set(
-          (state) => ({
-            commissions: [...state.commissions, commission],
-          }),
-          false,
-          'dala-add-commission'
-        ),
-      
-      updateCommission: (id, updatedCommission) =>
-        set(
-          (state) => ({
-            commissions: state.commissions.map((commission) =>
-              commission._id === id ? { ...commission, ...updatedCommission } : commission
-            ),
-          }),
-          false,
-          'dala-update-commission'
-        ),
-      
-      removeCommission: (id) =>
-        set(
-          (state) => ({
-            commissions: state.commissions.filter((commission) => commission._id !== id),
-          }),
-          false,
-          'dala-remove-commission'
-        ),
-      
-      // Lease actions
-      setLeases: (leases) =>
-        set({ leases }, false, 'dala-set-leases'),
-      
-      addLease: (lease) =>
-        set(
-          (state) => ({
-            leases: [...state.leases, lease],
-          }),
-          false,
-          'dala-add-lease'
-        ),
-      
-      updateLease: (id, updatedLease) =>
-        set(
-          (state) => ({
-            leases: state.leases.map((lease) =>
-              lease._id === id ? { ...lease, ...updatedLease } : lease
-            ),
-            selectedLease:
-              state.selectedLease?._id === id ? { ...state.selectedLease, ...updatedLease } : state.selectedLease,
-          }),
-          false,
-          'dala-update-lease'
-        ),
-      
-      removeLease: (id) =>
-        set(
-          (state) => ({
-            leases: state.leases.filter((lease) => lease._id !== id),
-            selectedLease: state.selectedLease?._id === id ? null : state.selectedLease,
-          }),
-          false,
-          'dala-remove-lease'
-        ),
-      
-      setSelectedLease: (lease) =>
-        set({ selectedLease: lease }, false, 'dala-set-selected-lease'),
-      
-      // Rent payment actions
-      setRentPayments: (rentPayments) =>
-        set({ rentPayments }, false, 'dala-set-rent-payments'),
-      
-      addRentPayment: (payment) =>
-        set(
-          (state) => ({
-            rentPayments: [...state.rentPayments, payment],
-          }),
-          false,
-          'dala-add-rent-payment'
-        ),
-      
-      updateRentPayment: (id, updatedPayment) =>
-        set(
-          (state) => ({
-            rentPayments: state.rentPayments.map((payment) =>
-              payment._id === id ? { ...payment, ...updatedPayment } : payment
-            ),
-          }),
-          false,
-          'dala-update-rent-payment'
-        ),
-      
-      removeRentPayment: (id) =>
-        set(
-          (state) => ({
-            rentPayments: state.rentPayments.filter((payment) => payment._id !== id),
-          }),
-          false,
-          'dala-remove-rent-payment'
-        ),
-      
-      // Dashboard actions
-      setDashboard: (dashboard) =>
-        set({ dashboard }, false, 'dala-set-dashboard'),
-      
-      // Filter actions
-      setFilter: (key, value) =>
-        set(
-          (state) => ({
-            filters: { ...state.filters, [key]: value },
-          }),
-          false,
-          `dala-set-filter-${key}`
-        ),
-      
-      clearFilters: () =>
-        set(
-          {
-            filters: initialState.filters,
-          },
-          false,
-          'dala-clear-filters'
-        ),
-      
-      // Pagination actions
-      setPagination: (key, value) =>
-        set(
-          (state) => ({
-            pagination: {
-              ...state.pagination,
-              [key]: { ...state.pagination[key], ...value },
-            },
-          }),
-          false,
-          `dala-set-pagination-${key}`
-        ),
-      
-      // Reset actions
-      resetStore: () =>
-        set(initialState, false, 'dala-reset-store'),
+      // Blocks
+      setBlocks: (blocks: Block[]) => dispatch(dalaActions.setBlocks(blocks)),
+      addBlock: (block: Block) => dispatch(dalaActions.addBlock(block)),
+      updateBlock: (id: string, block: Partial<Block>) =>
+        dispatch(dalaActions.updateBlock({ id, block })),
+      removeBlock: (id: string) => dispatch(dalaActions.removeBlock(id)),
+
+      // Floors
+      setFloors: (floors: Floor[]) => dispatch(dalaActions.setFloors(floors)),
+      addFloor: (floor: Floor) => dispatch(dalaActions.addFloor(floor)),
+      updateFloor: (id: string, floor: Partial<Floor>) =>
+        dispatch(dalaActions.updateFloor({ id, floor })),
+      removeFloor: (id: string) => dispatch(dalaActions.removeFloor(id)),
+
+      // Units
+      setUnits: (units: Unit[]) => dispatch(dalaActions.setUnits(units)),
+      addUnit: (unit: Unit) => dispatch(dalaActions.addUnit(unit)),
+      updateUnit: (id: string, unit: Partial<Unit>) =>
+        dispatch(dalaActions.updateUnit({ id, unit })),
+      removeUnit: (id: string) => dispatch(dalaActions.removeUnit(id)),
+      setSelectedUnit: (unit: Unit | null) =>
+        dispatch(dalaActions.setSelectedUnit(unit)),
+
+      // Phases
+      setPhases: (phases: Phase[]) => dispatch(dalaActions.setPhases(phases)),
+      addPhase: (phase: Phase) => dispatch(dalaActions.addPhase(phase)),
+      updatePhase: (id: string, phase: Partial<Phase>) =>
+        dispatch(dalaActions.updatePhase({ id, phase })),
+      removePhase: (id: string) => dispatch(dalaActions.removePhase(id)),
+
+      // Sales
+      setSales: (sales: PropertySale[]) => dispatch(dalaActions.setSales(sales)),
+      addSale: (sale: PropertySale) => dispatch(dalaActions.addSale(sale)),
+      updateSale: (id: string, sale: Partial<PropertySale>) =>
+        dispatch(dalaActions.updateSale({ id, sale })),
+      removeSale: (id: string) => dispatch(dalaActions.removeSale(id)),
+      setSelectedSale: (sale: PropertySale | null) =>
+        dispatch(dalaActions.setSelectedSale(sale)),
+
+      // Commissions
+      setCommissions: (commissions: Commission[]) =>
+        dispatch(dalaActions.setCommissions(commissions)),
+      addCommission: (commission: Commission) =>
+        dispatch(dalaActions.addCommission(commission)),
+      updateCommission: (id: string, commission: Partial<Commission>) =>
+        dispatch(dalaActions.updateCommission({ id, commission })),
+      removeCommission: (id: string) =>
+        dispatch(dalaActions.removeCommission(id)),
+
+      // Leases
+      setLeases: (leases: Lease[]) => dispatch(dalaActions.setLeases(leases)),
+      addLease: (lease: Lease) => dispatch(dalaActions.addLease(lease)),
+      updateLease: (id: string, lease: Partial<Lease>) =>
+        dispatch(dalaActions.updateLease({ id, lease })),
+      removeLease: (id: string) => dispatch(dalaActions.removeLease(id)),
+      setSelectedLease: (lease: Lease | null) =>
+        dispatch(dalaActions.setSelectedLease(lease)),
+
+      // Rent payments
+      setRentPayments: (payments: RentPayment[]) =>
+        dispatch(dalaActions.setRentPayments(payments)),
+      addRentPayment: (payment: RentPayment) =>
+        dispatch(dalaActions.addRentPayment(payment)),
+      updateRentPayment: (id: string, payment: Partial<RentPayment>) =>
+        dispatch(dalaActions.updateRentPayment({ id, payment })),
+      removeRentPayment: (id: string) =>
+        dispatch(dalaActions.removeRentPayment(id)),
+
+      // Dashboard
+      setDashboard: (data: any) => dispatch(dalaActions.setDashboard(data)),
+
+      // Filters
+      setFilter: (key: keyof DalaState['filters'], value: string) =>
+        dispatch(dalaActions.setFilter({ key, value })),
+      clearFilters: () => dispatch(dalaActions.clearFilters()),
+
+      // Pagination
+      setPagination: (
+        key: keyof DalaState['pagination'],
+        value: { page: number; limit: number; total?: number }
+      ) => dispatch(dalaActions.setPagination({ key, value })),
+
+      // Reset
+      resetStore: () => dispatch(dalaActions.resetStore()),
     }),
-    {
-      name: 'dala-store',
-      partialize: (state) => ({
-        // Only persist non-sensitive data
-        filters: state.filters,
-        pagination: state.pagination,
-      }),
-    }
-  )
-);
+    [dispatch]
+  );
+};
 
-// ── Selectors ───────────────────────────────────────────────────────────────
+// ── Selectors & Backward-Compatible Consumer Hooks ──────────────────────────
 
+/**
+ * Returns properties as a hybrid array + object with `{ data, setProperties }`
+ * to support both `properties.data`, `properties.setProperties(...)`, and direct array iteration.
+ */
 export const useDalaProperties = () => {
-  const properties = useDalaStore((state) => state.properties);
-  const setProperties = useDalaStore((state) => state.setProperties);
-  return { data: properties, setProperties };
-};
-export const useDalaPropertyTypes = () => useDalaStore((state) => state.propertyTypes);
-export const useDalaBlocks = () => useDalaStore((state) => state.blocks);
-export const useDalaFloors = () => useDalaStore((state) => state.floors);
-export const useDalaUnits = () => useDalaStore((state) => state.units);
-export const useDalaPhases = () => useDalaStore((state) => state.phases);
-export const useDalaSales = () => useDalaStore((state) => state.sales);
-export const useDalaCommissions = () => useDalaStore((state) => state.commissions);
-export const useDalaLeases = () => useDalaStore((state) => state.leases);
-export const useDalaRentPayments = () => useDalaStore((state) => state.rentPayments);
-export const useDalaDashboard = () => {
-  const dashboard = useDalaStore((state) => state.dashboard);
-  const setDashboard = useDalaStore((state) => state.setDashboard);
-  return { data: dashboard, setDashboard };
-};
-export const useDalaLoading = () => useDalaStore((state) => state.loading);
-export const useDalaFilters = () => useDalaStore((state) => state.filters);
-export const useDalaPagination = () => useDalaStore((state) => state.pagination);
-
-// Combined selectors
-export const useDalaSelectedProperty = () => useDalaStore((state) => state.selectedProperty);
-export const useDalaSelectedUnit = () => useDalaStore((state) => state.selectedUnit);
-export const useDalaSelectedSale = () => useDalaStore((state) => state.selectedSale);
-export const useDalaSelectedLease = () => useDalaStore((state) => state.selectedLease);
-
-// Computed selectors
-export const useDalaPropertyById = (id: string) =>
-  useDalaStore((state) => state.properties.find((property) => property._id === id));
-
-export const useDalaUnitsByProperty = (propertyId: string) =>
-  useDalaStore((state) => state.units.filter((unit) => unit.property_id === propertyId));
-
-export const useDalaBlocksByProperty = (propertyId: string) =>
-  useDalaStore((state) => state.blocks.filter((block) => block.property_id === propertyId));
-
-export const useDalaFloorsByBlock = (blockId: string) =>
-  useDalaStore((state) => state.floors.filter((floor) => floor.block_id === blockId));
-
-export const useDalaUnitsByBlock = (blockId: string) =>
-  useDalaStore((state) => state.units.filter((unit) => unit.block_id === blockId));
-
-export const useDalaUnitsByFloor = (floorId: string) =>
-  useDalaStore((state) => state.units.filter((unit) => unit.floor_id === floorId));
-
-export const useDalaSalesByProperty = (propertyId: string) =>
-  useDalaStore((state) => state.sales.filter((sale) => sale.property_id === propertyId));
-
-export const useDalaLeasesByProperty = (propertyId: string) =>
-  useDalaStore((state) => state.leases.filter((lease) => lease.property_id === propertyId));
-
-export const useDalaCommissionsByAgent = (agentId: string) =>
-  useDalaStore((state) => state.commissions.filter((commission) => commission.agent_id === agentId));
-
-export const useDalaFilteredProperties = () =>
-  useDalaStore(
-    (state) => {
-      const { properties } = state;
-      const { propertySearch, propertyTypeFilter, propertyStatusFilter } = state.filters;
-      
-      return properties.filter((property) => {
-        const matchesSearch = !propertySearch || 
-          property.name.toLowerCase().includes(propertySearch.toLowerCase()) ||
-          property.code.toLowerCase().includes(propertySearch.toLowerCase()) ||
-          property.description?.toLowerCase().includes(propertySearch.toLowerCase());
-        
-        const matchesType = !propertyTypeFilter || property.property_type_id === propertyTypeFilter;
-        const matchesStatus = !propertyStatusFilter || property.status === propertyStatusFilter;
-        
-        return matchesSearch && matchesType && matchesStatus;
-      });
-    },
-    shallow
+  const dispatch = useAppDispatch();
+  const properties = useAppSelector((state) => state.dala.properties);
+  const setProperties = useCallback(
+    (props: Property[]) => dispatch(dalaActions.setProperties(props)),
+    [dispatch]
   );
 
-export const useDalaFilteredUnits = () =>
-  useDalaStore((state) => {
-    const { units } = state;
-    const { unitStatusFilter } = state.filters;
-    
+  return useMemo(() => {
+    return Object.assign([...properties], {
+      data: properties,
+      setProperties,
+    });
+  }, [properties, setProperties]);
+};
+
+export const useDalaPropertyTypes = () =>
+  useAppSelector((state) => state.dala.propertyTypes);
+
+export const useDalaBlocks = () =>
+  useAppSelector((state) => state.dala.blocks);
+
+export const useDalaFloors = () =>
+  useAppSelector((state) => state.dala.floors);
+
+/**
+ * Returns units as a hybrid array + object with `{ data, setUnits }`.
+ */
+export const useDalaUnits = () => {
+  const dispatch = useAppDispatch();
+  const units = useAppSelector((state) => state.dala.units);
+  const setUnits = useCallback(
+    (u: Unit[]) => dispatch(dalaActions.setUnits(u)),
+    [dispatch]
+  );
+
+  return useMemo(() => {
+    return Object.assign([...units], {
+      data: units,
+      setUnits,
+    });
+  }, [units, setUnits]);
+};
+
+export const useDalaPhases = () =>
+  useAppSelector((state) => state.dala.phases);
+
+export const useDalaSales = () =>
+  useAppSelector((state) => state.dala.sales);
+
+export const useDalaCommissions = () =>
+  useAppSelector((state) => state.dala.commissions);
+
+export const useDalaLeases = () =>
+  useAppSelector((state) => state.dala.leases);
+
+export const useDalaRentPayments = () =>
+  useAppSelector((state) => state.dala.rentPayments);
+
+export const useDalaDashboard = () => {
+  const dispatch = useAppDispatch();
+  const dashboard = useAppSelector((state) => state.dala.dashboard);
+  const setDashboard = useCallback(
+    (data: any) => dispatch(dalaActions.setDashboard(data)),
+    [dispatch]
+  );
+  return { data: dashboard, setDashboard };
+};
+
+export const useDalaLoading = () =>
+  useAppSelector((state) => state.dala.loading);
+
+export const useDalaFilters = () =>
+  useAppSelector((state) => state.dala.filters);
+
+export const useDalaPagination = () =>
+  useAppSelector((state) => state.dala.pagination);
+
+// Combined selectors
+export const useDalaSelectedProperty = () =>
+  useAppSelector((state) => state.dala.selectedProperty);
+
+export const useDalaSelectedUnit = () =>
+  useAppSelector((state) => state.dala.selectedUnit);
+
+export const useDalaSelectedSale = () =>
+  useAppSelector((state) => state.dala.selectedSale);
+
+export const useDalaSelectedLease = () =>
+  useAppSelector((state) => state.dala.selectedLease);
+
+// Computed selectors
+export const useDalaPropertyById = (id: string) => {
+  const properties = useAppSelector((state) => state.dala.properties);
+  return useMemo(
+    () => properties.find((property) => property._id === id),
+    [properties, id]
+  );
+};
+
+export const useDalaUnitsByProperty = (propertyId: string) => {
+  const dispatch = useAppDispatch();
+  const units = useAppSelector((state) => state.dala.units);
+  const filteredUnits = useMemo(
+    () => units.filter((unit) => unit.property_id === propertyId),
+    [units, propertyId]
+  );
+  const setUnits = useCallback(
+    (u: Unit[]) => dispatch(dalaActions.setUnits(u)),
+    [dispatch]
+  );
+
+  return useMemo(() => {
+    return Object.assign([...filteredUnits], {
+      data: filteredUnits,
+      setUnits,
+    });
+  }, [filteredUnits, setUnits]);
+};
+
+export const useDalaBlocksByProperty = (propertyId: string) => {
+  const dispatch = useAppDispatch();
+  const blocks = useAppSelector((state) => state.dala.blocks);
+  const filteredBlocks = useMemo(
+    () => blocks.filter((block) => block.property_id === propertyId),
+    [blocks, propertyId]
+  );
+  const setBlocks = useCallback(
+    (b: Block[]) => dispatch(dalaActions.setBlocks(b)),
+    [dispatch]
+  );
+
+  return useMemo(() => {
+    return Object.assign([...filteredBlocks], {
+      data: filteredBlocks,
+      setBlocks,
+    });
+  }, [filteredBlocks, setBlocks]);
+};
+
+export const useDalaFloorsByBlock = (blockId: string) => {
+  const dispatch = useAppDispatch();
+  const floors = useAppSelector((state) => state.dala.floors);
+  const filteredFloors = useMemo(
+    () => floors.filter((floor) => floor.block_id === blockId),
+    [floors, blockId]
+  );
+  const setFloors = useCallback(
+    (f: Floor[]) => dispatch(dalaActions.setFloors(f)),
+    [dispatch]
+  );
+
+  return useMemo(() => {
+    return Object.assign([...filteredFloors], {
+      data: filteredFloors,
+      setFloors,
+    });
+  }, [filteredFloors, setFloors]);
+};
+
+export const useDalaUnitsByBlock = (blockId: string) => {
+  const units = useAppSelector((state) => state.dala.units);
+  return useMemo(
+    () => units.filter((unit) => unit.block_id === blockId),
+    [units, blockId]
+  );
+};
+
+export const useDalaUnitsByFloor = (floorId: string) => {
+  const units = useAppSelector((state) => state.dala.units);
+  return useMemo(
+    () => units.filter((unit) => unit.floor_id === floorId),
+    [units, floorId]
+  );
+};
+
+export const useDalaSalesByProperty = (propertyId: string) => {
+  const sales = useAppSelector((state) => state.dala.sales);
+  return useMemo(
+    () => sales.filter((sale) => sale.property_id === propertyId),
+    [sales, propertyId]
+  );
+};
+
+export const useDalaLeasesByProperty = (propertyId: string) => {
+  const leases = useAppSelector((state) => state.dala.leases);
+  return useMemo(
+    () => leases.filter((lease) => lease.property_id === propertyId),
+    [leases, propertyId]
+  );
+};
+
+export const useDalaCommissionsByAgent = (agentId: string) => {
+  const commissions = useAppSelector((state) => state.dala.commissions);
+  return useMemo(
+    () => commissions.filter((commission) => commission.agent_id === agentId),
+    [commissions, agentId]
+  );
+};
+
+export const useDalaFilteredProperties = () => {
+  const properties = useAppSelector((state) => state.dala.properties);
+  const { propertySearch, propertyTypeFilter, propertyStatusFilter } =
+    useAppSelector((state) => state.dala.filters);
+
+  return useMemo(() => {
+    return properties.filter((property) => {
+      const matchesSearch =
+        !propertySearch ||
+        property.name.toLowerCase().includes(propertySearch.toLowerCase()) ||
+        property.code.toLowerCase().includes(propertySearch.toLowerCase()) ||
+        property.description?.toLowerCase().includes(propertySearch.toLowerCase());
+
+      const matchesType =
+        !propertyTypeFilter || property.property_type_id === propertyTypeFilter;
+      const matchesStatus =
+        !propertyStatusFilter || property.status === propertyStatusFilter;
+
+      return matchesSearch && matchesType && matchesStatus;
+    });
+  }, [properties, propertySearch, propertyTypeFilter, propertyStatusFilter]);
+};
+
+export const useDalaFilteredUnits = () => {
+  const units = useAppSelector((state) => state.dala.units);
+  const unitStatusFilter = useAppSelector(
+    (state) => state.dala.filters.unitStatusFilter
+  );
+
+  return useMemo(() => {
     return units.filter((unit) => {
       const matchesStatus = !unitStatusFilter || unit.status === unitStatusFilter;
       return matchesStatus;
     });
-  });
+  }, [units, unitStatusFilter]);
+};
 
-export const useDalaFilteredSales = () =>
-  useDalaStore((state) => {
-    const { sales } = state;
-    const { saleStatusFilter } = state.filters;
-    
+export const useDalaFilteredSales = () => {
+  const sales = useAppSelector((state) => state.dala.sales);
+  const saleStatusFilter = useAppSelector(
+    (state) => state.dala.filters.saleStatusFilter
+  );
+
+  return useMemo(() => {
     return sales.filter((sale) => {
       const matchesStatus = !saleStatusFilter || sale.status === saleStatusFilter;
       return matchesStatus;
     });
-  });
+  }, [sales, saleStatusFilter]);
+};

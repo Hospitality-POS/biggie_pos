@@ -8,6 +8,67 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 5374,
   },
+  build: {
+    chunkSizeWarningLimit: 1200,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react/') || id.includes('react-dom/') || id.includes('react-router')) {
+              return 'vendor-react';
+            }
+            if (id.includes('@ant-design/icons') || id.includes('/antd/')) {
+              return 'vendor-antd';
+            }
+            if (
+              id.includes('@ant-design/pro-components') ||
+              id.includes('@ant-design/pro-table') ||
+              id.includes('@ant-design/pro-utils') ||
+              id.includes('@ant-design/pro-layout') ||
+              id.includes('@ant-design/pro-card') ||
+              id.includes('@ant-design/pro-form')
+            ) {
+              return 'vendor-pro-components';
+            }
+            if (
+              id.includes('@ant-design/charts') ||
+              id.includes('@antv') ||
+              id.includes('recharts') ||
+              id.includes('d3-')
+            ) {
+              return 'vendor-charts';
+            }
+            if (
+              id.includes('@tanstack/react-query') ||
+              id.includes('@reduxjs/toolkit') ||
+              id.includes('react-redux')
+            ) {
+              return 'vendor-query-redux';
+            }
+            if (
+              id.includes('jspdf') ||
+              id.includes('jspdf-autotable') ||
+              id.includes('pdfjs-dist')
+            ) {
+              return 'vendor-pdf';
+            }
+            if (id.includes('xlsx')) {
+              return 'vendor-xlsx';
+            }
+            if (id.includes('@zxing')) {
+              return 'vendor-zxing';
+            }
+            if (id.includes('dexie')) {
+              return 'vendor-dexie';
+            }
+            if (id.includes('dayjs')) {
+              return 'vendor-dayjs';
+            }
+          }
+        },
+      },
+    },
+  },
   plugins: [
     react(),
     tsconfigPaths(),
@@ -20,6 +81,7 @@ export default defineConfig({
       workbox: {
         cleanupOutdatedCaches: true,
         sourcemap: true,
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
           {

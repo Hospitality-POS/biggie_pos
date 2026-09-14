@@ -97,7 +97,9 @@ export const CampaignFormModal: React.FC<CampaignFormModalProps> = ({
             form.resetFields();
             onClose();
             onSuccess?.();
-        } catch { } finally {
+        } catch {
+            /* error handled by thunk */
+        } finally {
             setLoading(false);
         }
     };

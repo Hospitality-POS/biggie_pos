@@ -24,7 +24,7 @@ const fmt = (v: number) =>
     (v || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export const LedgerContext = createContext<{ openLedger: (accountCode: string) => void } | null>(null);
-export const useLedger = () => useContext(LedgerContext) ?? { openLedger: () => {} };
+export const useLedger = () => useContext(LedgerContext) ?? { openLedger: (_code: string) => { /* no-op */ } };
 
 const TYPE_COLORS: Record<string, string> = {
     ASSET: "blue", LIABILITY: "red", EQUITY: "purple", REVENUE: "green", EXPENSE: "orange",
@@ -65,7 +65,7 @@ const printSection = (html: string, title: string) => {
         .company { font-size: 15px; font-weight: 800; color: #6c1c2c; }
         .meta { text-align: right; font-size: 10px; color: #555; }
         @media print { body { padding: 10px; } }
-    </style></head><body>${html}<script>window.onload=()=>window.print();<\/script></body></html>`);
+    </style></head><body>${html}<script>window.onload=()=>window.print();</script></body></html>`);
     w.document.close();
 };
 

@@ -240,7 +240,7 @@ const ConsultationTable: React.FC = () => {
                     ...products.map((p: any) => ({ label: p.name, value: p._id })),
                 ]);
             })
-            .catch(() => { });
+            .catch(() => { /* ignore product load error */ });
     }, []);
 
     const fetchConsultations = async () => {

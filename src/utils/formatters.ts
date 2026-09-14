@@ -1,4 +1,4 @@
-export const formatCurrency = (amount: number, currency: string = 'KES'): string => {
+export const formatCurrency = (amount: number, currency = 'KES'): string => {
   return new Intl.NumberFormat('en-KE', {
     style: 'currency',
     currency: currency,
@@ -10,7 +10,7 @@ export const formatNumber = (number: number): string => {
   return new Intl.NumberFormat('en-KE').format(number);
 };
 
-export const formatPercentage = (value: number, decimals: number = 1): string => {
+export const formatPercentage = (value: number, decimals = 1): string => {
   return `${value.toFixed(decimals)}%`;
 };
 

@@ -91,7 +91,7 @@ const BalanceRow: React.FC<{ departmentId: string }> = ({ departmentId }) => {
     useEffect(() => {
         fetchLeaveBalance(departmentId, { year: new Date().getFullYear() })
             .then((d) => setBalances(d?.balances || []))
-            .catch(() => { })
+            .catch(() => { /* ignore balance fetch error */ })
             .finally(() => setLoading(false));
     }, [departmentId]);
 

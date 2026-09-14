@@ -1,12 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import StaffCard from "../../components/staffCard/StaffCard";
-import { Divider, Typography, TextField, Box, InputAdornment, Pagination, Stack } from "@mui/material";
-import { Search as SearchIcon } from "@mui/icons-material";
+import { Divider, Typography, Input, Pagination, Empty, Flex } from "antd";
+import { SearchOutlined } from "@ant-design/icons";
 import classes from "./staffs.module.css";
 import { Key, useEffect, useState, useRef } from "react";
 import SkeletonCard from "../../components/staffCard/SkeletonCard";
 import { fetchAllUsersByShopId } from "../../services/users";
 import React from "react";
+
+const { Title, Text } = Typography;
 
 const Staff = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -43,7 +45,7 @@ const Staff = () => {
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const query = event.target.value;
     setSearchQuery(query);
-    setCurrentPage(1); // Reset to first page on search
+    setCurrentPage(1);
 
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
@@ -55,9 +57,9 @@ const Staff = () => {
   };
 
   // Handle page change
-  const handlePageChange = (event: React.ChangeEvent<unknown>, value: number) => {
-    setCurrentPage(value);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   // Cleanup timeout on unmount
@@ -73,11 +75,11 @@ const Staff = () => {
     return (
       <div>
         <div className={classes.staffheader}>
-          <Typography mt={2} variant="h6" ml={2} gutterBottom>
+          <Title level={4} style={{ margin: "16px 0 8px 16px" }}>
             Registered Staff
-          </Typography>
+          </Title>
         </div>
-        <Divider />
+        <Divider style={{ margin: "12px 0" }} />
         <div className="cards">
           {[...Array(12)].map((_, index) => (
             <SkeletonCard key={index} />
@@ -88,62 +90,49 @@ const Staff = () => {
   }
 
   if (isError) {
-    return <div>An error has occurred: {error?.message}</div>;
+    return <div>An error has occurred: {(error as any)?.message}</div>;
   }
 
   return (
     <section className="staff-section">
       <div className={classes.staffheader}>
-        <Typography mt={2} variant="h6" ml={2} gutterBottom>
+        <Title level={4} style={{ margin: "16px 0 8px 16px" }}>
           Registered Staff ({pagination.total})
-        </Typography>
-        <Box sx={{ ml: 2, mt: 2, mb: 2, maxWidth: 400 }}>
-          <TextField
-            fullWidth
-            size="small"
+        </Title>
+        <div style={{ marginLeft: 16, marginTop: 8, marginBottom: 16, maxWidth: 400 }}>
+          <Input
+            size="middle"
             placeholder="Search staff by name..."
             value={searchQuery}
             onChange={handleSearchChange}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              ),
-            }}
+            prefix={<SearchOutlined style={{ color: "#9ca3af" }} />}
+            allowClear
           />
-        </Box>
+        </div>
       </div>
-      <Divider />
+      <Divider style={{ margin: "12px 0" }} />
       <div className="cards">
         {users.length > 0 ? (
           users.map((item: { _id: Key | null | undefined }) => (
             <StaffCard key={item._id} item={item} />
           ))
         ) : (
-          <Box sx={{ p: 4, textAlign: "center" }}>
-            <Typography variant="body1" color="textSecondary">
-              No staff members found matching "{searchQuery}"
-            </Typography>
-          </Box>
+          <div style={{ padding: "48px 16px", textAlign: "center", width: "100%" }}>
+            <Empty description={`No staff members found matching "${searchQuery}"`} />
+          </div>
         )}
       </div>
       {totalPages > 1 && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-          <Stack spacing={2}>
-            <Pagination
-              count={totalPages}
-              page={currentPage}
-              onChange={handlePageChange}
-              color="primary"
-              showFirstButton
-              showLastButton
-            />
-            <Typography variant="caption" color="textSecondary" textAlign="center">
-              Showing {pagination.skip + 1}-{Math.min(pagination.skip + pageSize, pagination.total)} of {pagination.total} staff members
-            </Typography>
-          </Stack>
-        </Box>
+        <Flex justify="center" style={{ padding: 24 }}>
+          <Pagination
+            current={currentPage}
+            pageSize={pageSize}
+            total={pagination.total}
+            onChange={handlePageChange}
+            showSizeChanger={false}
+            showTotal={(total, range) => `Showing ${range[0]}-${range[1]} of ${total} staff members`}
+          />
+        </Flex>
       )}
     </section>
   );

@@ -51,7 +51,7 @@ export interface CreateCurrencyParams {
     is_functional?: boolean;
 }
 
-export interface UpdateCurrencyParams extends Partial<Omit<CreateCurrencyParams, "code">> { }
+export type UpdateCurrencyParams = Partial<Omit<CreateCurrencyParams, "code">>
 
 export interface CreateRateParams {
     from_currency: string;

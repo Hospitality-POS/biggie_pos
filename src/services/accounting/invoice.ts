@@ -196,20 +196,16 @@ export interface RecordInvoicePaymentParams {
  * Get all invoices with filters and pagination.
  */
 export const getAllInvoices = async (params: GetInvoicesParams = {}) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/invoices`,
-            { params }
-        );
-        return response.data as {
-            invoices: Invoice[];
-            total: number;
-            page: number;
-            totalPages: number;
-        };
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/invoices`,
+        { params }
+    );
+    return response.data as {
+        invoices: Invoice[];
+        total: number;
+        page: number;
+        totalPages: number;
+    };
 };
 
 /**
@@ -220,46 +216,34 @@ export const getInvoiceSummary = async (params?: {
     from?: string;
     to?: string;
 }) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/invoices/summary`,
-            { params }
-        );
-        return response.data as {
-            summary: InvoiceSummaryItem[];
-            overdue_count: number;
-        };
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/invoices/summary`,
+        { params }
+    );
+    return response.data as {
+        summary: InvoiceSummaryItem[];
+        overdue_count: number;
+    };
 };
 
 /**
  * Get a single invoice by ID — includes line items and payment history.
  */
 export const getInvoiceById = async (id: string) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/invoices/${id}`
-        );
-        return response.data as { invoice: Invoice };
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/invoices/${id}`
+    );
+    return response.data as { invoice: Invoice };
 };
 
 /**
  * Manually verify an invoice with KRA DigiTax (optional immediate verification)
  */
 export const verifyDigiTax = async (id: string) => {
-    try {
-        const response = await axiosInstance.post(
-            `${BASE_URL}/accounting/invoices/${id}/verify-digita`
-        );
-        return response.data;
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.post(
+        `${BASE_URL}/accounting/invoices/${id}/verify-digita`
+    );
+    return response.data;
 };
 
 /**

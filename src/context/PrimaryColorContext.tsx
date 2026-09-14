@@ -8,7 +8,7 @@ interface PrimaryColorContextType {
 
 const PrimaryColorContext = createContext<PrimaryColorContextType>({
     primaryColor: getPrimaryColor(),
-    refreshPrimaryColor: () => { }
+    refreshPrimaryColor: () => { /* no-op default */ }
 });
 
 export const PrimaryColorProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {

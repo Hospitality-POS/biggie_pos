@@ -93,7 +93,7 @@ const PdfCanvasViewer: React.FC<PdfCanvasViewerProps> = ({
         })();
 
         return () => { cancelled = true; };
-    }, [renderKey, pageNumber]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [renderKey, pageNumber]);
 
     return (
         <div style={{ position: "relative", lineHeight: 0, display: "inline-block" }}>

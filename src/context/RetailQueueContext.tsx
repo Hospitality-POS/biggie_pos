@@ -43,12 +43,12 @@ const defaultValue: RetailQueueContextType = {
     availableTables: [],
     occupiedTables: [],
     isLoadingSlots: false,
-    refreshSlots: async () => { },
-    setActiveTable: () => { },
+    refreshSlots: async () => { /* no-op default */ },
+    setActiveTable: () => { /* no-op default */ },
     assignNextAvailableTable: () => null,
     queueOrderAndNext: async () => ({ success: false, nextTable: null }),
-    openNewOrder: async () => { },
-    removeActiveSlot: async () => { },
+    openNewOrder: async () => { /* no-op default */ },
+    removeActiveSlot: async () => { /* no-op default */ },
 };
 
 const RetailQueueContext = createContext<RetailQueueContextType>(defaultValue);

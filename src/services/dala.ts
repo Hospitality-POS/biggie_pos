@@ -358,7 +358,7 @@ export const deletePropertyType = async (id: string) => {
 
 // ── Properties API ────────────────────────────────────────────────────────────
 
-export const fetchProperties = async (populate: boolean = true) => {
+export const fetchProperties = async (populate = true) => {
   try {
     const response = await axiosInstance.get(`${dalaUrl}/properties`, {
       headers: getDalaHeaders(),

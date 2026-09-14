@@ -10,10 +10,15 @@ export const setCache = async (key: string, data: unknown, ttlMs = DEFAULT_TTL_M
     });
 };
 
-export const getCache = async <T>(key: string): Promise<T | null> => {
+export const getCache = async <T>(key: string, allowStale = false): Promise<T | null> => {
     const entry = await db.cache.get(key);
     if (!entry) return null;
-    if (Date.now() > entry.expiresAt) {
+    const isExpired = Date.now() > entry.expiresAt;
+    if (isExpired) {
+        // If stale data is permitted or the client is currently offline, preserve and return cached entry
+        if (allowStale || (typeof navigator !== "undefined" && !navigator.onLine)) {
+            return entry.data as T;
+        }
         await db.cache.delete(key);
         return null;
     }

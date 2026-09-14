@@ -2,7 +2,7 @@
  * Print receipt HTML using an invisible iframe.
  * No API call needed — purely client-side.
  */
-export const printHtmlDirect = (htmlContent: string, paperWidth: number = 80): void => {
+export const printHtmlDirect = (htmlContent: string, paperWidth = 80): void => {
   const pageWidth = paperWidth === 58 ? "58mm" : "80mm";
 
   const printContent = `
