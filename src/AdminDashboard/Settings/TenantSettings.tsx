@@ -166,8 +166,8 @@ const TabNav: React.FC<{
 // ── Default colors ────────────────────────────────────────────────────────────
 const getDefaultColors = () => ({
   primary: getPrimaryColor(),
-  secondary: "#3b82f6",
-  accent: "#8b5cf6",
+  secondary: "#14EF4A",
+  accent: "#1F2B5D",
   background: "#ffffff",
   text: "#0f172a",
 });

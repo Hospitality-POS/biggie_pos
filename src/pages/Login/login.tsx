@@ -371,10 +371,10 @@ const StaffLoginPage = () => {
     const getBackgroundGradient = () => {
         const primary = tenant?.color_scheme?.primary || tenant?.primary_color || tenant?.theme?.primary;
         if (primary) {
-            const secondary = tenant?.color_scheme?.secondary || "#c26d2e";
+            const secondary = tenant?.color_scheme?.secondary || "#14EF4A";
             return `linear-gradient(135deg, ${primary} 0%, ${secondary} 100%)`;
         }
-        return "linear-gradient(135deg, #2c3e50 0%, #6c1c2c 100%)";
+        return "linear-gradient(135deg, #1F2B5D 0%, #0E388A 55%, #14EF4A 100%)";
     };
 
     const RetailBackground = () => (

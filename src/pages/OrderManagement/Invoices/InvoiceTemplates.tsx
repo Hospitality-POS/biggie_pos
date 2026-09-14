@@ -797,7 +797,7 @@ const PaymentDetailsBlock = ({
 const Footer = ({ sys, borderColor = C.border, accentColor = C.primary }: { sys: SystemDetails; borderColor?: string; accentColor?: string }) => {
     // Determine which logo to use based on background color
     // Light backgrounds (Ocean: #ffffff, Forest: #f0fdf4) need dark logo
-    // Dark backgrounds (Classic: #6c1c2c, Slate: #1e293b, Minimal: #374151) need light logo
+    // Dark backgrounds (Classic: #0E388A, Slate: #1e293b, Minimal: #374151) need light logo
     const isLightBackground = accentColor === '#3b82f6' || accentColor === '#16a34a';
     const logoSrc = isLightBackground ? '/relia2.png' : '/relia.png';
 

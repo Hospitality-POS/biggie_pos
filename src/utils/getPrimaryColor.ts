@@ -8,11 +8,11 @@ export const getPrimaryColor = (): string => {
             tenant?.color_scheme?.primary ||
             tenant?.primary_color ||
             tenant?.theme?.primary ||
-            "#6c1c2c"
+            "#0E388A"
         );
     } catch (error) {
         console.error("Error reading tenant from localStorage:", error);
-        return "#6c1c2c";
+        return "#0E388A";
     }
 };
 
@@ -34,15 +34,15 @@ export const updateTenantInStorage = (tenantData: any) => {
  */
 export const hexToRgb = (hex: string): [number, number, number] => {
     try {
-        const clean = (hex || "#6c1c2c").replace("#", "").trim();
+        const clean = (hex || "#0E388A").replace("#", "").trim();
         const fullHex = clean.length === 3
             ? clean.split("").map((c) => c + c).join("")
             : clean;
         const num = parseInt(fullHex, 16);
-        if (isNaN(num)) return [108, 28, 44];
+        if (isNaN(num)) return [14, 56, 138];
         return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
     } catch {
-        return [108, 28, 44];
+        return [14, 56, 138];
     }
 };
 
@@ -58,10 +58,13 @@ export const getThemePalette = (overridePrimary?: string) => ({
         const p = overridePrimary || getPrimaryColor();
         return `${p}18`;
     },
-    green: "#10b981",
+    secondary: "#14EF4A",
+    accent: "#14EF4A",
+    navy: "#1F2B5D",
+    blue: "#0E388A",
+    green: "#14EF4A",
     orange: "#f59e0b",
     red: "#ef4444",
-    blue: "#3b82f6",
     indigo: "#6366f1",
     purple: "#8b5cf6",
     teal: "#0d9488",
