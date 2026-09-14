@@ -3,12 +3,21 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import tsconfigPaths from 'vite-tsconfig-paths';
 
-export default defineConfig({
-  server: {
-    host: '0.0.0.0',
-    port: 5374,
-  },
-  build: {
+export default defineConfig(({ mode }) => {
+  const isProduction = mode === 'production';
+
+  return {
+    server: {
+      host: '0.0.0.0',
+      port: 5374,
+    },
+    esbuild: isProduction
+      ? {
+          drop: ['debugger'],
+          pure: ['console.log', 'console.info', 'console.debug'],
+        }
+      : {},
+    build: {
     chunkSizeWarningLimit: 1200,
     rollupOptions: {
       output: {
@@ -152,4 +161,5 @@ export default defineConfig({
       },
     }),
   ],
+  };
 });

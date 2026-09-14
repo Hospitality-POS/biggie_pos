@@ -499,7 +499,7 @@ const PropertyDetail: React.FC = () => {
                 layout="vertical"
                 onFinish={handleDocumentUpload}
                 style={{ marginBottom: 20 }}
-                onFinishFailed={(errorInfo) => console.log('Form validation failed:', errorInfo)}
+                onFinishFailed={(errorInfo) => console.error('Form validation failed:', errorInfo)}
               >
                 <Form.Item
                   name="document_type"
