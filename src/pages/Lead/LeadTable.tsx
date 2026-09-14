@@ -6,7 +6,7 @@ import {
     PhoneOutlined, TeamOutlined, UserOutlined,
 } from "@ant-design/icons";
 import { App, Button, Dropdown, Modal, Tag, Typography } from "antd";
-import { deleteLead, fetchAllLeads, Lead, LeadStage } from "@services/crm/leads";
+import { deleteLead, fetchAllLeads, fetchProjectOptions, Lead, LeadStage } from "@services/crm/leads";
 import { useAppDispatch } from "src/store";
 import { THEME_C } from "@utils/getPrimaryColor";
 
@@ -175,6 +175,23 @@ const LeadTable = forwardRef<LeadTableHandle, LeadTableProps>(({ onView, onEdit 
                     {source.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}
                 </Text>
             ) : <Text style={{ fontSize: 12, color: C.subText }}>—</Text>,
+        },
+        {
+            title: "Project", dataIndex: "project",
+            valueType: "select" as const,
+            fieldProps: {
+                showSearch: true,
+                allowClear: true,
+                optionFilterProp: "label",
+                placeholder: "Filter by project…",
+            },
+            request: async () => {
+                const options = await fetchProjectOptions(shop_id);
+                return options.map(p => ({ label: p, value: p }));
+            },
+            render: (v: string) => v
+                ? <Text style={{ fontSize: 12, color: C.darkText }}>{v}</Text>
+                : <Text style={{ fontSize: 12, color: C.subText }}>—</Text>,
         },
         {
             title: "Actions", key: "actions", search: false, fixed: "right" as const, width: 56,

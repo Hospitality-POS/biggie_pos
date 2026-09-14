@@ -62,6 +62,7 @@ const Leads: React.FC<LeadsProps> = ({ onConvertWithForm }) => {
                 "Website": l.website || "",
                 "Stage": l.stage || "",
                 "Source": l.source || "",
+                "Project": l.project || "",
                 "Estimated Value": l.estimated_value ?? "",
                 "Currency": l.currency || "KES",
                 "Probability (%)": l.probability ?? "",

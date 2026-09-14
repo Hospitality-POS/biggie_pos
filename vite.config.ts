@@ -62,9 +62,6 @@ export default defineConfig({
             if (id.includes('dexie')) {
               return 'vendor-dexie';
             }
-            if (id.includes('dayjs')) {
-              return 'vendor-dayjs';
-            }
           }
         },
       },

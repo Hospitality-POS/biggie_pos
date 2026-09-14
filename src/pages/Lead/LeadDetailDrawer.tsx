@@ -4,7 +4,7 @@ import {
 } from "antd";
 import {
     CalendarOutlined, CheckCircleOutlined, ClockCircleOutlined,
-    MailOutlined, PhoneOutlined, SwapOutlined, TeamOutlined,
+    MailOutlined, PhoneOutlined, ProjectOutlined, SwapOutlined, TeamOutlined,
     UserOutlined, UserAddOutlined, WalletOutlined, FileOutlined, UploadOutlined, DeleteOutlined,
     DownloadOutlined, EyeOutlined,
 } from "@ant-design/icons";
@@ -293,6 +293,7 @@ const LeadDetailDrawer: React.FC<LeadDetailDrawerProps> = ({ open, onClose, lead
                 <InfoRow icon={<PhoneOutlined />} label="Phone" value={lead.phone} />
                 <InfoRow icon={<MailOutlined />} label="Email" value={lead.email} />
                 <InfoRow icon={<UserOutlined />} label="Assigned To" value={lead.assigned_to?.name} />
+                <InfoRow icon={<ProjectOutlined />} label="Project" value={lead.project} />
                 <InfoRow icon={<WalletOutlined />} label="Est. Value"
                     value={lead.estimated_value ? `KES ${lead.estimated_value.toLocaleString()} (${lead.probability ?? 0}%)` : undefined} />
                 <InfoRow icon={<CalendarOutlined />} label="Expected Close"
