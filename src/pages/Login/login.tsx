@@ -369,12 +369,10 @@ const StaffLoginPage = () => {
     };
 
     const getBackgroundGradient = () => {
-        if (tenant?.color_scheme?.primary) {
-            const secondary = tenant.color_scheme.secondary || "#c26d2e";
-            return `linear-gradient(135deg, ${tenant.color_scheme.primary} 0%, ${secondary} 100%)`;
-        }
-        if (tenant?.primary_color) {
-            return `linear-gradient(135deg, ${tenant.color_scheme.primary} 0%, #c26d2e 100%)`;
+        const primary = tenant?.color_scheme?.primary || tenant?.primary_color || tenant?.theme?.primary;
+        if (primary) {
+            const secondary = tenant?.color_scheme?.secondary || "#c26d2e";
+            return `linear-gradient(135deg, ${primary} 0%, ${secondary} 100%)`;
         }
         return "linear-gradient(135deg, #2c3e50 0%, #6c1c2c 100%)";
     };

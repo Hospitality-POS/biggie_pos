@@ -17,25 +17,13 @@ import {
 import { fetchUserRoles } from "@services/users";
 import { useQuery } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
+import { THEME_C } from "../../../utils/getPrimaryColor";
 
 const { Text } = Typography;
 const { Option } = Select;
 const { TextArea } = Input;
 
-const C = {
-    primary: "#6c1c2c",
-    primaryLight: "#f9f0f2",
-    green: "#10b981",
-    red: "#ef4444",
-    blue: "#3b82f6",
-    purple: "#8b5cf6",
-    orange: "#f59e0b",
-    teal: "#0d9488",
-    subText: "#64748b",
-    darkText: "#0f172a",
-    border: "#e2e8f0",
-    bg: "#f8fafc",
-};
+const C = THEME_C;
 
 // ── Department Form Modal ─────────────────────────────────────────────────────
 interface DeptFormModalProps {
@@ -148,7 +136,7 @@ const DeptFormModal: React.FC<DeptFormModalProps> = ({
 
                 <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
                     <Form.Item name="color" label="Color (hex)" style={{ flex: "1 1 130px" }}>
-                        <Input placeholder="#6c1c2c" style={{ borderRadius: 8 }} maxLength={7} />
+                        <Input placeholder={C.primary} style={{ borderRadius: 8 }} maxLength={7} />
                     </Form.Item>
                 </div>
 

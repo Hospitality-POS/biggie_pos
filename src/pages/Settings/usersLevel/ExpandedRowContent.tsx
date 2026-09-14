@@ -17,22 +17,12 @@ import {
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import "jspdf-autotable";
+import { THEME_C } from "@utils/getPrimaryColor";
 
 const { Text } = Typography;
 
 // ── Palette ───────────────────────────────────────────────────────────────────
-const C = {
-  primary: "#6c1c2c",
-  primaryLight: "#f9f0f2",
-  green: "#10b981",
-  orange: "#f59e0b",
-  red: "#ef4444",
-  blue: "#3b82f6",
-  subText: "#64748b",
-  darkText: "#0f172a",
-  border: "#e2e8f0",
-  bg: "#f8fafc",
-};
+const C = THEME_C;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface ClockRecord {

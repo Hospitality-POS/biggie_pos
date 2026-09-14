@@ -34,23 +34,13 @@ import { useQuery } from '@tanstack/react-query';
 import axiosInstance from '@services/request';
 import { BASE_URL } from '@utils/config';
 import dayjs from 'dayjs';
+import { THEME_C } from '@utils/getPrimaryColor';
 
 const { Text } = Typography;
 const { RangePicker } = DatePicker;
 const { Option } = Select;
 
-const C = {
-  primary: "#6c1c2c",
-  primaryLight: "#f9f0f2",
-  green: "#10b981",
-  red: "#ef4444",
-  blue: "#3b82f6",
-  orange: "#f59e0b",
-  subText: "#64748b",
-  darkText: "#0f172a",
-  border: "#e2e8f0",
-  bg: "#f8fafc",
-};
+const C = THEME_C;
 
 interface PaymentPlansDueTabProps {
   showAddButton?: boolean;

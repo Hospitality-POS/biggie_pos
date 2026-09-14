@@ -240,7 +240,7 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
             disabled={!canManageProducts}
             onChange={handleToggleDisabled}
             style={{
-              backgroundColor: isDisabled ? "#d1d5db" : "#6c1c2c",
+              backgroundColor: isDisabled ? "#d1d5db" : primaryColor,
             }}
           />
         </Tooltip>
@@ -299,7 +299,7 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
       >
         <Typography.Text
           ellipsis
-          style={{ fontWeight: 600, color: isDisabled ? "#9ca3af" : (isHovered ? "#fff" : "#6c1c2c") }}
+          style={{ fontWeight: 600, color: isDisabled ? "#9ca3af" : (isHovered ? "#fff" : primaryColor) }}
         >
           Ksh.{price?.toLocaleString()}
         </Typography.Text>

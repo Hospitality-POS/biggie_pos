@@ -72,7 +72,7 @@ const AddonsModal: React.FC<AddonsModalProps> = ({ actionRef, edit, data, modifi
             key="button"
             icon={
               <EditOutlined
-                style={{ color: "#6c1c2c" }}
+                style={{ color: "var(--primary-color)" }}
                 onClick={() => form.setFieldsValue(editAddonsPayload)}
               />
             }

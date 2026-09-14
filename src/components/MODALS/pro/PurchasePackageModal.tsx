@@ -47,14 +47,9 @@ interface PurchasePackageModalProps {
     onSuccess: () => void;
 }
 
-const C = {
-    primary: '#6C1C2C',
-    primaryLight: '#f9f0f2',
-    green: '#10b981',
-    border: '#e2e8f0',
-    bg: '#f8fafc',
-    subText: '#64748b',
-};
+import { THEME_C } from '@utils/getPrimaryColor';
+
+const C = THEME_C;
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 

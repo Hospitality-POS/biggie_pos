@@ -2,24 +2,12 @@ import { Typography } from "antd";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAllSchedules } from "@services/customers";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
+import { THEME_C } from "@utils/getPrimaryColor";
 import dayjs from "dayjs";
 
 const { Text } = Typography;
 
-const C = {
-  primary: "#6c1c2c",
-  primaryLight: "#f9f0f2",
-  green: "#10b981",
-  red: "#ef4444",
-  blue: "#3b82f6",
-  orange: "#f59e0b",
-  purple: "#8b5cf6",
-  indigo: "#6366f1",
-  subText: "#64748b",
-  darkText: "#0f172a",
-  border: "#e2e8f0",
-  bg: "#f8fafc",
-};
+const C = THEME_C;
 
 const pill = (bg: string, color: string, border: string): React.CSSProperties => ({
   display: "inline-flex", alignItems: "center", gap: 4,

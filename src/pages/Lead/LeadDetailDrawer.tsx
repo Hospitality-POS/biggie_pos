@@ -12,23 +12,13 @@ import { useAppDispatch } from "src/store";
 import { Lead, LeadStage, updateLeadStage, convertLead, getLeadById } from "@services/crm/leads";
 import { createLeadActivity } from "@services/crm/leadActivities";
 import { uploadLeadDocument, deleteLeadDocument, LeadDocument } from "@services/crm/leadDocuments";
+import { THEME_C } from "@utils/getPrimaryColor";
 
 const { Text } = Typography;
 const { Option } = Select;
 const { TextArea } = Input;
 
-const C = {
-    primary: "#6c1c2c",
-    primaryLight: "#f9f0f2",
-    green: "#10b981",
-    red: "#ef4444",
-    blue: "#3b82f6",
-    orange: "#f59e0b",
-    subText: "#64748b",
-    darkText: "#0f172a",
-    border: "#e2e8f0",
-    bg: "#f8fafc",
-};
+const C = THEME_C;
 
 const STAGE_COLORS: Record<LeadStage, string> = {
     new: C.blue, contacted: C.orange, qualified: "#8b5cf6",

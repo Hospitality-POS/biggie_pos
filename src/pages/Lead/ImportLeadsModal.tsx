@@ -452,7 +452,7 @@ const ImportLeadsModal: React.FC<ImportLeadsModalProps> = ({ onSuccess }) => {
         )}
 
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-          <Button onClick={handleClose} type="primary" style={{ borderRadius: 8, background: "#6c1c2c", border: "none" }}>
+          <Button onClick={handleClose} type="primary" style={{ borderRadius: 8 }}>
             Done
           </Button>
         </div>

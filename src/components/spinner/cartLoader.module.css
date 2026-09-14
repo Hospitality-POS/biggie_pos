@@ -14,14 +14,14 @@
 @keyframes shadowPulse {
   33% {
     background: #FFF;
-    box-shadow: -24px 0 #6c1c2c, 24px 0 #FFF;
+    box-shadow: -24px 0 var(--primary-color, #6c1c2c), 24px 0 #FFF;
   }
   66% {
-    background: #6c1c2c;
+    background: var(--primary-color, #6c1c2c);
     box-shadow: -24px 0 #FFF, 24px 0 #FFF;
   }
   100% {
     background: #FFF;
-    box-shadow: -24px 0 #FFF, 24px 0 #6c1c2c;
+    box-shadow: -24px 0 #FFF, 24px 0 var(--primary-color, #6c1c2c);
   }
 }

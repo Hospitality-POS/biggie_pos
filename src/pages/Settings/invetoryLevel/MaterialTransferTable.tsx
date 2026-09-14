@@ -33,21 +33,16 @@ import {
 import { ProTable } from "@ant-design/pro-components";
 import type { ActionType } from "@ant-design/pro-components";
 import AddEditTransferModal from "../../../components/MODALS/pro/AddEditTransferModal";
+import { THEME_C } from "../../../utils/getPrimaryColor";
 
 const { Text } = Typography;
 const { TextArea } = Input;
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 const C = {
-    primary: "#6c1c2c",
-    primaryLight: "#f9f0f2",
-    blue: "#3b82f6",
-    green: "#10b981",
-    orange: "#f59e0b",
-    indigo: "#6366f1",
-    red: "#ef4444",
-    subText: "#64748b",
-    darkText: "#0f172a",
+    ...THEME_C,
+    get primary() { return THEME_C.primary; },
+    get primaryLight() { return THEME_C.primaryLight; },
     tableBorder: "#e2e8f0",
 };
 

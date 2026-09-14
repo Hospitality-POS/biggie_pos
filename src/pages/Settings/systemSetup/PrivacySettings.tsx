@@ -5,10 +5,11 @@ import { LockOutlined, UnlockOutlined, DollarOutlined } from "@ant-design/icons"
 import { fetchSystemSetupDetailsById, updateSystemSetup } from "../../../services/systemsetup";
 import { fetchShop, updateShop } from "../../../services/shops";
 import { message } from "antd";
+import { THEME_C } from "../../../utils/getPrimaryColor";
 
 const { Text } = Typography;
 
-const C = { primary: "#6c1c2c", subText: "#64748b" };
+const C = THEME_C;
 
 const PrivacySettings: React.FC = () => {
   const [enablePrivacy, setEnablePrivacy] = useState(false);

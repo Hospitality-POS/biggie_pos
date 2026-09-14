@@ -12,10 +12,11 @@ import {
   type ConnectedAgent,
 } from "../../../services/printAgent";
 import { fetchMainCategories } from "../../../services/categories";
+import { THEME_C } from "../../../utils/getPrimaryColor";
 
 const { Text } = Typography;
 
-const C = { primary: "#6c1c2c", subText: "#64748b" };
+const C = THEME_C;
 
 const PrinterSettings: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("agents");
@@ -456,7 +457,7 @@ const PrinterSettings: React.FC = () => {
               }}>
                 <Space direction="vertical" size="small" style={{ width: "100%" }}>
                   <Space>
-                    <AppleOutlined style={{ fontSize: 20, color: "#6c1c2c" }} />
+                    <AppleOutlined style={{ fontSize: 20, color: C.primary }} />
                     <Text strong style={{ fontSize: 14 }}>macOS (Apple Silicon)</Text>
                     <Tag color="blue" style={{ fontSize: 11 }}>v0.4.2</Tag>
                   </Space>
@@ -484,7 +485,7 @@ const PrinterSettings: React.FC = () => {
               }}>
                 <Space direction="vertical" size="small" style={{ width: "100%" }}>
                   <Space>
-                    <WindowsOutlined style={{ fontSize: 20, color: "#6c1c2c" }} />
+                    <WindowsOutlined style={{ fontSize: 20, color: C.primary }} />
                     <Text strong style={{ fontSize: 14 }}>Windows (64-bit)</Text>
                     <Tag color="blue" style={{ fontSize: 11 }}>v0.6.2</Tag>
                   </Space>

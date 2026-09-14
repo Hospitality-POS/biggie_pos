@@ -1,7 +1,11 @@
-import React from "react";
-import type { PrintFormat, SavePrintResult } from "../Hooks/usePrintDocument";
+import { getPrimaryColor } from "@utils/getPrimaryColor";
 
-export const C = { primary: "#6c1c2c", subText: "#64748b" };
+export const C = {
+  get primary() {
+    return getPrimaryColor();
+  },
+  subText: "#64748b",
+};
 
 export interface SendEmailValues {
   to: string;

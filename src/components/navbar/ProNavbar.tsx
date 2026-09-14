@@ -76,22 +76,13 @@ import JournalEntryFormDrawer from "@pages/JournalEntry/JournalEntryFormDrawer";
 import ManualInvoiceModal from "@pages/OrderManagement/Invoices/ManualInvoiceModal";
 import ManualIncomeModal from "@pages/OrderManagement/Orders/ManualIncomeModal";
 
+import { THEME_C } from "@utils/getPrimaryColor";
+
 dayjs.extend(relativeTime);
 
 const { Text, Title } = Typography;
 
-const C = {
-  primary: "#6c1c2c",
-  primaryLight: "#f9f0f2",
-  green: "#10b981",
-  red: "#ef4444",
-  blue: "#3b82f6",
-  orange: "#f59e0b",
-  subText: "#64748b",
-  darkText: "#0f172a",
-  border: "#e2e8f0",
-  bg: "#f8fafc",
-};
+const C = THEME_C;
 
 const useIsMobile = () => {
   const [isMobile, setIsMobile] = React.useState(window.innerWidth < 1025);
@@ -476,7 +467,7 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         children: [
           {
             key: "property",
-            icon: <BuildOutlined style={{ color: "#6c1c2c" }} />,
+            icon: <BuildOutlined style={{ color: C.primary }} />,
             label: <span style={{ fontSize: 13 }}>New Property</span>,
             onClick: () => navigate(isAdmin ? "/admin/dala/properties" : "/dala/properties"),
           },

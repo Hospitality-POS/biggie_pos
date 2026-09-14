@@ -12,6 +12,7 @@ import {
 import { useAppSelector } from "src/store";
 import React from "react";
 import { makePermissionChecker } from "@utils/accessControl";
+import { usePrimaryColor } from "@context/PrimaryColorContext";
 
 // ─── SVG tile helper ──────────────────────────────────────────────────────────
 const makeTile = (color: string, pathD: string): string => {
@@ -223,6 +224,7 @@ const getTenantFlags = () => {
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 const useProLayoutNav = () => {
   const { user } = useAppSelector((state) => state.auth);
+  const primaryColor = usePrimaryColor();
 
   const isAdminOrCashier = !!(user?.role === "admin" || user?.role === "cashier");
   const isAdmin = user?.role === "admin";
@@ -354,7 +356,7 @@ const useProLayoutNav = () => {
   // ── CRM app tiles — ONLY when hasMteja === true ───────────────────────────
   const crmAppTilesBase = hasMteja ? [
     {
-      icon: makeTile("#6c1c2c", ICONS.leads),
+      icon: makeTile(primaryColor, ICONS.leads),
       title: "Leads",
       desc: "Track sales pipeline.",
       url: p("/crm/leads"),
@@ -564,7 +566,7 @@ const useProLayoutNav = () => {
     { icon: makeTile("#2f54eb", ICONS.documents), title: "Document Center", desc: "Documents & files.", url: p("/documents"), _bare: "/documents" },
     { icon: makeTile("#06b6d4", ICONS.web), title: "Gallery", desc: "Store images & media.", url: p("/website-builder"), _bare: "/website-builder" },
     // 7. System Administration & Help
-    { icon: makeTile("#6c1c2c", ICONS.settings), title: "System Setup", desc: "System settings.", url: p("/system-setup"), _bare: "/system-setup" },
+    { icon: makeTile(primaryColor, ICONS.settings), title: "System Setup", desc: "System settings.", url: p("/system-setup"), _bare: "/system-setup" },
     { icon: makeTile("#64748b", ICONS.faq), title: "FAQs", desc: "Common questions.", url: p("/fss-faqs"), _bare: "/fss-faqs" },
   ];
 
@@ -573,7 +575,7 @@ const useProLayoutNav = () => {
     .map(({ _bare: _b, ...rest }) => rest);
 
   const accountingAppListBase = [
-    { icon: makeTile("#6c1c2c", ICONS.accounting), title: "Accounting", desc: "Financial overview.", url: p("/accounting"), _bare: "/accounting" },
+    { icon: makeTile(primaryColor, ICONS.accounting), title: "Accounting", desc: "Financial overview.", url: p("/accounting"), _bare: "/accounting" },
     { icon: makeTile("#3b82f6", ICONS.invoice), title: "Invoices & Bills", desc: "Invoices and bills.", url: p("/orders"), _bare: "/orders" },
     { icon: makeTile("#f59e0b", ICONS.debit), title: "Debit/Credit Notes", desc: "Debit & credit notes.", url: p("/accounting/notes"), _bare: "/accounting/notes" },
     { icon: makeTile("#8b5cf6", ICONS.journal), title: "Journal Entries", desc: "Record journal entries.", url: p("/accounting/journals"), _bare: "/accounting/journals" },
@@ -593,7 +595,7 @@ const useProLayoutNav = () => {
     { icon: makeTile("#06b6d4", ICONS.customers), title: getCustomerLabel(), desc: "Customer accounts.", url: p("/customers"), _bare: "/customers" },
     { icon: makeTile("#8b5cf6", ICONS.supplier), title: "Suppliers", desc: "Suppliers & vendors.", url: p("/suppliers"), _bare: "/suppliers" },
     { icon: makeTile("#f59e0b", ICONS.payment), title: "Payment Methods", desc: "Payment options.", url: p("/payment-methods"), _bare: "/payment-methods" },
-    { icon: makeTile("#6c1c2c", ICONS.settings), title: "System Setup", desc: "System settings.", url: p("/system-setup"), _bare: "/system-setup" },
+    { icon: makeTile(primaryColor, ICONS.settings), title: "System Setup", desc: "System settings.", url: p("/system-setup"), _bare: "/system-setup" },
     { icon: makeTile("#2f54eb", ICONS.documents), title: "Document Center", desc: "Documents & files.", url: p("/documents"), _bare: "/documents" },
     ...(hasMteja && can("OMNICHANNEL_VIEW") ? [{
       icon: makeTile("#7c3aed", ICONS.omnichannel),
@@ -613,7 +615,7 @@ const useProLayoutNav = () => {
   // ── Mteja-only tiles ──────────────────────────────────────────────────────
   const mtejaOnlyAppList = (isMtejaOnly) ? [
     ...(can("UNIFIED_DASHBOARD_VIEW") ? [{
-      icon: makeTile("#6c1c2c", ICONS.table),
+      icon: makeTile(primaryColor, ICONS.table),
       title: "Dashboard",
       desc: "Business metrics & KPIs.",
       url: p("/home-dashboard"),
@@ -706,7 +708,7 @@ const useProLayoutNav = () => {
       },
       appList: [
         ...(can("UNIFIED_DASHBOARD_VIEW") ? [{
-          icon: makeTile("#6c1c2c", ICONS.table),
+          icon: makeTile(primaryColor, ICONS.table),
           title: "Dashboard",
           desc: "Business metrics & KPIs.",
           url: p("/home-dashboard"),
@@ -864,7 +866,7 @@ const useProLayoutNav = () => {
       },
       appList: [
         ...(can("UNIFIED_DASHBOARD_VIEW") ? [{
-          icon: makeTile("#6c1c2c", ICONS.table),
+          icon: makeTile(primaryColor, ICONS.table),
           title: "Dashboard",
           desc: "Business metrics & KPIs.",
           url: p("/home-dashboard"),

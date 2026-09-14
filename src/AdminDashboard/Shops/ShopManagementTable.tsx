@@ -700,7 +700,7 @@ const ShopManagementTable: React.FC = () => {
       key: "print-settings",
       label: (
         <Space size={4}>
-          <PrinterOutlined style={{ color: "#6c1c2c" }} />
+          <PrinterOutlined style={{ color: "var(--primary-color)" }} />
           Print Settings
         </Space>
       ),

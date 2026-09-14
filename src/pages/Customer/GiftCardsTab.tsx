@@ -9,6 +9,7 @@ import {
 } from "@ant-design/icons";
 import { fetchAllGiftCards, fetchAllCustomers } from "@services/customers";
 import GiftCardModal from "../../components/MODALS/pro/GiftCardModal";
+import { usePrimaryColor } from "@context/PrimaryColorContext";
 
 const { Text } = Typography;
 
@@ -100,7 +101,9 @@ interface GiftCardsTabProps {
     primaryColor?: string;
 }
 
-export default function GiftCardsTab({ primaryColor = "#6c1c2c" }: GiftCardsTabProps) {
+export default function GiftCardsTab({ primaryColor: propPrimaryColor }: GiftCardsTabProps) {
+    const contextColor = usePrimaryColor();
+    const primaryColor = propPrimaryColor || contextColor;
     const { message: messageApi } = App.useApp();
 
     // ── Gift card state ────────────────────────────────────────────────────

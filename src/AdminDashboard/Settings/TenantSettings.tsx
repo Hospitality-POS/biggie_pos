@@ -33,21 +33,13 @@ import {
   updateTenant,
 } from "@services/tenants";
 
+import { usePrimaryColor } from "@context/PrimaryColorContext";
+import { THEME_C, getPrimaryColor } from "@utils/getPrimaryColor";
+
 const { Text } = Typography;
 
-// ── Palette ───────────────────────────────────────────────────────────────────
-const C = {
-  primary: "#6c1c2c",
-  primaryLight: "#f9f0f2",
-  green: "#10b981",
-  orange: "#f59e0b",
-  red: "#ef4444",
-  blue: "#3b82f6",
-  subText: "#64748b",
-  darkText: "#0f172a",
-  border: "#e2e8f0",
-  bg: "#f8fafc",
-};
+// ── Palette (Dynamic Getters) ────────────────────────────────────────────────
+const C = THEME_C;
 
 // ── Mobile hook ───────────────────────────────────────────────────────────────
 const useIsMobile = () => {
@@ -135,51 +127,58 @@ const TabNav: React.FC<{
   tabs: { key: string; label: React.ReactNode }[];
   active: string;
   onChange: (k: string) => void;
-}> = ({ tabs, active, onChange }) => (
-  <div style={{
-    display: "flex", gap: 6, flexWrap: "wrap",
-    padding: "0 0 16px",
-    borderBottom: `1px solid ${C.border}`,
-    marginBottom: 20,
-  }}>
-    {tabs.map((t) => {
-      const isActive = t.key === active;
-      return (
-        <button
-          key={t.key}
-          onClick={() => onChange(t.key)}
-          style={{
-            background: isActive ? C.primary : C.bg,
-            color: isActive ? "#fff" : C.subText,
-            border: `1px solid ${isActive ? C.primary : C.border}`,
-            borderRadius: 8, padding: "7px 14px",
-            fontSize: 12, fontWeight: isActive ? 700 : 500,
-            cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
-            transition: "all 0.15s",
-          }}
-        >
-          {t.label}
-        </button>
-      );
-    })}
-  </div>
-);
+  primaryColor?: string;
+}> = ({ tabs, active, onChange, primaryColor: propPrimaryColor }) => {
+  const contextColor = usePrimaryColor();
+  const primary = propPrimaryColor || contextColor || C.primary;
+
+  return (
+    <div style={{
+      display: "flex", gap: 6, flexWrap: "wrap",
+      padding: "0 0 16px",
+      borderBottom: `1px solid ${C.border}`,
+      marginBottom: 20,
+    }}>
+      {tabs.map((t) => {
+        const isActive = t.key === active;
+        return (
+          <button
+            key={t.key}
+            onClick={() => onChange(t.key)}
+            style={{
+              background: isActive ? primary : C.bg,
+              color: isActive ? "#fff" : C.subText,
+              border: `1px solid ${isActive ? primary : C.border}`,
+              borderRadius: 8, padding: "7px 14px",
+              fontSize: 12, fontWeight: isActive ? 700 : 500,
+              cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
+              transition: "all 0.15s",
+            }}
+          >
+            {t.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+};
 
 // ── Default colors ────────────────────────────────────────────────────────────
-const DEFAULT_COLORS = {
-  primary: "#6c1c2c",
+const getDefaultColors = () => ({
+  primary: getPrimaryColor(),
   secondary: "#3b82f6",
   accent: "#8b5cf6",
   background: "#ffffff",
   text: "#0f172a",
-};
+});
 
 // ── Main component ────────────────────────────────────────────────────────────
 function TenantSettings() {
   const [form] = Form.useForm();
   const [colorForm] = Form.useForm();
   const [fileList, setFileList] = useState<any[]>([]);
-  const [colors, setColors] = useState(DEFAULT_COLORS);
+  const [colors, setColors] = useState(getDefaultColors);
+  const primaryColor = usePrimaryColor();
   const [activeTab, setActiveTab] = useState("basic");
 
   const params = useParams();
@@ -222,7 +221,7 @@ function TenantSettings() {
     });
 
     if (t.color_scheme) {
-      const scheme = { ...DEFAULT_COLORS, ...t.color_scheme };
+      const scheme = { ...getDefaultColors(), ...t.color_scheme };
       setColors(scheme);
       colorForm.setFieldsValue(scheme);
     }
@@ -409,7 +408,7 @@ function TenantSettings() {
           borderRadius: 12, padding: "16px 16px 20px",
           width: "100%", boxSizing: "border-box",
         }}>
-          <TabNav tabs={TABS} active={activeTab} onChange={setActiveTab} />
+          <TabNav tabs={TABS} active={activeTab} onChange={setActiveTab} primaryColor={primaryColor} />
 
           {/* ── Basic Info ─────────────────────────────────────────────── */}
           {activeTab === "basic" && (

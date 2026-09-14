@@ -8,23 +8,11 @@ import jsPDF from "jspdf";
 import { postRequest } from "@services/request";
 import { useTenantModules } from "@hooks/useTenantModules";
 
+import { THEME_C } from "@utils/getPrimaryColor";
+
 const { Text } = Typography;
 
-const C = {
-  primary: "#6c1c2c",
-  primaryLight: "#f9f0f2",
-  green: "#10b981",
-  orange: "#f59e0b",
-  red: "#ef4444",
-  blue: "#3b82f6",
-  indigo: "#6366f1",
-  purple: "#8b5cf6",
-  teal: "#0d9488",
-  subText: "#64748b",
-  darkText: "#0f172a",
-  border: "#e2e8f0",
-  bg: "#f8fafc",
-};
+const C = THEME_C;
 
 // ── Biashara AI floating assistant ─────────────────────────────────────────────
 const BiasharaAIFab: React.FC = () => {
@@ -129,12 +117,12 @@ const BiasharaAIFab: React.FC = () => {
     const report = document.createElement("div");
     report.innerHTML = `
       <div style="padding: 28px; font-family: Arial, 'Helvetica Neue', sans-serif; color: #0f172a; background: #ffffff;">
-        <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 22px; padding-bottom: 18px; border-bottom: 2px solid #6c1c2c;">
-          <div style="width: 42px; height: 42px; border-radius: 10px; background: #6c1c2c; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700;">
+        <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 22px; padding-bottom: 18px; border-bottom: 2px solid ${C.primary};">
+          <div style="width: 42px; height: 42px; border-radius: 10px; background: ${C.primary}; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700;">
             AI
           </div>
           <div>
-            <h1 style="margin: 0; font-size: 20px; font-weight: 700; color: #6c1c2c;">Biashara AI Business Analysis</h1>
+            <h1 style="margin: 0; font-size: 20px; font-weight: 700; color: ${C.primary};">Biashara AI Business Analysis</h1>
             <p style="margin: 4px 0 0; font-size: 11px; color: #64748b;">Generated on ${new Date().toLocaleString()} · Basepoint Cloud</p>
           </div>
         </div>

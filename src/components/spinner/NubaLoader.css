@@ -37,7 +37,7 @@
 
 /* Updated color variations based on #6c1c2c */
 .cell:nth-child(1) {
-  --cell-color: #6c1c2c;
+  --cell-color: var(--primary-color, #6c1c2c);
 }
 
 .cell:nth-child(2) {

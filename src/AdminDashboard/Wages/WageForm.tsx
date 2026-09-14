@@ -22,20 +22,13 @@ import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { addWage, updateWage } from "@services/wages";
 import { fetchAllUsersList } from "@services/users";
 import dayjs from "dayjs";
+import { THEME_C } from "@utils/getPrimaryColor";
 
 const { Text } = Typography;
 const { TextArea } = Input;
 
 // ── Palette ───────────────────────────────────────────────────────────────────
-const C = {
-    primary: "#6c1c2c",
-    primaryLight: "#f9f0f2",
-    green: "#10b981",
-    red: "#ef4444",
-    subText: "#64748b",
-    darkText: "#0f172a",
-    border: "#e2e8f0",
-};
+const C = THEME_C;
 
 const fmtK = (v: number) =>
     v.toLocaleString("en-KE", { minimumFractionDigits: 0 });

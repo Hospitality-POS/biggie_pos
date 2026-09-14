@@ -179,9 +179,8 @@ function Customers() {
         [ALL_TABS, can]
     );
 
-    // Use primary color context instead of hardcoded colors
-    const contextResult = usePrimaryColor();
-    const primaryColor = contextResult?.primaryColor || '#6c1c2c';
+    // Use primary color context directly
+    const primaryColor = usePrimaryColor();
     
     // Generate color palette based on primary color (same logic as CalendarView)
     const generateColorPalette = (primary: string) => {

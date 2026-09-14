@@ -3,21 +3,11 @@ import { ActionType, ProTable } from "@ant-design/pro-components";
 import { EditOutlined, EyeOutlined, MoreOutlined, NotificationOutlined } from "@ant-design/icons";
 import { App, Button, Dropdown, Tag, Typography } from "antd";
 import { fetchAllCampaigns, Campaign, CampaignStatus } from "@services/crm/campaigns";
+import { THEME_C } from "@utils/getPrimaryColor";
 
 const { Text } = Typography;
 
-const C = {
-    primary: "#6c1c2c",
-    primaryLight: "#f9f0f2",
-    green: "#10b981",
-    red: "#ef4444",
-    blue: "#3b82f6",
-    orange: "#f59e0b",
-    subText: "#64748b",
-    darkText: "#0f172a",
-    border: "#e2e8f0",
-    bg: "#f8fafc",
-} as const;
+const C = THEME_C;
 
 const STATUS_CFG: Record<CampaignStatus, { color: string; bg: string; border: string }> = {
     draft: { color: C.subText, bg: C.bg, border: C.border },

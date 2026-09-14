@@ -10,24 +10,17 @@ import {
 import { fetchAllConsultations, updateConsultationStatus } from "@services/consultation";
 import { getAllProducts } from "@services/products";
 import dayjs from "dayjs";
+import { THEME_C } from "@utils/getPrimaryColor";
 
 const { RangePicker } = DatePicker;
 const { Text } = Typography;
 
 // ── Palette ────────────────────────────────────────────────────────────────
 const C = {
-    primary: "#6c1c2c",
-    primaryLight: "#f9f0f2",
-    green: "#10b981",
-    red: "#ef4444",
-    blue: "#3b82f6",
-    orange: "#f59e0b",
-    purple: "#8b5cf6",
+    ...THEME_C,
+    get primary() { return THEME_C.primary; },
+    get primaryLight() { return THEME_C.primaryLight; },
     cyan: "#06b6d4",
-    subText: "#64748b",
-    darkText: "#0f172a",
-    border: "#e2e8f0",
-    bg: "#f8fafc",
 };
 
 const fmt = (v: number) =>

@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { getUser } from '@services/tenants';
 import { fetchSystemSetupDetailsById } from '@services/systemsetup';
+import { getPrimaryColor, hexToRgb } from './getPrimaryColor';
 
 interface PayslipData {
   _id: string;
@@ -73,7 +74,7 @@ export const generateP9FormPDF = async (payslips: PayslipData[], year: number) =
   const companyEmail = systemSettings?.email || tenant.email;
   
   // Colors
-  const primaryColor: [number, number, number] = [108, 28, 44]; // #6c1c2c
+  const primaryColor: [number, number, number] = hexToRgb(getPrimaryColor());
   const textColor: [number, number, number] = [15, 23, 42]; // #0f172a
   const subTextColor: [number, number, number] = [100, 116, 139]; // #64748b
   

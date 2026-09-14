@@ -187,7 +187,7 @@ const EmployeeShiftModal: React.FC<EmployeeShiftModalProps> = ({
         edit ? (
           <Button
             key="button"
-            icon={<EditOutlined style={{ color: "#6c1c2c" }} />}
+            icon={<EditOutlined style={{ color: "var(--primary-color)" }} />}
           >
             Edit
           </Button>

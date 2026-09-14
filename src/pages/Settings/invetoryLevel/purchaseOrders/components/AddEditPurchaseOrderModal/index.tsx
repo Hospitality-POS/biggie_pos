@@ -43,17 +43,16 @@ import { usePurchaseOrders } from "../../hooks/usePurchaseOrders";
 import AddProSupplierModal from "@components/MODALS/pro/AddProSupplierModal";
 import AddEditProInventoryModal from "@components/MODALS/pro/AddEditProInventoryModal";
 import UomModal from "@components/MODALS/pro/UomModal";
+import { THEME_C } from "../../../../../../utils/getPrimaryColor";
 
 const { Text } = Typography;
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 const C = {
-  primary: "#6c1c2c",
-  primaryLight: "#f9f0f2",
-  green: "#10b981",
+  ...THEME_C,
+  get primary() { return THEME_C.primary; },
+  get primaryLight() { return THEME_C.primaryLight; },
   tableBorder: "#e2e8f0",
-  darkText: "#0f172a",
-  subText: "#64748b",
 };
 
 const fmtK = (v: number) => {
