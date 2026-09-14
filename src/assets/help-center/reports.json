@@ -1,0 +1,32 @@
+[
+  {
+    "id": 25,
+    "title": "Reports & Analytics Overview",
+    "description": "Understanding business intelligence features",
+    "type": "article",
+    "readTime": "10 min",
+    "views": 2800,
+    "helpful": 220,
+    "content": "\n# Reports & Analytics Overview\n\n## Report Generation Flow\n\n```\n┌──────────────┐\n│ Select       │\n│ Report Type  │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Choose       │\n│ Date Range   │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Apply        │\n│ Filters      │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Generate     │\n│ Report       │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ View         │\n│ Visualizations│\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Export       │\n│ (PDF/Excel)  │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Share/       │\n│ Schedule     │\n└──────────────┘\n```\n\n## Report Categories\n\n### 1. Sales Reports\n- Daily sales summary\n- Product performance\n- Category analysis\n- Staff performance\n- Time-based trends\n\n### 2. Inventory Reports\n- Stock levels\n- Movement reports\n- Valuation reports\n- Low stock alerts\n- Reorder recommendations\n\n### 3. Financial Reports\n- Revenue reports\n- Expense tracking\n- Profit analysis\n- Cash flow\n- Tax reports\n\n### 4. Customer Reports\n- Customer analysis\n- Purchase patterns\n- Loyalty metrics\n- Churn analysis\n- Lifetime value\n\n### 5. Operational Reports\n- Staff performance\n- Shift reports\n- Service metrics\n- Efficiency analysis\n- Capacity utilization\n\n## Dashboard Analytics\n\n### Key Performance Indicators\n- Revenue trends\n- Growth metrics\n- Conversion rates\n- Average order value\n- Customer satisfaction\n\n### Visualizations\n- Charts and graphs\n- Heat maps\n- Trend lines\n- Comparative analysis\n- Geographic distribution\n\n## Custom Reports\n\n### Creating Custom Reports\n1. Select data source\n2. Choose metrics\n3. Apply filters\n4. Set date ranges\n5. Configure visualization\n6. Save and schedule\n\n### Report Scheduling\n- Daily, weekly, monthly\n- Email delivery\n- PDF export\n- Dashboard embedding\n\n## Export Options\n- Excel spreadsheets\n- PDF reports\n- CSV data\n- API access\n- Real-time dashboards\n      "
+  },
+  {
+    "id": 26,
+    "title": "Sales Performance Reports",
+    "description": "Analyze sales data and trends",
+    "type": "article",
+    "readTime": "8 min",
+    "views": 2200,
+    "helpful": 175,
+    "content": "\n# Sales Performance Reports\n\n## Daily Sales Report\n- Total revenue\n- Transaction count\n- Average order value\n- Payment method breakdown\n- Hourly sales distribution\n\n## Product Performance\n- Top-selling products\n- Slow-moving items\n- Category analysis\n- Margin analysis\n- Stock turnover\n\n## Staff Performance\n- Sales by staff\n- Average transaction value\n- Customer satisfaction\n- Upsell success rate\n- Productivity metrics\n\n## Time-Based Analysis\n- Daily comparisons\n- Weekly trends\n- Monthly summaries\n- Year-over-year growth\n- Seasonal patterns\n\n## Customer Insights\n- New vs returning customers\n- Purchase frequency\n- Average spend\n- Basket analysis\n- Channel performance\n\n## Generating Reports\n1. Go to **Reports > Sales**\n2. Select report type\n3. Choose date range\n4. Apply filters\n5. Generate report\n6. Export or share\n      "
+  },
+  {
+    "id": 27,
+    "title": "Inventory Reports",
+    "description": "Track and analyze inventory data",
+    "type": "article",
+    "readTime": "7 min",
+    "views": 1800,
+    "helpful": 145,
+    "content": "\n# Inventory Reports\n\n## Stock Status Report\n- Current stock levels\n- Reorder points\n- Stock value\n- Location breakdown\n- Category summary\n\n## Movement Reports\n- Stock in (purchases)\n- Stock out (sales)\n- Transfers\n- Adjustments\n- Wastage\n\n## Valuation Reports\n- Total inventory value\n- Cost of goods sold\n- Inventory turnover\n- Aging analysis\n- Margin analysis\n\n## Low Stock Alerts\n- Items below reorder point\n- Out of stock items\n- Critical shortages\n- Recommended orders\n- Supplier information\n\n## Generating Inventory Reports\n1. Go to **Reports > Inventory**\n2. Select report type\n3. Choose date range\n4. Filter by location/category\n5. Generate report\n6. Export to Excel/PDF\n      "
+  }
+]

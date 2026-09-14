@@ -1,0 +1,42 @@
+[
+  {
+    "id": 13,
+    "title": "Quick Start Guide",
+    "description": "Get up and running in 5 minutes",
+    "type": "video",
+    "readTime": "5 min",
+    "views": 1200,
+    "helpful": 89,
+    "content": "\n# Quick Start Guide\n\n## Welcome to Base Point\nThis guide will help you get started with Base Point in just 5 minutes.\n\n## Step 1: Account Setup\n1. Log in to your account\n2. Complete your profile\n3. Configure your business details\n4. Set up your first shop\n\n## Step 2: Module Activation\n- Activate Duka (POS) for sales\n- Activate Pesa (Accounting) for finances\n- Activate Mteja (CRM) for customers\n- Activate Dala (Property) if needed\n- Activate Bandu (HR) for payroll\n\n## Step 3: Basic Configuration\n- Add your first products\n- Set up payment methods\n- Configure tax settings\n- Add staff members\n\n## Step 4: First Sale\n- Open the POS interface\n- Add items to cart\n- Complete the sale\n- Print receipt\n\n## Step 5: Explore\n- Check the dashboard\n- View reports\n- Try the help center\n\n## Need Help?\n- Browse our help articles\n- Contact support\n- Watch video tutorials\n      "
+  },
+  {
+    "id": 14,
+    "title": "Account Setup",
+    "description": "Configure your account settings",
+    "type": "article",
+    "readTime": "3 min",
+    "views": 800,
+    "helpful": 65,
+    "content": "\n# Account Setup\n\n## Profile Configuration\n1. Go to **Settings > Profile**\n2. Upload your logo\n3. Add business address\n4. Set contact details\n5. Configure time zone\n\n## Business Information\n- Company name\n- Business type\n- Tax registration\n- Industry details\n\n## User Preferences\n- Language settings\n- Date format\n- Currency format\n- Notification preferences\n\n## Security Setup\n- Set strong password\n- Enable 2FA\n- Configure session timeout\n- Set up recovery options\n      "
+  },
+  {
+    "id": 39,
+    "title": "Module Activation Guide",
+    "description": "Activate and configure Base Suite modules",
+    "type": "article",
+    "readTime": "8 min",
+    "views": 1500,
+    "helpful": 120,
+    "content": "\n# Module Activation Guide\n\n## Module Activation Flow\n\n```\n┌──────────────┐\n│ Go to        │\n│ Discover     │\n│ Page         │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Select       │\n│ Module       │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Review       │\n│ Features     │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Click Enable │\n│ Module       │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Configure    │\n│ Settings     │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Complete     │\n│ Setup Wizard │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Start Using │\n│ Module       │\n└──────────────┘\n```\n\n## Available Modules\n\n### Duka (POS)\n- Point of Sale operations\n- Inventory management\n- Customer management\n- Sales reporting\n\n### Pesa (Accounting)\n- Financial management\n- Journal entries\n- Financial reports\n- Tax compliance\n\n### Mteja (CRM)\n- Lead management\n- Customer database\n- Marketing campaigns\n- Loyalty programs\n\n### Dala (Property)\n- Property management\n- Tenant management\n- Lease tracking\n- Maintenance\n\n### Bandu (HR)\n- Employee management\n- Payroll processing\n- Attendance tracking\n- Benefits management\n\n## Activation Steps\n1. Go to **Discover** page\n2. Select module to activate\n3. Review module features\n4. Click **Enable Module**\n5. Configure settings\n6. Start using\n\n## Module Integration\n- Modules work together seamlessly\n- Data syncs automatically\n- Unified dashboard\n- Cross-module reporting\n      "
+  },
+  {
+    "id": 40,
+    "title": "Data Import Guide",
+    "description": "Import your existing data into Base Point",
+    "type": "article",
+    "readTime": "10 min",
+    "views": 1100,
+    "helpful": 95,
+    "content": "\n# Data Import Guide\n\n## Supported Data Types\n- Products\n- Customers\n- Suppliers\n- Employees\n- Inventory\n\n## Import Process\n\n### 1. Download Template\n1. Go to **Settings > Import**\n2. Select data type\n3. Download CSV template\n4. Fill in your data\n\n### 2. Prepare Data\n- Follow template format\n- Use correct data types\n- Validate required fields\n- Check for duplicates\n\n### 3. Upload File\n1. Select prepared CSV\n2. Map fields\n3. Preview data\n4. Validate import\n\n### 4. Complete Import\n- Review summary\n- Handle errors\n- Confirm import\n- Verify data\n\n## Best Practices\n- Backup before import\n- Import in batches\n- Validate after import\n- Keep original files\n      "
+  }
+]
