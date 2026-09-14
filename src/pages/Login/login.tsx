@@ -487,8 +487,7 @@ const StaffLoginPage = () => {
                         margin: "0 auto",
                     }}
                 >
-                    Basepoint Cloud — Duka (Store Front), Pesa (Accounting), Mteja (CRM), and Bandu (HR),
-                    all unified in one smarter platform built for your business.
+                    Run your sales with Duka, finances with Pesa, customers with Mteja, and team with Bandu.
                 </p>
             )}
         </div>
