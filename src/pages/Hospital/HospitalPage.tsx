@@ -369,9 +369,28 @@ const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
 
                         {/* Products / Services loading or grid */}
                         {productsLoading || packagesLoading ? (
-                          <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                          <div
+                            style={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              gap: 10,
+                              width: "100%",
+                              paddingTop: 8,
+                              paddingLeft: 4,
+                              paddingRight: 4,
+                            }}
+                          >
                             {Array.from({ length: 6 }).map((_, i) => (
-                              <SkeletonProductCard key={i} />
+                              <SkeletonProductCard
+                                key={i}
+                                style={{
+                                  flex: isMobile
+                                    ? "0 0 100%"
+                                    : isTablet
+                                    ? "0 0 calc(50% - 5px)"
+                                    : "0 0 calc(33% - 7px)",
+                                }}
+                              />
                             ))}
                           </div>
                         ) : areItemsAvailable ? (

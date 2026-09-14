@@ -23,16 +23,16 @@ import {
   Empty,
 } from "antd";
 import Lottie from "lottie-react";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, Suspense, lazy } from "react";
 import { useAppSelector } from "src/store";
 import fssanimation from "../../components/Loaders/tables.json";
 import EmptyPage from "@routes/EmptyPage";
 import { useNavigate } from "react-router-dom";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { usePOSMode } from "@context/POSModeContext";
-import HospitalPage from "@pages/Hospital/HospitalPage";
-import HotelPage from "@pages/Hotel/HotelPage";
-import React from "react";
+
+const HospitalPage = lazy(() => import("@pages/Hospital/HospitalPage"));
+const HotelPage = lazy(() => import("@pages/Hotel/HotelPage"));
 
 const { Text, Title } = Typography;
 
@@ -508,36 +508,54 @@ export default function TablePro() {
   // ── Hotel mode ────────────────────────────────────────────────────────────
   if (isHotelMode) {
     return (
-      <>
+      <Suspense
+        fallback={
+          <div style={{ display: "grid", placeContent: "center", height: "60vh" }}>
+            <Spin size="large" tip="Loading Hotel Mode..." />
+          </div>
+        }
+      >
         <HotelPage />
         {selectedProductId && (
           <StaffModal setOpen={setOpen} open={open} tbl={selectedProductId} showButton={true} />
         )}
-      </>
+      </Suspense>
     );
   }
 
   // ── Hospital mode ─────────────────────────────────────────────────────────
   if (isHospitalMode) {
     return (
-      <>
+      <Suspense
+        fallback={
+          <div style={{ display: "grid", placeContent: "center", height: "60vh" }}>
+            <Spin size="large" tip="Loading Hospital Mode..." />
+          </div>
+        }
+      >
         <HospitalPage />
         {selectedProductId && (
           <StaffModal setOpen={setOpen} open={open} tbl={selectedProductId} showButton={true} />
         )}
-      </>
+      </Suspense>
     );
   }
 
   // ── Retail mode ───────────────────────────────────────────────────────────
   if (isRetailMode) {
     return (
-      <>
+      <Suspense
+        fallback={
+          <div style={{ display: "grid", placeContent: "center", height: "60vh" }}>
+            <Spin size="large" tip="Loading Retail Mode..." />
+          </div>
+        }
+      >
         <HospitalPage mode="retail" />
         {selectedProductId && (
           <StaffModal setOpen={setOpen} open={open} tbl={selectedProductId} showButton={true} />
         )}
-      </>
+      </Suspense>
     );
   }
 
