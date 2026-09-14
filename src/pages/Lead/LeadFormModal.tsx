@@ -7,7 +7,7 @@ import {
     TeamOutlined, UserOutlined, UserSwitchOutlined, ShopOutlined,
 } from "@ant-design/icons";
 import { useAppDispatch } from "../../store";
-import { createLead, updateLead, fetchLeadSources, Lead } from "@services/crm/leads";
+import { createLead, updateLead, fetchLeadSources, fetchProjectOptions, Lead } from "@services/crm/leads";
 import { fetchAllUsersList } from "@services/users";
 import dayjs from "dayjs";
 
@@ -56,6 +56,9 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
     const [users, setUsers] = useState<User[]>([]);
     const [sourceOptions, setSourceOptions] = useState<string[]>(SOURCES);
     const [newSource, setNewSource] = useState("");
+    const [projectOptions, setProjectOptions] = useState<string[]>([]);
+    const [newProject, setNewProject] = useState("");
+    const [projectsLoading, setProjectsLoading] = useState(false);
     const [entityType, setEntityType] = useState<'individual' | 'company'>('individual');
     const dispatch = useAppDispatch();
     const isEdit = mode === "edit";
@@ -98,7 +101,7 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
             const shopData = localStorage.getItem("shop");
             const shop = shopData ? JSON.parse(shopData) : null;
             const list = await fetchLeadSources(shop?._id || undefined);
-            setSourceOptions(prev => {
+            setSourceOptions(() => {
                 const merged = [...new Set([...SOURCES, ...list])];
                 if (lead?.source && !merged.includes(lead.source)) merged.push(lead.source);
                 return merged;
@@ -117,6 +120,38 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
         setNewSource("");
     };
 
+    // Load project options: dala portfolio property names (when the shop has
+    // dala data) + project names already used on this shop's leads.
+    useEffect(() => {
+        if (!visible) return;
+        const load = async () => {
+            setProjectsLoading(true);
+            try {
+                const shopData = localStorage.getItem("shop");
+                const shop = shopData ? JSON.parse(shopData) : null;
+                const list = await fetchProjectOptions(shop?._id || undefined);
+                setProjectOptions(() => {
+                    const merged = [...new Set(list)];
+                    if (lead?.project && !merged.includes(lead.project)) merged.push(lead.project);
+                    return merged;
+                });
+            } finally {
+                setProjectsLoading(false);
+            }
+        };
+        load();
+    }, [visible, lead]);
+
+    const addCustomProject = () => {
+        const name = newProject.trim();
+        if (!name) return;
+        if (!projectOptions.includes(name)) {
+            setProjectOptions(prev => [...prev, name]);
+        }
+        form.setFieldsValue({ project: name });
+        setNewProject("");
+    };
+
     useEffect(() => {
         if (!visible) return;
         if (isEdit && lead) {
@@ -132,6 +167,7 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
                 website: lead.website,
                 stage: lead.stage,
                 source: lead.source,
+                project: lead.project,
                 assigned_to: lead.assigned_to?._id || lead.assigned_to,
                 estimated_value: lead.estimated_value,
                 probability: lead.probability,
@@ -172,6 +208,7 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
                 website: values.website,
                 stage: values.stage || "new",
                 source: values.source,
+                project: values.project,
                 assigned_to: values.assigned_to,
                 estimated_value: values.estimated_value,
                 probability: values.probability,
@@ -334,6 +371,49 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
                         </Select>
                     </Form.Item>
                 </div>
+
+                {/* Project — select from the dala portfolio when available,
+                    otherwise type a project name (same pattern as Source) */}
+                <Form.Item name="project" label="Project">
+                    <Select
+                        placeholder={projectOptions.length ? "Select or add a project" : "Type a project name"}
+                        allowClear
+                        showSearch
+                        optionFilterProp="children"
+                        loading={projectsLoading}
+                        style={{ borderRadius: 8 }}
+                        dropdownRender={(menu) => (
+                            <>
+                                {menu}
+                                <Divider style={{ margin: "8px 0" }} />
+                                <div style={{ display: "flex", gap: 8, padding: "0 8px 8px" }}>
+                                    <Input
+                                        size="small"
+                                        placeholder="New project name"
+                                        value={newProject}
+                                        onChange={(e) => setNewProject(e.target.value)}
+                                        onKeyDown={(e) => e.stopPropagation()}
+                                        onPressEnter={(e) => { e.preventDefault(); addCustomProject(); }}
+                                        style={{ borderRadius: 6 }}
+                                    />
+                                    <Button
+                                        type="text"
+                                        size="small"
+                                        icon={<PlusOutlined />}
+                                        onClick={addCustomProject}
+                                        disabled={!newProject.trim()}
+                                    >
+                                        Add
+                                    </Button>
+                                </div>
+                            </>
+                        )}
+                    >
+                        {projectOptions.map(p => (
+                            <Option key={p} value={p}>{p}</Option>
+                        ))}
+                    </Select>
+                </Form.Item>
 
                 {/* Assigned To - New Section */}
                 <Form.Item name="assigned_to" label="Assigned To">
