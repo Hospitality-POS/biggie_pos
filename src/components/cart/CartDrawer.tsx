@@ -45,6 +45,7 @@ import { useRetailQueue } from "@context/RetailQueueContext";
 import { usePrintDocument, DocumentType } from "../MODALS/Hooks/usePrintDocument";
 import useSystemDetails from "@hooks/useSystemDetails";
 import { sendPrintFromCart } from "@services/printAgent";
+import dayjs from "dayjs";
 
 import CartCustomerBanner from "./components/CartCustomerBanner";
 import CartSummary from "./components/CartSummary";
@@ -56,25 +57,11 @@ const { Text } = Typography;
 
 const formatCartDate = (dateString: string) => {
   if (!dateString) return null;
-  const date = new Date(dateString);
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const cartDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-
-  if (cartDate.getTime() === today.getTime()) {
-    return `Today at ${date.toLocaleTimeString("en-KE", { hour: "2-digit", minute: "2-digit" })}`;
-  } else if (cartDate.getTime() === yesterday.getTime()) {
-    return `Yesterday at ${date.toLocaleTimeString("en-KE", { hour: "2-digit", minute: "2-digit" })}`;
-  }
-  return date.toLocaleDateString("en-KE", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const d = dayjs(dateString);
+  if (!d.isValid()) return null;
+  if (d.isSame(dayjs(), "day")) return `Today at ${d.format("hh:mm A")}`;
+  if (d.isSame(dayjs().subtract(1, "day"), "day")) return `Yesterday at ${d.format("hh:mm A")}`;
+  return d.format("MMM D, YYYY hh:mm A");
 };
 
 const CartDrawer: React.FC = () => {

@@ -12,7 +12,6 @@ import {
   Button, DatePicker, Drawer, Form, message,
   Modal, Popconfirm, Tooltip, Typography, Select, Input,
 } from "antd";
-import { CSVLink } from "react-csv";
 import { useReactToPrint } from "react-to-print";
 import dayjs from "dayjs";
 import { ENTITY_NAME, COOP_NAME } from "@utils/config";
@@ -614,6 +613,30 @@ const OrdersTable = () => {
     setPrintModalOpen(true);
   };
 
+  const handleExportCSV = async () => {
+    if (!csvData || csvData.length === 0) {
+      message.warning("No orders to export.");
+      return;
+    }
+    try {
+      const XLSX = await import("xlsx");
+      const ws = XLSX.utils.json_to_sheet(csvData);
+      const csvContent = XLSX.utils.sheet_to_csv(ws);
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `${ENTITY_NAME}_Orders_${dayjs().format("YYYY-MM-DD")}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Failed to export CSV:", err);
+      message.error("Failed to export orders to CSV.");
+    }
+  };
+
   // ── Print component ─────────────────────────────────────────────────────
   const OrdersPrintComponent = () => {
     const startDate = queryParams.start_date;
@@ -948,11 +971,9 @@ const OrdersTable = () => {
             </div>
             <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
               <Button size="small" icon={<FilterOutlined />} onClick={() => setFilterOpen(true)} style={{ borderRadius: 8, borderColor: C.border, height: 30, fontSize: 12 }}>Filter</Button>
-              <CSVLink data={csvData} filename={`${ENTITY_NAME}_Orders_${dayjs().format("YYYY-MM-DD")}.csv`}>
-                <Button size="small" icon={<DownloadOutlined />} type="primary" style={{ background: C.primary, borderColor: C.primary, borderRadius: 8, height: 30, fontSize: 12 }}>
-                  CSV
-                </Button>
-              </CSVLink>
+              <Button size="small" icon={<DownloadOutlined />} type="primary" onClick={handleExportCSV} style={{ background: C.primary, borderColor: C.primary, borderRadius: 8, height: 30, fontSize: 12 }}>
+                CSV
+              </Button>
             </div>
           </div>
         </div>
@@ -1020,12 +1041,9 @@ const OrdersTable = () => {
             <Button key="pdf" icon={<FilePdfOutlined />} onClick={handleExportPDF} style={{ borderRadius: 8 }}>
               Export PDF
             </Button>,
-            <CSVLink key="csv" data={csvData}
-              filename={`${ENTITY_NAME}_Orders_${dayjs().format("YYYY-MM-DD")}.csv`}>
-              <Button type="primary" icon={<DownloadOutlined />} style={{ background: C.primary, borderColor: C.primary, borderRadius: 8 }}>
-                Export CSV
-              </Button>
-            </CSVLink>,
+            <Button key="csv" type="primary" icon={<DownloadOutlined />} onClick={handleExportCSV} style={{ background: C.primary, borderColor: C.primary, borderRadius: 8 }}>
+              Export CSV
+            </Button>,
           ],
         }}
         columns={[

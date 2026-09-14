@@ -17,7 +17,10 @@ export default defineConfig({
             if (id.includes('react/') || id.includes('react-dom/') || id.includes('react-router')) {
               return 'vendor-react';
             }
-            if (id.includes('@ant-design/icons') || id.includes('/antd/')) {
+            if (id.includes('@ant-design/icons')) {
+              return 'vendor-antd-icons';
+            }
+            if (id.includes('/antd/')) {
               return 'vendor-antd';
             }
             if (
@@ -30,13 +33,11 @@ export default defineConfig({
             ) {
               return 'vendor-pro-components';
             }
-            if (
-              id.includes('@ant-design/charts') ||
-              id.includes('@antv') ||
-              id.includes('recharts') ||
-              id.includes('d3-')
-            ) {
-              return 'vendor-charts';
+            if (id.includes('@ant-design/charts') || id.includes('@antv')) {
+              return 'vendor-antv';
+            }
+            if (id.includes('recharts') || id.includes('d3-')) {
+              return 'vendor-recharts';
             }
             if (
               id.includes('@tanstack/react-query') ||

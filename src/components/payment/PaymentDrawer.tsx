@@ -437,6 +437,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
           customerEmail: resolveCustomerEmail(),
           customerId: resolveCustomerId(),
           servedBy: user?.id,
+          shopId: cartDetails?.shop_id || localStorage.getItem("shopId") || undefined,
         });
         setOpenModal(false);
         setDrawerVisible(false);
@@ -525,6 +526,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
           customerEmail: resolveCustomerEmail(),
           customerId: resolveCustomerId(),
           servedBy: user?.id,
+          shopId: cartDetails?.shop_id || localStorage.getItem("shopId") || undefined,
         });
         setDrawerVisible(false);
         setSelectedCustomerId(null);

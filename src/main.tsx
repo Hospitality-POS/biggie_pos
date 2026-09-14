@@ -11,6 +11,7 @@ import enUS from "antd/locale/en_US";
 import { PrimaryColorProvider, usePrimaryColor } from "./context/PrimaryColorContext";
 import { POSModeProvider } from "./context/POSModeContext";
 import { RetailQueueProvider } from "./context/RetailQueueContext";
+import GlobalErrorBoundary from "@components/GlobalErrorBoundary";
 
 // Force-unregister stale service workers and clear caches in dev
 if (import.meta.env.DEV && "serviceWorker" in navigator) {
@@ -28,7 +29,6 @@ const AppWithColor = () => {
   const primaryColor = usePrimaryColor();
   return (
     <ConfigProvider
-      key={primaryColor}
       locale={enUS}
       theme={{
         token: {
@@ -47,16 +47,18 @@ const AppWithColor = () => {
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <Provider store={store}>
-      <QueryClientProvider client={queryClient}>
-        <PrimaryColorProvider>
-          <POSModeProvider>
-            <RetailQueueProvider>
-              <AppWithColor />
-            </RetailQueueProvider>
-          </POSModeProvider>
-        </PrimaryColorProvider>
-      </QueryClientProvider>
-    </Provider>
+    <GlobalErrorBoundary>
+      <Provider store={store}>
+        <QueryClientProvider client={queryClient}>
+          <PrimaryColorProvider>
+            <POSModeProvider>
+              <RetailQueueProvider>
+                <AppWithColor />
+              </RetailQueueProvider>
+            </POSModeProvider>
+          </PrimaryColorProvider>
+        </QueryClientProvider>
+      </Provider>
+    </GlobalErrorBoundary>
   </React.StrictMode>
 );
