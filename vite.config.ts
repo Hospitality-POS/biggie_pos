@@ -23,38 +23,18 @@ export default defineConfig(({ mode }) => {
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
-            if (id.includes('react/') || id.includes('react-dom/') || id.includes('react-router')) {
-              return 'vendor-react';
-            }
-            if (id.includes('@ant-design/icons')) {
-              return 'vendor-antd-icons';
-            }
-            if (id.includes('/antd/')) {
-              return 'vendor-antd';
-            }
-            if (
-              id.includes('@ant-design/pro-components') ||
-              id.includes('@ant-design/pro-table') ||
-              id.includes('@ant-design/pro-utils') ||
-              id.includes('@ant-design/pro-layout') ||
-              id.includes('@ant-design/pro-card') ||
-              id.includes('@ant-design/pro-form')
-            ) {
-              return 'vendor-pro-components';
-            }
-            if (id.includes('@ant-design/charts') || id.includes('@antv')) {
-              return 'vendor-antv';
-            }
-            if (id.includes('recharts') || id.includes('d3-')) {
-              return 'vendor-recharts';
-            }
-            if (
-              id.includes('@tanstack/react-query') ||
-              id.includes('@reduxjs/toolkit') ||
-              id.includes('react-redux')
-            ) {
-              return 'vendor-query-redux';
-            }
+            // Only split heavy, self-contained, lazily-used libs.
+            // Do NOT split the react/antd ecosystem (react, antd, rc-*,
+            // @ant-design/icons, pro-components, charts, query/redux) into
+            // separate vendor chunks: they form a cyclic import graph, pnpm
+            // dir names embed peer deps so a bare substring match can pull
+            // unrelated packages' React components into the wrong chunk,
+            // and Rollup may place shared CJS helpers on either side of the
+            // cycle. The resulting circular chunk imports crash at boot
+            // with "Cannot read properties of undefined (reading
+            // 'createContext')" — this was already diagnosed and fixed
+            // once in 115734e; keep this comment so it doesn't regress
+            // again via a future merge.
             if (
               id.includes('jspdf') ||
               id.includes('jspdf-autotable') ||
