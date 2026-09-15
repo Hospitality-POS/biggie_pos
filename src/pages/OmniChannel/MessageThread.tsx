@@ -635,7 +635,7 @@ const MessageThread: React.FC<Props> = ({
         .slice(0, 5);
 
     // Guards against duplicate sends from a rapid double-click/tap: React
-    // state (sendMutation.isPending) only updates after a re-render, leaving
+    // state (sendMutation.isLoading) only updates after a re-render, leaving
     // a brief window where a second click still slips through. A ref check
     // is synchronous, so it closes that window.
     const isSendingRef = useRef(false);
@@ -643,7 +643,7 @@ const MessageThread: React.FC<Props> = ({
     const handleSend = () => {
         const content = text.trim();
         if (!content) return;
-        if (isSendingRef.current || sendMutation.isPending) return;
+        if (isSendingRef.current || sendMutation.isLoading) return;
         isSendingRef.current = true;
         // Only attach images for products still mentioned in the final text —
         // if the agent edited the suggestion to drop a product, its image
@@ -998,7 +998,7 @@ const MessageThread: React.FC<Props> = ({
                                         handoverMutation.mutate(value);
                                     }
                                 }}
-                                loading={handoverMutation.isPending}
+                                loading={handoverMutation.isLoading}
                                 showSearch
                                 style={{ width: 82 }}
                                 options={agents.map((agent: any) => ({
@@ -1047,7 +1047,7 @@ const MessageThread: React.FC<Props> = ({
                                         handoverMutation.mutate(value);
                                     }
                                 }}
-                                loading={handoverMutation.isPending}
+                                loading={handoverMutation.isLoading}
                                 showSearch
                                 style={{ minWidth: 150 }}
                                 options={agents.map((agent: any) => ({
@@ -1082,7 +1082,7 @@ const MessageThread: React.FC<Props> = ({
                                 size="small"
                                 icon={<CloseOutlined />}
                                 disabled={conversation.status === "closed"}
-                                loading={statusMutation.isPending}
+                                loading={statusMutation.isLoading}
                                 onClick={() => statusMutation.mutate({ status: "closed" })}
                             >
                                 Close
@@ -1331,7 +1331,7 @@ const MessageThread: React.FC<Props> = ({
                             type="primary"
                             icon={<SendOutlined />}
                             onClick={handleSend}
-                            loading={sendMutation.isPending || sendingMedia}
+                            loading={sendMutation.isLoading || sendingMedia}
                             disabled={!text.trim()}
                             size={isMobile ? "middle" : "large"}
                             style={{
@@ -1347,7 +1347,7 @@ const MessageThread: React.FC<Props> = ({
                             <Button
                                 icon={<ThunderboltOutlined />}
                                 onClick={() => suggestMutation.mutate()}
-                                loading={suggestMutation.isPending}
+                                loading={suggestMutation.isLoading}
                                 size={isMobile ? "middle" : "large"}
                                 style={{ height: isMobile ? 36 : 48, width: isMobile ? 36 : 48 }}
                             />
@@ -1389,7 +1389,7 @@ const MessageThread: React.FC<Props> = ({
                 onOk={handleMarkDispatch}
                 okText="Assign & Mark"
                 okButtonProps={{ disabled: !dispatchAgent }}
-                confirmLoading={statusMutation.isPending}
+                confirmLoading={statusMutation.isLoading}
                 width={400}
                 destroyOnClose
             >
