@@ -77,7 +77,10 @@ jobs:
           # Upload the new build into its own, isolated release directory.
           # Nothing under $APP_ROOT/current is touched while this runs, so
           # in-flight requests keep being served the old (fully intact) build.
-          ssh root@138.197.29.241 "mkdir -p '$RELEASE_DIR'"
+          # rm -rf first in case this exact SHA was already (partially)
+          # deployed by a retried/re-run workflow, so no stale files from
+          # that attempt can linger alongside the fresh copy.
+          ssh root@138.197.29.241 "rm -rf '$RELEASE_DIR' && mkdir -p '$RELEASE_DIR'"
           scp -r dist/. root@138.197.29.241:"$RELEASE_DIR"/
 
           # Flip the "current" symlink to the new release in a single atomic
