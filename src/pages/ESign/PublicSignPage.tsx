@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import * as pdfjsLib from "pdfjs-dist";
-import { Button, Input, Modal, Spin, Tabs, Typography, message } from "antd";
+import { Button, Input, Spin, Tabs, Typography, message } from "antd";
+import { ModalForm } from "@ant-design/pro-components";
 import {
     CheckCircleOutlined,
     ClockCircleOutlined,
@@ -864,14 +865,22 @@ const PublicSignPage: React.FC = () => {
             </div>
 
             {/* Signature capture modal */}
-            <Modal
+            <ModalForm
                 open={sigModalOpen}
-                onCancel={() => { setSigModalOpen(false); pendingFieldRef.current = null; }}
-                footer={null}
+                onOpenChange={(v) => {
+                    setSigModalOpen(v);
+                    if (!v) pendingFieldRef.current = null;
+                }}
+                modalProps={{
+                    destroyOnClose: true,
+                    centered: true,
+                    footer: null,
+                    style: { maxWidth: "94vw" },
+                    onCancel: () => { setSigModalOpen(false); pendingFieldRef.current = null; },
+                }}
+                submitter={false}
                 title="Add your signature"
                 width={520}
-                style={{ maxWidth: "94vw" }}
-                destroyOnClose
             >
                 <Tabs
                     defaultActiveKey="draw"
@@ -880,8 +889,7 @@ const PublicSignPage: React.FC = () => {
                         { key: "type", label: "Type", children: <TypePad onSave={(d, t) => handleModalSave(d, t)} /> },
                     ]}
                 />
-            </Modal>
-        </div>
+            </ModalForm>        </div>
     );
 };
 
