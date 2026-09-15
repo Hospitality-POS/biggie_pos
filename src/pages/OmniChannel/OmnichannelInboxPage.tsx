@@ -481,7 +481,7 @@ const OmnichannelInboxPage: React.FC = () => {
                         <div
                             style={{
                                 width: isMobile ? "100%" : 380,
-                                height: isMobile ? (selectedConversation ? 0 : "45%") : "100%",
+                                height: isMobile ? (selectedConversation ? 0 : "100%") : "100%",
                                 borderRight: isMobile ? "none" : "1px solid #f0f0f0",
                                 borderBottom: isMobile ? "1px solid #f0f0f0" : "none",
                                 flexShrink: 0,

@@ -5,7 +5,7 @@ import {
     EditOutlined, EyeOutlined, MoreOutlined, PlusOutlined, SendOutlined,
 } from "@ant-design/icons";
 import {
-    App, Button, DatePicker, Drawer, Dropdown, Form,
+    App, Button, DatePicker, Drawer, Dropdown, Form, Grid,
     Input, InputNumber, Modal, Select, Tag, Typography,
 } from "antd";
 import { useAppDispatch } from "../../store";
@@ -128,7 +128,7 @@ const SalesBudgetTable = forwardRef<SalesBudgetTableHandle, SalesBudgetTableProp
                         </div>
                     }
                     options={{ reload: () => actionRef.current?.reload() }}
-                    scroll={{ x: "100%" }} size="small"
+                    scroll={{ x: 1000 }} size="small"
                 />
             </App>
         );
@@ -417,6 +417,8 @@ const SalesBudgetDetailDrawer: React.FC<SalesBudgetDetailDrawerProps> = ({
 // ── Page ──────────────────────────────────────────────────────────────────────
 const SalesBudgets = () => {
     const tableRef = useRef<SalesBudgetTableHandle>(null);
+    const screens = Grid.useBreakpoint();
+    const isMobile = !screens.md;
     const [formOpen, setFormOpen] = useState(false);
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [selected, setSelected] = useState<SalesBudget | null>(null);
@@ -429,7 +431,7 @@ const SalesBudgets = () => {
 
     return (
         <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, padding: "16px 20px 14px", borderBottom: `1px solid ${C.border}` }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, padding: isMobile ? "12px 12px 10px" : "16px 20px 14px", borderBottom: `1px solid ${C.border}` }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <div style={{ background: C.primaryLight, borderRadius: 7, padding: "5px 7px", color: C.primary, fontSize: 16, lineHeight: 1 }}><AuditOutlined /></div>
                     <div>
@@ -442,7 +444,7 @@ const SalesBudgets = () => {
                     New Budget
                 </Button>
             </div>
-            <div style={{ padding: "16px 20px" }}>
+            <div style={{ padding: isMobile ? "12px" : "16px 20px" }}>
                 <SalesBudgetTable ref={tableRef} onView={handleView} onEdit={handleEdit} />
             </div>
             <SalesBudgetFormModal visible={formOpen} mode={mode} budget={selected} onClose={() => setFormOpen(false)} onSuccess={handleSuccess} />

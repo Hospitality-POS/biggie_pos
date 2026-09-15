@@ -138,7 +138,7 @@ export const CampaignTable = forwardRef<CampaignTableHandle, CampaignTableProps>
                         </div>
                     }
                     options={{ reload: () => actionRef.current?.reload() }}
-                    scroll={{ x: "100%" }}
+                    scroll={{ x: 1000 }}
                     size="small"
                 />
             </App>

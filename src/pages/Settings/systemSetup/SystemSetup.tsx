@@ -13,7 +13,7 @@ import {
   HomeOutlined,
   BookOutlined,
 } from "@ant-design/icons";
-import { Space, Typography, Card } from "antd";
+import { Space, Typography, Card, Grid } from "antd";
 import { useQuery } from "@tanstack/react-query";
 import Profile from "./Profile";
 import PaymentDetailsSettings from "../paymentMethodLevel/PaymentDetailsSettings";
@@ -32,6 +32,8 @@ const { Text } = Typography;
 
 const SystemSetup: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("payment-detail");
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
 
   const shopId = localStorage.getItem("shopId");
 
@@ -53,9 +55,10 @@ const SystemSetup: React.FC = () => {
   );
 
   return (
-    <div style={{ padding: "24px", minHeight: "100vh" }}>
+    <div style={{ padding: isMobile ? "12px" : "24px", minHeight: "100vh" }}>
       <Card
         bordered={false}
+        styles={{ body: { padding: isMobile ? 12 : 24 } }}
         style={{
           borderRadius: "12px",
           boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.03), 0 1px 6px -1px rgba(0, 0, 0, 0.02)",
@@ -66,9 +69,9 @@ const SystemSetup: React.FC = () => {
           tabs={{
             type: "card",
             activeKey: activeTab,
-            size: "large",
+            size: isMobile ? "middle" : "large",
             onChange: setActiveTab,
-            tabPosition: "left",
+            tabPosition: isMobile ? "top" : "left",
           }}
           style={{ backgroundColor: "transparent" }}
         >

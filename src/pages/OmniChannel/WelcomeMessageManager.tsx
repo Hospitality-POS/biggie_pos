@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button, Form, Input, Switch, Spin, Typography, Space } from "antd";
+import { Button, Form, Grid, Input, Switch, Spin, Typography, Space } from "antd";
 import { SaveOutlined, ThunderboltOutlined } from "@ant-design/icons";
 import {
     fetchWelcomeMessage,
@@ -18,6 +18,8 @@ interface Props {
 
 const WelcomeMessageManager: React.FC<Props> = ({ shopId }) => {
     const queryClient = useQueryClient();
+    const screens = Grid.useBreakpoint();
+    const isMobile = !screens.md;
     const [form] = Form.useForm();
 
     const { data, isLoading } = useQuery({
@@ -63,7 +65,7 @@ const WelcomeMessageManager: React.FC<Props> = ({ shopId }) => {
     };
 
     return (
-        <div style={{ padding: 24, height: "100%", overflowY: "auto" }}>
+        <div style={{ padding: isMobile ? 12 : 24, height: "100%", overflowY: "auto" }}>
             <Title level={4} style={{ marginBottom: 8 }}>
                 Automated Welcome Message
             </Title>
@@ -96,12 +98,12 @@ const WelcomeMessageManager: React.FC<Props> = ({ shopId }) => {
                     </Form.Item>
 
                     <Form.Item noStyle>
-                        <Space style={{ marginBottom: 24 }}>
+                        <Space wrap style={{ marginBottom: 24, width: "100%" }}>
                             <Input
                                 placeholder="Refine instructions (optional)"
                                 value={refineInstruction}
                                 onChange={(e) => setRefineInstruction(e.target.value)}
-                                style={{ width: 320 }}
+                                style={{ width: isMobile ? "100%" : 320 }}
                             />
                             <Button
                                 icon={<ThunderboltOutlined />}
