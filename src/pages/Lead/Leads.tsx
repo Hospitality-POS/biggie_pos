@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Button, message, Typography } from "antd";
+import { Button, Grid, message, Typography } from "antd";
 import { FileExcelOutlined, PlusOutlined, TeamOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import LeadTable, { LeadTableHandle } from "./LeadTable";
@@ -33,6 +33,8 @@ interface LeadsProps {
 
 const Leads: React.FC<LeadsProps> = ({ onConvertWithForm }) => {
     const tableRef = useRef<LeadTableHandle>(null);
+    const screens = Grid.useBreakpoint();
+    const isMobile = !screens.md;
 
     const [formOpen, setFormOpen] = useState(false);
     const [drawerOpen, setDrawerOpen] = useState(false);
@@ -113,7 +115,7 @@ const Leads: React.FC<LeadsProps> = ({ onConvertWithForm }) => {
             {/* Header */}
             <div style={{
                 display: "flex", alignItems: "center", justifyContent: "space-between",
-                flexWrap: "wrap", gap: 8, padding: "16px 20px 14px",
+                flexWrap: "wrap", gap: 8, padding: isMobile ? "12px 12px 10px" : "16px 20px 14px",
                 borderBottom: `1px solid ${C.border}`,
             }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -127,10 +129,10 @@ const Leads: React.FC<LeadsProps> = ({ onConvertWithForm }) => {
                         <Text style={{ fontSize: 11, color: C.subText }}>Track and manage your sales pipeline</Text>
                     </div>
                 </div>
-                <div style={{ display: "flex", gap: 8 }}>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                     <Button icon={<FileExcelOutlined />} onClick={handleExportLeads} loading={exporting}
                         style={{ borderRadius: 8, height: 36, fontSize: 13 }}>
-                        Export
+                        {isMobile ? "" : "Export"}
                     </Button>
                     <ImportLeadsModal onSuccess={handleSuccess} />
                     <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}
@@ -141,7 +143,7 @@ const Leads: React.FC<LeadsProps> = ({ onConvertWithForm }) => {
             </div>
 
             {/* Table */}
-            <div style={{ padding: "16px 20px" }}>
+            <div style={{ padding: isMobile ? "12px" : "16px 20px" }}>
                 <LeadTable ref={tableRef} onView={handleView} onEdit={handleEdit} />
             </div>
 

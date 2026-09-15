@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { PlusOutlined, NotificationOutlined } from "@ant-design/icons";
-import { Typography, Button } from "antd";
+import { Typography, Button, Grid } from "antd";
 import { Campaign } from "@services/crm/campaigns";
 import { CampaignTable, CampaignTableHandle } from "./CampaignTable";
 import { CampaignFormModal } from "./CampaignFormModal";
@@ -18,6 +18,8 @@ const C = {
 
 const Campaigns = () => {
     const tableRef = useRef<CampaignTableHandle>(null);
+    const screens = Grid.useBreakpoint();
+    const isMobile = !screens.md;
     const [formOpen, setFormOpen] = useState(false);
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [selected, setSelected] = useState<Campaign | null>(null);
@@ -30,7 +32,7 @@ const Campaigns = () => {
 
     return (
         <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, padding: "16px 20px 14px", borderBottom: `1px solid ${C.border}` }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, padding: isMobile ? "12px 12px 10px" : "16px 20px 14px", borderBottom: `1px solid ${C.border}` }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <div style={{ background: C.primaryLight, borderRadius: 7, padding: "5px 7px", color: C.primary, fontSize: 16, lineHeight: 1 }}>
                         <NotificationOutlined />
@@ -46,7 +48,7 @@ const Campaigns = () => {
                 </Button>
             </div>
 
-            <div style={{ padding: "16px 20px" }}>
+            <div style={{ padding: isMobile ? "12px" : "16px 20px" }}>
                 <CampaignTable ref={tableRef} onView={handleView} onEdit={handleEdit} />
             </div>
 

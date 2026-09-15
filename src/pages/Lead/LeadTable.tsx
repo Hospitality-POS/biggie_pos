@@ -253,7 +253,7 @@ const LeadTable = forwardRef<LeadTableHandle, LeadTableProps>(({ onView, onEdit 
                     </div>
                 }
                 options={{ reload: () => actionRef.current?.reload(), fullScreen: true }}
-                scroll={{ x: "100%" }}
+                scroll={{ x: 1100 }}
                 size="small"
             />
         </App>

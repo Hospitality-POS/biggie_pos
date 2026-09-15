@@ -634,13 +634,25 @@ const MessageThread: React.FC<Props> = ({
         )
         .slice(0, 5);
 
+    // Guards against duplicate sends from a rapid double-click/tap: React
+    // state (sendMutation.isPending) only updates after a re-render, leaving
+    // a brief window where a second click still slips through. A ref check
+    // is synchronous, so it closes that window.
+    const isSendingRef = useRef(false);
+
     const handleSend = () => {
         const content = text.trim();
         if (!content) return;
+        if (isSendingRef.current || sendMutation.isPending) return;
+        isSendingRef.current = true;
         // Only attach images for products still mentioned in the final text —
         // if the agent edited the suggestion to drop a product, its image
         // should not go out either.
-        sendMutation.mutate(pendingProductImages);
+        sendMutation.mutate(pendingProductImages, {
+            onSettled: () => {
+                isSendingRef.current = false;
+            },
+        });
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {

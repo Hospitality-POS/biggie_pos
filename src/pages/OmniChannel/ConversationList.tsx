@@ -12,6 +12,7 @@ import {
     Empty,
     Tabs,
     Tooltip,
+    Grid,
 } from "antd";
 import {
     SearchOutlined,
@@ -99,7 +100,8 @@ const ConversationRow: React.FC<{
     conv: Conversation;
     selected: boolean;
     onClick: () => void;
-}> = ({ conv, selected, onClick }) => {
+    isMobile?: boolean;
+}> = ({ conv, selected, onClick, isMobile }) => {
     const cfg = CHANNEL_CONFIG[conv.channel];
     const statusCfg = STATUS_CONFIG[conv.status];
     const timeAgo = conv.last_message_at
@@ -178,7 +180,7 @@ const ConversationRow: React.FC<{
                                 overflow: "hidden",
                                 textOverflow: "ellipsis",
                                 whiteSpace: "nowrap",
-                                maxWidth: 160,
+                                maxWidth: isMobile ? "70vw" : 160,
                             }}
                         >
                             {conv.external_contact_name || conv.external_contact_id}
@@ -206,7 +208,7 @@ const ConversationRow: React.FC<{
                                 overflow: "hidden",
                                 textOverflow: "ellipsis",
                                 whiteSpace: "nowrap",
-                                maxWidth: 170,
+                                maxWidth: isMobile ? "75vw" : 170,
                                 fontWeight: hasUnread ? 500 : 400,
                                 color: hasUnread ? "#262626" : undefined,
                             }}
@@ -306,12 +308,15 @@ const ConversationList: React.FC<Props> = ({
     onPageChange,
     onAgentChange,
 }) => {
+    const screens = Grid.useBreakpoint();
+    const isMobile = !screens.md;
+
     return (
         <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
 
             {/* ── Search & agent filter ── */}
-            <div style={{ padding: "10px 12px", borderBottom: "1px solid #f0f0f0" }}>
-                <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ padding: isMobile ? "8px 10px" : "10px 12px", borderBottom: "1px solid #f0f0f0" }}>
+                <div style={{ display: "flex", gap: 8, flexWrap: isMobile ? "wrap" : "nowrap" }}>
                     <Input
                         placeholder="Search conversations…"
                         prefix={<SearchOutlined style={{ color: "#bfbfbf" }} />}
@@ -319,13 +324,13 @@ const ConversationList: React.FC<Props> = ({
                         onChange={(e) => onSearchChange(e.target.value)}
                         allowClear
                         size="middle"
-                        style={{ flex: 1 }}
+                        style={{ flex: 1, minWidth: isMobile ? "100%" : undefined }}
                     />
                     {onAgentChange && (
                         <Select
                             value={selectedAgent}
                             onChange={onAgentChange}
-                            style={{ minWidth: 170 }}
+                            style={{ minWidth: isMobile ? "100%" : 170, flex: isMobile ? "1 1 100%" : undefined }}
                             size="middle"
                             options={[
                                 { value: "", label: "All agents" },
@@ -347,6 +352,7 @@ const ConversationList: React.FC<Props> = ({
                 size="small"
                 style={{ paddingLeft: 8, paddingRight: 8 }}
                 tabBarStyle={{ marginBottom: 0 }}
+                tabBarGutter={isMobile ? 14 : 32}
                 items={STATUS_TABS.filter(
                     (tab) => isAdmin || tab.key !== "queue"
                 ).map((tab) => {
@@ -355,7 +361,7 @@ const ConversationList: React.FC<Props> = ({
                         key: tab.key,
                         label: (
                             <Space size={4}>
-                                <span style={{ fontSize: 12 }}>{tab.label}</span>
+                                <span style={{ fontSize: isMobile ? 11 : 12 }}>{tab.label}</span>
                                 {tab.key !== "all" && count > 0 && (
                                     <Badge
                                         count={count}
@@ -402,6 +408,7 @@ const ConversationList: React.FC<Props> = ({
                             conv={conv}
                             selected={selectedId === conv._id}
                             onClick={() => onSelect(conv)}
+                            isMobile={isMobile}
                         />
                     ))
                 )}

@@ -5,6 +5,7 @@ import {
     Button,
     Card,
     Col,
+    Grid,
     Popconfirm,
     Row,
     Select,
@@ -49,6 +50,8 @@ interface Props {
 
 const AgentsManager: React.FC<Props> = ({ shopId }) => {
     const queryClient = useQueryClient();
+    const screens = Grid.useBreakpoint();
+    const isMobile = !screens.md;
     const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
     const [activeSubTab, setActiveSubTab] = useState("agents");
 
@@ -296,6 +299,7 @@ const AgentsManager: React.FC<Props> = ({ shopId }) => {
                     loading={agentsLoading}
                     pagination={false}
                     size="middle"
+                    scroll={isMobile ? { x: 560 } : undefined}
                     locale={{ emptyText: "No agents assigned yet" }}
                 />
             </Card>
@@ -303,7 +307,7 @@ const AgentsManager: React.FC<Props> = ({ shopId }) => {
     );
 
     return (
-        <div style={{ padding: "0 24px 24px", height: "100%", overflowY: "auto" }}>
+        <div style={{ padding: isMobile ? "0 12px 12px" : "0 24px 24px", height: "100%", overflowY: "auto" }}>
             <Tabs
                 activeKey={activeSubTab}
                 onChange={setActiveSubTab}

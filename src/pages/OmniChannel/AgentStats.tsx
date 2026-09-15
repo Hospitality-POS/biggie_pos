@@ -4,6 +4,7 @@ import {
     Badge,
     Card,
     Col,
+    Grid,
     Row,
     Select,
     Space,
@@ -31,6 +32,8 @@ const DAYS_OPTIONS = [
 ];
 
 const AgentStats: React.FC<Props> = ({ shopId }) => {
+    const screens = Grid.useBreakpoint();
+    const isMobile = !screens.md;
     const [days, setDays] = useState(30);
 
     const { data: analytics, isLoading: analyticsLoading } = useQuery({
@@ -109,7 +112,7 @@ const AgentStats: React.FC<Props> = ({ shopId }) => {
 
     return (
         <div style={{ paddingTop: 24 }}>
-            <Row justify="space-between" align="middle" style={{ marginBottom: 24 }}>
+            <Row justify="space-between" align="middle" gutter={[12, 12]} style={{ marginBottom: 24 }}>
                 <Col>
                     <Title level={5} style={{ margin: 0 }}>
                         Agent performance
@@ -190,6 +193,7 @@ const AgentStats: React.FC<Props> = ({ shopId }) => {
                 loading={loading}
                 pagination={false}
                 size="small"
+                scroll={isMobile ? { x: 520 } : undefined}
                 title={() => "Top agents by outbound messages"}
                 locale={{ emptyText: "No agent activity for this period" }}
             />

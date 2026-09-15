@@ -5,6 +5,7 @@ import {
     Card,
     Flex,
     Form,
+    Grid,
     Input,
     Modal,
     Popconfirm,
@@ -49,6 +50,8 @@ const stripHtml = (html: string) => (html || "").replace(/<[^>]*>/g, "").trim();
 
 const ScriptsManager: React.FC<Props> = ({ shopId, readOnly = false, onSelect }) => {
     const { message } = App.useApp();
+    const screens = Grid.useBreakpoint();
+    const isMobile = !screens.md;
     const queryClient = useQueryClient();
     const [form] = Form.useForm();
     const [editing, setEditing] = useState<Script | null>(null);
@@ -280,7 +283,7 @@ const ScriptsManager: React.FC<Props> = ({ shopId, readOnly = false, onSelect })
     ];
 
     return (
-        <div style={{ padding: readOnly ? 16 : 24, height: "100%", overflowY: "auto" }}>
+        <div style={{ padding: readOnly ? 16 : (isMobile ? 12 : 24), height: "100%", overflowY: "auto" }}>
             {!readOnly && (
                 <Flex
                     justify="space-between"
@@ -312,7 +315,7 @@ const ScriptsManager: React.FC<Props> = ({ shopId, readOnly = false, onSelect })
                 placeholder="Search scripts…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                style={{ maxWidth: 320, marginBottom: 16 }}
+                style={{ maxWidth: isMobile ? "100%" : 320, marginBottom: 16 }}
             />
 
             <Card size="small" styles={{ body: { padding: 0 } }}>
@@ -323,6 +326,7 @@ const ScriptsManager: React.FC<Props> = ({ shopId, readOnly = false, onSelect })
                     loading={isLoading}
                     pagination={false}
                     size="middle"
+                    scroll={isMobile ? { x: 620 } : undefined}
                     locale={{ emptyText: "No scripts yet — create one or upload a document" }}
                     onRow={(script) => ({
                         onClick: () => handleRowClick(script),
@@ -338,7 +342,7 @@ const ScriptsManager: React.FC<Props> = ({ shopId, readOnly = false, onSelect })
                 onOk={() => form.submit()}
                 confirmLoading={createMutation.isLoading || updateMutation.isLoading}
                 okText={editing ? "Save changes" : "Create script"}
-                width={700}
+                width={isMobile ? "94%" : 700}
                 destroyOnClose
             >
                 {!editing && (

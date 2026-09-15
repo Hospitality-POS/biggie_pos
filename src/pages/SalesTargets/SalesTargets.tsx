@@ -5,7 +5,7 @@ import {
     PlusOutlined, TrophyOutlined,
 } from "@ant-design/icons";
 import {
-    App, Button, DatePicker, Drawer, Dropdown, Form,
+    App, Button, DatePicker, Drawer, Dropdown, Form, Grid,
     Input, InputNumber, Modal, Progress, Select, Typography,
 } from "antd";
 import { useAppDispatch } from "../../store";
@@ -159,7 +159,7 @@ const SalesTargetTable = forwardRef<SalesTargetTableHandle, SalesTargetTableProp
                         </div>
                     }
                     options={{ reload: () => actionRef.current?.reload() }}
-                    scroll={{ x: "100%" }}
+                    scroll={{ x: 1000 }}
                     size="small"
                 />
             </App>
@@ -470,6 +470,8 @@ const SalesTargetDetailDrawer: React.FC<{ open: boolean; onClose: () => void; ta
 // ── Page ──────────────────────────────────────────────────────────────────────
 const SalesTargets = () => {
     const tableRef = useRef<SalesTargetTableHandle>(null);
+    const screens = Grid.useBreakpoint();
+    const isMobile = !screens.md;
     const [formOpen, setFormOpen] = useState(false);
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [selected, setSelected] = useState<SalesTarget | null>(null);
@@ -482,7 +484,7 @@ const SalesTargets = () => {
 
     return (
         <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, padding: "16px 20px 14px", borderBottom: `1px solid ${C.border}` }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, padding: isMobile ? "12px 12px 10px" : "16px 20px 14px", borderBottom: `1px solid ${C.border}` }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <div style={{ background: C.primaryLight, borderRadius: 7, padding: "5px 7px", color: C.primary, fontSize: 16, lineHeight: 1 }}><AimOutlined /></div>
                     <div>
@@ -495,7 +497,7 @@ const SalesTargets = () => {
                     New Target
                 </Button>
             </div>
-            <div style={{ padding: "16px 20px" }}>
+            <div style={{ padding: isMobile ? "12px" : "16px 20px" }}>
                 <SalesTargetTable ref={tableRef} onView={handleView} onEdit={handleEdit} />
             </div>
             <SalesTargetFormModal visible={formOpen} mode={mode} target={selected} onClose={() => setFormOpen(false)} onSuccess={handleSuccess} />
