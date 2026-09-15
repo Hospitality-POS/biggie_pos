@@ -67,6 +67,26 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H 138.197.29.241 >> ~/.ssh/known_hosts
 
-      - name: Deploy to DigitalOcean droplet
+      - name: Deploy to DigitalOcean droplet (atomic release)
+        env:
+          APP_ROOT: /var/www/biggie_pos
+          RELEASE: ${{ github.sha }}
         run: |
-          scp -r dist root@138.197.29.241:/var/www/biggie_pos
+          RELEASE_DIR="$APP_ROOT/releases/$RELEASE"
+
+          # Upload the new build into its own, isolated release directory.
+          # Nothing under $APP_ROOT/current is touched while this runs, so
+          # in-flight requests keep being served the old (fully intact) build.
+          ssh root@138.197.29.241 "mkdir -p '$RELEASE_DIR'"
+          scp -r dist/. root@138.197.29.241:"$RELEASE_DIR"/
+
+          # Flip the "current" symlink to the new release in a single atomic
+          # rename, then prune old releases. Nginx should serve from
+          # $APP_ROOT/current (a symlink), not from $APP_ROOT directly.
+          ssh root@138.197.29.241 bash -s <<EOF
+            set -euo pipefail
+            ln -sfn "$RELEASE_DIR" "$APP_ROOT/current_tmp"
+            mv -Tf "$APP_ROOT/current_tmp" "$APP_ROOT/current"
+            cd "$APP_ROOT/releases"
+            ls -1dt */ | tail -n +6 | xargs -r rm -rf
+          EOF
