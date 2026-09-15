@@ -421,26 +421,30 @@ const StaffLoginPage = () => {
                 maxWidth: isMobile ? "100%" : "320px",
             }}
         >
-            <div style={{ marginBottom: "1.25rem", display: "inline-block" }}>
+            <div style={{ marginBottom: "0.75rem", display: "flex", justifyContent: "center", alignItems: "center" }}>
                 {tenant?.tenant_logo?.url ? (
                     <img
                         src={tenant.tenant_logo.url}
                         alt="tenant-logo"
                         style={{
-                            width: isMobile ? "120px" : "100%",
+                            maxWidth: isMobile ? "130px" : "170px",
+                            maxHeight: isMobile ? "60px" : "75px",
+                            width: "auto",
                             height: "auto",
-                            transition: "all 0.3s ease",
-                            maxHeight: isMobile ? "80px" : "120px",
                             objectFit: "contain",
+                            transition: "all 0.3s ease",
                         }}
                     />
                 ) : (
                     <img
                         src="/relia.png"
-                        alt="relia-logo"
+                        alt="base-logo"
                         style={{
-                            width: isMobile ? "140px" : "45%",
+                            maxWidth: isMobile ? "130px" : "160px",
+                            maxHeight: isMobile ? "48px" : "56px",
+                            width: "auto",
                             height: "auto",
+                            objectFit: "contain",
                             transition: "all 0.3s ease",
                         }}
                     />
@@ -451,7 +455,7 @@ const StaffLoginPage = () => {
                     style={{
                         color: "white",
                         fontSize: isMobile ? "18px" : "24px",
-                        marginBottom: "0.75rem",
+                        marginBottom: "0.5rem",
                         fontWeight: "600",
                         textShadow: "0 2px 4px rgba(0,0,0,0.2)",
                     }}
