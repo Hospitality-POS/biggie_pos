@@ -8,16 +8,11 @@ import LeadDetailDrawer from "./LeadDetailDrawer";
 import ImportLeadsModal from "./ImportLeadsModal";
 import { Lead, fetchAllLeads, getLeadById } from "@services/crm/leads";
 import { exportToExcel } from "@utils/exportUtils";
+import { THEME_C } from "@utils/getPrimaryColor";
 
 const { Text } = Typography;
 
-const C = {
-    primary: "#6c1c2c",
-    primaryLight: "#f9f0f2",
-    subText: "#64748b",
-    darkText: "#0f172a",
-    border: "#e2e8f0",
-};
+const C = THEME_C;
 
 interface LeadsProps {
     /** Called when the user clicks "Convert to Customer" in the drawer.

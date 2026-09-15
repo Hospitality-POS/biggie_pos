@@ -70,7 +70,7 @@ const AddProSupplierModal: React.FC<AddSupplierDialogProps> = ({
             <Button
               size="small"
               key="button"
-              icon={<EditOutlined style={{ color: "#6c1c2c" }} />}
+              icon={<EditOutlined style={{ color: "var(--primary-color)" }} />}
               onClick={() => form.setFieldsValue(data)}
             >
               Edit

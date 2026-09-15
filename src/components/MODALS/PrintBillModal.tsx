@@ -948,7 +948,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
 
             <Tooltip title={discountAmount > 0 ? "Toggle discount line on printed document" : "No discount applied to this order"}>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <PercentageOutlined style={{ fontSize: 15, color: showDiscount ? "#6c1c2c" : "#9ca3af" }} />
+                <PercentageOutlined style={{ fontSize: 15, color: showDiscount ? C.primary : "#9ca3af" }} />
                 <span style={{ fontSize: 13, color: "#374151" }}>Discount</span>
                 <Switch
                   size="small"
@@ -964,7 +964,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
 
             <Tooltip title="Toggle VAT line on printed document">
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <DollarOutlined style={{ fontSize: 15, color: showVat ? "#6c1c2c" : "#9ca3af" }} />
+                <DollarOutlined style={{ fontSize: 15, color: showVat ? C.primary : "#9ca3af" }} />
                 <span style={{ fontSize: 13, color: "#374151" }}>VAT</span>
                 <Switch
                   size="small"
@@ -1561,8 +1561,8 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
               boxShadow: '0 0 10px rgba(0,0,0,0.1)',
               borderRadius: '8px'
             }}>
-              <LockOutlined style={{ fontSize: '48px', color: '#6c1c2c', marginBottom: '16px' }} />
-              <div style={{ color: '#6c1c2c', marginBottom: '8px', textAlign: 'center', fontSize: '24px', fontWeight: 600 }}>
+              <LockOutlined style={{ fontSize: '48px', color: C.primary, marginBottom: '16px' }} />
+              <div style={{ color: C.primary, marginBottom: '8px', textAlign: 'center', fontSize: '24px', fontWeight: 600 }}>
                 Authentication Required
               </div>
               <div style={{ color: '#666', textAlign: 'center', maxWidth: '400px', fontSize: '14px' }}>

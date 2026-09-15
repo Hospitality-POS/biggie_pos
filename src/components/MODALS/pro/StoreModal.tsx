@@ -26,17 +26,12 @@ import { FormInstance, UploadFile, UploadProps } from "antd/lib";
 import { useAppSelector } from "src/store";
 import { RcFile } from "antd/lib/upload";
 
+import { THEME_C } from "@utils/getPrimaryColor";
+
 const { Text } = Typography;
 
-// ── Palette ────────────────────────────────────────────────────────────────
-const C = {
-  primary: "#6c1c2c",
-  primaryLight: "#f9f0f2",
-  subText: "#64748b",
-  darkText: "#0f172a",
-  border: "#e2e8f0",
-  bg: "#f8fafc",
-};
+// ── Palette (Dynamic Getters) ────────────────────────────────────────────────
+const C = THEME_C;
 
 interface StoreModalProps {
   edit?: boolean;

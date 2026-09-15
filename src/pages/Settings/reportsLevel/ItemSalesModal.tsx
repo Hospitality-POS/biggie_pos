@@ -23,6 +23,7 @@ import useSystemDetails from "@hooks/useSystemDetails";
 import { COOP_NAME } from "@utils/config";
 import { sendSalesReportEmail, refToHtmlString } from "@services/emailReports";
 import "@components/MODALS/bill.css";
+import { THEME_C } from "@utils/getPrimaryColor";
 
 dayjs.extend(isoWeek);
 dayjs.extend(weekOfYear);
@@ -33,21 +34,14 @@ type GroupBy = "none" | "day" | "week" | "month";
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 const C = {
-  primary: "#6c1c2c",
-  primaryLight: "#f9f0f2",
-  primaryMid: "#8b2339",
-  green: "#10b981",
+  ...THEME_C,
+  get primary() { return THEME_C.primary; },
+  get primaryLight() { return THEME_C.primaryLight; },
+  get primaryMid() { return THEME_C.primary; },
   greenLight: "#f0fdf4",
-  blue: "#3b82f6",
   blueLight: "#eff6ff",
-  orange: "#f59e0b",
   orangeLight: "#fffbeb",
-  subText: "#64748b",
-  darkText: "#0f172a",
-  border: "#e2e8f0",
   borderLight: "#f1f5f9",
-  bg: "#f8fafc",
-  white: "#ffffff",
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

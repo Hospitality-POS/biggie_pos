@@ -69,6 +69,8 @@ export const syncPendingOrders = async (): Promise<{
         customer_name: order.customerName,
         customer_phone: order.customerPhone,
         customer_email: order.customerEmail,
+        created_by: order.servedBy,
+        shop_id: order.shopId || localStorage.getItem("shopId") || undefined,
       };
 
       const response = await axiosInstance.post(ORDERS_CREATE_URL, payload);

@@ -1,0 +1,42 @@
+[
+  {
+    "id": 17,
+    "title": "Common Issues",
+    "description": "Troubleshoot frequent problems",
+    "type": "article",
+    "readTime": "6 min",
+    "views": 2100,
+    "helpful": 180,
+    "content": "\n# Common Issues\n\n## Login Problems\n- Forgot password: Use reset link\n- Account locked: Contact support\n- 2FA issues: Use backup codes\n- Session expired: Log in again\n\n## POS Issues\n- Products not showing: Check inventory\n- Payment failed: Try again or use different method\n- Receipt not printing: Check printer settings\n- Sync errors: Check internet connection\n\n## Performance\n- Slow loading: Clear cache\n- App crashes: Update browser\n- Data not syncing: Check connection\n- Timeout errors: Refresh page\n\n## Data Issues\n- Missing data: Check filters\n- Incorrect totals: Verify entries\n- Duplicate records: Merge or delete\n- Export errors: Check permissions\n\n## Getting Help\n- Search help center\n- Contact support\n- Join community\n- Schedule training\n      "
+  },
+  {
+    "id": 18,
+    "title": "Contact Support",
+    "description": "Get help from our team",
+    "type": "article",
+    "readTime": "1 min",
+    "views": 500,
+    "helpful": 30,
+    "content": "\n# Contact Support\n\n## Support Channels\n\n### Email Support\n- support@basepoint.com\n- Response within 24 hours\n- Include account details\n- Describe the issue\n\n### Phone Support\n- Available for Enterprise plans\n- Business hours only\n- Have account info ready\n- Describe issue clearly\n\n### Live Chat\n- Available in app\n- Instant responses\n- For quick questions\n- Business hours\n\n### Ticket System\n- Submit detailed tickets\n- Track progress\n- Attach screenshots\n- View history\n\n## Before Contacting\n- Check help center\n- Try troubleshooting\n- Gather error details\n- Note steps to reproduce\n\n## Response Times\n- Critical: 4 hours\n- High: 8 hours\n- Normal: 24 hours\n- Low: 48 hours\n      "
+  },
+  {
+    "id": 42,
+    "title": "Security Best Practices",
+    "description": "Keep your account and data secure",
+    "type": "article",
+    "readTime": "7 min",
+    "views": 1800,
+    "helpful": 150,
+    "content": "\n# Security Best Practices\n\n## Password Security\n- Use strong, unique passwords\n- Change passwords regularly\n- Never share passwords\n- Use password manager\n- Enable 2FA\n\n## Account Security\n- Enable two-factor authentication\n- Review login history\n- Revoke unknown sessions\n- Update recovery options\n- Monitor account activity\n\n## Data Protection\n- Regular backups\n- Encrypt sensitive data\n- Limit access permissions\n- Use secure connections\n- Keep software updated\n\n## User Management\n- Remove ex-employees promptly\n- Review access regularly\n- Use role-based permissions\n- Audit user activity\n- Train staff on security\n\n## Phishing Awareness\n- Verify sender identity\n- Don't click suspicious links\n- Report phishing attempts\n- Keep software updated\n- Use email filters\n\n## Compliance\n- Follow data protection laws\n- Maintain audit trails\n- Regular security reviews\n- Incident response plan\n- Staff security training\n      "
+  },
+  {
+    "id": 43,
+    "title": "Performance Optimization",
+    "description": "Improve system performance and speed",
+    "type": "article",
+    "readTime": "5 min",
+    "views": 1200,
+    "helpful": 98,
+    "content": "\n# Performance Optimization\n\n## Browser Optimization\n- Use latest browser version\n- Clear cache regularly\n- Disable unnecessary extensions\n- Enable hardware acceleration\n- Reduce open tabs\n\n## Network Optimization\n- Use stable internet connection\n- Prefer wired connection\n- Check bandwidth\n- Use CDN if available\n- Minimize network calls\n\n## Data Management\n- Archive old data\n- Clean up unused records\n- Optimize database\n- Regular maintenance\n- Monitor storage limits\n\n## System Configuration\n- Adjust cache settings\n- Optimize image sizes\n- Enable compression\n- Use lazy loading\n- Minimize API calls\n\n## Monitoring\n- Track performance metrics\n- Identify bottlenecks\n- Monitor error rates\n- Set up alerts\n- Regular reviews\n\n## When to Contact Support\n- Persistent slowness\n- Frequent errors\n- Timeout issues\n- Unusual behavior\n- Performance degradation\n      "
+  }
+]

@@ -5,9 +5,11 @@ import { ProCard } from "@ant-design/pro-components";
 import { staffClockInOut } from "@services/customers";
 import { useQuery } from "@tanstack/react-query";
 import { fetchTenantById } from "@services/users";
+import { usePrimaryColor } from "@context/PrimaryColorContext";
 const { Title, Text, Paragraph } = Typography;
 
 const StaffClockTracker = () => {
+  const primaryColor = usePrimaryColor();
   // State management - simplified
   const [pin, setPin] = useState("");
   const [loading, setLoading] = useState(false);
@@ -105,7 +107,7 @@ const StaffClockTracker = () => {
       style={{
         padding: "24px",
         textAlign: "center",
-        background: "linear-gradient(135deg, #2c3e50 0%, #6c1c2c 100%)",
+        background: `linear-gradient(135deg, #2c3e50 0%, ${primaryColor} 100%)`,
         borderRadius: "16px 16px 0 0",
       }}
     >
@@ -135,7 +137,7 @@ const StaffClockTracker = () => {
         Clock In to Start Your Day or Clock Out to End Your Day
       </Text>
     </div>
-  ), [clientName]);
+  ), [clientName, primaryColor]);
 
   const DesktopSidebar = useMemo(() => (
     <div
@@ -143,7 +145,7 @@ const StaffClockTracker = () => {
         position: "relative",
         height: "500px",
         minHeight: "500px",
-        background: "linear-gradient(135deg, #2c3e50 0%, #6c1c2c 100%)",
+        background: `linear-gradient(135deg, #2c3e50 0%, ${primaryColor} 100%)`,
         padding: "32px",
         borderRadius: "16px 0 0 16px",
         overflow: "hidden",
@@ -223,7 +225,7 @@ const StaffClockTracker = () => {
         </div>
       </div>
     </div>
-  ), [tenant]);
+  ), [tenant, primaryColor]);
 
   // Numeric keypad buttons - memoized to prevent recreating array on every render
   const numericButtons = useMemo(() => {

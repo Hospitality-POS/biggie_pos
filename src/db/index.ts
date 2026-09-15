@@ -20,6 +20,7 @@ export interface OfflineOrder {
   customerEmail?: string;
   customerId?: string | null;
   servedBy?: any;
+  shopId?: string;
   status: "pending" | "syncing" | "synced" | "failed";
   createdAt: number;
   syncedAt?: number;

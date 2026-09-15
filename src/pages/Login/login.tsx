@@ -369,14 +369,12 @@ const StaffLoginPage = () => {
     };
 
     const getBackgroundGradient = () => {
-        if (tenant?.color_scheme?.primary) {
-            const secondary = tenant.color_scheme.secondary || "#c26d2e";
-            return `linear-gradient(135deg, ${tenant.color_scheme.primary} 0%, ${secondary} 100%)`;
+        const primary = tenant?.color_scheme?.primary || tenant?.primary_color || tenant?.theme?.primary;
+        if (primary) {
+            const secondary = tenant?.color_scheme?.secondary || "#14EF4A";
+            return `linear-gradient(135deg, ${primary} 0%, ${secondary} 100%)`;
         }
-        if (tenant?.primary_color) {
-            return `linear-gradient(135deg, ${tenant.color_scheme.primary} 0%, #c26d2e 100%)`;
-        }
-        return "linear-gradient(135deg, #2c3e50 0%, #6c1c2c 100%)";
+        return "linear-gradient(135deg, #1F2B5D 0%, #0E388A 55%, #14EF4A 100%)";
     };
 
     const RetailBackground = () => (
@@ -423,26 +421,30 @@ const StaffLoginPage = () => {
                 maxWidth: isMobile ? "100%" : "320px",
             }}
         >
-            <div style={{ marginBottom: "1.25rem", display: "inline-block" }}>
+            <div style={{ marginBottom: "0.75rem", display: "flex", justifyContent: "center", alignItems: "center" }}>
                 {tenant?.tenant_logo?.url ? (
                     <img
                         src={tenant.tenant_logo.url}
                         alt="tenant-logo"
                         style={{
-                            width: isMobile ? "120px" : "100%",
+                            maxWidth: isMobile ? "130px" : "170px",
+                            maxHeight: isMobile ? "60px" : "75px",
+                            width: "auto",
                             height: "auto",
-                            transition: "all 0.3s ease",
-                            maxHeight: isMobile ? "80px" : "120px",
                             objectFit: "contain",
+                            transition: "all 0.3s ease",
                         }}
                     />
                 ) : (
                     <img
                         src="/relia.png"
-                        alt="relia-logo"
+                        alt="base-logo"
                         style={{
-                            width: isMobile ? "140px" : "45%",
+                            maxWidth: isMobile ? "130px" : "160px",
+                            maxHeight: isMobile ? "48px" : "56px",
+                            width: "auto",
                             height: "auto",
+                            objectFit: "contain",
                             transition: "all 0.3s ease",
                         }}
                     />
@@ -453,7 +455,7 @@ const StaffLoginPage = () => {
                     style={{
                         color: "white",
                         fontSize: isMobile ? "18px" : "24px",
-                        marginBottom: "0.75rem",
+                        marginBottom: "0.5rem",
                         fontWeight: "600",
                         textShadow: "0 2px 4px rgba(0,0,0,0.2)",
                     }}
@@ -489,8 +491,7 @@ const StaffLoginPage = () => {
                         margin: "0 auto",
                     }}
                 >
-                    Basepoint Cloud — Duka (Store Front), Pesa (Accounting), Mteja (CRM), and Bandu (HR),
-                    all unified in one smarter platform built for your business.
+                    Run your sales with Duka, finances with Pesa, customers with Mteja, and team with Bandu.
                 </p>
             )}
         </div>

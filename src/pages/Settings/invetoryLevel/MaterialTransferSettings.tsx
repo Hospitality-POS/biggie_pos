@@ -8,6 +8,7 @@ import {
   fetchAllTransfers,
   rejectTransfer,
 } from "@services/inventory";
+import { getPrimaryColor } from "../../../utils/getPrimaryColor";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Transfer {
@@ -44,7 +45,9 @@ const fmtDate = (d?: string) =>
   d ? new Date(d).toLocaleDateString("en-KE", { dateStyle: "medium" }) : "Not set";
 
 // ── Print template ────────────────────────────────────────────────────────────
-const generatePrintContent = (transfer: Transfer): string => `
+const generatePrintContent = (transfer: Transfer): string => {
+  const primaryColor = getPrimaryColor();
+  return `
 <!DOCTYPE html>
 <html>
 <head>
@@ -63,14 +66,14 @@ const generatePrintContent = (transfer: Transfer): string => `
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      border-bottom: 3px solid #6c1c2c;
+      border-bottom: 3px solid ${primaryColor};
       padding-bottom: 16px;
       margin-bottom: 24px;
     }
     .header-title { font-size: 22px; font-weight: 800; color: #0f172a; }
     .header-sub { font-size: 12px; color: #64748b; margin-top: 3px; }
     .badge {
-      background: #6c1c2c;
+      background: ${primaryColor};
       color: #fff;
       padding: 8px 18px;
       border-radius: 6px;
@@ -243,6 +246,7 @@ const generatePrintContent = (transfer: Transfer): string => `
   </div>
 </body>
 </html>`;
+};
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export const MaterialTransferSettings: React.FC = () => {

@@ -46,22 +46,13 @@ import {
 import { fetchAllUsersList } from "@services/users";
 import { fetchAllDepartments, type Department } from "@services/crm/departments";
 import dayjs from "dayjs";
+import { THEME_C } from "@utils/getPrimaryColor";
 
 const { Title, Text } = Typography;
 const { Option } = Select;
 const { TextArea } = Input;
 
-const C = {
-  primary: "#6c1c2c",
-  primaryLight: "#f9f0f2",
-  green: "#10b981",
-  orange: "#f59e0b",
-  red: "#ef4444",
-  blue: "#3b82f6",
-  subText: "#64748b",
-  darkText: "#0f172a",
-  border: "#e2e8f0",
-};
+const C = THEME_C;
 
 const EmployeeManagement: React.FC = () => {
   const [searchText, setSearchText] = useState("");

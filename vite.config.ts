@@ -3,24 +3,58 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import tsconfigPaths from 'vite-tsconfig-paths';
 
-export default defineConfig({
-  server: {
-    host: '0.0.0.0',
-    port: 5374,
-  },
-  build: {
+export default defineConfig(({ mode }) => {
+  const isProduction = mode === 'production';
+
+  return {
+    server: {
+      host: '0.0.0.0',
+      port: 5374,
+    },
+    esbuild: isProduction
+      ? {
+          drop: ['debugger'],
+          pure: ['console.log', 'console.info', 'console.debug'],
+        }
+      : {},
+    build: {
     chunkSizeWarningLimit: 1200,
     rollupOptions: {
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
-            // Only split heavy, self-contained, lazily-used libs.
-            // Do NOT split the react/antd ecosystem (react, antd, rc-*,
-            // pro-components, charts, query/redux, dayjs) into separate
-            // chunks: they form a cyclic import graph, Rollup may place
-            // shared CJS helpers on either side, and the resulting circular
-            // chunk imports crash at boot with
-            // "Cannot read properties of undefined (reading 'createContext')".
+            if (id.includes('react/') || id.includes('react-dom/') || id.includes('react-router')) {
+              return 'vendor-react';
+            }
+            if (id.includes('@ant-design/icons')) {
+              return 'vendor-antd-icons';
+            }
+            if (id.includes('/antd/')) {
+              return 'vendor-antd';
+            }
+            if (
+              id.includes('@ant-design/pro-components') ||
+              id.includes('@ant-design/pro-table') ||
+              id.includes('@ant-design/pro-utils') ||
+              id.includes('@ant-design/pro-layout') ||
+              id.includes('@ant-design/pro-card') ||
+              id.includes('@ant-design/pro-form')
+            ) {
+              return 'vendor-pro-components';
+            }
+            if (id.includes('@ant-design/charts') || id.includes('@antv')) {
+              return 'vendor-antv';
+            }
+            if (id.includes('recharts') || id.includes('d3-')) {
+              return 'vendor-recharts';
+            }
+            if (
+              id.includes('@tanstack/react-query') ||
+              id.includes('@reduxjs/toolkit') ||
+              id.includes('react-redux')
+            ) {
+              return 'vendor-query-redux';
+            }
             if (
               id.includes('jspdf') ||
               id.includes('jspdf-autotable') ||
@@ -127,4 +161,5 @@ export default defineConfig({
       },
     }),
   ],
+  };
 });

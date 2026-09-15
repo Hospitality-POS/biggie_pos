@@ -178,7 +178,7 @@ export const PeriodFilter: React.FC<PeriodFilterProps> = ({
                 <>
                     <Divider style={{ margin: "10px 0" }} />
                     <Space wrap align="center" size={8}>
-                        <SwapOutlined style={{ color: value.enabled ? "#6c1c2c" : "#8c8c8c" }} />
+                        <SwapOutlined style={{ color: value.enabled ? "var(--primary-color)" : "#8c8c8c" }} />
                         <Text style={{ fontSize: 12, color: "#64748b", fontWeight: 500 }}>Compare with:</Text>
                         <Switch size="small" checked={value.enabled} onChange={handleToggle} checkedChildren="ON" unCheckedChildren="OFF" />
                         {value.enabled && (
@@ -249,7 +249,7 @@ export const AsOfFilter: React.FC<AsOfFilterProps> = ({
                 <>
                     <Divider style={{ margin: "10px 0" }} />
                     <Space wrap align="center" size={8}>
-                        <SwapOutlined style={{ color: value.enabled ? "#6c1c2c" : "#8c8c8c" }} />
+                        <SwapOutlined style={{ color: value.enabled ? "var(--primary-color)" : "#8c8c8c" }} />
                         <Text style={{ fontSize: 12, color: "#64748b", fontWeight: 500 }}>Compare with:</Text>
                         <Switch size="small" checked={value.enabled} onChange={handleToggle} checkedChildren="ON" unCheckedChildren="OFF" />
                         {value.enabled && (

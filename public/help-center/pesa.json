@@ -1,0 +1,62 @@
+[
+  {
+    "id": 4,
+    "title": "Pesa Accounting Overview",
+    "description": "Understanding Pesa accounting system",
+    "type": "article",
+    "readTime": "12 min",
+    "views": 3000,
+    "helpful": 220,
+    "content": "\n# Pesa Accounting Overview\n\n## What is Pesa?\nPesa by Base is a comprehensive accounting module that integrates seamlessly with Duka POS, Mteja CRM, and other Base Suite products.\n\n## Accounting Flow\n\n```\n┌──────────────┐\n│ Duka Sale    │\n│ (POS)        │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Auto-Create  │\n│ Journal Entry│\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Post to      │\n│ Accounts     │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Update       │\n│ Inventory    │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Generate     │\n│ Reports      │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Reconcile    │\n│ Bank         │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Tax Reports  │\n│ (Etims)      │\n└──────────────┘\n```\n\n## Key Features\n\n### 1. Chart of Accounts\n- Pre-configured account structure\n- Customizable to your business needs\n- Supports multiple account types: Assets, Liabilities, Equity, Revenue, Expenses\n\n### 2. Journal Entries\n- Automatic journal entries from POS sales\n- Manual journal entry creation\n- Draft, post, and void entries\n- Multi-currency support\n\n### 3. Financial Reports\n- Profit & Loss statements\n- Balance sheets\n- Trial balance\n- Cash flow statements\n- Custom report generation\n\n### 4. Tax Management\n- VAT tracking and reporting\n- Tax compliance features\n- Etims integration for KRA\n- Automated tax calculations\n\n### 5. Accounts Receivable & Payable\n- Track customer invoices\n- Manage supplier bills\n- Aging reports\n- Payment tracking\n\n## Getting Started\n\n### Setup\n1. Configure your fiscal year\n2. Set up Chart of Accounts\n3. Configure tax rates\n4. Connect bank accounts\n5. Import opening balances\n\n### Daily Operations\n- Review journal entries\n- Reconcile bank accounts\n- Post adjustments\n- Generate reports\n\n## Integration with Duka\n- Sales automatically create journal entries\n- Inventory updates affect cost of goods sold\n- Customer payments update accounts receivable\n      "
+  },
+  {
+    "id": 5,
+    "title": "Managing Journal Entries",
+    "description": "Create and manage journal entries",
+    "type": "article",
+    "readTime": "7 min",
+    "views": 1500,
+    "helpful": 95,
+    "content": "\n# Managing Journal Entries\n\n## Creating Manual Entries\n1. Go to **Journal Entries** in Pesa\n2. Click **New Entry**\n3. Select date and reference number\n4. Add debit and credit lines\n5. Ensure entries balance\n6. Save as draft or post\n\n## Entry Types\n- **Manual**: Created by users\n- **POS Sale**: Auto-generated from Duka\n- **Invoice**: From customer invoicing\n- **Bill**: From supplier bills\n- **Payment**: Payment transactions\n- **Reconciliation**: Bank reconciliation\n\n## Posting Entries\n- Draft entries can be edited\n- Posted entries are locked\n- Void posted entries if needed\n- Audit trail maintained\n\n## Reviewing Entries\n- View recent entries on dashboard\n- Filter by date, source, or account\n- Export to Excel or PDF\n      "
+  },
+  {
+    "id": 6,
+    "title": "Financial Reports Guide",
+    "description": "Generate and understand financial reports",
+    "type": "article",
+    "readTime": "10 min",
+    "views": 2000,
+    "helpful": 150,
+    "content": "\n# Financial Reports Guide\n\n## Available Reports\n\n### Profit & Loss Statement\n- Shows revenue and expenses\n- Calculates net profit/loss\n- Compare periods\n- View by month, quarter, or year\n\n### Balance Sheet\n- Assets, liabilities, and equity\n- Financial position snapshot\n- Track business health\n\n### Trial Balance\n- List of all account balances\n- Verify accounting accuracy\n- Debits must equal credits\n\n### Cash Flow Statement\n- Cash inflows and outflows\n- Operating, investing, financing activities\n- Cash position tracking\n\n### VAT Reports\n- VAT collected on sales\n- VAT paid on purchases\n- Net VAT payable/refundable\n- KRA submission ready\n\n## Generating Reports\n1. Go to **Reports** in Pesa\n2. Select report type\n3. Choose date range\n4. Apply filters if needed\n5. Generate and export\n\n## Custom Reports\n- Create custom report templates\n- Save frequently used reports\n- Schedule automatic generation\n      "
+  },
+  {
+    "id": 32,
+    "title": "Accounts Receivable Management",
+    "description": "Track and manage customer invoices",
+    "type": "article",
+    "readTime": "9 min",
+    "views": 1700,
+    "helpful": 135,
+    "content": "\n# Accounts Receivable Management\n\n## Invoice Workflow\n\n```\n┌──────────────┐\n│ Create       │\n│ Invoice      │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Send to      │\n│ Customer     │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Track Due    │\n│ Date         │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Send         │\n│ Reminders    │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Receive      │\n│ Payment      │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Apply to     │\n│ Invoice      │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Update       │\n│ Customer     │\n│ Balance      │\n└──────────────┘\n```\n\n## Creating Invoices\n1. Go to **Accounts Receivable > Invoices**\n2. Click **Create Invoice**\n3. Select customer\n4. Add line items\n5. Set payment terms\n6. Send invoice\n\n## Invoice Tracking\n- Track invoice status\n- Monitor due dates\n- Send payment reminders\n- Record payments\n\n## Aging Reports\n- View outstanding invoices\n- Categorize by age (30, 60, 90+ days)\n- Identify overdue accounts\n- Prioritize collection efforts\n\n## Customer Statements\n- Generate customer statements\n- Show transaction history\n- Include outstanding balance\n- Send to customers\n\n## Payment Processing\n- Record customer payments\n- Apply to specific invoices\n- Handle partial payments\n- Issue credit notes\n\n## Best Practices\n- Regular invoice reviews\n- Timely payment reminders\n- Clear payment terms\n- Accurate record keeping\n      "
+  },
+  {
+    "id": 33,
+    "title": "Accounts Payable Management",
+    "description": "Manage supplier bills and payments",
+    "type": "article",
+    "readTime": "8 min",
+    "views": 1450,
+    "helpful": 115,
+    "content": "\n# Accounts Payable Management\n\n## Recording Bills\n1. Go to **Accounts Payable > Bills**\n2. Click **Add Bill**\n3. Select supplier\n4. Add bill details\n5. Upload supporting documents\n6. Save for approval\n\n## Bill Approval Workflow\n- Submit for approval\n- Review and approve\n- Reject if needed\n- Track approval status\n\n## Payment Processing\n- Schedule payments\n- Select bills to pay\n- Record payment details\n- Update supplier accounts\n\n## Vendor Management\n- Maintain supplier details\n- Track payment terms\n- Monitor credit limits\n- Evaluate supplier performance\n\n## Aging Reports\n- View outstanding bills\n- Categorize by due date\n- Identify overdue payments\n- Plan cash flow\n\n## Expense Tracking\n- Categorize expenses\n- Track by department\n- Monitor budget compliance\n- Generate expense reports\n      "
+  },
+  {
+    "id": 34,
+    "title": "Bank Reconciliation",
+    "description": "Reconcile bank accounts with records",
+    "type": "article",
+    "readTime": "10 min",
+    "views": 1600,
+    "helpful": 125,
+    "content": "\n# Bank Reconciliation\n\n## Why Reconcile?\n- Ensure accuracy of records\n- Detect errors or fraud\n- Verify bank balances\n- Maintain financial integrity\n\n## Reconciliation Process\n1. Go to **Banking > Reconciliation**\n2. Select bank account\n3. Choose statement period\n4. Import bank statement\n5. Match transactions\n6. Resolve discrepancies\n\n## Matching Transactions\n- Auto-match by amount and date\n- Manual matching for complex cases\n- Add missing transactions\n- Remove duplicates\n\n## Handling Discrepancies\n- Identify missing items\n- Record bank fees\n- Adjust for errors\n- Document reasons\n\n## Reconciliation Reports\n- Generate reconciliation reports\n- Track unresolved items\n- Monitor reconciliation status\n- Export for audit\n\n## Best Practices\n- Reconcile monthly\n- Keep detailed records\n- Investigate discrepancies promptly\n- Maintain supporting documents\n      "
+  }
+]

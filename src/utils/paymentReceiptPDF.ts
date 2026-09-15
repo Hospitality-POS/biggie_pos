@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import dayjs from 'dayjs';
+import { getPrimaryColor } from './getPrimaryColor';
 
 interface PaymentReceiptData {
   receiptNumber?: string;
@@ -62,7 +63,7 @@ export const generatePaymentReceiptPDF = async (data: PaymentReceiptData, return
     let yPos = 15;
 
     // Get brand color from tenant or use default
-    const primaryColor = localStorage.getItem('primaryColor') || '#6C1C2C';
+    const primaryColor = getPrimaryColor();
 
     // Convert hex to RGB for jsPDF
     const hexToRgb = (hex: string) => {

@@ -15,6 +15,7 @@ import {
     ARAgingResponse, APAgingResponse, TrialBalanceRow, GeneralLedgerAccount,
 } from "@services/accounting/reports";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
+import { getPrimaryColor } from "@utils/getPrimaryColor";
 import useSystemDetails from "@hooks/useSystemDetails";
 import dayjs from "dayjs";
 
@@ -38,6 +39,7 @@ const SOURCE_COLORS: Record<string, string> = {
 
 // ── Print helper ───────────────────────────────────────────────────────────────
 const printSection = (html: string, title: string) => {
+    const primaryColor = getPrimaryColor();
     const w = window.open("", "_blank");
     if (!w) return;
     w.document.write(`<!DOCTYPE html><html><head><title>${title}</title>
@@ -45,15 +47,15 @@ const printSection = (html: string, title: string) => {
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11px; color: #1a1a2e; padding: 20px; }
         h1 { font-size: 18px; font-weight: 700; margin-bottom: 2px; color: #1a1a2e; }
-        h2 { font-size: 14px; font-weight: 600; margin: 16px 0 6px; color: #333; border-bottom: 2px solid #6c1c2c; padding-bottom: 4px; }
+        h2 { font-size: 14px; font-weight: 600; margin: 16px 0 6px; color: #333; border-bottom: 2px solid ${primaryColor}; padding-bottom: 4px; }
         .subtitle { font-size: 11px; color: #555; margin-bottom: 16px; }
         table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
-        th { background: #6c1c2c; color: white; padding: 6px 8px; text-align: left; font-size: 10px; font-weight: 600; }
+        th { background: ${primaryColor}; color: white; padding: 6px 8px; text-align: left; font-size: 10px; font-weight: 600; }
         th.num, td.num { text-align: right; }
         td { padding: 5px 8px; border-bottom: 1px solid #e8e8e8; font-size: 10px; }
         tr:nth-child(even) td { background: #f8f8f8; }
-        .total-row td { font-weight: 700; background: #f0f0f0 !important; border-top: 2px solid #6c1c2c; }
-        .section-header td { font-weight: 700; background: #f5f0f0 !important; color: #6c1c2c; font-size: 11px; }
+        .total-row td { font-weight: 700; background: #f0f0f0 !important; border-top: 2px solid ${primaryColor}; }
+        .section-header td { font-weight: 700; background: #f5f0f0 !important; color: ${primaryColor}; font-size: 11px; }
         .summary-box { border: 1px solid #ddd; border-radius: 4px; padding: 10px 14px; margin-bottom: 14px; display: flex; gap: 24px; flex-wrap: wrap; }
         .summary-item { display: flex; flex-direction: column; }
         .summary-label { font-size: 9px; color: #888; text-transform: uppercase; letter-spacing: .5px; }
@@ -61,8 +63,8 @@ const printSection = (html: string, title: string) => {
         .check-row td { font-weight: 700; font-size: 11px; }
         .balanced { color: #389e0d; } .unbalanced { color: #cf1322; }
         .dr { color: #cf1322; } .cr { color: #389e0d; }
-        .header-block { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 3px solid #6c1c2c; }
-        .company { font-size: 15px; font-weight: 800; color: #6c1c2c; }
+        .header-block { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 3px solid ${primaryColor}; }
+        .company { font-size: 15px; font-weight: 800; color: ${primaryColor}; }
         .meta { text-align: right; font-size: 10px; color: #555; }
         @media print { body { padding: 10px; } }
     </style></head><body>${html}<script>window.onload=()=>window.print();</script></body></html>`);
@@ -276,6 +278,7 @@ export const TrialBalanceTable: React.FC<{ data: TrialBalanceResponse }> = ({ da
 // ── 2. Profit & Loss (Enhanced with COGS, Operating/Non-Operating splits) ───
 export const ProfitAndLossTable: React.FC<{ data: ProfitAndLossResponse; period?: { from?: string; to?: string } }> = ({ data, period }) => {
     const { openLedger } = useLedger();
+    const primaryColor = usePrimaryColor();
     const onAccountRow = (record: any) =>
         record?._id ? { onClick: () => openLedger(record._id), style: { cursor: "pointer" } } : {};
     const amountCols = (color: string) => [
@@ -390,7 +393,7 @@ export const ProfitAndLossTable: React.FC<{ data: ProfitAndLossResponse; period?
                     </tr>
 
                     <!-- Operating Profit -->
-                    <tr style="background:#fce7f3;border-top:2px solid #6c1c2c">
+                    <tr style="background:${primaryColor}18;border-top:2px solid ${primaryColor}">
                         <td style="font-weight:800;font-size:12px;padding:8px 6px">Operating Profit</td>
                         <td class="num" style="font-weight:800;font-size:12px;color:${profitColor(opProfit)};padding:8px 6px">
                             ${profitSign(opProfit)}

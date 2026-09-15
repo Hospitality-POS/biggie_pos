@@ -51,7 +51,7 @@ const AddProPaymentDetailSettingsModal: React.FC<
                         size="small"
                         icon={
                             <EditOutlined
-                                style={{ color: "#6c1c2c" }}
+                                style={{ color: "var(--primary-color)" }}
                                 onClick={() => form.setFieldsValue(data)}
                             />
                         }

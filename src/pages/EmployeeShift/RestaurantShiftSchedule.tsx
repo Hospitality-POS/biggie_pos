@@ -18,6 +18,8 @@ import dayjs from "dayjs";
 import weekOfYear from "dayjs/plugin/weekOfYear";
 import isoWeek from "dayjs/plugin/isoWeek";
 
+import { THEME_C, getPrimaryColor } from "../../utils/getPrimaryColor";
+
 dayjs.extend(weekOfYear);
 dayjs.extend(isoWeek);
 
@@ -25,19 +27,15 @@ const { Text } = Typography;
 
 // ── Palette ────────────────────────────────────────────────────────────────
 const C = {
-    primary: "#6c1c2c",
-    primaryLight: "#f9f0f2",
+    ...THEME_C,
+    get primary() { return THEME_C.primary; },
+    get primaryLight() { return THEME_C.primaryLight; },
     todayBg: "#eff6ff",
     todayBorder: "#3b82f6",
-    subText: "#64748b",
-    darkText: "#0f172a",
-    border: "#e2e8f0",
-    bg: "#f8fafc",
-    white: "#ffffff",
 };
 
-const EMPLOYEE_COLORS = [
-    "#6c1c2c", "#0958d9", "#531dab", "#006d75", "#d4380d",
+const getEmployeeColors = () => [
+    getPrimaryColor(), "#0958d9", "#531dab", "#006d75", "#d4380d",
     "#7265e6", "#00a2ae", "#52c41a", "#eb2f96", "#fa8c16",
     "#a0d911", "#13c2c2", "#faad14", "#c41d7f", "#0050b3",
     "#1d3557", "#2d6a4f", "#9d4edd", "#e85d04", "#588157",
@@ -61,7 +59,8 @@ const useWindowWidth = () => {
 // ── Helpers ────────────────────────────────────────────────────────────────
 const getEmployeeColor = (users: any[], employeeId: string) => {
     const idx = users?.findIndex((u) => u._id === employeeId) ?? 0;
-    return EMPLOYEE_COLORS[Math.max(0, idx) % EMPLOYEE_COLORS.length];
+    const colors = getEmployeeColors();
+    return colors[Math.max(0, idx) % colors.length];
 };
 
 // ══════════════════════════════════════════════════════════════════════════

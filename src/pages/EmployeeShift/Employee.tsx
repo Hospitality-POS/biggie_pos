@@ -14,23 +14,11 @@ import {
 } from "@services/hr/leave";
 import dayjs from "dayjs";
 import { getPermissionChecker } from "@utils/getPermissionChecker";
+import { THEME_C } from "@utils/getPrimaryColor";
 
 const { Text } = Typography;
 
-const C = {
-  primary: "#6c1c2c",
-  primaryLight: "#f9f0f2",
-  green: "#10b981",
-  orange: "#f59e0b",
-  red: "#ef4444",
-  blue: "#3b82f6",
-  purple: "#8b5cf6",
-  darkText: "#0f172a",
-  subText: "#64748b",
-  border: "#e2e8f0",
-  bg: "#f8fafc",
-  white: "#ffffff",
-};
+const C = THEME_C;
 
 // ── Bandu gate ────────────────────────────────────────────────────────────────
 const isBanduEnabled = (): boolean => {

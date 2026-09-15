@@ -26,24 +26,12 @@ import { deleteRole, fetchAllRoles } from "@services/Roles";
 import RoleModal from "@components/MODALS/pro/RoleModal";
 import { PERMISSIONS, Permission, ActionType as PermActionType } from "@utils/accessControl";
 import { useTenantModules } from "@hooks/useTenantModules";
+import { THEME_C } from "@utils/getPrimaryColor";
 
 const { Text } = Typography;
 
 // ── Palette ───────────────────────────────────────────────────────────────────
-const C = {
-  primary: "#6c1c2c",
-  primaryLight: "#f9f0f2",
-  green: "#10b981",
-  orange: "#f59e0b",
-  red: "#ef4444",
-  blue: "#3b82f6",
-  indigo: "#6366f1",
-  purple: "#8b5cf6",
-  subText: "#64748b",
-  darkText: "#0f172a",
-  border: "#e2e8f0",
-  bg: "#f8fafc",
-};
+const C = THEME_C;
 
 const ACTION_CFG: Record<PermActionType, { color: string; bg: string; label: string }> = {
   create: { color: C.blue, bg: "#eff6ff", label: "CREATE" },

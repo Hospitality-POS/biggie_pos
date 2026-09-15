@@ -18,20 +18,12 @@ import { COOP_NAME } from "@utils/config";
 import "@components/MODALS/bill.css";
 
 const { Text } = Typography;
+import { THEME_C } from "@utils/getPrimaryColor";
+
 type PrintMode = "thermal" | "a4";
 
-// ── Palette ───────────────────────────────────────────────────────────────────
-const C = {
-  primary: "#6c1c2c",
-  primaryLight: "#f9f0f2",
-  green: "#10b981",
-  blue: "#3b82f6",
-  orange: "#f59e0b",
-  subText: "#64748b",
-  darkText: "#0f172a",
-  border: "#e2e8f0",
-  bg: "#f8fafc",
-};
+// ── Palette (Dynamic Getters) ─────────────────────────────────────────────────
+const C = THEME_C;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const fmt = (v: number) =>

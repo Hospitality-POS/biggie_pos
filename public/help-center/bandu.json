@@ -1,0 +1,22 @@
+[
+  {
+    "id": 19,
+    "title": "Bandu HR Overview",
+    "description": "Human resources and payroll management",
+    "type": "article",
+    "readTime": "10 min",
+    "views": 1600,
+    "helpful": 130,
+    "content": "\n# Bandu HR Overview\n\n## What is Bandu?\nBandu by Base is a comprehensive Human Resources and Payroll management system integrated with the Base Suite.\n\n## Key Features\n\n### 1. Employee Management\n- Employee profiles and records\n- Department and role assignments\n- Employment history tracking\n- Document management\n\n### 2. Payroll Processing\n- Automated payroll calculations\n- Salary structures and grades\n- Deductions and allowances\n- Payslip generation\n\n### 3. Attendance & Time Tracking\n- Clock in/out tracking\n- Leave management\n- Overtime calculation\n- Attendance reports\n\n### 4. Benefits & Compensation\n- Health insurance\n- Pension schemes\n- Bonus calculations\n- Tax compliance\n\n## Getting Started\n\n### Setup\n1. Configure company details\n2. Set up departments\n3. Create salary structures\n4. Add employee records\n5. Configure payroll schedules\n\n### Daily Operations\n- Record attendance\n- Process leave requests\n- Manage payroll runs\n- Generate reports\n\n## Integration with Other Modules\n- Syncs with Pesa for accounting\n- Integrates with Duka for staff sales tracking\n- Connects to Mteja for employee communication\n      "
+  },
+  {
+    "id": 20,
+    "title": "Managing Wages & Payroll",
+    "description": "Process payroll and manage employee wages",
+    "type": "article",
+    "readTime": "12 min",
+    "views": 1400,
+    "helpful": 115,
+    "content": "\n# Managing Wages & Payroll\n\n## Payroll Processing Flow\n\n```\n┌──────────────┐\n│ Record       │\n│ Attendance   │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Calculate    │\n│ Hours Worked │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Calculate    │\n│ Overtime     │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Apply Wage   │\n│ Structure    │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Calculate    │\n│ Deductions   │\n│ (PAYE, NSSF, │\n│  NHIF, etc.) │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Calculate    │\n│ Net Pay      │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Generate     │\n│ Payslips     │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Process      │\n│ Payments     │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Update       │\n│ Accounting   │\n└──────────────┘\n```\n\n## Setting Up Wages\n\n### 1. Create Wage Structure\n- Go to **Admin > Wages**\n- Click **Add Wage Structure**\n- Define basic salary\n- Add allowances and deductions\n- Set tax configurations\n\n### 2. Assign to Employees\n- Select employees\n- Assign wage structure\n- Set effective dates\n- Configure payment schedule\n\n## Processing Payroll\n\n### Monthly Payroll Run\n1. Navigate to **Wages > Process Payroll**\n2. Select pay period\n3. Review attendance data\n4. Calculate overtime\n5. Preview payroll\n6. Approve and process\n\n### Payslip Generation\n- Automatic payslip generation\n- Email to employees\n- PDF download\n- Archive for records\n\n## Managing Deductions\n\n### Common Deductions\n- PAYE (tax)\n- NSSF (social security)\n- NHIF (health insurance)\n- Pension contributions\n- Loan repayments\n\n### Configuring Deductions\n1. Go to **Wages > Deductions**\n2. Add deduction type\n3. Set calculation method\n4. Assign to employees\n\n## Reports\n- Payroll summary\n- Tax reports\n- Deduction reports\n- Cost analysis\n      "
+  }
+]

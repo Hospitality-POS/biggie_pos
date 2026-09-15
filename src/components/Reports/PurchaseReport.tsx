@@ -26,23 +26,14 @@ const { Text } = Typography;
 
 type PrintMode = "thermal" | "a4";
 
-// ── Palette ───────────────────────────────────────────────────────────────────
+import { THEME_C } from "@utils/getPrimaryColor";
+
 const C = {
-  primary: "#6c1c2c",
-  primaryLight: "#f9f0f2",
-  green: "#10b981",
+  ...THEME_C,
   greenLight: "#f0fdf4",
-  blue: "#3b82f6",
   blueLight: "#eff6ff",
-  orange: "#f59e0b",
   orangeLight: "#fffbeb",
-  red: "#ef4444",
   redLight: "#fef2f2",
-  subText: "#64748b",
-  darkText: "#0f172a",
-  border: "#e2e8f0",
-  bg: "#f8fafc",
-  white: "#ffffff",
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

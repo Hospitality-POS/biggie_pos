@@ -25,6 +25,7 @@ import { fetchAllPackages } from "@services/subscription";
 import SubscriptionPaymentOption from "./SubscriptionPaymentOption";
 import { usePOSMode } from "@context/POSModeContext";
 import { useRetailQueue } from "@context/RetailQueueContext";
+import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { useNavigate } from "react-router-dom";
 import { saveOfflineOrder } from "../../services/offlineSync";
 
@@ -137,21 +138,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
   const { isRetailMode, isHospitalMode, isHotelMode } = usePOSMode();
   const { activeTable } = useRetailQueue();
 
-  // Get tenant primary color for branding
-  const getPrimaryColor = () => {
-    try {
-      const storedTenant = localStorage.getItem("tenant");
-      if (storedTenant) {
-        const tenant = JSON.parse(storedTenant);
-        return tenant?.color_scheme?.primary || tenant?.primary_color || "#6c1c2c";
-      }
-    } catch (error) {
-      console.error("Error parsing tenant:", error);
-    }
-    return "#6c1c2c";
-  };
-
-  const primaryColor = getPrimaryColor();
+  const primaryColor = usePrimaryColor();
 
   // ── Single source of truth from store ────────────────────────────────────
   const { cartDetails, subtotal, totalVatAmount, grandTotal } = useAppSelector((s) => s.cart);
@@ -437,6 +424,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
           customerEmail: resolveCustomerEmail(),
           customerId: resolveCustomerId(),
           servedBy: user?.id,
+          shopId: cartDetails?.shop_id || localStorage.getItem("shopId") || undefined,
         });
         setOpenModal(false);
         setDrawerVisible(false);
@@ -525,6 +513,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
           customerEmail: resolveCustomerEmail(),
           customerId: resolveCustomerId(),
           servedBy: user?.id,
+          shopId: cartDetails?.shop_id || localStorage.getItem("shopId") || undefined,
         });
         setDrawerVisible(false);
         setSelectedCustomerId(null);

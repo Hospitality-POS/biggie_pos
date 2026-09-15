@@ -23,6 +23,7 @@ import axiosInstance from "@services/request";
 import { BASE_URL } from "@utils/config";
 import { fetchConversations, fetchWhatsappChannels } from "@services/whatsappService";
 import BusinessImpact from "src/pages/Report/BusinessImpact";
+import { THEME_C } from "@utils/getPrimaryColor";
 
 dayjs.extend(relativeTime);
 
@@ -31,8 +32,9 @@ const { RangePicker } = DatePicker;
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const C = {
-    primary: "#6c1c2c",
-    primaryLight: "#f9f0f2",
+    ...THEME_C,
+    get primary() { return THEME_C.primary; },
+    get primaryLight() { return THEME_C.primaryLight; },
     success: "#10b981",
     successLight: "#f0fdf4",
     warning: "#f59e0b",

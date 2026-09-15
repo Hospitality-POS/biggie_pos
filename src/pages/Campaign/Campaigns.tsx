@@ -5,16 +5,11 @@ import { Campaign } from "@services/crm/campaigns";
 import { CampaignTable, CampaignTableHandle } from "./CampaignTable";
 import { CampaignFormModal } from "./CampaignFormModal";
 import { CampaignDetailDrawer } from "./CampaignDetailDrawer";
+import { THEME_C } from "@utils/getPrimaryColor";
 
 const { Text } = Typography;
 
-const C = {
-    primary: "#6c1c2c",
-    primaryLight: "#f9f0f2",
-    subText: "#64748b",
-    darkText: "#0f172a",
-    border: "#e2e8f0",
-} as const;
+const C = THEME_C;
 
 const Campaigns = () => {
     const tableRef = useRef<CampaignTableHandle>(null);

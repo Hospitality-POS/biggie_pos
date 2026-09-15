@@ -9,6 +9,7 @@ import {
   WalletOutlined,
 } from "@ant-design/icons";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
+import { getPrimaryColor } from "@utils/getPrimaryColor";
 import { formatCurrency } from "@utils/formatters";
 
 interface SplitBillDialogProps {
@@ -53,7 +54,7 @@ const SplitBillDialog: React.FC<SplitBillDialogProps> = ({
   setAmount2,
   handleSplitConfirm,
 }) => {
-  const primaryColor = usePrimaryColor() || "#6c1c2c";
+  const primaryColor = usePrimaryColor() || getPrimaryColor();
   const [form] = Form.useForm();
 
   const [curAmount1, setCurAmount1] = useState<number>(amount1 || 0);

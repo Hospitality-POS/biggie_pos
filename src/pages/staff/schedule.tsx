@@ -7,17 +7,12 @@ import AnalyticsPanel from "./AnalyticsPanel";
 import StaffClasses from "./StaffClasses";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 
+import { THEME_C } from "@utils/getPrimaryColor";
+
 const { Text } = Typography;
 
-// ── Palette ────────────────────────────────────────────────────────────────
-const C = {
-  primary: "#6c1c2c",
-  primaryLight: "#f9f0f2",
-  subText: "#64748b",
-  darkText: "#0f172a",
-  border: "#e2e8f0",
-  bg: "#f8fafc",
-};
+// ── Palette (Dynamic Getters) ────────────────────────────────────────────────
+const C = THEME_C;
 
 // ── Tab definition ─────────────────────────────────────────────────────────
 type TabKey = "calendar" | "list" | "classes" | "analytics";
@@ -39,9 +34,8 @@ const SpaReservationSystem = () => {
     setRefreshTrigger(prev => prev + 1);
   }, []);
 
-  // Use primary color context instead of hardcoded colors
-  const contextResult = usePrimaryColor();
-  const primaryColor = contextResult?.primaryColor || '#6c1c2c';
+  // Use primary color context directly
+  const primaryColor = usePrimaryColor();
   
   // Generate color palette based on primary color (same logic as CalendarView)
   const generateColorPalette = (primary: string) => {

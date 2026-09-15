@@ -348,7 +348,7 @@ const ExpandedRow: React.FC<{ record: PurchaseOrder; isMobile?: boolean }> = ({ 
           <Text style={{ fontSize: 12, fontWeight: 600, color: "#64748b" }}>
             ORDER TOTAL
           </Text>
-          <Text strong style={{ fontSize: 15, color: "#6c1c2c" }}>
+          <Text strong style={{ fontSize: 15, color: "var(--primary-color)" }}>
             Ksh {fmtK(record.total_amount || totalOrderValue)}
           </Text>
         </div>

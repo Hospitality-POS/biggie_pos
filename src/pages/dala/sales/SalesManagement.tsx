@@ -60,6 +60,7 @@ import AddEditSaleModal from './AddEditSaleModal';
 import SalesPaymentsTab from '../payments/SalesPaymentsTab';
 import PaymentModal from '../payments/PaymentModal';
 import PaymentPlansDueTab from './PaymentPlansDueTab';
+import { THEME_C } from '@utils/getPrimaryColor';
 
 const { Search } = Input;
 const { Option } = Select;
@@ -67,17 +68,7 @@ const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
 const { TextArea } = Input;
 
-const C = {
-  primary: "#6c1c2c",
-  primaryLight: "#f9f0f2",
-  green: "#10b981",
-  red: "#ef4444",
-  blue: "#3b82f6",
-  subText: "#64748b",
-  darkText: "#0f172a",
-  border: "#e2e8f0",
-  bg: "#f8fafc",
-};
+const C = THEME_C;
 
 const SalesManagement: React.FC = () => {
   const queryClient = useQueryClient();
@@ -1870,7 +1861,7 @@ const SalesManagement: React.FC = () => {
                       layout="vertical"
                       onFinish={handleDocumentUpload}
                       style={{ marginBottom: 20 }}
-                      onFinishFailed={(errorInfo) => console.log('Form validation failed:', errorInfo)}
+                      onFinishFailed={(errorInfo) => console.error('Form validation failed:', errorInfo)}
                     >
                       <Form.Item
                         name="document_type"

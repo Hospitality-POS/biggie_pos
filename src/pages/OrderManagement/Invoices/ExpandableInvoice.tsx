@@ -23,25 +23,14 @@ import {
   TEMPLATES, TemplateId, InvoiceForPrint, SystemDetails,
 } from "./InvoiceTemplates";
 import { usePrimaryColor } from "../../../context/PrimaryColorContext";
+import { THEME_C, getPrimaryColor } from "../../../utils/getPrimaryColor";
 import PrintBillModal from "../../../components/MODALS/PrintBillModal";
 import { usePrintDocument, DocumentType } from "../../../components/MODALS/Hooks/usePrintDocument";
 
 const { Text } = Typography;
 
 // ── Palette ────────────────────────────────────────────────────────────────
-const C = {
-  primary: "#6c1c2c",
-  primaryLight: "#f9f0f2",
-  green: "#10b981",
-  red: "#ef4444",
-  blue: "#3b82f6",
-  orange: "#f59e0b",
-  purple: "#8b5cf6",
-  subText: "#64748b",
-  darkText: "#0f172a",
-  border: "#e2e8f0",
-  bg: "#f8fafc",
-};
+const C = THEME_C;
 
 const fmt = (v: number) =>
   (v || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -400,7 +389,7 @@ const ReceiptTab = ({
                   label: "Presets",
                   colors: [
                     primaryColor, // Primary color as first option
-                    "#6c1c2c", "#1e40af", "#065f46", "#7c3aed",
+                    "#1e40af", "#065f46", "#7c3aed",
                     "#b45309", "#0f766e", "#be185d", "#1d4ed8",
                     "#374151", "#0369a1",
                   ],
@@ -1481,7 +1470,7 @@ const EtrTab = ({ record }: { record: InvoiceDetailsInterface }) => {
 
 const ReceiptTemplateModern = React.forwardRef<HTMLDivElement, {
   inv: InvoiceDetailsInterface; sys: SystemDetails; accentColor?: string; selectedPayment?: PaymentRecord;
-}>(({ inv, sys, accentColor = "#6c1c2c", selectedPayment }, ref) => {
+}>(({ inv, sys, accentColor = getPrimaryColor(), selectedPayment }, ref) => {
   const allPayments: PaymentRecord[] = inv.payments || inv.payment_ids || [];
   const payments = selectedPayment ? [selectedPayment] : allPayments;
   const party = resolveParty(inv);
@@ -1592,7 +1581,7 @@ ReceiptTemplateModern.displayName = "ReceiptTemplateModern";
 
 const ReceiptTemplateCompact = React.forwardRef<HTMLDivElement, {
   inv: InvoiceDetailsInterface; sys: SystemDetails; accentColor?: string; selectedPayment?: PaymentRecord;
-}>(({ inv, sys, accentColor = "#6c1c2c", selectedPayment }, ref) => {
+}>(({ inv, sys, accentColor = getPrimaryColor(), selectedPayment }, ref) => {
   const allPayments: PaymentRecord[] = inv.payments || inv.payment_ids || [];
   const payments = selectedPayment ? [selectedPayment] : allPayments;
   const party = resolveParty(inv);
