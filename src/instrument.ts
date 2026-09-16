@@ -10,6 +10,8 @@ import {
 Sentry.init({
   dsn: import.meta.env.VITE_SENTRY_DSN,
   environment: import.meta.env.MODE,
+  // Only capture and send errors/telemetry in production, never in dev or on localhost
+  enabled: import.meta.env.PROD && !["localhost", "127.0.0.1"].includes(window.location.hostname),
 
   integrations: [
     Sentry.reactRouterV6BrowserTracingIntegration({
@@ -26,9 +28,8 @@ Sentry.init({
   ],
 
   // Performance / Distributed Tracing
-  tracesSampleRate: import.meta.env.DEV ? 1.0 : 0.2,
+  tracesSampleRate: 0.2,
   tracePropagationTargets: [
-    "localhost",
     /^\//,
     /^https:\/\/api\.hospitality\.reliatech\.co\.ke/,
     /^https:\/\/api\.account\.reliatech\.co\.ke/,
