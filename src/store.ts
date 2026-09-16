@@ -11,6 +11,7 @@ import PaymentMethodSlice from "./features/Payment/PaymentMethodSlice";
 import reportSlice from "./features/Report/ReportSlice";
 import dalaReducer from "./features/Dala/dalaSlice";
 import { TypedUseSelectorHook, useDispatch, useSelector } from "react-redux";
+import * as Sentry from "@sentry/react";
 
 const rootReducer = combineReducers({
   auth: authSlice.reducer,
@@ -28,6 +29,7 @@ const rootReducer = combineReducers({
 
 export const store = configureStore({
   reducer: rootReducer,
+  enhancers: (defaultEnhancers) => [Sentry.createReduxEnhancer(), ...defaultEnhancers],
 });
 
 export type RootState = ReturnType<typeof store.getState> 

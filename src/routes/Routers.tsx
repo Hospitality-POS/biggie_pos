@@ -6,6 +6,7 @@ import {
   Navigate,
   Outlet,
 } from "react-router-dom";
+import * as Sentry from "@sentry/react";
 import { Suspense, lazy } from "react";
 import Private, { AdminRoute } from "@components/layout/private/Private";
 import NotFound from "@routes/NotFound";
@@ -308,9 +309,8 @@ const SmartDashboardRouter = () => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ROUTER
-// ─────────────────────────────────────────────────────────────────────────────
-const routes = createBrowserRouter(
+const sentryCreateBrowserRouter = Sentry.wrapCreateBrowserRouterV6(createBrowserRouter);
+const routes = sentryCreateBrowserRouter(
   createRoutesFromElements(
     <>
       {/* Public — OAuth popup */}

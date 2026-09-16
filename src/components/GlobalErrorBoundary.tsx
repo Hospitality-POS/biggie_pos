@@ -1,4 +1,5 @@
-import React, { Component, ErrorInfo, ReactNode } from "react";
+import { Component, ErrorInfo, ReactNode } from "react";
+import * as Sentry from "@sentry/react";
 import { Button, Result } from "antd";
 import { ReloadOutlined, HomeOutlined } from "@ant-design/icons";
 
@@ -23,6 +24,7 @@ class GlobalErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error("GlobalErrorBoundary caught an error:", error, errorInfo);
+    Sentry.captureReactException(error, errorInfo);
   }
 
   handleReload = () => {
