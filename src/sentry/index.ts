@@ -10,8 +10,11 @@ import {
 Sentry.init({
   dsn: import.meta.env.VITE_SENTRY_DSN,
   environment: import.meta.env.MODE,
+
   // Only capture and send errors/telemetry in production, never in dev or on localhost
-  enabled: import.meta.env.PROD && !["localhost", "127.0.0.1"].includes(window.location.hostname),
+  enabled:
+    import.meta.env.PROD &&
+    !["localhost", "127.0.0.1"].includes(window.location.hostname),
 
   integrations: [
     Sentry.reactRouterV6BrowserTracingIntegration({
@@ -40,3 +43,6 @@ Sentry.init({
   replaysSessionSampleRate: 0.1,
   replaysOnErrorSampleRate: 1.0,
 });
+
+export * from "@sentry/react";
+export default Sentry;
