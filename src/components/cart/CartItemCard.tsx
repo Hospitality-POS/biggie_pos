@@ -35,6 +35,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
   const dispatch = useAppDispatch();
   const { cartDetails } = useAppSelector((state) => state.cart);
   const { user } = useAppSelector((state) => state.auth);
+  const pendingPrintSnapshot = useAppSelector((s) => s.pendingPrint.snapshot);
   const primaryColor = usePrimaryColor();
   const { invalidate } = useCartItemsData();
 
@@ -57,7 +58,16 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
   const [editMiscForm] = Form.useForm();
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const canEditQty = user?.role === "admin" || user?.role === "cashier";
+  // A paid cart awaiting bill print is immutable — its order/invoice already
+  // exist, so item edits would silently diverge from what was charged. The
+  // flag comes from getCart after a refetch; the Redux snapshot covers the
+  // window right after payment before any refetch has happened.
+  const cartLocked =
+    !!cartDetails?.pending_print ||
+    (!!pendingPrintSnapshot &&
+      !!cartDetails?._id &&
+      pendingPrintSnapshot.cartDetails?._id === cartDetails._id);
+  const canEditQty = (user?.role === "admin" || user?.role === "cashier") && !cartLocked;
 
   // Sync display when cart updates externally
   useEffect(() => {
@@ -489,15 +499,16 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                       style={{
                         fontSize: 14,
                         color: cartItem?.notes ? (isSent ? "#ffffff" : primaryColor) : (isSent ? "rgba(255,255,255,0.7)" : "#94a3b8"),
-                        cursor: "pointer",
+                        cursor: cartLocked ? "default" : "pointer",
                         flexShrink: 0
                       }}
                       onClick={() => {
+                        if (cartLocked) return;
                         setNotesValue(cartItem?.notes || "");
                         setIsEditingNotes(true);
                       }}
                     />
-                    {cartItem?.notes && (
+                    {cartItem?.notes && !cartLocked && (
                       <CloseCircleOutlined
                         style={{
                           fontSize: 14,
@@ -698,7 +709,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
               {isSent ? (
                 <Space size={2}>
-                  {isMiscellaneous && (
+                  {isMiscellaneous && !cartLocked && (
                     <Button
                       size="small"
                       style={{ width: "28px", height: "28px", padding: 0 }}
@@ -706,7 +717,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                       onClick={handleEditMiscItem}
                     />
                   )}
-                  {user?.role === "admin" && (
+                  {user?.role === "admin" && !cartLocked && (
                     <Button
                       danger
                       size="small"
@@ -724,7 +735,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                 </Space>
               ) : (
                 <Space size={2}>
-                  {isMiscellaneous && (
+                  {isMiscellaneous && !cartLocked && (
                     <Button
                       size="small"
                       style={{ width: "28px", height: "28px", padding: 0 }}
@@ -732,18 +743,20 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                       onClick={handleEditMiscItem}
                     />
                   )}
-                  <Button
-                    danger
-                    size="small"
-                    style={{ width: "28px", height: "28px", padding: 0 }}
-                    icon={<DeleteOutlined />}
-                    onClick={() => {
-                      if (cartItem._id) {
-                        dispatch(deleteCartItem(cartItem._id));
-                        invalidate();
-                      }
-                    }}
-                  />
+                  {!cartLocked && (
+                    <Button
+                      danger
+                      size="small"
+                      style={{ width: "28px", height: "28px", padding: 0 }}
+                      icon={<DeleteOutlined />}
+                      onClick={() => {
+                        if (cartItem._id) {
+                          dispatch(deleteCartItem(cartItem._id));
+                          invalidate();
+                        }
+                      }}
+                    />
+                  )}
                 </Space>
               )}
             </div>
@@ -800,7 +813,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                 Close
               </Button>
             )}
-            {!isAddingNewItem && !isEditingAddons && (
+            {!isAddingNewItem && !isEditingAddons && !cartLocked && (
               <Button
                 type="default"
                 onClick={() => setIsEditingAddons(true)}

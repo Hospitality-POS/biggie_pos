@@ -23,7 +23,7 @@ import {
   ZoomInOutlined,
   ZoomOutOutlined,
   DownloadOutlined,
-  WhatsAppOutlined,
+  WarningOutlined,
 } from "@ant-design/icons";
 import {
   Button,
@@ -39,10 +39,8 @@ import {
   Switch,
 } from "antd";
 import { ModalForm } from "@ant-design/pro-form";
-import { useQuery } from "@tanstack/react-query";
 import { useAppSelector } from "src/store";
 import { sendEmail, refToHtmlString } from "@services/emailReports";
-import { getWhatsAppWebStatus, sendDocumentViaWhatsApp } from "@services/whatsappService";
 import {
   usePrintDocument,
   type DocumentType,
@@ -66,10 +64,8 @@ import {
   fmtN,
   attemptSave,
   type SendEmailValues,
-  type SendWhatsAppValues,
 } from "./print/printHelpers";
 import SendEmailModal from "./print/SendEmailModal";
-import SendWhatsAppModal from "./print/SendWhatsAppModal";
 import ReprintReasonModal from "./print/ReprintReasonModal";
 
 // ── Props ──────────────────────────────────────────────────────────────────
@@ -80,6 +76,9 @@ export interface PrintBillProps {
   totalVatAmount?: number;
   grandTotal?: number;
   isSpa?: boolean;
+  // When true, printing is blocked because this shop requires payment to be
+  // completed on the cart before the bill can be printed.
+  printLocked?: boolean;
 }
 
 // ── Main component ─────────────────────────────────────────────────────────
@@ -90,6 +89,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
   totalVatAmount: customTotalVat,
   grandTotal: customGrandTotal,
   isSpa = false,
+  printLocked = false,
 }) => {
   const { subtotal, totalVatAmount, grandTotal } = useAppSelector((s) => s.cart);
   const { user } = useAppSelector((state) => state.auth);
@@ -116,10 +116,8 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
   const [showVat, setShowVat] = useState(true);
   const [documentType, setDocumentType] = useState<DocumentType>("bill");
   const [emailModalOpen, setEmailModalOpen] = useState(false);
-  const [whatsappModalOpen, setWhatsappModalOpen] = useState(false);
   const [reasonModalOpen, setReasonModalOpen] = useState(false);
   const [sending, setSending] = useState(false);
-  const [sendingWhatsapp, setSendingWhatsapp] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
   const [sendingToPrinter, setSendingToPrinter] = useState(false);
   const [autoPrinting, setAutoPrinting] = useState(false);
@@ -191,23 +189,8 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
   const isElectronicsStore = tenant?.business_type?.name === "Electronics";
   const hasDuka = tenant?.pos_integration?.enabled === true;
-  const hasMteja = tenant?.modules?.crm === true;
   const clientLogoUrl = tenant?.tenant_logo?.url;
 
-  // ── WhatsApp connection status (only relevant when Mteja is enabled) ──────
-  // Note: the button itself is shown whenever Mteja is enabled — we don't
-  // hide it just because the live status check hasn't resolved "ready" yet
-  // (e.g. right after a reconnect/QR scan). Instead we surface a clear
-  // message if the user tries to send while it's not actually connected.
-  const { data: whatsappStatusData, isLoading: whatsappStatusLoading } = useQuery({
-    queryKey: ["whatsapp-web-status-print-bill"],
-    queryFn: () => getWhatsAppWebStatus(localStorage.getItem("shopId") || undefined),
-    enabled: hasMteja,
-    refetchInterval: 15000,
-  });
-  const isWhatsAppConnected = !!whatsappStatusData?.ready;
-  const canSendWhatsApp = hasMteja;
-  
   // ETR data from invoice
   const etrEnabled = cartDetails?.etr_enabled === true;
   const digitax = cartDetails?.digitax;
@@ -245,7 +228,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
   }, [receipt_font_size, receipt_text_bold]);
 
   const {
-    canPrint, isReprint, printsRemaining,
+    canPrint: canPrintDoc, isReprint, printsRemaining,
     printStatus, statusLoading, recordPrint,
   } = usePrintDocument({
     orderNo: cartDetails?.order_no,
@@ -256,6 +239,10 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
     totalVatAmount: finalTotalVat,
     grandTotal: finalGrandTotal,
   });
+
+  // Printing is also blocked when this shop requires payment before the
+  // bill can be printed and the cart hasn't been paid for yet.
+  const canPrint = canPrintDoc && !printLocked;
 
   // Calculate net subtotal for inclusive VAT
   const netSubtotal = vatMode === "INCLUSIVE" ? finalSubtotal - finalTotalVat : finalSubtotal;
@@ -350,7 +337,11 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
 
   const executePrint = useCallback(async (reason?: string) => {
     if (!canPrint) {
-      message.error("Print limit reached. Printing is not allowed for this document.");
+      message.error(
+        printLocked
+          ? "Payment must be completed before the bill can be printed."
+          : "Print limit reached. Printing is not allowed for this document."
+      );
       return;
     }
     
@@ -404,7 +395,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
     } finally {
       setIsPrinting(false);
     }
-  }, [canPrint, isPdfView, refReady, recordPrint, isReprint, useIPPrinterMode, cartDetails]);
+  }, [canPrint, printLocked, isPdfView, refReady, recordPrint, isReprint, useIPPrinterMode, cartDetails]);
 
   const agentShopId = localStorage.getItem("shopId") ?? "";
 
@@ -522,7 +513,10 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
   };
 
   const handleFinish = async () => {
-    if (!canPrint) { message.error("Print limit reached."); return false; }
+    if (!canPrint) {
+      message.error(printLocked ? "Payment must be completed before printing the bill." : "Print limit reached.");
+      return false;
+    }
     if (isReprint && printStatus?.requires_reason) { setReasonModalOpen(true); return false; }
     await executePrint();
     return true;
@@ -600,35 +594,6 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
     }
   };
 
-  const handleSendWhatsApp = async (values: SendWhatsAppValues) => {
-    setSendingWhatsapp(true);
-    try {
-      const result = await buildPdf();
-      if (!result) return;
-
-      const shopId = localStorage.getItem("shopId") ?? "";
-      if (!shopId) {
-        message.error("No shop selected — cannot send document.");
-        return;
-      }
-
-      const ok = await sendDocumentViaWhatsApp({
-        shop_id: shopId,
-        phone_number: values.phone_number,
-        base64_pdf: result.base64Pdf,
-        filename: result.filename,
-        caption: `${docConfig.label} — ${cartDetails?.order_no ?? "Order"}`,
-        customer_id: cartDetails?.customer_id?._id ?? cartDetails?.customer_id ?? null,
-        customer_name: customerName,
-      });
-      if (ok) setWhatsappModalOpen(false);
-    } catch (error) {
-      console.error("Error sending document via WhatsApp:", error);
-    } finally {
-      setSendingWhatsapp(false);
-    }
-  };
-
   // ── Styles ─────────────────────────────────────────────────────────────
   const S = makeReceiptStyles(isBold, fontSize);
 
@@ -682,8 +647,18 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
         modalProps={{ centered: true, destroyOnClose: true, width: isPdfView ? 900 : 680 }}
         submitter={{
           render: (_, defaultDoms) => (
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", flexWrap: "wrap", gap: 8 }}>
-              <Space wrap>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                width: "100%",
+                flexWrap: "wrap",
+                gap: 10,
+                paddingTop: 4,
+              }}
+            >
+              <Space wrap size={8}>
                 <Button
                   icon={<MailOutlined />}
                   onClick={() => setEmailModalOpen(true)}
@@ -692,41 +667,6 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
                 >
                   Send via Email
                 </Button>
-                {canSendWhatsApp && (
-                  <Tooltip
-                    title={
-                      whatsappStatusLoading
-                        ? "Checking WhatsApp Web connection…"
-                        : !isWhatsAppConnected
-                          ? "WhatsApp Web is not connected. Go to Omnichannel > Connect WhatsApp and scan the QR code."
-                          : undefined
-                    }
-                  >
-                    <Button
-                      icon={<WhatsAppOutlined />}
-                      loading={sendingWhatsapp}
-                      onClick={() => {
-                        if (!isWhatsAppConnected) {
-                          message.warning("WhatsApp Web is not connected. Please connect it from Omnichannel > Connect WhatsApp first.");
-                          return;
-                        }
-                        if (customerPhone) {
-                          // Customer already attached with a phone number — send straight away
-                          handleSendWhatsApp({ phone_number: customerPhone });
-                        } else {
-                          // No number on file — ask for one
-                          setWhatsappModalOpen(true);
-                        }
-                      }}
-                      style={{ borderColor: "#25D366", color: "#25D366", borderRadius: 7 }}
-                      disabled={!canPrint || isPrinting}
-                    >
-                      Send via WhatsApp
-                    </Button>
-                  </Tooltip>
-                )}
-              </Space>
-              <Space wrap>
                 <Button
                   icon={<DownloadOutlined />}
                   onClick={handleDownloadPDF}
@@ -755,15 +695,20 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
                 >
                   Auto Print
                 </Button> */}
+              </Space>
+              <Space wrap size={8}>
                 {defaultDoms[0]}{defaultDoms[1]}
               </Space>
             </div>
           ),
           submitButtonProps: {
             icon: isPdfView ? <FilePdfOutlined /> : <PrinterFilled />,
-            style: { background: C.primary, borderColor: C.primary },
+            style: { background: C.primary, borderColor: C.primary, borderRadius: 7 },
             disabled: !canPrint || isPrinting || (useIPPrinterMode && ipPrinterLoading),
             loading: isPrinting || (useIPPrinterMode && ipPrinterLoading),
+          },
+          resetButtonProps: {
+            style: { borderRadius: 7 },
           },
           searchConfig: {
             submitText: isPdfView ? "Save as PDF" : isReprint ? "Reprint Document" : "Print Document",
@@ -771,9 +716,11 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
           },
         }}
         trigger={
-          <Button type="primary" icon={canPrint ? <PrinterOutlined /> : <LockOutlined />} disabled={statusLoading || !hasDuka}>
-            {isReprint ? "Reprint Bill" : "Print Bill"}
-          </Button>
+          <Tooltip title={printLocked ? "Payment must be completed before the bill can be printed" : undefined}>
+            <Button type="primary" icon={canPrint ? <PrinterOutlined /> : <LockOutlined />} disabled={statusLoading || !hasDuka}>
+              {printLocked ? "Pending Print" : isReprint ? "Reprint Bill" : "Print Bill"}
+            </Button>
+          </Tooltip>
         }
         onFinish={handleFinish}
       >
@@ -789,7 +736,14 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
         ) : (
           <>
         {/* ── Alerts ──────────────────────────────────────────────────── */}
-        {!canPrint && (
+        {printLocked && (
+          <Alert type="warning" showIcon icon={<LockOutlined />}
+            message="Payment required before printing"
+            description="This shop requires payment to be completed on this cart before the bill can be printed. Complete payment, then print."
+            style={{ marginBottom: 16, borderRadius: 8 }}
+          />
+        )}
+        {!canPrintDoc && (
           <Alert type="error" showIcon icon={<LockOutlined />}
             message="Print limit reached"
             description={`This document has reached the maximum number of prints allowed.${isPdfView ? " PDF saving is also disabled." : ""}`}
@@ -1584,17 +1538,6 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
         sending={sending}
         docLabel={docConfig.label}
       />
-
-      {canSendWhatsApp && (
-        <SendWhatsAppModal
-          open={whatsappModalOpen}
-          onClose={() => setWhatsappModalOpen(false)}
-          onSend={handleSendWhatsApp}
-          sending={sendingWhatsapp}
-          docLabel={docConfig.label}
-          defaultPhone={customerPhone}
-        />
-      )}
 
       <ReprintReasonModal
         open={reasonModalOpen}

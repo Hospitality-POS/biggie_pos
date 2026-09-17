@@ -10,6 +10,7 @@ import CategorySlice from "./features/Category/CategorySlice";
 import PaymentMethodSlice from "./features/Payment/PaymentMethodSlice";
 import reportSlice from "./features/Report/ReportSlice";
 import dalaReducer from "./features/Dala/dalaSlice";
+import pendingPrintReducer from "./features/PendingPrint/PendingPrintSlice";
 import { TypedUseSelectorHook, useDispatch, useSelector } from "react-redux";
 import * as Sentry from "@sentry/react";
 
@@ -25,6 +26,7 @@ const rootReducer = combineReducers({
   PaymentMethods: PaymentMethodSlice,
   Report: reportSlice,
   dala: dalaReducer,
+  pendingPrint: pendingPrintReducer,
 });
 
 export const store = configureStore({

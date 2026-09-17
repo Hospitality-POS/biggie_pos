@@ -431,6 +431,7 @@ export interface Cart {
   client_name?: string;
   order_no: string;
   status: "Open" | "Closed";
+  pending_print?: boolean;
   void: boolean;
   // NEW: Subscription fields
   customer_id?: {
