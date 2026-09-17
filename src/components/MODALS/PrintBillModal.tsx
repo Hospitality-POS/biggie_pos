@@ -79,6 +79,9 @@ export interface PrintBillProps {
   // When true, printing is blocked because this shop requires payment to be
   // completed on the cart before the bill can be printed.
   printLocked?: boolean;
+  // Stretch the trigger button to fill its container (used when the button
+  // sits in an equal-width row next to other actions).
+  triggerBlock?: boolean;
 }
 
 // ── Main component ─────────────────────────────────────────────────────────
@@ -90,6 +93,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
   grandTotal: customGrandTotal,
   isSpa = false,
   printLocked = false,
+  triggerBlock = false,
 }) => {
   const { subtotal, totalVatAmount, grandTotal } = useAppSelector((s) => s.cart);
   const { user } = useAppSelector((state) => state.auth);
@@ -717,7 +721,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
         }}
         trigger={
           <Tooltip title={printLocked ? "Payment must be completed before the bill can be printed" : undefined}>
-            <Button type="primary" icon={canPrint ? <PrinterOutlined /> : <LockOutlined />} disabled={statusLoading || !hasDuka}>
+            <Button type="primary" block={triggerBlock} icon={canPrint ? <PrinterOutlined /> : <LockOutlined />} disabled={statusLoading || !hasDuka}>
               {printLocked ? "Pending Print" : isReprint ? "Reprint Bill" : "Print Bill"}
             </Button>
           </Tooltip>

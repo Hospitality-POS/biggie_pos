@@ -30,7 +30,6 @@ import {
   Select,
   Popconfirm,
   message,
-  Tag,
 } from "antd";
 import {
   ClearOutlined,
@@ -605,15 +604,6 @@ const CartDrawer: React.FC = () => {
               {orderNumber?.toLocaleUpperCase() || "NO ORDER"}
             </Text>
           </div>
-          {requirePaymentBeforePrint && (data?.length ?? 0) > 0 && (
-            <Tag
-              icon={<PrinterOutlined />}
-              color={printLocked ? "warning" : "success"}
-              style={{ borderRadius: 6, margin: 0 }}
-            >
-              {printLocked ? "Pending Print" : "Ready to Print"}
-            </Tag>
-          )}
           <Flex gap={6} align="center">
             <TransferBillModal data={data} />
             <Button
@@ -787,52 +777,10 @@ const CartDrawer: React.FC = () => {
         {/* Action buttons */}
         {memoizedData?.length > 0 && (
           <Space direction="vertical" style={{ width: "100%" }} size={8}>
-            <Flex
-              gap={8}
-              wrap="wrap"
-              justify="space-evenly"
-              align="center"
-              style={{ width: "100%" }}
-            >
-              {/* A paid cart awaiting print must not be mutated — the order and
-                  invoice are already created. Only the bill print stays. */}
-              {!isAwaitingPrintCart && <ClientPin cart={cartDetails} />}
-              {!isAwaitingPrintCart && (
-                <Button
-                  icon={<PlusCircleOutlined />}
-                  onClick={() => setIsCustomItemModalOpen(true)}
-                  style={{ borderColor: primaryColor, color: primaryColor, borderRadius: 6 }}
-                >
-                  Custom Item
-                </Button>
-              )}
-              {showSendButton && !isAwaitingPrintCart && (
-                <Button
-                  icon={<SendOutlined />}
-                  loading={sendingToPrinter}
-                  disabled={!data?.length}
-                  onClick={handleSendToPrinter}
-                  style={{ borderColor: "#f97316", color: "#f97316", borderRadius: 6 }}
-                >
-                  Send
-                </Button>
-              )}
-              <PrintBillModal
-                cartDetails={cartDetails}
-                data={data}
-                isSpa={isSpa}
-                printLocked={printLocked}
-                {...printProps}
-              />
-              {(user?.role === "admin" || user?.role === "cashier") && !isAwaitingPrintCart && (
-                <DiscountModal data={cartDetails} />
-              )}
-            </Flex>
-            {/* Paid cart awaiting bill print — the message and the Close
-                action live right here next to the print button (not as a
-                banner on top of the page). */}
-            {isAwaitingPrintCart && (
+            {isAwaitingPrintCart ? (
               <>
+                {/* Paid cart awaiting bill print — message on top, then the
+                    print and close actions in one equal-width row. */}
                 <Alert
                   type="success"
                   showIcon
@@ -840,23 +788,75 @@ const CartDrawer: React.FC = () => {
                   message={`Payment complete${orderNumber ? ` for ${orderNumber.toLocaleUpperCase()}` : ""} — print the bill below.`}
                   style={{ borderRadius: 8 }}
                 />
-                <Popconfirm
-                  title="Close this order?"
-                  description="This closes the paid cart and frees the table for a new order. Make sure you've printed the bill first."
-                  okText="Close"
-                  cancelText="Cancel"
-                  onConfirm={handleClosePendingPrint}
-                >
-                  <Button
-                    danger
-                    block
-                    loading={closingPendingPrint}
-                    style={{ borderRadius: 6 }}
-                  >
-                    Close Order
-                  </Button>
-                </Popconfirm>
+                <Flex gap={8} style={{ width: "100%" }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <PrintBillModal
+                      cartDetails={cartDetails}
+                      data={data}
+                      isSpa={isSpa}
+                      printLocked={false}
+                      triggerBlock
+                      {...printProps}
+                    />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <Popconfirm
+                      title="Close this order?"
+                      description="This closes the paid cart and frees the table for a new order. Make sure you've printed the bill first."
+                      okText="Close"
+                      cancelText="Cancel"
+                      onConfirm={handleClosePendingPrint}
+                    >
+                      <Button
+                        danger
+                        block
+                        loading={closingPendingPrint}
+                        style={{ borderRadius: 6 }}
+                      >
+                        Close Order
+                      </Button>
+                    </Popconfirm>
+                  </div>
+                </Flex>
               </>
+            ) : (
+              <Flex
+                gap={8}
+                wrap="wrap"
+                justify="space-evenly"
+                align="center"
+                style={{ width: "100%" }}
+              >
+                <ClientPin cart={cartDetails} />
+                <Button
+                  icon={<PlusCircleOutlined />}
+                  onClick={() => setIsCustomItemModalOpen(true)}
+                  style={{ borderColor: primaryColor, color: primaryColor, borderRadius: 6 }}
+                >
+                  Custom Item
+                </Button>
+                {showSendButton && (
+                  <Button
+                    icon={<SendOutlined />}
+                    loading={sendingToPrinter}
+                    disabled={!data?.length}
+                    onClick={handleSendToPrinter}
+                    style={{ borderColor: "#f97316", color: "#f97316", borderRadius: 6 }}
+                  >
+                    Send
+                  </Button>
+                )}
+                <PrintBillModal
+                  cartDetails={cartDetails}
+                  data={data}
+                  isSpa={isSpa}
+                  printLocked={printLocked}
+                  {...printProps}
+                />
+                {(user?.role === "admin" || user?.role === "cashier") && (
+                  <DiscountModal data={cartDetails} />
+                )}
+              </Flex>
             )}
             {user?.role === "admin" && !isAwaitingPrintCart && (
               <Popconfirm
