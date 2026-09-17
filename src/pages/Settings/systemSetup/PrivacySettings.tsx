@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Switch, Space, Typography, Alert, Spin } from "antd";
 import { ProCard } from "@ant-design/pro-components";
-import { LockOutlined, UnlockOutlined, DollarOutlined } from "@ant-design/icons";
+import { LockOutlined, UnlockOutlined, DollarOutlined, PrinterOutlined } from "@ant-design/icons";
+import { useQueryClient } from "@tanstack/react-query";
 import { fetchSystemSetupDetailsById, updateSystemSetup } from "../../../services/systemsetup";
 import { fetchShop, updateShop } from "../../../services/shops";
 import { message } from "antd";
@@ -12,11 +13,14 @@ const { Text } = Typography;
 const C = THEME_C;
 
 const PrivacySettings: React.FC = () => {
+  const queryClient = useQueryClient();
   const [enablePrivacy, setEnablePrivacy] = useState(false);
   const [staffEarningEnabled, setStaffEarningEnabled] = useState(false);
+  const [requirePaymentBeforePrint, setRequirePaymentBeforePrint] = useState(false);
   const [loading, setLoading] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [updatingStaffEarning, setUpdatingStaffEarning] = useState(false);
+  const [updatingPaymentBeforePrint, setUpdatingPaymentBeforePrint] = useState(false);
   const [systemSettingsId, setSystemSettingsId] = useState<string | null>(null);
   const [shopId, setShopId] = useState<string | null>(null);
 
@@ -33,6 +37,7 @@ const PrivacySettings: React.FC = () => {
         setShopId(currentShopId);
         const shopData = await fetchShop(currentShopId);
         setStaffEarningEnabled(shopData?.staff_earning_enabled || false);
+        setRequirePaymentBeforePrint(shopData?.require_payment_before_print || false);
       }
     } catch (error) {
       console.error("Failed to fetch privacy setting:", error);
@@ -81,12 +86,40 @@ const PrivacySettings: React.FC = () => {
         staff_earning_enabled: checked,
       });
       setStaffEarningEnabled(checked);
+      queryClient.invalidateQueries({ queryKey: ["shop", shopId] });
       message.success(checked ? "Staff earning tracking enabled" : "Staff earning tracking disabled");
     } catch (error) {
       console.error("Failed to update staff earning setting:", error);
       message.error("Failed to update staff earning settings");
     } finally {
       setUpdatingStaffEarning(false);
+    }
+  };
+
+  const handleToggleRequirePaymentBeforePrint = async (checked: boolean) => {
+    if (!shopId) {
+      message.error("Shop not found");
+      return;
+    }
+
+    setUpdatingPaymentBeforePrint(true);
+    try {
+      await updateShop({
+        _id: shopId,
+        require_payment_before_print: checked,
+      });
+      setRequirePaymentBeforePrint(checked);
+      queryClient.invalidateQueries({ queryKey: ["shop", shopId] });
+      message.success(
+        checked
+          ? "Payment must now be completed before the bill can be printed"
+          : "The bill can now be printed without completing payment first"
+      );
+    } catch (error) {
+      console.error("Failed to update payment-before-print setting:", error);
+      message.error("Failed to update payment-before-print setting");
+    } finally {
+      setUpdatingPaymentBeforePrint(false);
     }
   };
 
@@ -193,6 +226,46 @@ const PrivacySettings: React.FC = () => {
               checked={staffEarningEnabled}
               onChange={handleToggleStaffEarning}
               loading={updatingStaffEarning}
+              style={{ minWidth: 48, marginLeft: 16 }}
+              checkedChildren="ON"
+              unCheckedChildren="OFF"
+            />
+          </div>
+        </div>
+
+        {/* Require Payment Before Print Toggle */}
+        <div
+          style={{
+            background: "#fff",
+            border: "1px solid #e2e8f0",
+            borderRadius: 8,
+            padding: "16px 18px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <div style={{ flex: 1 }}>
+              <Text strong style={{ fontSize: 15, display: "block", marginBottom: 6 }}>
+                <Space>
+                  <PrinterOutlined />
+                  {requirePaymentBeforePrint
+                    ? "Payment Required Before Printing Bill"
+                    : "Payment Not Required Before Printing Bill"}
+                </Space>
+              </Text>
+              <Text style={{ fontSize: 13, color: C.subText, display: "block" }}>
+                When enabled, cashiers cannot print the bill until payment has been completed for the cart. The cart shows "Pending Print" while payment is outstanding, and printing unlocks as soon as payment is recorded.
+              </Text>
+            </div>
+            <Switch
+              checked={requirePaymentBeforePrint}
+              onChange={handleToggleRequirePaymentBeforePrint}
+              loading={updatingPaymentBeforePrint}
               style={{ minWidth: 48, marginLeft: 16 }}
               checkedChildren="ON"
               unCheckedChildren="OFF"

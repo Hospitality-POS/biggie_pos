@@ -2,11 +2,14 @@ import React, { Key, useEffect, useMemo, useState } from "react";
 import CartItemCard from "./CartItemCard";
 import PrintBillModal from "../MODALS/PrintBillModal";
 import {
+  closeCartAfterPrint,
+  createCart,
   deleteAllCartItems,
   getCart,
   fetchCartItems,
   updateCart,
 } from "../../features/Cart/CartActions";
+import { clearPendingPrint, setPendingPrint } from "../../features/PendingPrint/PendingPrintSlice";
 import { updateCart as updateCartService } from "../../services/cart";
 import PaymentDrawer from "../payment/PaymentDrawer";
 import SkeletonCartItemCard from "./SkeletonCartItemCard";
@@ -17,6 +20,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchShop, sendCheckinInfo } from "../../services/shops";
 import { getCustomerById, fetchAllCustomers } from "../../services/customers";
 import {
+  Alert,
   Button,
   Space,
   Typography,
@@ -26,6 +30,7 @@ import {
   Select,
   Popconfirm,
   message,
+  Tag,
 } from "antd";
 import {
   ClearOutlined,
@@ -35,6 +40,7 @@ import {
   SwitcherOutlined,
   CalendarOutlined,
   SendOutlined,
+  PrinterOutlined,
 } from "@ant-design/icons";
 import TransferBillModal from "@components/MODALS/pro/TransferBill";
 import ClientPin from "@components/MODALS/ClientPin";
@@ -74,6 +80,7 @@ const CartDrawer: React.FC = () => {
   const [isCustomItemModalOpen, setIsCustomItemModalOpen] = useState(false);
   const [sendingHotelInfo, setSendingHotelInfo] = useState(false);
   const [earningsModalOpen, setEarningsModalOpen] = useState(false);
+  const [closingPendingPrint, setClosingPendingPrint] = useState(false);
 
   const documentType: DocumentType = "bill";
 
@@ -86,6 +93,8 @@ const CartDrawer: React.FC = () => {
     queryKey: ["shop", shopId],
     queryFn: () => fetchShop(shopId!),
     enabled: !!shopId,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   const isHotelMode = shopData?.pos_mode === "hotel";
@@ -100,6 +109,7 @@ const CartDrawer: React.FC = () => {
   } = useAppSelector((s) => s.cart);
   const { user } = useAppSelector((s) => s.auth);
   const { tableData: td } = useAppSelector((s) => s.Tables);
+  const pendingPrintSnapshot = useAppSelector((s) => s.pendingPrint.snapshot);
 
   const { data: customerData } = useQuery({
     queryKey: ["customer", cartDetails?.customer_id],
@@ -336,8 +346,75 @@ const CartDrawer: React.FC = () => {
 
   const isOnlySlot = totalQueueSlots <= 1;
   const isSpa = tenant?.business_type?.name === "massage_parlour";
+
+  // ── Restrict printing the bill until payment is completed (applies to everyone) ──
+  const requirePaymentBeforePrint = !!shopData?.require_payment_before_print;
+  // True when the cart currently shown here is the exact one that was just
+  // paid for and is awaiting print — it's deliberately left untouched (not
+  // cleared/replaced) until the cashier explicitly closes the print prompt.
+  // The backend keeps such carts "Open" with pending_print=true, so this also
+  // covers the state after a page refresh or on another device.
+  const isAwaitingPrintCart =
+    (!!pendingPrintSnapshot &&
+      !!cartDetails?._id &&
+      pendingPrintSnapshot.cartDetails?._id === cartDetails._id) ||
+    !!cartDetails?.pending_print;
+  const printLocked =
+    requirePaymentBeforePrint && (data?.length ?? 0) > 0 && !isAwaitingPrintCart;
+
+  // If the page was refreshed (or the cart opened elsewhere) while a paid cart
+  // is still awaiting its bill print, rebuild the pending-print snapshot from
+  // the live cart so the global print/close prompt comes back. Independent of
+  // the shop toggle so a cart left pending can always be closed afterwards.
+  useEffect(() => {
+    if (cartDetails?.pending_print && !pendingPrintSnapshot && (data?.length ?? 0) > 0) {
+      dispatch(
+        setPendingPrint({
+          cartDetails,
+          data: data ?? [],
+          subtotal,
+          totalVatAmount,
+          grandTotal,
+        })
+      );
+    }
+  }, [cartDetails, pendingPrintSnapshot, data, subtotal, totalVatAmount, grandTotal, dispatch]);
+
+  // Explicit "Close" on the paid cart: this is the ONLY place the cart/table
+  // is torn down after a held payment. Closes the paid cart on the backend
+  // (frees the table), then starts the next cart for the table — mirroring
+  // what payment normally does when the setting is off.
+  const handleClosePendingPrint = async () => {
+    const cartId = pendingPrintSnapshot?.cartDetails?._id || cartDetails?._id;
+    const table =
+      pendingPrintSnapshot?.cartDetails?.table_id?._id ||
+      pendingPrintSnapshot?.cartDetails?.table_id ||
+      cartDetails?.table_id?._id ||
+      cartDetails?.table_id;
+    setClosingPendingPrint(true);
+    try {
+      if (cartId) {
+        await dispatch(closeCartAfterPrint(cartId)).unwrap();
+      }
+      if (table) {
+        await dispatch(
+          createCart({ table_id: table, created_by: user?.id || user?._id } as any)
+        ).unwrap();
+        await dispatch(getCart(table)).unwrap();
+      }
+      // Only drop the pending state after the backend work succeeded.
+      dispatch(clearPendingPrint());
+    } catch (e: any) {
+      message.error(typeof e === "string" ? e : e?.message || "Failed to close the cart");
+    } finally {
+      setClosingPendingPrint(false);
+    }
+  };
+
   const canCheckout =
-    (user?.role === "admin" || user?.role === "cashier") && (data?.length ?? 0) > 0;
+    (user?.role === "admin" || user?.role === "cashier") &&
+    (data?.length ?? 0) > 0 &&
+    !isAwaitingPrintCart;
 
   const handleServedByChange = async (newUserIds: string[]) => {
     const cartId = cartDetails?._id ?? cartDetails?.id;
@@ -528,6 +605,15 @@ const CartDrawer: React.FC = () => {
               {orderNumber?.toLocaleUpperCase() || "NO ORDER"}
             </Text>
           </div>
+          {requirePaymentBeforePrint && (data?.length ?? 0) > 0 && (
+            <Tag
+              icon={<PrinterOutlined />}
+              color={printLocked ? "warning" : "success"}
+              style={{ borderRadius: 6, margin: 0 }}
+            >
+              {printLocked ? "Pending Print" : "Ready to Print"}
+            </Tag>
+          )}
           <Flex gap={6} align="center">
             <TransferBillModal data={data} />
             <Button
@@ -708,15 +794,19 @@ const CartDrawer: React.FC = () => {
               align="center"
               style={{ width: "100%" }}
             >
-              <ClientPin cart={cartDetails} />
-              <Button
-                icon={<PlusCircleOutlined />}
-                onClick={() => setIsCustomItemModalOpen(true)}
-                style={{ borderColor: primaryColor, color: primaryColor, borderRadius: 6 }}
-              >
-                Custom Item
-              </Button>
-              {showSendButton && (
+              {/* A paid cart awaiting print must not be mutated — the order and
+                  invoice are already created. Only the bill print stays. */}
+              {!isAwaitingPrintCart && <ClientPin cart={cartDetails} />}
+              {!isAwaitingPrintCart && (
+                <Button
+                  icon={<PlusCircleOutlined />}
+                  onClick={() => setIsCustomItemModalOpen(true)}
+                  style={{ borderColor: primaryColor, color: primaryColor, borderRadius: 6 }}
+                >
+                  Custom Item
+                </Button>
+              )}
+              {showSendButton && !isAwaitingPrintCart && (
                 <Button
                   icon={<SendOutlined />}
                   loading={sendingToPrinter}
@@ -731,13 +821,44 @@ const CartDrawer: React.FC = () => {
                 cartDetails={cartDetails}
                 data={data}
                 isSpa={isSpa}
+                printLocked={printLocked}
                 {...printProps}
               />
-              {(user?.role === "admin" || user?.role === "cashier") && (
+              {(user?.role === "admin" || user?.role === "cashier") && !isAwaitingPrintCart && (
                 <DiscountModal data={cartDetails} />
               )}
             </Flex>
-            {user?.role === "admin" && (
+            {/* Paid cart awaiting bill print — the message and the Close
+                action live right here next to the print button (not as a
+                banner on top of the page). */}
+            {isAwaitingPrintCart && (
+              <>
+                <Alert
+                  type="success"
+                  showIcon
+                  icon={<PrinterOutlined />}
+                  message={`Payment complete${orderNumber ? ` for ${orderNumber.toLocaleUpperCase()}` : ""} — print the bill below.`}
+                  style={{ borderRadius: 8 }}
+                />
+                <Popconfirm
+                  title="Close this order?"
+                  description="This closes the paid cart and frees the table for a new order. Make sure you've printed the bill first."
+                  okText="Close"
+                  cancelText="Cancel"
+                  onConfirm={handleClosePendingPrint}
+                >
+                  <Button
+                    danger
+                    block
+                    loading={closingPendingPrint}
+                    style={{ borderRadius: 6 }}
+                  >
+                    Close Order
+                  </Button>
+                </Popconfirm>
+              </>
+            )}
+            {user?.role === "admin" && !isAwaitingPrintCart && (
               <Popconfirm
                 title="Clear all items?"
                 description="This will remove everything from the cart."
@@ -761,7 +882,8 @@ const CartDrawer: React.FC = () => {
         )}
       </div>
 
-      {/* Sticky checkout footer */}
+      {/* Sticky checkout footer — hidden while the paid cart awaits print;
+          the print/close controls for it sit in the action area above. */}
       {canCheckout && (
         <div
           style={{
@@ -773,7 +895,10 @@ const CartDrawer: React.FC = () => {
             boxShadow: "0 -2px 8px rgba(0,0,0,0.04)",
           }}
         >
-          <PaymentDrawer customerDetails={customerDetails} />
+          <PaymentDrawer
+            customerDetails={customerDetails}
+            holdForPrint={requirePaymentBeforePrint}
+          />
         </div>
       )}
 

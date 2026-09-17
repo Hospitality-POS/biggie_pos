@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { createOrder } from "@features/Order/OrderActions";
+import { closeModal } from "@features/Order/OrderSlice";
 import { cartVoid, createCart, updateCart } from "@features/Cart/CartActions";
+import { setPendingPrint } from "@features/PendingPrint/PendingPrintSlice";
 import SplitBillDialog from "../MODALS/Dialogs/SplitBillDialog";
 import { useAppDispatch, useAppSelector } from "../../store";
 import {
@@ -126,9 +128,18 @@ const STKStatusCard: React.FC<{
   );
 };
 
-interface PaymentDrawerProps { customerDetails?: CustomerDetails | null; }
+interface PaymentDrawerProps {
+  customerDetails?: CustomerDetails | null;
+  // True when this shop requires the bill to be printed only after payment.
+  // The cart/table is deliberately NOT closed or replaced on payment — a
+  // snapshot of the paid cart is stashed in Redux (via PendingPrintSlice) so
+  // the CartDrawer can keep showing the print/close controls for it, and the
+  // cart is only closed and a fresh one started when the cashier clicks
+  // "Close Order" there.
+  holdForPrint?: boolean;
+}
 
-const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
+const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails, holdForPrint }) => {
   const [form] = Form.useForm();
   const [drawerVisible, setDrawerVisible] = useState(false);
   const dispatch = useAppDispatch();
@@ -141,7 +152,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
   const primaryColor = usePrimaryColor();
 
   // ── Single source of truth from store ────────────────────────────────────
-  const { cartDetails, subtotal, totalVatAmount, grandTotal } = useAppSelector((s) => s.cart);
+  const { cartDetails, subtotal, totalVatAmount, grandTotal, cartItems } = useAppSelector((s) => s.cart);
 
   const isSlotMode = isRetailMode || isHospitalMode;
   const id = isSlotMode
@@ -156,6 +167,31 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
   };
   const { loading } = useAppSelector((s) => s.order);
   const { user } = useAppSelector((s) => s.auth);
+
+  // If this shop requires the bill to be printed only after payment, leave
+  // the cart/table exactly as-is (don't clear it or start a new one) — just
+  // stash a snapshot in Redux so the bill can still be printed from the cart
+  // drawer. The cart/table is only actually closed and reset once the
+  // cashier explicitly clicks "Close Order" in the drawer, never
+  // automatically on payment. Also suppress the
+  // generic "order success" animation — it's tied to global state and would
+  // otherwise pop up unexpectedly on a later, unrelated page visit since
+  // we're not navigating to /tables now.
+  const finalizeAfterPayment = () => {
+    if (holdForPrint) {
+      dispatch(setPendingPrint({
+        cartDetails,
+        data: cartItems ?? [],
+        subtotal,
+        totalVatAmount,
+        grandTotal,
+      }));
+      dispatch(closeModal());
+      return;
+    }
+    dispatch(createCart(id));
+    afterPaymentRedirect();
+  };
 
   // ── Discount display math — never affects order_amount sent to backend ────
   const discountAmount = useMemo(() => {
@@ -334,8 +370,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
             setTimeout(() => {
               resetPesapalModal();
               setDrawerVisible(false);
-              dispatch(createCart(id));
-              afterPaymentRedirect();
+              finalizeAfterPayment();
             }, 2000);
           } else if (data.payment_status === "FAILED") {
             setStkPaymentStatus("failed");
@@ -454,7 +489,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
       if (result.type.endsWith("/fulfilled")) {
         setOpenModal(false);
         setDrawerVisible(false); setSelectedCustomerId(null);
-        dispatch(createCart(id)); afterPaymentRedirect(); message.success("Payment successful!");
+        finalizeAfterPayment(); message.success("Payment successful!");
       } else {
         const errPayload = String((result as any)?.payload || (result as any)?.error?.message || "");
         if (
@@ -487,7 +522,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
         if (result.type.endsWith("/fulfilled")) {
           message.success("Order placed using subscription visit!");
           setDrawerVisible(false); setSelectedSubscription(null); setUseSubscription(false);
-          setSelectedCustomerId(null); dispatch(createCart(id)); afterPaymentRedirect();
+          setSelectedCustomerId(null); finalizeAfterPayment();
         }
       } catch (error) {
         console.warn("Subscription payment error:", error);
@@ -543,7 +578,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
       }));
       if (result.type.endsWith("/fulfilled")) {
         setDrawerVisible(false); setSelectedCustomerId(null);
-        dispatch(createCart(id)); afterPaymentRedirect(); message.success("Payment successful!");
+        finalizeAfterPayment(); message.success("Payment successful!");
       } else {
         const errPayload = String((result as any)?.payload || (result as any)?.error?.message || "");
         if (

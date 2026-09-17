@@ -242,6 +242,22 @@ export const cartSent = createAsyncThunk(
   }
 );
 
+export const closeCartAfterPrint = createAsyncThunk(
+  "cart/closeCartAfterPrint",
+  async (cartId: string, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.put(`${baseUrl}/close-after-print`, {
+        cart_id: cartId,
+      });
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(
+        error?.response?.data?.error || error.message || "Failed to close cart"
+      );
+    }
+  }
+);
+
 export const cartVoid = createAsyncThunk(
   "cart/cartVoid",
   async (cartDetails: CartDetailsInterface, { rejectWithValue }) => {
