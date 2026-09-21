@@ -120,7 +120,7 @@ const UnifiedShopDashboardPage: React.FC = () => {
   return (
     <div
       style={{
-        padding: isMobile ? "2px 2px" : "16px 24px",
+        padding: isMobile ? "2px 1px" : "16px 24px",
         background: "#f8fafc",
         minHeight: "100%",
       }}
