@@ -36,6 +36,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchHRDashboard, type HRDashboardData } from "@services/bandu/dashboard";
 import { clockIn, clockOut, fetchClockStatus } from "@services/hr/leave";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
+import { fmtK } from "@utils/formatters";
 import dayjs from "dayjs";
 import {
   LineChart,
@@ -77,12 +78,6 @@ const getShopId = (): string => {
 
 const fmt = (v: number) =>
   (v || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-const fmtK = (v: number) => {
-  if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
-  if (Math.abs(v) >= 1_000) return `${(v / 1_000).toFixed(1)}K`;
-  return fmt(v);
-};
 
 const LEAVE_COLORS: Record<string, string> = {
   annual: "#10b981",

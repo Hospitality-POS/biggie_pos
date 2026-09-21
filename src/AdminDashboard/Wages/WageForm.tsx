@@ -23,15 +23,13 @@ import { addWage, updateWage } from "@services/wages";
 import { fetchAllUsersList } from "@services/users";
 import dayjs from "dayjs";
 import { THEME_C } from "@utils/getPrimaryColor";
+import { fmtInteger as fmtK } from "@utils/formatters";
 
 const { Text } = Typography;
 const { TextArea } = Input;
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 const C = THEME_C;
-
-const fmtK = (v: number) =>
-    v.toLocaleString("en-KE", { minimumFractionDigits: 0 });
 
 // ── Mobile detection ──────────────────────────────────────────────────────────
 const useIsMobile = () => {

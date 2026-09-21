@@ -23,8 +23,8 @@ import {
   RiseOutlined, ShoppingCartOutlined, CheckCircleOutlined,
   WarningOutlined, CreditCardOutlined, FilePdfOutlined, PrinterFilled,
 } from "@ant-design/icons";
-import { useAppSelector } from "src/store";
 import { THEME_C } from "@utils/getPrimaryColor";
+import { fmtKES } from "@utils/formatters";
 
 const { Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -183,12 +183,6 @@ const computeAnalytics = (orders: any[]): OrderAnalytics => {
     missingPayments: missing, avgOrderValue: orders.length > 0 ? revenue / orders.length : 0,
     regularOrders: regular, subscriptionOrders: subs, topClosedBy,
   };
-};
-
-const fmtKES = (v: number) => {
-  if (v >= 1_000_000) return `KES ${(v / 1_000_000).toFixed(1)}M`;
-  if (v >= 1_000) return `KES ${(v / 1_000).toFixed(1)}K`;
-  return `KES ${v.toFixed(0)}`;
 };
 
 const AnalyticsStrip: React.FC<{ orders: any[]; loading: boolean; isMobile: boolean }> = ({

@@ -11,15 +11,9 @@ import {
   HomeOutlined,
   ShopOutlined,
 } from "@ant-design/icons";
+import { fmtK } from "@utils/formatters";
 
 const { Text } = Typography;
-
-const fmtK = (v: number) => {
-  if (!v && v !== 0) return "0";
-  if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
-  if (Math.abs(v) >= 1_000) return `${(v / 1_000).toFixed(1)}K`;
-  return v.toLocaleString("en-KE", { minimumFractionDigits: 0 });
-};
 
 interface KPICardsProps {
   revenue: number;

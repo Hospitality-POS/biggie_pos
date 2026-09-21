@@ -35,6 +35,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { fetchDalaDashboard } from '@services/dala';
 import { useDalaDashboard } from '../../stores/dalaStore';
+import { fmtK } from '@utils/formatters';
 import {
   LineChart,
   Line,
@@ -66,12 +67,6 @@ const PERIOD_LABELS: Record<string, string> = {
 
 const fmt = (v: number) =>
   (v || 0).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-const fmtK = (v: number) => {
-  if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
-  if (Math.abs(v) >= 1_000) return `${(v / 1_000).toFixed(1)}K`;
-  return fmt(v);
-};
 
 const MONTH_LABELS: string[] = [
   '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',

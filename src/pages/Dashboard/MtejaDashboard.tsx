@@ -59,6 +59,7 @@ import axiosInstance from "@services/request";
 import { BASE_URL } from "@utils/config";
 import { fetchConversations, fetchWhatsappChannels } from "@services/whatsappService";
 import { THEME_C } from "@utils/getPrimaryColor";
+import { fmtK, fmtKES } from "@utils/formatters";
 
 dayjs.extend(relativeTime);
 
@@ -106,16 +107,6 @@ const LEAD_STAGES = [
   { key: "won", label: "Won", color: "#10b981" },
   { key: "lost", label: "Lost", color: "#ef4444" },
 ];
-
-const fmtK = (v: number) => {
-  if (!v && v !== 0) return "0";
-  if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
-  if (Math.abs(v) >= 1_000) return `${(v / 1_000).toFixed(1)}K`;
-  return v.toLocaleString("en-KE", { minimumFractionDigits: 0 });
-};
-
-const fmtKES = (v: number) =>
-  `KES ${v >= 1_000_000 ? (v / 1_000_000).toFixed(1) + "M" : v >= 1_000 ? (v / 1_000).toFixed(1) + "K" : v.toLocaleString("en-KE")}`;
 
 const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0);
 

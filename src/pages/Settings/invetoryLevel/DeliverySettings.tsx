@@ -35,13 +35,12 @@ import ExpandedDeliveryItems from "./ExpandedDeliveryItems";
 import AcceptDeliveryModal from "@components/MODALS/pro/AcceptDeliveryModal";
 import { useMutation } from "@tanstack/react-query";
 import { THEME_C } from "../../../utils/getPrimaryColor";
+import { fmtInteger as fmtK } from "@utils/formatters";
 
 const { Text, Title } = Typography;
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 const C = THEME_C;
-
-const fmtK = (v: number) => v.toLocaleString("en-KE", { minimumFractionDigits: 0 });
 
 // ── Mobile detection ──────────────────────────────────────────────────────────
 const useIsMobile = () => {

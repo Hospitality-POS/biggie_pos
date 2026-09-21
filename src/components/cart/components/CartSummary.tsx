@@ -1,11 +1,9 @@
 import React from "react";
 import { Flex, Typography, Tag, Divider, Button } from "antd";
 import { RestOutlined, PrinterOutlined, SmileFilled } from "@ant-design/icons";
+import { fmtKSH as fmtKsh } from "@utils/formatters";
 
 const { Text } = Typography;
-
-const fmtKsh = (v: number) =>
-  `KSH ${v?.toLocaleString("en-KE", { minimumFractionDigits: 0 }) ?? "0"}`;
 
 const SummaryRow: React.FC<{
   label: React.ReactNode;

@@ -2,11 +2,9 @@ import React, { useEffect, useState } from "react";
 import { Modal, Typography, InputNumber, message } from "antd";
 import { SmileFilled } from "@ant-design/icons";
 import { updateCart as updateCartService } from "../../../services/cart";
+import { fmtKSH as fmtKsh } from "@utils/formatters";
 
 const { Text } = Typography;
-
-const fmtKsh = (v: number) =>
-  `KSH ${v?.toLocaleString("en-KE", { minimumFractionDigits: 0 }) ?? "0"}`;
 
 interface StaffEarningsModalProps {
   open: boolean;

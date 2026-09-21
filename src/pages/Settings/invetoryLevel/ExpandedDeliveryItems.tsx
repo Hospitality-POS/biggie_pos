@@ -18,6 +18,7 @@ import useSystemDetails from "@hooks/useSystemDetails";
 import { ENTITY_NAME } from "@utils/config";
 import { sendDeliveryNoteEmail, refToHtmlString } from "@services/emailReports";
 import { THEME_C } from "../../../utils/getPrimaryColor";
+import { fmtInteger as fmtK } from "@utils/formatters";
 
 const { Text } = Typography;
 
@@ -25,7 +26,6 @@ const { Text } = Typography;
 const C = THEME_C;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-const fmtK = (v: number) => (v || 0).toLocaleString("en-KE", { minimumFractionDigits: 0 });
 const fmtDate = (d?: string) =>
   d ? new Date(d).toLocaleDateString("en-KE", { dateStyle: "medium" }) : "—";
 

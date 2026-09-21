@@ -28,6 +28,7 @@ import SubscriptionPaymentOption from "./SubscriptionPaymentOption";
 import { usePOSMode } from "@context/POSModeContext";
 import { useRetailQueue } from "@context/RetailQueueContext";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
+import { fmtKSH as fmtKsh } from "@utils/formatters";
 import { useNavigate } from "react-router-dom";
 import { saveOfflineOrder } from "../../services/offlineSync";
 
@@ -49,9 +50,6 @@ const useDebounce = (callback: (...args: any[]) => void, delay: number) => {
     timeoutRef.current = setTimeout(() => callback(...args), delay);
   }, [callback, delay]);
 };
-
-const fmtKsh = (v: number) =>
-  `KSH ${v?.toLocaleString("en-KE", { minimumFractionDigits: 0 }) ?? "0"}`;
 
 const getMethodIcon = (name: string, size = 26) => {
   const n = name.toLowerCase();

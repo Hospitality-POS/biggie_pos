@@ -18,17 +18,12 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
+import { fmtK } from "@utils/formatters";
+
 const { Text } = Typography;
 
 const fmt = (v: number) =>
   (v || 0).toLocaleString("en-KE", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-
-const fmtK = (v: number) => {
-  if (!v && v !== 0) return "0";
-  if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
-  if (Math.abs(v) >= 1_000) return `${(v / 1_000).toFixed(1)}K`;
-  return fmt(v);
-};
 
 interface SalesTrendChartProps {
   data: any[];

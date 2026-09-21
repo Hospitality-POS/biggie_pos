@@ -34,6 +34,7 @@ import { PurchaseOrder, PurchaseOrderItem } from "../../types";
 import { usePurchaseOrders } from "../../hooks/usePurchaseOrders";
 import AddEditPurchaseOrderModal from "../AddEditPurchaseOrderModal";
 import CreateDeliveryFromPOModal from "../../../../../../components/MODALS/pro/CreateDeliveryFromPOModal";
+import { fmtK } from "@utils/formatters";
 
 const { Text, Title } = Typography;
 
@@ -46,14 +47,6 @@ const useIsMobile = () => {
     return () => window.removeEventListener("resize", handler);
   }, []);
   return isMobile;
-};
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-const fmtK = (v: number) => {
-  if (!v && v !== 0) return "0";
-  if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
-  if (Math.abs(v) >= 1_000) return `${(v / 1_000).toFixed(1)}K`;
-  return v.toLocaleString("en-KE", { minimumFractionDigits: 0 });
 };
 
 // ── Direction tag ────────────────────────────────────────────────────────────────

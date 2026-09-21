@@ -53,6 +53,7 @@ import {
   DashboardOperationalHub,
 } from "src/components/dashboard";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
+import { fmtK } from "@utils/formatters";
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -68,13 +69,6 @@ const PERIOD_LABELS: Record<string, string> = {
   month: "This Month",
   year: "This Year",
   custom: "Custom Period",
-};
-
-const fmtK = (v: number) => {
-  if (!v && v !== 0) return "0";
-  if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
-  if (Math.abs(v) >= 1_000) return `${(v / 1_000).toFixed(1)}K`;
-  return v.toLocaleString("en-KE", { minimumFractionDigits: 0 });
 };
 
 const useIsMobile = () => {
