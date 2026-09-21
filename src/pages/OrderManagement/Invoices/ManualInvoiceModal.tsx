@@ -60,6 +60,7 @@ interface Props {
     onClose: () => void;
     onSuccess?: () => void;
     invoiceToEdit?: Invoice | null;
+    quoteOnly?: boolean;
 }
 
 interface LineItem {
@@ -88,7 +89,7 @@ const newLine = (defaultVatRate = 0): LineItem => ({
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoiceToEdit }) => {
+const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoiceToEdit, quoteOnly = false }) => {
     const [form] = Form.useForm();
     const [payForm] = Form.useForm();
     const { message } = App.useApp();
@@ -99,7 +100,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
     const [selectedCurrency, setSelectedCurrency] = useState<string>(functionalCurrency?.code || "KES");
 
     const [lines, setLines] = useState<LineItem[]>([newLine()]);
-    const [docType, setDocType] = useState<DocType>("invoice");
+    const [docType, setDocType] = useState<DocType>(quoteOnly ? "quote" : "invoice");
     const [step, setStep] = useState(0);
     const [savedInvoice, setSavedInvoice] = useState<any>(null);
     const [customerSearch, setCustomerSearch] = useState("");
@@ -342,7 +343,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
                 due_date: fv.due_date ? dayjs(fv.due_date) : null,
             });
             if (draft.lines?.length)            setLines(draft.lines);
-            if (draft.docType)                   setDocType(draft.docType);
+            if (draft.docType)                   setDocType(quoteOnly ? "quote" : draft.docType);
             if (draft.discountType)              setDiscountType(draft.discountType);
             if (draft.discountAmount  != null)   setDiscountAmount(draft.discountAmount);
             if (draft.discountPercentage != null) setDiscountPercentage(draft.discountPercentage);
@@ -355,6 +356,11 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
             localStorage.removeItem(DRAFT_KEY);
         }
     }, [open, isEditMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // ── Quote-only mode: force docType to "quote" on open (create mode) ────────
+    useEffect(() => {
+        if (open && quoteOnly && !isEditMode) setDocType("quote");
+    }, [open, quoteOnly, isEditMode]);
 
     // ── Populate form when editing an existing invoice ─────────────────────────
     useEffect(() => {
@@ -1119,7 +1125,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
                     value={docType}
                     onChange={(v) => setDocType(v as DocType)}
                     size="large"
-                    disabled={isEditMode}
+                    disabled={isEditMode || quoteOnly}
                     options={[
                         { label: <Space><FileTextOutlined />Quote</Space>, value: "quote" },
                         { label: <Space><FileDoneOutlined />Invoice</Space>, value: "invoice" },
