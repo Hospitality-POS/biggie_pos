@@ -6,6 +6,8 @@ import { useAppSelector } from "src/store";
 import AdminDashboard from "src/AdminDashboard/AdminDashboardLayout";
 import SubscriptionGuard from "./SubscriptionGuard";
 
+import { ProductProvider } from "src/context/ProductContext";
+
 function Layout() {
   const { user } = useAppSelector((state) => state.auth);
   const location = useLocation();
@@ -56,7 +58,9 @@ function Layout() {
 
   return (
     <SubscriptionGuard>
-      {renderLayoutForRole(user?.role || "guest")}
+      <ProductProvider>
+        {renderLayoutForRole(user?.role || "guest")}
+      </ProductProvider>
     </SubscriptionGuard>
   );
 }
