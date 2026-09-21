@@ -51,8 +51,15 @@ const AnalyticsPage: React.FC<Props> = ({ shopId }) => {
 
     const stats = data;
 
-    const formatMinutes = (val?: number) =>
-        val === undefined || val === null ? "--" : `${val} min`;
+    const formatMinutes = (val?: number | null) => {
+        if (val === undefined || val === null) return "--";
+        if (val <= 0) return "0 min";
+        if (val < 1) return `${Math.round(val * 60)}s`;
+        if (val < 60) return `${Number.isInteger(val) ? val : val.toFixed(1)} min`;
+        const h = Math.floor(val / 60);
+        const m = Math.round(val % 60);
+        return m ? `${h}h ${m}m` : `${h}h`;
+    };
 
     return (
         <div style={{ padding: 24, height: "100%", overflowY: "auto" }}>

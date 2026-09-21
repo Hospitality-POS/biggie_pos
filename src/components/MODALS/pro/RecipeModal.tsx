@@ -18,7 +18,7 @@ import {
 import { ModalForm, ProForm, ProFormSelect } from "@ant-design/pro-form";
 import {
   PlusCircleFilled,
-  MinusCircleOutlined,
+  DeleteOutlined,
   CarryOutOutlined,
   CheckCircleOutlined,
   InfoCircleOutlined
@@ -61,7 +61,8 @@ const RecipeModal = ({ productId, productName, activateInventory }) => {
         unit: item?.unit_id?._id,
         quantity: item?.quantity,
         itemFormat: item?.formatType || "direct",
-        ratio: item?.ratio || 1
+        ratio: item?.ratio || 1,
+        variant_id: item?.variant_id || null
       })) || [{}];
 
       form.setFieldsValue({
@@ -145,6 +146,10 @@ const RecipeModal = ({ productId, productName, activateInventory }) => {
 
   const { user } = useAppSelector((state) => state.auth);
   const isAdmin = user?.role === "admin";
+
+  // Reactively watch recipe item values so conditional columns (variant, ratio)
+  // render immediately when a field changes
+  const watchedRecipeItems = Form.useWatch("recipeItems", form);
 
   const handleOnFinish = async (values) => {
     const confirmed = await ShowConfirm({
@@ -280,7 +285,8 @@ const RecipeModal = ({ productId, productName, activateInventory }) => {
             <InfoCircleOutlined style={{ color: '#1890ff', marginRight: 8 }} />
             <span>
               Each inventory item can use its own deduction format. Direct format uses 1:1 deduction,
-              while Ratio format allows multiple sales before deducting inventory.
+              while Ratio format allows multiple sales before deducting inventory. If an inventory
+              item has variants, select which variant stock should be deducted from.
             </span>
           </div>
 
@@ -298,140 +304,178 @@ const RecipeModal = ({ productId, productName, activateInventory }) => {
               {(fields, { add, remove }) => (
                 <>
                   {fields.map(({ key, name, fieldKey, ...restField }) => {
-                    const itemFormat = form.getFieldValue(["recipeItems", name, "itemFormat"]) || "direct";
+                    const watched = watchedRecipeItems?.[name] || {};
+                    const itemFormat = watched.itemFormat || form.getFieldValue(["recipeItems", name, "itemFormat"]) || "direct";
+                    const selectedItemId = watched.item ?? form.getFieldValue(["recipeItems", name, "item"]);
+                    const selectedInventory = inventoryItems?.find((i: any) => i._id === selectedItemId);
+                    const hasVariants =
+                      selectedInventory?.has_variants || (selectedInventory?.variants?.length ?? 0) > 0;
+                    const variants = hasVariants
+                      ? (selectedInventory?.variants || []).filter((v: any) => v.status !== "discontinued")
+                      : [];
 
                     return (
-                      <Row
+                      <div
                         key={key}
-                        gutter={[16, 16]}
-                        style={{ marginBottom: "16px", borderBottom: "1px solid #f0f0f0", paddingBottom: "16px" }}
+                        style={{
+                          border: "1px solid #e5e7eb",
+                          borderRadius: 8,
+                          padding: "14px 14px 2px",
+                          marginBottom: 14,
+                          position: "relative",
+                          background: "#fff",
+                        }}
                       >
-                        <Col xs={24} sm={12} md={6}>
-                          <ProFormSelect
-                            {...restField}
-                            name={[name, "item"]}
-                            showSearch
-                            label="Inventory Item"
-                            placeholder="Select inventory item"
-                            rules={[
-                              {
-                                required: true,
-                                message: "Inventory item is required",
-                              },
-                            ]}
-                            request={InventoryRequest}
-                            width="sm"
-                            fieldProps={{
-                              onChange: (value, option) => {
-                                const selectedUnit = option.unit;
-                                form.setFieldValue(
-                                  ["recipeItems", name, "unit"],
-                                  selectedUnit._id
-                                );
-                              },
-                            }}
-                          />
-                        </Col>
+                        <Button
+                          type="text"
+                          danger
+                          size="small"
+                          icon={<DeleteOutlined />}
+                          onClick={() => {
+                            const recipeId = form.getFieldValue([
+                              "recipeItems",
+                              name,
+                              "_id",
+                            ]);
+                            handleDeleteRecipeItem(recipeId, name);
+                          }}
+                          style={{ position: "absolute", top: 6, right: 6, zIndex: 1 }}
+                        />
 
-                        <Col xs={24} sm={12} md={4}>
-                          <ProForm.Item
-                            {...restField}
-                            name={[name, "quantity"]}
-                            label="Quantity"
-                            rules={[
-                              { required: true, message: "Quantity is required" },
-                            ]}
-                          >
-                            <InputNumber
-                              min={0.1}
-                              placeholder="Enter quantity"
-                              style={{ width: "100%" }}
+                        <Row gutter={[12, 8]}>
+                          <Col xs={24} md={12}>
+                            <ProFormSelect
+                              {...restField}
+                              name={[name, "item"]}
+                              showSearch
+                              label="Inventory Item"
+                              placeholder="Select inventory item"
+                              rules={[
+                                {
+                                  required: true,
+                                  message: "Inventory item is required",
+                                },
+                              ]}
+                              request={InventoryRequest}
+                              fieldProps={{
+                                style: { width: "100%" },
+                                onChange: (value, option) => {
+                                  const selectedUnit = option.unit;
+                                  form.setFieldValue(
+                                    ["recipeItems", name, "unit"],
+                                    selectedUnit._id
+                                  );
+                                  // Reset variant when the inventory item changes
+                                  form.setFieldValue(
+                                    ["recipeItems", name, "variant_id"],
+                                    null
+                                  );
+                                },
+                              }}
                             />
-                          </ProForm.Item>
-                        </Col>
+                          </Col>
 
-                        <Col xs={24} sm={12} md={4}>
-                          <ProFormSelect
-                            {...restField}
-                            name={[name, "unit"]}
-                            label="Unit"
-                            placeholder="Auto-filled"
-                            fieldProps={{
-                              disabled: true,
-                            }}
-                            options={units?.map((unit) => ({
-                              label: unit.name,
-                              value: unit._id,
-                            }))}
-                          />
-                        </Col>
-
-                        <Col xs={24} sm={12} md={4}>
-                          <Form.Item
-                            {...restField}
-                            name={[name, "itemFormat"]}
-                            label="Format"
-                            initialValue="direct"
-                            rules={[{ required: true }]}
-                          >
-                            <Select
-                              onChange={(value) => handleItemFormatChange(name, value)}
-                              style={{ width: "100%" }}
-                            >
-                              <Select.Option value="direct">
-                                <Tag color="blue">Direct</Tag>
-                              </Select.Option>
-                              <Select.Option value="ratio">
-                                <Tag color="green">Ratio</Tag>
-                              </Select.Option>
-                            </Select>
-                          </Form.Item>
-                        </Col>
-
-                        {itemFormat === "ratio" && (
-                          <Col xs={24} sm={12} md={4}>
+                          <Col xs={12} md={6}>
                             <ProForm.Item
                               {...restField}
-                              name={[name, "ratio"]}
-                              label="Service Ratio"
-                              tooltip="How many service sales per 1 inventory deduction"
-                              initialValue={3}
+                              name={[name, "quantity"]}
+                              label="Quantity"
                               rules={[
-                                { required: true, message: "Ratio is required" },
+                                { required: true, message: "Quantity is required" },
                               ]}
                             >
                               <InputNumber
-                                min={1}
-                                placeholder="Enter ratio"
+                                min={0.1}
+                                placeholder="Enter quantity"
                                 style={{ width: "100%" }}
                               />
                             </ProForm.Item>
                           </Col>
-                        )}
 
-                        <Col
-                          xs={24}
-                          sm={12}
-                          md={2}
-                          style={{ display: "flex", alignItems: "center" }}
-                        >
-                          <Button
-                            type="link"
-                            danger
-                            icon={<MinusCircleOutlined />}
-                            onClick={() => {
-                              const recipeId = form.getFieldValue([
-                                "recipeItems",
-                                name,
-                                "_id",
-                              ]);
-                              handleDeleteRecipeItem(recipeId, name);
-                            }}
-                          >
-                            Remove
-                          </Button>
-                        </Col>
-                      </Row>
+                          <Col xs={12} md={6}>
+                            <ProFormSelect
+                              {...restField}
+                              name={[name, "unit"]}
+                              label="Unit"
+                              placeholder="Auto-filled"
+                              fieldProps={{
+                                disabled: true,
+                                style: { width: "100%" },
+                              }}
+                              options={units?.map((unit) => ({
+                                label: unit.name,
+                                value: unit._id,
+                              }))}
+                            />
+                          </Col>
+
+                          <Col xs={12} md={6}>
+                            <Form.Item
+                              {...restField}
+                              name={[name, "itemFormat"]}
+                              label="Format"
+                              initialValue="direct"
+                              rules={[{ required: true }]}
+                            >
+                              <Select
+                                onChange={(value) => handleItemFormatChange(name, value)}
+                                style={{ width: "100%" }}
+                              >
+                                <Select.Option value="direct">
+                                  <Tag color="blue">Direct</Tag>
+                                </Select.Option>
+                                <Select.Option value="ratio">
+                                  <Tag color="green">Ratio</Tag>
+                                </Select.Option>
+                              </Select>
+                            </Form.Item>
+                          </Col>
+
+                          {itemFormat === "ratio" && (
+                            <Col xs={12} md={6}>
+                              <ProForm.Item
+                                {...restField}
+                                name={[name, "ratio"]}
+                                label="Service Ratio"
+                                tooltip="How many service sales per 1 inventory deduction"
+                                initialValue={3}
+                                rules={[
+                                  { required: true, message: "Ratio is required" },
+                                ]}
+                              >
+                                <InputNumber
+                                  min={1}
+                                  placeholder="Enter ratio"
+                                  style={{ width: "100%" }}
+                                />
+                              </ProForm.Item>
+                            </Col>
+                          )}
+
+                          {(variants.length > 0 || (isLoadingInventory && selectedItemId)) && (
+                            <Col xs={24} md={12}>
+                              <ProFormSelect
+                                {...restField}
+                                name={[name, "variant_id"]}
+                                label="Variant"
+                                placeholder={isLoadingInventory ? "Loading variants..." : "Select variant to deduct"}
+                                rules={[{ required: true, message: "Variant is required" }]}
+                                options={variants.map((v: any) => ({
+                                  label: `${v.name} (${v.quantity ?? 0} left)`,
+                                  value: v._id,
+                                }))}
+                                fieldProps={{
+                                  style: { width: "100%" },
+                                  showSearch: true,
+                                  optionFilterProp: "label",
+                                  loading: isLoadingInventory,
+                                  disabled: isLoadingInventory,
+                                }}
+                              />
+                            </Col>
+                          )}
+                        </Row>
+                      </div>
                     );
                   })}
                   <Button type="dashed" block onClick={() => add()}>

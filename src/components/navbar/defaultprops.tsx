@@ -141,12 +141,18 @@ const POS_ROUTE_PERMISSIONS: Record<string, string> = {
   "/documents": "DOCUMENTS_VIEW",
   "/petty-cash": "ORDERS_VIEW_DASHBOARD",
   "/refunds": "ORDERS_VIEW_DASHBOARD",
-  "/staff-management": "USERS_VIEW",
   "/Category-settings": "CATEGORIES_VIEW",
   "/table-settings": "TABLES_VIEW",
   "/suppliers": "SUPPLIERS_VIEW",
   "/help-center": "FAQ_VIEW",
   "/currencies": "ACCOUNTING_COA_VIEW",
+  // CRM routes — only reachable when hasMteja, permission-gated here too
+  "/crm/leads": "CRM_LEADS_VIEW",
+  "/crm/campaigns": "CRM_CAMPAIGNS_VIEW",
+  "/crm/sales-targets": "CRM_TARGETS_VIEW",
+  "/crm/sales-budgets": "CRM_BUDGETS_VIEW",
+  "/crm/quotes": "CUSTOMERS_VIEW",
+  "/crm/calendar": "CUSTOMERS_VIEW",
 };
 
 const ACCOUNTING_ROUTE_PERMISSIONS: Record<string, string> = {
@@ -181,6 +187,8 @@ const CRM_ROUTE_PERMISSIONS: Record<string, string> = {
   "/crm/campaigns": "CRM_CAMPAIGNS_VIEW",
   "/crm/sales-targets": "CRM_TARGETS_VIEW",
   "/crm/sales-budgets": "CRM_BUDGETS_VIEW",
+  "/crm/quotes": "CUSTOMERS_VIEW",
+  "/crm/calendar": "CUSTOMERS_VIEW",
   "/customers": "CUSTOMERS_VIEW",
   "/reports": "REPORTS_ITEM_SALES",
   "/documents": "DOCUMENTS_VIEW",
@@ -231,7 +239,13 @@ const POS_APP_PERMISSIONS: Record<string, string> = {
   "/fss-faqs": "FAQ_VIEW",
   "/website-builder": "GALLERY_VIEW",
   "/documents": "DOCUMENTS_VIEW",
-  "/currencies": "ACCOUNTING_COA_VIEW",
+  // CRM tiles
+  "/crm/leads": "CRM_LEADS_VIEW",
+  "/crm/campaigns": "CRM_CAMPAIGNS_VIEW",
+  "/crm/sales-targets": "CRM_TARGETS_VIEW",
+  "/crm/sales-budgets": "CRM_BUDGETS_VIEW",
+  "/crm/quotes": "CUSTOMERS_VIEW",
+  "/crm/calendar": "CUSTOMERS_VIEW",
 };
 
 const ACCOUNTING_APP_PERMISSIONS: Record<string, string> = {
@@ -254,6 +268,14 @@ const ACCOUNTING_APP_PERMISSIONS: Record<string, string> = {
   "/payment-methods": "PAYMENT_METHODS_VIEW",
   "/system-setup": "SYSTEM_SETUP_VIEW",
   "/documents": "DOCUMENTS_VIEW",
+  "/omnichannel": "OMNICHANNEL_VIEW",
+  "/currencies": "ACCOUNTING_COA_VIEW",
+  // CRM tiles
+  "/crm/leads": "CRM_LEADS_VIEW",
+  "/crm/campaigns": "CRM_CAMPAIGNS_VIEW",
+  "/crm/sales-targets": "CRM_TARGETS_VIEW",
+  "/crm/sales-budgets": "CRM_BUDGETS_VIEW",
+  "/crm/quotes": "CUSTOMERS_VIEW",
 };
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -406,6 +428,8 @@ export const useProLayoutNav = () => {
     { path: p("/home-dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/home-dashboard" },
     { path: p("/omnichannel"), name: "Conversations", icon: <MessageOutlined />, _bare: "/omnichannel" },
     { path: p("/crm/leads"), name: "Leads", icon: <TeamOutlined />, _bare: "/crm/leads" },
+    { path: p("/crm/calendar"), name: "Activity Calendar", icon: <CalendarOutlined />, _bare: "/crm/calendar" },
+    { path: p("/crm/quotes"), name: "Quotes", icon: <FileTextOutlined />, _bare: "/crm/quotes" },
     { path: p("/crm/campaigns"), name: "Campaigns", icon: <NotificationOutlined />, _bare: "/crm/campaigns" },
     { path: p("/crm/sales-targets"), name: "Sales Targets", icon: <AimOutlined />, _bare: "/crm/sales-targets" },
     { path: p("/crm/sales-budgets"), name: "Sales Budgets", icon: <RiseOutlined />, _bare: "/crm/sales-budgets" },
@@ -513,6 +537,8 @@ export const useProLayoutNav = () => {
 
   const crmAppTiles = [
     { icon: makeTile(primaryColor, ICONS.leads), title: "Leads", desc: "Track sales pipeline.", url: p("/crm/leads") },
+    { icon: makeTile("#0891b2", ICONS.reports), title: "Activity Calendar", desc: "Activities & meetings.", url: p("/crm/calendar") },
+    { icon: makeTile("#f59e0b", ICONS.invoice), title: "Quotes", desc: "Quotes & proposals.", url: p("/crm/quotes") },
     { icon: makeTile("#7c3aed", ICONS.campaigns), title: "Campaigns", desc: "Marketing campaigns.", url: p("/crm/campaigns") },
     { icon: makeTile("#0891b2", ICONS.target), title: "Sales Targets", desc: "Revenue & unit targets.", url: p("/crm/sales-targets") },
     { icon: makeTile("#16a34a", ICONS.budget), title: "Sales Budgets", desc: "Plan & approve budgets.", url: p("/crm/sales-budgets") },

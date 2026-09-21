@@ -597,7 +597,7 @@ const printQuote = (record: any) => {
 };
 
 // ── Main ───────────────────────────────────────────────────────────────────
-const InvoicesTable = () => {
+const InvoicesTable = ({ quotesOnly = false }: { quotesOnly?: boolean }) => {
   const isMobile = useIsMobile();
   const actionRef = useRef<ActionType>();
   const formRef = useRef<ProFormInstance>();
@@ -700,6 +700,7 @@ const InvoicesTable = () => {
       const { dateRange, ...rest } = filters;
       const data = await getAllInvoices({
         ...rest, page, limit: 10, shop_id: shopId,
+        ...(quotesOnly ? { status: "Draft" } : {}),
         start_date: dateRange?.[0] ? dayjs(dateRange[0]).startOf("day").toISOString() : dayjs().startOf("day").toISOString(),
         end_date: dateRange?.[1] ? dayjs(dateRange[1]).endOf("day").toISOString() : dayjs().endOf("day").toISOString(),
       });
@@ -1064,7 +1065,7 @@ const InvoicesTable = () => {
             display: "flex", alignItems: "center", justifyContent: "space-between",
             padding: "12px 14px", background: C.bg, borderBottom: `1px solid ${C.border}`,
           }}>
-            <Text strong style={{ fontSize: 14, color: C.darkText }}>Invoices & Quotes</Text>
+            <Text strong style={{ fontSize: 14, color: C.darkText }}>{quotesOnly ? "Quotes" : "Invoices & Quotes"}</Text>
             <div style={{ display: "flex", gap: 8 }}>
                             <Button size="small" icon={<FilterOutlined />} onClick={() => setFilterOpen(true)}
                 style={{ borderRadius: 8, borderColor: C.border }}>
@@ -1074,7 +1075,7 @@ const InvoicesTable = () => {
           </div>
           <div style={{ padding: "8px 14px", borderBottom: `1px solid ${C.border}` }}>
             <Text style={{ fontSize: 11, color: C.subText }}>
-              {mobileTotal} invoice{mobileTotal !== 1 ? "s" : ""} found
+              {mobileTotal} {quotesOnly ? "quote" : "invoice"}{mobileTotal !== 1 ? "s" : ""} found
             </Text>
           </div>
         </div>
@@ -1082,7 +1083,7 @@ const InvoicesTable = () => {
         {mobileLoading && mobilePage === 1 ? (
           <div style={{ textAlign: "center", padding: "40px 0", color: C.subText }}>Loading…</div>
         ) : mobileData.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "40px 0", color: C.subText }}>No invoices found.</div>
+          <div style={{ textAlign: "center", padding: "40px 0", color: C.subText }}>{quotesOnly ? "No quotes found." : "No invoices found."}</div>
         ) : (
           <>
             {mobileData.map((record) => (
@@ -1117,7 +1118,7 @@ const InvoicesTable = () => {
           <PaymentModal invoice={payTarget} open={!!payTarget}
             onClose={() => setPayTarget(null)} onSuccess={refreshTable} />
         )}
-        <ManualInvoiceModal open={manualModalOpen} onClose={() => setManualModalOpen(false)} onSuccess={refreshTable} />
+        <ManualInvoiceModal open={manualModalOpen} onClose={() => setManualModalOpen(false)} onSuccess={refreshTable} quoteOnly={quotesOnly} />
       </>
     );
   }
@@ -1161,7 +1162,7 @@ const InvoicesTable = () => {
           optionRender: (_, __, dom) => [...dom],
         }}
         toolBarRender={() => [
-          ...(hasPesa ? [
+          ...(quotesOnly || hasPesa ? [
             <Button
               key="new-invoice"
               type="primary"
@@ -1169,7 +1170,7 @@ const InvoicesTable = () => {
               onClick={() => setManualModalOpen(true)}
               style={{ background: C.primary, borderColor: C.primary, borderRadius: 8 }}
             >
-              New Invoice
+              {quotesOnly ? "New Quote" : "New Invoice"}
             </Button>,
           ] : []),
         ]}
@@ -1201,10 +1202,10 @@ const InvoicesTable = () => {
             hideInTable: true,
             valueType: "text",
           },
-          {
+          ...(!quotesOnly ? [{
             title: "Quick Filter", dataIndex: "quick_filter",
             hideInTable: true,
-            valueType: "select",
+            valueType: "select" as const,
             valueEnum: {
               all: { text: "All" },
               not_posted: { text: "Not Posted" },
@@ -1214,14 +1215,16 @@ const InvoicesTable = () => {
               overdue: { text: "Overdue" },
             },
             initialValue: "all",
-          },
+          }] : []),
           ...desktopColumns,
         ]}
         request={async (params) => {
           const { current, pageSize, dateRange, _timestamp, quick_filter, ...rest } = params;
           const apiParams: any = { ...rest, page: current, limit: pageSize, shop_id: shopId };
 
-          if (quick_filter === "not_posted") {
+          if (quotesOnly) {
+            apiParams.status = "Draft";
+          } else if (quick_filter === "not_posted") {
             apiParams.posted = "false";
           } else if (quick_filter === "due") {
             apiParams.status = "Pending,Partially_Paid,Overdue";
@@ -1243,7 +1246,7 @@ const InvoicesTable = () => {
         tableAlertRender={({ selectedRowKeys }) => <p>You have selected {selectedRowKeys?.length}</p>}
         rowSelection={{ alwaysShowAlert: false, selections: false }}
         scroll={{ x: "inherit" }}
-        toolbar={{ title: "Invoices & Quotes", tooltip: "Invoice Management" }}
+        toolbar={{ title: quotesOnly ? "Quotes" : "Invoices & Quotes", tooltip: quotesOnly ? "Quote Management" : "Invoice Management" }}
         options={{ fullScreen: true }}
         expandable={{
           // ── Invoice/receipt FIRST, then details ──
@@ -1291,6 +1294,7 @@ const InvoicesTable = () => {
         open={manualModalOpen}
         onClose={() => setManualModalOpen(false)}
         onSuccess={refreshTable}
+        quoteOnly={quotesOnly}
       />
 
       {editTarget && (
