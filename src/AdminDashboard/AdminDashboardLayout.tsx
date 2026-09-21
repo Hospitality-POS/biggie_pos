@@ -1128,10 +1128,10 @@ const AdminDashboard: React.FC = () => {
 
         @media (max-width: 768px) {
           .ant-pro-page-container-children-container {
-            padding: 2px 1px !important;
+            padding: 6px 10px !important;
           }
           .ant-pro-page-container-warp-page-header {
-            padding: 2px 1px !important;
+            padding: 6px 10px !important;
           }
         }
 

@@ -1066,7 +1066,7 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
           .ant-pro-global-header { padding: 0 12px !important; }
         }
         @media (max-width: 768px) {
-          .ant-pro-page-container-children-container { padding: 2px 1px !important; }
+          .ant-pro-page-container-children-container { padding: 6px 10px !important; }
         }
         .notification-popover-overlay .ant-popover-inner { padding: 0 !important; }
         /* ── Module dropdown (Duka / Pesa / Mteja / Dala / Setup) submenus ── */
