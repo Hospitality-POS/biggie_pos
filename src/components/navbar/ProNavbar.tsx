@@ -130,6 +130,7 @@ type QuickCreateModal =
   | "journal"
   | "payment-method"
   | "invoice"
+  | "quote"
   | "income-expense"
   | null;
 
@@ -412,6 +413,12 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
             icon: <NotificationOutlined style={{ color: "#7c3aed" }} />,
             label: <span style={{ fontSize: 13 }}>New Lead</span>,
             onClick: () => navigate(isAdmin ? "/admin/crm/leads" : "/crm/leads"),
+          },
+          {
+            key: "crm-quote",
+            icon: <FileTextOutlined style={{ color: "#f59e0b" }} />,
+            label: <span style={{ fontSize: 13 }}>New Quote</span>,
+            onClick: () => setQuickCreateModal("quote"),
           },
           {
             key: "crm-campaign",
@@ -1239,6 +1246,11 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
       <ManualInvoiceModal
         open={quickCreateModal === "invoice"}
         onClose={closeQuickCreate}
+      />
+      <ManualInvoiceModal
+        open={quickCreateModal === "quote"}
+        onClose={closeQuickCreate}
+        quoteOnly
       />
       <ManualIncomeModal
         open={quickCreateModal === "income-expense"}
