@@ -90,6 +90,7 @@ const POS_ROUTE_PERMISSIONS: Record<string, string> = {
   "/crm/sales-targets": "CRM_TARGETS_VIEW",
   "/crm/sales-budgets": "CRM_BUDGETS_VIEW",
   "/crm/quotes": "CUSTOMERS_VIEW",
+  "/crm/calendar": "CUSTOMERS_VIEW",
 };
 
 const ACCOUNTING_ROUTE_PERMISSIONS: Record<string, string> = {
@@ -128,6 +129,7 @@ const ACCOUNTING_ROUTE_PERMISSIONS: Record<string, string> = {
   "/crm/sales-targets": "CRM_TARGETS_VIEW",
   "/crm/sales-budgets": "CRM_BUDGETS_VIEW",
   "/crm/quotes": "CUSTOMERS_VIEW",
+  "/crm/calendar": "CUSTOMERS_VIEW",
 };
 
 const POS_APP_PERMISSIONS: Record<string, string> = {
@@ -149,6 +151,7 @@ const POS_APP_PERMISSIONS: Record<string, string> = {
   "/crm/sales-targets": "CRM_TARGETS_VIEW",
   "/crm/sales-budgets": "CRM_BUDGETS_VIEW",
   "/crm/quotes": "CUSTOMERS_VIEW",
+  "/crm/calendar": "CUSTOMERS_VIEW",
 };
 
 const ACCOUNTING_APP_PERMISSIONS: Record<string, string> = {
@@ -338,6 +341,12 @@ const useProLayoutNav = () => {
       _bare: "/crm/leads",
     }] : []),
     ...(can("CUSTOMERS_VIEW") ? [{
+      path: p("/crm/calendar"),
+      name: "Activity Calendar",
+      icon: <CalendarOutlined />,
+      _bare: "/crm/calendar",
+    }] : []),
+    ...(can("CUSTOMERS_VIEW") ? [{
       path: p("/crm/quotes"),
       name: "Quotes",
       icon: <FileTextOutlined />,
@@ -371,6 +380,13 @@ const useProLayoutNav = () => {
       desc: "Track sales pipeline.",
       url: p("/crm/leads"),
       _bare: "/crm/leads",
+    },
+    {
+      icon: makeTile("#0891b2", ICONS.reports),
+      title: "Activity Calendar",
+      desc: "Activities & meetings.",
+      url: p("/crm/calendar"),
+      _bare: "/crm/calendar",
     },
     {
       icon: makeTile("#f59e0b", ICONS.invoice),

@@ -42,6 +42,7 @@ import {
   NotificationOutlined,
   AimOutlined,
   CustomerServiceOutlined,
+  CalendarOutlined,
   // ── Dala ───────────────────────────────────────────────────────────────────
   BuildOutlined,
   ApartmentOutlined,
@@ -419,6 +420,12 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
             icon: <FileTextOutlined style={{ color: "#f59e0b" }} />,
             label: <span style={{ fontSize: 13 }}>New Quote</span>,
             onClick: () => setQuickCreateModal("quote"),
+          },
+          {
+            key: "crm-calendar",
+            icon: <CalendarOutlined style={{ color: "#0891b2" }} />,
+            label: <span style={{ fontSize: 13 }}>Activity Calendar</span>,
+            onClick: () => navigate(isAdmin ? "/admin/crm/calendar" : "/crm/calendar"),
           },
           {
             key: "crm-campaign",

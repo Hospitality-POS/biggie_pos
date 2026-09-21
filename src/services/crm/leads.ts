@@ -84,7 +84,7 @@ export interface Lead {
     createdAt: string;
     updatedAt: string;
     // attached by getById
-    activities?: import("./crm/leadActivities").LeadActivity[];
+    activities?: import("./leadActivities").LeadActivity[];
     documents?: any[];
 }
 

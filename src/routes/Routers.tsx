@@ -135,6 +135,7 @@ const CampaignsPage = lazy(() => import("src/pages/Campaign/Campaigns"));
 const SalesTargetsPage = lazy(() => import("src/pages/SalesTargets/SalesTargets"));
 const SalesBudgetsPage = lazy(() => import("src/pages/Salesbudgets/Salesbudgets"));
 const QuotesPage = lazy(() => import("src/pages/Quotes/QuotesPage"));
+const ActivityCalendarPage = lazy(() => import("src/pages/ActivityCalendar/ActivityCalendarPage"));
 
 // ─── Dala Real Estate Module ───────────────────────────────────────────────────
 // All Dala pages are lazy-loaded and only reachable when hasDala === true.
@@ -520,6 +521,8 @@ const routes = sentryCreateBrowserRouter(
             element={mtejaPage(SalesBudgetsPage, "CUSTOMERS_VIEW")} />
           <Route path="quotes" errorElement={<NotFound />}
             element={mtejaPage(QuotesPage, "CUSTOMERS_VIEW")} />
+          <Route path="calendar" errorElement={<NotFound />}
+            element={mtejaPage(ActivityCalendarPage, "CUSTOMERS_VIEW")} />
         </Route>
 
         {/* ── Dala Real Estate — shop level (/dala/...) ───────────────────────
@@ -782,6 +785,8 @@ const routes = sentryCreateBrowserRouter(
             element={mtejaAdminPage(SalesBudgetsPage, "CUSTOMERS_VIEW")} />
           <Route path="quotes" errorElement={<NotFound />}
             element={mtejaAdminPage(QuotesPage, "CUSTOMERS_VIEW")} />
+          <Route path="calendar" errorElement={<NotFound />}
+            element={mtejaAdminPage(ActivityCalendarPage, "CUSTOMERS_VIEW")} />
         </Route>
 
         {/* ── Dala Real Estate — admin level (/admin/dala/...) ───────────────

@@ -3,6 +3,7 @@ import {
     Avatar,
     Badge,
     Button,
+    Checkbox,
     Divider,
     Dropdown,
     Empty,
@@ -41,6 +42,7 @@ import {
     FileSearchOutlined,
     PhoneOutlined,
     VideoCameraOutlined,
+    FileExclamationOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
@@ -57,6 +59,8 @@ import {
     handoverConversation,
     deleteConversation,
 } from "@services/whatsappService";
+import { useAppDispatch } from "src/store";
+import { createLeadActivity } from "@services/crm/leadActivities";
 import { searchDocuments } from "@services/documents";
 import { formatCurrency } from "@utils/formatters";
 import {
@@ -468,6 +472,11 @@ const MessageThread: React.FC<Props> = ({
     const [convertType, setConvertType] = useState<"customer" | "lead" | null>(null);
     const [convertName, setConvertName] = useState(conversation.external_contact_name || "");
     const [convertPhone, setConvertPhone] = useState(conversation.external_contact_phone || "");
+    const [raiseTicket, setRaiseTicket] = useState(false);
+    const [ticketSubject, setTicketSubject] = useState("");
+    const [standaloneTicketOpen, setStandaloneTicketOpen] = useState(false);
+    const [standaloneTicketSubject, setStandaloneTicketSubject] = useState("");
+    const dispatch = useAppDispatch();
     const [dispatchModalOpen, setDispatchModalOpen] = useState(false);
     const [dispatchAgent, setDispatchAgent] = useState<string>("");
     const [scriptsOpen, setScriptsOpen] = useState(false);
@@ -788,7 +797,38 @@ const MessageThread: React.FC<Props> = ({
         setConvertName(conversation.external_contact_name || "");
         setConvertPhone(conversation.external_contact_phone || "");
         setConvertType(type);
+        setRaiseTicket(false);
+        setTicketSubject("");
         setConvertOpen(true);
+    };
+
+    const raiseTicketFor = async (opts: { lead_id?: string; customer_id?: string }, subject?: string) => {
+        try {
+            await dispatch(createLeadActivity({
+                ...opts,
+                type: "ticket",
+                subject: subject?.trim() || "Support ticket from conversation",
+                description: `Raised from ${conversation.channel} conversation with ${conversation.external_contact_name || conversation.external_contact_id}.`,
+                priority: "medium",
+            }) as any).unwrap();
+            antMessage.success("Ticket raised");
+            queryClient.invalidateQueries({ queryKey: ["crm-activities"] });
+        } catch {
+            /* error toast handled by thunk */
+        }
+    };
+
+    const handleStandaloneRaiseTicket = async () => {
+        if (!conversation.customer_id && !conversation.lead_id) {
+            antMessage.error("Convert this conversation to a customer or lead first");
+            return;
+        }
+        await raiseTicketFor(
+            conversation.customer_id ? { customer_id: conversation.customer_id } : { lead_id: conversation.lead_id },
+            standaloneTicketSubject
+        );
+        setStandaloneTicketOpen(false);
+        setStandaloneTicketSubject("");
     };
 
     const handleConvert = async () => {
@@ -817,6 +857,12 @@ const MessageThread: React.FC<Props> = ({
             queryClient.invalidateQueries({ queryKey: ["leads"] });
             queryClient.invalidateQueries({ queryKey: ["crm-leads"] });
             queryClient.invalidateQueries({ queryKey: ["mteja-recent-leads"] });
+            if (raiseTicket) {
+                const entityId = result.customer?._id || result.lead?._id;
+                if (entityId) {
+                    await raiseTicketFor(convertType === "customer" ? { customer_id: entityId } : { lead_id: entityId }, ticketSubject);
+                }
+            }
             onConversationUpdate();
         }
         setConvertOpen(false);
@@ -890,6 +936,7 @@ const MessageThread: React.FC<Props> = ({
                 icon: <DownOutlined />,
                 children: statusMenu.items,
             },
+            { key: "raise-ticket", label: "Raise Ticket", icon: <FileExclamationOutlined />, onClick: () => setStandaloneTicketOpen(true) },
             { key: "close", label: "Close conversation", icon: <CloseOutlined />, onClick: () => statusMutation.mutate({ status: "closed" }) },
             { key: "delete", label: "Delete conversation", danger: true, icon: <DeleteOutlined />, onClick: handleDelete },
         ],
@@ -1380,6 +1427,42 @@ const MessageThread: React.FC<Props> = ({
                         style={{ marginTop: 8 }}
                     />
                 )}
+                <Checkbox
+                    checked={raiseTicket}
+                    onChange={(e) => setRaiseTicket(e.target.checked)}
+                    style={{ marginTop: 12 }}
+                >
+                    Also raise a support ticket for this conversation
+                </Checkbox>
+                {raiseTicket && (
+                    <Input
+                        value={ticketSubject}
+                        onChange={(e) => setTicketSubject(e.target.value)}
+                        placeholder="Ticket subject (optional)"
+                        style={{ marginTop: 8 }}
+                    />
+                )}
+            </Modal>
+
+            <Modal
+                title="Raise Ticket"
+                open={standaloneTicketOpen}
+                onCancel={() => setStandaloneTicketOpen(false)}
+                onOk={handleStandaloneRaiseTicket}
+                okText="Raise Ticket"
+                width={400}
+                destroyOnClose
+            >
+                <Text style={{ fontSize: 12, color: "#64748b", display: "block", marginBottom: 8 }}>
+                    This will log a ticket activity against{" "}
+                    {conversation.customer_id ? "the linked customer" : conversation.lead_id ? "the linked lead" : "this conversation"}.
+                </Text>
+                <Input
+                    value={standaloneTicketSubject}
+                    onChange={(e) => setStandaloneTicketSubject(e.target.value)}
+                    placeholder="Ticket subject (optional)"
+                    onPressEnter={handleStandaloneRaiseTicket}
+                />
             </Modal>
 
             <Modal
