@@ -48,14 +48,28 @@ interface TopSellersChartProps {
 
 type ChartViewMode = "bar" | "pie";
 
+const useIsMobileHook = () => {
+  const [mobile, setMobile] = useState(
+    typeof window !== "undefined" ? window.innerWidth < 768 : false
+  );
+  React.useEffect(() => {
+    const handler = () => setMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return mobile;
+};
+
 const DashboardTopSellersChart: React.FC<TopSellersChartProps> = ({
   bestSellersData,
   loading,
   dateRange,
-  isMobile = false,
+  isMobile: isMobileProp,
   hospital = false,
   hotel = false,
 }) => {
+  const detectedMobile = useIsMobileHook();
+  const isMobile = isMobileProp !== undefined ? isMobileProp : detectedMobile;
   const [viewMode, setViewMode] = useState<ChartViewMode>("bar");
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -72,7 +86,8 @@ const DashboardTopSellersChart: React.FC<TopSellersChartProps> = ({
       const quantity = Number(item.sales_metrics?.total_quantity_sold) || 0;
       const name = item.name || `Item ${index + 1}`;
       // Truncate name for y-axis display
-      const shortName = name.length > 18 ? `${name.substring(0, 16)}…` : name;
+      const limit = isMobile ? 11 : 18;
+      const shortName = name.length > limit ? `${name.substring(0, limit - 2)}…` : name;
       return {
         rank: index + 1,
         fullName: name,
@@ -83,7 +98,7 @@ const DashboardTopSellersChart: React.FC<TopSellersChartProps> = ({
         color: PALETTE[index % PALETTE.length],
       };
     });
-  }, [rawList]);
+  }, [rawList, isMobile]);
 
   // Category distribution for pie chart
   const pieData = useMemo(() => {
@@ -220,11 +235,11 @@ const DashboardTopSellersChart: React.FC<TopSellersChartProps> = ({
             )}
           </Space>
         }
-        bodyStyle={{ padding: "16px 12px 10px" }}
+        bodyStyle={{ padding: isMobile ? "10px 6px 6px" : "16px 12px 10px" }}
       >
         {loading ? (
           <div style={{ padding: "20px 10px" }}>
-            <Skeleton active paragraph={{ rows: 5 }} />
+            <Skeleton active paragraph={{ rows: 4 }} />
           </div>
         ) : rawList.length === 0 ? (
           <Empty
@@ -236,19 +251,19 @@ const DashboardTopSellersChart: React.FC<TopSellersChartProps> = ({
                 ? "No bookings or amenities recorded in this period"
                 : "No products sold in this period"
             }
-            style={{ padding: "40px 0" }}
+            style={{ padding: "32px 0" }}
           />
         ) : viewMode === "bar" ? (
           <div>
-            <ResponsiveContainer width="100%" height={260}>
+            <ResponsiveContainer width="100%" height={isMobile ? 210 : 260}>
               <BarChart
                 data={barData}
                 layout="vertical"
-                margin={{ top: 8, right: 24, left: 10, bottom: 0 }}
+                margin={{ top: 8, right: isMobile ? 12 : 24, left: isMobile ? 0 : 10, bottom: 0 }}
               >
                 <XAxis
                   type="number"
-                  tick={{ fontSize: 11, fill: "#64748b" }}
+                  tick={{ fontSize: 10, fill: "#64748b" }}
                   axisLine={{ stroke: "#e2e8f0" }}
                   tickLine={false}
                   tickFormatter={(v) => `Ksh ${fmtK(v)}`}
@@ -256,10 +271,10 @@ const DashboardTopSellersChart: React.FC<TopSellersChartProps> = ({
                 <YAxis
                   type="category"
                   dataKey="shortName"
-                  tick={{ fontSize: 11, fill: "#334155" }}
+                  tick={{ fontSize: isMobile ? 10 : 11, fill: "#334155" }}
                   axisLine={false}
                   tickLine={false}
-                  width={110}
+                  width={isMobile ? 72 : 110}
                 />
                 <ReTooltip
                   formatter={(value: any, _: any, entry: any) => [
@@ -281,7 +296,7 @@ const DashboardTopSellersChart: React.FC<TopSellersChartProps> = ({
                   dataKey="revenue"
                   radius={[0, 6, 6, 0]}
                   fill="#f97316"
-                  barSize={18}
+                  barSize={isMobile ? 14 : 18}
                 >
                   {barData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
@@ -292,7 +307,7 @@ const DashboardTopSellersChart: React.FC<TopSellersChartProps> = ({
           </div>
         ) : (
           <div>
-            <ResponsiveContainer width="100%" height={260}>
+            <ResponsiveContainer width="100%" height={isMobile ? 210 : 260}>
               <PieChart margin={{ top: 4, right: 10, left: 10, bottom: 10 }}>
                 <Pie
                   data={pieData}
@@ -300,8 +315,8 @@ const DashboardTopSellersChart: React.FC<TopSellersChartProps> = ({
                   nameKey="name"
                   cx="50%"
                   cy="45%"
-                  innerRadius={45}
-                  outerRadius={75}
+                  innerRadius={isMobile ? 38 : 45}
+                  outerRadius={isMobile ? 65 : 75}
                   paddingAngle={3}
                 >
                   {pieData.map((entry, index) => (
@@ -345,17 +360,19 @@ const DashboardTopSellersChart: React.FC<TopSellersChartProps> = ({
         <div
           style={{
             marginBottom: 16,
-            padding: "12px 16px",
+            padding: isMobile ? "10px 12px" : "12px 16px",
             background: "#f8fafc",
             borderRadius: 8,
             border: "1px solid #e2e8f0",
             display: "flex",
             justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: 8,
           }}
         >
           <div>
             <Text style={{ fontSize: 11, color: "#64748b", display: "block" }}>Total Revenue</Text>
-            <Text strong style={{ fontSize: 16, color: "#10b981" }}>
+            <Text strong style={{ fontSize: 15, color: "#10b981" }}>
               Ksh {fmtK(totalRevenue)}
             </Text>
           </div>
@@ -363,13 +380,13 @@ const DashboardTopSellersChart: React.FC<TopSellersChartProps> = ({
             <Text style={{ fontSize: 11, color: "#64748b", display: "block" }}>
               {hospital ? "Dispensed Units" : hotel ? "Bookings" : "Units Sold"}
             </Text>
-            <Text strong style={{ fontSize: 16, color: "#3b82f6" }}>
+            <Text strong style={{ fontSize: 15, color: "#3b82f6" }}>
               {totalQuantity.toLocaleString()}
             </Text>
           </div>
           <div>
             <Text style={{ fontSize: 11, color: "#64748b", display: "block" }}>Items Analyzed</Text>
-            <Text strong style={{ fontSize: 16, color: "#8b5cf6" }}>
+            <Text strong style={{ fontSize: 15, color: "#8b5cf6" }}>
               {rawList.length}
             </Text>
           </div>
@@ -381,6 +398,7 @@ const DashboardTopSellersChart: React.FC<TopSellersChartProps> = ({
           rowKey={(record) => record.product_id || record._id || Math.random().toString()}
           size="small"
           pagination={{ pageSize: 8, showSizeChanger: false }}
+          scroll={isMobile ? { x: 420 } : undefined}
         />
       </Drawer>
     </>

@@ -47,16 +47,30 @@ interface OperationalHubProps {
   hotel?: boolean;
 }
 
+const useIsMobileHook = () => {
+  const [mobile, setMobile] = useState(
+    typeof window !== "undefined" ? window.innerWidth < 768 : false
+  );
+  React.useEffect(() => {
+    const handler = () => setMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return mobile;
+};
+
 const DashboardOperationalHub: React.FC<OperationalHubProps> = ({
   orders = [],
   totalOrdersCount = 0,
   lowStockItems = [],
   purchaseOrderStats,
   loading = false,
-  isMobile = false,
+  isMobile: isMobileProp,
   hospital = false,
   hotel = false,
 }) => {
+  const detectedMobile = useIsMobileHook();
+  const isMobile = isMobileProp !== undefined ? isMobileProp : detectedMobile;
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("orders");
 
@@ -322,9 +336,9 @@ const DashboardOperationalHub: React.FC<OperationalHubProps> = ({
     {
       key: "orders",
       label: (
-        <Space size={6}>
+        <Space size={isMobile ? 4 : 6}>
           <ShoppingCartOutlined />
-          <span>Recent Orders</span>
+          <span>{isMobile ? "Orders" : "Recent Orders"}</span>
           {orders.length > 0 && (
             <Badge
               count={orders.length}
@@ -351,6 +365,7 @@ const DashboardOperationalHub: React.FC<OperationalHubProps> = ({
             dataSource={orders}
             pagination={{ pageSize: 5, hideOnSinglePage: true, showSizeChanger: false }}
             size="small"
+            scroll={isMobile ? { x: 360 } : undefined}
             rowKey={(r) => r.order_id || r._id || r.order_no || Math.random().toString()}
             locale={{
               emptyText: (
@@ -368,9 +383,9 @@ const DashboardOperationalHub: React.FC<OperationalHubProps> = ({
     {
       key: "stock",
       label: (
-        <Space size={6}>
+        <Space size={isMobile ? 4 : 6}>
           <WarningOutlined style={{ color: lowStockItems.length > 0 ? "#ef4444" : undefined }} />
-          <span>Inventory Watchlist</span>
+          <span>{isMobile ? "Inventory" : "Inventory Watchlist"}</span>
           {lowStockItems.length > 0 && (
             <Badge
               count={lowStockItems.length}
@@ -397,6 +412,7 @@ const DashboardOperationalHub: React.FC<OperationalHubProps> = ({
             dataSource={lowStockItems}
             pagination={{ pageSize: 5, hideOnSinglePage: true, showSizeChanger: false }}
             size="small"
+            scroll={isMobile ? { x: 360 } : undefined}
             rowKey={(r) => r._id || r.item_id || Math.random().toString()}
             locale={{
               emptyText: (
@@ -414,9 +430,9 @@ const DashboardOperationalHub: React.FC<OperationalHubProps> = ({
     {
       key: "pos",
       label: (
-        <Space size={6}>
+        <Space size={isMobile ? 4 : 6}>
           <FileTextOutlined />
-          <span>Purchase Orders</span>
+          <span>{isMobile ? "POs" : "Purchase Orders"}</span>
           {poStats.totalPurchaseOrders > 0 && (
             <Badge
               count={poStats.totalPurchaseOrders}
@@ -428,25 +444,25 @@ const DashboardOperationalHub: React.FC<OperationalHubProps> = ({
       children: (
         <div>
           {poStats.totalPurchaseOrders > 0 && (
-            <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
+            <Row gutter={[8, 8]} style={{ marginBottom: 12 }}>
               <Col xs={12} sm={6}>
-                <div style={{ background: "#f8fafc", padding: "8px 12px", borderRadius: 8, border: "1px solid #e2e8f0" }}>
+                <div style={{ background: "#f8fafc", padding: isMobile ? "6px 8px" : "8px 12px", borderRadius: 8, border: "1px solid #e2e8f0" }}>
                   <Text style={{ fontSize: 11, color: "#64748b", display: "block" }}>Total PO Value</Text>
-                  <Text strong style={{ fontSize: 14, color: "#10b981" }}>
+                  <Text strong style={{ fontSize: isMobile ? 13 : 14, color: "#10b981" }}>
                     Ksh {fmtK(poStats.totalPOValue)}
                   </Text>
                 </div>
               </Col>
               <Col xs={12} sm={6}>
-                <div style={{ background: "#f8fafc", padding: "8px 12px", borderRadius: 8, border: "1px solid #e2e8f0" }}>
+                <div style={{ background: "#f8fafc", padding: isMobile ? "6px 8px" : "8px 12px", borderRadius: 8, border: "1px solid #e2e8f0" }}>
                   <Text style={{ fontSize: 11, color: "#64748b", display: "block" }}>Pending Approval</Text>
-                  <Text strong style={{ fontSize: 14, color: "#f59e0b" }}>
+                  <Text strong style={{ fontSize: isMobile ? 13 : 14, color: "#f59e0b" }}>
                     {poStats.pendingPOs} POs
                   </Text>
                 </div>
               </Col>
               <Col xs={24} sm={12}>
-                <div style={{ background: "#f8fafc", padding: "8px 12px", borderRadius: 8, border: "1px solid #e2e8f0" }}>
+                <div style={{ background: "#f8fafc", padding: isMobile ? "6px 8px" : "8px 12px", borderRadius: 8, border: "1px solid #e2e8f0" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                     <Text style={{ fontSize: 11, color: "#64748b" }}>Fulfillment Rate</Text>
                     <Text strong style={{ fontSize: 11, color: "#3b82f6" }}>{deliveryRate}% Delivered</Text>
@@ -472,6 +488,7 @@ const DashboardOperationalHub: React.FC<OperationalHubProps> = ({
             dataSource={poStats.recentPurchaseOrders || []}
             pagination={{ pageSize: 5, hideOnSinglePage: true, showSizeChanger: false }}
             size="small"
+            scroll={isMobile ? { x: 360 } : undefined}
             rowKey={(r) => r._id || r.po_number || Math.random().toString()}
             locale={{
               emptyText: (
@@ -503,19 +520,20 @@ const DashboardOperationalHub: React.FC<OperationalHubProps> = ({
             style={{
               background: "#eff6ff",
               borderRadius: 8,
-              padding: "4px 8px",
+              padding: isMobile ? "3px 6px" : "4px 8px",
               color: "#3b82f6",
               display: "inline-flex",
+              fontSize: isMobile ? 12 : 14,
             }}
           >
             <ShopOutlined />
           </div>
-          <Text strong style={{ fontSize: 14 }}>
+          <Text strong style={{ fontSize: isMobile ? 13 : 14 }}>
             Operations & Fulfillment Hub
           </Text>
         </Space>
       }
-      bodyStyle={{ padding: "8px 16px 16px" }}
+      bodyStyle={{ padding: isMobile ? "6px 8px 12px" : "8px 16px 16px" }}
     >
       {loading ? (
         <div style={{ padding: 20 }}>
@@ -526,7 +544,7 @@ const DashboardOperationalHub: React.FC<OperationalHubProps> = ({
           activeKey={activeTab}
           onChange={setActiveTab}
           items={tabItems}
-          size="middle"
+          size={isMobile ? "small" : "middle"}
         />
       )}
     </ProCard>

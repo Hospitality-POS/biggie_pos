@@ -27,10 +27,23 @@ interface KPICardsProps {
   hospital?: boolean;
   hotel?: boolean;
   isAdmin?: boolean;
+  isMobile?: boolean;
   onOrdersClick?: () => void;
   onShopsClick?: () => void;
   onShiftsClick?: () => void;
 }
+
+const useIsMobileHook = () => {
+  const [mobile, setMobile] = React.useState(
+    typeof window !== "undefined" ? window.innerWidth < 768 : false
+  );
+  React.useEffect(() => {
+    const handler = () => setMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return mobile;
+};
 
 const DashboardKPICards: React.FC<KPICardsProps> = ({
   revenue = 0,
@@ -44,10 +57,13 @@ const DashboardKPICards: React.FC<KPICardsProps> = ({
   hospital = false,
   hotel = false,
   isAdmin = false,
+  isMobile: isMobileProp,
   onOrdersClick,
   onShopsClick,
   onShiftsClick,
 }) => {
+  const detectedMobile = useIsMobileHook();
+  const isMobile = isMobileProp !== undefined ? isMobileProp : detectedMobile;
   const calculatedAOV = avgOrderValue || (totalOrders > 0 ? Math.round(revenue / totalOrders) : 0);
 
   const cards = [
@@ -124,21 +140,24 @@ const DashboardKPICards: React.FC<KPICardsProps> = ({
   ];
 
   return (
-    <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+    <Row gutter={isMobile ? [8, 8] : [12, 12]} style={{ marginBottom: isMobile ? 12 : 16 }}>
       {cards.map((card, i) => (
         <Col xs={12} sm={12} lg={6} key={i}>
           <div
             onClick={card.onClick}
             style={{
               background: card.bgColor,
-              borderRadius: 12,
-              padding: "16px 18px",
+              borderRadius: isMobile ? 10 : 12,
+              padding: isMobile ? "10px 10px" : "16px 18px",
               border: `1px solid ${card.borderColor}`,
               cursor: card.onClick ? "pointer" : "default",
               transition: "transform 0.15s ease, box-shadow 0.15s ease",
               position: "relative",
               overflow: "hidden",
               height: "100%",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
             }}
             onMouseEnter={(e) => {
               if (card.onClick) {
@@ -156,20 +175,30 @@ const DashboardKPICards: React.FC<KPICardsProps> = ({
             {loading ? (
               <Skeleton active paragraph={false} />
             ) : (
-              <Space direction="vertical" size={3} style={{ width: "100%" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Text style={{ fontSize: 12, color: "#475569", fontWeight: 500 }}>
+              <Space direction="vertical" size={isMobile ? 2 : 3} style={{ width: "100%" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 4 }}>
+                  <Text
+                    style={{
+                      fontSize: isMobile ? 11 : 12,
+                      color: "#475569",
+                      fontWeight: 500,
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
                     {card.title}
                   </Text>
                   <div
                     style={{
                       background: "#ffffff",
-                      borderRadius: 8,
-                      padding: "4px 6px",
+                      borderRadius: isMobile ? 6 : 8,
+                      padding: isMobile ? "3px 5px" : "4px 6px",
                       color: card.color,
-                      fontSize: 14,
+                      fontSize: isMobile ? 12 : 14,
                       lineHeight: 1,
                       boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                      flexShrink: 0,
                     }}
                   >
                     {card.icon}
@@ -178,18 +207,32 @@ const DashboardKPICards: React.FC<KPICardsProps> = ({
 
                 <div
                   style={{
-                    fontSize: 22,
+                    fontSize: isMobile ? 17 : 22,
                     fontWeight: 700,
                     color: "#0f172a",
                     letterSpacing: -0.3,
                     marginTop: 2,
                     lineHeight: 1.2,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
                   }}
+                  title={typeof card.value === "string" ? card.value : undefined}
                 >
                   {card.value}
                 </div>
 
-                <div style={{ marginTop: 2 }}>{card.subtext}</div>
+                <div
+                  style={{
+                    marginTop: 2,
+                    fontSize: 11,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {card.subtext}
+                </div>
               </Space>
             )}
           </div>

@@ -32,9 +32,22 @@ interface SalesTrendChartProps {
   businessIndicators?: any;
   primaryColor?: string;
   peakPeriod?: { time: string; sales: number };
+  isMobile?: boolean;
 }
 
 type MetricMode = "sales" | "orders" | "avgOrderValue";
+
+const useIsMobileHook = () => {
+  const [mobile, setMobile] = useState(
+    typeof window !== "undefined" ? window.innerWidth < 768 : false
+  );
+  React.useEffect(() => {
+    const handler = () => setMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return mobile;
+};
 
 const DashboardSalesTrendChart: React.FC<SalesTrendChartProps> = ({
   data,
@@ -43,7 +56,10 @@ const DashboardSalesTrendChart: React.FC<SalesTrendChartProps> = ({
   businessIndicators,
   primaryColor = "#10b981",
   peakPeriod,
+  isMobile: isMobileProp,
 }) => {
+  const detectedMobile = useIsMobileHook();
+  const isMobile = isMobileProp !== undefined ? isMobileProp : detectedMobile;
   const [metricMode, setMetricMode] = useState<MetricMode>("sales");
 
   const formattedChartData = useMemo(() => {
@@ -106,28 +122,29 @@ const DashboardSalesTrendChart: React.FC<SalesTrendChartProps> = ({
         boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
       }}
       title={
-        <Space size={8} wrap>
+        <Space size={6} wrap>
           <div
             style={{
               background: `${primaryColor}15`,
               borderRadius: 8,
-              padding: "4px 8px",
+              padding: isMobile ? "3px 6px" : "4px 8px",
               color: primaryColor,
               display: "inline-flex",
+              fontSize: isMobile ? 12 : 14,
             }}
           >
             <LineChartOutlined />
           </div>
-          <Text strong style={{ fontSize: 14 }}>
+          <Text strong style={{ fontSize: isMobile ? 13 : 14 }}>
             {title}
           </Text>
           {peakPeriod?.time && (
-            <Tag color="cyan" style={{ borderRadius: 10, fontSize: 11, border: "none" }}>
-              <ThunderboltOutlined style={{ marginRight: 3 }} />
-              Peak: {peakPeriod.time}
+            <Tag color="cyan" style={{ borderRadius: 10, fontSize: 10, border: "none", padding: "0 6px" }}>
+              <ThunderboltOutlined style={{ marginRight: 2 }} />
+              {peakPeriod.time}
             </Tag>
           )}
-          {businessIndicators?.performanceText && (
+          {!isMobile && businessIndicators?.performanceText && (
             <Tag
               style={{
                 borderRadius: 10,
@@ -148,28 +165,43 @@ const DashboardSalesTrendChart: React.FC<SalesTrendChartProps> = ({
           value={metricMode}
           onChange={(val) => setMetricMode(val as MetricMode)}
           options={[
-            { label: "Revenue", value: "sales", icon: <DollarOutlined /> },
-            { label: "Orders", value: "orders", icon: <ShoppingCartOutlined /> },
-            { label: "Avg Ticket", value: "avgOrderValue", icon: <RiseOutlined /> },
+            {
+              label: isMobile ? "Rev" : "Revenue",
+              value: "sales",
+              icon: isMobile ? undefined : <DollarOutlined />,
+            },
+            {
+              label: "Orders",
+              value: "orders",
+              icon: isMobile ? undefined : <ShoppingCartOutlined />,
+            },
+            {
+              label: isMobile ? "AOV" : "Avg Ticket",
+              value: "avgOrderValue",
+              icon: isMobile ? undefined : <RiseOutlined />,
+            },
           ]}
         />
       }
-      bodyStyle={{ padding: "16px 12px 10px" }}
+      bodyStyle={{ padding: isMobile ? "10px 6px 6px" : "16px 12px 10px" }}
     >
       {loading ? (
         <div style={{ padding: "20px 10px" }}>
-          <Skeleton active paragraph={{ rows: 5 }} />
+          <Skeleton active paragraph={{ rows: 4 }} />
         </div>
       ) : !hasData ? (
         <Empty
           image={Empty.PRESENTED_IMAGE_SIMPLE}
           description="No sales recorded for this period"
-          style={{ padding: "40px 0" }}
+          style={{ padding: "32px 0" }}
         />
       ) : (
         <div>
-          <ResponsiveContainer width="100%" height={260}>
-            <AreaChart data={formattedChartData} margin={{ top: 10, right: 16, left: -10, bottom: 0 }}>
+          <ResponsiveContainer width="100%" height={isMobile ? 210 : 260}>
+            <AreaChart
+              data={formattedChartData}
+              margin={{ top: 8, right: isMobile ? 8 : 16, left: isMobile ? -20 : -10, bottom: 0 }}
+            >
               <defs>
                 <linearGradient id={metricConfig.gradientId} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor={metricConfig.gradientColor} stopOpacity={0.28} />

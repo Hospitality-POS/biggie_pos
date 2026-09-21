@@ -40,8 +40,21 @@ const BanduDashboardContent: React.FC = () => <BanduHRDashboard />;
 // ── Dala Dashboard Component ─────────────────────────────────────────────────────
 const DalaDashboardContent: React.FC = () => <DalaDashboard />;
 
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = React.useState(
+    typeof window !== "undefined" ? window.innerWidth < 768 : false
+  );
+  React.useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return isMobile;
+};
+
 // ── Main Unified Shop Dashboard Page ─────────────────────────────────────────────
 const UnifiedShopDashboardPage: React.FC = () => {
+  const isMobile = useIsMobile();
   const { hasDuka, hasPesa, hasMteja, hasBandu, hasDala } = getModuleFlags();
   const [activeTab, setActiveTab] = useState("pos");
 
@@ -105,13 +118,19 @@ const UnifiedShopDashboardPage: React.FC = () => {
   }
 
   return (
-    <div style={{ padding: "16px 24px", background: "#f8fafc", minHeight: "100%" }}>
+    <div
+      style={{
+        padding: isMobile ? "8px 10px" : "16px 24px",
+        background: "#f8fafc",
+        minHeight: "100%",
+      }}
+    >
       <Tabs
         activeKey={activeTab}
         onChange={setActiveTab}
         items={tabItems}
-        size="large"
-        tabBarStyle={{ marginBottom: 16 }}
+        size={isMobile ? "middle" : "large"}
+        tabBarStyle={{ marginBottom: isMobile ? 10 : 16 }}
       />
     </div>
   );
