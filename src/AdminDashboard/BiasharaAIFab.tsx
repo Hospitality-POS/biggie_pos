@@ -14,8 +14,19 @@ const { Text } = Typography;
 
 const C = THEME_C;
 
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return isMobile;
+};
+
 // ── Biashara AI floating assistant ─────────────────────────────────────────────
 const BiasharaAIFab: React.FC = () => {
+  const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<{ role: "user" | "ai"; text: string; id: number; modules?: string[]; allowed?: boolean }[]>([]);
   const [input, setInput] = useState("");
@@ -199,14 +210,17 @@ const BiasharaAIFab: React.FC = () => {
           onClick={onFabClick}
           style={{
             position: "fixed",
-            right: 24,
-            bottom: 24,
+            right: isMobile ? 16 : 24,
+            bottom: isMobile ? 16 : 24,
             zIndex: 100,
             display: "flex",
             alignItems: "center",
-            gap: 10,
-            padding: "12px 18px",
-            borderRadius: 50,
+            justifyContent: "center",
+            gap: isMobile ? 0 : 10,
+            padding: isMobile ? 0 : "12px 18px",
+            width: isMobile ? 48 : "auto",
+            height: isMobile ? 48 : "auto",
+            borderRadius: isMobile ? "50%" : 50,
             background: C.primary,
             color: "#fff",
             boxShadow: "0 8px 24px rgba(108,28,44,0.35)",
@@ -214,8 +228,12 @@ const BiasharaAIFab: React.FC = () => {
             userSelect: "none",
           }}
         >
-          <RobotOutlined style={{ fontSize: 24 }} />
-          <Text strong style={{ color: "#fff", fontSize: 14, whiteSpace: "nowrap" }}>Ask Biashara AI</Text>
+          <RobotOutlined style={{ fontSize: isMobile ? 22 : 24 }} />
+          {!isMobile && (
+            <Text strong style={{ color: "#fff", fontSize: 14, whiteSpace: "nowrap" }}>
+              Ask Biashara AI
+            </Text>
+          )}
         </div>
       </Draggable>
 

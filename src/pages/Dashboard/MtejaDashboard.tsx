@@ -407,15 +407,21 @@ const MtejaDashboard: React.FC = () => {
     {
       title: "Conversations",
       value: totalConversations.toLocaleString(),
-      icon: <MessageOutlined />,
+      icon: unreadCount > 0 ? (
+        <Badge count={unreadCount} size="small" offset={[2, -2]}>
+          <MessageOutlined />
+        </Badge>
+      ) : (
+        <MessageOutlined />
+      ),
       color: "#3b82f6",
       bg: "#eff6ff",
       border: "#bfdbfe",
       subtext: (
-        <Space size={8}>
-          <Tag color="success" style={{ fontSize: 10, margin: 0 }}>{convCounts.open} Open</Tag>
-          <Tag color="warning" style={{ fontSize: 10, margin: 0 }}>{convCounts.pending} Pending</Tag>
-          {unreadCount > 0 && <Badge count={unreadCount} style={{ backgroundColor: "#f97316" }} />}
+        <Space size={isMobile ? 4 : 8} wrap>
+          <Tag color="success" style={{ fontSize: 10, margin: 0, padding: isMobile ? "0 4px" : "0 7px" }}>{convCounts.open} Open</Tag>
+          <Tag color="warning" style={{ fontSize: 10, margin: 0, padding: isMobile ? "0 4px" : "0 7px" }}>{convCounts.pending} Pending</Tag>
+          {!isMobile && unreadCount > 0 && <Badge count={unreadCount} style={{ backgroundColor: "#f97316" }} />}
         </Space>
       ),
       onClick: () => navTo("/omnichannel"),
@@ -454,7 +460,11 @@ const MtejaDashboard: React.FC = () => {
       color: "#8b5cf6",
       bg: "#f5f3ff",
       border: "#ddd6fe",
-      subtext: (
+      subtext: isMobile ? (
+        <Text style={{ fontSize: 11, color: "#64748b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          {connectedCount} Live · <span style={{ color: "#10b981", fontWeight: 600 }}>{pct(convCounts.resolved + convCounts.closed, totalConversations)}% Res.</span>
+        </Text>
+      ) : (
         <Space size={6}>
           <span style={{ fontSize: 11, color: "#64748b" }}>{connectedCount} Channels Live</span>
           <span style={{ fontSize: 11, color: "#10b981", fontWeight: 600 }}>• {pct(convCounts.resolved + convCounts.closed, totalConversations)}% Res. Rate</span>
@@ -600,14 +610,72 @@ const MtejaDashboard: React.FC = () => {
 
   return (
     <div style={{ paddingBottom: 24 }}>
+      {/* ── Mobile Filter Drawer ── */}
+      <Drawer
+        title="Filter Period & Branch"
+        placement="bottom"
+        height="auto"
+        open={filterDrawerOpen}
+        onClose={() => setFilterDrawerOpen(false)}
+        styles={{ body: { paddingBottom: 32 } }}
+      >
+        <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+          {isAdminLayout && shops.length > 0 && (
+            <div>
+              <Text style={{ fontSize: 12, color: C.subtext, display: "block", marginBottom: 6 }}>Branch</Text>
+              <Select
+                value={selectedShopId}
+                onChange={(val) => {
+                  setSelectedShopId(val);
+                  setFilterDrawerOpen(false);
+                }}
+                options={shops.map((s: any) => ({ label: s.name, value: s._id }))}
+                style={{ width: "100%" }}
+              />
+            </div>
+          )}
+          <div>
+            <Text style={{ fontSize: 12, color: C.subtext, display: "block", marginBottom: 6 }}>Time Period</Text>
+            <Radio.Group
+              value={periodFilter}
+              onChange={(e) => {
+                setPeriodFilter(e.target.value);
+                setShowCustomPicker(e.target.value === "custom");
+                if (e.target.value !== "custom") setFilterDrawerOpen(false);
+              }}
+              style={{ width: "100%" }}
+            >
+              <Space direction="vertical" style={{ width: "100%" }}>
+                {Object.entries(PERIOD_LABELS).map(([val, label]) => (
+                  <Radio.Button
+                    key={val}
+                    value={val}
+                    style={{ width: "100%", textAlign: "center", borderRadius: 8, marginBottom: 4 }}
+                  >
+                    {label}
+                  </Radio.Button>
+                ))}
+              </Space>
+            </Radio.Group>
+          </div>
+          {showCustomPicker && (
+            <RangePicker
+              value={customDateRange as any}
+              onChange={(dates) => setCustomDateRange(dates || [])}
+              style={{ width: "100%" }}
+            />
+          )}
+        </Space>
+      </Drawer>
+
       {/* ── Tier 1: Control Header ── */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: isMobile ? 14 : 16, flexWrap: "wrap", gap: 12 }}>
         <Space align="center" size={12}>
-          <div style={{ background: "#eff6ff", borderRadius: 10, padding: "8px 10px", color: "#3b82f6", fontSize: 20 }}>
+          <div style={{ background: "#eff6ff", borderRadius: 10, padding: isMobile ? "6px 8px" : "8px 10px", color: "#3b82f6", fontSize: isMobile ? 18 : 20 }}>
             <MessageOutlined />
           </div>
           <div>
-            <Title level={4} style={{ margin: 0, color: C.text, fontWeight: 600 }}>Mteja CRM Dashboard</Title>
+            <Title level={isMobile ? 5 : 4} style={{ margin: 0, color: C.text, fontWeight: 600 }}>Mteja CRM Dashboard</Title>
             <Text style={{ fontSize: 12, color: C.subtext }}>
               {dateRangeLabel} · Customer Engagement & Omnichannel Leads
             </Text>
@@ -615,51 +683,74 @@ const MtejaDashboard: React.FC = () => {
         </Space>
 
         <Space size={8} wrap>
-          {isAdminLayout && shops.length > 0 && (
-            <Select
-              value={selectedShopId}
-              onChange={setSelectedShopId}
-              options={shops.map((s: any) => ({ label: s.name, value: s._id }))}
-              style={{ width: 150 }}
-              size="small"
-              placeholder="Select branch"
-            />
+          {isMobile ? (
+            <>
+              <Button
+                icon={<FilterOutlined />}
+                onClick={() => setFilterDrawerOpen(true)}
+                size="middle"
+              >
+                {PERIOD_LABELS[periodFilter] || "Filter"}
+              </Button>
+              <Button
+                type="primary"
+                icon={<ReloadOutlined spin={convRefetching} />}
+                onClick={handleRefresh}
+                size="middle"
+              />
+            </>
+          ) : (
+            <>
+              {isAdminLayout && shops.length > 0 && (
+                <Select
+                  value={selectedShopId}
+                  onChange={setSelectedShopId}
+                  options={shops.map((s: any) => ({ label: s.name, value: s._id }))}
+                  style={{ width: 150 }}
+                  size="small"
+                  placeholder="Select branch"
+                />
+              )}
+              <Radio.Group value={periodFilter} onChange={(e) => setPeriodFilter(e.target.value)} buttonStyle="solid" size="small">
+                <Radio.Button value="day">Day</Radio.Button>
+                <Radio.Button value="week">Week</Radio.Button>
+                <Radio.Button value="month">Month</Radio.Button>
+                <Radio.Button value="year">Year</Radio.Button>
+                <Radio.Button value="custom" onClick={() => setShowCustomPicker(!showCustomPicker)}>Custom</Radio.Button>
+              </Radio.Group>
+              {showCustomPicker && (
+                <RangePicker
+                  value={customDateRange as any}
+                  onChange={(dates) => setCustomDateRange(dates || [])}
+                  size="small"
+                  style={{ minWidth: 230 }}
+                />
+              )}
+              <Button size="small" icon={<ReloadOutlined spin={convRefetching} />} onClick={handleRefresh}>
+                Refresh
+              </Button>
+            </>
           )}
-          <Radio.Group value={periodFilter} onChange={(e) => setPeriodFilter(e.target.value)} buttonStyle="solid" size="small">
-            <Radio.Button value="day">Day</Radio.Button>
-            <Radio.Button value="week">Week</Radio.Button>
-            <Radio.Button value="month">Month</Radio.Button>
-            <Radio.Button value="year">Year</Radio.Button>
-            <Radio.Button value="custom" onClick={() => setShowCustomPicker(!showCustomPicker)}>Custom</Radio.Button>
-          </Radio.Group>
-          {showCustomPicker && (
-            <RangePicker
-              value={customDateRange as any}
-              onChange={(dates) => setCustomDateRange(dates || [])}
-              size="small"
-              style={{ minWidth: 230 }}
-            />
-          )}
-          <Button size="small" icon={<ReloadOutlined spin={convRefetching} />} onClick={handleRefresh}>
-            Refresh
-          </Button>
         </Space>
       </div>
 
       {/* ── Tier 2: Executive CRM Pulse (4 Refined Cards) ── */}
-      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+      <Row gutter={isMobile ? [8, 8] : [12, 12]} style={{ marginBottom: isMobile ? 12 : 16 }}>
         {kpiCards.map((card, i) => (
           <Col xs={12} sm={12} lg={6} key={i}>
             <div
               onClick={card.onClick}
               style={{
                 background: card.bg,
-                borderRadius: 12,
-                padding: "16px 18px",
+                borderRadius: isMobile ? 10 : 12,
+                padding: isMobile ? "10px 10px" : "16px 18px",
                 border: `1px solid ${card.border}`,
                 cursor: card.onClick ? "pointer" : "default",
                 transition: "transform .15s ease, box-shadow .15s ease",
                 height: "100%",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
               }}
               onMouseEnter={(e) => {
                 if (card.onClick) {
@@ -677,17 +768,31 @@ const MtejaDashboard: React.FC = () => {
               {isDataLoading ? (
                 <Skeleton active paragraph={false} />
               ) : (
-                <Space direction="vertical" size={3} style={{ width: "100%" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <Text style={{ fontSize: 12, color: "#475569", fontWeight: 500 }}>{card.title}</Text>
-                    <div style={{ background: "#ffffff", borderRadius: 8, padding: "4px 6px", color: card.color, fontSize: 14, lineHeight: 1 }}>
+                <Space direction="vertical" size={isMobile ? 2 : 3} style={{ width: "100%" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 4 }}>
+                    <Text style={{ fontSize: isMobile ? 11 : 12, color: "#475569", fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {card.title}
+                    </Text>
+                    <div style={{ background: "#ffffff", borderRadius: isMobile ? 6 : 8, padding: isMobile ? "3px 5px" : "4px 6px", color: card.color, fontSize: isMobile ? 12 : 14, lineHeight: 1, flexShrink: 0 }}>
                       {card.icon}
                     </div>
                   </div>
-                  <div style={{ fontSize: 22, fontWeight: 700, color: "#0f172a", lineHeight: 1.2, marginTop: 2 }}>
+                  <div
+                    style={{
+                      fontSize: isMobile ? 17 : 22,
+                      fontWeight: 700,
+                      color: "#0f172a",
+                      lineHeight: 1.2,
+                      marginTop: 2,
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                    title={typeof card.value === "string" ? card.value : undefined}
+                  >
                     {card.value}
                   </div>
-                  <div style={{ marginTop: 2 }}>{card.subtext}</div>
+                  <div style={{ marginTop: 2, fontSize: 11, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{card.subtext}</div>
                 </Space>
               )}
             </div>
@@ -696,7 +801,7 @@ const MtejaDashboard: React.FC = () => {
       </Row>
 
       {/* ── Tier 3: Visual Analytics & Charts Hub ── */}
-      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+      <Row gutter={isMobile ? [8, 8] : [12, 12]} style={{ marginBottom: isMobile ? 12 : 16 }}>
         {/* Left 60%: Lead Pipeline Funnel (BarChart) */}
         <Col xs={24} lg={15}>
           <ProCard
@@ -705,45 +810,66 @@ const MtejaDashboard: React.FC = () => {
             size="small"
             style={{ borderRadius: 12, height: "100%", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
             title={
-              <Space size={8}>
-                <div style={{ background: "#f5f3ff", borderRadius: 8, padding: "4px 8px", color: "#6366f1", display: "inline-flex" }}>
+              <Space size={6} wrap>
+                <div style={{ background: "#f5f3ff", borderRadius: 8, padding: isMobile ? "3px 6px" : "4px 8px", color: "#6366f1", display: "inline-flex", fontSize: isMobile ? 12 : 14 }}>
                   <FundOutlined />
                 </div>
-                <Text strong style={{ fontSize: 14 }}>Lead Pipeline Progression</Text>
-                <Tag color="purple" style={{ borderRadius: 10, fontSize: 11, border: "none" }}>
-                  {totalLeads} Total Leads
+                <Text strong style={{ fontSize: isMobile ? 13 : 14 }}>Lead Pipeline Progression</Text>
+                <Tag color="purple" style={{ borderRadius: 10, fontSize: 10, border: "none" }}>
+                  {totalLeads} Total
                 </Tag>
               </Space>
             }
             extra={
-              <Space size={6}>
+              <Space size={4}>
                 <Segmented
                   size="small"
                   value={pipelineMetric}
                   onChange={(val) => setPipelineMetric(val as "count" | "value")}
                   options={[
-                    { label: "Leads Count", value: "count", icon: <TeamOutlined /> },
-                    { label: "Deal Value (KES)", value: "value", icon: <DollarOutlined /> },
+                    { label: isMobile ? "Count" : "Leads Count", value: "count", icon: isMobile ? undefined : <TeamOutlined /> },
+                    { label: isMobile ? "Value" : "Deal Value (KES)", value: "value", icon: isMobile ? undefined : <DollarOutlined /> },
                   ]}
                 />
-                <Button type="link" size="small" onClick={() => navTo("/crm/leads")} style={{ fontSize: 12 }}>
-                  All Leads →
-                </Button>
+                {!isMobile && (
+                  <Button type="link" size="small" onClick={() => navTo("/crm/leads")} style={{ fontSize: 12 }}>
+                    All Leads →
+                  </Button>
+                )}
               </Space>
             }
-            bodyStyle={{ padding: "16px 12px 10px" }}
+            bodyStyle={{ padding: isMobile ? "10px 6px 6px" : "16px 12px 10px" }}
           >
             {pipelineLoading ? (
-              <Skeleton active paragraph={{ rows: 5 }} />
+              <Skeleton active paragraph={{ rows: 4 }} />
             ) : totalLeads === 0 ? (
-              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No active pipeline leads in this period" style={{ padding: "40px 0" }} />
+              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No active pipeline leads in this period" style={{ padding: "32px 0" }} />
             ) : (
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={pipelineChartData} margin={{ top: 10, right: 16, left: -10, bottom: 0 }}>
+              <ResponsiveContainer width="100%" height={isMobile ? 210 : 260}>
+                <BarChart data={pipelineChartData} margin={{ top: 8, right: isMobile ? 8 : 16, left: isMobile ? -22 : -10, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                  <XAxis dataKey="stage" tick={{ fontSize: 11, fill: "#64748b" }} axisLine={{ stroke: "#e2e8f0" }} tickLine={false} />
+                  <XAxis
+                    dataKey="stage"
+                    interval={0}
+                    tick={{ fontSize: isMobile ? 9 : 10, fill: "#64748b" }}
+                    tickFormatter={(val: string) => {
+                      if (!isMobile) return val;
+                      const compact: Record<string, string> = {
+                        New: "New",
+                        Contacted: "Cont.",
+                        Qualified: "Qual.",
+                        Proposal: "Prop.",
+                        Negotiation: "Neg.",
+                        Won: "Won",
+                        Lost: "Lost",
+                      };
+                      return compact[val] || val.slice(0, 4);
+                    }}
+                    axisLine={{ stroke: "#e2e8f0" }}
+                    tickLine={false}
+                  />
                   <YAxis
-                    tick={{ fontSize: 11, fill: "#64748b" }}
+                    tick={{ fontSize: 10, fill: "#64748b" }}
                     axisLine={false}
                     tickLine={false}
                     tickFormatter={(v) => (pipelineMetric === "value" ? fmtK(v) : `${v}`)}
@@ -753,12 +879,18 @@ const MtejaDashboard: React.FC = () => {
                       pipelineMetric === "value" ? fmtKES(Number(val)) : `${val} leads (Value: ${fmtKES(entry.payload.value)})`,
                       pipelineMetric === "value" ? "Estimated Value" : "Leads",
                     ]}
+                    labelFormatter={(_label, payload) => {
+                      if (payload && payload.length > 0) {
+                        return payload[0].payload.stage;
+                      }
+                      return _label;
+                    }}
                     contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }}
                   />
                   <Bar
                     dataKey={pipelineMetric === "value" ? "value" : "count"}
                     radius={[6, 6, 0, 0]}
-                    barSize={28}
+                    barSize={isMobile ? 18 : 28}
                   >
                     {pipelineChartData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
@@ -778,11 +910,11 @@ const MtejaDashboard: React.FC = () => {
             size="small"
             style={{ borderRadius: 12, height: "100%", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
             title={
-              <Space size={8}>
-                <div style={{ background: "#f0fdf4", borderRadius: 8, padding: "4px 8px", color: "#10b981", display: "inline-flex" }}>
+              <Space size={6}>
+                <div style={{ background: "#f0fdf4", borderRadius: 8, padding: isMobile ? "3px 6px" : "4px 8px", color: "#10b981", display: "inline-flex", fontSize: isMobile ? 12 : 14 }}>
                   <PieChartOutlined />
                 </div>
-                <Text strong style={{ fontSize: 14 }}>Engagement Mix</Text>
+                <Text strong style={{ fontSize: isMobile ? 13 : 14 }}>Engagement Mix</Text>
               </Space>
             }
             extra={
@@ -796,14 +928,14 @@ const MtejaDashboard: React.FC = () => {
                 ]}
               />
             }
-            bodyStyle={{ padding: "16px 12px 10px" }}
+            bodyStyle={{ padding: isMobile ? "10px 6px 6px" : "16px 12px 10px" }}
           >
             {convLoading ? (
-              <Skeleton active paragraph={{ rows: 5 }} />
+              <Skeleton active paragraph={{ rows: 4 }} />
             ) : statusPieData.length === 0 ? (
-              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No conversation data recorded" style={{ padding: "40px 0" }} />
+              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No conversation data recorded" style={{ padding: "32px 0" }} />
             ) : (
-              <ResponsiveContainer width="100%" height={260}>
+              <ResponsiveContainer width="100%" height={isMobile ? 210 : 260}>
                 <PieChart margin={{ top: 4, right: 10, left: 10, bottom: 10 }}>
                   <Pie
                     data={statusPieData}
@@ -811,8 +943,8 @@ const MtejaDashboard: React.FC = () => {
                     nameKey="name"
                     cx="50%"
                     cy="45%"
-                    innerRadius={45}
-                    outerRadius={75}
+                    innerRadius={isMobile ? 38 : 45}
+                    outerRadius={isMobile ? 65 : 75}
                     paddingAngle={3}
                   >
                     {statusPieData.map((entry, index) => (
@@ -843,32 +975,32 @@ const MtejaDashboard: React.FC = () => {
             bordered
             headerBordered
             size="small"
-            style={{ borderRadius: 12, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
+            style={{ borderRadius: 12, boxShadow: "0 1px 3px rgba(0,0,0,0.04)", width: "100%", maxWidth: "100%", overflow: "hidden" }}
             title={
               <Space size={8}>
-                <div style={{ background: "#eff6ff", borderRadius: 8, padding: "4px 8px", color: "#3b82f6", display: "inline-flex" }}>
+                <div style={{ background: "#eff6ff", borderRadius: 8, padding: isMobile ? "3px 6px" : "4px 8px", color: "#3b82f6", display: "inline-flex", fontSize: isMobile ? 12 : 14 }}>
                   <TeamOutlined />
                 </div>
-                <Text strong style={{ fontSize: 14 }}>CRM Operations Hub</Text>
+                <Text strong style={{ fontSize: isMobile ? 13 : 14 }}>CRM Operations Hub</Text>
               </Space>
             }
-            bodyStyle={{ padding: "8px 16px 16px" }}
+            bodyStyle={{ padding: isMobile ? "6px 8px 12px" : "8px 16px 16px", width: "100%", maxWidth: "100%" }}
           >
             <Tabs
               defaultActiveKey="chats"
-              size="middle"
+              size={isMobile ? "small" : "middle"}
               items={[
                 {
                   key: "chats",
                   label: (
-                    <Space size={6}>
+                    <Space size={isMobile ? 4 : 6}>
                       <MessageOutlined />
-                      <span>Recent Conversations</span>
+                      <span>{isMobile ? "Chats" : "Recent Conversations"}</span>
                       {totalConversations > 0 && <Badge count={totalConversations} style={{ backgroundColor: "#3b82f6", fontSize: 10 }} />}
                     </Space>
                   ),
                   children: (
-                    <div>
+                    <div style={{ width: "100%", maxWidth: "100%", overflowX: "auto" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
                         <Radio.Group value={convStatus} onChange={(e) => setConvStatus(e.target.value)} buttonStyle="solid" size="small">
                           <Radio.Button value="all">All</Radio.Button>
@@ -885,6 +1017,7 @@ const MtejaDashboard: React.FC = () => {
                         dataSource={conversations.slice(0, 6)}
                         pagination={{ pageSize: 6, hideOnSinglePage: true }}
                         size="small"
+                        scroll={{ x: 450 }}
                         rowKey={(r) => r._id || Math.random().toString()}
                         locale={{ emptyText: <Empty description="No conversations" style={{ padding: 20 }} /> }}
                       />
@@ -894,14 +1027,14 @@ const MtejaDashboard: React.FC = () => {
                 {
                   key: "leads",
                   label: (
-                    <Space size={6}>
+                    <Space size={isMobile ? 4 : 6}>
                       <FundOutlined />
-                      <span>Recent Leads</span>
+                      <span>{isMobile ? "Leads" : "Recent Leads"}</span>
                       {totalLeads > 0 && <Badge count={totalLeads} style={{ backgroundColor: "#6366f1", fontSize: 10 }} />}
                     </Space>
                   ),
                   children: (
-                    <div>
+                    <div style={{ width: "100%", maxWidth: "100%", overflowX: "auto" }}>
                       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
                         <Button type="link" size="small" icon={<ArrowRightOutlined />} onClick={() => navTo("/crm/leads")}>
                           View All Leads ({totalLeads})
@@ -912,6 +1045,7 @@ const MtejaDashboard: React.FC = () => {
                         dataSource={recentLeads}
                         pagination={{ pageSize: 6, hideOnSinglePage: true }}
                         size="small"
+                        scroll={{ x: 450 }}
                         rowKey={(r) => r._id || Math.random().toString()}
                         locale={{ emptyText: <Empty description="No leads found" style={{ padding: 20 }} /> }}
                       />
@@ -921,14 +1055,14 @@ const MtejaDashboard: React.FC = () => {
                 {
                   key: "customers",
                   label: (
-                    <Space size={6}>
+                    <Space size={isMobile ? 4 : 6}>
                       <TeamOutlined />
-                      <span>Recent Customers</span>
+                      <span>{isMobile ? "Clients" : "Recent Customers"}</span>
                       {customerList.length > 0 && <Badge count={customerList.length} style={{ backgroundColor: "#10b981", fontSize: 10 }} />}
                     </Space>
                   ),
                   children: (
-                    <div>
+                    <div style={{ width: "100%", maxWidth: "100%", overflowX: "auto" }}>
                       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
                         <Button type="link" size="small" icon={<ArrowRightOutlined />} onClick={() => navTo("/customers")}>
                           View All Customers ({customerList.length})
@@ -939,6 +1073,7 @@ const MtejaDashboard: React.FC = () => {
                         dataSource={customerList.slice(0, 8)}
                         pagination={{ pageSize: 6, hideOnSinglePage: true }}
                         size="small"
+                        scroll={{ x: 450 }}
                         rowKey={(r) => r._id || Math.random().toString()}
                         locale={{ emptyText: <Empty description="No customers yet" style={{ padding: 20 }} /> }}
                       />
@@ -948,9 +1083,9 @@ const MtejaDashboard: React.FC = () => {
                 {
                   key: "channels",
                   label: (
-                    <Space size={6}>
+                    <Space size={isMobile ? 4 : 6}>
                       <WifiOutlined />
-                      <span>Channels & Performance</span>
+                      <span>{isMobile ? "Channels" : "Channels & Performance"}</span>
                     </Space>
                   ),
                   children: (

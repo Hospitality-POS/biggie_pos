@@ -1105,13 +1105,13 @@ const AdminDashboard: React.FC = () => {
             margin: 0 !important;
           }
           .ant-pro-page-container-children-container {
-            padding: 8px 12px !important;
+            padding: 8px 10px !important;
           }
           .ant-pro-page-container-children-content {
             padding: 0 !important;
           }
           .ant-pro-page-container-warp-page-header {
-            padding: 8px 12px !important;
+            padding: 8px 10px !important;
           }
           .ant-breadcrumb {
             font-size: 12px !important;
@@ -1123,6 +1123,15 @@ const AdminDashboard: React.FC = () => {
           }
           .ant-layout-content {
             overflow-x: hidden;
+          }
+        }
+
+        @media (max-width: 768px) {
+          .ant-pro-page-container-children-container {
+            padding: 4px 6px !important;
+          }
+          .ant-pro-page-container-warp-page-header {
+            padding: 4px 6px !important;
           }
         }
 
@@ -1437,7 +1446,8 @@ const AdminDashboard: React.FC = () => {
           pageHeaderRender={false}
           breadcrumbRender={false}
           title={false}
-          style={{ padding: isMobile ? "0 4px" : undefined }}
+          childrenContentStyle={isMobile ? { padding: 0 } : undefined}
+          style={isMobile ? { padding: 0 } : undefined}
         >
           <Outlet />
         </PageContainer>

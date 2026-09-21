@@ -17,6 +17,7 @@ import {
   Radio,
   DatePicker,
   Segmented,
+  Drawer,
 } from "antd";
 import {
   ArrowUpOutlined,
@@ -36,6 +37,7 @@ import {
   LineChartOutlined,
   BarChartOutlined,
   WalletOutlined,
+  FilterOutlined,
 } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -111,6 +113,18 @@ const SOURCE_COLORS: Record<string, string> = {
 
 const EXPENSE_PALETTE = ["#ef4444", "#f97316", "#eab308", "#84cc16", "#22c55e", "#06b6d4"];
 
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== "undefined" ? window.innerWidth < 768 : false
+  );
+  React.useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return isMobile;
+};
+
 // ── KPI Card Component (Matching Duka & Mteja Style) ──────────────────────────
 
 interface KPICardProps {
@@ -121,6 +135,7 @@ interface KPICardProps {
   bg: string;
   border: string;
   subtext: React.ReactNode;
+  isMobile?: boolean;
   onClick?: () => void;
 }
 
@@ -132,18 +147,22 @@ const KPICard: React.FC<KPICardProps> = ({
   bg,
   border,
   subtext,
+  isMobile = false,
   onClick,
 }) => (
   <div
     onClick={onClick}
     style={{
       background: bg,
-      borderRadius: 12,
-      padding: "16px 18px",
+      borderRadius: isMobile ? 10 : 12,
+      padding: isMobile ? "10px 10px" : "16px 18px",
       border: `1px solid ${border}`,
       cursor: onClick ? "pointer" : "default",
       transition: "transform .15s ease, box-shadow .15s ease",
       height: "100%",
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "space-between",
     }}
     onMouseEnter={(e) => {
       if (onClick) {
@@ -158,18 +177,30 @@ const KPICard: React.FC<KPICardProps> = ({
       }
     }}
   >
-    <Space direction="vertical" size={3} style={{ width: "100%" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <Text style={{ fontSize: 12, color: "#475569", fontWeight: 500 }}>{title}</Text>
+    <Space direction="vertical" size={isMobile ? 2 : 3} style={{ width: "100%" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 4 }}>
+        <Text
+          style={{
+            fontSize: isMobile ? 11 : 12,
+            color: "#475569",
+            fontWeight: 500,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
+          {title}
+        </Text>
         <div
           style={{
             background: "#ffffff",
-            borderRadius: 8,
-            padding: "4px 6px",
+            borderRadius: isMobile ? 6 : 8,
+            padding: isMobile ? "3px 5px" : "4px 6px",
             color,
-            fontSize: 14,
+            fontSize: isMobile ? 12 : 14,
             lineHeight: 1,
             boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+            flexShrink: 0,
           }}
         >
           {icon}
@@ -177,16 +208,30 @@ const KPICard: React.FC<KPICardProps> = ({
       </div>
       <div
         style={{
-          fontSize: 22,
+          fontSize: isMobile ? 17 : 22,
           fontWeight: 700,
           color: "#0f172a",
           lineHeight: 1.2,
           marginTop: 2,
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
         }}
+        title={typeof value === "string" ? value : undefined}
       >
         {value}
       </div>
-      <div style={{ marginTop: 2 }}>{subtext}</div>
+      <div
+        style={{
+          marginTop: 2,
+          fontSize: 11,
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        }}
+      >
+        {subtext}
+      </div>
     </Space>
   </div>
 );
@@ -242,12 +287,14 @@ const CustomPLTooltip = ({ active, payload, label }: any) => {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 const AccountingDashboardPage: React.FC = () => {
+  const isMobile = useIsMobile();
   const shopId = getShopId();
   const primaryColor = usePrimaryColor();
 
   const [periodFilter, setPeriodFilter] = useState("month");
   const [customDateRange, setCustomDateRange] = useState<any[]>([]);
   const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
   const [plViewMode, setPlViewMode] = useState<"area" | "bar">("area");
   const [donutMetricMode, setDonutMetricMode] = useState<"count" | "amount">("count");
 
@@ -300,10 +347,14 @@ const AccountingDashboardPage: React.FC = () => {
     }
   }, [periodFilter, startDate, endDate, customDateRange]);
 
-  const handlePeriodChange = useCallback((value: string) => {
-    setPeriodFilter(value);
-    setShowCustomDatePicker(value === "custom");
-  }, []);
+  const handlePeriodChange = useCallback(
+    (value: string) => {
+      setPeriodFilter(value);
+      setShowCustomDatePicker(value === "custom");
+      if (isMobile) setFilterDrawerOpen(false);
+    },
+    [isMobile]
+  );
 
   const { data, isLoading, isFetching, isError, refetch } = useQuery({
     queryKey: [
@@ -442,9 +493,9 @@ const AccountingDashboardPage: React.FC = () => {
     {
       title: "Entry",
       dataIndex: "entry_no",
-      width: 110,
+      width: 140,
       render: (v: string) => (
-        <Text code style={{ fontSize: 11 }}>
+        <Text code style={{ fontSize: 11, whiteSpace: "nowrap" }}>
           {v}
         </Text>
       ),
@@ -452,19 +503,22 @@ const AccountingDashboardPage: React.FC = () => {
     {
       title: "Date",
       dataIndex: "entry_date",
-      width: 100,
-      render: (d: string) => dayjs(d).format("DD MMM YY"),
+      width: 90,
+      render: (d: string) => (
+        <span style={{ whiteSpace: "nowrap", fontSize: 11 }}>{dayjs(d).format("DD MMM YY")}</span>
+      ),
     },
     {
       title: "Description",
       dataIndex: "description",
       ellipsis: true,
+      width: 140,
       render: (v: string) => <Text style={{ fontSize: 12 }}>{v}</Text>,
     },
     {
       title: "Source",
       dataIndex: "source",
-      width: 110,
+      width: 105,
       render: (s: string) => (
         <Tag
           style={{
@@ -473,6 +527,7 @@ const AccountingDashboardPage: React.FC = () => {
             border: "none",
             fontSize: 10,
             borderRadius: 4,
+            whiteSpace: "nowrap",
           }}
         >
           {s?.replace(/_/g, " ").toUpperCase()}
@@ -482,10 +537,10 @@ const AccountingDashboardPage: React.FC = () => {
     {
       title: "Amount",
       dataIndex: "total_debit",
-      width: 120,
+      width: 115,
       align: "right" as const,
       render: (v: number) => (
-        <Text strong style={{ fontSize: 12, color: "#1d39c4" }}>
+        <Text strong style={{ fontSize: 12, color: "#1d39c4", whiteSpace: "nowrap" }}>
           KES {fmtK(v)}
         </Text>
       ),
@@ -495,13 +550,51 @@ const AccountingDashboardPage: React.FC = () => {
   return (
     <App>
       <div style={{ padding: "0 0 24px" }}>
+        {/* ── Mobile Filter Drawer ── */}
+        <Drawer
+          title="Filter Period"
+          placement="bottom"
+          height="auto"
+          open={filterDrawerOpen}
+          onClose={() => setFilterDrawerOpen(false)}
+          styles={{ body: { paddingBottom: 32 } }}
+        >
+          <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+            <Radio.Group
+              value={periodFilter}
+              onChange={(e) => handlePeriodChange(e.target.value)}
+              style={{ width: "100%" }}
+            >
+              <Space direction="vertical" style={{ width: "100%" }}>
+                {Object.entries(PERIOD_LABELS).map(([val, label]) => (
+                  <Radio.Button
+                    key={val}
+                    value={val}
+                    style={{ width: "100%", textAlign: "center", borderRadius: 8, marginBottom: 4 }}
+                  >
+                    {label}
+                  </Radio.Button>
+                ))}
+              </Space>
+            </Radio.Group>
+            {showCustomDatePicker && (
+              <RangePicker
+                value={customDateRange as any}
+                onChange={(d) => setCustomDateRange(d || [])}
+                allowClear
+                style={{ width: "100%" }}
+              />
+            )}
+          </Space>
+        </Drawer>
+
         {/* ── Tier 1: Header & Controls ── */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            marginBottom: 20,
+            marginBottom: isMobile ? 14 : 20,
             flexWrap: "wrap",
             gap: 12,
           }}
@@ -511,15 +604,15 @@ const AccountingDashboardPage: React.FC = () => {
               style={{
                 background: `${primaryColor}15`,
                 borderRadius: 10,
-                padding: "8px 10px",
+                padding: isMobile ? "6px 8px" : "8px 10px",
                 color: primaryColor,
-                fontSize: 20,
+                fontSize: isMobile ? 18 : 20,
               }}
             >
               <DashboardOutlined />
             </div>
             <div>
-              <Title level={4} style={{ margin: 0, color: "#0f172a" }}>
+              <Title level={isMobile ? 5 : 4} style={{ margin: 0, color: "#0f172a" }}>
                 {PERIOD_LABELS[periodFilter]} · Pesa
               </Title>
               <Text style={{ fontSize: 12, color: "#64748b" }}>
@@ -529,52 +622,72 @@ const AccountingDashboardPage: React.FC = () => {
           </Space>
 
           <Space size="small" wrap>
-            <div
-              style={{
-                background: "#f8fafc",
-                borderRadius: 8,
-                padding: "4px 8px",
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                border: "1px solid #e2e8f0",
-              }}
-            >
-              <CalendarOutlined style={{ color: primaryColor, fontSize: 13 }} />
-              <Radio.Group
-                value={periodFilter}
-                onChange={(e) => handlePeriodChange(e.target.value)}
-                buttonStyle="solid"
-                size="small"
-              >
-                <Radio.Button value="day">Day</Radio.Button>
-                <Radio.Button value="week">Week</Radio.Button>
-                <Radio.Button value="month">Month</Radio.Button>
-                <Radio.Button value="year">Year</Radio.Button>
-                <Radio.Button value="custom">Custom</Radio.Button>
-              </Radio.Group>
-            </div>
-            {showCustomDatePicker && (
-              <RangePicker
-                value={customDateRange as any}
-                onChange={(d) => setCustomDateRange(d || [])}
-                allowClear
-                style={{ minWidth: 240 }}
-                size="small"
-              />
+            {isMobile ? (
+              <>
+                <Button
+                  icon={<FilterOutlined />}
+                  onClick={() => setFilterDrawerOpen(true)}
+                  size="middle"
+                >
+                  {PERIOD_LABELS[periodFilter]}
+                </Button>
+                <Button
+                  type="primary"
+                  icon={<SyncOutlined spin={isFetching} />}
+                  onClick={() => refetch()}
+                  size="middle"
+                />
+              </>
+            ) : (
+              <>
+                <div
+                  style={{
+                    background: "#f8fafc",
+                    borderRadius: 8,
+                    padding: "4px 8px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    border: "1px solid #e2e8f0",
+                  }}
+                >
+                  <CalendarOutlined style={{ color: primaryColor, fontSize: 13 }} />
+                  <Radio.Group
+                    value={periodFilter}
+                    onChange={(e) => handlePeriodChange(e.target.value)}
+                    buttonStyle="solid"
+                    size="small"
+                  >
+                    <Radio.Button value="day">Day</Radio.Button>
+                    <Radio.Button value="week">Week</Radio.Button>
+                    <Radio.Button value="month">Month</Radio.Button>
+                    <Radio.Button value="year">Year</Radio.Button>
+                    <Radio.Button value="custom">Custom</Radio.Button>
+                  </Radio.Group>
+                </div>
+                {showCustomDatePicker && (
+                  <RangePicker
+                    value={customDateRange as any}
+                    onChange={(d) => setCustomDateRange(d || [])}
+                    allowClear
+                    style={{ minWidth: 240 }}
+                    size="small"
+                  />
+                )}
+                <Button
+                  size="small"
+                  icon={<SyncOutlined spin={isFetching} />}
+                  onClick={() => refetch()}
+                >
+                  Refresh
+                </Button>
+              </>
             )}
-            <Button
-              size="small"
-              icon={<SyncOutlined spin={isFetching} />}
-              onClick={() => refetch()}
-            >
-              Refresh
-            </Button>
           </Space>
         </div>
 
         {/* ── Tier 2: Executive Financial Pulse (Matching Duka & Mteja Style) ── */}
-        <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+        <Row gutter={isMobile ? [8, 8] : [12, 12]} style={{ marginBottom: isMobile ? 12 : 16 }}>
           <Col xs={12} sm={12} lg={6}>
             <KPICard
               title="Revenue"
@@ -583,6 +696,7 @@ const AccountingDashboardPage: React.FC = () => {
               color="#10b981"
               bg="#f0fdf4"
               border="#bbf7d0"
+              isMobile={isMobile}
               subtext={
                 <Space size={4}>
                   {overview.revenue.vs_prev_year !== null && overview.revenue.vs_prev_year !== undefined ? (
@@ -617,6 +731,7 @@ const AccountingDashboardPage: React.FC = () => {
               color="#ef4444"
               bg="#fef2f2"
               border="#fecaca"
+              isMobile={isMobile}
               subtext={
                 <Space size={6}>
                   <span style={{ fontSize: 11, color: "#ef4444", fontWeight: 600 }}>
@@ -635,6 +750,7 @@ const AccountingDashboardPage: React.FC = () => {
               color={isProfit ? "#6366f1" : "#ef4444"}
               bg={isProfit ? "#f5f3ff" : "#fef2f2"}
               border={isProfit ? "#ddd6fe" : "#fecaca"}
+              isMobile={isMobile}
               subtext={
                 <Space size={6}>
                   <span style={{ fontSize: 11, color: isProfit ? "#10b981" : "#ef4444", fontWeight: 600 }}>
@@ -655,6 +771,7 @@ const AccountingDashboardPage: React.FC = () => {
               color="#3b82f6"
               bg="#eff6ff"
               border="#bfdbfe"
+              isMobile={isMobile}
               subtext={
                 <Space size={6}>
                   <span style={{ fontSize: 11, color: "#64748b" }}>Working Cap:</span>
@@ -674,27 +791,31 @@ const AccountingDashboardPage: React.FC = () => {
         </Row>
 
         {/* ── Tier 3: Visual Analytics & Breakdown Hub ── */}
-        <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
+        <Row gutter={isMobile ? [12, 12] : [16, 16]} style={{ marginBottom: isMobile ? 16 : 20 }}>
           {/* P&L Trend (6 Months) */}
           <Col xs={24} lg={15}>
             <ProCard
               title={
-                <Space size={8} wrap>
-                  <Text strong style={{ fontSize: 14 }}>
-                    P&L Trend — Last 6 Months
+                <Space size={6} wrap>
+                  <Text strong style={{ fontSize: isMobile ? 13 : 14 }}>
+                    {isMobile ? "P&L Trend (6M)" : "P&L Trend — Last 6 Months"}
                   </Text>
-                  <Tag color="cyan" style={{ borderRadius: 10, fontSize: 11, border: "none" }}>
-                    6M Rev: KES {fmtK(total6MRev)}
-                  </Tag>
-                  <Tag color="purple" style={{ borderRadius: 10, fontSize: 11, border: "none" }}>
+                  {!isMobile && (
+                    <Tag color="cyan" style={{ borderRadius: 10, fontSize: 11, border: "none" }}>
+                      6M Rev: KES {fmtK(total6MRev)}
+                    </Tag>
+                  )}
+                  <Tag color="purple" style={{ borderRadius: 10, fontSize: 10, border: "none" }}>
                     6M Net: KES {fmtK(total6MNet)}
                   </Tag>
-                  <Tag
-                    color={Number(avg6MMargin) >= 0 ? "success" : "error"}
-                    style={{ borderRadius: 10, fontSize: 11, border: "none" }}
-                  >
-                    Avg Margin: {avg6MMargin}%
-                  </Tag>
+                  {!isMobile && (
+                    <Tag
+                      color={Number(avg6MMargin) >= 0 ? "success" : "error"}
+                      style={{ borderRadius: 10, fontSize: 11, border: "none" }}
+                    >
+                      Avg Margin: {avg6MMargin}%
+                    </Tag>
+                  )}
                 </Space>
               }
               extra={
@@ -703,19 +824,30 @@ const AccountingDashboardPage: React.FC = () => {
                   value={plViewMode}
                   onChange={(v) => setPlViewMode(v as "area" | "bar")}
                   options={[
-                    { label: "Trend (Area)", value: "area", icon: <LineChartOutlined /> },
-                    { label: "Monthly (Bar)", value: "bar", icon: <BarChartOutlined /> },
+                    {
+                      label: isMobile ? "Area" : "Trend (Area)",
+                      value: "area",
+                      icon: isMobile ? undefined : <LineChartOutlined />,
+                    },
+                    {
+                      label: isMobile ? "Bar" : "Monthly (Bar)",
+                      value: "bar",
+                      icon: isMobile ? undefined : <BarChartOutlined />,
+                    },
                   ]}
                 />
               }
               bordered
-              bodyStyle={{ paddingTop: 12 }}
+              bodyStyle={{ paddingTop: isMobile ? 8 : 12, paddingLeft: isMobile ? 6 : 12, paddingRight: isMobile ? 6 : 12 }}
               size="small"
             >
-              <div style={{ height: 270, width: "100%" }}>
+              <div style={{ height: isMobile ? 210 : 270, width: "100%" }}>
                 <ResponsiveContainer width="100%" height="100%">
                   {plViewMode === "area" ? (
-                    <AreaChart data={plChartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                    <AreaChart
+                      data={plChartData}
+                      margin={{ top: 8, right: isMobile ? 8 : 20, left: isMobile ? -15 : 0, bottom: 0 }}
+                    >
                       <defs>
                         <linearGradient id="pesaRevGrad" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
@@ -1162,21 +1294,23 @@ const AccountingDashboardPage: React.FC = () => {
         <ProCard
           bordered
           size="small"
-          bodyStyle={{ padding: "0 12px 12px" }}
+          style={{ width: "100%", maxWidth: "100%", overflow: "hidden" }}
+          bodyStyle={{ padding: isMobile ? "0 8px 8px" : "0 12px 12px", width: "100%", maxWidth: "100%" }}
           tabs={{
             type: "line",
+            size: isMobile ? "small" : "middle",
             items: [
               {
                 key: "journal",
                 label: (
                   <Space size={6}>
                     <FileTextOutlined />
-                    <span>Recent Journal Entries</span>
+                    <span>{isMobile ? "Journals" : "Recent Journal Entries"}</span>
                     <Badge count={recent_entries.length} style={{ backgroundColor: "#3b82f6" }} />
                   </Space>
                 ),
                 children: (
-                  <div>
+                  <div style={{ width: "100%", maxWidth: "100%", overflowX: "auto" }}>
                     <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
                       <Tag color="default">📝 {journal_summary.draft_count} Draft</Tag>
                       <Tag color="success">✓ {journal_summary.posted_count} Posted</Tag>
@@ -1190,6 +1324,7 @@ const AccountingDashboardPage: React.FC = () => {
                       columns={recentCols}
                       pagination={false}
                       size="small"
+                      scroll={{ x: 590 }}
                       locale={{ emptyText: "No posted entries this period" }}
                     />
                   </div>

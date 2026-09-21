@@ -18,6 +18,7 @@ import {
   Empty,
   Segmented,
   Badge,
+  Drawer,
 } from 'antd';
 import {
   HomeOutlined,
@@ -31,6 +32,7 @@ import {
   AlertOutlined,
   UserOutlined,
   CheckCircleOutlined,
+  FilterOutlined,
 } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { fetchDalaDashboard } from '@services/dala';
@@ -54,6 +56,22 @@ import dayjs from 'dayjs';
 
 const { Text, Title } = Typography;
 const { RangePicker } = DatePicker;
+
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== "undefined" ? window.innerWidth < 768 : false
+  );
+
+  React.useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  return isMobile;
+};
 
 const PERIOD_LABELS: Record<string, string> = {
   day: 'Today',
@@ -83,6 +101,7 @@ interface KPICardProps {
   bg: string;
   border: string;
   subtext?: React.ReactNode;
+  isMobile?: boolean;
   onClick?: () => void;
 }
 
@@ -94,18 +113,22 @@ const KPICard: React.FC<KPICardProps> = ({
   bg,
   border,
   subtext,
+  isMobile = false,
   onClick,
 }) => (
   <div
     onClick={onClick}
     style={{
       background: bg,
-      borderRadius: 12,
-      padding: '16px 18px',
+      borderRadius: isMobile ? 10 : 12,
+      padding: isMobile ? '10px 10px' : '16px 18px',
       border: `1px solid ${border}`,
       cursor: onClick ? 'pointer' : 'default',
       transition: 'transform .15s ease, box-shadow .15s ease',
       height: '100%',
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'space-between',
     }}
     onMouseEnter={(e) => {
       if (onClick) {
@@ -120,18 +143,30 @@ const KPICard: React.FC<KPICardProps> = ({
       }
     }}
   >
-    <Space direction="vertical" size={3} style={{ width: '100%' }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <Text style={{ fontSize: 12, color: "#475569", fontWeight: 500 }}>{title}</Text>
+    <Space direction="vertical" size={isMobile ? 2 : 3} style={{ width: '100%' }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 4 }}>
+        <Text
+          style={{
+            fontSize: isMobile ? 11 : 12,
+            color: "#475569",
+            fontWeight: 500,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
+          {title}
+        </Text>
         <div
           style={{
             background: "#ffffff",
-            borderRadius: 8,
-            padding: "4px 6px",
+            borderRadius: isMobile ? 6 : 8,
+            padding: isMobile ? "3px 5px" : "4px 6px",
             color,
-            fontSize: 14,
+            fontSize: isMobile ? 12 : 14,
             lineHeight: 1,
             boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+            flexShrink: 0,
           }}
         >
           {icon}
@@ -139,17 +174,31 @@ const KPICard: React.FC<KPICardProps> = ({
       </div>
       <div
         style={{
-          fontSize: 22,
+          fontSize: isMobile ? 17 : 22,
           fontWeight: 700,
           color: "#0f172a",
           letterSpacing: -0.3,
           lineHeight: 1.2,
           marginTop: 2,
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
         }}
+        title={typeof value === "string" ? value : undefined}
       >
         {value}
       </div>
-      <div style={{ marginTop: 2 }}>{subtext}</div>
+      <div
+        style={{
+          marginTop: 2,
+          fontSize: 11,
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        }}
+      >
+        {subtext}
+      </div>
     </Space>
   </div>
 );
@@ -160,11 +209,13 @@ const DalaDashboard: React.FC = () => {
   const { data: dashboard, setDashboard } = useDalaDashboard();
   const primaryColor = usePrimaryColor();
   const now = dayjs();
+  const isMobile = useIsMobile();
 
   const [periodFilter, setPeriodFilter] = useState('month');
   const [customDateRange, setCustomDateRange] = useState<any[]>([]);
   const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
   const [sideView, setSideView] = useState<string>('units');
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
 
   const getDateRange = useCallback(() => {
     const today = dayjs();
@@ -379,6 +430,44 @@ const DalaDashboard: React.FC = () => {
   return (
     <App>
       <div style={{ padding: '0 0 24px' }}>
+        {/* ── Mobile Filter Drawer ── */}
+        <Drawer
+          title="Filter Period"
+          placement="bottom"
+          height="auto"
+          open={filterDrawerOpen}
+          onClose={() => setFilterDrawerOpen(false)}
+          styles={{ body: { paddingBottom: 32 } }}
+        >
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            <Radio.Group
+              value={periodFilter}
+              onChange={(e) => handlePeriodChange(e.target.value)}
+              style={{ width: '100%' }}
+            >
+              <Space direction="vertical" style={{ width: '100%' }}>
+                {Object.entries(PERIOD_LABELS).map(([val, label]) => (
+                  <Radio.Button
+                    key={val}
+                    value={val}
+                    style={{ width: '100%', textAlign: 'center', borderRadius: 8, marginBottom: 4 }}
+                  >
+                    {label}
+                  </Radio.Button>
+                ))}
+              </Space>
+            </Radio.Group>
+            {showCustomDatePicker && (
+              <RangePicker
+                value={customDateRange as any}
+                onChange={(d) => setCustomDateRange(d || [])}
+                allowClear
+                style={{ width: '100%' }}
+              />
+            )}
+          </Space>
+        </Drawer>
+
         {/* ── Tier 1: Header ── */}
         <div
           style={{
@@ -395,15 +484,15 @@ const DalaDashboard: React.FC = () => {
               style={{
                 background: `${primaryColor}15`,
                 borderRadius: 10,
-                padding: '8px 10px',
+                padding: isMobile ? '6px 8px' : '8px 10px',
                 color: primaryColor,
-                fontSize: 20,
+                fontSize: isMobile ? 18 : 20,
               }}
             >
               <DashboardOutlined />
             </div>
             <div>
-              <Title level={4} style={{ margin: 0, color: '#0f172a' }}>
+              <Title level={isMobile ? 5 : 4} style={{ margin: 0, color: '#0f172a' }}>
                 {PERIOD_LABELS[periodFilter] || 'Overview'} · Dala Real Estate
               </Title>
               <Text style={{ fontSize: 12, color: '#64748b' }}>
@@ -413,52 +502,72 @@ const DalaDashboard: React.FC = () => {
           </Space>
 
           <Space size="small" wrap>
-            <div
-              style={{
-                background: '#f8fafc',
-                borderRadius: 8,
-                padding: '4px 8px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                border: '1px solid #e2e8f0',
-              }}
-            >
-              <CalendarOutlined style={{ color: primaryColor, fontSize: 13 }} />
-              <Radio.Group
-                value={periodFilter}
-                onChange={(e) => handlePeriodChange(e.target.value)}
-                buttonStyle="solid"
-                size="small"
-              >
-                <Radio.Button value="day">Day</Radio.Button>
-                <Radio.Button value="week">Week</Radio.Button>
-                <Radio.Button value="month">Month</Radio.Button>
-                <Radio.Button value="year">Year</Radio.Button>
-                <Radio.Button value="custom">Custom</Radio.Button>
-              </Radio.Group>
-            </div>
-            {showCustomDatePicker && (
-              <RangePicker
-                value={customDateRange as any}
-                onChange={(d) => setCustomDateRange(d || [])}
-                allowClear
-                style={{ minWidth: 240 }}
-                size="small"
-              />
+            {isMobile ? (
+              <>
+                <Button
+                  icon={<FilterOutlined />}
+                  onClick={() => setFilterDrawerOpen(true)}
+                  size="middle"
+                >
+                  {PERIOD_LABELS[periodFilter] || 'Filter'}
+                </Button>
+                <Button
+                  type="primary"
+                  icon={<SyncOutlined spin={isFetching} />}
+                  onClick={() => refetch()}
+                  size="middle"
+                />
+              </>
+            ) : (
+              <>
+                <div
+                  style={{
+                    background: '#f8fafc',
+                    borderRadius: 8,
+                    padding: '4px 8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    border: '1px solid #e2e8f0',
+                  }}
+                >
+                  <CalendarOutlined style={{ color: primaryColor, fontSize: 13 }} />
+                  <Radio.Group
+                    value={periodFilter}
+                    onChange={(e) => handlePeriodChange(e.target.value)}
+                    buttonStyle="solid"
+                    size="small"
+                  >
+                    <Radio.Button value="day">Day</Radio.Button>
+                    <Radio.Button value="week">Week</Radio.Button>
+                    <Radio.Button value="month">Month</Radio.Button>
+                    <Radio.Button value="year">Year</Radio.Button>
+                    <Radio.Button value="custom">Custom</Radio.Button>
+                  </Radio.Group>
+                </div>
+                {showCustomDatePicker && (
+                  <RangePicker
+                    value={customDateRange as any}
+                    onChange={(d) => setCustomDateRange(d || [])}
+                    allowClear
+                    style={{ minWidth: 240 }}
+                    size="small"
+                  />
+                )}
+                <Button
+                  size="small"
+                  icon={<SyncOutlined spin={isFetching} />}
+                  onClick={() => refetch()}
+                >
+                  Refresh
+                </Button>
+              </>
             )}
-            <Button
-              size="small"
-              icon={<SyncOutlined spin={isFetching} />}
-              onClick={() => refetch()}
-            >
-              Refresh
-            </Button>
           </Space>
         </div>
 
         {/* ── Tier 2: 4 Executive KPI Cards (Matching Duka, Mteja & Pesa Style) ── */}
-        <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+        <Row gutter={isMobile ? [8, 8] : [12, 12]} style={{ marginBottom: isMobile ? 12 : 16 }}>
           <Col xs={12} sm={12} lg={6}>
             <KPICard
               title="Portfolio Scale"
@@ -467,6 +576,7 @@ const DalaDashboard: React.FC = () => {
               color="#6366f1"
               bg="#eef2ff"
               border="#c7d2fe"
+              isMobile={isMobile}
               subtext={
                 <Text style={{ fontSize: 11, color: "#64748b" }}>
                   {dashboardData?.availableUnits || 0} available · {dashboardData?.occupancyRate || 0}% occupancy
@@ -482,6 +592,7 @@ const DalaDashboard: React.FC = () => {
               color="#10b981"
               bg="#f0fdf4"
               border="#bbf7d0"
+              isMobile={isMobile}
               subtext={
                 <Text style={{ fontSize: 11, color: "#64748b" }}>
                   Sales: KES {fmtK(dashboardData?.monthlySalesRevenue || 0)} · Rent: KES {fmtK(dashboardData?.monthlyRentCollected || 0)}
@@ -497,6 +608,7 @@ const DalaDashboard: React.FC = () => {
               color="#3b82f6"
               bg="#eff6ff"
               border="#bfdbfe"
+              isMobile={isMobile}
               subtext={
                 <Text style={{ fontSize: 11, color: "#64748b" }}>
                   Billed: KES {fmtK(dashboardData?.monthlyRentBilled || 0)} · Unpaid: KES {fmtK(dashboardData?.rentOutstanding || 0)}
@@ -512,6 +624,7 @@ const DalaDashboard: React.FC = () => {
               color="#8b5cf6"
               bg="#f5f3ff"
               border="#ddd6fe"
+              isMobile={isMobile}
               subtext={
                 <Text style={{ fontSize: 11, color: "#64748b" }}>
                   Paid: KES {fmtK(dashboardData?.commissionStats?.paidCommission || 0)} · Pending: KES {fmtK(dashboardData?.commissionStats?.pendingCommission || 0)}
@@ -531,8 +644,11 @@ const DalaDashboard: React.FC = () => {
               bodyStyle={{ paddingTop: 8 }}
               size="small"
             >
-              <ResponsiveContainer width="100%" height={250}>
-                <LineChart data={plChartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+              <ResponsiveContainer width="100%" height={isMobile ? 210 : 250}>
+                <LineChart
+                  data={plChartData}
+                  margin={isMobile ? { top: 10, right: 10, left: -20, bottom: 0 } : { top: 10, right: 20, left: 0, bottom: 0 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                   <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} tickFormatter={fmtK} />
@@ -665,16 +781,18 @@ const DalaDashboard: React.FC = () => {
         <ProCard
           bordered
           size="small"
-          bodyStyle={{ padding: "0 12px 12px" }}
+          style={{ width: "100%", maxWidth: "100%", overflow: "hidden" }}
+          bodyStyle={{ padding: "0 12px 12px", width: "100%", maxWidth: "100%" }}
           tabs={{
             type: "line",
+            size: isMobile ? "small" : "middle",
             items: [
               {
                 key: "sales",
                 label: (
                   <Space size={6}>
                     <DollarOutlined />
-                    <span>Sales Pipeline</span>
+                    <span>{isMobile ? "Sales" : "Sales Pipeline"}</span>
                     {recentSales.length > 0 && (
                       <Badge count={recentSales.length} style={{ backgroundColor: "#10b981" }} />
                     )}
@@ -769,6 +887,7 @@ const DalaDashboard: React.FC = () => {
                       ]}
                       pagination={{ pageSize: 5, size: 'small' }}
                       size="small"
+                      scroll={{ x: 480 }}
                       locale={{ emptyText: 'No recent sales' }}
                     />
                   </div>
@@ -779,7 +898,7 @@ const DalaDashboard: React.FC = () => {
                 label: (
                   <Space size={6}>
                     <HomeOutlined />
-                    <span>Leases & Tenancies</span>
+                    <span>{isMobile ? "Leases" : "Leases & Tenancies"}</span>
                     {recentLeases.length > 0 && (
                       <Badge count={recentLeases.length} style={{ backgroundColor: "#3b82f6" }} />
                     )}
@@ -878,6 +997,7 @@ const DalaDashboard: React.FC = () => {
                       ]}
                       pagination={{ pageSize: 5, size: 'small' }}
                       size="small"
+                      scroll={{ x: 480 }}
                       locale={{ emptyText: 'No recent leases' }}
                     />
                   </div>
@@ -888,7 +1008,7 @@ const DalaDashboard: React.FC = () => {
                 label: (
                   <Space size={6}>
                     <WalletOutlined />
-                    <span>Rent Collections</span>
+                    <span>{isMobile ? "Rent" : "Rent Collections"}</span>
                     {recentRentPayments.length > 0 && (
                       <Badge count={recentRentPayments.length} style={{ backgroundColor: "#8b5cf6" }} />
                     )}
@@ -977,6 +1097,7 @@ const DalaDashboard: React.FC = () => {
                       ]}
                       pagination={{ pageSize: 5, size: 'small' }}
                       size="small"
+                      scroll={{ x: 480 }}
                       locale={{ emptyText: 'No recent rent payments' }}
                     />
                   </div>
@@ -987,7 +1108,7 @@ const DalaDashboard: React.FC = () => {
                 label: (
                   <Space size={6}>
                     <AlertOutlined />
-                    <span>Payment Plans Due</span>
+                    <span>{isMobile ? "Plans Due" : "Payment Plans Due"}</span>
                     {totalPaymentCount > 0 && (
                       <Badge count={totalPaymentCount} style={{ backgroundColor: "#ef4444" }} />
                     )}
@@ -1079,6 +1200,7 @@ const DalaDashboard: React.FC = () => {
                       ]}
                       pagination={{ pageSize: 5, size: 'small' }}
                       size="small"
+                      scroll={{ x: 480 }}
                       locale={{ emptyText: <Empty description="No payment plans due" style={{ padding: 12 }} /> }}
                     />
                   </div>
@@ -1089,7 +1211,7 @@ const DalaDashboard: React.FC = () => {
                 label: (
                   <Space size={6}>
                     <ToolOutlined />
-                    <span>Maintenance & Repairs</span>
+                    <span>{isMobile ? "Maintenance" : "Maintenance & Repairs"}</span>
                     {dashboardData?.openMaintenanceTickets > 0 && (
                       <Badge count={dashboardData.openMaintenanceTickets} style={{ backgroundColor: "#faad14" }} />
                     )}
@@ -1186,6 +1308,7 @@ const DalaDashboard: React.FC = () => {
                       ]}
                       pagination={{ pageSize: 5, size: 'small' }}
                       size="small"
+                      scroll={{ x: 480 }}
                       locale={{ emptyText: 'No recent maintenance tickets' }}
                     />
                   </div>

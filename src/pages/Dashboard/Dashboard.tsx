@@ -596,27 +596,43 @@ const Dashboard: React.FC = () => {
       {lowStockCount > 0 && (
         <Alert
           message={
-            <Space size={8}>
-              <Text strong style={{ color: "#b45309", fontSize: 13 }}>
-                Inventory Attention Needed:
-              </Text>
-              <Text style={{ color: "#78350f", fontSize: 12 }}>
-                {lowStockCount} item{lowStockCount > 1 ? "s are" : " is"} depleted or running low in stock.
-              </Text>
-            </Space>
+            <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 4 : 2 }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
+                <Text strong style={{ color: "#b45309", fontSize: 13, whiteSpace: "nowrap" }}>
+                  Inventory Attention Needed:
+                </Text>
+                <Text style={{ color: "#78350f", fontSize: 12 }}>
+                  {lowStockCount} item{lowStockCount > 1 ? "s are" : " is"} depleted or running low in stock.
+                </Text>
+              </div>
+              {isMobile && (
+                <div style={{ marginTop: 2 }}>
+                  <Button
+                    size="small"
+                    type="link"
+                    onClick={() => navigate("/inventory")}
+                    style={{ fontWeight: 600, color: "#b45309", padding: 0, height: "auto", fontSize: 12 }}
+                  >
+                    Manage Inventory →
+                  </Button>
+                </div>
+              )}
+            </div>
           }
           type="warning"
           showIcon
           icon={<WarningOutlined style={{ color: "#d97706" }} />}
           action={
-            <Button
-              size="small"
-              type="link"
-              onClick={() => navigate("/inventory")}
-              style={{ fontWeight: 600, color: "#b45309", padding: 0 }}
-            >
-              Manage Inventory →
-            </Button>
+            !isMobile ? (
+              <Button
+                size="small"
+                type="link"
+                onClick={() => navigate("/inventory")}
+                style={{ fontWeight: 600, color: "#b45309", padding: 0 }}
+              >
+                Manage Inventory →
+              </Button>
+            ) : undefined
           }
           style={{
             marginBottom: 16,
