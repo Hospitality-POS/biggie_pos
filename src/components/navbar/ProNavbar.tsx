@@ -65,6 +65,8 @@ import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import useProLayoutNav from "./defaultprops";
+import EcosystemAppSwitcher from "./EcosystemAppSwitcher";
+import { useActiveProduct } from "@context/ProductContext";
 import React from "react";
 import { getCurrentTenantId } from "@services/tenants";
 
@@ -142,6 +144,8 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAppSelector((state) => state.auth);
   const primaryColor = usePrimaryColor();
   const isMobile = useIsMobile();
+  const { activeProduct, activeProductConfig, availableProducts, switchProduct, isMultiProduct } =
+    useActiveProduct();
 
   const shopId = getCurrentTenantId() || "";
 
@@ -879,6 +883,42 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         </div>
       )}
 
+      {isMultiProduct && (
+        <div style={{ padding: "10px 14px 8px", borderBottom: `1px solid ${C.border}`, background: "#f8fafc" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.5px", textTransform: "uppercase", color: "#64748b", marginBottom: 6 }}>
+            Product Workspace
+          </div>
+          <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2 }}>
+            {availableProducts.map((prod) => {
+              const isActive = prod.key === activeProduct;
+              return (
+                <button
+                  key={prod.key}
+                  onClick={() => switchProduct(prod.key, false)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "6px 10px",
+                    borderRadius: 8,
+                    border: isActive ? `1.5px solid ${prod.color}` : "1px solid #e2e8f0",
+                    background: isActive ? `${prod.color}15` : "#ffffff",
+                    color: isActive ? prod.color : "#475569",
+                    fontWeight: isActive ? 600 : 500,
+                    fontSize: 12,
+                    whiteSpace: "nowrap",
+                    cursor: "pointer",
+                  }}
+                >
+                  <span style={{ fontSize: 14 }}>{prod.icon}</span>
+                  <span>{prod.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
         {(() => {
           // Only real navigable leaves participate in active-state matching.
@@ -1259,7 +1299,8 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         title=""
         menuHeaderRender={(logo: any, title: any) => (
           <div id="customize_menu_header" style={{ height: 48, display: "flex", alignItems: "center", gap: 8 }}>
-            {logo}{title}
+            {logo}
+            {title}
           </div>
         )}
         colorPrimary={primaryColor}
@@ -1284,18 +1325,21 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         headerRender={
           isMobile
             ? () => (
-              <div style={{ height: 52, background: primaryColor, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 2px 12px rgba(0,0,0,0.15)" }}>
-                <button
-                  onClick={() => setMobileDrawerOpen(true)}
-                  style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)", borderRadius: 8, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "white", fontSize: 16 }}
-                >
-                  <MenuOutlined style={{ color: "white" }} />
-                </button>
-                <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ height: 52, background: primaryColor, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 12px", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 2px 12px rgba(0,0,0,0.15)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <button
+                    onClick={() => setMobileDrawerOpen(true)}
+                    style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)", borderRadius: 8, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "white", fontSize: 16 }}
+                  >
+                    <MenuOutlined style={{ color: "white" }} />
+                  </button>
+                  <EcosystemAppSwitcher triggerType="waffle" />
+                </div>
+                <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
                   {tenant?.tenant_logo?.url ? (
-                    <img src={tenant.tenant_logo.url} alt="logo" style={{ height: 36, maxWidth: 96, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
+                    <img src={tenant.tenant_logo.url} alt="logo" style={{ height: 28, maxWidth: 70, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
                   ) : (
-                    <img src="/relia.png" alt="logo" style={{ height: 32, maxWidth: 96, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
+                    <img src="/relia.png" alt="logo" style={{ height: 26, maxWidth: 70, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
                   )}
                 </div>
                 {user ? headerActions : (
@@ -1319,6 +1363,30 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
             }
             : undefined
         }
+        itemClick={(item: any, popoverRef?: any) => {
+          if (popoverRef?.current) {
+            popoverRef.current.click();
+          } else {
+            setTimeout(() => document.body.click(), 10);
+          }
+          if (item?.productKey) {
+            switchProduct(item.productKey, true);
+          } else if (item?.url) {
+            navigate(item.url);
+          }
+        }}
+        onItemClick={(item: any, popoverRef?: any) => {
+          if (popoverRef?.current) {
+            popoverRef.current.click();
+          } else {
+            setTimeout(() => document.body.click(), 10);
+          }
+          if (item?.productKey) {
+            switchProduct(item.productKey, true);
+          } else if (item?.url) {
+            navigate(item.url);
+          }
+        }}
         {...navRoutes}
         location={{
           pathname: location.pathname,
