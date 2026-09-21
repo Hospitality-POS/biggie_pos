@@ -19,16 +19,9 @@ import {
 import AddEditShopModal from "@components/MODALS/pro/AddEditShopModal";
 import { useNavigate } from "react-router-dom";
 import PrintSettingsTab from "../../pages/Settings/systemSetup/PrintSettingsTab";
+import { fmtK } from "@utils/formatters";
 
 const { Text } = Typography;
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-const fmtK = (v: number) => {
-  if (!v && v !== 0) return "0";
-  if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
-  if (Math.abs(v) >= 1_000) return `${(v / 1_000).toFixed(1)}K`;
-  return v.toLocaleString("en-KE", { minimumFractionDigits: 0 });
-};
 
 const useIsMobile = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);

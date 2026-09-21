@@ -22,6 +22,7 @@ import { useMutation } from "@tanstack/react-query";
 import jsPDF from "jspdf";
 import * as XLSX from "xlsx";
 import React from "react";
+import { fmtK } from "@utils/formatters";
 
 const { Text, Title } = Typography;
 const { Dragger } = Upload;
@@ -35,13 +36,6 @@ const useIsMobile = () => {
     return () => window.removeEventListener("resize", handler);
   }, []);
   return isMobile;
-};
-
-const fmtK = (v: number) => {
-  if (!v && v !== 0) return "0";
-  if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
-  if (Math.abs(v) >= 1_000) return `${(v / 1_000).toFixed(1)}K`;
-  return v.toLocaleString("en-KE", { minimumFractionDigits: 0 });
 };
 
 const USAGE_CONFIG: Record<string, { icon: React.ReactNode; color: string; text: string; bg: string }> = {
