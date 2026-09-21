@@ -191,6 +191,7 @@ const AdminDashboard: React.FC = () => {
   const [detailsModalVisible, setDetailsModalVisible] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState<any>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileAppListOpen, setMobileAppListOpen] = useState(false);
 
   const [currentShopId, setCurrentShopId] = useState<string | null>(() => {
     return localStorage.getItem("shopId");
@@ -1133,6 +1134,95 @@ const AdminDashboard: React.FC = () => {
           .ant-pro-page-container-warp-page-header {
             padding: 6px 10px !important;
           }
+
+          /* ProLayout Native AppList Popover Mobile Responsiveness */
+          .ant-pro-layout-apps-popover {
+            width: calc(100vw - 16px) !important;
+            max-width: calc(100vw - 16px) !important;
+            left: 8px !important;
+            right: 8px !important;
+            top: 56px !important;
+          }
+          .ant-pro-layout-apps-popover .ant-popover-content {
+            width: 100% !important;
+            max-width: 100% !important;
+          }
+          .ant-pro-layout-apps-popover .ant-popover-inner {
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 12px 10px !important;
+            border-radius: 14px !important;
+            box-sizing: border-box !important;
+            max-height: calc(85vh - 60px) !important;
+            overflow-y: auto !important;
+          }
+          .ant-pro-layout-apps-default-content {
+            width: 100% !important;
+            max-width: 100% !important;
+            max-height: none !important;
+            overflow: visible !important;
+          }
+          .ant-pro-layout-apps-default-content-list {
+            width: 100% !important;
+            max-width: 100% !important;
+            display: flex !important;
+            flex-direction: column !important;
+            box-sizing: border-box !important;
+          }
+          .ant-pro-layout-apps-default-content-list-item-group {
+            width: 100% !important;
+            margin-bottom: 12px !important;
+          }
+          .ant-pro-layout-apps-default-content-list-item-group-title {
+            font-size: 13px !important;
+            font-weight: 700 !important;
+            margin: 8px 0 6px 4px !important;
+            color: #334155 !important;
+          }
+          .ant-pro-layout-apps-default-content-list-item {
+            width: 100% !important;
+            max-width: 100% !important;
+            height: auto !important;
+            min-height: 54px !important;
+            display: block !important;
+            padding: 8px 10px !important;
+            box-sizing: border-box !important;
+            border-radius: 8px !important;
+            margin-bottom: 4px !important;
+          }
+          .ant-pro-layout-apps-default-content-list-item a {
+            display: flex !important;
+            align-items: center !important;
+            width: 100% !important;
+          }
+          .ant-pro-layout-apps-default-content-list-item a > img,
+          .ant-pro-layout-apps-default-content-list-item a > div:first-child {
+            width: 38px !important;
+            height: 38px !important;
+            flex-shrink: 0 !important;
+            border-radius: 8px !important;
+          }
+          .ant-pro-layout-apps-default-content-list-item a > div:last-child {
+            margin-inline-start: 12px !important;
+            flex: 1 !important;
+            min-width: 0 !important;
+            overflow: hidden !important;
+          }
+          .ant-pro-layout-apps-default-content-list-item a > div:last-child > div {
+            font-size: 13px !important;
+            line-height: 18px !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+          }
+          .ant-pro-layout-apps-default-content-list-item a > div:last-child > span {
+            font-size: 11px !important;
+            line-height: 16px !important;
+            display: block !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+          }
         }
 
         /* Smooth drawer transition */
@@ -1349,6 +1439,73 @@ const AdminDashboard: React.FC = () => {
                     >
                       <MenuOutlined style={{ color: "white" }} />
                     </button>
+                    <Popover
+                      open={mobileAppListOpen}
+                      onOpenChange={setMobileAppListOpen}
+                      trigger={["click"]}
+                      placement="bottomLeft"
+                      overlayClassName="ant-pro-layout-apps-popover"
+                      content={
+                        <div
+                          className="ant-pro-layout-apps-default-content"
+                          style={{
+                            maxHeight: "calc(82vh - 60px)",
+                            overflowY: "auto",
+                            width: "100%",
+                          }}
+                        >
+                          <ul className="ant-pro-layout-apps-default-content-list" style={{ width: "100%", margin: 0, padding: 0 }}>
+                            {adminAppList.map((group, gIdx) => (
+                              <div key={gIdx} className="ant-pro-layout-apps-default-content-list-item-group">
+                                <div className="ant-pro-layout-apps-default-content-list-item-group-title">
+                                  {group.title}
+                                </div>
+                                {group.children?.map((item: any, iIdx: number) => (
+                                  <li
+                                    key={iIdx}
+                                    className="ant-pro-layout-apps-default-content-list-item"
+                                    onClick={() => {
+                                      setMobileAppListOpen(false);
+                                      handleAppItemClick(item);
+                                    }}
+                                  >
+                                    <a>
+                                      {item.icon}
+                                      <div>
+                                        <div>{item.title}</div>
+                                        {item.desc && <span>{item.desc}</span>}
+                                      </div>
+                                    </a>
+                                  </li>
+                                ))}
+                              </div>
+                            ))}
+                          </ul>
+                        </div>
+                      }
+                    >
+                      <button
+                        style={{
+                          background: mobileAppListOpen
+                            ? "rgba(255,255,255,0.28)"
+                            : "rgba(255,255,255,0.15)",
+                          border: "1px solid rgba(255,255,255,0.25)",
+                          borderRadius: 8,
+                          width: 36,
+                          height: 36,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          cursor: "pointer",
+                          color: "white",
+                        }}
+                        title="Switch Outlets & Apps"
+                      >
+                        <svg width="15" height="15" viewBox="0 0 12 12" fill="currentColor">
+                          <path d="M0 0h3v3H0V0zm4.5 0h3v3h-3V0zM9 0h3v3H9V0zM0 4.5h3v3H0v-3zm4.503 0h3v3h-3v-3zM9 4.5h3v3H9v-3zM0 9h3v3H0V9zm4.503 0h3v3h-3V9zM9 9h3v3H9V9z" />
+                        </svg>
+                      </button>
+                    </Popover>
                   </div>
 
                   <div

@@ -16,6 +16,16 @@ import { useAppSelector } from "src/store";
 
 const { Text } = Typography;
 
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  React.useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return isMobile;
+};
+
 interface EcosystemAppSwitcherProps {
   compact?: boolean;
   textColor?: string;
@@ -25,6 +35,7 @@ interface EcosystemAppSwitcherProps {
 }
 
 export const EcosystemAppMenu: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
+  const isMobile = useIsMobile();
   const navigate = useNavigate();
   const location = useLocation();
   const primaryColor = usePrimaryColor();
@@ -42,16 +53,17 @@ export const EcosystemAppMenu: React.FC<{ onClose?: () => void }> = ({ onClose }
   return (
     <div
       style={{
-        width: 656,
-        maxWidth: "calc(100vw - 24px)",
-        maxHeight: "calc(100vh - 72px)",
+        width: isMobile ? "100%" : 656,
+        maxWidth: "100%",
+        maxHeight: isMobile ? "calc(86vh - 60px)" : "calc(100vh - 72px)",
         overflowY: "auto",
         backgroundColor: "#ffffff",
-        borderRadius: 16,
+        borderRadius: isMobile ? 14 : 16,
         boxShadow: "0 20px 48px -10px rgba(0, 0, 0, 0.18), 0 10px 24px -5px rgba(0, 0, 0, 0.08)",
         border: "1px solid #e2e8f0",
-        padding: "16px 18px",
+        padding: isMobile ? "14px 12px" : "16px 18px",
         userSelect: "none",
+        boxSizing: "border-box",
       }}
     >
       {/* ── WORKSPACES HEADER ──────────────────────────────────────────────── */}
@@ -97,8 +109,8 @@ export const EcosystemAppMenu: React.FC<{ onClose?: () => void }> = ({ onClose }
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(285px, 1fr))",
-          gap: 10,
+          gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(285px, 1fr))",
+          gap: isMobile ? 8 : 10,
         }}
       >
         {availableProducts.map((prod) => {
@@ -227,8 +239,8 @@ export const EcosystemAppMenu: React.FC<{ onClose?: () => void }> = ({ onClose }
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(285px, 1fr))",
-          gap: 10,
+          gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(285px, 1fr))",
+          gap: isMobile ? 8 : 10,
         }}
       >
         {/* Unified Dashboard */}
@@ -508,45 +520,74 @@ export const EcosystemAppSwitcher: React.FC<EcosystemAppSwitcherProps> = ({
   borderColor = "rgba(255, 255, 255, 0.24)",
   triggerType = "waffle",
 }) => {
+  const isMobile = useIsMobile();
   const { activeProductConfig, isMultiProduct } = useActiveProduct();
   const [open, setOpen] = useState(false);
+
+  const mobileStyle = (
+    <style>{`
+      @media (max-width: 768px) {
+        .ecosystem-app-switcher-dropdown {
+          position: fixed !important;
+          top: 56px !important;
+          left: 8px !important;
+          right: 8px !important;
+          width: calc(100vw - 16px) !important;
+          max-width: calc(100vw - 16px) !important;
+          transform: none !important;
+          margin: 0 !important;
+          z-index: 1050 !important;
+        }
+        .ecosystem-app-switcher-dropdown .ant-dropdown-menu,
+        .ecosystem-app-switcher-dropdown > div {
+          width: 100% !important;
+          max-width: 100% !important;
+          box-sizing: border-box !important;
+        }
+      }
+    `}</style>
+  );
 
   // Waffle icon launcher trigger (3x3 grid)
   if (triggerType === "waffle") {
     return (
-      <Dropdown
-        open={open}
-        onOpenChange={setOpen}
-        dropdownRender={() => <EcosystemAppMenu onClose={() => setOpen(false)} />}
-        trigger={["click"]}
-        placement="bottomLeft"
-      >
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: 34,
-            height: 34,
-            borderRadius: 8,
-            cursor: "pointer",
-            color: textColor,
-            background: open ? "rgba(255, 255, 255, 0.28)" : bgColor,
-            border: `1px solid ${borderColor}`,
-            userSelect: "none",
-            transition: "all 0.15s ease",
-          }}
-          title="Basepoint Apps"
-          onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255, 255, 255, 0.25)")}
-          onMouseLeave={(e) =>
-            (e.currentTarget.style.background = open ? "rgba(255, 255, 255, 0.28)" : bgColor)
-          }
+      <>
+        {mobileStyle}
+        <Dropdown
+          open={open}
+          onOpenChange={setOpen}
+          dropdownRender={() => <EcosystemAppMenu onClose={() => setOpen(false)} />}
+          trigger={["click"]}
+          placement={isMobile ? "bottomCenter" : "bottomLeft"}
+          overlayClassName="ecosystem-app-switcher-dropdown"
         >
-          <svg width="15" height="15" viewBox="0 0 12 12" fill="currentColor">
-            <path d="M0 0h3v3H0V0zm4.5 0h3v3h-3V0zM9 0h3v3H9V0zM0 4.5h3v3H0v-3zm4.503 0h3v3h-3v-3zM9 4.5h3v3H9v-3zM0 9h3v3H0V9zm4.503 0h3v3h-3V9zM9 9h3v3H9V9z" />
-          </svg>
-        </div>
-      </Dropdown>
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 34,
+              height: 34,
+              borderRadius: 8,
+              cursor: "pointer",
+              color: textColor,
+              background: open ? "rgba(255, 255, 255, 0.28)" : bgColor,
+              border: `1px solid ${borderColor}`,
+              userSelect: "none",
+              transition: "all 0.15s ease",
+            }}
+            title="Basepoint Apps"
+            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255, 255, 255, 0.25)")}
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.background = open ? "rgba(255, 255, 255, 0.28)" : bgColor)
+            }
+          >
+            <svg width="15" height="15" viewBox="0 0 12 12" fill="currentColor">
+              <path d="M0 0h3v3H0V0zm4.5 0h3v3h-3V0zM9 0h3v3H9V0zM0 4.5h3v3H0v-3zm4.503 0h3v3h-3v-3zM9 4.5h3v3H9v-3zM0 9h3v3H0V9zm4.503 0h3v3h-3V9zM9 9h3v3H9V9z" />
+            </svg>
+          </div>
+        </Dropdown>
+      </>
     );
   }
 
@@ -578,13 +619,16 @@ export const EcosystemAppSwitcher: React.FC<EcosystemAppSwitcherProps> = ({
 
   // Multi-product switcher pill
   return (
-    <Dropdown
-      open={open}
-      onOpenChange={setOpen}
-      dropdownRender={() => <EcosystemAppMenu onClose={() => setOpen(false)} />}
-      trigger={["click"]}
-      placement="bottomLeft"
-    >
+    <>
+      {mobileStyle}
+      <Dropdown
+        open={open}
+        onOpenChange={setOpen}
+        dropdownRender={() => <EcosystemAppMenu onClose={() => setOpen(false)} />}
+        trigger={["click"]}
+        placement={isMobile ? "bottomCenter" : "bottomLeft"}
+        overlayClassName="ecosystem-app-switcher-dropdown"
+      >
       <div
         style={{
           display: "flex",
@@ -624,6 +668,7 @@ export const EcosystemAppSwitcher: React.FC<EcosystemAppSwitcherProps> = ({
         <DownOutlined style={{ fontSize: 10, opacity: 0.7, marginLeft: 2 }} />
       </div>
     </Dropdown>
+    </>
   );
 };
 
