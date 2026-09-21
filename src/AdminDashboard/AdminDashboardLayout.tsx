@@ -13,6 +13,8 @@ import {
   Tag,
   Avatar,
   Drawer,
+  Tooltip,
+  message,
 } from "antd";
 import { PageContainer, ProLayout } from "@ant-design/pro-components";
 import {
@@ -27,11 +29,20 @@ import {
   PoweroffOutlined,
   SettingOutlined,
   UserOutlined,
+  BranchesOutlined,
+  ShopOutlined,
+  ArrowRightOutlined,
+  DashboardOutlined,
+  UsergroupAddOutlined,
+  ReconciliationOutlined,
+  FileDoneOutlined,
+  CheckCircleFilled,
 } from "@ant-design/icons";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAppSelector } from "src/store";
 import useProLayoutNav from "./defaultprops";
 import BiasharaAIFab from "./BiasharaAIFab";
+import { fetchAllShops, locationDisplay } from "@services/shops";
 import {
   fetchMyNotifications,
   markNotificationAsRead,
@@ -41,6 +52,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
+import { makeTileImg, ICONS } from "src/components/navbar/defaultprops";
 
 dayjs.extend(relativeTime);
 
@@ -148,291 +160,6 @@ const MobileNavItem: React.FC<MobileNavItemProps> = ({
   );
 };
 
-// ── Smart overflow nav ────────────────────────────────────────────────────────
-// Two-phase render:
-//   Phase 1 (measured === false): all items render with visibility:hidden so
-//     the browser lays them out and we can read their offsetWidth.
-//   Phase 2 (measured === true): items beyond visibleCount get display:none,
-//     and the "More" dropdown appears with only the truly hidden routes.
-// ResizeObserver re-triggers measurement on every container resize.
-interface SmartNavProps {
-  routes: Array<{ path?: string; name?: string; label?: string; icon?: React.ReactNode; key?: string }>;
-  primaryColor: string;
-}
-
-const MORE_BTN_WIDTH = 116; // px reserved for the "More" button
-
-const SmartOverflowNav: React.FC<SmartNavProps> = ({ routes, primaryColor }) => {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const containerRef = useRef<HTMLDivElement>(null);
-  const itemRefsRef = useRef<(HTMLDivElement | null)[]>([]);
-  const moreBtnRef = useRef<HTMLDivElement>(null);
-  const rafRef = useRef<number>(-1);
-
-  // -1 means "measuring phase — all items visible (but hidden) for offsetWidth reads"
-  const [visibleCount, setVisibleCount] = useState<number>(-1);
-
-  const measure = useCallback(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const containerWidth = container.offsetWidth;
-    // Read natural widths — only valid during measuring phase (all items displayed)
-    const widths = itemRefsRef.current.map((el) => (el ? el.offsetWidth : 0));
-
-    const totalAll = widths.reduce((s, w) => s + w, 0);
-    if (totalAll <= containerWidth) {
-      setVisibleCount(routes.length); // everything fits, no More button
-      return;
-    }
-
-    // Find how many items fit alongside the More button
-    const budget = containerWidth - MORE_BTN_WIDTH;
-    let used = 0;
-    let count = 0;
-    for (let i = 0; i < widths.length; i++) {
-      if (used + widths[i] <= budget) {
-        used += widths[i];
-        count++;
-      } else {
-        break;
-      }
-    }
-    setVisibleCount(Math.max(0, count));
-  }, [routes.length]);
-
-  // Trigger a fresh measurement cycle: reset to phase-1 → paint → measure
-  const scheduleMeasure = useCallback(() => {
-    cancelAnimationFrame(rafRef.current);
-    // Reset so all items render visible (but invisible to user) for measurement
-    setVisibleCount(-1);
-    // Double RAF: first waits for React commit, second for browser layout
-    rafRef.current = requestAnimationFrame(() => {
-      rafRef.current = requestAnimationFrame(measure);
-    });
-  }, [measure]);
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    scheduleMeasure();
-
-    const ro = new ResizeObserver(scheduleMeasure);
-    ro.observe(container);
-    return () => {
-      ro.disconnect();
-      cancelAnimationFrame(rafRef.current);
-    };
-  }, [scheduleMeasure, routes]);
-
-  const isMeasuring = visibleCount === -1;
-
-  const activePath = (() => {
-    const currentPath = location.pathname === "/admin" ? "/admin/dashboard" : location.pathname;
-    const matchingRoutes = routes.filter((route) =>
-      route?.path &&
-      (currentPath === route.path ||
-        (route.path !== "/" && route.path !== "/admin" && currentPath.startsWith(route.path + "/")))
-    );
-    if (matchingRoutes.length === 0) return currentPath;
-    const mostSpecific = matchingRoutes.reduce((longest, current) =>
-      (current.path?.length || 0) > (longest?.path?.length || 0) ? current : longest
-    );
-    return mostSpecific.path;
-  })();
-
-  const isRouteActive = (path?: string) => {
-    if (!path) return false;
-    if (path === activePath) return true;
-    if (path === "/admin/dashboard" && location.pathname === "/admin") return true;
-    return false;
-  };
-
-  const overflowRoutes = isMeasuring ? [] : routes.slice(visibleCount);
-  const hasOverflow = overflowRoutes.length > 0;
-  const overflowHasActive = overflowRoutes.some((r) => isRouteActive(r.path));
-
-  const overflowMenuItems = overflowRoutes.map((route) => {
-    const active = isRouteActive(route.path);
-    return {
-      key: route.path || route.key || route.name || "",
-      icon: (
-        <span style={{ fontSize: 15, color: active ? "#ffffff" : "rgba(255,255,255,0.85)", display: "inline-flex", alignItems: "center" }}>
-          {route.icon}
-        </span>
-      ),
-      label: (
-        <span style={{ fontSize: 13, color: active ? "#ffffff" : "rgba(255,255,255,0.85)", fontWeight: active ? 600 : 400 }}>
-          {route.name || route.label || ""}
-        </span>
-      ),
-      onClick: () => navigate(route.path || "/admin"),
-      style: {
-        backgroundColor: active ? "rgba(255,255,255,0.22)" : "transparent",
-        borderRadius: 6,
-        margin: "2px 0",
-        height: 38,
-        display: "flex",
-        alignItems: "center",
-      },
-    };
-  });
-
-  return (
-    <div
-      ref={containerRef}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        flex: 1,
-        // Hide overflow so invisible measurement items don't cause scrollbars
-        overflow: "hidden",
-        minWidth: 0,
-        gap: 4,
-      }}
-    >
-      <style>{`
-        .smart-nav-item:hover {
-          background-color: rgba(255, 255, 255, 0.12) !important;
-          color: #ffffff !important;
-        }
-        .smart-nav-item:hover span {
-          color: #ffffff !important;
-        }
-        .smart-nav-item.active {
-          background-color: rgba(255, 255, 255, 0.22) !important;
-          color: #ffffff !important;
-          font-weight: 600 !important;
-        }
-        .smart-nav-item.active span {
-          color: #ffffff !important;
-        }
-      `}</style>
-
-      {routes.map((route, idx) => {
-        const active = isRouteActive(route.path);
-        // During measurement: all items visible (but container is overflow:hidden)
-        // After measurement: items beyond visibleCount get display:none
-        const hidden = !isMeasuring && idx >= visibleCount;
-
-        return (
-          <div
-            key={route.path || idx}
-            ref={(el) => { itemRefsRef.current[idx] = el; }}
-            onClick={() => { if (!hidden) navigate(route.path || "/admin"); }}
-            className={`smart-nav-item ${active ? "active" : ""}`}
-            style={{
-              display: hidden ? "none" : "flex",
-              // During measurement phase keep invisible so layout is accurate
-              // but the user never sees the flash
-              visibility: isMeasuring ? "hidden" : "visible",
-              alignItems: "center",
-              gap: 8,
-              padding: "0 14px",
-              height: 38,
-              borderRadius: 6,
-              cursor: hidden ? "default" : "pointer",
-              color: active ? "#ffffff" : "rgba(255,255,255,0.85)",
-              background: active ? "rgba(255,255,255,0.22)" : "transparent",
-              fontWeight: active ? 600 : 400,
-              fontSize: 14,
-              transition: "all 0.15s ease",
-              whiteSpace: "nowrap",
-              flexShrink: 0,
-              userSelect: "none",
-            }}
-          >
-            <span style={{ fontSize: 15, display: "flex", alignItems: "center", color: active ? "#ffffff" : "rgba(255,255,255,0.85)" }}>
-              {route.icon}
-            </span>
-            <span>{route.name || route.label}</span>
-          </div>
-        );
-      })}
-
-      {/* "More" button — only rendered when items genuinely overflow */}
-      {hasOverflow && (
-        <>
-          <style>{`
-            .smart-nav-overflow-dropdown .ant-dropdown-menu {
-              background-color: ${primaryColor} !important;
-              border-radius: 10px !important;
-              box-shadow: 0 8px 24px rgba(0,0,0,0.14) !important;
-              padding: 4px !important;
-              border: none !important;
-            }
-            .smart-nav-overflow-dropdown .ant-dropdown-menu-item {
-              border-radius: 6px !important;
-              margin: 2px 0 !important;
-              height: 38px !important;
-              color: rgba(255,255,255,0.85) !important;
-            }
-            .smart-nav-overflow-dropdown .ant-dropdown-menu-item:hover {
-              background-color: rgba(255,255,255,0.15) !important;
-              color: #ffffff !important;
-            }
-            .smart-nav-overflow-dropdown .ant-dropdown-menu-item:hover * {
-              color: #ffffff !important;
-            }
-            .smart-nav-overflow-dropdown .ant-dropdown-menu-item-selected {
-              background-color: rgba(255,255,255,0.2) !important;
-              color: #ffffff !important;
-              font-weight: 600 !important;
-            }
-          `}</style>
-          <Dropdown
-            menu={{ items: overflowMenuItems }}
-            placement="bottomRight"
-            trigger={["click", "hover"]}
-            overlayClassName="smart-nav-overflow-dropdown"
-            dropdownRender={(menu) => (
-              <div
-                style={{
-                  backgroundColor: primaryColor,
-                  borderRadius: 10,
-                  overflow: "hidden",
-                  boxShadow: "0 8px 24px rgba(0,0,0,0.2)",
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  minWidth: 200,
-                }}
-              >
-                {menu}
-              </div>
-            )}
-          >
-            <div
-              ref={moreBtnRef}
-              className={`smart-nav-item ${overflowHasActive ? "active" : ""}`}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 5,
-                padding: "0 14px",
-                height: 38,
-                borderRadius: 6,
-                cursor: "pointer",
-                color: overflowHasActive ? "#ffffff" : "rgba(255,255,255,0.85)",
-                background: overflowHasActive ? "rgba(255,255,255,0.22)" : "transparent",
-                fontWeight: overflowHasActive ? 600 : 400,
-                fontSize: 14,
-                transition: "all 0.15s ease",
-                userSelect: "none",
-                whiteSpace: "nowrap",
-                flexShrink: 0,
-              }}
-            >
-              <AppstoreOutlined style={{ fontSize: 14, color: overflowHasActive ? "#ffffff" : "rgba(255,255,255,0.85)" }} />
-              <span>More</span>
-              <DownOutlined style={{ fontSize: 9, opacity: 0.7, color: overflowHasActive ? "#ffffff" : "rgba(255,255,255,0.85)" }} />
-            </div>
-          </Dropdown>
-        </>
-      )}
-    </div>
-  );
-};
 
 // ── Main component ─────────────────────────────────────────────────────────────
 const AdminDashboard: React.FC = () => {
@@ -464,6 +191,39 @@ const AdminDashboard: React.FC = () => {
   const [detailsModalVisible, setDetailsModalVisible] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState<any>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const [currentShopId, setCurrentShopId] = useState<string | null>(() => {
+    return localStorage.getItem("shopId");
+  });
+
+  const { data: shops = [] } = useQuery<any[]>({
+    queryKey: ["admin-header-shops"],
+    queryFn: () => fetchAllShops({}),
+    staleTime: 60000,
+  });
+
+  const currentShop = useMemo(() => {
+    if (!shops || !shops.length) return null;
+    return shops.find((s: any) => s._id === currentShopId) || shops[0];
+  }, [shops, currentShopId]);
+
+  const hasPOS = !!(tenant?.pos_integration?.enabled ?? true);
+  const hasAccounting = !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting);
+  const hasMteja = tenant?.modules?.crm === true;
+  const hasDala = tenant?.modules?.dala === true;
+  const isAccountingOnly = hasAccounting && !hasPOS && !hasDala;
+  const isMtejaOnly = hasMteja && !hasPOS && !hasAccounting && !hasDala;
+  const isDalaOnly = hasDala && !hasPOS && !hasAccounting && !hasMteja;
+
+  const shopLandingPath = isMtejaOnly
+    ? "/crm/leads"
+    : isAccountingOnly
+      ? "/accounting"
+      : isDalaOnly
+        ? "/dala/properties"
+        : hasPOS
+          ? "/tables"
+          : "/home-dashboard";
 
   // Auto-redirect to first available route
   useEffect(() => {
@@ -1163,55 +923,129 @@ const AdminDashboard: React.FC = () => {
     </Space>
   );
 
-  // ── Desktop header with SmartOverflowNav ─────────────────────────────────────
-  // We bypass ProLayout's built-in menu entirely for the top nav on desktop
-  // and instead render our own SmartOverflowNav that correctly handles overflow.
-  const desktopHeaderRender = () => (
-    <div
-      style={{
-        height: 56,
-        background: primaryColor,
-        display: "flex",
-        alignItems: "center",
-        padding: "0 16px",
-        gap: 16,
-        position: "sticky",
-        top: 0,
-        zIndex: 100,
-        boxShadow: "0 2px 12px rgba(0,0,0,0.12)",
-      }}
-    >
-      {/* Logo */}
-      <div style={{ flexShrink: 0 }}>
-        {tenant?.tenant_logo?.url ? (
-          <Image
-            src={tenant.tenant_logo.url}
-            height={56}
-            preview={false}
-            alt="tenant-logo"
-            style={{ padding: 4, objectFit: "contain", maxWidth: 140 }}
-          />
-        ) : (
-          <Image
-            src="/relia.png"
-            height={56}
-            preview={false}
-            alt="relia-logo"
-            style={{ padding: 6, objectFit: "contain", maxWidth: 140 }}
-          />
-        )}
-      </div>
+  // ── ProLayout Native AppList configuration ──────────────────────────────────
+  const adminAppList = useMemo(() => {
+    const outletChildren = (shops || []).map((shop: any) => {
+      const isSelected = shop._id === currentShop?._id;
+      const shopMode = shop.shop_mode || shop.mode || "";
+      return {
+        icon: makeTileImg(isSelected ? primaryColor : "#0ea5e9", ICONS.table, shop.name),
+        title: (
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontWeight: isSelected ? 700 : 500, color: isSelected ? primaryColor : "inherit" }}>
+              {shop.name}
+            </span>
+            {isSelected && (
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  lineHeight: "14px",
+                  padding: "1px 6px",
+                  borderRadius: 10,
+                  background: `${primaryColor}1c`,
+                  color: primaryColor,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.5px",
+                }}
+              >
+                Active
+              </span>
+            )}
+            {shopMode && !isSelected && (
+              <span
+                style={{
+                  fontSize: 9.5,
+                  fontWeight: 600,
+                  lineHeight: "14px",
+                  padding: "1px 5px",
+                  borderRadius: 4,
+                  background: "#f1f5f9",
+                  color: "#64748b",
+                  textTransform: "capitalize",
+                }}
+              >
+                {shopMode}
+              </span>
+            )}
+          </span>
+        ),
+        desc: shop.location ? locationDisplay(shop.location) : "Launch outlet workspace",
+        url: shopLandingPath,
+        shopId: shop._id,
+        shop: shop,
+      };
+    });
 
-      {/* Smart nav — takes all remaining space, collapses into "More" */}
-      <SmartOverflowNav
-        routes={navRoutes.route?.routes || []}
-        primaryColor={primaryColor}
-      />
+    const oversightChildren = [
+      {
+        icon: makeTileImg("#3b82f6", ICONS.reports, "dashboard"),
+        title: "Executive Dashboard",
+        desc: "Multi-outlet performance & analytics",
+        url: "/admin/dashboard",
+      },
+      {
+        icon: makeTileImg("#0ea5e9", ICONS.table, "shop-management"),
+        title: "Branch Management",
+        desc: "Configure outlets, registers & locations",
+        url: "/admin/shop-management",
+      },
+      {
+        icon: makeTileImg("#8b5cf6", ICONS.customers, "staff-management"),
+        title: "Crew Management",
+        desc: "Roles, permissions & staff accounts",
+        url: "/admin/staff-management",
+      },
+      {
+        icon: makeTileImg("#10b981", ICONS.reports, "reports"),
+        title: "Consolidated Reports",
+        desc: "Financial audits, sales & audit trails",
+        url: "/admin/reports",
+      },
+      {
+        icon: makeTileImg("#6366f1", ICONS.documents, "documents"),
+        title: "Document Center",
+        desc: "Invoices, agreements & cloud receipts",
+        url: "/admin/documents",
+      },
+      {
+        icon: makeTileImg("#64748b", ICONS.settings, "settings"),
+        title: "Platform Settings",
+        desc: "Tenant preferences & system configs",
+        url: "/admin/settings",
+      },
+    ];
 
-      {/* Right-side actions */}
-      <div style={{ flexShrink: 0 }}>{headerActions}</div>
-    </div>
-  );
+    return [
+      {
+        title: "Outlets & Branches",
+        desc: "Switch branch or launch store operations workspace",
+        children: outletChildren,
+      },
+      {
+        title: "Platform Oversight",
+        desc: "Cross-system administration & management tools",
+        children: oversightChildren,
+      },
+    ];
+  }, [shops, currentShop, primaryColor, shopLandingPath]);
+
+  const handleAppItemClick = (item: any, popoverRef?: any) => {
+    if (popoverRef?.current) {
+      popoverRef.current.click();
+    } else {
+      setTimeout(() => document.body.click(), 10);
+    }
+    if (item?.shopId) {
+      localStorage.setItem("shopId", item.shopId);
+      localStorage.setItem("shop", JSON.stringify(item.shop));
+      setCurrentShopId(item.shopId);
+      message.success(`Switched to ${item.shop.name}`);
+      navigate(item.url || shopLandingPath);
+    } else if (item?.url) {
+      navigate(item.url);
+    }
+  };
 
   return (
     <>
@@ -1311,6 +1145,66 @@ const AdminDashboard: React.FC = () => {
           color: #ffffff !important;
         }
 
+        /* ProLayout top nav icon overrides */
+        .ant-pro-top-nav-header .ant-menu-item .ant-pro-base-menu-horizontal-item-icon,
+        .ant-pro-top-nav-header .ant-menu-submenu-title .ant-pro-base-menu-horizontal-item-icon {
+          display: none !important;
+        }
+        /* Hide ProLayout's native icons in overflow popup */
+        .nav-overflow-popup .ant-pro-base-menu-horizontal-item-icon {
+          display: none !important;
+        }
+        /* Submenu popup background */
+        .ant-menu-submenu-popup {
+          background: ${primaryColor} !important;
+        }
+        .ant-menu-submenu-popup .ant-menu {
+          background: ${primaryColor} !important;
+        }
+        /* Overflow popup (More dropdown) styling */
+        .nav-overflow-popup {
+          background: ${primaryColor} !important;
+        }
+        .nav-overflow-popup .ant-menu {
+          background: ${primaryColor} !important;
+        }
+        .nav-overflow-popup .ant-menu-item {
+          color: rgba(255,255,255,0.85) !important;
+        }
+        .nav-overflow-popup .ant-menu-item:hover {
+          color: #ffffff !important;
+          background: rgba(255,255,255,0.1) !important;
+        }
+        .nav-overflow-popup .ant-menu-item-selected {
+          color: #ffffff !important;
+          background: rgba(255,255,255,0.15) !important;
+        }
+        .nav-overflow-popup .ant-menu-item .anticon {
+          color: rgba(255,255,255,0.85) !important;
+        }
+        .nav-overflow-popup .ant-menu-item:hover .anticon {
+          color: #ffffff !important;
+        }
+        .nav-overflow-popup .ant-menu-item-selected .anticon {
+          color: #ffffff !important;
+        }
+
+        /* Logo and left header vertical alignment */
+        .ant-pro-top-nav-header-main-left,
+        .ant-pro-top-nav-header-logo,
+        .ant-pro-top-nav-header-logo > div,
+        #customize_menu_header {
+          display: flex !important;
+          align-items: center !important;
+          height: 100% !important;
+        }
+        #customize_menu_header img {
+          display: block !important;
+          max-height: 36px !important;
+          width: auto !important;
+          object-fit: contain !important;
+        }
+
         /* Notification popover */
         .notification-popover-overlay .ant-popover-inner {
           padding: 0 !important;
@@ -1321,100 +1215,180 @@ const AdminDashboard: React.FC = () => {
 
       <ProLayout
         style={{ maxWidth: "1920px" }}
-        logo={false}
+        logo={
+          tenant?.tenant_logo?.url ? (
+            <img
+              src={tenant.tenant_logo.url}
+              alt="tenant-logo"
+              style={{
+                height: isMobile ? 32 : 36,
+                maxHeight: 36,
+                maxWidth: isMobile ? 96 : 130,
+                objectFit: "contain",
+                display: "block",
+                cursor: "pointer",
+              }}
+              onClick={() => navigate("/admin/dashboard")}
+            />
+          ) : (
+            <img
+              src="/relia.png"
+              alt="relia-logo"
+              style={{
+                height: isMobile ? 30 : 34,
+                maxHeight: 34,
+                maxWidth: isMobile ? 96 : 130,
+                objectFit: "contain",
+                display: "block",
+                cursor: "pointer",
+              }}
+              onClick={() => navigate("/admin/dashboard")}
+            />
+          )
+        }
         title=""
+        menuHeaderRender={(logo: any) => (
+          <div
+            id="customize_menu_header"
+            style={{
+              height: "100%",
+              display: "flex",
+              alignItems: "center",
+              cursor: "pointer",
+            }}
+            onClick={() => navigate("/admin/dashboard")}
+          >
+            {logo}
+          </div>
+        )}
+        layout="top"
+        splitMenus={false}
+        fixedHeader={true}
         contentWidth="Fluid"
         navTheme="light"
         colorPrimary={primaryColor}
         contentStyle={{ padding: 0, margin: "0 auto" }}
-        layout="mix"
-        splitMenus={false}
-        fixedHeader={false}
         breadcrumbProps={{ items: [] }}
         {...navRoutes}
-        // Suppress ProLayout's built-in top menu — we render our own SmartOverflowNav
-        menuRender={false}
-        headerRender={isMobile
-          ? () => (
+        appList={adminAppList}
+        itemClick={handleAppItemClick}
+        onItemClick={handleAppItemClick}
+        menuRender={isMobile ? false : undefined}
+        menuProps={{
+          overflowedIndicatorPopupClassName: "nav-overflow-popup",
+          overflowedIndicator: (
             <div
               style={{
-                height: 52,
-                background: primaryColor,
                 display: "flex",
                 alignItems: "center",
-                justifyContent: "space-between",
-                padding: "0 16px",
-                position: "sticky",
-                top: 0,
-                zIndex: 100,
-                boxShadow: "0 2px 12px rgba(0,0,0,0.15)",
+                gap: 5,
+                padding: "0 14px",
+                height: 40,
+                cursor: "pointer",
+                color: "rgba(255,255,255,0.85)",
+                fontSize: 14,
+                userSelect: "none",
               }}
             >
-              {/* Hamburger */}
-              <button
-                onClick={() => setMobileMenuOpen(true)}
-                style={{
-                  background: "rgba(255,255,255,0.15)",
-                  border: "1px solid rgba(255,255,255,0.25)",
-                  borderRadius: 8,
-                  width: 36,
-                  height: 36,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  cursor: "pointer",
-                  color: "white",
-                  fontSize: 16,
-                }}
-              >
-                <MenuOutlined style={{ color: "white" }} />
-              </button>
-
-              {/* Logo center */}
-              <div
-                style={{
-                  position: "absolute",
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                {tenant?.tenant_logo?.url ? (
-                  <Image
-                    src={tenant.tenant_logo.url}
-                    height={36}
-                    preview={false}
-                    alt="logo"
-                    style={{
-                      objectFit: "contain",
-                      maxWidth: 96,
-                      filter: "brightness(0) invert(1)",
-                    }}
-                  />
-                ) : (
-                  <Image
-                    src="/relia.png"
-                    height={32}
-                    preview={false}
-                    alt="logo"
-                    style={{
-                      objectFit: "contain",
-                      maxWidth: 96,
-                      filter: "brightness(0) invert(1)",
-                    }}
-                  />
-                )}
-              </div>
-
-              {/* Right actions */}
-              {headerActions}
+              <AppstoreOutlined style={{ fontSize: 14 }} />
+              <span>More</span>
+              <DownOutlined style={{ fontSize: 9, opacity: 0.7 }} />
             </div>
-          )
-          : desktopHeaderRender
+          ),
+        }}
+        avatarProps={
+          !isMobile
+            ? {
+                src: authUser?.avatar || authUser?.thumbnail,
+                render: (_props: any, _dom: any) => headerActions,
+              }
+            : undefined
         }
-        avatarProps={undefined}
+        headerRender={
+          isMobile
+            ? () => (
+                <div
+                  style={{
+                    height: 52,
+                    background: primaryColor,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "0 16px",
+                    position: "sticky",
+                    top: 0,
+                    zIndex: 100,
+                    boxShadow: "0 2px 12px rgba(0,0,0,0.15)",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <button
+                      onClick={() => setMobileMenuOpen(true)}
+                      style={{
+                        background: "rgba(255,255,255,0.15)",
+                        border: "1px solid rgba(255,255,255,0.25)",
+                        borderRadius: 8,
+                        width: 36,
+                        height: 36,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        color: "white",
+                        fontSize: 16,
+                      }}
+                    >
+                      <MenuOutlined style={{ color: "white" }} />
+                    </button>
+                  </div>
+
+                  <div
+                    style={{
+                      position: "absolute",
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    {tenant?.tenant_logo?.url ? (
+                      <Image
+                        src={tenant.tenant_logo.url}
+                        height={36}
+                        preview={false}
+                        alt="logo"
+                        style={{
+                          objectFit: "contain",
+                          maxWidth: 96,
+                          filter: "brightness(0) invert(1)",
+                          cursor: "pointer",
+                        }}
+                        onClick={() => navigate("/admin/dashboard")}
+                      />
+                    ) : (
+                      <Image
+                        src="/relia.png"
+                        height={32}
+                        preview={false}
+                        alt="logo"
+                        style={{
+                          objectFit: "contain",
+                          maxWidth: 96,
+                          filter: "brightness(0) invert(1)",
+                          cursor: "pointer",
+                        }}
+                        onClick={() => navigate("/admin/dashboard")}
+                      />
+                    )}
+                  </div>
+
+                  {headerActions}
+                </div>
+              )
+            : undefined
+        }
+        location={{ pathname: location.pathname }}
         token={{
           bgLayout: "#f6ffed",
           colorPrimary: primaryColor,
@@ -1430,16 +1404,33 @@ const AdminDashboard: React.FC = () => {
             colorBgMenuItemHover: "rgba(255,255,255,0.12)",
           },
         }}
-        menuHeaderRender={(logo: any, _title: any) => (
-          <div
-            id="customize_menu_header"
-            style={{ height: "0px", display: "flex", alignItems: "center" }}
-          >
-            {logo}
-          </div>
-        )}
         menuItemRender={(item: any, dom: any) => (
-          <NavLink to={item.path || "/admin"}>{dom}</NavLink>
+          <NavLink to={item?.path || "/admin"}>
+            {item?.icon ? (
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 10,
+                  width: "100%",
+                }}
+              >
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    fontSize: 15,
+                    color: "rgba(255,255,255,0.85)",
+                  }}
+                >
+                  {item.icon}
+                </span>
+                <span style={{ flex: 1 }}>{dom}</span>
+              </span>
+            ) : (
+              dom
+            )}
+          </NavLink>
         )}
       >
         <PageContainer
