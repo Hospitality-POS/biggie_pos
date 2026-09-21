@@ -460,6 +460,17 @@ export interface AgentStat {
     messages: number;
 }
 
+export interface PerAgentStat extends AgentStat {
+    upsellMessages: number;
+    conversations: number;
+    resolved: number;
+    converted: number;
+    resolutionRate: number;
+    conversionRate: number;
+    avgFirstResponseMinutes: number | null;
+    medianFirstResponseMinutes: number | null;
+}
+
 export interface DailyMessages {
     date: string;
     inbound: number;
@@ -498,14 +509,15 @@ export interface AnalyticsData {
     totalOutbound: number;
     resolvedOrClosed: number;
     resolutionRate: number;
-    averageFirstResponseMinutes: number;
-    medianFirstResponseMinutes: number;
+    averageFirstResponseMinutes: number | null;
+    medianFirstResponseMinutes: number | null;
     upsellMessages: number;
     conversionRate: number;
     averageMessagesPerConversation: number;
     totalAgents: number;
     totalCustomers: number;
     topAgents: AgentStat[];
+    perAgentStats: PerAgentStat[];
     statusBreakdown: Record<string, number>;
     responseTimeBuckets: ResponseTimeBuckets;
     messagesByDay: DailyMessages[];

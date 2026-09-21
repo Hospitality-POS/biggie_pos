@@ -50,7 +50,7 @@ const AgentStats: React.FC<Props> = ({ shopId }) => {
         staleTime: 10_000,
     });
 
-    const topAgents = analytics?.topAgents || [];
+    const perAgentStats = analytics?.perAgentStats || [];
     const agents = (agentsData?.agents || []) as any[];
     const openConversationsMap = new Map(
         agents.map((a) => [a._id, a.open_conversations])
@@ -64,6 +64,16 @@ const AgentStats: React.FC<Props> = ({ shopId }) => {
                   ((analytics?.resolvedOrClosed || 0) / analytics!.totalConversations) * 100
               )
             : 0;
+
+    const fmtMinutes = (mins: number | null | undefined) => {
+        if (mins === null || mins === undefined) return "—";
+        if (mins <= 0) return "0 min";
+        if (mins < 1) return `${Math.round(mins * 60)}s`;
+        if (mins < 60) return `${Number.isInteger(mins) ? mins : mins.toFixed(1)} min`;
+        const h = Math.floor(mins / 60);
+        const m = Math.round(mins % 60);
+        return m ? `${h}h ${m}m` : `${h}h`;
+    };
 
     const columns = [
         {
@@ -96,12 +106,48 @@ const AgentStats: React.FC<Props> = ({ shopId }) => {
             },
         },
         {
+            title: "Convos",
+            dataIndex: "conversations",
+            sorter: (a: any, b: any) => a.conversations - b.conversations,
+        },
+        {
             title: "Messages sent",
             dataIndex: "messages",
             sorter: (a: any, b: any) => a.messages - b.messages,
         },
         {
-            title: "Open conversations",
+            title: "Upsell msgs",
+            dataIndex: "upsellMessages",
+            sorter: (a: any, b: any) => a.upsellMessages - b.upsellMessages,
+        },
+        {
+            title: "Conversion",
+            dataIndex: "conversionRate",
+            sorter: (a: any, b: any) => a.conversionRate - b.conversionRate,
+            render: (v: number) => `${v ?? 0}%`,
+        },
+        {
+            title: "Resolution",
+            dataIndex: "resolutionRate",
+            sorter: (a: any, b: any) => a.resolutionRate - b.resolutionRate,
+            render: (v: number) => `${v ?? 0}%`,
+        },
+        {
+            title: "Avg 1st response",
+            dataIndex: "avgFirstResponseMinutes",
+            sorter: (a: any, b: any) =>
+                (a.avgFirstResponseMinutes ?? Infinity) - (b.avgFirstResponseMinutes ?? Infinity),
+            render: (v: number | null) => fmtMinutes(v),
+        },
+        {
+            title: "Median 1st response",
+            dataIndex: "medianFirstResponseMinutes",
+            sorter: (a: any, b: any) =>
+                (a.medianFirstResponseMinutes ?? Infinity) - (b.medianFirstResponseMinutes ?? Infinity),
+            render: (v: number | null) => fmtMinutes(v),
+        },
+        {
+            title: "Open",
             dataIndex: "user_id",
             sorter: (a: any, b: any) =>
                 (openConversationsMap.get(a.user_id) || 0) -
@@ -178,6 +224,24 @@ const AgentStats: React.FC<Props> = ({ shopId }) => {
                 <Col xs={24} sm={12} md={8} lg={4}>
                     <Card size="small">
                         <Statistic
+                            title="Avg first response"
+                            value={fmtMinutes(analytics?.averageFirstResponseMinutes)}
+                            loading={loading}
+                        />
+                    </Card>
+                </Col>
+                <Col xs={24} sm={12} md={8} lg={4}>
+                    <Card size="small">
+                        <Statistic
+                            title="Median first response"
+                            value={fmtMinutes(analytics?.medianFirstResponseMinutes)}
+                            loading={loading}
+                        />
+                    </Card>
+                </Col>
+                <Col xs={24} sm={12} md={8} lg={4}>
+                    <Card size="small">
+                        <Statistic
                             title="Avg msg / conv"
                             value={analytics?.averageMessagesPerConversation || 0}
                             loading={loading}
@@ -188,13 +252,13 @@ const AgentStats: React.FC<Props> = ({ shopId }) => {
 
             <Table
                 columns={columns as any}
-                dataSource={topAgents}
+                dataSource={perAgentStats}
                 rowKey="user_id"
                 loading={loading}
                 pagination={false}
                 size="small"
-                scroll={isMobile ? { x: 520 } : undefined}
-                title={() => "Top agents by outbound messages"}
+                scroll={isMobile ? { x: 900 } : { x: 1000 }}
+                title={() => "Agent performance"}
                 locale={{ emptyText: "No agent activity for this period" }}
             />
         </div>
