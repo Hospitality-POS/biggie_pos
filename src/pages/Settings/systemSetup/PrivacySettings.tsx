@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Switch, Space, Typography, Alert, Spin } from "antd";
 import { ProCard } from "@ant-design/pro-components";
-import { LockOutlined, UnlockOutlined, DollarOutlined, PrinterOutlined } from "@ant-design/icons";
+import { LockOutlined, UnlockOutlined, DollarOutlined, PrinterOutlined, InboxOutlined } from "@ant-design/icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { fetchSystemSetupDetailsById, updateSystemSetup } from "../../../services/systemsetup";
 import { fetchShop, updateShop } from "../../../services/shops";
@@ -17,10 +17,12 @@ const PrivacySettings: React.FC = () => {
   const [enablePrivacy, setEnablePrivacy] = useState(false);
   const [staffEarningEnabled, setStaffEarningEnabled] = useState(false);
   const [requirePaymentBeforePrint, setRequirePaymentBeforePrint] = useState(false);
+  const [cartDeductionEnabled, setCartDeductionEnabled] = useState(false);
   const [loading, setLoading] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [updatingStaffEarning, setUpdatingStaffEarning] = useState(false);
   const [updatingPaymentBeforePrint, setUpdatingPaymentBeforePrint] = useState(false);
+  const [updatingCartDeduction, setUpdatingCartDeduction] = useState(false);
   const [systemSettingsId, setSystemSettingsId] = useState<string | null>(null);
   const [shopId, setShopId] = useState<string | null>(null);
 
@@ -38,6 +40,7 @@ const PrivacySettings: React.FC = () => {
         const shopData = await fetchShop(currentShopId);
         setStaffEarningEnabled(shopData?.staff_earning_enabled || false);
         setRequirePaymentBeforePrint(shopData?.require_payment_before_print || false);
+        setCartDeductionEnabled(shopData?.cart_inventory_deduction_enabled || false);
       }
     } catch (error) {
       console.error("Failed to fetch privacy setting:", error);
@@ -120,6 +123,33 @@ const PrivacySettings: React.FC = () => {
       message.error("Failed to update payment-before-print setting");
     } finally {
       setUpdatingPaymentBeforePrint(false);
+    }
+  };
+
+  const handleToggleCartDeduction = async (checked: boolean) => {
+    if (!shopId) {
+      message.error("Shop not found");
+      return;
+    }
+
+    setUpdatingCartDeduction(true);
+    try {
+      await updateShop({
+        _id: shopId,
+        cart_inventory_deduction_enabled: checked,
+      });
+      setCartDeductionEnabled(checked);
+      queryClient.invalidateQueries({ queryKey: ["shop", shopId] });
+      message.success(
+        checked
+          ? "Cart-level inventory deductions enabled"
+          : "Cart-level inventory deductions disabled"
+      );
+    } catch (error) {
+      console.error("Failed to update cart deduction setting:", error);
+      message.error("Failed to update cart deduction setting");
+    } finally {
+      setUpdatingCartDeduction(false);
     }
   };
 
@@ -266,6 +296,46 @@ const PrivacySettings: React.FC = () => {
               checked={requirePaymentBeforePrint}
               onChange={handleToggleRequirePaymentBeforePrint}
               loading={updatingPaymentBeforePrint}
+              style={{ minWidth: 48, marginLeft: 16 }}
+              checkedChildren="ON"
+              unCheckedChildren="OFF"
+            />
+          </div>
+        </div>
+
+        {/* Cart-Level Inventory Deduction Toggle */}
+        <div
+          style={{
+            background: "#fff",
+            border: "1px solid #e2e8f0",
+            borderRadius: 8,
+            padding: "16px 18px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <div style={{ flex: 1 }}>
+              <Text strong style={{ fontSize: 15, display: "block", marginBottom: 6 }}>
+                <Space>
+                  <InboxOutlined />
+                  {cartDeductionEnabled
+                    ? "Cart-Level Inventory Deduction Enabled"
+                    : "Cart-Level Inventory Deduction Disabled"}
+                </Space>
+              </Text>
+              <Text style={{ fontSize: 13, color: C.subText, display: "block" }}>
+                When enabled, each cart item shows a "Deduct" option in the cart drawer. Cashiers can attach one or more inventory items (including specific variants) to be deducted from stock when the order is placed.
+              </Text>
+            </div>
+            <Switch
+              checked={cartDeductionEnabled}
+              onChange={handleToggleCartDeduction}
+              loading={updatingCartDeduction}
               style={{ minWidth: 48, marginLeft: 16 }}
               checkedChildren="ON"
               unCheckedChildren="OFF"
