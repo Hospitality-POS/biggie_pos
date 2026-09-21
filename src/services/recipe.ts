@@ -16,6 +16,7 @@ interface RecipeItem {
   ratio?: number;
   formatType?: string;
   itemFormat?: string; // Format for individual item
+  variant_id?: string | null; // Inventory variant to deduct (when item has variants)
 }
 
 interface RecipePayload {
@@ -53,7 +54,8 @@ export const createRecipe = async (
         unit_id: item.unit,
         quantity: item.quantity,
         ratio: item.ratio || 1,
-        formatType: item.itemFormat || "direct" // Use item-specific format
+        formatType: item.itemFormat || "direct", // Use item-specific format
+        variant_id: item.variant_id || null
       })),
       shop_id: payload.shop_id
     };
@@ -81,7 +83,8 @@ export const updateRecipe = async (
         unit_id: item.unit,
         quantity: item.quantity,
         ratio: item.ratio || 1,
-        formatType: item.itemFormat || "direct" // Use item-specific format
+        formatType: item.itemFormat || "direct", // Use item-specific format
+        variant_id: item.variant_id || null
       })),
     };
 

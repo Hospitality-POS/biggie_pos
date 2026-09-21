@@ -723,7 +723,11 @@ const CartDrawer: React.FC = () => {
                 <SkeletonCartItemCard key={i} />
               ))
             : data?.map((item: { _id: Key | null | undefined | string }) => (
-                <CartItemCardMemo key={item._id} cartItem={item} />
+                <CartItemCardMemo
+                  key={item._id}
+                  cartItem={item}
+                  cartDeductionEnabled={!!shopData?.cart_inventory_deduction_enabled}
+                />
               ))}
           {loadingData && loading && <CartLoader />}
         </div>

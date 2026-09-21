@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { deleteCartItem, addQtyCart, removeQtyCart, updateCartItemQty, updateCartItems, addItemToCart } from "../../features/Cart/CartActions";
+import { deleteCartItem, addQtyCart, removeQtyCart, updateCartItemQty, updateCartItems, addItemToCart, getCart } from "../../features/Cart/CartActions";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { Button, Typography, notification, Tooltip, Input, Checkbox, Space, Tag, Modal, Form, InputNumber, Select } from "antd";
 import {
@@ -11,15 +11,18 @@ import {
   TagOutlined,
   CloseCircleOutlined,
   CheckCircleOutlined,
+  InboxOutlined,
 } from "@ant-design/icons";
 import useCartItemsData from "@hooks/cartItemsData";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import axiosInstance from "../../services/request";
 import { BASE_URL } from "@utils/config";
 import { fetchMainCategories } from "../../services/categories";
+import CartItemDeductionModal from "./components/CartItemDeductionModal";
 
 interface cartItemCardProps {
   cartItem: any;
+  cartDeductionEnabled?: boolean;
 }
 
 function formatQuantity(quantity: number | undefined | null): string {
@@ -31,7 +34,7 @@ function formatPrice(price: number | undefined | null): string {
   return price.toLocaleString();
 }
 
-const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
+const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem, cartDeductionEnabled }) => {
   const dispatch = useAppDispatch();
   const { cartDetails } = useAppSelector((state) => state.cart);
   const { user } = useAppSelector((state) => state.auth);
@@ -53,6 +56,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
   const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
   const [allAvailableAddons, setAllAvailableAddons] = useState<any[]>([]);
   const [isEditMiscModalOpen, setIsEditMiscModalOpen] = useState(false);
+  const [isDeductModalOpen, setIsDeductModalOpen] = useState(false);
   const [editMiscLoading, setEditMiscLoading] = useState(false);
   const [mainCategories, setMainCategories] = useState<{ value: string; label: string }[]>([]);
   const [editMiscForm] = Form.useForm();
@@ -521,7 +525,58 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                     )}
                   </div>
                 </Tooltip>
+
               </div>
+
+              {/* Inventory deduction button — gated by shop-level flag */}
+              {cartDeductionEnabled && !cartLocked && (
+                <Tooltip
+                  title={
+                    cartItem?.inventory_deduction_enabled &&
+                    (cartItem?.inventory_deductions?.length ?? 0) > 0
+                      ? `Deducts ${cartItem.inventory_deductions.length} inventory item(s) on checkout`
+                      : "Choose inventory items to deduct for this line"
+                  }
+                >
+                  <button
+                    onClick={() => setIsDeductModalOpen(true)}
+                    style={{
+                      marginTop: 4,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 5,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      lineHeight: 1,
+                      padding: "4px 9px",
+                      borderRadius: 5,
+                      border: `1px solid ${
+                        cartItem?.inventory_deduction_enabled &&
+                        (cartItem?.inventory_deductions?.length ?? 0) > 0
+                          ? (isSent ? "#ffffff" : primaryColor)
+                          : (isSent ? "rgba(255,255,255,0.5)" : "#cbd5e1")
+                      }`,
+                      backgroundColor:
+                        cartItem?.inventory_deduction_enabled &&
+                        (cartItem?.inventory_deductions?.length ?? 0) > 0
+                          ? (isSent ? "rgba(255,255,255,0.2)" : `${primaryColor}14`)
+                          : "transparent",
+                      color:
+                        cartItem?.inventory_deduction_enabled &&
+                        (cartItem?.inventory_deductions?.length ?? 0) > 0
+                          ? (isSent ? "#ffffff" : primaryColor)
+                          : (isSent ? "rgba(255,255,255,0.8)" : "#64748b"),
+                      cursor: "pointer",
+                    }}
+                  >
+                    <InboxOutlined style={{ fontSize: 12 }} />
+                    {cartItem?.inventory_deduction_enabled &&
+                    (cartItem?.inventory_deductions?.length ?? 0) > 0
+                      ? `Deducting ${cartItem.inventory_deductions.length} item(s)`
+                      : "Deduct Inventory"}
+                  </button>
+                </Tooltip>
+              )}
             </div>
 
             {/* Quantity Controls */}
@@ -910,6 +965,19 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
       </div>
     </Modal>
     )}
+
+    {/* Inventory Deductions Modal */}
+    <CartItemDeductionModal
+      open={isDeductModalOpen}
+      onClose={() => setIsDeductModalOpen(false)}
+      cartItem={cartItem}
+      primaryColor={primaryColor}
+      onSuccess={() => {
+        invalidate();
+        const tableRef = cartDetails?.table_id?._id || cartDetails?.table_id;
+        if (tableRef) dispatch(getCart(String(tableRef)));
+      }}
+    />
 
     {/* Edit Miscellaneous Item Modal */}
     {isMiscellaneous && (

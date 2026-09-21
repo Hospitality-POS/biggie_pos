@@ -3,6 +3,7 @@ import { ActionType, ProTable } from "@ant-design/pro-components";
 import {
   Button, message, Popconfirm, Space, Tag, Image, Tooltip,
   Dropdown, Typography, Card, Skeleton, Empty, Modal, Upload, Alert, Checkbox, Spin,
+  Popover, Table,
 } from "antd";
 import {
   deleteInventory, fetchAllInventory, downloadInventoryTemplate,
@@ -72,6 +73,152 @@ const renderStockLevel = (record: any) => {
       <Text strong style={{ color: isCritical ? "#ef4444" : isLow ? "#f59e0b" : "#10b981" }}>{quantity?.toLocaleString()}</Text>
       {isLow && <Tooltip title={`Low stock! Min: ${min_viable_quantity}`}><WarningOutlined style={{ color: isCritical ? "#ef4444" : "#f59e0b", fontSize: 12 }} /></Tooltip>}
     </Space>
+  );
+};
+
+// ── Variant stock helpers ─────────────────────────────────────────────────────
+// out: qty 0 | low: qty <= min_viable_quantity (or <= 1 when no min configured)
+const variantStockState = (variant: any, minViable?: number): "out" | "low" | "ok" => {
+  const qty = variant?.quantity ?? 0;
+  if (qty <= 0) return "out";
+  const threshold = minViable && minViable > 0 ? minViable : 1;
+  return qty <= threshold ? "low" : "ok";
+};
+
+const VARIANT_STATE_CONFIG: Record<string, { color: string; bg: string; label: string }> = {
+  out: { color: "#ef4444", bg: "#fef2f2", label: "Out of stock" },
+  low: { color: "#f59e0b", bg: "#fffbeb", label: "Almost out" },
+  ok: { color: "#10b981", bg: "#f0fdf4", label: "In stock" },
+};
+
+const getVariants = (record: any): any[] =>
+  Array.isArray(record?.variants) ? record.variants : [];
+
+const hasVariants = (record: any): boolean =>
+  getVariants(record).length > 0;
+
+// Compact badge shown under the Stock cell when any variant is low/out — opens a
+// popover listing every variant with its own stock state
+const VariantStockBadge: React.FC<{ record: any }> = ({ record }) => {
+  const variants = getVariants(record);
+  if (!variants.length) return null;
+
+  const counts = variants.reduce(
+    (acc, v) => {
+      acc[variantStockState(v, record.min_viable_quantity)] += 1;
+      return acc;
+    },
+    { out: 0, low: 0, ok: 0 } as Record<string, number>
+  );
+
+  if (!counts.out && !counts.low) {
+    return <Text style={{ fontSize: 10, color: "#94a3b8" }}>{variants.length} variants in stock</Text>;
+  }
+
+  const worst = counts.out ? VARIANT_STATE_CONFIG.out : VARIANT_STATE_CONFIG.low;
+  const label = counts.out
+    ? `${counts.out} variant${counts.out > 1 ? "s" : ""} out of stock`
+    : `${counts.low} variant${counts.low > 1 ? "s" : ""} almost out`;
+
+  return (
+    <Popover
+      title={<Text strong style={{ fontSize: 12 }}>Variant stock</Text>}
+      content={
+        <div style={{ minWidth: 220 }}>
+          {variants.map((v: any) => {
+            const state = variantStockState(v, record.min_viable_quantity);
+            const cfg = VARIANT_STATE_CONFIG[state];
+            return (
+              <div
+                key={v._id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "4px 0",
+                  borderBottom: "1px solid #f1f5f9",
+                }}
+              >
+                <Text style={{ fontSize: 12 }}>{v.name}</Text>
+                <Space size={6}>
+                  <Text strong style={{ fontSize: 12, color: cfg.color }}>{v.quantity ?? 0}</Text>
+                  <Tag style={{ border: "none", borderRadius: 4, fontSize: 10, padding: "0 5px", background: cfg.bg, color: cfg.color }}>
+                    {cfg.label}
+                  </Tag>
+                </Space>
+              </div>
+            );
+          })}
+        </div>
+      }
+    >
+      <Tag
+        icon={<WarningOutlined />}
+        style={{
+          border: "none",
+          borderRadius: 5,
+          fontSize: 10,
+          fontWeight: 600,
+          padding: "1px 7px",
+          margin: 0,
+          background: worst.bg,
+          color: worst.color,
+          cursor: "pointer",
+        }}
+      >
+        {label}
+      </Tag>
+    </Popover>
+  );
+};
+
+// Expandable row: full variant breakdown table
+const VariantStockTable: React.FC<{ record: any }> = ({ record }) => {
+  const variants = getVariants(record);
+  return (
+    <Table
+      size="small"
+      rowKey="_id"
+      dataSource={variants}
+      pagination={false}
+      style={{ margin: "4px 0 4px 40px", maxWidth: 720 }}
+      columns={[
+        {
+          title: "Variant",
+          dataIndex: "name",
+          render: (name: string, v: any) => (
+            <Space direction="vertical" size={0}>
+              <Text strong style={{ fontSize: 12 }}>{name}</Text>
+              {v.attributes && typeof v.attributes === "object" && Object.keys(v.attributes).length > 0 && (
+                <Text style={{ fontSize: 10, color: "#94a3b8" }}>
+                  {Object.entries(v.attributes).map(([k, val]) => `${k}: ${val}`).join(", ")}
+                </Text>
+              )}
+            </Space>
+          ),
+        },
+        { title: "SKU", dataIndex: "sku", width: 140, render: (sku: string) => sku ? <code style={{ fontSize: 11, color: "#64748b" }}>{sku}</code> : <Text type="secondary" style={{ fontSize: 11 }}>—</Text> },
+        {
+          title: "Quantity",
+          dataIndex: "quantity",
+          width: 120,
+          render: (_: any, v: any) => {
+            const cfg = VARIANT_STATE_CONFIG[variantStockState(v, record.min_viable_quantity)];
+            return <Text strong style={{ color: cfg.color }}>{v.quantity ?? 0}</Text>;
+          },
+        },
+        {
+          title: "Status",
+          width: 130,
+          render: (_: any, v: any) => {
+            const state = variantStockState(v, record.min_viable_quantity);
+            const cfg = VARIANT_STATE_CONFIG[state];
+            return <Tag style={{ border: "none", borderRadius: 4, fontSize: 11, background: cfg.bg, color: cfg.color }}>{cfg.label}</Tag>;
+          },
+        },
+        { title: "Price", dataIndex: "price", width: 110, render: (p: number) => <Text style={{ fontSize: 12 }}>{p ? `Ksh ${fmtK(p)}` : "—"}</Text> },
+      ]}
+    />
   );
 };
 
@@ -585,6 +732,18 @@ const InventoryCard: React.FC<InventoryCardProps> = ({ record, onDelete, deletin
           {renderUsageType(record.usage_type)}
         </div>
       </div>
+      {getVariants(record).length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 10 }}>
+          {getVariants(record).map((v: any) => {
+            const cfg = VARIANT_STATE_CONFIG[variantStockState(v, min_viable_quantity)];
+            return (
+              <Tag key={v._id} style={{ border: "none", borderRadius: 5, fontSize: 10, padding: "1px 7px", margin: 0, background: cfg.bg, color: cfg.color, fontWeight: 500 }}>
+                {v.name}: {v.quantity ?? 0}
+              </Tag>
+            );
+          })}
+        </div>
+      )}
       {record?.subcategory_id?.name && <div style={{ marginBottom: 8 }}><Tag style={{ background: "#eff6ff", color: "#1d4ed8", border: "none", borderRadius: 5, fontSize: 11 }}>{record.subcategory_id.name}</Tag></div>}
       {!selectMode && (
         <div style={{ display: "flex", gap: 8 }}>
@@ -832,9 +991,19 @@ const InventorySettings = () => {
         { title: "Product Name", dataIndex: "name", hideInSearch: false, fixed: "left" as const, sorter: true, ellipsis: true, fieldProps: { placeholder: "Search name" }, render: (text: any, record: any) => <Space direction="vertical" size={2}><Text strong style={{ fontSize: 13, color: "#0f172a" }}>{text}</Text>{record.desc && <Text style={{ fontSize: 11, color: "#94a3b8", display: "block", maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{record.desc}</Text>}</Space> },
         { title: "Category", dataIndex: "subcategory_id", hideInSearch: true, width: 120, render: (_: any, record: any) => record?.subcategory_id?.name ? <Tag style={{ background: "#eff6ff", color: "#1d4ed8", border: "none", borderRadius: 5, fontSize: 11 }}>{record.subcategory_id.name}</Tag> : <Text type="secondary" style={{ fontSize: 12 }}>—</Text> },
         { title: "Usage", dataIndex: "usage_type", hideInSearch: true, width: 110, render: (_: any, record: any) => renderUsageType(record.usage_type), filters: [{ text: "For Sale", value: "selling" }, { text: "Internal", value: "internal" }, { text: "Both", value: "both" }] },
-        { title: "Stock", dataIndex: "quantity", hideInSearch: true, width: 130, sorter: true, render: (_: any, record: any) => <Space direction="vertical" size={2}>{renderStockLevel(record)}<Text style={{ fontSize: 11, color: "#94a3b8" }}>{record?.unit_id?.name || "units"}</Text>{record.min_viable_quantity && <Text style={{ fontSize: 11, color: "#94a3b8" }}>Min: {record.min_viable_quantity}</Text>}</Space> },
+        { title: "Stock", dataIndex: "quantity", hideInSearch: true, width: 170, sorter: true, render: (_: any, record: any) => <Space direction="vertical" size={2}>{renderStockLevel(record)}<Text style={{ fontSize: 11, color: "#94a3b8" }}>{record?.unit_id?.name || "units"}</Text>{record.min_viable_quantity && <Text style={{ fontSize: 11, color: "#94a3b8" }}>Min: {record.min_viable_quantity}</Text>}<VariantStockBadge record={record} /></Space> },
         { title: "Pricing", dataIndex: "price", hideInSearch: true, width: 130, render: (_: any, record: any) => renderPrice(record) },
         { title: "Status", dataIndex: "status", hideInSearch: true, width: 110, render: (_: any, record: any) => renderStatus(record.status), filters: [{ text: "Active", value: "active" }, { text: "Inactive", value: "inactive" }, { text: "Discontinued", value: "discontinued" }] },
+        {
+          title: "Stock State", dataIndex: "stock_state", hideInTable: true, hideInSearch: false,
+          valueType: "select" as const,
+          valueEnum: {
+            variant_out: { text: "Variant out of stock" },
+            variant_low: { text: "Variant low / out" },
+            low: { text: "Low stock (item)" },
+          },
+          fieldProps: { placeholder: "Filter by stock state", allowClear: true },
+        },
         {
           title: "Actions", dataIndex: "actions", hideInSearch: true, width: 140, fixed: "right" as const,
           render: (_: any, record: any) => (
@@ -851,8 +1020,20 @@ const InventorySettings = () => {
         try {
           const queryParams = { ...params, current: params.current || 1, pageSize: params.pageSize || 10, ...(sort && Object.keys(sort).length > 0 && { sortField: Object.keys(sort)[0], sortOrder: Object.values(sort)[0] === "ascend" ? "asc" : "desc" }), ...(filter && Object.keys(filter).length > 0 && { ...filter }) };
           const data = await fetchAllInventory(queryParams);
-          return { data, success: true, total: data.length };
+          let filtered = Array.isArray(data) ? data : [];
+          if (params.stock_state === "variant_out") {
+            filtered = filtered.filter((i: any) => getVariants(i).some((v: any) => variantStockState(v, i.min_viable_quantity) === "out"));
+          } else if (params.stock_state === "variant_low") {
+            filtered = filtered.filter((i: any) => getVariants(i).some((v: any) => variantStockState(v, i.min_viable_quantity) !== "ok"));
+          } else if (params.stock_state === "low") {
+            filtered = filtered.filter((i: any) => i.min_viable_quantity && i.quantity <= i.min_viable_quantity);
+          }
+          return { data: filtered, success: true, total: filtered.length };
         } catch { message.error("Failed to fetch inventory"); return { data: [], success: false, total: 0 }; }
+      }}
+      expandable={{
+        rowExpandable: (record: any) => hasVariants(record),
+        expandedRowRender: (record: any) => <VariantStockTable record={record} />,
       }}
       rowSelection={{ selectedRowKeys, onChange: (keys) => setSelectedRowKeys(keys), alwaysShowAlert: false }}
       tableAlertRender={({ selectedRowKeys: keys }: any) => keys.length > 0 ? (
