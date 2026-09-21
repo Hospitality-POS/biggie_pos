@@ -1448,9 +1448,10 @@ export const reorderMaintenanceCategories = async (data: { categories: Array<{ i
 
 // ── Dashboard & Reports API ───────────────────────────────────────────────────
 
-export const fetchDalaDashboard = async () => {
+export const fetchDalaDashboard = async (params?: { start_date?: string; end_date?: string; period?: string }) => {
   try {
     const response = await axiosInstance.get(`${dalaUrl}/dashboard`, {
+      params,
       headers: getDalaHeaders()
     });
     return response.data;

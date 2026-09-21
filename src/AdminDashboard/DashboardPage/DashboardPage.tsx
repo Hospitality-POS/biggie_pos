@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -6,71 +6,42 @@ import {
   Typography,
   Row,
   Col,
-  Table,
-  Badge,
   Space,
-  Skeleton,
   message,
   notification,
   Radio,
   DatePicker,
   Flex,
-  Divider,
-  Tag,
-  Progress,
-  Empty,
+  Alert,
   Drawer,
 } from "antd";
 import {
-  ShoppingCartOutlined,
-  ShopOutlined,
-  TeamOutlined,
-  WarningOutlined,
   ReloadOutlined,
   CalendarOutlined,
-  LineChartOutlined,
-  FireOutlined,
-  TrophyOutlined,
-  RiseOutlined,
-  DollarOutlined,
-  FallOutlined,
-  CheckCircleOutlined,
-  FileTextOutlined,
-  SyncOutlined,
-  PieChartOutlined,
   FilterOutlined,
-  ArrowUpOutlined,
-  ArrowDownOutlined,
   DashboardOutlined,
+  WarningOutlined,
+  DollarOutlined,
+  ShoppingCartOutlined,
+  RiseOutlined,
+  TeamOutlined,
 } from "@ant-design/icons";
-import { Line } from "@ant-design/charts";
 import {
   getAdminDashboardAnalysis,
   getBestSellers,
   getSalesChartData,
 } from "@services/orders";
 import dayjs from "dayjs";
-import { ProCard } from "@ant-design/pro-components";
-import BusinessImpact from "src/pages/Report/BusinessImpact";
+import {
+  DashboardKPICards,
+  DashboardSalesTrendChart,
+  DashboardTopSellersChart,
+  DashboardOperationalHub,
+} from "src/components/dashboard";
+import { usePrimaryColor } from "@context/PrimaryColorContext";
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
-
-// ── Constants ────────────────────────────────────────────────────────────────
-
-const COLORS = {
-  primary: "#1890ff",
-  success: "#10b981",
-  warning: "#f59e0b",
-  error: "#ef4444",
-  purple: "#6366f1",
-  orange: "#f97316",
-  cyan: "#06b6d4",
-  gray: "#64748b",
-  lightGray: "#f8fafc",
-  text: "#0f172a",
-  subtext: "#64748b",
-};
 
 const PERIOD_LABELS: Record<string, string> = {
   day: "Today",
@@ -80,7 +51,12 @@ const PERIOD_LABELS: Record<string, string> = {
   custom: "Custom Period",
 };
 
-// ── Hooks ────────────────────────────────────────────────────────────────────
+const fmtK = (v: number) => {
+  if (!v && v !== 0) return "0";
+  if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+  if (Math.abs(v) >= 1_000) return `${(v / 1_000).toFixed(1)}K`;
+  return v.toLocaleString("en-KE", { minimumFractionDigits: 0 });
+};
 
 const useIsMobile = () => {
   const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);
@@ -92,672 +68,12 @@ const useIsMobile = () => {
   return isMobile;
 };
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-const fmtK = (v: number) => {
-  if (!v && v !== 0) return "0";
-  if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
-  if (Math.abs(v) >= 1_000) return `${(v / 1_000).toFixed(1)}K`;
-  return v.toLocaleString("en-KE", { minimumFractionDigits: 0 });
-};
-
-// ── KPI Card (borrowed from AccountingDashboard) ──────────────────────────────
-
-interface KPICardProps {
-  title: string;
-  value: number | string;
-  icon: React.ReactNode;
-  color: string;
-  bg: string;
-  pctChange?: number | null;
-  prefix?: string;
-  suffix?: string;
-  onClick?: () => void;
-  loading?: boolean;
-}
-
-const KPICard: React.FC<KPICardProps> = ({
-  title, value, icon, color, bg, pctChange, prefix = "Ksh", suffix, onClick, loading,
-}) => (
-  <Col xs={12} sm={12} lg={6}>
-    <div
-      onClick={onClick}
-      style={{
-        background: bg,
-        borderRadius: 12,
-        padding: "18px 20px",
-        height: "100%",
-        position: "relative",
-        overflow: "hidden",
-        cursor: onClick ? "pointer" : "default",
-        transition: "box-shadow 0.2s ease",
-        boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-      }}
-      onMouseEnter={(e) => {
-        if (onClick) (e.currentTarget as HTMLDivElement).style.boxShadow = "0 4px 16px rgba(0,0,0,0.1)";
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLDivElement).style.boxShadow = "0 1px 3px rgba(0,0,0,0.06)";
-      }}
-    >
-      {/* decorative circle */}
-      <div
-        style={{
-          position: "absolute",
-          right: -16,
-          top: -16,
-          width: 80,
-          height: 80,
-          borderRadius: "50%",
-          background: `${color}18`,
-        }}
-      />
-      {loading ? (
-        <Skeleton active paragraph={false} />
-      ) : (
-        <Space direction="vertical" size={4} style={{ width: "100%", position: "relative", zIndex: 1 }}>
-          <Space align="center" size={6}>
-            <div
-              style={{
-                background: `${color}20`,
-                borderRadius: 8,
-                padding: "5px 7px",
-                color,
-                fontSize: 16,
-                lineHeight: 1,
-              }}
-            >
-              {icon}
-            </div>
-            <Text style={{ fontSize: 11, color: COLORS.subtext, fontWeight: 500 }}>{title}</Text>
-          </Space>
-          <Text
-            strong
-            style={{ fontSize: 20, color: COLORS.text, display: "block", lineHeight: 1.2 }}
-          >
-            {prefix ? `${prefix} ` : ""}{typeof value === "number" ? fmtK(value) : value}
-            {suffix && <span style={{ fontSize: 11, marginLeft: 4, color: COLORS.subtext }}>{suffix}</span>}
-          </Text>
-          {pctChange !== null && pctChange !== undefined && (
-            <Space size={3}>
-              {pctChange >= 0 ? (
-                <ArrowUpOutlined style={{ color: COLORS.success, fontSize: 10 }} />
-              ) : (
-                <ArrowDownOutlined style={{ color: COLORS.error, fontSize: 10 }} />
-              )}
-              <Text style={{ fontSize: 10, color: pctChange >= 0 ? COLORS.success : COLORS.error }}>
-                {Math.abs(pctChange).toFixed(1)}% vs last period
-              </Text>
-            </Space>
-          )}
-        </Space>
-      )}
-    </div>
-  </Col>
-);
-
-// ── Business performance calculation ─────────────────────────────────────────
-
-const calculateBusinessIndicators = (chartData: any, apiData: any, periodFilter: string) => {
-  const totalRevenue = apiData?.todayRevenue || 0;
-  const totalOrders = apiData?.totalOrderCount || 0;
-  const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
-  const growthRate = chartData?.data?.summary?.growth_rate || 0;
-
-  if (!chartData?.data?.chart_data?.length || totalRevenue === 0) {
-    return {
-      trend: "no-sales",
-      trendText: `No sales ${PERIOD_LABELS[periodFilter]?.toLowerCase() || "in selected period"}`,
-      trendColor: COLORS.error,
-      insights: [
-        { type: "negative", text: "Zero revenue — immediate action needed" },
-        { type: "warning", text: "Consider marketing campaigns or promotions" },
-      ],
-      performance: "critical",
-      performanceColor: COLORS.error,
-      performanceText: "Critical — No Sales",
-      avgOrderValue: 0,
-    };
-  }
-
-  let performance: string, performanceColor: string, performanceText: string;
-  if (totalOrders >= 50) {
-    [performance, performanceColor, performanceText] = ["excellent", COLORS.success, "Excellent"];
-  } else if (totalOrders >= 25) {
-    [performance, performanceColor, performanceText] = ["good", COLORS.success, "Strong"];
-  } else if (totalOrders >= 10) {
-    [performance, performanceColor, performanceText] = ["moderate", COLORS.primary, "Moderate"];
-  } else if (totalOrders >= 3) {
-    [performance, performanceColor, performanceText] = ["low", COLORS.warning, "Low Activity"];
-  } else {
-    [performance, performanceColor, performanceText] = ["critical", COLORS.error, "Critical"];
-  }
-
-  let trend: string, trendColor: string, trendText: string;
-  if (growthRate > 20) {
-    [trend, trendColor, trendText] = ["up-strong", COLORS.success, `Accelerating (+${growthRate.toFixed(1)}%)`];
-  } else if (growthRate > 5) {
-    [trend, trendColor, trendText] = ["up", COLORS.success, `Growing (+${growthRate.toFixed(1)}%)`];
-  } else if (growthRate > -5) {
-    [trend, trendColor, trendText] = ["neutral", COLORS.gray, `Stable (${growthRate.toFixed(1)}%)`];
-  } else if (growthRate > -15) {
-    [trend, trendColor, trendText] = ["down", COLORS.warning, `Slowing (${growthRate.toFixed(1)}%)`];
-  } else {
-    [trend, trendColor, trendText] = ["down-critical", COLORS.error, `Declining (${growthRate.toFixed(1)}%)`];
-  }
-
-  const insights: { type: string; text: string }[] = [];
-  if (totalOrders > 0) {
-    if (avgOrderValue > 2500) {
-      insights.push({ type: "positive", text: `Excellent avg: Ksh ${avgOrderValue.toFixed(0)}` });
-    } else if (avgOrderValue < 500) {
-      insights.push({ type: "warning", text: `Low avg: Ksh ${avgOrderValue.toFixed(0)} — consider upselling` });
-    }
-  }
-  if (chartData?.data?.summary?.peak_period) {
-    const peak = chartData.data.summary.peak_period;
-    insights.push({ type: "positive", text: `Peak: ${peak.time} (Ksh ${peak.sales?.toLocaleString()})` });
-  }
-
-  return { trend, trendText, trendColor, insights, performance, performanceColor, performanceText, avgOrderValue };
-};
-
-// ── Table column configs ──────────────────────────────────────────────────────
-
-const createOrderColumns = (isMobile: boolean) =>
-  isMobile
-    ? [
-      { title: "Order No", dataIndex: "order_no", key: "order_no", width: 100 },
-      {
-        title: "Amount",
-        dataIndex: "order_amount",
-        key: "order_amount",
-        render: (amount: number) => (
-          <Text strong style={{ color: COLORS.success, fontSize: 12 }}>
-            Ksh {amount?.toFixed(2)}
-          </Text>
-        ),
-      },
-      { title: "Table", dataIndex: "table", key: "table", width: 70 },
-    ]
-    : [
-      { title: "Order No", dataIndex: "order_no", key: "order_no", width: 120 },
-      { title: "Table", dataIndex: "table", key: "table", width: 80 },
-      { title: "Shop", dataIndex: "shop_name", key: "shop_name", ellipsis: true },
-      {
-        title: "Amount",
-        dataIndex: "order_amount",
-        key: "order_amount",
-        width: 120,
-        render: (amount: number) => (
-          <Text strong style={{ color: COLORS.success }}>
-            Ksh {amount?.toFixed(2)}
-          </Text>
-        ),
-      },
-      { title: "Served By", dataIndex: "servedBy", key: "servedBy", ellipsis: true },
-    ];
-
-const createStockColumns = (isMobile: boolean) =>
-  isMobile
-    ? [
-      { title: "Item", dataIndex: "name", key: "name", ellipsis: true },
-      {
-        title: "Qty",
-        dataIndex: "quantity",
-        key: "quantity",
-        width: 60,
-        render: (quantity: number) => (
-          <Text style={{ color: quantity <= 0 ? COLORS.error : COLORS.warning, fontWeight: 600 }}>
-            {quantity}
-          </Text>
-        ),
-      },
-      {
-        title: "Status",
-        key: "status",
-        width: 90,
-        render: (_: any, record: any) => {
-          const isOutOfStock = record.quantity <= 0;
-          return (
-            <Badge status={isOutOfStock ? "error" : "warning"} text={isOutOfStock ? "Out" : "Low"} />
-          );
-        },
-      },
-    ]
-    : [
-      { title: "Item Name", dataIndex: "name", key: "name", ellipsis: true },
-      { title: "Shop", dataIndex: "shop_name", key: "shop_name", width: 120 },
-      {
-        title: "Current",
-        dataIndex: "quantity",
-        key: "quantity",
-        width: 80,
-        render: (quantity: number) => (
-          <Text style={{ color: quantity <= 0 ? COLORS.error : COLORS.warning, fontWeight: 600 }}>
-            {quantity}
-          </Text>
-        ),
-      },
-      { title: "Min Required", dataIndex: "min_viable_quantity", key: "min_viable_quantity", width: 100 },
-      {
-        title: "Status",
-        key: "status",
-        width: 120,
-        render: (_: any, record: any) => {
-          const isOutOfStock = record.quantity <= 0;
-          const isLow = record.quantity <= record.min_viable_quantity;
-          return (
-            <Badge
-              status={isOutOfStock ? "error" : "warning"}
-              text={isOutOfStock ? "Out of stock" : isLow ? `${record.quantity} left` : "Low stock"}
-            />
-          );
-        },
-      },
-    ];
-
-const createBestSellerColumns = (isMobile: boolean) =>
-  isMobile
-    ? [
-      {
-        title: "#",
-        dataIndex: "rank",
-        key: "rank",
-        width: 40,
-        render: (rank: number) =>
-          rank <= 3 ? (
-            <TrophyOutlined
-              style={{
-                color: rank === 1 ? "#ffd700" : rank === 2 ? "#c0c0c0" : "#cd7f32",
-                fontSize: 16,
-              }}
-            />
-          ) : (
-            <span style={{ fontWeight: 600, color: COLORS.primary, fontSize: 12 }}>#{rank}</span>
-          ),
-      },
-      {
-        title: "Product",
-        dataIndex: "name",
-        key: "name",
-        render: (name: string, record: any) => (
-          <div>
-            <div style={{ fontWeight: 500, fontSize: 13, color: COLORS.text }}>{name}</div>
-            <div style={{ fontSize: 11, color: COLORS.gray }}>{record.sales_metrics.order_count} orders</div>
-          </div>
-        ),
-      },
-      {
-        title: "Revenue",
-        dataIndex: ["sales_metrics", "total_revenue"],
-        key: "revenue",
-        render: (revenue: number) => (
-          <Text style={{ fontWeight: 600, color: COLORS.primary, fontSize: 12 }}>
-            Ksh {revenue?.toLocaleString()}
-          </Text>
-        ),
-      },
-    ]
-    : [
-      {
-        title: "Rank",
-        dataIndex: "rank",
-        key: "rank",
-        width: 60,
-        render: (rank: number) => (
-          <div style={{ textAlign: "center" }}>
-            {rank <= 3 ? (
-              <TrophyOutlined
-                style={{
-                  color: rank === 1 ? "#ffd700" : rank === 2 ? "#c0c0c0" : "#cd7f32",
-                  fontSize: rank === 1 ? 18 : 16,
-                }}
-              />
-            ) : (
-              <span style={{ fontWeight: 600, color: COLORS.primary }}>#{rank}</span>
-            )}
-          </div>
-        ),
-      },
-      {
-        title: "Product",
-        dataIndex: "name",
-        key: "name",
-        render: (name: string, record: any) => (
-          <div>
-            <div style={{ fontWeight: 500, marginBottom: 2, color: COLORS.text }}>{name}</div>
-            <div style={{ fontSize: 12, color: COLORS.gray }}>
-              {record.category?.name || "Uncategorized"} • {record.product_type}
-            </div>
-          </div>
-        ),
-      },
-      {
-        title: "Sales",
-        dataIndex: ["sales_metrics", "total_quantity_sold"],
-        key: "quantity_sold",
-        sorter: (a: any, b: any) =>
-          a.sales_metrics.total_quantity_sold - b.sales_metrics.total_quantity_sold,
-        render: (quantity: number, record: any) => (
-          <div>
-            <div style={{ fontWeight: 600, color: COLORS.success }}>{quantity} units</div>
-            <div style={{ fontSize: 12, color: COLORS.gray }}>{record.sales_metrics.order_count} orders</div>
-          </div>
-        ),
-      },
-      {
-        title: "Revenue",
-        dataIndex: ["sales_metrics", "total_revenue"],
-        key: "revenue",
-        sorter: (a: any, b: any) => a.sales_metrics.total_revenue - b.sales_metrics.total_revenue,
-        render: (revenue: number, record: any) => (
-          <div>
-            <div style={{ fontWeight: 600, color: COLORS.primary }}>Ksh {revenue?.toLocaleString()}</div>
-            {record.sales_metrics?.total_profit && (
-              <div style={{ fontSize: 12, color: COLORS.success }}>
-                Profit: Ksh {record.sales_metrics.total_profit.toLocaleString()}
-              </div>
-            )}
-          </div>
-        ),
-      },
-      {
-        title: "Performance",
-        key: "performance",
-        render: (_: any, record: any) => (
-          <div>
-            <Tag
-              style={{
-                background: record.performance_indicators?.is_top_performer ? "#fef9c3" : "#eff6ff",
-                color: record.performance_indicators?.is_top_performer ? "#a16207" : "#1d4ed8",
-                border: "none",
-                fontSize: 11,
-                borderRadius: 4,
-              }}
-            >
-              {record.performance_indicators?.is_top_performer ? "⭐ Top" : "Popular"}
-            </Tag>
-            <div style={{ fontSize: 11, color: COLORS.gray, marginTop: 4 }}>
-              {record.performance_indicators?.avg_quantity_per_order?.toFixed(1)}/order
-            </div>
-          </div>
-        ),
-      },
-    ];
-
-// ── SalesChart ────────────────────────────────────────────────────────────────
-
-const SalesChart: React.FC<{
-  data: any[];
-  loading: boolean;
-  title: string;
-  businessIndicators: any;
-}> = ({ data, loading, title, businessIndicators }) => {
-  const chartData = useMemo(() => {
-    if (!data || !Array.isArray(data)) return [];
-    return data.map((item) => ({
-      ...item,
-      sales: Number(item.sales) || 0,
-      orders: Number(item.orders) || 0,
-      avgOrderValue: Number(item.avgOrderValue) || 0,
-      cumulativeSales: Number(item.cumulativeSales) || 0,
-    }));
-  }, [data]);
-
-  const config = useMemo(
-    () => ({
-      data: chartData,
-      xField: "time",
-      yField: "sales",
-      height: 260,
-      smooth: true,
-      lineStyle: { stroke: COLORS.primary, lineWidth: 2.5 },
-      point: { size: 4, style: { fill: COLORS.primary, stroke: "#fff", lineWidth: 2 } },
-      tooltip: {
-        formatter: (datum: any) => [
-          { name: "Sales", value: `Ksh ${Number(datum.sales)?.toLocaleString()}` },
-          { name: "Orders", value: `${datum.orders}` },
-          { name: "Avg", value: `Ksh ${Number(datum.avgOrderValue)?.toLocaleString()}` },
-        ],
-      },
-      xAxis: {
-        label: { style: { fill: COLORS.gray, fontSize: 11 }, autoRotate: true },
-        line: { style: { stroke: "#e2e8f0" } },
-      },
-      yAxis: {
-        label: {
-          style: { fill: COLORS.gray, fontSize: 11 },
-          formatter: (value: string) => {
-            const n = Number(value);
-            if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-            if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
-            return `${n}`;
-          },
-        },
-        min: 0,
-        grid: { line: { style: { stroke: "#f1f5f9", lineWidth: 1, lineDash: [3, 3] } } },
-      },
-      animation: { appear: { animation: "path-in", duration: 1000 } },
-    }),
-    [chartData]
-  );
-
-  return (
-    <ProCard
-      bordered
-      headerBordered
-      size="small"
-      title={
-        <Space size={6}>
-          <LineChartOutlined style={{ color: COLORS.primary }} />
-          <Text strong style={{ fontSize: 14 }}>{title}</Text>
-        </Space>
-      }
-      extra={
-        businessIndicators && (
-          <Space size={4}>
-            <Badge
-              status={
-                businessIndicators.performance === "excellent" ? "success"
-                  : businessIndicators.performance === "good" ? "processing"
-                    : businessIndicators.performance === "moderate" ? "default"
-                      : businessIndicators.performance === "low" ? "warning"
-                        : "error"
-              }
-            />
-            <Text style={{ color: businessIndicators.performanceColor, fontWeight: 600, fontSize: 12 }}>
-              {businessIndicators.performanceText}
-            </Text>
-          </Space>
-        )
-      }
-      style={{ borderRadius: 12, marginBottom: 16 }}
-      bodyStyle={{ paddingTop: 8 }}
-    >
-      {loading ? (
-        <Skeleton active paragraph={{ rows: 6 }} />
-      ) : (
-        <>
-          {businessIndicators?.insights?.length > 0 && (
-            <div style={{ marginBottom: 12 }}>
-              <Space wrap size={[6, 4]}>
-                {businessIndicators.insights.map((insight: any, index: number) => (
-                  <div
-                    key={index}
-                    style={{
-                      background:
-                        insight.type === "positive" ? "#f0fdf4"
-                          : insight.type === "warning" ? "#fffbeb"
-                            : "#fef2f2",
-                      borderRadius: 6,
-                      padding: "3px 10px",
-                      fontSize: 11,
-                      color:
-                        insight.type === "positive" ? COLORS.success
-                          : insight.type === "warning" ? COLORS.warning
-                            : COLORS.error,
-                    }}
-                  >
-                    {insight.text}
-                  </div>
-                ))}
-              </Space>
-              <Divider style={{ margin: "10px 0" }} />
-            </div>
-          )}
-          {chartData.length > 0 ? (
-            <Line {...config} />
-          ) : (
-            <Empty description="No chart data available" />
-          )}
-        </>
-      )}
-    </ProCard>
-  );
-};
-
-// ── BestSellersCard ───────────────────────────────────────────────────────────
-
-const BestSellersCard: React.FC<{
-  bestSellersData: any;
-  loading: boolean;
-  dateRange: string;
-  isMobile: boolean;
-}> = ({ bestSellersData, loading, dateRange, isMobile }) => {
-  const bestSellers = useMemo(() => {
-    if (!bestSellersData?.data?.best_sellers?.length) return [];
-    return bestSellersData.data.best_sellers.map((item: any, index: number) => ({
-      ...item,
-      rank: index + 1,
-    }));
-  }, [bestSellersData]);
-
-  const summary = bestSellersData?.data?.summary || {};
-
-  if (!bestSellers.length && !loading) {
-    return (
-      <ProCard
-        bordered
-        headerBordered
-        size="small"
-        title={
-          <Space size={6}>
-            <FireOutlined style={{ color: COLORS.orange }} />
-            <Text strong style={{ fontSize: 14 }}>Top Sellers ({dateRange})</Text>
-          </Space>
-        }
-        style={{ borderRadius: 12 }}
-      >
-        <Empty description="No products sold in this period." style={{ padding: "24px 0" }} />
-      </ProCard>
-    );
-  }
-
-  return (
-    <ProCard
-      bordered
-      headerBordered
-      size="small"
-      title={
-        <Space size={6}>
-          <FireOutlined style={{ color: COLORS.orange }} />
-          <Text strong style={{ fontSize: 14 }}>Top Selling Products ({dateRange})</Text>
-        </Space>
-      }
-      extra={
-        summary.total_products_analyzed > 0 && (
-          <Space size={4}>
-            <Badge count={summary.total_products_analyzed} style={{ backgroundColor: COLORS.primary }} />
-            <Text type="secondary" style={{ fontSize: 11 }}>analyzed</Text>
-          </Space>
-        )
-      }
-      style={{ borderRadius: 12 }}
-    >
-      {loading ? (
-        <Skeleton active paragraph={{ rows: 6 }} />
-      ) : (
-        <>
-          {summary.total_revenue > 0 && (
-            <div
-              style={{
-                marginBottom: 16,
-                padding: "12px 16px",
-                background: "#f8fafc",
-                borderRadius: 8,
-                display: "flex",
-                gap: 24,
-                flexWrap: "wrap",
-                border: "1px solid #e2e8f0",
-              }}
-            >
-              {[
-                { label: "Total Revenue", value: `Ksh ${fmtK(summary.total_revenue)}`, color: COLORS.success },
-                { label: "Units Sold", value: summary.total_quantity_sold, color: COLORS.primary },
-                { label: "Avg Order", value: `Ksh ${fmtK(summary.average_order_value)}`, color: COLORS.orange },
-              ].map((s, i) => (
-                <div key={i}>
-                  <Text style={{ fontSize: 10, color: COLORS.gray, display: "block" }}>{s.label}</Text>
-                  <Text strong style={{ fontSize: 14, color: s.color }}>{s.value}</Text>
-                </div>
-              ))}
-            </div>
-          )}
-          <Table
-            columns={createBestSellerColumns(isMobile)}
-            dataSource={bestSellers}
-            pagination={{ pageSize: 10, showSizeChanger: false }}
-            size="small"
-            rowKey="product_id"
-            scroll={{ x: isMobile ? 380 : 800 }}
-          />
-        </>
-      )}
-    </ProCard>
-  );
-};
-
-// ── MetricTile ────────────────────────────────────────────────────────────────
-
-const MetricTile: React.FC<{
-  value: any;
-  label: string;
-  color: string;
-  isMobile: boolean;
-}> = ({ value, label, color, isMobile }) => (
-  <Col xs={12} sm={6}>
-    <div
-      style={{
-        textAlign: "center",
-        padding: isMobile ? "10px 6px" : "16px 12px",
-        background: "#f8fafc",
-        borderRadius: 8,
-        borderLeft: `3px solid ${color}`,
-      }}
-    >
-      <div
-        style={{
-          fontSize: isMobile ? 18 : 22,
-          fontWeight: 700,
-          color,
-          marginBottom: 4,
-          wordBreak: "break-word",
-        }}
-      >
-        {value}
-      </div>
-      <div style={{ color: COLORS.gray, fontSize: isMobile ? 11 : 12 }}>{label}</div>
-    </div>
-  </Col>
-);
-
-// ── Main Dashboard ────────────────────────────────────────────────────────────
-
 const DashboardAdminPage: React.FC = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const primaryColor = usePrimaryColor() || "#10b981";
   const [messageApi, contextHolder] = message.useMessage();
+
   const [periodFilter, setPeriodFilter] = useState("day");
   const [customDateRange, setCustomDateRange] = useState<any[]>([]);
   const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
@@ -801,14 +117,14 @@ const DashboardAdminPage: React.FC = () => {
 
   const { startDate, endDate } = getDateRange();
 
+  // 1. Dashboard summary analysis
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["admindashBoardAnalysis", startDate.format(), endDate.format()],
     queryFn: () => getAdminDashboardAnalysis(startDate.toISOString(), endDate.toISOString()),
     networkMode: "always",
     refetchOnWindowFocus: false,
-    staleTime: 0,
-    cacheTime: 0,
-    retry: false,
+    staleTime: 30000,
+    retry: 1,
     onError: () => {
       notification.error({
         message: "Failed to fetch dashboard data.",
@@ -818,6 +134,7 @@ const DashboardAdminPage: React.FC = () => {
     },
   });
 
+  // 2. Sales Chart data
   const chartPeriod = periodFilter === "custom" ? "day" : (periodFilter as "day" | "week" | "month" | "year");
 
   const { data: chartData, isLoading: chartLoading } = useQuery({
@@ -830,11 +147,11 @@ const DashboardAdminPage: React.FC = () => {
       }),
     networkMode: "always",
     refetchOnWindowFocus: false,
-    staleTime: 0,
-    cacheTime: 0,
-    retry: false,
+    staleTime: 30000,
+    retry: 1,
   });
 
+  // 3. Best Sellers data
   const { data: bestSellersData, isLoading: bestSellersLoading } = useQuery({
     queryKey: ["adminBestSellers", startDate.format(), endDate.format()],
     queryFn: () =>
@@ -845,30 +162,14 @@ const DashboardAdminPage: React.FC = () => {
       }),
     networkMode: "always",
     refetchOnWindowFocus: false,
-    staleTime: 0,
-    cacheTime: 0,
-    retry: false,
+    staleTime: 30000,
+    retry: 1,
   });
-
-  const purchaseOrderStats = useMemo(() => {
-    if (!data?.purchaseOrderStats) {
-      return {
-        totalPurchaseOrders: 0,
-        totalPOValue: 0,
-        pendingPOs: 0,
-        approvedPOs: 0,
-        deliveredPOs: 0,
-        avgPOValue: 0,
-        recentPurchaseOrders: [],
-      };
-    }
-    return data.purchaseOrderStats;
-  }, [data]);
 
   const handleRefresh = useCallback(async () => {
     try {
       await refetch();
-      messageApi.success({ content: "Refreshed!", duration: 2 });
+      messageApi.success({ content: "Dashboard refreshed!", duration: 2 });
     } catch {
       messageApi.error({ content: "Refresh failed.", duration: 3 });
     }
@@ -886,90 +187,35 @@ const DashboardAdminPage: React.FC = () => {
   const getFormattedDateRange = useCallback(() => {
     const fmt = "MMM D, YYYY";
     switch (periodFilter) {
-      case "day": return startDate.format("MMM D, YYYY");
-      case "week": return `${startDate.format(fmt)} – ${endDate.format(fmt)}`;
-      case "month": return startDate.format("MMMM YYYY");
-      case "year": return startDate.format("YYYY");
+      case "day":
+        return startDate.format("MMM D, YYYY");
+      case "week":
+        return `${startDate.format(fmt)} – ${endDate.format(fmt)}`;
+      case "month":
+        return startDate.format("MMMM YYYY");
+      case "year":
+        return startDate.format("YYYY");
       case "custom":
         if (customDateRange?.length === 2) {
           return `${customDateRange[0].format(fmt)} – ${customDateRange[1].format(fmt)}`;
         }
         return "Custom Range";
-      default: return startDate.format("MMM D, YYYY");
+      default:
+        return startDate.format("MMM D, YYYY");
     }
   }, [periodFilter, startDate, endDate, customDateRange]);
 
-  const growthRate = chartData?.data?.summary?.growth_rate || 0;
+  const isDataLoading = isLoading || isRefetching;
+  const growthRate = chartData?.data?.summary?.growth_rate;
+  const peakPeriod = chartData?.data?.summary?.peak_period;
 
-  const businessIndicators = useMemo(
-    () => calculateBusinessIndicators(chartData, data, periodFilter),
-    [chartData, data, periodFilter]
-  );
-
-  const isDataLoading = isLoading || isRefetching || chartLoading;
-
-  const dukaStats = useMemo(() => {
-    if (!data) return [];
-    const avgOrderValue = data.totalOrderCount > 0 ? data.todayRevenue / data.totalOrderCount : 0;
-    return [
-      { label: "Revenue", value: fmtK(data.todayRevenue || 0), prefix: "KES ", icon: <DollarOutlined /> },
-      { label: "Orders", value: fmtK(data.totalOrderCount || 0), icon: <ShoppingCartOutlined /> },
-      { label: "Avg Order", value: fmtK(avgOrderValue), prefix: "KES ", icon: <RiseOutlined /> },
-      { label: "Active Shops", value: fmtK(data.activeOrders || 0), icon: <ShopOutlined /> },
-      { label: "Active Shifts", value: fmtK(data.activeShift || 0), icon: <TeamOutlined /> },
-    ];
-  }, [data]);
-
-  const kpiCards = useMemo(
-    () => [
-      {
-        title: periodFilter === "day" ? "Today's Orders" : "Total Orders",
-        value: data?.totalOrderCount || 0,
-        icon: <ShoppingCartOutlined />,
-        color: "#3b82f6",
-        bg: "#eff6ff",
-        pctChange: null,
-        prefix: "",
-        onClick: () => navigate("/orders"),
-      },
-      {
-        title: "Total Revenue",
-        value: data?.todayRevenue || 0,
-        icon: <DollarOutlined />,
-        color: COLORS.success,
-        bg: "#f0fdf4",
-        pctChange: growthRate || null,
-        prefix: "Ksh",
-      },
-      {
-        title: "Active Shops",
-        value: data?.activeOrders || 0,
-        icon: <ShopOutlined />,
-        color: COLORS.orange,
-        bg: "#fff7ed",
-        pctChange: null,
-        prefix: "",
-        onClick: () => navigate("/shops"),
-      },
-      {
-        title: "Active Shifts",
-        value: data?.activeShift || 0,
-        icon: <TeamOutlined />,
-        color: COLORS.cyan,
-        bg: "#ecfeff",
-        pctChange: null,
-        prefix: "",
-        onClick: () => navigate("/shifts"),
-      },
-    ],
-    [data, growthRate, navigate, periodFilter]
-  );
+  const lowStockCount = Array.isArray(data?.lowStockItems) ? data.lowStockItems.length : 0;
 
   return (
-    <>
+    <div style={{ paddingBottom: 24 }}>
       {contextHolder}
 
-      {/* ── Mobile filter drawer ── */}
+      {/* ── Mobile Filter Drawer ── */}
       <Drawer
         title="Filter Period"
         placement="bottom"
@@ -1007,27 +253,28 @@ const DashboardAdminPage: React.FC = () => {
         </Space>
       </Drawer>
 
-      {/* ── Header ── */}
-      <div style={{ marginBottom: 20 }}>
-        <Flex justify="space-between" align="flex-start" wrap gap={12}>
+      {/* ── Tier 1: Streamlined Control Header ── */}
+      <div style={{ marginBottom: 16 }}>
+        <Flex justify="space-between" align="center" wrap gap={12}>
           <Space align="center" size={10}>
             <div
               style={{
-                background: "#eff6ff",
+                background: `${primaryColor}15`,
                 borderRadius: 10,
                 padding: "8px 10px",
-                color: "#3b82f6",
+                color: primaryColor,
                 fontSize: 18,
+                display: "inline-flex",
               }}
             >
               <DashboardOutlined />
             </div>
             <div>
-              <Title level={isMobile ? 5 : 4} style={{ margin: 0, color: COLORS.text }}>
-                {PERIOD_LABELS[periodFilter]} Duka
+              <Title level={isMobile ? 5 : 4} style={{ margin: 0, color: "#0f172a", fontWeight: 600 }}>
+                {PERIOD_LABELS[periodFilter]} · Duka Overview
               </Title>
-              <Text style={{ fontSize: 12, color: COLORS.subtext }}>
-                {getFormattedDateRange()} · All Shops
+              <Text style={{ fontSize: 12, color: "#64748b" }}>
+                {getFormattedDateRange()} · All Branches & POS Terminals
               </Text>
             </div>
           </Space>
@@ -1056,14 +303,14 @@ const DashboardAdminPage: React.FC = () => {
                   style={{
                     background: "#f8fafc",
                     borderRadius: 8,
-                    padding: "6px 12px",
+                    padding: "4px 10px",
                     display: "flex",
                     alignItems: "center",
-                    gap: 10,
+                    gap: 8,
                     border: "1px solid #e2e8f0",
                   }}
                 >
-                  <CalendarOutlined style={{ color: COLORS.primary, fontSize: 13 }} />
+                  <CalendarOutlined style={{ color: primaryColor, fontSize: 13 }} />
                   <Radio.Group
                     value={periodFilter}
                     onChange={(e) => handlePeriodChange(e.target.value)}
@@ -1077,19 +324,22 @@ const DashboardAdminPage: React.FC = () => {
                     <Radio.Button value="custom">Custom</Radio.Button>
                   </Radio.Group>
                 </div>
+
                 {showCustomDatePicker && (
                   <RangePicker
                     value={customDateRange as any}
                     onChange={(d) => setCustomDateRange(d || [])}
                     allowClear
-                    style={{ minWidth: 260 }}
+                    size="small"
+                    style={{ minWidth: 240 }}
                   />
                 )}
+
                 <Button
-                  type="primary"
                   icon={<ReloadOutlined spin={isRefetching} />}
                   onClick={handleRefresh}
                   loading={isDataLoading}
+                  size="small"
                   style={{ fontWeight: 500 }}
                 >
                   {isRefetching ? "Refreshing..." : "Refresh"}
@@ -1100,134 +350,71 @@ const DashboardAdminPage: React.FC = () => {
         </Flex>
       </div>
 
-      {/* ── AI Business Impact ── */}
-      <BusinessImpact
-        product="duka"
-        periodFilter={periodFilter}
-        startDate={startDate}
-        endDate={endDate}
-        periodLabel={PERIOD_LABELS[periodFilter]}
-        stats={dukaStats}
+      {/* ── Conditional Urgent Stock Notice ── */}
+      {lowStockCount > 0 && (
+        <Alert
+          message={
+            <Space size={8}>
+              <Text strong style={{ color: "#b45309", fontSize: 13 }}>
+                Inventory Attention Needed:
+              </Text>
+              <Text style={{ color: "#78350f", fontSize: 12 }}>
+                {lowStockCount} item{lowStockCount > 1 ? "s are" : " is"} depleted or running low in stock.
+              </Text>
+            </Space>
+          }
+          type="warning"
+          showIcon
+          icon={<WarningOutlined style={{ color: "#d97706" }} />}
+          action={
+            <Button
+              size="small"
+              type="link"
+              onClick={() => navigate("/inventory")}
+              style={{ fontWeight: 600, color: "#b45309", padding: 0 }}
+            >
+              Manage Inventory →
+            </Button>
+          }
+          style={{
+            marginBottom: 16,
+            borderRadius: 10,
+            border: "1px solid #fde68a",
+            background: "#fffbeb",
+          }}
+          closable
+        />
+      )}
+
+      {/* ── Tier 2: Executive KPI Pulse Cards ── */}
+      <DashboardKPICards
+        revenue={data?.todayRevenue || 0}
+        totalOrders={data?.totalOrderCount || 0}
+        growthRate={growthRate}
+        activeShops={data?.activeOrders || 0}
+        activeShifts={data?.activeShift || 0}
+        loading={isDataLoading}
+        isAdmin={true}
+        onOrdersClick={() => navigate("/orders")}
+        onShopsClick={() => navigate("/shops")}
       />
 
-      {/* ── KPI Cards ── */}
-      <Row gutter={[12, 12]} style={{ marginBottom: 20 }}>
-        {kpiCards.map((card, i) => (
-          <KPICard key={i} loading={isDataLoading} {...card} />
-        ))}
-      </Row>
-
-      {/* ── Purchase Orders Overview ── */}
-      <Row style={{ marginBottom: 16 }}>
-        <Col span={24}>
-          <ProCard
-            bordered
-            headerBordered
-            size="small"
-            title={
-              <Space size={6}>
-                <FileTextOutlined style={{ color: COLORS.purple }} />
-                <Text strong style={{ fontSize: 14 }}>Purchase Orders</Text>
-              </Space>
-            }
-            extra={
-              <Button type="link" size="small" onClick={() => navigate("/purchase-orders")}>
-                View All
-              </Button>
-            }
-            style={{ borderRadius: 12 }}
-          >
-            {isDataLoading ? (
-              <Skeleton active paragraph={{ rows: 2 }} />
-            ) : (
-              <Row gutter={[8, 8]}>
-                {[
-                  { value: purchaseOrderStats.totalPurchaseOrders, label: "Total POs", color: COLORS.purple, bg: "#eef2ff" },
-                  {
-                    value: `Ksh ${fmtK(purchaseOrderStats.totalPOValue || 0)}`,
-                    label: "Total Value",
-                    color: COLORS.success,
-                    bg: "#f0fdf4",
-                  },
-                  { value: purchaseOrderStats.pendingPOs, label: "Pending", color: COLORS.warning, bg: "#fffbeb" },
-                  { value: purchaseOrderStats.deliveredPOs, label: "Delivered", color: COLORS.cyan, bg: "#ecfeff" },
-                ].map((item, index) => (
-                  <Col xs={12} sm={12} md={6} key={index}>
-                    <div
-                      style={{
-                        textAlign: "center",
-                        padding: isMobile ? "10px 6px" : "14px 12px",
-                        background: item.bg,
-                        borderRadius: 8,
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontSize: isMobile ? 20 : 26,
-                          fontWeight: 700,
-                          color: item.color,
-                          marginBottom: 2,
-                        }}
-                      >
-                        {item.value}
-                      </div>
-                      <div style={{ color: COLORS.gray, fontSize: 12 }}>{item.label}</div>
-                    </div>
-                  </Col>
-                ))}
-              </Row>
-            )}
-          </ProCard>
+      {/* ── Tier 3: Visual Analytics & Charts Hub ── */}
+      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+        {/* Left 60%: Sales & Volume Trend (Area Chart) */}
+        <Col xs={24} lg={15}>
+          <DashboardSalesTrendChart
+            data={chartData?.data?.chart_data || []}
+            loading={chartLoading}
+            title={`Sales Pulse · ${getFormattedDateRange()}`}
+            primaryColor={primaryColor}
+            peakPeriod={peakPeriod}
+          />
         </Col>
-      </Row>
 
-      {/* ── Sales Chart ── */}
-      <Row style={{ marginBottom: 16 }}>
-        <Col span={24}>
-          {chartData?.data?.chart_data?.length > 0 ? (
-            <SalesChart
-              data={chartData.data.chart_data}
-              loading={chartLoading}
-              title={`Sales Trend — ${getFormattedDateRange()}`}
-              businessIndicators={businessIndicators}
-            />
-          ) : (
-            <ProCard
-              bordered
-              headerBordered
-              size="small"
-              title={
-                <Space size={6}>
-                  <LineChartOutlined style={{ color: COLORS.primary }} />
-                  <Text strong style={{ fontSize: 14 }}>
-                    Sales Trend — {getFormattedDateRange()}
-                  </Text>
-                </Space>
-              }
-              style={{ borderRadius: 12 }}
-              bodyStyle={{ paddingTop: 8 }}
-            >
-              {chartLoading ? (
-                <Skeleton active paragraph={{ rows: 5 }} />
-              ) : (
-                <Empty
-                  description={
-                    <Text type="secondary">
-                      No sales data for {PERIOD_LABELS[periodFilter]?.toLowerCase()}.
-                    </Text>
-                  }
-                  style={{ padding: "32px 0" }}
-                />
-              )}
-            </ProCard>
-          )}
-        </Col>
-      </Row>
-
-      {/* ── Best Sellers ── */}
-      <Row style={{ marginBottom: 16 }}>
-        <Col span={24}>
-          <BestSellersCard
+        {/* Right 40%: Top Performers & Mix (Bar & Donut Chart) */}
+        <Col xs={24} lg={9}>
+          <DashboardTopSellersChart
             bestSellersData={bestSellersData}
             loading={bestSellersLoading}
             dateRange={getFormattedDateRange()}
@@ -1236,447 +423,20 @@ const DashboardAdminPage: React.FC = () => {
         </Col>
       </Row>
 
-      {/* ── Recent Orders + Recent POs ── */}
-      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
-        <Col xs={24} lg={12}>
-          <ProCard
-            bordered
-            headerBordered
-            size="small"
-            title={
-              <Space size={6}>
-                <ShoppingCartOutlined style={{ color: "#3b82f6" }} />
-                <Text strong style={{ fontSize: 14 }}>Recent Orders</Text>
-              </Space>
-            }
-            extra={
-              <Space size={4}>
-                <Badge count={data?.totalOrderCount || 0} style={{ backgroundColor: "#3b82f6" }} />
-                <Button type="link" size="small" onClick={() => navigate("/orders")}>
-                  All
-                </Button>
-              </Space>
-            }
-            style={{ borderRadius: 12 }}
-            bodyStyle={{ padding: 0 }}
-          >
-            {isDataLoading ? (
-              <div style={{ padding: 16 }}>
-                <Skeleton active paragraph={{ rows: 4 }} />
-              </div>
-            ) : (
-              <Table
-                columns={createOrderColumns(isMobile)}
-                dataSource={Array.isArray(data?.currentOrders) ? data.currentOrders : []}
-                pagination={{ pageSize: 5, hideOnSinglePage: true, showSizeChanger: false }}
-                size="small"
-                scroll={{ x: isMobile ? 300 : undefined }}
-                locale={{
-                  emptyText: <Empty description="No recent orders" style={{ padding: 20 }} />,
-                }}
-              />
-            )}
-          </ProCard>
-        </Col>
-
-        <Col xs={24} lg={12}>
-          <ProCard
-            bordered
-            headerBordered
-            size="small"
-            title={
-              <Space size={6}>
-                <FileTextOutlined style={{ color: COLORS.purple }} />
-                <Text strong style={{ fontSize: 14 }}>Recent Purchase Orders</Text>
-              </Space>
-            }
-            extra={
-              <Space size={4}>
-                {purchaseOrderStats.totalPurchaseOrders > 0 && (
-                  <Badge
-                    count={purchaseOrderStats.totalPurchaseOrders}
-                    style={{ backgroundColor: COLORS.purple }}
-                  />
-                )}
-                <Button type="link" size="small" onClick={() => navigate("/purchase-orders")}>
-                  All
-                </Button>
-              </Space>
-            }
-            style={{ borderRadius: 12 }}
-            bodyStyle={{ padding: 0 }}
-          >
-            {isDataLoading ? (
-              <div style={{ padding: 16 }}>
-                <Skeleton active paragraph={{ rows: 4 }} />
-              </div>
-            ) : (
-              <Table
-                columns={
-                  isMobile
-                    ? [
-                      { title: "PO#", dataIndex: "po_number", key: "po_number", width: 90 },
-                      {
-                        title: "Status",
-                        dataIndex: "status",
-                        key: "status",
-                        render: (status: string) => (
-                          <Badge
-                            color={
-                              ({
-                                pending: COLORS.warning,
-                                approved: COLORS.primary,
-                                fully_delivered: COLORS.success,
-                                cancelled: COLORS.error,
-                              } as any)[status] || COLORS.gray
-                            }
-                            text={
-                              <span style={{ fontSize: 11 }}>{status?.replace(/_/g, " ")}</span>
-                            }
-                          />
-                        ),
-                      },
-                      {
-                        title: "Amount",
-                        dataIndex: "total_amount",
-                        key: "total_amount",
-                        render: (amount: number) => (
-                          <Text style={{ fontWeight: 600, color: COLORS.primary, fontSize: 12 }}>
-                            Ksh {amount?.toLocaleString()}
-                          </Text>
-                        ),
-                      },
-                    ]
-                    : [
-                      {
-                        title: "PO Number",
-                        dataIndex: "po_number",
-                        key: "po_number",
-                        width: 120,
-                      },
-                      {
-                        title: "Supplier",
-                        dataIndex: "supplier_name",
-                        key: "supplier_name",
-                        ellipsis: true,
-                      },
-                      {
-                        title: "Status",
-                        dataIndex: "status",
-                        key: "status",
-                        width: 140,
-                        render: (status: string) => {
-                          const colors: Record<string, string> = {
-                            pending: COLORS.warning,
-                            approved: COLORS.primary,
-                            partially_delivered: COLORS.cyan,
-                            fully_delivered: COLORS.success,
-                            cancelled: COLORS.error,
-                          };
-                          return (
-                            <Tag
-                              style={{
-                                background: `${colors[status] || COLORS.gray}15`,
-                                color: colors[status] || COLORS.gray,
-                                border: "none",
-                                fontSize: 11,
-                                borderRadius: 4,
-                              }}
-                            >
-                              {status?.replace(/_/g, " ").toUpperCase()}
-                            </Tag>
-                          );
-                        },
-                      },
-                      {
-                        title: "Amount",
-                        dataIndex: "total_amount",
-                        key: "total_amount",
-                        width: 120,
-                        render: (amount: number) => (
-                          <Text strong style={{ color: COLORS.primary }}>
-                            Ksh {amount?.toLocaleString()}
-                          </Text>
-                        ),
-                      },
-                    ]
-                }
-                dataSource={purchaseOrderStats.recentPurchaseOrders || []}
-                pagination={{ pageSize: 5, hideOnSinglePage: true, showSizeChanger: false }}
-                size="small"
-                rowKey="_id"
-                scroll={{ x: isMobile ? 300 : undefined }}
-                locale={{
-                  emptyText: (
-                    <Empty description="No recent purchase orders" style={{ padding: 20 }} />
-                  ),
-                }}
-              />
-            )}
-          </ProCard>
-        </Col>
-      </Row>
-
-      {/* ── Low Stock + PO Insights ── */}
-      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
-        <Col xs={24} lg={12}>
-          <ProCard
-            bordered
-            headerBordered
-            size="small"
-            title={
-              <Space size={6}>
-                <WarningOutlined style={{ color: COLORS.error }} />
-                <Text strong style={{ fontSize: 14 }}>Low Stock Alerts</Text>
-              </Space>
-            }
-            extra={
-              <Space size={4}>
-                {(data?.lowStockItems?.length || 0) > 0 && (
-                  <Badge
-                    count={data.lowStockItems.length}
-                    style={{ backgroundColor: COLORS.error }}
-                  />
-                )}
-                <Button type="link" size="small" onClick={() => navigate("/inventory")}>
-                  All
-                </Button>
-              </Space>
-            }
-            style={{ borderRadius: 12 }}
-            bodyStyle={{ padding: 0 }}
-          >
-            {isDataLoading ? (
-              <div style={{ padding: 16 }}>
-                <Skeleton active paragraph={{ rows: 4 }} />
-              </div>
-            ) : (
-              <Table
-                columns={createStockColumns(isMobile)}
-                dataSource={
-                  Array.isArray(data?.lowStockItems) ? data.lowStockItems : []
-                }
-                pagination={{ pageSize: 5, hideOnSinglePage: true, showSizeChanger: false }}
-                size="small"
-                scroll={{ x: isMobile ? 280 : undefined }}
-                locale={{
-                  emptyText: (
-                    <Empty
-                      image={
-                        <CheckCircleOutlined
-                          style={{ fontSize: 28, color: COLORS.success }}
-                        />
-                      }
-                      description="All items are well stocked"
-                      style={{ padding: 20 }}
-                    />
-                  ),
-                }}
-              />
-            )}
-          </ProCard>
-        </Col>
-
-        <Col xs={24} lg={12}>
-          <ProCard
-            bordered
-            headerBordered
-            size="small"
-            title={
-              <Space size={6}>
-                <SyncOutlined style={{ color: COLORS.cyan }} />
-                <Text strong style={{ fontSize: 14 }}>PO Insights</Text>
-              </Space>
-            }
-            style={{ borderRadius: 12 }}
-          >
-            {isDataLoading ? (
-              <Skeleton active paragraph={{ rows: 4 }} />
-            ) : purchaseOrderStats.totalPurchaseOrders > 0 ? (
-              <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-                {[
-                  {
-                    label: "Delivery Rate",
-                    value: `${((purchaseOrderStats.deliveredPOs / purchaseOrderStats.totalPurchaseOrders) * 100).toFixed(1)}%`,
-                    percent: Number(
-                      (
-                        (purchaseOrderStats.deliveredPOs /
-                          purchaseOrderStats.totalPurchaseOrders) *
-                        100
-                      ).toFixed(1)
-                    ),
-                    color: COLORS.success,
-                  },
-                  {
-                    label: "Pending Rate",
-                    value: `${purchaseOrderStats.pendingPOs} orders`,
-                    percent: Math.round(
-                      (purchaseOrderStats.pendingPOs /
-                        purchaseOrderStats.totalPurchaseOrders) *
-                      100
-                    ),
-                    color: COLORS.warning,
-                  },
-                ].map((item, i) => (
-                  <div key={i}>
-                    <Flex justify="space-between" style={{ marginBottom: 5 }}>
-                      <Text style={{ fontSize: 12, color: COLORS.subtext }}>{item.label}</Text>
-                      <Text strong style={{ fontSize: 12, color: item.color }}>
-                        {item.value}
-                      </Text>
-                    </Flex>
-                    <Progress
-                      percent={item.percent}
-                      strokeColor={item.color}
-                      size="small"
-                      showInfo={false}
-                    />
-                  </div>
-                ))}
-                <Divider style={{ margin: "6px 0" }} />
-                <Row gutter={8}>
-                  {[
-                    {
-                      value: `Ksh ${fmtK(purchaseOrderStats.avgPOValue || 0)}`,
-                      label: "Avg PO Value",
-                      color: COLORS.purple,
-                    },
-                    {
-                      value: purchaseOrderStats.approvedPOs,
-                      label: "Approved",
-                      color: "#3b82f6",
-                    },
-                  ].map((item, i) => (
-                    <Col span={12} key={i}>
-                      <div
-                        style={{
-                          textAlign: "center",
-                          background: "#f8fafc",
-                          borderRadius: 8,
-                          padding: "10px 8px",
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontSize: isMobile ? 16 : 18,
-                            fontWeight: 700,
-                            color: item.color,
-                          }}
-                        >
-                          {item.value}
-                        </div>
-                        <div style={{ fontSize: 11, color: COLORS.gray, marginTop: 2 }}>
-                          {item.label}
-                        </div>
-                      </div>
-                    </Col>
-                  ))}
-                </Row>
-              </Space>
-            ) : (
-              <Empty description="No purchase orders found" style={{ padding: "24px 0" }} />
-            )}
-          </ProCard>
-        </Col>
-      </Row>
-
-      {/* ── Performance Summary ── */}
-      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+      {/* ── Tier 4: Unified Operations & Fulfillment Hub ── */}
+      <Row>
         <Col span={24}>
-          <ProCard
-            bordered
-            headerBordered
-            size="small"
-            title={
-              <Space size={6}>
-                <PieChartOutlined style={{ color: COLORS.purple }} />
-                <Text strong style={{ fontSize: 14 }}>
-                  Performance Summary — {getFormattedDateRange()}
-                </Text>
-              </Space>
-            }
-            style={{ borderRadius: 12 }}
-          >
-            {isDataLoading ? (
-              <Skeleton active paragraph={{ rows: 2 }} />
-            ) : (
-              <Row gutter={[8, 8]}>
-                <MetricTile
-                  value={data?.totalOrderCount || 0}
-                  label="Total Orders"
-                  color="#3b82f6"
-                  isMobile={isMobile}
-                />
-                <MetricTile
-                  value={`Ksh ${fmtK(data?.todayRevenue || 0)}`}
-                  label="Revenue"
-                  color={COLORS.success}
-                  isMobile={isMobile}
-                />
-                <MetricTile
-                  value={data?.activeOrders || 0}
-                  label="Active Shops"
-                  color={COLORS.orange}
-                  isMobile={isMobile}
-                />
-                <MetricTile
-                  value={data?.activeShift || 0}
-                  label="Active Shifts"
-                  color={COLORS.cyan}
-                  isMobile={isMobile}
-                />
-              </Row>
-            )}
-          </ProCard>
+          <DashboardOperationalHub
+            orders={Array.isArray(data?.currentOrders) ? data.currentOrders : []}
+            totalOrdersCount={data?.totalOrderCount || 0}
+            lowStockItems={Array.isArray(data?.lowStockItems) ? data.lowStockItems : []}
+            purchaseOrderStats={data?.purchaseOrderStats}
+            loading={isDataLoading}
+            isMobile={isMobile}
+          />
         </Col>
-
-        {chartData?.data?.summary && (
-          <Col span={24}>
-            <ProCard
-              bordered
-              headerBordered
-              size="small"
-              title={
-                <Space size={6}>
-                  <RiseOutlined style={{ color: COLORS.success }} />
-                  <Text strong style={{ fontSize: 14 }}>Advanced Metrics</Text>
-                </Space>
-              }
-              style={{ borderRadius: 12 }}
-            >
-              <Row gutter={[8, 8]}>
-                <MetricTile
-                  value={chartData.data.summary.data_points}
-                  label="Data Points"
-                  color="#3b82f6"
-                  isMobile={isMobile}
-                />
-                <MetricTile
-                  value={`${chartData.data.summary.growth_rate > 0 ? "+" : ""}${chartData.data.summary.growth_rate.toFixed(1)}%`}
-                  label="Growth"
-                  color={
-                    chartData.data.summary.growth_rate >= 0 ? COLORS.success : COLORS.error
-                  }
-                  isMobile={isMobile}
-                />
-                <MetricTile
-                  value={`Ksh ${fmtK(chartData.data.summary.average_order_value || 0)}`}
-                  label="Avg Order"
-                  color={COLORS.orange}
-                  isMobile={isMobile}
-                />
-                <MetricTile
-                  value={chartData.data.summary.peak_period?.time || "N/A"}
-                  label="Peak Period"
-                  color={COLORS.cyan}
-                  isMobile={isMobile}
-                />
-              </Row>
-            </ProCard>
-          </Col>
-        )}
       </Row>
-    </>
+    </div>
   );
 };
 

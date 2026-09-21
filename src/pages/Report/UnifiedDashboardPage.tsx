@@ -105,13 +105,13 @@ const UnifiedDashboardPage: React.FC = () => {
   }
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: "16px 24px", minHeight: "100%" }}>
       <Tabs
         activeKey={activeTab}
         onChange={setActiveTab}
         items={tabItems}
         size="large"
-        tabBarStyle={{ marginBottom: 24 }}
+        tabBarStyle={{ marginBottom: 16 }}
       />
     </div>
   );

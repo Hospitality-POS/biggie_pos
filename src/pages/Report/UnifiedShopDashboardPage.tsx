@@ -105,17 +105,13 @@ const UnifiedShopDashboardPage: React.FC = () => {
   }
 
   return (
-    <div style={{ padding: 24, background: "#f5f5f5", minHeight: "100%" }}>
-      <Typography.Title level={3} style={{ marginBottom: 24, fontWeight: 600 }}>
-        Home Dashboard
-      </Typography.Title>
-
+    <div style={{ padding: "16px 24px", background: "#f8fafc", minHeight: "100%" }}>
       <Tabs
         activeKey={activeTab}
         onChange={setActiveTab}
         items={tabItems}
         size="large"
-        tabBarStyle={{ marginBottom: 24 }}
+        tabBarStyle={{ marginBottom: 16 }}
       />
     </div>
   );
