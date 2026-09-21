@@ -66,6 +66,8 @@ import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import useProLayoutNav from "./defaultprops";
+import EcosystemAppSwitcher from "./EcosystemAppSwitcher";
+import { useActiveProduct } from "@context/ProductContext";
 import React from "react";
 import { getCurrentTenantId } from "@services/tenants";
 
@@ -144,6 +146,8 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAppSelector((state) => state.auth);
   const primaryColor = usePrimaryColor();
   const isMobile = useIsMobile();
+  const { activeProduct, activeProductConfig, availableProducts, switchProduct, isMultiProduct } =
+    useActiveProduct();
 
   const shopId = getCurrentTenantId() || "";
 
@@ -893,6 +897,42 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         </div>
       )}
 
+      {isMultiProduct && (
+        <div style={{ padding: "10px 14px 8px", borderBottom: `1px solid ${C.border}`, background: "#f8fafc" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.5px", textTransform: "uppercase", color: "#64748b", marginBottom: 6 }}>
+            Product Workspace
+          </div>
+          <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2 }}>
+            {availableProducts.map((prod) => {
+              const isActive = prod.key === activeProduct;
+              return (
+                <button
+                  key={prod.key}
+                  onClick={() => switchProduct(prod.key, false)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "6px 10px",
+                    borderRadius: 8,
+                    border: isActive ? `1.5px solid ${prod.color}` : "1px solid #e2e8f0",
+                    background: isActive ? `${prod.color}15` : "#ffffff",
+                    color: isActive ? prod.color : "#475569",
+                    fontWeight: isActive ? 600 : 500,
+                    fontSize: 12,
+                    whiteSpace: "nowrap",
+                    cursor: "pointer",
+                  }}
+                >
+                  <span style={{ fontSize: 14 }}>{prod.icon}</span>
+                  <span>{prod.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
         {(() => {
           // Only real navigable leaves participate in active-state matching.
@@ -1021,9 +1061,101 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         .ant-pro-page-container-warp-page-header { display: none !important; }
         @media (max-width: 992px) {
           .ant-pro-page-container { padding: 0 !important; }
-          .ant-pro-page-container-children-container { padding: 8px 12px !important; }
+          .ant-pro-page-container-children-container { padding: 8px 10px !important; }
           .ant-pro-page-container-children-content { padding: 0 !important; }
           .ant-pro-global-header { padding: 0 12px !important; }
+        }
+        @media (max-width: 768px) {
+          .ant-pro-page-container-children-container { padding: 6px 10px !important; }
+
+          /* ProLayout Native AppList Popover Mobile Responsiveness */
+          .ant-pro-layout-apps-popover {
+            width: calc(100vw - 16px) !important;
+            max-width: calc(100vw - 16px) !important;
+            left: 8px !important;
+            right: 8px !important;
+            top: 56px !important;
+          }
+          .ant-pro-layout-apps-popover .ant-popover-content {
+            width: 100% !important;
+            max-width: 100% !important;
+          }
+          .ant-pro-layout-apps-popover .ant-popover-inner {
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 12px 10px !important;
+            border-radius: 14px !important;
+            box-sizing: border-box !important;
+            max-height: calc(85vh - 60px) !important;
+            overflow-y: auto !important;
+          }
+          .ant-pro-layout-apps-default-content {
+            width: 100% !important;
+            max-width: 100% !important;
+            max-height: none !important;
+            overflow: visible !important;
+          }
+          .ant-pro-layout-apps-default-content-list {
+            width: 100% !important;
+            max-width: 100% !important;
+            display: flex !important;
+            flex-direction: column !important;
+            box-sizing: border-box !important;
+          }
+          .ant-pro-layout-apps-default-content-list-item-group {
+            width: 100% !important;
+            margin-bottom: 12px !important;
+          }
+          .ant-pro-layout-apps-default-content-list-item-group-title {
+            font-size: 13px !important;
+            font-weight: 700 !important;
+            margin: 8px 0 6px 4px !important;
+            color: #334155 !important;
+          }
+          .ant-pro-layout-apps-default-content-list-item {
+            width: 100% !important;
+            max-width: 100% !important;
+            height: auto !important;
+            min-height: 54px !important;
+            display: block !important;
+            padding: 8px 10px !important;
+            box-sizing: border-box !important;
+            border-radius: 8px !important;
+            margin-bottom: 4px !important;
+          }
+          .ant-pro-layout-apps-default-content-list-item a {
+            display: flex !important;
+            align-items: center !important;
+            width: 100% !important;
+          }
+          .ant-pro-layout-apps-default-content-list-item a > img,
+          .ant-pro-layout-apps-default-content-list-item a > div:first-child {
+            width: 38px !important;
+            height: 38px !important;
+            flex-shrink: 0 !important;
+            border-radius: 8px !important;
+          }
+          .ant-pro-layout-apps-default-content-list-item a > div:last-child {
+            margin-inline-start: 12px !important;
+            flex: 1 !important;
+            min-width: 0 !important;
+            overflow: hidden !important;
+          }
+          .ant-pro-layout-apps-default-content-list-item a > div:last-child > div {
+            font-size: 13px !important;
+            line-height: 18px !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+          }
+          .ant-pro-layout-apps-default-content-list-item a > div:last-child > span {
+            font-size: 11px !important;
+            line-height: 16px !important;
+            display: block !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+          }
         }
         .notification-popover-overlay .ant-popover-inner { padding: 0 !important; }
         /* ── Module dropdown (Duka / Pesa / Mteja / Dala / Setup) submenus ── */
@@ -1278,7 +1410,8 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         title=""
         menuHeaderRender={(logo: any, title: any) => (
           <div id="customize_menu_header" style={{ height: 48, display: "flex", alignItems: "center", gap: 8 }}>
-            {logo}{title}
+            {logo}
+            {title}
           </div>
         )}
         colorPrimary={primaryColor}
@@ -1303,18 +1436,21 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         headerRender={
           isMobile
             ? () => (
-              <div style={{ height: 52, background: primaryColor, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 2px 12px rgba(0,0,0,0.15)" }}>
-                <button
-                  onClick={() => setMobileDrawerOpen(true)}
-                  style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)", borderRadius: 8, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "white", fontSize: 16 }}
-                >
-                  <MenuOutlined style={{ color: "white" }} />
-                </button>
-                <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ height: 52, background: primaryColor, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 12px", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 2px 12px rgba(0,0,0,0.15)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <button
+                    onClick={() => setMobileDrawerOpen(true)}
+                    style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)", borderRadius: 8, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "white", fontSize: 16 }}
+                  >
+                    <MenuOutlined style={{ color: "white" }} />
+                  </button>
+                  <EcosystemAppSwitcher triggerType="waffle" />
+                </div>
+                <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
                   {tenant?.tenant_logo?.url ? (
-                    <img src={tenant.tenant_logo.url} alt="logo" style={{ height: 36, maxWidth: 96, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
+                    <img src={tenant.tenant_logo.url} alt="logo" style={{ height: 28, maxWidth: 70, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
                   ) : (
-                    <img src="/relia.png" alt="logo" style={{ height: 32, maxWidth: 96, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
+                    <img src="/relia.png" alt="logo" style={{ height: 26, maxWidth: 70, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
                   )}
                 </div>
                 {user ? headerActions : (
@@ -1338,6 +1474,30 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
             }
             : undefined
         }
+        itemClick={(item: any, popoverRef?: any) => {
+          if (popoverRef?.current) {
+            popoverRef.current.click();
+          } else {
+            setTimeout(() => document.body.click(), 10);
+          }
+          if (item?.productKey) {
+            switchProduct(item.productKey, true);
+          } else if (item?.url) {
+            navigate(item.url);
+          }
+        }}
+        onItemClick={(item: any, popoverRef?: any) => {
+          if (popoverRef?.current) {
+            popoverRef.current.click();
+          } else {
+            setTimeout(() => document.body.click(), 10);
+          }
+          if (item?.productKey) {
+            switchProduct(item.productKey, true);
+          } else if (item?.url) {
+            navigate(item.url);
+          }
+        }}
         {...navRoutes}
         location={{
           pathname: location.pathname,

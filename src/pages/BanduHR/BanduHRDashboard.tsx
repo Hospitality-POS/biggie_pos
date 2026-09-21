@@ -16,6 +16,7 @@ import {
   Segmented,
   Badge,
   message,
+  Drawer,
 } from "antd";
 import {
   TeamOutlined,
@@ -31,6 +32,7 @@ import {
   GiftOutlined,
   FileProtectOutlined,
   HistoryOutlined,
+  FilterOutlined,
 } from "@ant-design/icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchHRDashboard, type HRDashboardData } from "@services/bandu/dashboard";
@@ -56,6 +58,22 @@ import {
 
 const { Text, Title } = Typography;
 const { RangePicker } = DatePicker;
+
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== "undefined" ? window.innerWidth < 768 : false
+  );
+
+  React.useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  return isMobile;
+};
 
 const PERIOD_LABELS: Record<string, string> = {
   day: "Today",
@@ -108,6 +126,7 @@ interface KPICardProps {
   bg: string;
   border: string;
   subtext?: React.ReactNode;
+  isMobile?: boolean;
   onClick?: () => void;
 }
 
@@ -119,18 +138,22 @@ const KPICard: React.FC<KPICardProps> = ({
   bg,
   border,
   subtext,
+  isMobile = false,
   onClick,
 }) => (
   <div
     onClick={onClick}
     style={{
       background: bg,
-      borderRadius: 12,
-      padding: "16px 18px",
+      borderRadius: isMobile ? 10 : 12,
+      padding: isMobile ? "10px 10px" : "16px 18px",
       border: `1px solid ${border}`,
       cursor: onClick ? "pointer" : "default",
       transition: "transform .15s ease, box-shadow .15s ease",
       height: "100%",
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "space-between",
     }}
     onMouseEnter={(e) => {
       if (onClick) {
@@ -145,18 +168,30 @@ const KPICard: React.FC<KPICardProps> = ({
       }
     }}
   >
-    <Space direction="vertical" size={3} style={{ width: "100%" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <Text style={{ fontSize: 12, color: "#475569", fontWeight: 500 }}>{title}</Text>
+    <Space direction="vertical" size={isMobile ? 2 : 3} style={{ width: "100%" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 4 }}>
+        <Text
+          style={{
+            fontSize: isMobile ? 11 : 12,
+            color: "#475569",
+            fontWeight: 500,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
+          {title}
+        </Text>
         <div
           style={{
             background: "#ffffff",
-            borderRadius: 8,
-            padding: "4px 6px",
+            borderRadius: isMobile ? 6 : 8,
+            padding: isMobile ? "3px 5px" : "4px 6px",
             color,
-            fontSize: 14,
+            fontSize: isMobile ? 12 : 14,
             lineHeight: 1,
             boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+            flexShrink: 0,
           }}
         >
           {icon}
@@ -164,17 +199,31 @@ const KPICard: React.FC<KPICardProps> = ({
       </div>
       <div
         style={{
-          fontSize: 22,
+          fontSize: isMobile ? 17 : 22,
           fontWeight: 700,
           color: "#0f172a",
           letterSpacing: -0.3,
           lineHeight: 1.2,
           marginTop: 2,
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
         }}
+        title={typeof value === "string" ? value : undefined}
       >
         {value}
       </div>
-      <div style={{ marginTop: 2 }}>{subtext}</div>
+      <div
+        style={{
+          marginTop: 2,
+          fontSize: 11,
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        }}
+      >
+        {subtext}
+      </div>
     </Space>
   </div>
 );
@@ -185,11 +234,13 @@ const BanduHRDashboard: React.FC = () => {
   const shopId = getShopId();
   const primaryColor = usePrimaryColor();
   const isAdmin = !shopId;
+  const isMobile = useIsMobile();
 
   const [periodFilter, setPeriodFilter] = useState("month");
   const [customDateRange, setCustomDateRange] = useState<any[]>([]);
   const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
   const [demographicsTab, setDemographicsTab] = useState<string>("dept");
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
 
   const getDateRange = useCallback(() => {
     const today = dayjs();
@@ -512,6 +563,44 @@ const BanduHRDashboard: React.FC = () => {
   return (
     <App>
       <div style={{ padding: "0 0 24px" }}>
+        {/* ── Mobile Filter Drawer ── */}
+        <Drawer
+          title="Filter Period"
+          placement="bottom"
+          height="auto"
+          open={filterDrawerOpen}
+          onClose={() => setFilterDrawerOpen(false)}
+          styles={{ body: { paddingBottom: 32 } }}
+        >
+          <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+            <Radio.Group
+              value={periodFilter}
+              onChange={(e) => handlePeriodChange(e.target.value)}
+              style={{ width: "100%" }}
+            >
+              <Space direction="vertical" style={{ width: "100%" }}>
+                {Object.entries(PERIOD_LABELS).map(([val, label]) => (
+                  <Radio.Button
+                    key={val}
+                    value={val}
+                    style={{ width: "100%", textAlign: "center", borderRadius: 8, marginBottom: 4 }}
+                  >
+                    {label}
+                  </Radio.Button>
+                ))}
+              </Space>
+            </Radio.Group>
+            {showCustomDatePicker && (
+              <RangePicker
+                value={customDateRange as any}
+                onChange={(d) => setCustomDateRange(d || [])}
+                allowClear
+                style={{ width: "100%" }}
+              />
+            )}
+          </Space>
+        </Drawer>
+
         {/* ── Tier 1: Header & Control Bar ── */}
         <div
           style={{
@@ -528,15 +617,15 @@ const BanduHRDashboard: React.FC = () => {
               style={{
                 background: `${primaryColor}15`,
                 borderRadius: 10,
-                padding: "8px 10px",
+                padding: isMobile ? "6px 8px" : "8px 10px",
                 color: primaryColor,
-                fontSize: 20,
+                fontSize: isMobile ? 18 : 20,
               }}
             >
               <DashboardOutlined />
             </div>
             <div>
-              <Title level={4} style={{ margin: 0, color: "#0f172a" }}>
+              <Title level={isMobile ? 5 : 4} style={{ margin: 0, color: "#0f172a" }}>
                 {PERIOD_LABELS[periodFilter]} · Bandu HR{isAdmin && " (Admin)"}
               </Title>
               <Text style={{ fontSize: 12, color: "#64748b" }}>
@@ -546,75 +635,115 @@ const BanduHRDashboard: React.FC = () => {
           </Space>
 
           <Space size="small" wrap>
-            {clockStatus?.clocked_in ? (
-              <Button
-                type="primary"
-                danger
-                icon={<LogoutOutlined />}
-                onClick={handleClockOut}
-                size="small"
-              >
-                Clock Out
-              </Button>
+            {isMobile ? (
+              <>
+                <Button
+                  icon={<FilterOutlined />}
+                  onClick={() => setFilterDrawerOpen(true)}
+                  size="middle"
+                >
+                  {PERIOD_LABELS[periodFilter] || "Filter"}
+                </Button>
+                {clockStatus?.clocked_in ? (
+                  <Button
+                    type="primary"
+                    danger
+                    icon={<LogoutOutlined />}
+                    onClick={handleClockOut}
+                    size="middle"
+                  >
+                    Clock Out
+                  </Button>
+                ) : (
+                  <Button
+                    type="primary"
+                    icon={<CheckCircleOutlined />}
+                    onClick={handleClockIn}
+                    size="middle"
+                  >
+                    Clock In
+                  </Button>
+                )}
+                <Button
+                  type="primary"
+                  icon={<SyncOutlined spin={isFetching} />}
+                  onClick={() => refetch()}
+                  size="middle"
+                />
+              </>
             ) : (
-              <Button
-                type="primary"
-                icon={<CheckCircleOutlined />}
-                onClick={handleClockIn}
-                size="small"
-              >
-                Clock In
-              </Button>
+              <>
+                {clockStatus?.clocked_in ? (
+                  <Button
+                    type="primary"
+                    danger
+                    icon={<LogoutOutlined />}
+                    onClick={handleClockOut}
+                    size="small"
+                  >
+                    Clock Out
+                  </Button>
+                ) : (
+                  <Button
+                    type="primary"
+                    icon={<CheckCircleOutlined />}
+                    onClick={handleClockIn}
+                    size="small"
+                  >
+                    Clock In
+                  </Button>
+                )}
+
+                <div
+                  style={{
+                    background: "#f8fafc",
+                    borderRadius: 8,
+                    padding: "4px 8px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    border: "1px solid #e2e8f0",
+                  }}
+                >
+                  <CalendarOutlined style={{ color: primaryColor, fontSize: 13 }} />
+                  <Radio.Group
+                    value={periodFilter}
+                    onChange={(e) => handlePeriodChange(e.target.value)}
+                    buttonStyle="solid"
+                    size="small"
+                  >
+                    <Radio.Button value="day">Day</Radio.Button>
+                    <Radio.Button value="week">Week</Radio.Button>
+                    <Radio.Button value="month">Month</Radio.Button>
+                    <Radio.Button value="year">Year</Radio.Button>
+                    <Radio.Button value="custom">Custom</Radio.Button>
+                  </Radio.Group>
+                </div>
+
+                {showCustomDatePicker && (
+                  <RangePicker
+                    value={customDateRange as any}
+                    onChange={(d) => setCustomDateRange(d || [])}
+                    allowClear
+                    style={{ minWidth: 240 }}
+                    size="small"
+                  />
+                )}
+
+                <Button
+                  size="small"
+                  icon={<SyncOutlined spin={isFetching} />}
+                  onClick={() => refetch()}
+                >
+                  Refresh
+                </Button>
+              </>
             )}
-
-            <div
-              style={{
-                background: "#f8fafc",
-                borderRadius: 8,
-                padding: "4px 8px",
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                border: "1px solid #e2e8f0",
-              }}
-            >
-              <CalendarOutlined style={{ color: primaryColor, fontSize: 13 }} />
-              <Radio.Group
-                value={periodFilter}
-                onChange={(e) => handlePeriodChange(e.target.value)}
-                buttonStyle="solid"
-                size="small"
-              >
-                <Radio.Button value="day">Day</Radio.Button>
-                <Radio.Button value="week">Week</Radio.Button>
-                <Radio.Button value="month">Month</Radio.Button>
-                <Radio.Button value="year">Year</Radio.Button>
-                <Radio.Button value="custom">Custom</Radio.Button>
-              </Radio.Group>
-            </div>
-
-            {showCustomDatePicker && (
-              <RangePicker
-                value={customDateRange as any}
-                onChange={(d) => setCustomDateRange(d || [])}
-                allowClear
-                style={{ minWidth: 240 }}
-                size="small"
-              />
-            )}
-
-            <Button
-              size="small"
-              icon={<SyncOutlined spin={isFetching} />}
-              onClick={() => refetch()}
-            >
-              Refresh
-            </Button>
           </Space>
         </div>
 
         {/* ── Tier 2: 4 Executive KPI Cards (Matching Duka, Mteja & Pesa Style) ── */}
-        <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+        <Row gutter={isMobile ? [8, 8] : [12, 12]} style={{ marginBottom: isMobile ? 12 : 16 }}>
           <Col xs={12} sm={12} lg={6}>
             <KPICard
               title="Active Workforce"
@@ -623,6 +752,7 @@ const BanduHRDashboard: React.FC = () => {
               color="#3b82f6"
               bg="#eff6ff"
               border="#bfdbfe"
+              isMobile={isMobile}
               subtext={
                 <Text style={{ fontSize: 11, color: "#64748b" }}>
                   {employeeStats.active_employees} active · {employeeStats.new_hires_this_month} new hires
@@ -638,6 +768,7 @@ const BanduHRDashboard: React.FC = () => {
               color="#10b981"
               bg="#f0fdf4"
               border="#bbf7d0"
+              isMobile={isMobile}
               subtext={
                 <Text style={{ fontSize: 11, color: "#64748b" }}>
                   {attendanceStats.present_today || (employeeStats.active_employees - employeeStats.on_leave)} present · {attendanceStats.late_today || 0} late
@@ -653,6 +784,7 @@ const BanduHRDashboard: React.FC = () => {
               color="#f59e0b"
               bg="#fffbeb"
               border="#fde68a"
+              isMobile={isMobile}
               subtext={
                 <Text style={{ fontSize: 11, color: "#64748b" }}>
                   {leaveStats.on_leave_today} on leave · {leaveStats.total_requests} total
@@ -668,6 +800,7 @@ const BanduHRDashboard: React.FC = () => {
               color="#6366f1"
               bg="#eef2ff"
               border="#c7d2fe"
+              isMobile={isMobile}
               subtext={
                 <Text style={{ fontSize: 11, color: "#64748b" }}>
                   Gross: KES {fmtK(payrollStats.total_payroll_this_month)} · Ded: KES {fmtK(payrollStats.total_deductions)}
@@ -687,13 +820,18 @@ const BanduHRDashboard: React.FC = () => {
               bodyStyle={{ paddingTop: 8 }}
               size="small"
               extra={
-                <Tag color="purple" style={{ fontSize: 11 }}>
-                  Pending: KES {fmtK(payrollStats.pending_payroll)}
-                </Tag>
+                isMobile ? undefined : (
+                  <Tag color="purple" style={{ fontSize: 11 }}>
+                    Pending: KES {fmtK(payrollStats.pending_payroll)}
+                  </Tag>
+                )
               }
             >
-              <ResponsiveContainer width="100%" height={260}>
-                <LineChart data={payrollChartData} margin={{ top: 10, right: 15, left: 0, bottom: 0 }}>
+              <ResponsiveContainer width="100%" height={isMobile ? 210 : 260}>
+                <LineChart
+                  data={payrollChartData}
+                  margin={isMobile ? { top: 10, right: 10, left: -20, bottom: 0 } : { top: 10, right: 15, left: 0, bottom: 0 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                   <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} tickFormatter={fmtK} />
@@ -733,18 +871,18 @@ const BanduHRDashboard: React.FC = () => {
               {demographicsTab === "dept" && (
                 <>
                   {departmentBarData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height={240}>
+                    <ResponsiveContainer width="100%" height={isMobile ? 210 : 240}>
                       <BarChart
                         data={departmentBarData}
                         layout="vertical"
-                        margin={{ top: 10, right: 15, left: 10, bottom: 0 }}
+                        margin={isMobile ? { top: 10, right: 10, left: -10, bottom: 0 } : { top: 10, right: 15, left: 10, bottom: 0 }}
                       >
                         <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
                         <XAxis type="number" tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} />
                         <YAxis
                           type="category"
                           dataKey="name"
-                          width={90}
+                          width={isMobile ? 65 : 90}
                           tick={{ fontSize: 11, fill: "#64748b" }}
                           axisLine={false}
                           tickLine={false}
@@ -889,30 +1027,35 @@ const BanduHRDashboard: React.FC = () => {
         <ProCard
           bordered
           size="small"
-          bodyStyle={{ padding: "0 12px 12px" }}
+          style={{ width: "100%", maxWidth: "100%", overflow: "hidden" }}
+          bodyStyle={{ padding: "0 12px 12px", width: "100%", maxWidth: "100%" }}
           tabs={{
             type: "line",
+            size: isMobile ? "small" : "middle",
             items: [
               {
                 key: "activities",
                 label: (
                   <Space size={6}>
                     <HistoryOutlined />
-                    <span>Recent Activities</span>
+                    <span>{isMobile ? "Activities" : "Recent Activities"}</span>
                     {recentActivities.length > 0 && (
                       <Badge count={recentActivities.length} style={{ backgroundColor: "#3b82f6" }} />
                     )}
                   </Space>
                 ),
                 children: (
-                  <Table
-                    columns={activityCols}
-                    dataSource={recentActivities}
-                    rowKey={(record) => `${record.type}-${record.timestamp}`}
-                    pagination={{ pageSize: 5, size: "small" }}
-                    size="small"
-                    locale={{ emptyText: "No recent HR activities" }}
-                  />
+                  <div style={{ width: "100%", maxWidth: "100%", overflowX: "auto" }}>
+                    <Table
+                      columns={activityCols}
+                      dataSource={recentActivities}
+                      rowKey={(record) => `${record.type}-${record.timestamp}`}
+                      pagination={{ pageSize: 5, size: "small" }}
+                      size="small"
+                      scroll={{ x: 480 }}
+                      locale={{ emptyText: "No recent HR activities" }}
+                    />
+                  </div>
                 ),
               },
               {
@@ -920,20 +1063,23 @@ const BanduHRDashboard: React.FC = () => {
                 label: (
                   <Space size={6}>
                     <GiftOutlined />
-                    <span>Upcoming Birthdays</span>
+                    <span>{isMobile ? "Birthdays" : "Upcoming Birthdays"}</span>
                     {upcomingBirthdays.length > 0 && (
                       <Badge count={upcomingBirthdays.length} style={{ backgroundColor: "#10b981" }} />
                     )}
                   </Space>
                 ),
                 children: upcomingBirthdays.length > 0 ? (
-                  <Table
-                    columns={birthdayCols}
-                    dataSource={upcomingBirthdays}
-                    rowKey="employee_id"
-                    pagination={{ pageSize: 5, size: "small" }}
-                    size="small"
-                  />
+                  <div style={{ width: "100%", maxWidth: "100%", overflowX: "auto" }}>
+                    <Table
+                      columns={birthdayCols}
+                      dataSource={upcomingBirthdays}
+                      rowKey="employee_id"
+                      pagination={{ pageSize: 5, size: "small" }}
+                      size="small"
+                      scroll={{ x: 480 }}
+                    />
+                  </div>
                 ) : (
                   <div style={{ textAlign: "center", padding: "40px 0", color: "#94a3b8", fontSize: 12 }}>
                     No upcoming birthdays this month
@@ -945,20 +1091,23 @@ const BanduHRDashboard: React.FC = () => {
                 label: (
                   <Space size={6}>
                     <FileProtectOutlined />
-                    <span>Expiring Documents</span>
+                    <span>{isMobile ? "Documents" : "Expiring Documents"}</span>
                     {expiringDocuments.length > 0 && (
                       <Badge count={expiringDocuments.length} style={{ backgroundColor: "#f59e0b" }} />
                     )}
                   </Space>
                 ),
                 children: expiringDocuments.length > 0 ? (
-                  <Table
-                    columns={documentCols}
-                    dataSource={expiringDocuments}
-                    rowKey={(record) => `${record.employee_id}-${record.document_name}`}
-                    pagination={{ pageSize: 5, size: "small" }}
-                    size="small"
-                  />
+                  <div style={{ width: "100%", maxWidth: "100%", overflowX: "auto" }}>
+                    <Table
+                      columns={documentCols}
+                      dataSource={expiringDocuments}
+                      rowKey={(record) => `${record.employee_id}-${record.document_name}`}
+                      pagination={{ pageSize: 5, size: "small" }}
+                      size="small"
+                      scroll={{ x: 480 }}
+                    />
+                  </div>
                 ) : (
                   <div style={{ textAlign: "center", padding: "40px 0", color: "#94a3b8", fontSize: 12 }}>
                     No documents expiring soon

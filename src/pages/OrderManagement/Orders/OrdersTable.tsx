@@ -25,6 +25,7 @@ import {
 } from "@ant-design/icons";
 import { THEME_C } from "@utils/getPrimaryColor";
 import { fmtKES } from "@utils/formatters";
+import { useAppSelector } from "src/store";
 
 const { Text } = Typography;
 const { RangePicker } = DatePicker;

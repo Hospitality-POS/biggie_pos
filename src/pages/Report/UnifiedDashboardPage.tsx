@@ -25,6 +25,16 @@ const getModuleFlags = () => {
   }
 };
 
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  React.useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return isMobile;
+};
+
 // ── POS Dashboard Component ─────────────────────────────────────────────────────
 const POSDashboardContent: React.FC = () => <DashboardAdminPage />;
 
@@ -42,6 +52,7 @@ const DalaDashboardContent: React.FC = () => <UnifiedDalaDashboard />;
 
 // ── Main Unified Dashboard Page ──────────────────────────────────────────────────
 const UnifiedDashboardPage: React.FC = () => {
+  const isMobile = useIsMobile();
   const { hasDuka, hasPesa, hasMteja, hasBandu, hasDala } = getModuleFlags();
   const [activeTab, setActiveTab] = useState("pos");
 
@@ -105,13 +116,21 @@ const UnifiedDashboardPage: React.FC = () => {
   }
 
   return (
-    <div style={{ padding: "16px 24px", minHeight: "100%" }}>
+    <div
+      style={{
+        padding: isMobile ? "6px 4px" : "16px 24px",
+        minHeight: "100%",
+        width: "100%",
+        maxWidth: "100%",
+        boxSizing: "border-box",
+      }}
+    >
       <Tabs
         activeKey={activeTab}
         onChange={setActiveTab}
         items={tabItems}
-        size="large"
-        tabBarStyle={{ marginBottom: 16 }}
+        size={isMobile ? "middle" : "large"}
+        tabBarStyle={{ marginBottom: isMobile ? 12 : 16 }}
       />
     </div>
   );
