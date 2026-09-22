@@ -880,9 +880,28 @@ const routes = sentryCreateBrowserRouter(
   )
 );
 
+const RootCenteredLoader = () => (
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      width: "100vw",
+      height: "100vh",
+      position: "fixed",
+      top: 0,
+      left: 0,
+      background: "#ffffff",
+      zIndex: 99999,
+    }}
+  >
+    <Spin size="large" />
+  </div>
+);
+
 function Routers() {
   return (
-    <Suspense fallback={<Spin size="large" />}>
+    <Suspense fallback={<RootCenteredLoader />}>
       <RouterProvider router={routes} />
     </Suspense>
   );
