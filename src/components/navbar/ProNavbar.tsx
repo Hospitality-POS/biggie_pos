@@ -14,6 +14,7 @@ import {
   Space,
   Drawer,
   App,
+  Tooltip,
 } from "antd";
 import {
   ArrowLeftOutlined,
@@ -26,6 +27,7 @@ import {
   MenuOutlined,
   CloseOutlined,
   RightOutlined,
+  SearchOutlined,
   PlusOutlined,
   TeamOutlined,
   ShopOutlined,
@@ -71,13 +73,7 @@ import { useActiveProduct } from "@context/ProductContext";
 import React from "react";
 import { getCurrentTenantId } from "@services/tenants";
 
-import AddCustomerModal from "@pages/Customer/AddCustomerModal";
-import AddProSupplierModal from "@components/MODALS/pro/AddProSupplierModal";
-import AddProPaymentMethodSettingsModal from "@components/MODALS/pro/AddProPaymentSettingsModal";
-import AccountFormDrawer from "@pages/ChartOfAccounts/AccountFormDrawer";
-import JournalEntryFormDrawer from "@pages/JournalEntry/JournalEntryFormDrawer";
-import ManualInvoiceModal from "@pages/OrderManagement/Invoices/ManualInvoiceModal";
-import ManualIncomeModal from "@pages/OrderManagement/Orders/ManualIncomeModal";
+import { QuickLinks, useQuickLinks } from "@components/quicklinks";
 
 import { THEME_C } from "@utils/getPrimaryColor";
 
@@ -126,17 +122,6 @@ interface Tenant {
   tenant_logo?: { url?: string };
 }
 
-type QuickCreateModal =
-  | "customer"
-  | "supplier"
-  | "coa"
-  | "journal"
-  | "payment-method"
-  | "invoice"
-  | "quote"
-  | "income-expense"
-  | null;
-
 const ProNavbar = ({ children }: { children: React.ReactNode }) => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
@@ -147,6 +132,7 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
   const primaryColor = usePrimaryColor();
   const isMobile = useIsMobile();
   const { switchProduct } = useActiveProduct();
+  const { toggleQuickLinks } = useQuickLinks();
 
   const shopId = getCurrentTenantId() || "";
 
@@ -155,7 +141,6 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
   const [selectedNotification, setSelectedNotification] = useState<any>(null);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [staffModalOpen, setStaffModalOpen] = useState(false);
-  const [quickCreateModal, setQuickCreateModal] = useState<QuickCreateModal>(null);
 
   const isAdmin = user?.role === "admin";
   const isAdminRoute = location.pathname.startsWith("/admin");
@@ -236,7 +221,6 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
 
   const notificationsPath = isAdminRoute ? "/admin/notifications" : "/notifications";
 
-  const closeQuickCreate = () => setQuickCreateModal(null);
 
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: ["customers"] });
@@ -254,7 +238,6 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
     queryClient.invalidateQueries({ queryKey: ["crm-campaigns"] });
   };
 
-  const fakeActionRef = { current: { reload: invalidateAll, reset: invalidateAll } };
 
   // ── Calculate selected key for navigation ─────────────────────────────────
   // Routes can now be nested (module dropdowns), so flatten before matching.
@@ -277,269 +260,63 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
     return mostSpecific.path;
   })();
 
-  // ── Quick Create menu items ───────────────────────────────────────────────
-  const getQuickCreateItems = () => {
-    const items: any[] = [];
-
-    // ── People — always shown ─────────────────────────────────────────────
-    items.push({
-      type: "group" as const,
-      label: (
-        <Text type="secondary" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 600 }}>
-          People
-        </Text>
-      ),
-      children: [
-        {
-          key: "customer",
-          icon: <TeamOutlined style={{ color: "#3b82f6" }} />,
-          label: <span style={{ fontSize: 13 }}>Customer</span>,
-          onClick: () => setQuickCreateModal("customer"),
-        },
-        {
-          key: "vendor",
-          icon: <ShopOutlined style={{ color: "#8b5cf6" }} />,
-          label: <span style={{ fontSize: 13 }}>Vendor / Supplier</span>,
-          onClick: () => setQuickCreateModal("supplier"),
-        },
-      ],
-    });
-
-    // ── Accounting — only when hasAccounting ──────────────────────────────
-    if (hasAccounting) {
-      items.push({
-        type: "group" as const,
-        label: (
-          <Text type="secondary" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 600 }}>
-            Accounting
-          </Text>
-        ),
-        children: [
-          {
-            key: "coa",
-            icon: <BankOutlined style={{ color: "#0ea5e9" }} />,
-            label: <span style={{ fontSize: 13 }}>Chart of Account</span>,
-            onClick: () => setQuickCreateModal("coa"),
-          },
-          {
-            key: "journal",
-            icon: <AuditOutlined style={{ color: "#6366f1" }} />,
-            label: <span style={{ fontSize: 13 }}>Journal Entry</span>,
-            onClick: () => setQuickCreateModal("journal"),
-          },
-          {
-            key: "payment-method",
-            icon: <CreditCardOutlined style={{ color: "#f59e0b" }} />,
-            label: <span style={{ fontSize: 13 }}>Payment Method</span>,
-            onClick: () => setQuickCreateModal("payment-method"),
-          },
-          {
-            key: "bank-statement",
-            icon: <FileExcelOutlined style={{ color: "#16a34a" }} />,
-            label: <span style={{ fontSize: 13 }}>Bank Statement Import</span>,
-            onClick: () => navigate(isAdmin ? "/admin/accounting/bank-statements" : "/accounting/bank-statements"),
-          },
-          {
-            key: "currencies",
-            icon: <GlobalOutlined style={{ color: "#0d9488" }} />,
-            label: <span style={{ fontSize: 13 }}>Currency Settings</span>,
-            onClick: () => navigate("/accounting/currencies"),
-          },
-        ],
-      });
-    }
-
-    // ── Transactions — POS or Accounting ─────────────────────────────────
-    if (hasPOS || hasAccounting) {
-      const txChildren = [
-        ...(hasPOS ? [{
-          key: "invoice",
-          icon: <FileTextOutlined style={{ color: "#10b981" }} />,
-          label: <span style={{ fontSize: 13 }}>Invoice / Quote</span>,
-          onClick: () => setQuickCreateModal("invoice"),
-        }] : []),
-        ...(hasAccounting ? [{
-          key: "income-expense",
-          icon: <RiseOutlined style={{ color: "#22c55e" }} />,
-          label: <span style={{ fontSize: 13 }}>Expense / Bill</span>,
-          onClick: () => setQuickCreateModal("income-expense"),
-        }] : []),
-      ];
-      if (txChildren.length > 0) {
-        items.push({
-          type: "group" as const,
-          label: (
-            <Text type="secondary" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 600 }}>
-              Transactions
-            </Text>
-          ),
-          children: txChildren,
-        });
-      }
-    }
-
-    // ── Documents — always shown ───────────────────────────────────────────
-    items.push({
-      type: "group" as const,
-      label: (
-        <Text type="secondary" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 600 }}>
-          Documents
-        </Text>
-      ),
-      children: [
-        {
-          key: "document-center",
-          icon: <FileDoneOutlined style={{ color: "#2f54eb" }} />,
-          label: <span style={{ fontSize: 13 }}>Document Center</span>,
-          onClick: () => navigate(isAdmin ? "/admin/documents" : "/documents"),
-        },
-      ],
-    });
-
-    // ── CRM — ONLY when hasMteja === true ─────────────────────────────────
-    if (hasMteja) {
-      items.push({
-        type: "group" as const,
-        label: (
-          <Text type="secondary" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 600 }}>
-            CRM
-          </Text>
-        ),
-        children: [
-          {
-            key: "crm-customer",
-            icon: <TeamOutlined style={{ color: C.primary }} />,
-            label: <span style={{ fontSize: 13 }}>New Customer</span>,
-            onClick: () => setQuickCreateModal("customer"),
-          },
-          {
-            key: "crm-lead",
-            icon: <NotificationOutlined style={{ color: "#7c3aed" }} />,
-            label: <span style={{ fontSize: 13 }}>New Lead</span>,
-            onClick: () => navigate(isAdmin ? "/admin/crm/leads" : "/crm/leads"),
-          },
-          {
-            key: "crm-quote",
-            icon: <FileTextOutlined style={{ color: "#f59e0b" }} />,
-            label: <span style={{ fontSize: 13 }}>New Quote</span>,
-            onClick: () => setQuickCreateModal("quote"),
-          },
-          {
-            key: "crm-calendar",
-            icon: <CalendarOutlined style={{ color: "#0891b2" }} />,
-            label: <span style={{ fontSize: 13 }}>Activity Calendar</span>,
-            onClick: () => navigate(isAdmin ? "/admin/crm/calendar" : "/crm/calendar"),
-          },
-          {
-            key: "crm-campaign",
-            icon: <NotificationOutlined style={{ color: "#0891b2" }} />,
-            label: <span style={{ fontSize: 13 }}>New Campaign</span>,
-            onClick: () => navigate(isAdmin ? "/admin/crm/campaigns" : "/crm/campaigns"),
-          },
-          {
-            key: "crm-target",
-            icon: <AimOutlined style={{ color: "#16a34a" }} />,
-            label: <span style={{ fontSize: 13 }}>New Sales Target</span>,
-            onClick: () => navigate(isAdmin ? "/admin/crm/sales-targets" : "/crm/sales-targets"),
-          },
-        ],
-      });
-    }
-
-    // ── Bandu HR — only when hasBandu ─────────────────────────────────────
-    if (hasBandu) {
-      items.push({
-        type: "group" as const,
-        label: (
-          <Text type="secondary" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 600 }}>
-            HR & Payroll
-          </Text>
-        ),
-        children: [
-          {
-            key: "employee",
-            icon: <TeamOutlined style={{ color: "#8b5cf6" }} />,
-            label: <span style={{ fontSize: 13 }}>Add Employee</span>,
-            onClick: () => navigate(isAdmin ? "/admin/bandu/employees" : "/bandu/employees"),
-          },
-          {
-            key: "payroll",
-            icon: <FileTextOutlined style={{ color: "#10b981" }} />,
-            label: <span style={{ fontSize: 13 }}>Process Payroll</span>,
-            onClick: () => navigate(isAdmin ? "/admin/bandu/payroll" : "/bandu/payroll"),
-          },
-        ],
-      });
-    }
-
-    // ── Dala Real Estate — only when hasDala ─────────────────────────────
-    if (hasDala) {
-      items.push({
-        type: "group" as const,
-        label: (
-          <Text type="secondary" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 600 }}>
-            Real Estate
-          </Text>
-        ),
-        children: [
-          {
-            key: "property",
-            icon: <BuildOutlined style={{ color: C.primary }} />,
-            label: <span style={{ fontSize: 13 }}>New Property</span>,
-            onClick: () => navigate(isAdmin ? "/admin/dala/properties" : "/dala/properties"),
-          },
-          {
-            key: "unit",
-            icon: <ApartmentOutlined style={{ color: "#0891b2" }} />,
-            label: <span style={{ fontSize: 13 }}>Add Unit</span>,
-            onClick: () => navigate(isAdmin ? "/admin/dala/units" : "/dala/units"),
-          },
-          {
-            key: "sale",
-            icon: <MoneyCollectOutlined style={{ color: "#16a34a" }} />,
-            label: <span style={{ fontSize: 13 }}>Property Sale</span>,
-            onClick: () => navigate(isAdmin ? "/admin/dala/sales" : "/dala/sales"),
-          },
-          {
-            key: "lease",
-            icon: <FileProtectOutlined style={{ color: "#7c3aed" }} />,
-            label: <span style={{ fontSize: 13 }}>Create Lease</span>,
-            onClick: () => navigate(isAdmin ? "/admin/dala/leases" : "/dala/leases"),
-          },
-          {
-            key: "tenant",
-            icon: <UsergroupAddOutlined style={{ color: "#f59e0b" }} />,
-            label: <span style={{ fontSize: 13 }}>Add Tenant</span>,
-            onClick: () => navigate(isAdmin ? "/admin/dala/tenants" : "/dala/tenants"),
-          },
-        ],
-      });
-    }
-
-    return items;
-  };
-
-  const quickCreateItems = getQuickCreateItems();
-
-  const QuickCreateButton = (
-    <Dropdown
-      menu={{ items: quickCreateItems }}
-      trigger={["click"]}
-      placement="bottomRight"
-      overlayStyle={{ minWidth: 220, borderRadius: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.14)" }}
-    >
+  // ── Search & Quick Links Button (Triggers Ninja Keys Command Palette) ──────
+  const QuickCreateButton = isMobile ? (
+    <Tooltip title="Search & Quick Actions (⌘K / Ctrl+K)">
       <Button
-        icon={<PlusOutlined />}
+        icon={<SearchOutlined style={{ fontSize: 16 }} />}
         shape="circle"
         size="middle"
+        onClick={toggleQuickLinks}
         style={{
           background: "rgba(255,255,255,0.15)",
           border: "1px solid rgba(255,255,255,0.25)",
-          color: "white", width: 36, height: 36, fontSize: 16,
-          display: "flex", alignItems: "center", justifyContent: "center",
+          color: "white",
+          width: 36,
+          height: 36,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
         }}
       />
-    </Dropdown>
+    </Tooltip>
+  ) : (
+    <Tooltip title="Search & Quick Actions (⌘K / Ctrl+K)">
+      <Button
+        onClick={toggleQuickLinks}
+        style={{
+          background: "rgba(255,255,255,0.15)",
+          border: "1px solid rgba(255,255,255,0.25)",
+          color: "white",
+          height: 36,
+          borderRadius: 18,
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "0 12px 0 10px",
+          fontSize: 13,
+          cursor: "pointer",
+        }}
+      >
+        <SearchOutlined style={{ fontSize: 14, color: "rgba(255,255,255,0.85)" }} />
+        <span style={{ color: "rgba(255,255,255,0.85)", fontWeight: 400 }}>Search...</span>
+        <kbd
+          style={{
+            background: "rgba(255,255,255,0.2)",
+            border: "1px solid rgba(255,255,255,0.3)",
+            borderRadius: 4,
+            padding: "1px 5px",
+            fontSize: 11,
+            lineHeight: 1,
+            color: "white",
+            marginLeft: 4,
+            fontFamily: "inherit",
+          }}
+        >
+          ⌘K
+        </kbd>
+      </Button>
+    </Tooltip>
   );
 
   const notificationsContent = (
@@ -1313,52 +1090,8 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
 
       {MobileDrawer}
 
-      {/* ── Quick-create modals ──────────────────────────────────────────── */}
-      <AddCustomerModal
-        visible={quickCreateModal === "customer"}
-        onClose={closeQuickCreate}
-        onSuccess={() => { invalidateAll(); closeQuickCreate(); }}
-        mode="add"
-      />
-      <AddProSupplierModal
-        actionRef={fakeActionRef}
-        edit={false}
-        externalOpen={quickCreateModal === "supplier"}
-        onExternalClose={closeQuickCreate}
-      />
-      <AccountFormDrawer
-        open={quickCreateModal === "coa"}
-        onClose={closeQuickCreate}
-        onSuccess={() => { invalidateAll(); closeQuickCreate(); }}
-        editingAccount={null}
-        accounts={[]}
-        shopId={shopId}
-      />
-      <JournalEntryFormDrawer
-        open={quickCreateModal === "journal"}
-        onClose={closeQuickCreate}
-        onSuccess={() => { invalidateAll(); closeQuickCreate(); }}
-        shopId={shopId}
-      />
-      <AddProPaymentMethodSettingsModal
-        actionRef={fakeActionRef}
-        edit={false}
-        externalOpen={quickCreateModal === "payment-method"}
-        onExternalClose={closeQuickCreate}
-      />
-      <ManualInvoiceModal
-        open={quickCreateModal === "invoice"}
-        onClose={closeQuickCreate}
-      />
-      <ManualInvoiceModal
-        open={quickCreateModal === "quote"}
-        onClose={closeQuickCreate}
-        quoteOnly
-      />
-      <ManualIncomeModal
-        open={quickCreateModal === "income-expense"}
-        onClose={closeQuickCreate}
-      />
+      {/* ── Quick-create Command Palette & Modals ──────────────────────────── */}
+      <QuickLinks moduleFlags={{ hasPOS, hasAccounting, hasMteja, hasBandu, hasDala }} onSuccess={invalidateAll} />
 
       <ProLayout
         style={{ maxWidth: "1920px" }}
