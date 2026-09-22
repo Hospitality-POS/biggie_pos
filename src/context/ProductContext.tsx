@@ -237,3 +237,5 @@ export const useActiveProduct = () => {
   }
   return context;
 };
+
+export { useActiveDashboard, type DashboardTabKey } from "../hooks/useActiveDashboard";

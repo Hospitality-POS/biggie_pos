@@ -6,6 +6,7 @@ import AccountingDashboardPage from "src/pages/AccountingDashboard/AccountingDas
 import MtejaDashboard from "src/pages/Dashboard/MtejaDashboard";
 import BanduHRDashboard from "src/pages/BanduHR/BanduHRDashboard";
 import DalaDashboard from "src/pages/dala/Dashboard";
+import { useActiveDashboard } from "src/hooks/useActiveDashboard";
 
 // ── Module activation checks ─────────────────────────────────────────────────────
 const getModuleFlags = () => {
@@ -56,7 +57,7 @@ const useIsMobile = () => {
 const UnifiedShopDashboardPage: React.FC = () => {
   const isMobile = useIsMobile();
   const { hasDuka, hasPesa, hasMteja, hasBandu, hasDala } = getModuleFlags();
-  const [activeTab, setActiveTab] = useState("pos");
+  const { activeTab, setActiveDashboard } = useActiveDashboard();
 
   // Build tab items based on enabled modules
   const tabItems = [
@@ -97,15 +98,6 @@ const UnifiedShopDashboardPage: React.FC = () => {
       : []),
   ];
 
-  // Set default tab based on available modules
-  React.useEffect(() => {
-    if (hasDuka) setActiveTab("pos");
-    else if (hasPesa) setActiveTab("accounting");
-    else if (hasMteja) setActiveTab("mteja");
-    else if (hasDala) setActiveTab("dala");
-    else if (hasBandu) setActiveTab("bandu");
-  }, [hasDuka, hasPesa, hasMteja, hasDala, hasBandu]);
-
   // Fallback: if no tabs, show message instead of defaulting to Duka
   if (tabItems.length === 0) {
     return (
@@ -127,7 +119,7 @@ const UnifiedShopDashboardPage: React.FC = () => {
     >
       <Tabs
         activeKey={activeTab}
-        onChange={setActiveTab}
+        onChange={(key) => setActiveDashboard(key)}
         items={tabItems}
         size={isMobile ? "middle" : "large"}
         tabBarStyle={{ marginBottom: isMobile ? 10 : 16 }}

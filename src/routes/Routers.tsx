@@ -289,8 +289,8 @@ const SmartShopRouter = () => {
   const hasDala = tenant?.modules?.dala === true;
 
   if (hasDala && !hasPOS && !hasAccounting && !hasMteja) return <Navigate to="/dala" replace />;
-  if (hasMteja && !hasPOS && !hasAccounting) return <Navigate to="/mteja" replace />;
-  if (hasAccounting && !hasPOS) return <Navigate to="/accounting" replace />;
+  if (hasMteja && !hasPOS && !hasAccounting) return <Navigate to="/home-dashboard?tab=mteja" replace />;
+  if (hasAccounting && !hasPOS) return <Navigate to="/home-dashboard?tab=accounting" replace />;
   return privatePage(Table);
 };
 
@@ -305,8 +305,8 @@ const SmartDashboardRouter = () => {
   const hasMteja = tenant?.modules?.crm === true;
   const hasDala = tenant?.modules?.dala === true;
 
-  if (hasMteja && !hasPOS && !hasAccounting && !hasDala) return <Navigate to="/admin/mteja" replace />;
-  if (hasAccounting && !hasPOS) return <Navigate to="/admin/dashboard" replace />;
+  if (hasMteja && !hasPOS && !hasAccounting && !hasDala) return <Navigate to="/admin/dashboard?tab=mteja" replace />;
+  if (hasAccounting && !hasPOS) return <Navigate to="/admin/dashboard?tab=accounting" replace />;
   return <Navigate to="/admin/dashboard" replace />;
 };
 
@@ -469,9 +469,9 @@ const routes = sentryCreateBrowserRouter(
         {/* ── Accounting — shop level (/accounting/...) ──────────────────── */}
         <Route path="accounting" element={<AccountingLayout />}>
           <Route index errorElement={<NotFound />}
-            element={<Navigate to="/home-dashboard" replace />} />
+            element={<Navigate to="/home-dashboard?tab=accounting" replace />} />
           <Route path="dashboard" errorElement={<NotFound />}
-            element={<Navigate to="/home-dashboard" replace />} />
+            element={<Navigate to="/home-dashboard?tab=accounting" replace />} />
           <Route path="accounts" errorElement={<NotFound />}
             element={guardedPage(ChartOfAccountsPage, "ACCOUNTING_COA_VIEW")} />
           <Route path="journals" errorElement={<NotFound />}
@@ -738,14 +738,14 @@ const routes = sentryCreateBrowserRouter(
           } />
 
         <Route path="mteja" errorElement={<NotFound />}
-          element={<Navigate to="/admin/dashboard" replace />} />
+          element={<Navigate to="/admin/dashboard?tab=mteja" replace />} />
 
         {/* ── Accounting — admin level (/admin/accounting/...) ───────────── */}
         <Route path="accounting" element={<AccountingLayout />}>
           <Route index errorElement={<NotFound />}
-            element={<Navigate to="/admin/dashboard" replace />} />
+            element={<Navigate to="/admin/dashboard?tab=accounting" replace />} />
           <Route path="dashboard" errorElement={<NotFound />}
-            element={<Navigate to="/admin/dashboard" replace />} />
+            element={<Navigate to="/admin/dashboard?tab=accounting" replace />} />
           <Route path="accounts" errorElement={<NotFound />}
             element={guardedAdminPage(ChartOfAccountsPage, "ACCOUNTING_COA_VIEW")} />
           <Route path="journals" errorElement={<NotFound />}

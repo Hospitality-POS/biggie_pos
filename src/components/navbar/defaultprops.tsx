@@ -41,6 +41,7 @@ import React from "react";
 import { makePermissionChecker } from "@utils/accessControl";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { useActiveProduct, ProductKey, PRODUCT_CONFIGS } from "@context/ProductContext";
+import { PRODUCT_TO_DASHBOARD_TAB } from "src/hooks/useActiveDashboard";
 
 // ─── SVG tile helper ──────────────────────────────────────────────────────────
 export const makeTile = (color: string, pathD: string): string => {
@@ -637,7 +638,7 @@ export const useProLayoutNav = () => {
       icon: makeTileImg("#3b82f6", ICONS.reports, "dashboard"),
       title: "Unified Dashboard",
       desc: "Cross-system overview & metrics",
-      url: p("/home-dashboard"),
+      url: p(`/home-dashboard?tab=${PRODUCT_TO_DASHBOARD_TAB[activeProduct] || "pos"}`),
     },
     {
       icon: makeTileImg("#6366f1", ICONS.documents, "documents"),
