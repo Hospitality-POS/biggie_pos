@@ -184,7 +184,7 @@ export const useActiveDashboard = () => {
       if (useDedicatedRoute) {
         switch (targetProduct) {
           case "duka":
-            return `${prefix}/home-dashboard?tab=pos`;
+            return isAdminView ? "/admin/dashboard?tab=pos" : "/home-dashboard";
           case "pesa":
             return `${prefix}/accounting/dashboard`;
           case "mteja":
