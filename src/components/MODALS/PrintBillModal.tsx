@@ -118,6 +118,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
   const [fontSize, setFontSize] = useState(14); // synced from sysSettings via useEffect below
   const [showDiscount, setShowDiscount] = useState(true);
   const [showVat, setShowVat] = useState(true);
+  const [showWarranty, setShowWarranty] = useState(true);
   const [documentType, setDocumentType] = useState<DocumentType>("bill");
   const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [reasonModalOpen, setReasonModalOpen] = useState(false);
@@ -191,7 +192,6 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
 
   const storedTenant = localStorage.getItem("tenant");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-  const isElectronicsStore = tenant?.business_type?.name === "Electronics";
   const hasDuka = tenant?.pos_integration?.enabled === true;
   const clientLogoUrl = tenant?.tenant_logo?.url;
 
@@ -222,8 +222,15 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
   const {
     BRAND_NAME1, EMAIL_URL, PHONE_NO, PO_BOX,
     QR_Code, Paybill_bs, Paybill_ac, TILL_NO, PIN, bank_details,
-    receipt_font_size, receipt_text_bold,
+    receipt_font_size, receipt_text_bold, warranty_settings,
   } = useSystemDetails();
+
+  // Warranty block is controlled per-shop in system setup (privacy tab).
+  const warrantyEnabled = warranty_settings?.enabled === true;
+  const warrantyDuration = warranty_settings?.duration || "6 MONTHS";
+  const warrantyLine1 = warranty_settings?.line_1 || "This receipt is your warranty certificate";
+  const warrantyLine2 = warranty_settings?.line_2 || "Please retain for warranty claims";
+  const showWarrantySection = warrantyEnabled && showWarranty && documentType !== "quotation";
 
   // Sync receipt appearance defaults from system settings when they load
   useEffect(() => {
@@ -932,6 +939,22 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
                 />
               </div>
             </Tooltip>
+
+            <div style={{ width: 1, height: 20, background: "#e5e7eb" }} />
+
+            <Tooltip title={warrantyEnabled ? "Toggle warranty block on printed document" : "Warranty is disabled for this shop — enable it in System Setup > Privacy"}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <SafetyCertificateFilled style={{ fontSize: 15, color: showWarranty && warrantyEnabled ? C.primary : "#9ca3af" }} />
+                <span style={{ fontSize: 13, color: "#374151" }}>Warranty</span>
+                <Switch
+                  size="small"
+                  checked={showWarranty}
+                  onChange={setShowWarranty}
+                  disabled={!warrantyEnabled}
+                  style={{ background: showWarranty && warrantyEnabled ? C.primary : undefined }}
+                />
+              </div>
+            </Tooltip>
           </div>
         </div>
 
@@ -1176,8 +1199,8 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
             </>
           )}
 
-          {/* ── WARRANTY (electronics) ───────────────────────────────── */}
-          {isElectronicsStore && documentType !== "quotation" && (
+          {/* ── WARRANTY ─────────────────────────────────────────────── */}
+          {showWarrantySection && (
             <>
               <DashedLine />
               <div style={{
@@ -1185,12 +1208,12 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
                 margin: "6px 0", textAlign: "center", background: "#f9f9f9",
               }}>
                 <span style={{ ...S.label, fontSize: String(fontSize - 1) + "px" }}>
-                  <SafetyCertificateFilled /> WARRANTY: 6 MONTHS <SafetyCertificateFilled />
+                  <SafetyCertificateFilled /> WARRANTY: {warrantyDuration} <SafetyCertificateFilled />
                 </span>
               </div>
               <div style={{ textAlign: "center" }}>
-                <div style={S.meta}>* This receipt is your warranty certificate *</div>
-                <div style={S.meta}>* Please retain for warranty claims *</div>
+                {warrantyLine1 && <div style={S.meta}>* {warrantyLine1} *</div>}
+                {warrantyLine2 && <div style={S.meta}>* {warrantyLine2} *</div>}
               </div>
             </>
           )}
@@ -1473,14 +1496,14 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
             )}
 
             {/* Warranty */}
-            {isElectronicsStore && documentType !== "quotation" && (
+            {showWarrantySection && (
               <div style={{ marginTop: 20, marginBottom: 16 }}>
                 <div style={pdfWarranty}>
-                  <SafetyCertificateFilled style={{ marginRight: 8 }} />WARRANTY: 6 MONTHS<SafetyCertificateFilled style={{ marginLeft: 8 }} />
+                  <SafetyCertificateFilled style={{ marginRight: 8 }} />WARRANTY: {warrantyDuration}<SafetyCertificateFilled style={{ marginLeft: 8 }} />
                 </div>
                 <div style={{ textAlign: "center", marginTop: 6 }}>
-                  <div style={pdfNorm}>This receipt serves as your warranty certificate</div>
-                  <div style={pdfNorm}>Please retain for warranty claims</div>
+                  {warrantyLine1 && <div style={pdfNorm}>{warrantyLine1}</div>}
+                  {warrantyLine2 && <div style={pdfNorm}>{warrantyLine2}</div>}
                 </div>
               </div>
             )}
