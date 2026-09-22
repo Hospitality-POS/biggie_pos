@@ -368,7 +368,7 @@ export const useProLayoutNav = () => {
   // 1. DUKA (POS) ROUTES
   // ════════════════════════════════════════════════════════════════════════════
   const dukaRoutesBase = [
-    { path: p("/home-dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/home-dashboard" },
+    { path: p("/pos/dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/pos/dashboard" },
     { path: p("/tables"), name: homeRouteName, icon: homeRouteIcon, _bare: "/tables" },
     { path: p("/orders"), name: "Orders", icon: <CalculatorFilled />, _bare: "/orders" },
     ...(posMode !== "retail"
@@ -511,7 +511,7 @@ export const useProLayoutNav = () => {
   };
 
   const posAppList = [
-    { icon: makeTile(primaryColor, ICONS.dashboard), title: "Dashboard", desc: "Sales & store overview.", url: p("/home-dashboard"), _bare: "/home-dashboard" },
+    { icon: makeTile(primaryColor, ICONS.dashboard), title: "Dashboard", desc: "Sales & store overview.", url: p("/pos/dashboard"), _bare: "/pos/dashboard" },
     { icon: makeTile("#0ea5e9", ICONS.table), title: homeRouteName, desc: isHospitalMode ? "Manage wards & beds." : "Manage tables.", url: p("/table-settings"), _bare: "/table-settings" },
     { icon: makeTile("#10b981", ICONS.inventory), title: isHospitalMode ? "Pharmacy" : "Inventory", desc: isHospitalMode ? "Pharmacy stock." : "Track stock levels.", url: p("/inventory"), _bare: "/inventory" },
     { icon: makeTile("#6366f1", ICONS.checklist), title: "Category", desc: "Organize categories.", url: p("/Category-settings"), _bare: "/Category-settings" },

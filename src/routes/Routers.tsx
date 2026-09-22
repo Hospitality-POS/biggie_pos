@@ -22,6 +22,8 @@ const MainOrders = lazy(() => import("@pages/OrderManagement/MainOrders"));
 const StaffClockTracker = lazy(() => import("@pages/staff/ClockInTracker"));
 const HelpCenter = lazy(() => import("src/AdminDashboard/HelpCenter/HelpCenterPage"));
 const DashboardAdminPage = lazy(() => import("src/AdminDashboard/DashboardPage/DashboardPage"));
+const DukaDashboardPage = lazy(() => import("src/pages/Dashboard/DukaDashboardPage"));
+const AdminDukaDashboardPage = lazy(() => import("src/AdminDashboard/DashboardPage/AdminDukaDashboardPage"));
 const UnifiedDashboardPage = lazy(() => import("src/pages/Report/UnifiedDashboardPage"));
 const UnifiedShopDashboardPage = lazy(() => import("src/pages/Report/UnifiedShopDashboardPage"));
 const ShopManagement = lazy(() => import("src/AdminDashboard/Shops/MainShopPage"));
@@ -367,7 +369,7 @@ const routes = sentryCreateBrowserRouter(
           element={guardedPage(RestaurantPage, "ORDERS_VIEW_DASHBOARD")} />
 
         <Route path="dashboard" errorElement={<NotFound />}
-          element={<Navigate to="/home-dashboard" replace />} />
+          element={<Navigate to="/pos/dashboard" replace />} />
 
         <Route path="cart/cart/:cartId" errorElement={<NotFound />}
           element={guardedPage(RestaurantPage, "ORDERS_VIEW_DASHBOARD")} />
@@ -514,10 +516,11 @@ const routes = sentryCreateBrowserRouter(
         <Route path="mteja" element={<Navigate to="/crm/dashboard" replace />} />
         <Route path="bandu/dashboard" element={<Navigate to="/hr/dashboard" replace />} />
         <Route path="bandu" element={<Navigate to="/hr/dashboard" replace />} />
-        <Route path="pos/dashboard" element={<Navigate to="/home-dashboard?tab=pos" replace />} />
-        <Route path="pos" element={<Navigate to="/home-dashboard?tab=pos" replace />} />
-        <Route path="duka/dashboard" element={<Navigate to="/home-dashboard?tab=pos" replace />} />
-        <Route path="duka" element={<Navigate to="/home-dashboard?tab=pos" replace />} />
+        <Route path="pos/dashboard" errorElement={<NotFound />}
+          element={guardedPage(DukaDashboardPage, "UNIFIED_DASHBOARD_VIEW")} />
+        <Route path="pos" element={<Navigate to="/pos/dashboard" replace />} />
+        <Route path="duka/dashboard" element={<Navigate to="/pos/dashboard" replace />} />
+        <Route path="duka" element={<Navigate to="/pos/dashboard" replace />} />
 
         {/* ── CRM / Mteja — shop level (/crm/...) ───────────────────────────
             ALL routes here require hasMteja === true (MtejaRoute guard).
@@ -766,10 +769,11 @@ const routes = sentryCreateBrowserRouter(
         <Route path="mteja" element={<Navigate to="/admin/crm/dashboard" replace />} />
         <Route path="bandu/dashboard" element={<Navigate to="/admin/hr/dashboard" replace />} />
         <Route path="bandu" element={<Navigate to="/admin/hr/dashboard" replace />} />
-        <Route path="pos/dashboard" element={<Navigate to="/admin/dashboard?tab=pos" replace />} />
-        <Route path="pos" element={<Navigate to="/admin/dashboard?tab=pos" replace />} />
-        <Route path="duka/dashboard" element={<Navigate to="/admin/dashboard?tab=pos" replace />} />
-        <Route path="duka" element={<Navigate to="/admin/dashboard?tab=pos" replace />} />
+        <Route path="pos/dashboard" errorElement={<NotFound />}
+          element={guardedAdminPage(AdminDukaDashboardPage, "UNIFIED_DASHBOARD_VIEW")} />
+        <Route path="pos" element={<Navigate to="/admin/pos/dashboard" replace />} />
+        <Route path="duka/dashboard" element={<Navigate to="/admin/pos/dashboard" replace />} />
+        <Route path="duka" element={<Navigate to="/admin/pos/dashboard" replace />} />
 
         {/* ── Accounting — admin level (/admin/accounting/...) ───────────── */}
         <Route path="accounting" element={<AccountingLayout />}>

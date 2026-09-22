@@ -32,7 +32,7 @@ export const PRODUCT_CONFIGS: Record<ProductKey, ProductConfig> = {
     tagline: "Point of Sale, Orders, Inventory & Crew",
     icon: <ShopOutlined />,
     color: "#0ea5e9", // Sky blue
-    defaultPath: "/home-dashboard",
+    defaultPath: "/pos/dashboard",
     pathPrefixes: [
       "/home-dashboard",
       "/pos",
