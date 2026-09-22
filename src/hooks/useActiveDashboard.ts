@@ -96,21 +96,36 @@ export const useActiveDashboard = () => {
       return queryTab;
     }
 
-    // 2. Check current activeProduct from ProductContext
+    // 2. Check current pathname for direct module routes
+    const path = location.pathname;
+    if (path.startsWith("/accounting") || path.startsWith("/admin/accounting") || path.startsWith("/pesa")) {
+      if (isTabAvailable("accounting")) return "accounting";
+    }
+    if (path.startsWith("/crm") || path.startsWith("/admin/crm") || path.startsWith("/mteja") || path.startsWith("/omnichannel")) {
+      if (isTabAvailable("mteja")) return "mteja";
+    }
+    if (path.startsWith("/dala") || path.startsWith("/admin/dala")) {
+      if (isTabAvailable("dala")) return "dala";
+    }
+    if (path.startsWith("/hr") || path.startsWith("/admin/hr") || path.startsWith("/bandu")) {
+      if (isTabAvailable("bandu")) return "bandu";
+    }
+
+    // 3. Check current activeProduct from ProductContext
     const productTab = PRODUCT_TO_DASHBOARD_TAB[activeProduct];
     if (productTab && isTabAvailable(productTab)) {
       return productTab;
     }
 
-    // 3. Check localStorage
+    // 4. Check localStorage
     const saved = normalizeDashboardTab(localStorage.getItem(STORAGE_KEY));
     if (saved && isTabAvailable(saved)) {
       return saved;
     }
 
-    // 4. Fallback to first available tab
+    // 5. Fallback to first available tab
     return availableTabs[0] || "pos";
-  }, [searchParams, isTabAvailable, activeProduct, availableTabs]);
+  }, [searchParams, location.pathname, isTabAvailable, activeProduct, availableTabs]);
 
   const [activeTab, setActiveTabState] = useState<DashboardTabKey>(getResolvedTab);
 
@@ -160,11 +175,28 @@ export const useActiveDashboard = () => {
 
   // Returns URL to land directly on a specific dashboard
   const getDashboardPath = useCallback(
-    (product?: ProductKey, isAdmin?: boolean): string => {
+    (product?: ProductKey, isAdmin?: boolean, useDedicatedRoute = true): string => {
       const targetProduct = product || activeProduct;
-      const targetTab = PRODUCT_TO_DASHBOARD_TAB[targetProduct] || "pos";
       const isAdminView =
         isAdmin !== undefined ? isAdmin : location.pathname.startsWith("/admin");
+      const prefix = isAdminView ? "/admin" : "";
+
+      if (useDedicatedRoute) {
+        switch (targetProduct) {
+          case "duka":
+            return `${prefix}/home-dashboard?tab=pos`;
+          case "pesa":
+            return `${prefix}/accounting/dashboard`;
+          case "mteja":
+            return `${prefix}/crm/dashboard`;
+          case "bandu":
+            return `${prefix}/hr/dashboard`;
+          case "dala":
+            return `${prefix}/dala/dashboard`;
+        }
+      }
+
+      const targetTab = PRODUCT_TO_DASHBOARD_TAB[targetProduct] || "pos";
       const basePath = isAdminView ? "/admin/dashboard" : "/home-dashboard";
       return `${basePath}?tab=${targetTab}`;
     },

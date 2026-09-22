@@ -158,6 +158,7 @@ const POS_ROUTE_PERMISSIONS: Record<string, string> = {
 
 const ACCOUNTING_ROUTE_PERMISSIONS: Record<string, string> = {
   "/accounting": "ACCOUNTING_DASHBOARD_VIEW",
+  "/accounting/dashboard": "ACCOUNTING_DASHBOARD_VIEW",
   "/home-dashboard": "UNIFIED_DASHBOARD_VIEW",
   "/orders": "ACCOUNTING_INVOICE_VIEW",
   "/accounting/sales-receipts": "ACCOUNTING_INCOME_VIEW_HISTORY",
@@ -182,6 +183,7 @@ const ACCOUNTING_ROUTE_PERMISSIONS: Record<string, string> = {
 };
 
 const CRM_ROUTE_PERMISSIONS: Record<string, string> = {
+  "/crm/dashboard": "CUSTOMERS_VIEW",
   "/home-dashboard": "UNIFIED_DASHBOARD_VIEW",
   "/omnichannel": "OMNICHANNEL_VIEW",
   "/crm/leads": "CRM_LEADS_VIEW",
@@ -196,6 +198,7 @@ const CRM_ROUTE_PERMISSIONS: Record<string, string> = {
 };
 
 const DALA_ROUTE_PERMISSIONS: Record<string, string> = {
+  "/dala/dashboard": "DALA_PROPERTIES_VIEW",
   "/home-dashboard": "UNIFIED_DASHBOARD_VIEW",
   "/dala": "DALA_DASHBOARD_VIEW",
   "/dala/properties": "DALA_PROPERTIES_VIEW",
@@ -395,7 +398,7 @@ export const useProLayoutNav = () => {
   // 2. PESA (ACCOUNTING) ROUTES
   // ════════════════════════════════════════════════════════════════════════════
   const pesaRoutesBase = [
-    { path: p("/accounting"), name: "Accounting", icon: <DashboardOutlined />, _bare: "/accounting" },
+    { path: p("/accounting/dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/accounting/dashboard" },
     { path: p("/orders"), name: "Invoices", icon: <FileTextOutlined />, _bare: "/orders" },
     { path: p("/accounting/sales-receipts"), name: "Sales Receipts", icon: <AccountBookOutlined />, _bare: "/accounting/sales-receipts" },
     { path: p("/accounting/expenses"), name: "Expenses", icon: <ArrowUpOutlined />, _bare: "/accounting/expenses" },
@@ -426,7 +429,7 @@ export const useProLayoutNav = () => {
   // 3. MTEJA (CRM) ROUTES
   // ════════════════════════════════════════════════════════════════════════════
   const mtejaRoutesBase = [
-    { path: p("/home-dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/home-dashboard" },
+    { path: p("/crm/dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/crm/dashboard" },
     { path: p("/omnichannel"), name: "Conversations", icon: <MessageOutlined />, _bare: "/omnichannel" },
     { path: p("/crm/leads"), name: "Leads", icon: <TeamOutlined />, _bare: "/crm/leads" },
     { path: p("/crm/calendar"), name: "Activity Calendar", icon: <CalendarOutlined />, _bare: "/crm/calendar" },
@@ -471,6 +474,7 @@ export const useProLayoutNav = () => {
   // 5. DALA (REAL ESTATE) ROUTES
   // ════════════════════════════════════════════════════════════════════════════
   const dalaRoutesBase = [
+    { path: p("/dala/dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/dala/dashboard" },
     { path: p("/dala/properties"), name: "Portfolio", icon: <HomeOutlined />, _bare: "/dala/properties" },
     { path: p("/dala/property-types"), name: "Property Types", icon: <ApartmentOutlined />, _bare: "/dala/property-types" },
     { path: p("/dala/sales"), name: "Sales", icon: <ReconciliationOutlined />, _bare: "/dala/sales" },

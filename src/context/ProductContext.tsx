@@ -55,10 +55,12 @@ export const PRODUCT_CONFIGS: Record<ProductKey, ProductConfig> = {
     tagline: "Double-Entry Accounting, Invoices & Banking",
     icon: <DollarOutlined />,
     color: "#10b981", // Emerald green
-    defaultPath: "/accounting",
+    defaultPath: "/accounting/dashboard",
     pathPrefixes: [
       "/accounting",
       "/admin/accounting",
+      "/pesa",
+      "/admin/pesa",
     ],
   },
   mteja: {
@@ -69,12 +71,13 @@ export const PRODUCT_CONFIGS: Record<ProductKey, ProductConfig> = {
     tagline: "Omnichannel WhatsApp, Leads & Campaigns",
     icon: <CustomerServiceOutlined />,
     color: "#8b5cf6", // Purple
-    defaultPath: "/crm/leads",
+    defaultPath: "/crm/dashboard",
     pathPrefixes: [
       "/crm",
       "/omnichannel",
       "/mteja",
       "/admin/mteja",
+      "/admin/crm",
     ],
   },
   bandu: {
@@ -85,11 +88,12 @@ export const PRODUCT_CONFIGS: Record<ProductKey, ProductConfig> = {
     tagline: "HR Directory, Leave, Attendance & Payroll",
     icon: <TeamOutlined />,
     color: "#f59e0b", // Amber
-    defaultPath: "/hr/employees",
+    defaultPath: "/hr/dashboard",
     pathPrefixes: [
       "/hr",
       "/bandu",
       "/admin/bandu",
+      "/admin/hr",
     ],
   },
   dala: {
@@ -100,7 +104,7 @@ export const PRODUCT_CONFIGS: Record<ProductKey, ProductConfig> = {
     tagline: "Property Portfolio, Leases, Rent & Maintenance",
     icon: <HomeOutlined />,
     color: "#06b6d4", // Cyan
-    defaultPath: "/dala/properties",
+    defaultPath: "/dala/dashboard",
     pathPrefixes: [
       "/dala",
       "/admin/dala",
