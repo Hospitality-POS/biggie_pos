@@ -146,8 +146,7 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAppSelector((state) => state.auth);
   const primaryColor = usePrimaryColor();
   const isMobile = useIsMobile();
-  const { activeProduct, activeProductConfig, availableProducts, switchProduct, isMultiProduct } =
-    useActiveProduct();
+  const { switchProduct } = useActiveProduct();
 
   const shopId = getCurrentTenantId() || "";
 
@@ -897,41 +896,6 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         </div>
       )}
 
-      {isMultiProduct && (
-        <div style={{ padding: "10px 14px 8px", borderBottom: `1px solid ${C.border}`, background: "#f8fafc" }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.5px", textTransform: "uppercase", color: "#64748b", marginBottom: 6 }}>
-            Product Workspace
-          </div>
-          <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2 }}>
-            {availableProducts.map((prod) => {
-              const isActive = prod.key === activeProduct;
-              return (
-                <button
-                  key={prod.key}
-                  onClick={() => switchProduct(prod.key, false)}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    padding: "6px 10px",
-                    borderRadius: 8,
-                    border: isActive ? `1.5px solid ${prod.color}` : "1px solid #e2e8f0",
-                    background: isActive ? `${prod.color}15` : "#ffffff",
-                    color: isActive ? prod.color : "#475569",
-                    fontWeight: isActive ? 600 : 500,
-                    fontSize: 12,
-                    whiteSpace: "nowrap",
-                    cursor: "pointer",
-                  }}
-                >
-                  <span style={{ fontSize: 14 }}>{prod.icon}</span>
-                  <span>{prod.name}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       <div style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
         {(() => {
