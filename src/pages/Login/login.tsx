@@ -203,10 +203,37 @@ const StaffLoginPage = () => {
         setLoginMethod("companyCode");
     };
 
-    // Helper function to determine redirect path based on enabled modules
-    const getRedirectPath = () => {
-        // All non-admin users should redirect to home-dashboard
-        return "/home-dashboard";
+    // Helper function to determine redirect path based on role and enabled modules
+    const getRedirectPath = (userPayload?: any) => {
+        if (userPayload?.role === "admin") {
+            return "/admin/dashboard";
+        }
+
+        // For cashiers, waitstaff, and non-admin operational crew:
+        // Direct them straight to "/tables" (POS register / slots)
+        // rather than the dashboard where access is restricted/denied.
+        try {
+            const storedTenant = localStorage.getItem("tenant");
+            const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+            const hasPOS = !!(tenant?.pos_integration?.enabled ?? true);
+            const hasAccounting = !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting);
+            const hasMteja = tenant?.modules?.crm === true;
+            const hasBandu = tenant?.modules?.bandu_hr === true || tenant?.modules?.payroll === true;
+            const hasDala = tenant?.modules?.dala === true;
+
+            if (hasPOS) {
+                return "/tables";
+            }
+
+            if (hasAccounting) return "/orders";
+            if (hasMteja) return "/crm/leads";
+            if (hasBandu) return "/hr/employees";
+            if (hasDala) return "/dala/properties";
+        } catch {
+            // fallback
+        }
+
+        return "/tables";
     };
 
     const handleLoginWithNavigation = async (enteredPin: string) => {
@@ -227,7 +254,7 @@ const StaffLoginPage = () => {
         if (success && userPayload?.role === "admin") {
             navigate("/admin/dashboard");
         } else if (success) {
-            navigate(getRedirectPath());
+            navigate(getRedirectPath(userPayload));
         } else {
             setError(loginError);
         }
@@ -316,7 +343,7 @@ const StaffLoginPage = () => {
                 if (success && userPayload?.role === "admin") {
                     navigate("/admin/dashboard");
                 } else if (success) {
-                    navigate(getRedirectPath());
+                    navigate(getRedirectPath(userPayload));
                 } else {
                     setError(loginError);
                 }
@@ -345,8 +372,8 @@ const StaffLoginPage = () => {
                         console.log('Navigating to admin dashboard');
                         navigate("/admin/dashboard");
                     } else {
-                        console.log('Navigating to appropriate dashboard based on modules');
-                        navigate(getRedirectPath());
+                        console.log('Navigating non-admin to destination path');
+                        navigate(getRedirectPath(user));
                     }
                 } catch (fetchError) {
                     console.error('OTP Login Error:', fetchError);
