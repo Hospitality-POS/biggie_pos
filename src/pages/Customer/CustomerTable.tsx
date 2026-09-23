@@ -1080,7 +1080,7 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
                         showTotal: (total, range) => `${range[0]}–${range[1]} of ${total} customers`,
                     }}
                     search={{ searchText: "Search", resetText: "Reset", labelWidth: "auto" }}
-                    headerTitle={false}
+                    headerTitle={<Text strong style={{ fontSize: 14, color: C.darkText }}>Customer List</Text>}
                     tableAlertRender={({ selectedRowKeys }) => (
                         <Text style={{ fontSize: 12 }}>Selected: {selectedRowKeys.length}</Text>
                     )}
