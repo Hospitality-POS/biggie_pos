@@ -119,6 +119,19 @@ const HelpCenter: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
 
+  const filteredCategories = searchQuery.trim()
+    ? categories.filter(
+        (category) =>
+          category.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          category.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (helpCenterArticles[category.key] || []).some(
+            (article) =>
+              article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              article.description.toLowerCase().includes(searchQuery.toLowerCase())
+          )
+      )
+    : categories;
+
   const filteredArticles = selectedCategory
     ? (helpCenterArticles[selectedCategory] || []).filter(
       (article) =>
@@ -128,170 +141,189 @@ const HelpCenter: React.FC = () => {
     : [];
 
   return (
-    <div style={{ padding: "20px 16px" }}>
-      <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-          {/* Header */}
-          <div style={{ marginBottom: 24 }}>
-            <Space align="center" size={10} style={{ marginBottom: 12 }}>
-              <div
-                style={{
-                  background: "#eff6ff",
-                  borderRadius: 10,
-                  padding: "6px 8px",
-                  color: "#3b82f6",
-                  fontSize: 18,
-                  display: "flex",
-                }}
-              >
-                <BookOutlined />
-              </div>
-              <div>
-                <Title level={4} style={{ margin: 0, color: C.text, fontWeight: 600 }}>
-                  Help Center
-                </Title>
-                <Text style={{ fontSize: 12, color: C.sub }}>
-                  Comprehensive guides for Duka, Pesa, Mteja, Dala, and Etims
-                </Text>
-              </div>
-            </Space>
-            <Input.Search
-              placeholder="Search for guides, tutorials, and articles..."
-              style={{ width: "100%", maxWidth: 480 }}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              prefix={<SearchOutlined style={{ color: C.faint }} />}
-            />
+    <div style={{ padding: "16px 20px 24px", width: "100%", boxSizing: "border-box" }}>
+      {/* Header */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: 16,
+          marginBottom: 20,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div
+            style={{
+              background: "#eff6ff",
+              borderRadius: 8,
+              padding: "6px 8px",
+              color: "#3b82f6",
+              fontSize: 18,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            <BookOutlined />
           </div>
-
-          {/* Categories or Articles */}
-          {!selectedCategory ? (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 12 }}>
-              {categories.map((category) => (
-                <Card
-                  key={category.key}
-                  hoverable
-                  onClick={() => setSelectedCategory(category.key)}
-                  style={{
-                    borderRadius: 12,
-                    border: `1px solid ${C.border}`,
-                    boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
-                    cursor: "pointer",
-                  }}
-                  styles={{
-                    body: { padding: "18px 18px" },
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      width: 40,
-                      height: 40,
-                      borderRadius: 10,
-                      background: `${category.color}14`,
-                      marginBottom: 12,
-                    }}
-                  >
-                    <span style={{ fontSize: 20, color: category.color }}>
-                      {category.icon}
-                    </span>
-                  </div>
-                  <Text strong style={{ display: "block", fontSize: 14, color: C.text, marginBottom: 2 }}>
-                    {category.title}
-                  </Text>
-                  <Text style={{ fontSize: 12, color: C.sub }}>
-                    {category.description}
-                  </Text>
-                  <div style={{ marginTop: 10 }}>
-                    <Text style={{ fontSize: 11, color: category.color, fontWeight: 600 }}>
-                      {helpCenterArticles[category.key]?.length || 0} articles
-                    </Text>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <div>
-              <div style={{ marginBottom: 24 }}>
-                <Button
-                  onClick={() => setSelectedCategory(null)}
-                  icon={<ArrowRightOutlined rotate={180} />}
-                  style={{ borderRadius: 8 }}
-                >
-                  Back to Categories
-                </Button>
-              </div>
-
-              <Title level={4} style={{ marginBottom: 16, color: C.text, fontWeight: 600 }}>
-                {categories.find((c) => c.key === selectedCategory)?.title}
-              </Title>
-
-              {filteredArticles.length > 0 ? (
-                <List
-                  grid={{ gutter: 16, column: 1 }}
-                  dataSource={filteredArticles}
-                  renderItem={(article) => (
-                    <List.Item style={{ marginBottom: 10 }}>
-                      <Card
-                        hoverable
-                        onClick={() => setSelectedArticle(article)}
-                        style={{
-                          borderRadius: 12,
-                          border: `1px solid ${C.border}`,
-                          boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
-                        }}
-                        styles={{
-                          body: { padding: "14px 16px" },
-                        }}
-                      >
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                          <div style={{ flex: 1 }}>
-                            <Text strong style={{ display: "block", fontSize: 14, color: C.text, marginBottom: 4 }}>
-                              {article.title}
-                            </Text>
-                            <Paragraph style={{ marginBottom: 10, color: C.sub, fontSize: 13 }}>
-                              {article.description}
-                            </Paragraph>
-                            <Space wrap size={6}>
-                              <Tag
-                                color={article.type === "video" ? "red" : "blue"}
-                                icon={article.type === "video" ? <PlayCircleOutlined /> : <FileTextOutlined />}
-                                style={{ fontSize: 11, margin: 0 }}
-                              >
-                                {article.type.toUpperCase()}
-                              </Tag>
-                              <Tag icon={<ClockCircleOutlined />} style={{ fontSize: 11, margin: 0 }}>
-                                {article.readTime}
-                              </Tag>
-                              <Tag icon={<EyeOutlined />} style={{ fontSize: 11, margin: 0 }}>
-                                {article.views} views
-                              </Tag>
-                              <Tag icon={<LikeOutlined />} color="green" style={{ fontSize: 11, margin: 0 }}>
-                                {article.helpful} helpful
-                              </Tag>
-                            </Space>
-                          </div>
-                        </div>
-                      </Card>
-                    </List.Item>
-                  )}
-                />
-              ) : (
-                <Empty
-                  description="No articles found"
-                  style={{ padding: 60 }}
-                />
-              )}
-            </div>
-          )}
+          <div>
+            <Title level={4} style={{ margin: 0, color: C.text, fontWeight: 600, lineHeight: 1.3 }}>
+              Help Center
+            </Title>
+            <Text style={{ fontSize: 12, color: C.sub, lineHeight: 1.3 }}>
+              Comprehensive guides for Duka, Pesa, Mteja, Dala, and Etims
+            </Text>
+          </div>
         </div>
 
-        <ArticleDrawer
-          article={selectedArticle}
-          visible={!!selectedArticle}
-          onClose={() => setSelectedArticle(null)}
+        <Input.Search
+          placeholder="Search for guides, tutorials, and articles..."
+          style={{ width: 380, maxWidth: "100%" }}
+          allowClear
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          prefix={<SearchOutlined style={{ color: C.faint }} />}
         />
       </div>
+
+      {/* Categories or Articles */}
+      {!selectedCategory ? (
+        filteredCategories.length > 0 ? (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
+            {filteredCategories.map((category) => (
+              <Card
+                key={category.key}
+                hoverable
+                onClick={() => setSelectedCategory(category.key)}
+                style={{
+                  borderRadius: 12,
+                  border: `1px solid ${C.border}`,
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+                  cursor: "pointer",
+                }}
+                styles={{
+                  body: { padding: "18px 18px" },
+                }}
+              >
+                <div
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 40,
+                    height: 40,
+                    borderRadius: 10,
+                    background: `${category.color}14`,
+                    marginBottom: 12,
+                  }}
+                >
+                  <span style={{ fontSize: 20, color: category.color }}>
+                    {category.icon}
+                  </span>
+                </div>
+                <Text strong style={{ display: "block", fontSize: 14, color: C.text, marginBottom: 2 }}>
+                  {category.title}
+                </Text>
+                <Text style={{ fontSize: 12, color: C.sub }}>
+                  {category.description}
+                </Text>
+                <div style={{ marginTop: 10 }}>
+                  <Text style={{ fontSize: 11, color: category.color, fontWeight: 600 }}>
+                    {helpCenterArticles[category.key]?.length || 0} articles
+                  </Text>
+                </div>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <Empty
+            description="No categories or articles found"
+            style={{ padding: 60 }}
+          />
+        )
+      ) : (
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+            <Button
+              onClick={() => setSelectedCategory(null)}
+              icon={<ArrowRightOutlined rotate={180} />}
+              style={{ borderRadius: 8 }}
+            >
+              Back to Categories
+            </Button>
+            <Title level={4} style={{ margin: 0, color: C.text, fontWeight: 600 }}>
+              {categories.find((c) => c.key === selectedCategory)?.title}
+            </Title>
+          </div>
+
+          {filteredArticles.length > 0 ? (
+            <List
+              grid={{ gutter: 16, column: 1 }}
+              dataSource={filteredArticles}
+              renderItem={(article) => (
+                <List.Item style={{ marginBottom: 10 }}>
+                  <Card
+                    hoverable
+                    onClick={() => setSelectedArticle(article)}
+                    style={{
+                      borderRadius: 12,
+                      border: `1px solid ${C.border}`,
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+                    }}
+                    styles={{
+                      body: { padding: "14px 16px" },
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                      <div style={{ flex: 1 }}>
+                        <Text strong style={{ display: "block", fontSize: 14, color: C.text, marginBottom: 4 }}>
+                          {article.title}
+                        </Text>
+                        <Paragraph style={{ marginBottom: 10, color: C.sub, fontSize: 13 }}>
+                          {article.description}
+                        </Paragraph>
+                        <Space wrap size={6}>
+                          <Tag
+                            color={article.type === "video" ? "red" : "blue"}
+                            icon={article.type === "video" ? <PlayCircleOutlined /> : <FileTextOutlined />}
+                            style={{ fontSize: 11, margin: 0 }}
+                          >
+                            {article.type.toUpperCase()}
+                          </Tag>
+                          <Tag icon={<ClockCircleOutlined />} style={{ fontSize: 11, margin: 0 }}>
+                            {article.readTime}
+                          </Tag>
+                          <Tag icon={<EyeOutlined />} style={{ fontSize: 11, margin: 0 }}>
+                            {article.views} views
+                          </Tag>
+                          <Tag icon={<LikeOutlined />} color="green" style={{ fontSize: 11, margin: 0 }}>
+                            {article.helpful} helpful
+                          </Tag>
+                        </Space>
+                      </div>
+                    </div>
+                  </Card>
+                </List.Item>
+              )}
+            />
+          ) : (
+            <Empty
+              description="No articles found"
+              style={{ padding: 60 }}
+            />
+          )}
+        </div>
+      )}
+
+      <ArticleDrawer
+        article={selectedArticle}
+        visible={!!selectedArticle}
+        onClose={() => setSelectedArticle(null)}
+      />
+    </div>
   );
 };
 
