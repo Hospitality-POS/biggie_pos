@@ -3,7 +3,7 @@ import { ActionType, ProTable } from "@ant-design/pro-components";
 import {
     CalendarOutlined, DeleteOutlined, EditOutlined,
     EyeOutlined, MoreOutlined,
-    PhoneOutlined, UserOutlined,
+    PhoneOutlined, TeamOutlined, UserOutlined,
 } from "@ant-design/icons";
 import { App, Button, Dropdown, Modal, Tag, Typography } from "antd";
 import { deleteLead, fetchAllLeads, fetchProjectOptions, Lead, LeadStage } from "@services/crm/leads";
@@ -235,7 +235,12 @@ const LeadTable = forwardRef<LeadTableHandle, LeadTableProps>(({ onView, onEdit 
                 cardBordered={false}
                 pagination={{ pageSize: 10, showSizeChanger: true, showQuickJumper: true }}
                 search={{ searchText: "Search", resetText: "Reset", labelWidth: "auto" }}
-                headerTitle={false}
+                headerTitle={
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <TeamOutlined style={{ color: C.primary }} />
+                        <Text strong style={{ fontSize: 14, color: C.darkText }}>Lead Pipeline</Text>
+                    </div>
+                }
                 options={{ reload: () => actionRef.current?.reload(), fullScreen: true }}
                 scroll={{ x: 1100 }}
                 size="small"
