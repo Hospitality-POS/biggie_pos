@@ -12,6 +12,7 @@ import {
   BookOutlined,
   SettingOutlined,
   RightOutlined,
+  GlobalOutlined,
 } from "@ant-design/icons";
 import { Typography, Grid } from "antd";
 import { useQuery } from "@tanstack/react-query";
@@ -26,8 +27,11 @@ import WhatsAppSenderRegistration from "./WhatsAppSenderRegistration";
 import HotelSettings from "./HotelSettings";
 import TransactionLocking from "./TransactionLocking";
 import ChartOfAccountsSettings from "./ChartOfAccountsSettings";
+import CurrencyPage from "@pages/Currency/CurrencyPage";
 import { fetchShop } from "@services/shops";
 import { THEME_C } from "@utils/getPrimaryColor";
+import { makePermissionChecker } from "@utils/accessControl";
+import { useAppSelector } from "src/store";
 
 const { Text, Title } = Typography;
 
@@ -87,6 +91,13 @@ const SystemSetup: React.FC = () => {
     tenant?.accounting_database?.enabled ||
     tenant?.modules?.accounting
   );
+
+  const { user } = useAppSelector((state) => state.auth);
+  const rolePermissions: string[] =
+    (user as any)?.rolePermissions ?? (user as any)?.permissions ?? [];
+  const can = makePermissionChecker(rolePermissions, user?.role === "admin");
+  // Same gate the currencies nav item used before it moved here.
+  const canSeeCurrencies = can("ACCOUNTING_COA_VIEW");
 
   const sections = useMemo<SettingSection[]>(() => {
     const list: SettingSection[] = [
@@ -205,6 +216,19 @@ const SystemSetup: React.FC = () => {
       );
     }
 
+    if (canSeeCurrencies) {
+      list.push({
+        key: "currencies",
+        label: "Currencies",
+        description: "Multi-currency & exchange rates",
+        icon: <GlobalOutlined />,
+        color: "#0d9488",
+        bg: "#f0fdfa",
+        group: hasAccounting ? "Accounting" : "General",
+        render: () => <CurrencyPage />,
+      });
+    }
+
     if (isHotelMode) {
       list.push({
         key: "hotel-settings",
@@ -219,7 +243,7 @@ const SystemSetup: React.FC = () => {
     }
 
     return list;
-  }, [hasPOS, hasAccounting, isHotelMode]);
+  }, [hasPOS, hasAccounting, isHotelMode, canSeeCurrencies]);
 
   const activeSection =
     sections.find((s) => s.key === activeTab) ?? sections[0];
