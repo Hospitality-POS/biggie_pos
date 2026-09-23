@@ -9,7 +9,6 @@ import {
   FileSearchOutlined,
   FileTextOutlined,
   FolderFilled,
-  GlobalOutlined,
   HomeFilled,
   HomeOutlined,
   UserOutlined,
@@ -355,15 +354,6 @@ export const useProLayoutNav = () => {
     _bare: "/esign",
   };
 
-  const currencyBarePath =
-    activeProduct === "pesa" ? "/accounting/currencies" : "/currencies";
-  const currencyRoute = {
-    path: p(currencyBarePath),
-    name: "Currencies",
-    icon: <GlobalOutlined />,
-    _bare: currencyBarePath,
-  };
-
   // ════════════════════════════════════════════════════════════════════════════
   // 1. DUKA (POS) ROUTES
   // ════════════════════════════════════════════════════════════════════════════
@@ -394,7 +384,6 @@ export const useProLayoutNav = () => {
     { path: p("/table-settings"), name: "Tables", icon: <AppstoreOutlined />, _bare: "/table-settings" },
     { path: p("/suppliers"), name: "Suppliers", icon: <FolderFilled />, _bare: "/suppliers" },
     { path: p("/help-center"), name: "Help Center", icon: <CustomerServiceOutlined />, _bare: "/help-center" },
-    { ...currencyRoute },
   ];
 
   const dukaRoutes = dukaRoutesBase
@@ -425,7 +414,6 @@ export const useProLayoutNav = () => {
     { path: p("/system-setup"), name: "System Setup", icon: <SettingOutlined />, _bare: "/system-setup" },
     { ...documentRoute },
     { ...esignRoute },
-    { ...currencyRoute },
   ];
 
   const pesaRoutes = pesaRoutesBase
@@ -502,14 +490,6 @@ export const useProLayoutNav = () => {
   // ════════════════════════════════════════════════════════════════════════════
   // APP TILES (MEGA-MENU GRID)
   // ════════════════════════════════════════════════════════════════════════════
-  const currencyTile = {
-    icon: makeTile("#0d9488", ICONS.currency),
-    title: "Currencies",
-    desc: "Currencies & rates.",
-    url: p(currencyBarePath),
-    _bare: currencyBarePath,
-  };
-
   const posAppList = [
     { icon: makeTile(primaryColor, ICONS.dashboard), title: "Dashboard", desc: "Sales & store overview.", url: p("/pos/dashboard"), _bare: "/pos/dashboard" },
     { icon: makeTile("#0ea5e9", ICONS.table), title: homeRouteName, desc: isHospitalMode ? "Manage wards & beds." : "Manage tables.", url: p("/table-settings"), _bare: "/table-settings" },
@@ -518,7 +498,6 @@ export const useProLayoutNav = () => {
     { icon: makeTile("#f59e0b", ICONS.payment), title: "Payment Methods", desc: "Payment options.", url: p("/payment-methods"), _bare: "/payment-methods" },
     { icon: makeTile("#3b82f6", ICONS.customers), title: "Staff Management", desc: "Staff & permissions.", url: p("/staff-management"), _bare: "/staff-management" },
     { icon: makeTile("#8b5cf6", ICONS.supplier), title: "Suppliers", desc: "Suppliers & vendors.", url: p("/suppliers"), _bare: "/suppliers" },
-    { ...currencyTile },
     { icon: makeTile("#2f54eb", ICONS.documents), title: "Document Center", desc: "Documents & files.", url: p("/documents"), _bare: "/documents" },
     { icon: makeTile("#06b6d4", ICONS.web), title: "Gallery", desc: "Store images & media.", url: p("/website-builder"), _bare: "/website-builder" },
     { icon: makeTile(primaryColor, ICONS.settings), title: "System Setup", desc: "System settings.", url: p("/system-setup"), _bare: "/system-setup" },
