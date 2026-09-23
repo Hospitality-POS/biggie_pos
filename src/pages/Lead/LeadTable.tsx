@@ -1,8 +1,8 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import { ActionType, ProTable } from "@ant-design/pro-components";
 import {
-    CalendarOutlined, CheckCircleOutlined, DeleteOutlined, EditOutlined,
-    EnvironmentOutlined, EyeOutlined, MoreOutlined,
+    CalendarOutlined, DeleteOutlined, EditOutlined,
+    EyeOutlined, MoreOutlined,
     PhoneOutlined, TeamOutlined, UserOutlined,
 } from "@ant-design/icons";
 import { App, Button, Dropdown, Modal, Tag, Typography } from "antd";

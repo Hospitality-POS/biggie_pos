@@ -10,14 +10,13 @@ import {
     Row,
     Select,
     Space,
-    Statistic,
     Table,
     Tabs,
     Tag,
     Tooltip,
     Typography,
 } from "antd";
-import { UserOutlined, UserAddOutlined, TeamOutlined } from "@ant-design/icons";
+import { UserOutlined, UserAddOutlined, TeamOutlined, WifiOutlined, ClockCircleOutlined, MessageOutlined } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
     fetchAgents,
@@ -204,60 +203,89 @@ const AgentsManager: React.FC<Props> = ({ shopId }) => {
         },
     ];
 
+    const cardChrome: React.CSSProperties = {
+        borderRadius: 12,
+        border: "1px solid #e2e8f0",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+    };
+
     const agentsContent = (
-        <div style={{ paddingTop: 24 }}>
-            <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-                <Col xs={12} sm={6}>
-                    <Card size="small">
-                        <Statistic
-                            title="Total agents"
-                            value={stats.total}
-                            loading={agentsLoading}
-                            prefix={<TeamOutlined style={{ fontSize: 16, color: "#8c8c8c" }} />}
-                        />
-                    </Card>
-                </Col>
-                <Col xs={12} sm={6}>
-                    <Card size="small">
-                        <Statistic
-                            title="Online now"
-                            value={stats.online}
-                            loading={agentsLoading}
-                            valueStyle={{ color: "#52c41a" }}
-                        />
-                    </Card>
-                </Col>
-                <Col xs={12} sm={6}>
-                    <Card size="small">
-                        <Statistic
-                            title="Busy"
-                            value={stats.busy}
-                            loading={agentsLoading}
-                            valueStyle={{ color: "#faad14" }}
-                        />
-                    </Card>
-                </Col>
-                <Col xs={12} sm={6}>
-                    <Card size="small">
-                        <Statistic
-                            title="Open conversations"
-                            value={stats.openConversations}
-                            loading={agentsLoading}
-                        />
-                    </Card>
-                </Col>
+        <div style={{ paddingTop: isMobile ? 10 : 14 }}>
+            <Row gutter={isMobile ? [8, 8] : [12, 12]} style={{ marginBottom: isMobile ? 12 : 16 }}>
+                {[
+                    { title: "Total agents", value: stats.total, icon: <TeamOutlined />, color: "#3b82f6", bg: "#eff6ff", border: "#bfdbfe" },
+                    { title: "Online now", value: stats.online, icon: <WifiOutlined />, color: "#10b981", bg: "#f0fdf4", border: "#bbf7d0" },
+                    { title: "Busy", value: stats.busy, icon: <ClockCircleOutlined />, color: "#f59e0b", bg: "#fffbeb", border: "#fde68a" },
+                    { title: "Open conversations", value: stats.openConversations, icon: <MessageOutlined />, color: "#6366f1", bg: "#eef2ff", border: "#c7d2fe" },
+                ].map((k) => (
+                    <Col xs={12} sm={6} key={k.title}>
+                        <div
+                            style={{
+                                background: k.bg,
+                                border: `1px solid ${k.border}`,
+                                borderRadius: isMobile ? 10 : 12,
+                                padding: isMobile ? "10px 12px" : "14px 16px",
+                                height: "100%",
+                            }}
+                        >
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
+                                <Text style={{ fontSize: isMobile ? 11 : 12, color: "#475569", fontWeight: 500 }}>
+                                    {k.title}
+                                </Text>
+                                <div
+                                    style={{
+                                        background: "#fff",
+                                        borderRadius: 7,
+                                        padding: "3px 6px",
+                                        color: k.color,
+                                        fontSize: 13,
+                                        lineHeight: 1,
+                                        flexShrink: 0,
+                                    }}
+                                >
+                                    {k.icon}
+                                </div>
+                            </div>
+                            <div
+                                style={{
+                                    fontSize: isMobile ? 17 : 22,
+                                    fontWeight: 700,
+                                    color: "#0f172a",
+                                    marginTop: 2,
+                                    lineHeight: 1.2,
+                                }}
+                            >
+                                {agentsLoading ? "…" : k.value}
+                            </div>
+                        </div>
+                    </Col>
+                ))}
             </Row>
 
-            <Card size="small" style={{ marginBottom: 24 }}>
+            <Card size="small" style={{ ...cardChrome, marginBottom: isMobile ? 12 : 16 }}>
                 <Space direction="vertical" size={12} style={{ width: "100%" }}>
-                    <div>
-                        <Title level={5} style={{ margin: 0 }}>
-                            Add an agent
-                        </Title>
-                        <Text type="secondary">
-                            Assign a team member to handle omnichannel conversations
-                        </Text>
-                    </div>
+                    <Space align="center" size={10}>
+                        <div
+                            style={{
+                                background: "#eff6ff",
+                                borderRadius: 8,
+                                padding: "4px 7px",
+                                color: "#3b82f6",
+                                fontSize: 14,
+                                display: "flex",
+                            }}
+                        >
+                            <UserAddOutlined />
+                        </div>
+                        <div>
+                            <Title level={5} style={{ margin: 0, color: "#0f172a", fontWeight: 600 }}>
+                                Add an agent
+                            </Title>
+                            <Text style={{ fontSize: 12, color: "#64748b" }}>
+                                Assign a team member to handle omnichannel conversations
+                            </Text>
+                        </div>
+                    </Space>
                     <Space wrap>
                         <Select
                             showSearch
@@ -291,7 +319,7 @@ const AgentsManager: React.FC<Props> = ({ shopId }) => {
                 </Space>
             </Card>
 
-            <Card size="small" styles={{ body: { padding: 0 } }}>
+            <Card size="small" styles={{ body: { padding: 0 } }} style={{ ...cardChrome, overflow: "hidden" }}>
                 <Table
                     columns={columns as any}
                     dataSource={agents}

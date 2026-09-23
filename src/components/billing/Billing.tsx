@@ -1,13 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Typography,
   Space,
   Row,
   Col,
-  Card,
   Button,
-  Tag,
-  notification
+  notification,
 } from "antd";
 import {
   CreditCardOutlined,
@@ -15,18 +13,26 @@ import {
   PayCircleOutlined,
   ShopOutlined,
   RocketOutlined,
-  SafetyCertificateOutlined
+  SafetyCertificateOutlined,
+  CheckOutlined,
 } from "@ant-design/icons";
 
 import { usePrimaryColor } from "@context/PrimaryColorContext";
+import { THEME_C } from "@utils/getPrimaryColor";
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Text } = Typography;
+const C = THEME_C;
+
+const cardStyle: React.CSSProperties = {
+  background: "#fff",
+  border: `1px solid ${C.border}`,
+  borderRadius: 12,
+  boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+};
 
 const BillingDashboard: React.FC = () => {
   const primaryColor = usePrimaryColor();
   const [notificationRequested, setNotificationRequested] = useState(false);
-
-  
 
   const handleNotificationRequest = () => {
     setNotificationRequested(true);
@@ -39,143 +45,187 @@ const BillingDashboard: React.FC = () => {
 
   const features = [
     {
-      icon: <PayCircleOutlined style={{ fontSize: '20px', color: '#52c41a' }} />,
+      icon: <PayCircleOutlined />,
       title: 'Payment Management',
-      description: 'Track and manage all subscription payments'
+      description: 'Track and manage all subscription payments',
+      color: "#10b981", bg: "#f0fdf4", border: "#bbf7d0",
     },
     {
-      icon: <ShopOutlined style={{ fontSize: '20px', color: '#1890ff' }} />,
+      icon: <ShopOutlined />,
       title: 'Multi-Shop Billing',
-      description: 'Unified billing across all locations'
+      description: 'Unified billing across all locations',
+      color: "#3b82f6", bg: "#eff6ff", border: "#bfdbfe",
     },
     {
-      icon: <RocketOutlined style={{ fontSize: '20px', color: '#722ed1' }} />,
+      icon: <RocketOutlined />,
       title: 'Plan Flexibility',
-      description: 'Easy upgrades and downgrades'
+      description: 'Easy upgrades and downgrades',
+      color: "#8b5cf6", bg: "#f5f3ff", border: "#ddd6fe",
     },
     {
-      icon: <SafetyCertificateOutlined style={{ fontSize: '20px', color: '#fa8c16' }} />,
+      icon: <SafetyCertificateOutlined />,
       title: 'Secure Processing',
-      description: 'Bank-level security for all transactions'
-    }
+      description: 'Bank-level security for all transactions',
+      color: "#f59e0b", bg: "#fffbeb", border: "#fde68a",
+    },
+  ];
+
+  const upcoming = [
+    {
+      icon: <PayCircleOutlined />,
+      color: "#3b82f6",
+      title: "Payment History",
+      text: "View all past payments, invoices, and upcoming billing dates in one place.",
+    },
+    {
+      icon: <ShopOutlined />,
+      color: "#10b981",
+      title: "Multi-Location Support",
+      text: "Manage billing for multiple shops with detailed breakdowns per location.",
+    },
+    {
+      icon: <RocketOutlined />,
+      color: "#8b5cf6",
+      title: "Plan Management",
+      text: "Upgrade or downgrade subscription plans based on your business needs.",
+    },
   ];
 
   return (
-    <>
+    <div style={{ padding: "16px 20px 24px", width: "100%", boxSizing: "border-box" }}>
       {/* Header */}
-      <Card style={{ marginBottom: "24px", borderRadius: "8px", textAlign: 'center' }}>
-        <Space direction="vertical" size="large" style={{ width: '100%' }}>
-          <div>
-            <div style={{
-              fontSize: '64px',
-              color: primaryColor,
-              marginBottom: '16px'
-            }}>
-              <CreditCardOutlined />
-            </div>
-            <Title level={1} style={{ margin: 0, color: primaryColor }}>
-              Billing Dashboard
-            </Title>
-            <Title level={3} style={{ margin: 0, fontWeight: 'normal', color: '#666' }}>
-              Coming Soon
-            </Title>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: 16,
+          marginBottom: 20,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{
+            background: `${primaryColor}18`, borderRadius: 8, padding: "6px 8px",
+            color: primaryColor, fontSize: 18, display: "flex",
+            alignItems: "center", justifyContent: "center", flexShrink: 0,
+          }}>
+            <CreditCardOutlined />
           </div>
+          <div>
+            <Title level={4} style={{ margin: 0, color: C.darkText, fontWeight: 600, lineHeight: 1.3 }}>
+              Billing
+            </Title>
+            <Text style={{ fontSize: 12, color: C.subText, lineHeight: 1.3 }}>
+              Subscriptions, payments &amp; plan management across all locations
+            </Text>
+          </div>
+        </div>
 
-          <Paragraph style={{ fontSize: '16px', maxWidth: '600px', margin: '0 auto' }}>
-            We're building a comprehensive billing solution to help you manage subscriptions,
-            payments, and plan changes across all your shop locations with ease.
-          </Paragraph>
-        </Space>
-      </Card>
+        <span style={{
+          background: C.primaryLight, color: primaryColor, borderRadius: 6,
+          fontSize: 10, fontWeight: 700, padding: "4px 10px",
+          textTransform: "uppercase", letterSpacing: "0.4px",
+        }}>
+          Coming Soon
+        </span>
+      </div>
 
-      {/* Features Grid */}
-      <Row gutter={[16, 16]} style={{ marginBottom: "24px" }}>
-        {features.map((feature, index) => (
-          <Col xs={12} md={6} key={index}>
-            <Card
-              size="small"
-              hoverable
-              style={{
-                borderRadius: "8px",
-                height: '120px',
-                textAlign: 'center',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center'
-              }}
-            >
-              <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                {feature.icon}
-                <Text strong style={{ fontSize: '14px' }}>{feature.title}</Text>
-                <Text type="secondary" style={{ fontSize: '12px' }}>
-                  {feature.description}
-                </Text>
-              </Space>
-            </Card>
+      {/* Feature tiles */}
+      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+        {features.map((f) => (
+          <Col xs={24} sm={12} lg={6} key={f.title}>
+            <div style={{
+              background: f.bg, border: `1px solid ${f.border}`,
+              borderRadius: 12,
+              padding: "14px 16px", height: "100%",
+            }}>
+              <div style={{
+                background: "#fff", borderRadius: 8, padding: "5px 7px",
+                color: f.color, fontSize: 15, display: "inline-flex", lineHeight: 1,
+                marginBottom: 10,
+              }}>
+                {f.icon}
+              </div>
+              <Text strong style={{ fontSize: 13, color: C.darkText, display: "block", marginBottom: 2 }}>
+                {f.title}
+              </Text>
+              <Text style={{ fontSize: 12, color: C.subText, lineHeight: 1.5 }}>
+                {f.description}
+              </Text>
+            </div>
           </Col>
         ))}
       </Row>
 
-      {/* Expected Features */}
-      <Card style={{ marginBottom: "24px", borderRadius: "8px" }}>
-        <Title level={4} style={{ marginBottom: '16px' }}>What to Expect</Title>
-        <Row gutter={[24, 16]}>
-          <Col xs={24} md={8}>
-            <Tag color="blue" style={{ marginBottom: '8px' }}>
-              <PayCircleOutlined /> Payment History
-            </Tag>
-            <Paragraph style={{ margin: 0, fontSize: '14px' }}>
-              View all past payments, invoices, and upcoming billing dates in one place.
-            </Paragraph>
-          </Col>
-          <Col xs={24} md={8}>
-            <Tag color="green" style={{ marginBottom: '8px' }}>
-              <ShopOutlined /> Multi-Location Support
-            </Tag>
-            <Paragraph style={{ margin: 0, fontSize: '14px' }}>
-              Manage billing for multiple shops with detailed breakdowns per location.
-            </Paragraph>
-          </Col>
-          <Col xs={24} md={8}>
-            <Tag color="purple" style={{ marginBottom: '8px' }}>
-              <RocketOutlined /> Plan Management
-            </Tag>
-            <Paragraph style={{ margin: 0, fontSize: '14px' }}>
-              Upgrade or downgrade subscription plans based on your business needs.
-            </Paragraph>
-          </Col>
-        </Row>
-      </Card>
-
-      {/* Notification Request */}
-      <Card style={{ borderRadius: "8px", textAlign: 'center' }}>
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-          <BellOutlined style={{ fontSize: '32px', color: primaryColor }} />
-          <div>
-            <Title level={4} style={{ margin: 0 }}>
-              Be the First to Know
-            </Title>
-            <Text type="secondary">
-              Get notified when the billing dashboard is ready to use
-            </Text>
+      {/* What to expect */}
+      <div style={{ ...cardStyle, padding: "16px 20px", marginBottom: 16 }}>
+        <Space align="center" size={8} style={{ marginBottom: 14 }}>
+          <div style={{
+            background: "#eff6ff", borderRadius: 7, padding: "3px 6px",
+            color: "#3b82f6", fontSize: 12, display: "inline-flex",
+          }}>
+            <CheckOutlined />
           </div>
-          <Button
-            type="primary"
-            size="large"
-            style={{
-              backgroundColor: primaryColor,
-              borderColor: primaryColor,
-              height: '48px',
-              minWidth: '200px'
-            }}
-            onClick={handleNotificationRequest}
-            disabled={notificationRequested}
-          >
-            {notificationRequested ? 'Notification Requested ✓' : 'Notify Me'}
-          </Button>
+          <Text strong style={{ fontSize: 14, color: C.darkText }}>What to Expect</Text>
         </Space>
-      </Card>
-    </>
+        <Row gutter={[16, 12]}>
+          {upcoming.map((u) => (
+            <Col xs={24} md={8} key={u.title}>
+              <div style={{ display: "flex", gap: 10 }}>
+                <div style={{
+                  width: 30, height: 30, borderRadius: 8, flexShrink: 0,
+                  background: `${u.color}14`, color: u.color,
+                  display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14,
+                }}>
+                  {u.icon}
+                </div>
+                <div>
+                  <Text strong style={{ fontSize: 13, color: C.darkText, display: "block", marginBottom: 2 }}>
+                    {u.title}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: C.subText, lineHeight: 1.6 }}>
+                    {u.text}
+                  </Text>
+                </div>
+              </div>
+            </Col>
+          ))}
+        </Row>
+      </div>
+
+      {/* Notify */}
+      <div style={{
+        ...cardStyle,
+        padding: "28px 24px",
+        textAlign: "center",
+      }}>
+        <div style={{
+          width: 44, height: 44, borderRadius: 12, margin: "0 auto 12px",
+          background: `${primaryColor}14`, color: primaryColor, fontSize: 20,
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <BellOutlined />
+        </div>
+        <Text strong style={{ fontSize: 15, color: C.darkText, display: "block", marginBottom: 4 }}>
+          Be the First to Know
+        </Text>
+        <Text style={{ fontSize: 13, color: C.subText, display: "block", marginBottom: 16 }}>
+          Get notified when the billing dashboard is ready to use
+        </Text>
+        <Button
+          type="primary"
+          style={{
+            backgroundColor: primaryColor, borderColor: primaryColor,
+            borderRadius: 8, height: 38, paddingInline: 20,
+          }}
+          onClick={handleNotificationRequest}
+          disabled={notificationRequested}
+        >
+          {notificationRequested ? 'Notification Requested' : 'Notify Me'}
+        </Button>
+      </div>
+    </div>
   );
 };
 

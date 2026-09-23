@@ -315,19 +315,27 @@ function Customers() {
             padding: isMobile ? "14px 14px 12px" : "16px 20px 14px",
             borderBottom: `1px solid ${colors.border}`,
         }}>
-            <div>
-                <Text strong style={{ fontSize: isMobile ? 15 : 17, color: colors.darkText, display: "block", lineHeight: 1.3 }}>
-                    {isHospital ? "Patient Management" : (hasDala ? "Client Management" : "Customer Management")}
-                </Text>
-                <Text style={{ fontSize: 11, color: colors.subText, lineHeight: 1.3 }}>
-                    {showOnlyCustomers
-                        ? `Manage your ${isHospital ? "patients" : (hasDala ? "clients" : "customers")}` 
-                        : hasMteja
-                            ? `${hasDala ? "Clients" : "Customers"}, leads & bookings`
-                            : isHospital
-                                ? "Patients, appointments, services & more"
-                                : `${hasDala ? "Clients" : "Customers"}, subscriptions, bookings & more`}
-                </Text>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{
+                    background: colors.primaryLight, borderRadius: 7, padding: "5px 7px",
+                    color: colors.primary, fontSize: 16, lineHeight: 1,
+                }}>
+                    <UserOutlined />
+                </div>
+                <div>
+                    <Text strong style={{ fontSize: isMobile ? 15 : 17, color: colors.darkText, display: "block", lineHeight: 1.3 }}>
+                        {isHospital ? "Patient Management" : (hasDala ? "Client Management" : "Customer Management")}
+                    </Text>
+                    <Text style={{ fontSize: 11, color: colors.subText, lineHeight: 1.3 }}>
+                        {showOnlyCustomers
+                            ? `Manage your ${isHospital ? "patients" : (hasDala ? "clients" : "customers")}` 
+                            : hasMteja
+                                ? `${hasDala ? "Clients" : "Customers"}, leads & bookings`
+                                : isHospital
+                                    ? "Patients, appointments, services & more"
+                                    : `${hasDala ? "Clients" : "Customers"}, subscriptions, bookings & more`}
+                    </Text>
+                </div>
             </div>
             {showAdd && (
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>

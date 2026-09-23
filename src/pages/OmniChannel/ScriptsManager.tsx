@@ -287,19 +287,33 @@ const ScriptsManager: React.FC<Props> = ({ shopId, readOnly = false, onSelect })
             {!readOnly && (
                 <Flex
                     justify="space-between"
-                    align="flex-start"
+                    align="center"
                     wrap="wrap"
                     gap={12}
                     style={{ marginBottom: 16 }}
                 >
-                    <div>
-                        <Title level={4} style={{ margin: 0 }}>
-                            Reply Scripts
-                        </Title>
-                        <Text type="secondary">
-                            Reusable replies your team can drop into conversations
-                        </Text>
-                    </div>
+                    <Space align="center" size={10}>
+                        <div
+                            style={{
+                                background: "#eff6ff",
+                                borderRadius: 10,
+                                padding: "6px 8px",
+                                color: "#3b82f6",
+                                fontSize: 18,
+                                display: "flex",
+                            }}
+                        >
+                            <FileTextOutlined />
+                        </div>
+                        <div>
+                            <Title level={isMobile ? 5 : 4} style={{ margin: 0, color: "#0f172a", fontWeight: 600 }}>
+                                Reply Scripts
+                            </Title>
+                            <Text style={{ fontSize: 12, color: "#64748b" }}>
+                                Reusable replies your team can drop into conversations
+                            </Text>
+                        </div>
+                    </Space>
                     <Space wrap>
                         {uploadButton}
                         <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
@@ -318,7 +332,11 @@ const ScriptsManager: React.FC<Props> = ({ shopId, readOnly = false, onSelect })
                 style={{ maxWidth: isMobile ? "100%" : 320, marginBottom: 16 }}
             />
 
-            <Card size="small" styles={{ body: { padding: 0 } }}>
+            <Card
+                size="small"
+                styles={{ body: { padding: 0 } }}
+                style={{ borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", overflow: "hidden" }}
+            >
                 <Table
                     dataSource={filteredScripts}
                     columns={columns}

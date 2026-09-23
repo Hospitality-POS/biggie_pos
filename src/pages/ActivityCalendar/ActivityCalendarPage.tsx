@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import {
-    Badge, Button, Calendar, DatePicker, Dropdown, Empty, Grid, Modal, Segmented, Select, Tag, Tooltip, Typography, message,
+    Button, Calendar, DatePicker, Dropdown, Empty, Grid, Modal, Segmented, Select, Tag, Tooltip, Typography, message,
 } from "antd";
 import {
     CalendarOutlined, CheckCircleOutlined, ClockCircleOutlined, DeleteOutlined,
@@ -212,7 +212,6 @@ const ActivityCalendarPage: React.FC = () => {
     const monthCellRender = (value: Dayjs) => {
         const list = activitiesByDay.get(value.format("YYYY-MM-DD")) || [];
         if (!list.length) return null;
-        const openCount = list.filter((a) => a.status === "open").length;
         return (
             <div style={{ display: "flex", flexDirection: "column", gap: 1, alignItems: "flex-start" }}>
                 {list.slice(0, 3).map((a) => {
@@ -227,7 +226,6 @@ const ActivityCalendarPage: React.FC = () => {
                     );
                 })}
                 {list.length > 3 && <Text style={{ fontSize: 9, color: C.subText }}>+{list.length - 3} more</Text>}
-                {openCount > 0 && <Badge count={openCount} size="small" style={{ display: "none" }} />}
             </div>
         );
     };

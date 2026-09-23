@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from "react";
+import React, { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { ProCard } from "@ant-design/pro-components";
 import {
     Button,
@@ -44,6 +44,7 @@ import {
     fetchWhatsappChannels,
 } from "@services/whatsappService";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
+import { THEME_C } from "@utils/getPrimaryColor";
 import ConversationList from "./ConversationList";
 import MessageThread from "./MessageThread";
 import ScriptsManager from "./ScriptsManager";
@@ -54,6 +55,7 @@ import ConnectChannelDrawer from "./ConnectChannelDrawer";
 import NewMessageModal from "./NewMessageModal";
 
 const { Text, Title } = Typography;
+const C = THEME_C;
 
 export type Channel = "all" | "whatsapp" | "messenger" | "instagram";
 export type ConversationStatus = "open" | "pending" | "pending_dispatch" | "resolved" | "closed";
@@ -139,6 +141,20 @@ const OmnichannelInboxPage: React.FC = () => {
     const [newMessageOpen, setNewMessageOpen] = useState(false);
     const [search, setSearch] = useState("");
     const [page, setPage] = useState(1);
+
+    // Fill the viewport below whatever sits above (navbar, layout padding)
+    const rootRef = useRef<HTMLDivElement>(null);
+    const [availHeight, setAvailHeight] = useState<number | null>(null);
+    useEffect(() => {
+        const update = () => {
+            if (rootRef.current) {
+                setAvailHeight(Math.max(320, window.innerHeight - rootRef.current.getBoundingClientRect().top));
+            }
+        };
+        update();
+        window.addEventListener("resize", update);
+        return () => window.removeEventListener("resize", update);
+    }, []);
 
     const {
         data: channelsData,
@@ -286,24 +302,104 @@ const OmnichannelInboxPage: React.FC = () => {
 
     return (
         <App>
-            <div style={{
-                height: "100vh",
-                boxSizing: "border-box",
-                overflow: "hidden",
-                padding: isMobile ? 0 : "12px 0",
-            }}>
+            <div
+                ref={rootRef}
+                style={{
+                    height: availHeight ?? "100vh",
+                    boxSizing: "border-box",
+                    overflow: "hidden",
+                    padding: isMobile ? 0 : "16px 24px",
+                    background: isMobile ? "#fff" : C.bg,
+                    display: "flex",
+                    flexDirection: "column",
+                }}
+            >
+                {/* ── Dashboard-style page header ── */}
+                {!isMobile && (
+                    <div
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            gap: 12,
+                            flexWrap: "wrap",
+                            marginBottom: 14,
+                            flexShrink: 0,
+                        }}
+                    >
+                        <Space align="center" size={12}>
+                            <div
+                                style={{
+                                    background: C.primaryLight,
+                                    borderRadius: 10,
+                                    padding: "8px 10px",
+                                    color: C.primary,
+                                    fontSize: 20,
+                                    display: "flex",
+                                }}
+                            >
+                                <MessageOutlined />
+                            </div>
+                            <div>
+                                <Title level={4} style={{ margin: 0, color: C.darkText, fontWeight: 600 }}>
+                                    Omnichannel Inbox
+                                </Title>
+                                <Text style={{ fontSize: 12, color: C.subText }}>
+                                    WhatsApp · Messenger · Instagram — all your messages in one place
+                                </Text>
+                            </div>
+                        </Space>
+                        <Space size={8} wrap>
+                            <Tooltip title="Refresh">
+                                <Button
+                                    icon={<ReloadOutlined />}
+                                    loading={isFetching || channelsLoading}
+                                    onClick={() => {
+                                        queryClient.invalidateQueries({ queryKey: ["omnichannel-channels"] });
+                                        if (anyConnected) refetch();
+                                    }}
+                                />
+                            </Tooltip>
+                            {activeMainTab === "inbox" && anyConnected && (
+                                <Button icon={<EditOutlined />} onClick={() => setNewMessageOpen(true)}>
+                                    New Message
+                                </Button>
+                            )}
+                            <Button
+                                type="primary"
+                                icon={<PlusOutlined />}
+                                onClick={() => setConnectDrawerOpen(true)}
+                                style={{ background: primaryColor, borderColor: primaryColor }}
+                            >
+                                Connect Channel
+                            </Button>
+                            <Tooltip title="Channel Settings">
+                                <Button icon={<SettingOutlined />} onClick={() => setConnectDrawerOpen(true)} />
+                            </Tooltip>
+                        </Space>
+                    </div>
+                )}
 
 
                 <ProCard
-                    bordered={false}
+                    bordered={!isMobile}
+                    size="small"
                     bodyStyle={{
                         padding: 0,
-                        height: isMobile ? "calc(100vh - 110px)" : "calc(100vh - 155px)",
+                        flex: 1,
+                        minHeight: 0,
+                        display: "flex",
+                        flexDirection: "column",
+                        overflow: "hidden",
                     }}
                     style={{
-                        borderRadius: isMobile ? 0 : 16,
-                        boxShadow: isMobile ? "none" : "0 4px 16px rgba(0,0,0,0.08)",
-                        overflow: "hidden"
+                        borderRadius: isMobile ? 0 : 12,
+                        boxShadow: isMobile ? "none" : "0 1px 3px rgba(0,0,0,0.04)",
+                        overflow: "hidden",
+                        flex: 1,
+                        minHeight: 0,
+                        display: "flex",
+                        flexDirection: "column",
                     }}
                     title={
                         isMobile ? null : (
@@ -322,73 +418,8 @@ const OmnichannelInboxPage: React.FC = () => {
                             />
                         )
                     }
-                    extra={
-                        isMobile ? null : (
-                            <Space size={12} wrap>
-                                {activeMainTab === "inbox" && (
-                                    <>
-                                        <Tooltip title="Refresh">
-                                            <Button
-                                                icon={<ReloadOutlined />}
-                                                size="large"
-                                                loading={isFetching || channelsLoading}
-                                                onClick={() => {
-                                                    queryClient.invalidateQueries({ queryKey: ["omnichannel-channels"] });
-                                                    if (anyConnected) {
-                                                        refetch();
-                                                    }
-                                                }}
-                                                style={{ borderRadius: 10, height: 40 }}
-                                            />
-                                        </Tooltip>
-                                        {anyConnected && (
-                                            <>
-                                                <Button
-                                                    icon={<EditOutlined />}
-                                                    onClick={() => setNewMessageOpen(true)}
-                                                    style={{
-                                                        borderRadius: 10,
-                                                        fontWeight: 600,
-                                                        height: 40,
-                                                        padding: "0 20px"
-                                                    }}
-                                                    size="large"
-                                                >
-                                                    New Message
-                                                </Button>
-                                                <Button
-                                                    type="primary"
-                                                    icon={<PlusOutlined />}
-                                                    onClick={() => setConnectDrawerOpen(true)}
-                                                    style={{
-                                                        background: primaryColor,
-                                                        borderColor: primaryColor,
-                                                        borderRadius: 10,
-                                                        fontWeight: 600,
-                                                        height: 40,
-                                                        padding: "0 20px"
-                                                    }}
-                                                    size="large"
-                                                >
-                                                    Connect Channel
-                                                </Button>
-                                            </>
-                                        )}
-                                    </>
-                                )}
-                                <Tooltip title="Channel Settings">
-                                    <Button
-                                        icon={<SettingOutlined />}
-                                        size="large"
-                                        onClick={() => setConnectDrawerOpen(true)}
-                                        style={{ borderRadius: 10, height: 40 }}
-                                    />
-                                </Tooltip>
-                            </Space>
-                        )
-                    }
                 >
-                    <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+                    <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
                     {/* On mobile the ProCard title/extra row can't be trusted to
                         constrain the tabs, so the header lives inside the body
                         where this container's width is bounded — the tabs get
@@ -399,7 +430,7 @@ const OmnichannelInboxPage: React.FC = () => {
                                 display: "flex",
                                 alignItems: "center",
                                 padding: "0 8px",
-                                borderBottom: "1px solid #f0f0f0",
+                                borderBottom: "1px solid #e2e8f0",
                                 background: "#fff",
                                 flexShrink: 0,
                             }}
@@ -482,46 +513,45 @@ const OmnichannelInboxPage: React.FC = () => {
                             style={{
                                 width: isMobile ? "100%" : 380,
                                 height: isMobile ? (selectedConversation ? 0 : "100%") : "100%",
-                                borderRight: isMobile ? "none" : "1px solid #f0f0f0",
-                                borderBottom: isMobile ? "1px solid #f0f0f0" : "none",
+                                borderRight: isMobile ? "none" : "1px solid #e2e8f0",
+                                borderBottom: isMobile ? "1px solid #e2e8f0" : "none",
                                 flexShrink: 0,
                                 overflow: "hidden",
-                                background: "#fafafa",
+                                background: "#f8fafc",
                                 display: isMobile && selectedConversation ? "none" : "flex",
                                 flexDirection: "column",
                             }}
                         >
                         {!anyConnected && !channelsLoading ? (
-                            <div style={{ 
-                                marginTop: 80, 
+                            <div style={{
+                                marginTop: 72,
                                 padding: 24,
                                 textAlign: "center"
                             }}>
                                 <div style={{
-                                    width: 120,
-                                    height: 120,
-                                    margin: "0 auto 24px",
-                                    borderRadius: "50%",
-                                    background: "linear-gradient(135deg, #e6f7ff 0%, #f0f9ff 100%)",
+                                    width: 64,
+                                    height: 64,
+                                    margin: "0 auto 16px",
+                                    borderRadius: 16,
+                                    background: "#eff6ff",
                                     display: "flex",
                                     alignItems: "center",
                                     justifyContent: "center"
                                 }}>
-                                    <MessageOutlined style={{ fontSize: 56, color: "#1890ff" }} />
+                                    <MessageOutlined style={{ fontSize: 30, color: "#3b82f6" }} />
                                 </div>
-                                <Title level={4} style={{ marginBottom: 12, color: "#262626" }}>
+                                <Title level={5} style={{ margin: "0 0 6px", color: "#0f172a", fontWeight: 600 }}>
                                     No WhatsApp Connected
                                 </Title>
-                                <Text type="secondary" style={{ fontSize: 14, display: "block", marginBottom: 24 }}>
+                                <Text style={{ fontSize: 13, color: "#64748b", display: "block", marginBottom: 18 }}>
                                     Connect your WhatsApp to start receiving messages
                                 </Text>
                                 <Button
                                     type="primary"
                                     icon={<PlusOutlined />}
                                     onClick={() => setConnectDrawerOpen(true)}
-                                    size="large"
-                                    style={{ 
-                                        background: primaryColor, 
+                                    style={{
+                                        background: primaryColor,
                                         borderColor: primaryColor,
                                         borderRadius: 8,
                                         fontWeight: 500
@@ -581,27 +611,26 @@ const OmnichannelInboxPage: React.FC = () => {
                                     flexDirection: "column",
                                     alignItems: "center",
                                     justifyContent: "center",
-                                    color: "#bfbfbf",
-                                    gap: 16,
-                                    background: "linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%)"
+                                    gap: 14,
+                                    background: "#f8fafc"
                                 }}
                             >
                                 <div style={{
-                                    width: 160,
-                                    height: 160,
-                                    borderRadius: "50%",
-                                    background: "linear-gradient(135deg, #f0f0f0 0%, #e8e8e8 100%)",
+                                    width: 72,
+                                    height: 72,
+                                    borderRadius: 18,
+                                    background: "#eff6ff",
                                     display: "flex",
                                     alignItems: "center",
                                     justifyContent: "center"
                                 }}>
-                                    <MessageOutlined style={{ fontSize: 72, color: "#d9d9d9" }} />
+                                    <MessageOutlined style={{ fontSize: 34, color: "#93c5fd" }} />
                                 </div>
                                 <div style={{ textAlign: "center" }}>
-                                    <Title level={4} style={{ color: "#8c8c8c", marginBottom: 8 }}>
+                                    <Title level={5} style={{ color: "#0f172a", margin: "0 0 6px", fontWeight: 600 }}>
                                         Start a Conversation
                                     </Title>
-                                    <Text type="secondary" style={{ fontSize: 15 }}>
+                                    <Text style={{ fontSize: 13, color: "#64748b" }}>
                                         Select a conversation from the list to start messaging
                                     </Text>
                                 </div>
