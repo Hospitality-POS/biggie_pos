@@ -41,7 +41,7 @@ import {
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAppSelector } from "src/store";
 import useProLayoutNav from "./defaultprops";
-import BiasharaAIFab from "./BiasharaAIFab";
+// import BiasharaAIFab from "./BiasharaAIFab";
 import { fetchAllShops, locationDisplay } from "@services/shops";
 import {
   fetchMyNotifications,
@@ -1640,7 +1640,7 @@ const AdminDashboard: React.FC = () => {
           )}
         </Modal>
       </ProLayout>
-      <BiasharaAIFab />
+      {/* <BiasharaAIFab /> */}
     </>
   );
 };

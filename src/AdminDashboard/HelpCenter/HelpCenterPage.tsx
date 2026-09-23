@@ -3,7 +3,6 @@ import {
   Input,
   Card,
   Typography,
-  Layout,
   List,
   Tag,
   Button,
@@ -32,7 +31,8 @@ import { helpCenterArticles, Article, Category } from "../../assets/help-center"
 import { ArticleDrawer } from "./components/ArticleDrawer";
 
 const { Title, Paragraph, Text } = Typography;
-const { Content } = Layout;
+
+const C = { text: "#0f172a", sub: "#64748b", border: "#e2e8f0", faint: "#94a3b8" };
 
 const categories: Category[] = [
   {
@@ -128,59 +128,56 @@ const HelpCenter: React.FC = () => {
     : [];
 
   return (
-    <Layout style={{ minHeight: "100vh", background: "#f5f7fa" }}>
-      <Content style={{ padding: "32px 24px" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+    <div style={{ padding: "20px 16px" }}>
+      <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           {/* Header */}
-          <div style={{ textAlign: "center", marginBottom: 48 }}>
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 80,
-                height: 80,
-                borderRadius: 20,
-                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                marginBottom: 20,
-                boxShadow: "0 10px 40px rgba(102, 126, 234, 0.3)",
-              }}
-            >
-              <BookOutlined style={{ fontSize: 40, color: "#fff" }} />
-            </div>
-            <Title level={1} style={{ marginBottom: 12, color: "#1f2937" }}>
-              Help Center
-            </Title>
-            <Paragraph style={{ fontSize: 16, color: "#6b7280", marginBottom: 32 }}>
-              Comprehensive guides for Duka, Pesa, Mteja, Dala, and Etims
-            </Paragraph>
+          <div style={{ marginBottom: 24 }}>
+            <Space align="center" size={10} style={{ marginBottom: 12 }}>
+              <div
+                style={{
+                  background: "#eff6ff",
+                  borderRadius: 10,
+                  padding: "6px 8px",
+                  color: "#3b82f6",
+                  fontSize: 18,
+                  display: "flex",
+                }}
+              >
+                <BookOutlined />
+              </div>
+              <div>
+                <Title level={4} style={{ margin: 0, color: C.text, fontWeight: 600 }}>
+                  Help Center
+                </Title>
+                <Text style={{ fontSize: 12, color: C.sub }}>
+                  Comprehensive guides for Duka, Pesa, Mteja, Dala, and Etims
+                </Text>
+              </div>
+            </Space>
             <Input.Search
               placeholder="Search for guides, tutorials, and articles..."
-              size="large"
-              style={{ maxWidth: 500, borderRadius: 12 }}
+              style={{ width: "100%", maxWidth: 480 }}
               onChange={(e) => setSearchQuery(e.target.value)}
-              prefix={<SearchOutlined style={{ color: "#9ca3af" }} />}
+              prefix={<SearchOutlined style={{ color: C.faint }} />}
             />
           </div>
 
           {/* Categories or Articles */}
           {!selectedCategory ? (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 24 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 12 }}>
               {categories.map((category) => (
                 <Card
                   key={category.key}
                   hoverable
                   onClick={() => setSelectedCategory(category.key)}
                   style={{
-                    textAlign: "center",
-                    borderRadius: 16,
-                    border: "none",
-                    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
-                    transition: "all 0.3s ease",
+                    borderRadius: 12,
+                    border: `1px solid ${C.border}`,
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
                     cursor: "pointer",
                   }}
                   styles={{
-                    body: { padding: "32px 24px" },
+                    body: { padding: "18px 18px" },
                   }}
                 >
                   <div
@@ -188,26 +185,25 @@ const HelpCenter: React.FC = () => {
                       display: "inline-flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      width: 64,
-                      height: 64,
-                      borderRadius: 16,
-                      background: `${category.color}15`,
-                      marginBottom: 20,
-                      transition: "all 0.3s ease",
+                      width: 40,
+                      height: 40,
+                      borderRadius: 10,
+                      background: `${category.color}14`,
+                      marginBottom: 12,
                     }}
                   >
-                    <span style={{ fontSize: 32, color: category.color }}>
+                    <span style={{ fontSize: 20, color: category.color }}>
                       {category.icon}
                     </span>
                   </div>
-                  <Title level={4} style={{ marginBottom: 8, color: "#1f2937" }}>
+                  <Text strong style={{ display: "block", fontSize: 14, color: C.text, marginBottom: 2 }}>
                     {category.title}
-                  </Title>
-                  <Text type="secondary" style={{ fontSize: 14 }}>
+                  </Text>
+                  <Text style={{ fontSize: 12, color: C.sub }}>
                     {category.description}
                   </Text>
-                  <div style={{ marginTop: 16 }}>
-                    <Text style={{ fontSize: 12, color: category.color, fontWeight: 500 }}>
+                  <div style={{ marginTop: 10 }}>
+                    <Text style={{ fontSize: 11, color: category.color, fontWeight: 600 }}>
                       {helpCenterArticles[category.key]?.length || 0} articles
                     </Text>
                   </div>
@@ -226,7 +222,7 @@ const HelpCenter: React.FC = () => {
                 </Button>
               </div>
 
-              <Title level={3} style={{ marginBottom: 24, color: "#1f2937" }}>
+              <Title level={4} style={{ marginBottom: 16, color: C.text, fontWeight: 600 }}>
                 {categories.find((c) => c.key === selectedCategory)?.title}
               </Title>
 
@@ -235,43 +231,42 @@ const HelpCenter: React.FC = () => {
                   grid={{ gutter: 16, column: 1 }}
                   dataSource={filteredArticles}
                   renderItem={(article) => (
-                    <List.Item style={{ marginBottom: 16 }}>
+                    <List.Item style={{ marginBottom: 10 }}>
                       <Card
                         hoverable
                         onClick={() => setSelectedArticle(article)}
                         style={{
                           borderRadius: 12,
-                          border: "1px solid #e5e7eb",
-                          boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
-                          transition: "all 0.2s ease",
+                          border: `1px solid ${C.border}`,
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
                         }}
                         styles={{
-                          body: { padding: "20px 24px" },
+                          body: { padding: "14px 16px" },
                         }}
                       >
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                           <div style={{ flex: 1 }}>
-                            <Title level={5} style={{ marginBottom: 8, color: "#1f2937" }}>
+                            <Text strong style={{ display: "block", fontSize: 14, color: C.text, marginBottom: 4 }}>
                               {article.title}
-                            </Title>
-                            <Paragraph style={{ marginBottom: 12, color: "#6b7280", fontSize: 14 }}>
+                            </Text>
+                            <Paragraph style={{ marginBottom: 10, color: C.sub, fontSize: 13 }}>
                               {article.description}
                             </Paragraph>
-                            <Space wrap>
+                            <Space wrap size={6}>
                               <Tag
                                 color={article.type === "video" ? "red" : "blue"}
                                 icon={article.type === "video" ? <PlayCircleOutlined /> : <FileTextOutlined />}
-                                style={{ fontSize: 12 }}
+                                style={{ fontSize: 11, margin: 0 }}
                               >
                                 {article.type.toUpperCase()}
                               </Tag>
-                              <Tag icon={<ClockCircleOutlined />} style={{ fontSize: 12 }}>
+                              <Tag icon={<ClockCircleOutlined />} style={{ fontSize: 11, margin: 0 }}>
                                 {article.readTime}
                               </Tag>
-                              <Tag icon={<EyeOutlined />} style={{ fontSize: 12 }}>
+                              <Tag icon={<EyeOutlined />} style={{ fontSize: 11, margin: 0 }}>
                                 {article.views} views
                               </Tag>
-                              <Tag icon={<LikeOutlined />} color="green" style={{ fontSize: 12 }}>
+                              <Tag icon={<LikeOutlined />} color="green" style={{ fontSize: 11, margin: 0 }}>
                                 {article.helpful} helpful
                               </Tag>
                             </Space>
@@ -296,8 +291,7 @@ const HelpCenter: React.FC = () => {
           visible={!!selectedArticle}
           onClose={() => setSelectedArticle(null)}
         />
-      </Content>
-    </Layout>
+      </div>
   );
 };
 
