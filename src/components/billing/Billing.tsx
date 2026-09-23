@@ -6,7 +6,6 @@ import {
   Col,
   Button,
   notification,
-  Grid,
 } from "antd";
 import {
   CreditCardOutlined,
@@ -33,7 +32,6 @@ const cardStyle: React.CSSProperties = {
 
 const BillingDashboard: React.FC = () => {
   const primaryColor = usePrimaryColor();
-  const isMobile = !Grid.useBreakpoint().md;
   const [notificationRequested, setNotificationRequested] = useState(false);
 
   const handleNotificationRequest = () => {
@@ -94,40 +92,53 @@ const BillingDashboard: React.FC = () => {
   ];
 
   return (
-    <div style={{ maxWidth: 920, margin: "0 auto" }}>
+    <div style={{ padding: "16px 20px 24px", width: "100%", boxSizing: "border-box" }}>
       {/* Header */}
-      <Space align="center" size={10} style={{ marginBottom: 20 }} wrap>
-        <div style={{
-          background: `${primaryColor}18`, borderRadius: 10, padding: "6px 8px",
-          color: primaryColor, fontSize: 18, display: "flex",
-        }}>
-          <CreditCardOutlined />
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: 16,
+          marginBottom: 20,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{
+            background: `${primaryColor}18`, borderRadius: 8, padding: "6px 8px",
+            color: primaryColor, fontSize: 18, display: "flex",
+            alignItems: "center", justifyContent: "center", flexShrink: 0,
+          }}>
+            <CreditCardOutlined />
+          </div>
+          <div>
+            <Title level={4} style={{ margin: 0, color: C.darkText, fontWeight: 600, lineHeight: 1.3 }}>
+              Billing
+            </Title>
+            <Text style={{ fontSize: 12, color: C.subText, lineHeight: 1.3 }}>
+              Subscriptions, payments &amp; plan management across all locations
+            </Text>
+          </div>
         </div>
-        <div style={{ flex: 1, minWidth: 140 }}>
-          <Title level={4} style={{ margin: 0, color: C.darkText, fontWeight: 600 }}>
-            Billing
-          </Title>
-          <Text style={{ fontSize: 12, color: C.subText }}>
-            Subscriptions, payments &amp; plan management across all locations
-          </Text>
-        </div>
+
         <span style={{
           background: C.primaryLight, color: primaryColor, borderRadius: 6,
-          fontSize: 10, fontWeight: 700, padding: "3px 9px",
+          fontSize: 10, fontWeight: 700, padding: "4px 10px",
           textTransform: "uppercase", letterSpacing: "0.4px",
         }}>
           Coming Soon
         </span>
-      </Space>
+      </div>
 
       {/* Feature tiles */}
-      <Row gutter={isMobile ? [8, 8] : [12, 12]} style={{ marginBottom: isMobile ? 12 : 16 }}>
+      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         {features.map((f) => (
-          <Col xs={12} md={6} key={f.title}>
+          <Col xs={24} sm={12} lg={6} key={f.title}>
             <div style={{
               background: f.bg, border: `1px solid ${f.border}`,
-              borderRadius: isMobile ? 10 : 12,
-              padding: isMobile ? "12px" : "14px 16px", height: "100%",
+              borderRadius: 12,
+              padding: "14px 16px", height: "100%",
             }}>
               <div style={{
                 background: "#fff", borderRadius: 8, padding: "5px 7px",
@@ -148,7 +159,7 @@ const BillingDashboard: React.FC = () => {
       </Row>
 
       {/* What to expect */}
-      <div style={{ ...cardStyle, padding: isMobile ? 14 : 20, marginBottom: isMobile ? 12 : 16 }}>
+      <div style={{ ...cardStyle, padding: "16px 20px", marginBottom: 16 }}>
         <Space align="center" size={8} style={{ marginBottom: 14 }}>
           <div style={{
             background: "#eff6ff", borderRadius: 7, padding: "3px 6px",
@@ -186,7 +197,7 @@ const BillingDashboard: React.FC = () => {
       {/* Notify */}
       <div style={{
         ...cardStyle,
-        padding: isMobile ? "24px 16px" : "28px 24px",
+        padding: "28px 24px",
         textAlign: "center",
       }}>
         <div style={{
