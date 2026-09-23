@@ -11,6 +11,7 @@ import {
 } from "@ant-design/icons";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useActiveProduct, ProductConfig } from "src/context/ProductContext";
+import { PRODUCT_TO_DASHBOARD_TAB } from "src/hooks/useActiveDashboard";
 import { usePrimaryColor } from "src/context/PrimaryColorContext";
 import { useAppSelector } from "src/store";
 
@@ -247,7 +248,8 @@ export const EcosystemAppMenu: React.FC<{ onClose?: () => void }> = ({ onClose }
         <div
           onClick={() => {
             onClose?.();
-            navigate("/home-dashboard");
+            const tab = PRODUCT_TO_DASHBOARD_TAB[activeProduct] || "pos";
+            navigate(isAdminRoute ? `/admin/dashboard?tab=${tab}` : `/home-dashboard?tab=${tab}`);
           }}
           style={{
             display: "flex",

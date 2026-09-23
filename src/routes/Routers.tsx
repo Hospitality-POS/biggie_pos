@@ -22,6 +22,8 @@ const MainOrders = lazy(() => import("@pages/OrderManagement/MainOrders"));
 const StaffClockTracker = lazy(() => import("@pages/staff/ClockInTracker"));
 const HelpCenter = lazy(() => import("src/AdminDashboard/HelpCenter/HelpCenterPage"));
 const DashboardAdminPage = lazy(() => import("src/AdminDashboard/DashboardPage/DashboardPage"));
+const DukaDashboardPage = lazy(() => import("src/pages/Dashboard/DukaDashboardPage"));
+const AdminDukaDashboardPage = lazy(() => import("src/AdminDashboard/DashboardPage/AdminDukaDashboardPage"));
 const UnifiedDashboardPage = lazy(() => import("src/pages/Report/UnifiedDashboardPage"));
 const UnifiedShopDashboardPage = lazy(() => import("src/pages/Report/UnifiedShopDashboardPage"));
 const ShopManagement = lazy(() => import("src/AdminDashboard/Shops/MainShopPage"));
@@ -136,9 +138,13 @@ const SalesTargetsPage = lazy(() => import("src/pages/SalesTargets/SalesTargets"
 const SalesBudgetsPage = lazy(() => import("src/pages/Salesbudgets/Salesbudgets"));
 const QuotesPage = lazy(() => import("src/pages/Quotes/QuotesPage"));
 const ActivityCalendarPage = lazy(() => import("src/pages/ActivityCalendar/ActivityCalendarPage"));
+const MtejaDashboard = lazy(() => import("src/pages/Dashboard/MtejaDashboard"));
+const AccountingDashboardPage = lazy(() => import("src/pages/AccountingDashboard/AccountingDashboardPage"));
 
 // ─── Dala Real Estate Module ───────────────────────────────────────────────────
 // All Dala pages are lazy-loaded and only reachable when hasDala === true.
+const DalaDashboard = lazy(() => import("src/pages/dala/Dashboard"));
+const UnifiedDalaDashboard = lazy(() => import("src/pages/dala/UnifiedDalaDashboard"));
 const PropertiesList = lazy(() => import("src/pages/dala/properties/PropertiesList"));
 const PropertyDetail = lazy(() => import("src/pages/dala/properties/PropertyDetail"));
 const PropertyTypesList = lazy(() => import("src/pages/dala/property-types/PropertyTypesList"));
@@ -289,8 +295,8 @@ const SmartShopRouter = () => {
   const hasDala = tenant?.modules?.dala === true;
 
   if (hasDala && !hasPOS && !hasAccounting && !hasMteja) return <Navigate to="/dala" replace />;
-  if (hasMteja && !hasPOS && !hasAccounting) return <Navigate to="/mteja" replace />;
-  if (hasAccounting && !hasPOS) return <Navigate to="/accounting" replace />;
+  if (hasMteja && !hasPOS && !hasAccounting) return <Navigate to="/home-dashboard?tab=mteja" replace />;
+  if (hasAccounting && !hasPOS) return <Navigate to="/home-dashboard?tab=accounting" replace />;
   return privatePage(Table);
 };
 
@@ -305,8 +311,8 @@ const SmartDashboardRouter = () => {
   const hasMteja = tenant?.modules?.crm === true;
   const hasDala = tenant?.modules?.dala === true;
 
-  if (hasMteja && !hasPOS && !hasAccounting && !hasDala) return <Navigate to="/admin/mteja" replace />;
-  if (hasAccounting && !hasPOS) return <Navigate to="/admin/dashboard" replace />;
+  if (hasMteja && !hasPOS && !hasAccounting && !hasDala) return <Navigate to="/admin/dashboard?tab=mteja" replace />;
+  if (hasAccounting && !hasPOS) return <Navigate to="/admin/dashboard?tab=accounting" replace />;
   return <Navigate to="/admin/dashboard" replace />;
 };
 
@@ -363,7 +369,7 @@ const routes = sentryCreateBrowserRouter(
           element={guardedPage(RestaurantPage, "ORDERS_VIEW_DASHBOARD")} />
 
         <Route path="dashboard" errorElement={<NotFound />}
-          element={<Navigate to="/home-dashboard" replace />} />
+          element={<Navigate to="/pos/dashboard" replace />} />
 
         <Route path="cart/cart/:cartId" errorElement={<NotFound />}
           element={guardedPage(RestaurantPage, "ORDERS_VIEW_DASHBOARD")} />
@@ -469,9 +475,9 @@ const routes = sentryCreateBrowserRouter(
         {/* ── Accounting — shop level (/accounting/...) ──────────────────── */}
         <Route path="accounting" element={<AccountingLayout />}>
           <Route index errorElement={<NotFound />}
-            element={<Navigate to="/home-dashboard" replace />} />
+            element={guardedPage(AccountingDashboardPage, "ACCOUNTING_COA_VIEW")} />
           <Route path="dashboard" errorElement={<NotFound />}
-            element={<Navigate to="/home-dashboard" replace />} />
+            element={guardedPage(AccountingDashboardPage, "ACCOUNTING_COA_VIEW")} />
           <Route path="accounts" errorElement={<NotFound />}
             element={guardedPage(ChartOfAccountsPage, "ACCOUNTING_COA_VIEW")} />
           <Route path="journals" errorElement={<NotFound />}
@@ -503,6 +509,19 @@ const routes = sentryCreateBrowserRouter(
 
           </Route>
 
+        {/* ── Module direct aliases ────────────────────────────────────── */}
+        <Route path="pesa/dashboard" element={<Navigate to="/accounting/dashboard" replace />} />
+        <Route path="pesa" element={<Navigate to="/accounting/dashboard" replace />} />
+        <Route path="mteja/dashboard" element={<Navigate to="/crm/dashboard" replace />} />
+        <Route path="mteja" element={<Navigate to="/crm/dashboard" replace />} />
+        <Route path="bandu/dashboard" element={<Navigate to="/hr/dashboard" replace />} />
+        <Route path="bandu" element={<Navigate to="/hr/dashboard" replace />} />
+        <Route path="pos/dashboard" errorElement={<NotFound />}
+          element={guardedPage(DukaDashboardPage, "UNIFIED_DASHBOARD_VIEW")} />
+        <Route path="pos" element={<Navigate to="/pos/dashboard" replace />} />
+        <Route path="duka/dashboard" element={<Navigate to="/pos/dashboard" replace />} />
+        <Route path="duka" element={<Navigate to="/pos/dashboard" replace />} />
+
         {/* ── CRM / Mteja — shop level (/crm/...) ───────────────────────────
             ALL routes here require hasMteja === true (MtejaRoute guard).
             Permission: CUSTOMERS_VIEW gates all CRM pages for now —
@@ -510,7 +529,9 @@ const routes = sentryCreateBrowserRouter(
         ─────────────────────────────────────────────────────────────────── */}
         <Route path="crm" element={<CrmLayout />}>
           <Route index errorElement={<NotFound />}
-            element={mtejaPage(LeadsPage, "CUSTOMERS_VIEW")} />
+            element={mtejaPage(MtejaDashboard, "CUSTOMERS_VIEW")} />
+          <Route path="dashboard" errorElement={<NotFound />}
+            element={mtejaPage(MtejaDashboard, "CUSTOMERS_VIEW")} />
           <Route path="leads" errorElement={<NotFound />}
             element={mtejaPage(LeadsPage, "CUSTOMERS_VIEW")} />
           <Route path="campaigns" errorElement={<NotFound />}
@@ -531,6 +552,10 @@ const routes = sentryCreateBrowserRouter(
             add dedicated Dala permissions when roles are extended.
         ─────────────────────────────────────────────────────────────────── */}
         <Route path="dala" element={<Outlet />}>
+          <Route index errorElement={<NotFound />}
+            element={dalaPage(DalaDashboard, "DALA_PROPERTIES_VIEW")} />
+          <Route path="dashboard" errorElement={<NotFound />}
+            element={dalaPage(DalaDashboard, "DALA_PROPERTIES_VIEW")} />
           <Route path="properties" errorElement={<NotFound />}
             element={dalaPage(PropertiesList, "DALA_PROPERTIES_VIEW")} />
           <Route path="properties/:id" errorElement={<NotFound />}
@@ -737,15 +762,25 @@ const routes = sentryCreateBrowserRouter(
             </Suspense>
           } />
 
-        <Route path="mteja" errorElement={<NotFound />}
-          element={<Navigate to="/admin/dashboard" replace />} />
+        {/* ── Module direct aliases ────────────────────────────────────── */}
+        <Route path="pesa/dashboard" element={<Navigate to="/admin/accounting/dashboard" replace />} />
+        <Route path="pesa" element={<Navigate to="/admin/accounting/dashboard" replace />} />
+        <Route path="mteja/dashboard" element={<Navigate to="/admin/crm/dashboard" replace />} />
+        <Route path="mteja" element={<Navigate to="/admin/crm/dashboard" replace />} />
+        <Route path="bandu/dashboard" element={<Navigate to="/admin/hr/dashboard" replace />} />
+        <Route path="bandu" element={<Navigate to="/admin/hr/dashboard" replace />} />
+        <Route path="pos/dashboard" errorElement={<NotFound />}
+          element={guardedAdminPage(AdminDukaDashboardPage, "UNIFIED_DASHBOARD_VIEW")} />
+        <Route path="pos" element={<Navigate to="/admin/pos/dashboard" replace />} />
+        <Route path="duka/dashboard" element={<Navigate to="/admin/pos/dashboard" replace />} />
+        <Route path="duka" element={<Navigate to="/admin/pos/dashboard" replace />} />
 
         {/* ── Accounting — admin level (/admin/accounting/...) ───────────── */}
         <Route path="accounting" element={<AccountingLayout />}>
           <Route index errorElement={<NotFound />}
-            element={<Navigate to="/admin/dashboard" replace />} />
+            element={guardedAdminPage(AccountingDashboardPage, "ACCOUNTING_COA_VIEW")} />
           <Route path="dashboard" errorElement={<NotFound />}
-            element={<Navigate to="/admin/dashboard" replace />} />
+            element={guardedAdminPage(AccountingDashboardPage, "ACCOUNTING_COA_VIEW")} />
           <Route path="accounts" errorElement={<NotFound />}
             element={guardedAdminPage(ChartOfAccountsPage, "ACCOUNTING_COA_VIEW")} />
           <Route path="journals" errorElement={<NotFound />}
@@ -774,7 +809,9 @@ const routes = sentryCreateBrowserRouter(
         ─────────────────────────────────────────────────────────────────── */}
         <Route path="crm" element={<CrmLayout />}>
           <Route index errorElement={<NotFound />}
-            element={mtejaAdminPage(LeadsPage, "CUSTOMERS_VIEW")} />
+            element={mtejaAdminPage(MtejaDashboard, "CUSTOMERS_VIEW")} />
+          <Route path="dashboard" errorElement={<NotFound />}
+            element={mtejaAdminPage(MtejaDashboard, "CUSTOMERS_VIEW")} />
           <Route path="leads" errorElement={<NotFound />}
             element={mtejaAdminPage(LeadsPage, "CUSTOMERS_VIEW")} />
           <Route path="campaigns" errorElement={<NotFound />}
@@ -794,6 +831,10 @@ const routes = sentryCreateBrowserRouter(
             All gated behind AdminDalaRoute so non-Dala tenants can't access.
         ─────────────────────────────────────────────────────────────────── */}
         <Route path="dala" element={<Outlet />}>
+          <Route index errorElement={<NotFound />}
+            element={dalaAdminPage(UnifiedDalaDashboard, "DALA_PROPERTIES_VIEW")} />
+          <Route path="dashboard" errorElement={<NotFound />}
+            element={dalaAdminPage(UnifiedDalaDashboard, "DALA_PROPERTIES_VIEW")} />
           <Route path="properties" errorElement={<NotFound />}
             element={dalaAdminPage(PropertiesList, "DALA_PROPERTIES_VIEW")} />
           <Route path="properties/:id" errorElement={<NotFound />}
@@ -839,9 +880,28 @@ const routes = sentryCreateBrowserRouter(
   )
 );
 
+const RootCenteredLoader = () => (
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      width: "100vw",
+      height: "100vh",
+      position: "fixed",
+      top: 0,
+      left: 0,
+      background: "#ffffff",
+      zIndex: 99999,
+    }}
+  >
+    <Spin size="large" />
+  </div>
+);
+
 function Routers() {
   return (
-    <Suspense fallback={<Spin size="large" />}>
+    <Suspense fallback={<RootCenteredLoader />}>
       <RouterProvider router={routes} />
     </Suspense>
   );

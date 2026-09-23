@@ -32,8 +32,11 @@ export const PRODUCT_CONFIGS: Record<ProductKey, ProductConfig> = {
     tagline: "Point of Sale, Orders, Inventory & Crew",
     icon: <ShopOutlined />,
     color: "#0ea5e9", // Sky blue
-    defaultPath: "/tables",
+    defaultPath: "/pos/dashboard",
     pathPrefixes: [
+      "/home-dashboard",
+      "/pos",
+      "/duka",
       "/tables",
       "/store",
       "/inventory",
@@ -55,10 +58,12 @@ export const PRODUCT_CONFIGS: Record<ProductKey, ProductConfig> = {
     tagline: "Double-Entry Accounting, Invoices & Banking",
     icon: <DollarOutlined />,
     color: "#10b981", // Emerald green
-    defaultPath: "/accounting",
+    defaultPath: "/accounting/dashboard",
     pathPrefixes: [
       "/accounting",
       "/admin/accounting",
+      "/pesa",
+      "/admin/pesa",
     ],
   },
   mteja: {
@@ -69,12 +74,13 @@ export const PRODUCT_CONFIGS: Record<ProductKey, ProductConfig> = {
     tagline: "Omnichannel WhatsApp, Leads & Campaigns",
     icon: <CustomerServiceOutlined />,
     color: "#8b5cf6", // Purple
-    defaultPath: "/crm/leads",
+    defaultPath: "/crm/dashboard",
     pathPrefixes: [
       "/crm",
       "/omnichannel",
       "/mteja",
       "/admin/mteja",
+      "/admin/crm",
     ],
   },
   bandu: {
@@ -85,11 +91,12 @@ export const PRODUCT_CONFIGS: Record<ProductKey, ProductConfig> = {
     tagline: "HR Directory, Leave, Attendance & Payroll",
     icon: <TeamOutlined />,
     color: "#f59e0b", // Amber
-    defaultPath: "/hr/employees",
+    defaultPath: "/hr/dashboard",
     pathPrefixes: [
       "/hr",
       "/bandu",
       "/admin/bandu",
+      "/admin/hr",
     ],
   },
   dala: {
@@ -100,7 +107,7 @@ export const PRODUCT_CONFIGS: Record<ProductKey, ProductConfig> = {
     tagline: "Property Portfolio, Leases, Rent & Maintenance",
     icon: <HomeOutlined />,
     color: "#06b6d4", // Cyan
-    defaultPath: "/dala/properties",
+    defaultPath: "/dala/dashboard",
     pathPrefixes: [
       "/dala",
       "/admin/dala",
@@ -145,7 +152,34 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
   );
 
   // Helper: detect which product a given pathname belongs to
-  const detectProductFromPath = useCallback((pathname: string): ProductKey | null => {
+  const detectProductFromPath = useCallback((pathname: string, search?: string): ProductKey | null => {
+    // For dashboard paths, check URL search query param 'tab' first
+    if (pathname === "/home-dashboard" || pathname === "/admin/dashboard" || pathname === "/dashboard") {
+      const searchStr = search !== undefined ? search : window.location.search;
+      const params = new URLSearchParams(searchStr);
+      const tabParam = params.get("tab") || params.get("dashboard") || params.get("module");
+      if (tabParam) {
+        const key = tabParam.trim().toLowerCase();
+        const tabMap: Record<string, ProductKey> = {
+          pos: "duka",
+          duka: "duka",
+          accounting: "pesa",
+          pesa: "pesa",
+          finance: "pesa",
+          mteja: "mteja",
+          crm: "mteja",
+          bandu: "bandu",
+          hr: "bandu",
+          payroll: "bandu",
+          dala: "dala",
+          property: "dala",
+          realestate: "dala",
+        };
+        if (tabMap[key]) return tabMap[key];
+      }
+      return "duka";
+    }
+
     for (const [key, config] of Object.entries(PRODUCT_CONFIGS)) {
       if (config.pathPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(prefix + "/"))) {
         return key as ProductKey;
@@ -157,7 +191,7 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // Initialize active product
   const [activeProduct, setActiveProduct] = useState<ProductKey>(() => {
     // 1. First check URL path
-    const detected = detectProductFromPath(window.location.pathname);
+    const detected = detectProductFromPath(window.location.pathname, window.location.search);
     if (detected && availableKeys.has(detected)) {
       return detected;
     }
@@ -174,12 +208,12 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Keep active product in sync when URL changes to another product's territory
   useEffect(() => {
-    const detected = detectProductFromPath(location.pathname);
+    const detected = detectProductFromPath(location.pathname, location.search);
     if (detected && availableKeys.has(detected) && detected !== activeProduct) {
       setActiveProduct(detected);
       localStorage.setItem(STORAGE_KEY, detected);
     }
-  }, [location.pathname, detectProductFromPath, availableKeys, activeProduct]);
+  }, [location.pathname, location.search, detectProductFromPath, availableKeys, activeProduct]);
 
   // Ensure current activeProduct is still valid if tenant modules update
   useEffect(() => {
@@ -237,3 +271,5 @@ export const useActiveProduct = () => {
   }
   return context;
 };
+
+export { useActiveDashboard, type DashboardTabKey } from "../hooks/useActiveDashboard";

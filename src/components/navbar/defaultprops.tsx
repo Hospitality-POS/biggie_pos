@@ -41,6 +41,7 @@ import React from "react";
 import { makePermissionChecker } from "@utils/accessControl";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { useActiveProduct, ProductKey, PRODUCT_CONFIGS } from "@context/ProductContext";
+import { PRODUCT_TO_DASHBOARD_TAB } from "src/hooks/useActiveDashboard";
 
 // ─── SVG tile helper ──────────────────────────────────────────────────────────
 export const makeTile = (color: string, pathD: string): string => {
@@ -71,6 +72,8 @@ export const makeTileImg = (color: string, pathD: string, alt = "icon"): React.R
 );
 
 export const ICONS = {
+  dashboard:
+    "M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z",
   checklist:
     "M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z",
   table:
@@ -130,8 +133,11 @@ export const ICONS = {
 
 // ─── Route → permission gate maps ────────────────────────────────────────────
 const POS_ROUTE_PERMISSIONS: Record<string, string> = {
+  "/home-dashboard": "UNIFIED_DASHBOARD_VIEW|ORDERS_VIEW_DASHBOARD",
+  "/pos/dashboard": "UNIFIED_DASHBOARD_VIEW|ORDERS_VIEW_DASHBOARD",
+  "/duka/dashboard": "UNIFIED_DASHBOARD_VIEW|ORDERS_VIEW_DASHBOARD",
+  "/dashboard": "UNIFIED_DASHBOARD_VIEW|ORDERS_VIEW_DASHBOARD",
   "/tables": "CART_VIEW_ITEMS",
-  "/home-dashboard": "UNIFIED_DASHBOARD_VIEW",
   "/orders": "ORDERS_VIEW",
   "/store": "PRODUCTS_VIEW",
   "/inventory": "INVENTORY_VIEW",
@@ -157,6 +163,7 @@ const POS_ROUTE_PERMISSIONS: Record<string, string> = {
 
 const ACCOUNTING_ROUTE_PERMISSIONS: Record<string, string> = {
   "/accounting": "ACCOUNTING_DASHBOARD_VIEW",
+  "/accounting/dashboard": "ACCOUNTING_DASHBOARD_VIEW",
   "/home-dashboard": "UNIFIED_DASHBOARD_VIEW",
   "/orders": "ACCOUNTING_INVOICE_VIEW",
   "/accounting/sales-receipts": "ACCOUNTING_INCOME_VIEW_HISTORY",
@@ -181,6 +188,7 @@ const ACCOUNTING_ROUTE_PERMISSIONS: Record<string, string> = {
 };
 
 const CRM_ROUTE_PERMISSIONS: Record<string, string> = {
+  "/crm/dashboard": "CUSTOMERS_VIEW",
   "/home-dashboard": "UNIFIED_DASHBOARD_VIEW",
   "/omnichannel": "OMNICHANNEL_VIEW",
   "/crm/leads": "CRM_LEADS_VIEW",
@@ -195,6 +203,7 @@ const CRM_ROUTE_PERMISSIONS: Record<string, string> = {
 };
 
 const DALA_ROUTE_PERMISSIONS: Record<string, string> = {
+  "/dala/dashboard": "DALA_PROPERTIES_VIEW",
   "/home-dashboard": "UNIFIED_DASHBOARD_VIEW",
   "/dala": "DALA_DASHBOARD_VIEW",
   "/dala/properties": "DALA_PROPERTIES_VIEW",
@@ -229,6 +238,7 @@ const BANDU_ROUTE_PERMISSIONS: Record<string, string> = {
 
 // ─── App Tiles Permissions ───────────────────────────────────────────────────
 const POS_APP_PERMISSIONS: Record<string, string> = {
+  "/home-dashboard": "UNIFIED_DASHBOARD_VIEW|ORDERS_VIEW_DASHBOARD",
   "/Category-settings": "CATEGORIES_VIEW",
   "/table-settings": "TABLES_VIEW",
   "/inventory": "INVENTORY_VIEW",
@@ -358,6 +368,7 @@ export const useProLayoutNav = () => {
   // 1. DUKA (POS) ROUTES
   // ════════════════════════════════════════════════════════════════════════════
   const dukaRoutesBase = [
+    { path: p("/pos/dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/pos/dashboard" },
     { path: p("/tables"), name: homeRouteName, icon: homeRouteIcon, _bare: "/tables" },
     { path: p("/orders"), name: "Orders", icon: <CalculatorFilled />, _bare: "/orders" },
     ...(posMode !== "retail"
@@ -394,7 +405,7 @@ export const useProLayoutNav = () => {
   // 2. PESA (ACCOUNTING) ROUTES
   // ════════════════════════════════════════════════════════════════════════════
   const pesaRoutesBase = [
-    { path: p("/accounting"), name: "Accounting", icon: <DashboardOutlined />, _bare: "/accounting" },
+    { path: p("/accounting/dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/accounting/dashboard" },
     { path: p("/orders"), name: "Invoices", icon: <FileTextOutlined />, _bare: "/orders" },
     { path: p("/accounting/sales-receipts"), name: "Sales Receipts", icon: <AccountBookOutlined />, _bare: "/accounting/sales-receipts" },
     { path: p("/accounting/expenses"), name: "Expenses", icon: <ArrowUpOutlined />, _bare: "/accounting/expenses" },
@@ -425,7 +436,7 @@ export const useProLayoutNav = () => {
   // 3. MTEJA (CRM) ROUTES
   // ════════════════════════════════════════════════════════════════════════════
   const mtejaRoutesBase = [
-    { path: p("/home-dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/home-dashboard" },
+    { path: p("/crm/dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/crm/dashboard" },
     { path: p("/omnichannel"), name: "Conversations", icon: <MessageOutlined />, _bare: "/omnichannel" },
     { path: p("/crm/leads"), name: "Leads", icon: <TeamOutlined />, _bare: "/crm/leads" },
     { path: p("/crm/calendar"), name: "Activity Calendar", icon: <CalendarOutlined />, _bare: "/crm/calendar" },
@@ -470,6 +481,7 @@ export const useProLayoutNav = () => {
   // 5. DALA (REAL ESTATE) ROUTES
   // ════════════════════════════════════════════════════════════════════════════
   const dalaRoutesBase = [
+    { path: p("/dala/dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/dala/dashboard" },
     { path: p("/dala/properties"), name: "Portfolio", icon: <HomeOutlined />, _bare: "/dala/properties" },
     { path: p("/dala/property-types"), name: "Property Types", icon: <ApartmentOutlined />, _bare: "/dala/property-types" },
     { path: p("/dala/sales"), name: "Sales", icon: <ReconciliationOutlined />, _bare: "/dala/sales" },
@@ -499,6 +511,7 @@ export const useProLayoutNav = () => {
   };
 
   const posAppList = [
+    { icon: makeTile(primaryColor, ICONS.dashboard), title: "Dashboard", desc: "Sales & store overview.", url: p("/pos/dashboard"), _bare: "/pos/dashboard" },
     { icon: makeTile("#0ea5e9", ICONS.table), title: homeRouteName, desc: isHospitalMode ? "Manage wards & beds." : "Manage tables.", url: p("/table-settings"), _bare: "/table-settings" },
     { icon: makeTile("#10b981", ICONS.inventory), title: isHospitalMode ? "Pharmacy" : "Inventory", desc: isHospitalMode ? "Pharmacy stock." : "Track stock levels.", url: p("/inventory"), _bare: "/inventory" },
     { icon: makeTile("#6366f1", ICONS.checklist), title: "Category", desc: "Organize categories.", url: p("/Category-settings"), _bare: "/Category-settings" },
@@ -637,7 +650,7 @@ export const useProLayoutNav = () => {
       icon: makeTileImg("#3b82f6", ICONS.reports, "dashboard"),
       title: "Unified Dashboard",
       desc: "Cross-system overview & metrics",
-      url: p("/home-dashboard"),
+      url: p(`/home-dashboard?tab=${PRODUCT_TO_DASHBOARD_TAB[activeProduct] || "pos"}`),
     },
     {
       icon: makeTileImg("#6366f1", ICONS.documents, "documents"),
