@@ -156,9 +156,16 @@ export const getCustomerByCode = async (customerCode: string) => {
 // Staff clock in/out
 export const staffClockInOut = async (params: ParamsType) => {
   try {
+    // This is a public kiosk page (PIN entry, no login), so `companyCode`
+    // isn't set in localStorage for the request interceptor to pick up
+    // automatically. Send it explicitly as a header from the tenant_code
+    // param so the backend's tenant-scoping middleware can resolve it.
     const response = await axiosInstance.post(
       `${categ_url}/clock-in`,
-      params
+      params,
+      params?.tenant_code
+        ? { headers: { companycode: params.tenant_code as string } }
+        : undefined
     );
     return response;
   } catch (error: any) {

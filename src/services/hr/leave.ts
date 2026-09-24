@@ -171,7 +171,9 @@ export const seedLeaveBalance = createAsyncThunk(
 // Staff: clock in
 export const clockIn = async () => {
     try {
-        const response = await axiosInstance.post(`${hr_url}/attendance/clock-in`);
+        const response = await axiosInstance.post(`${hr_url}/attendance/clock-in`, undefined, {
+            headers: { 'x-permission': 'HR_ATTENDANCE_CLOCK_IN' },
+        });
         message.success(response.data?.message || "Clocked in successfully");
         return response.data;
     } catch (error: any) {
@@ -185,7 +187,9 @@ export const clockIn = async () => {
 // Staff: clock out
 export const clockOut = async () => {
     try {
-        const response = await axiosInstance.post(`${hr_url}/attendance/clock-out`);
+        const response = await axiosInstance.post(`${hr_url}/attendance/clock-out`, undefined, {
+            headers: { 'x-permission': 'HR_ATTENDANCE_CLOCK_OUT' },
+        });
         message.success(response.data?.message || "Clocked out successfully");
         return response.data;
     } catch (error: any) {
@@ -270,6 +274,30 @@ export const fetchAttendanceReport = async (params: {
         console.error("Error fetching attendance report:", error);
         message.error(error?.response?.data?.message || "Failed to fetch attendance report");
         return { report: [] };
+    }
+};
+
+// Admin: get hours worked report — aggregated straight off raw clock-in/out
+// records, covering every employee (Bandu HR clock-in AND legacy POS kiosk
+// clock-in both write to the same underlying collection).
+export const fetchHoursWorkedReport = async (params: {
+    from?: string;
+    to?: string;
+    staff_id?: string;
+}) => {
+    try {
+        const response = await axiosInstance.get(`${hr_url}/attendance/hours-report`, {
+            params: {
+                from: params.from,
+                to: params.to,
+                staff_id: params.staff_id,
+            },
+        });
+        return response.data;
+    } catch (error: any) {
+        console.error("Error fetching hours worked report:", error);
+        message.error(error?.response?.data?.message || "Failed to fetch hours worked report");
+        return { report: [], totals: { employees: 0, total_hours: 0, completed_sessions: 0, open_sessions: 0 } };
     }
 };
 
