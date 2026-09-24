@@ -116,6 +116,17 @@ const resolvePermissionKey = (
 
     const urlTokens = cleanUrl.split(/[\s\-_/]+/).filter(Boolean);
 
+    // A short token (e.g. "in", "up") is a substring of many unrelated words
+    // (e.g. "in" -> "invoice", "create"), so only allow substring matches
+    // between tokens that are long enough to be meaningfully specific.
+    // Shorter tokens must match exactly to count.
+    const MIN_SUBSTRING_LEN = 4;
+    const tokensMatch = (a: string, b: string): boolean => {
+        if (a === b) return true;
+        if (a.length < MIN_SUBSTRING_LEN || b.length < MIN_SUBSTRING_LEN) return false;
+        return a.includes(b) || b.includes(a);
+    };
+
     let bestKey: string | null = null;
     let bestScore = 0;
 
@@ -124,7 +135,7 @@ const resolvePermissionKey = (
 
         const keyTokens = perm.key.toLowerCase().split('_');
 
-        const score = keyTokens.filter(kt => urlTokens.some(ut => ut.includes(kt) || kt.includes(ut))).length;
+        const score = keyTokens.filter(kt => urlTokens.some(ut => tokensMatch(ut, kt))).length;
 
         if (score > bestScore) {
             bestScore = score;
