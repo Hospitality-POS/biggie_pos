@@ -69,9 +69,6 @@ export const generateP9FormPDF = async (payslips: PayslipData[], year: number) =
   
   // Use system settings or tenant data for company info
   const companyName = systemSettings?.name || systemSettings?.business_name || tenant.tenant_name || 'Company Name';
-  const companyAddress = systemSettings?.location || systemSettings?.address || tenant.address;
-  const companyPhone = systemSettings?.phone || tenant.phone;
-  const companyEmail = systemSettings?.email || tenant.email;
   
   // Colors
   const primaryColor: [number, number, number] = hexToRgb(getPrimaryColor());
@@ -119,7 +116,7 @@ export const generateP9FormPDF = async (payslips: PayslipData[], year: number) =
   
   doc.setFontSize(9);
   doc.setTextColor(...subTextColor);
-  doc.text(`Employee Number: ${employeeNumber}`, margin, 57);
+  doc.text(`Employee: ${(employee as any)?.fullname || (employee as any)?.user_id?.fullname || 'N/A'}  (${employeeNumber})`, margin, 57);
   doc.text(`Job Title: ${jobTitle}`, margin, 63);
   doc.text(`Employer: ${companyName}`, margin, 69);
   
@@ -185,7 +182,7 @@ export const generateP9FormPDF = async (payslips: PayslipData[], year: number) =
   
   autoTable(doc, {
     startY: 87,
-    head: [['Month', 'Basic Salary', 'Benefits', 'Gross Pay', 'PAYE', 'NSSF', 'NHIF', 'Housing Levy', 'Net Pay']],
+    head: [['Month', 'Basic Salary', 'Benefits', 'Gross Pay', 'PAYE', 'NSSF', 'SHA', 'Housing Levy', 'Net Pay']],
     body: tableBody,
     theme: 'striped',
     headStyles: {
@@ -234,7 +231,7 @@ export const generateP9FormPDF = async (payslips: PayslipData[], year: number) =
   doc.text(`Total Gross Pay: ${annualGross.toLocaleString()} KES`, margin, tableEnd + 19);
   doc.text(`Total PAYE: ${annualPAYE.toLocaleString()} KES`, margin, tableEnd + 25);
   doc.text(`Total NSSF: ${annualNSSF.toLocaleString()} KES`, margin, tableEnd + 31);
-  doc.text(`Total NHIF: ${annualNHIF.toLocaleString()} KES`, margin, tableEnd + 37);
+  doc.text(`Total SHA: ${annualNHIF.toLocaleString()} KES`, margin, tableEnd + 37);
   doc.text(`Total Housing Levy: ${annualHousing.toLocaleString()} KES`, margin, tableEnd + 43);
   
   // Highlight Net Pay

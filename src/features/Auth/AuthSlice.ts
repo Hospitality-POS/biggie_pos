@@ -124,7 +124,10 @@ export const authSlice = createSlice({
       .addCase(createUser.rejected, (state, action) => {
         state.isLoading = false;
         state.IsError = true;
-        state.newmessage = action.payload as string;
+        state.newmessage =
+          typeof action.payload === "string"
+            ? action.payload
+            : (action.payload as any)?.message || "Failed to add a new User";
       })
       .addCase(createUser.fulfilled, (state, action) => {
         state.isLoading = false;
