@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Button, DatePicker, Form, Select, Typography, Spin, Empty, Table, Space } from "antd";
+import { Button, DatePicker, Form, Select, Typography, Empty, Table, Space, Modal } from "antd";
 import {
   TeamOutlined,
   DollarOutlined,
@@ -23,7 +23,8 @@ import {
   fetchDepartmentStaffingReport,
   fetchContactDirectory,
 } from "@services/bandu/reports";
-import { fetchAllUsersList } from "@services/users";
+import { fetchAllDepartments } from "@services/crm/departments";
+import { fetchEmployees } from "@services/bandu";
 import { exportToExcel, exportToPDF } from "@utils/exportUtils";
 import dayjs, { Dayjs } from "dayjs";
 import weekOfYear from "dayjs/plugin/weekOfYear";
@@ -128,16 +129,6 @@ const TabNav: React.FC<{
   </div>
 );
 
-// ── SectionLabel ──────────────────────────────────────────────────────────────
-const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <span style={{
-    display: "block", fontSize: 10, fontWeight: 700, color: C.subText,
-    textTransform: "uppercase", letterSpacing: "0.6px", marginBottom: 10,
-  }}>
-    {children}
-  </span>
-);
-
 // ── Shared field components ───────────────────────────────────────────────────
 const DateRangeField: React.FC<{
   onChange?: (dates: any) => void;
@@ -184,17 +175,6 @@ const GenerateButton: React.FC<{
       {label}
     </Button>
   </Form.Item>
-);
-
-// ── Summary card (matching ItemSalesModal pattern) ──────────────────────────────
-const SummaryCard: React.FC<{ label: string; value: string; color: string; bg: string; icon: React.ReactNode }> = ({ label, value, color, bg, icon }) => (
-  <div style={{ flex: "1 1 130px", background: bg, border: `1px solid ${color}20`, borderLeft: `3px solid ${color}`, borderRadius: 8, padding: "10px 14px" }}>
-    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-      <span style={{ color, fontSize: 12 }}>{icon}</span>
-      <Text style={{ fontSize: 10, color: C.subText, textTransform: "uppercase", letterSpacing: "0.4px", fontWeight: 700 }}>{label}</Text>
-    </div>
-    <Text strong style={{ fontSize: 14, color }}>{value}</Text>
-  </div>
 );
 
 // ── Report Table Component ────────────────────────────────────────────────────
@@ -287,19 +267,36 @@ const BanduReports: React.FC = () => {
     );
   };
 
-  // ── Fetch agents/users for dropdown ───────────────────────────────────────
-  const { data: usersData } = useQuery({
-    queryKey: ["users"],
-    queryFn: () => fetchAllUsersList(),
+  // ── Departments for dropdowns ─────────────────────────────────────────────
+  const { data: departmentsData } = useQuery({
+    queryKey: ["departments-list"],
+    queryFn: () => fetchAllDepartments({}),
   });
 
-  const agents = useMemo(() => {
-    if (!usersData?.data) return [];
-    return usersData.data.map((user: any) => ({
-      value: user._id,
-      label: user.fullname || user.email,
+  const departmentOptions = useMemo(
+    () =>
+      (departmentsData?.departments || []).map((d: any) => ({
+        value: d._id,
+        label: d.name,
+      })),
+    [departmentsData]
+  );
+
+  // ── Bandu employees for the employee dropdown ─────────────────────────────
+  const { data: employeesData } = useQuery({
+    queryKey: ["bandu-employees-report"],
+    queryFn: () => fetchEmployees({ limit: 500 }),
+  });
+
+  const employees = useMemo(() => {
+    const list = Array.isArray(employeesData)
+      ? employeesData
+      : employeesData?.employees || employeesData?.data || [];
+    return list.map((e: any) => ({
+      value: e._id,
+      label: e.fullname || e.user_id?.fullname || e.employee_number,
     }));
-  }, [usersData]);
+  }, [employeesData]);
 
   // ── Date range presets ───────────────────────────────────────────────────
   const rangePresets: {
@@ -317,13 +314,8 @@ const BanduReports: React.FC = () => {
   // ── Active tab config (with allowed flag) ─────────────────────────────────
   const activeTabCfg = tabsWithAccess.find((t) => t.key === activeTab);
 
-  // ── Per-tab content ───────────────────────────────────────────────────────
-  const renderTabContent = () => {
-    // Block rendering if user lacks permission
-    if (!activeTabCfg?.allowed) {
-      return <LockedTab label={activeTabCfg?.label ?? activeTab} />;
-    }
-
+  // ── Report output (rendered inside a modal, like Duka reports) ────────────
+  const renderReport = () => {
     if (showReport && reportData) {
       const { reportType, data } = reportData;
 
@@ -341,6 +333,7 @@ const BanduReports: React.FC = () => {
                 { title: "Position", dataIndex: "position", key: "position" },
                 { title: "Employment Type", dataIndex: "employment_type", key: "employment_type" },
                 { title: "Status", dataIndex: "status", key: "status" },
+                { title: "Hired", dataIndex: "hire_date", key: "hire_date", render: (d: string) => d ? dayjs(d).format("DD MMM YYYY") : "—" },
               ]}
               loading={false}
               onExportExcel={() => handleExportExcel(data.employees || [], "employee-master-list")}
@@ -370,13 +363,16 @@ const BanduReports: React.FC = () => {
               data={data.payroll || []}
               columns={[
                 { title: "Employee", dataIndex: "employee", key: "employee" },
-                { title: "Gross Pay", dataIndex: "gross_pay", key: "gross_pay" },
-                { title: "PAYE", dataIndex: "paye", key: "paye" },
-                { title: "NSSF", dataIndex: "nssf", key: "nssf" },
-                { title: "NHIF", dataIndex: "nhif", key: "nhif" },
-                { title: "Housing Levy", dataIndex: "housing_levy", key: "housing_levy" },
-                { title: "Net Pay", dataIndex: "net_pay", key: "net_pay" },
+                { title: "Period", dataIndex: "period", key: "period" },
+                { title: "Department", dataIndex: "department", key: "department" },
+                { title: "Gross Pay", dataIndex: "gross_pay", key: "gross_pay", render: (v: number) => (v ?? 0).toLocaleString() },
+                { title: "PAYE", dataIndex: "paye", key: "paye", render: (v: number) => (v ?? 0).toLocaleString() },
+                { title: "NSSF", dataIndex: "nssf", key: "nssf", render: (v: number) => (v ?? 0).toLocaleString() },
+                { title: "SHA", dataIndex: "nhif", key: "nhif", render: (v: number) => (v ?? 0).toLocaleString() },
+                { title: "Housing Levy", dataIndex: "housing_levy", key: "housing_levy", render: (v: number) => (v ?? 0).toLocaleString() },
+                { title: "Net Pay", dataIndex: "net_pay", key: "net_pay", render: (v: number) => (v ?? 0).toLocaleString() },
                 { title: "Payment Method", dataIndex: "payment_method", key: "payment_method" },
+                { title: "Status", dataIndex: "status", key: "status" },
               ]}
               loading={false}
               onExportExcel={() => handleExportExcel(data.payroll || [], "payroll-register")}
@@ -386,10 +382,11 @@ const BanduReports: React.FC = () => {
                   "Payroll Register",
                   [
                     { title: "Employee", dataIndex: "employee" },
+                    { title: "Period", dataIndex: "period" },
                     { title: "Gross Pay", dataIndex: "gross_pay" },
                     { title: "PAYE", dataIndex: "paye" },
                     { title: "NSSF", dataIndex: "nssf" },
-                    { title: "NHIF", dataIndex: "nhif" },
+                    { title: "SHA", dataIndex: "nhif" },
                     { title: "Housing Levy", dataIndex: "housing_levy" },
                     { title: "Net Pay", dataIndex: "net_pay" },
                     { title: "Payment Method", dataIndex: "payment_method" },
@@ -406,11 +403,13 @@ const BanduReports: React.FC = () => {
               data={data.balances || []}
               columns={[
                 { title: "Employee", dataIndex: "employee", key: "employee" },
-                { title: "Annual Leave", dataIndex: "annual_leave", key: "annual_leave" },
-                { title: "Sick Leave", dataIndex: "sick_leave", key: "sick_leave" },
-                { title: "Maternity Leave", dataIndex: "maternity_leave", key: "maternity_leave" },
-                { title: "Paternity Leave", dataIndex: "paternity_leave", key: "paternity_leave" },
-                { title: "Compassionate Leave", dataIndex: "compassionate_leave", key: "compassionate_leave" },
+                { title: "Department", dataIndex: "department", key: "department" },
+                { title: "Annual", dataIndex: "annual_leave", key: "annual_leave", render: (v: string) => v ?? "—" },
+                { title: "Sick", dataIndex: "sick_leave", key: "sick_leave", render: (v: string) => v ?? "—" },
+                { title: "Maternity", dataIndex: "maternity_leave", key: "maternity_leave", render: (v: string) => v ?? "—" },
+                { title: "Paternity", dataIndex: "paternity_leave", key: "paternity_leave", render: (v: string) => v ?? "—" },
+                { title: "Emergency", dataIndex: "emergency_leave", key: "emergency_leave", render: (v: string) => v ?? "—" },
+                { title: "Unpaid", dataIndex: "unpaid_leave", key: "unpaid_leave", render: (v: string) => v ?? "—" },
               ]}
               loading={false}
               onExportExcel={() => handleExportExcel(data.balances || [], "leave-balance")}
@@ -420,11 +419,13 @@ const BanduReports: React.FC = () => {
                   "Leave Balance Report",
                   [
                     { title: "Employee", dataIndex: "employee" },
-                    { title: "Annual Leave", dataIndex: "annual_leave" },
-                    { title: "Sick Leave", dataIndex: "sick_leave" },
-                    { title: "Maternity Leave", dataIndex: "maternity_leave" },
-                    { title: "Paternity Leave", dataIndex: "paternity_leave" },
-                    { title: "Compassionate Leave", dataIndex: "compassionate_leave" },
+                    { title: "Department", dataIndex: "department" },
+                    { title: "Annual", dataIndex: "annual_leave" },
+                    { title: "Sick", dataIndex: "sick_leave" },
+                    { title: "Maternity", dataIndex: "maternity_leave" },
+                    { title: "Paternity", dataIndex: "paternity_leave" },
+                    { title: "Emergency", dataIndex: "emergency_leave" },
+                    { title: "Unpaid", dataIndex: "unpaid_leave" },
                   ]
                 )
               }
@@ -438,9 +439,10 @@ const BanduReports: React.FC = () => {
               data={data.leaves || []}
               columns={[
                 { title: "Employee", dataIndex: "employee", key: "employee" },
+                { title: "Department", dataIndex: "department", key: "department" },
                 { title: "Leave Type", dataIndex: "leave_type", key: "leave_type" },
-                { title: "Start Date", dataIndex: "start_date", key: "start_date" },
-                { title: "End Date", dataIndex: "end_date", key: "end_date" },
+                { title: "Start Date", dataIndex: "start_date", key: "start_date", render: (d: string) => d ? dayjs(d).format("DD MMM YYYY") : "—" },
+                { title: "End Date", dataIndex: "end_date", key: "end_date", render: (d: string) => d ? dayjs(d).format("DD MMM YYYY") : "—" },
                 { title: "Days", dataIndex: "days", key: "days" },
                 { title: "Status", dataIndex: "status", key: "status" },
                 { title: "Approved By", dataIndex: "approved_by", key: "approved_by" },
@@ -532,19 +534,30 @@ const BanduReports: React.FC = () => {
           return <Empty description="No report data available" />;
       }
     }
+    return null;
+  };
+
+  // ── Per-tab filter forms ────────────────────────────────────────────────────
+  const renderTabContent = () => {
+    // Block rendering if user lacks permission
+    if (!activeTabCfg?.allowed) {
+      return <LockedTab label={activeTabCfg?.label ?? activeTab} />;
+    }
 
     switch (activeTab) {
       case "employee":
         return (
-          <Form form={form} layout="vertical" onFinish={async (values) => {
+          <Form form={form} layout="vertical" initialValues={{ reportType: "master" }} onFinish={async (values) => {
             setLoading(true);
             try {
-              const data = await fetchEmployeeMasterList({
-                department_id: values.departmentId,
-                employment_status: values.employmentStatus,
-                employment_type: values.employmentType,
-              });
-              setReportData({ reportType: "employee-master", data });
+              const data = values.reportType === "directory"
+                ? await fetchContactDirectory({ department_id: values.departmentId })
+                : await fetchEmployeeMasterList({
+                    department_id: values.departmentId,
+                    employment_status: values.employmentStatus,
+                    employment_type: values.employmentType,
+                  });
+              setReportData({ reportType: values.reportType === "directory" ? "contact-directory" : "employee-master", data });
               setShowReport(true);
             } catch (error) {
               console.error("Error fetching report:", error);
@@ -555,11 +568,30 @@ const BanduReports: React.FC = () => {
             <div style={{ display: "flex", flexWrap: "wrap", gap: "0 16px" }}>
               <div style={{ flex: "1 1 200px", minWidth: 0 }}>
                 <Form.Item
+                  name="reportType"
+                  label={<span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.subText }}><FileTextOutlined /> Report</span>}
+                  style={{ marginBottom: 14 }}
+                >
+                  <Select style={{ width: "100%", borderRadius: 8 }} options={[
+                    { value: "master", label: "Employee Master List" },
+                    { value: "directory", label: "Contact Directory" },
+                  ]} />
+                </Form.Item>
+              </div>
+              <div style={{ flex: "1 1 200px", minWidth: 0 }}>
+                <Form.Item
                   name="departmentId"
                   label={<span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.subText }}><HomeOutlined /> Department</span>}
                   style={{ marginBottom: 14 }}
                 >
-                  <Select showSearch allowClear placeholder="All departments" style={{ width: "100%", borderRadius: 8 }} />
+                  <Select
+                    showSearch
+                    allowClear
+                    placeholder="All departments"
+                    style={{ width: "100%", borderRadius: 8 }}
+                    options={departmentOptions}
+                    optionFilterProp="label"
+                  />
                 </Form.Item>
               </div>
               <div style={{ flex: "1 1 200px", minWidth: 0 }}>
@@ -622,7 +654,14 @@ const BanduReports: React.FC = () => {
                   label={<span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.subText }}><HomeOutlined /> Department</span>}
                   style={{ marginBottom: 14 }}
                 >
-                  <Select showSearch allowClear placeholder="All departments" style={{ width: "100%", borderRadius: 8 }} />
+                  <Select
+                    showSearch
+                    allowClear
+                    placeholder="All departments"
+                    style={{ width: "100%", borderRadius: 8 }}
+                    options={departmentOptions}
+                    optionFilterProp="label"
+                  />
                 </Form.Item>
               </div>
               <div style={{ flex: "1 1 200px", minWidth: 0 }}>
@@ -633,8 +672,10 @@ const BanduReports: React.FC = () => {
                 >
                   <Select allowClear placeholder="All statuses" style={{ width: "100%", borderRadius: 8 }}>
                     <Option value="paid">Paid</Option>
-                    <Option value="pending">Pending</Option>
-                    <Option value="partial">Partial</Option>
+                    <Option value="processed">Processed</Option>
+                    <Option value="approved">Approved</Option>
+                    <Option value="pending_approval">Pending Approval</Option>
+                    <Option value="draft">Draft</Option>
                   </Select>
                 </Form.Item>
               </div>
@@ -645,17 +686,25 @@ const BanduReports: React.FC = () => {
 
       case "leave":
         return (
-          <Form form={form} layout="vertical" onFinish={async (values) => {
+          <Form form={form} layout="vertical" initialValues={{ reportType: "history" }} onFinish={async (values) => {
             setLoading(true);
             try {
-              const data = await fetchLeaveHistoryReport({
-                department_id: values.departmentId,
-                employee_id: values.employeeId,
-                startDate: values.dateRange?.[0]?.toISOString(),
-                endDate: values.dateRange?.[1]?.toISOString(),
-                status: values.status,
-              });
-              setReportData({ reportType: "leave-history", data });
+              if (values.reportType === "balance") {
+                const data = await fetchLeaveBalanceReport({
+                  department_id: values.departmentId,
+                  year: values.year || dayjs().year(),
+                });
+                setReportData({ reportType: "leave-balance", data });
+              } else {
+                const data = await fetchLeaveHistoryReport({
+                  department_id: values.departmentId,
+                  employee_id: values.employeeId,
+                  startDate: values.dateRange?.[0]?.toISOString(),
+                  endDate: values.dateRange?.[1]?.toISOString(),
+                  status: values.status,
+                });
+                setReportData({ reportType: "leave-history", data });
+              }
               setShowReport(true);
             } catch (error) {
               console.error("Error fetching report:", error);
@@ -664,16 +713,55 @@ const BanduReports: React.FC = () => {
             }
           }}>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "0 16px" }}>
-              <div style={{ flex: "1 1 300px", minWidth: 0 }}>
-                <DateRangeField presets={rangePresets} />
+              <div style={{ flex: "1 1 200px", minWidth: 0 }}>
+                <Form.Item
+                  name="reportType"
+                  label={<span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.subText }}><FileTextOutlined /> Report</span>}
+                  style={{ marginBottom: 14 }}
+                >
+                  <Select style={{ width: "100%", borderRadius: 8 }} options={[
+                    { value: "history", label: "Leave History" },
+                    { value: "balance", label: "Leave Balance" },
+                  ]} />
+                </Form.Item>
               </div>
+              <Form.Item shouldUpdate noStyle>
+                {({ getFieldValue }) =>
+                  getFieldValue("reportType") === "balance" ? (
+                    <div style={{ flex: "1 1 200px", minWidth: 0 }}>
+                      <Form.Item
+                        name="year"
+                        label={<span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.subText }}><CalendarOutlined /> Year</span>}
+                        style={{ marginBottom: 14 }}
+                        initialValue={dayjs().year()}
+                      >
+                        <Select style={{ width: "100%", borderRadius: 8 }} options={[0, 1, 2, 3].map((o) => {
+                          const y = dayjs().year() - o;
+                          return { value: y, label: `${y}` };
+                        })} />
+                      </Form.Item>
+                    </div>
+                  ) : (
+                    <div style={{ flex: "1 1 300px", minWidth: 0 }}>
+                      <DateRangeField presets={rangePresets} />
+                    </div>
+                  )
+                }
+              </Form.Item>
               <div style={{ flex: "1 1 200px", minWidth: 0 }}>
                 <Form.Item
                   name="departmentId"
                   label={<span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.subText }}><HomeOutlined /> Department</span>}
                   style={{ marginBottom: 14 }}
                 >
-                  <Select showSearch allowClear placeholder="All departments" style={{ width: "100%", borderRadius: 8 }} />
+                  <Select
+                    showSearch
+                    allowClear
+                    placeholder="All departments"
+                    style={{ width: "100%", borderRadius: 8 }}
+                    options={departmentOptions}
+                    optionFilterProp="label"
+                  />
                 </Form.Item>
               </div>
               <div style={{ flex: "1 1 200px", minWidth: 0 }}>
@@ -682,7 +770,14 @@ const BanduReports: React.FC = () => {
                   label={<span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.subText }}><UserOutlined /> Employee</span>}
                   style={{ marginBottom: 14 }}
                 >
-                  <Select showSearch allowClear placeholder="All employees" style={{ width: "100%", borderRadius: 8 }} options={agents} />
+                  <Select
+                    showSearch
+                    allowClear
+                    placeholder="All employees"
+                    style={{ width: "100%", borderRadius: 8 }}
+                    options={employees}
+                    optionFilterProp="label"
+                  />
                 </Form.Item>
               </div>
               <div style={{ flex: "1 1 200px", minWidth: 0 }}>
@@ -705,7 +800,7 @@ const BanduReports: React.FC = () => {
 
       case "department":
         return (
-          <Form form={form} layout="vertical" onFinish={async (values) => {
+          <Form form={form} layout="vertical" onFinish={async () => {
             setLoading(true);
             try {
               const data = await fetchDepartmentStaffingReport();
@@ -760,18 +855,22 @@ const BanduReports: React.FC = () => {
         <TabNav tabs={tabsWithAccess} active={activeTab} onChange={handleTabChange} />
       </div>
 
-      {/* ── Tab content ─────────────────────────────────────────────────── */}
+      {/* ── Tab content (filter forms stay visible; results open in a modal) ── */}
       <div style={{ padding: "0 18px 18px" }}>
-        {showReport && (
-          <Button
-            onClick={() => { setShowReport(false); setReportData(null); }}
-            style={{ marginBottom: 16 }}
-          >
-            ← Back to filters
-          </Button>
-        )}
         {renderTabContent()}
       </div>
+
+      {/* ── Report output modal (same pattern as Duka reports) ── */}
+      <Modal
+        open={showReport}
+        onCancel={() => setShowReport(false)}
+        footer={null}
+        width={1100}
+        style={{ top: 24 }}
+        destroyOnClose
+      >
+        {renderReport()}
+      </Modal>
     </div>
   );
 };

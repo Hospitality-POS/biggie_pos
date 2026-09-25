@@ -105,10 +105,11 @@ const FormSection: React.FC<{
 }> = ({ label, children, style }) => (
   <div
     style={{
-      background: C.bg,
+      background: "#ffffff",
       border: `1px solid ${C.border}`,
-      borderRadius: 10,
-      padding: "14px 14px 6px",
+      borderRadius: 12,
+      boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+      padding: "14px 14px 8px",
       marginBottom: 14,
       ...style,
     }}
@@ -170,9 +171,10 @@ const CategoriesTabContent: React.FC<{
       {/* Header */}
       <div
         style={{
-          background: C.bg,
+          background: "#ffffff",
           border: `1px solid ${C.border}`,
-          borderRadius: 10,
+          borderRadius: 12,
+          boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
           padding: "12px 14px",
           marginBottom: 14,
           display: "flex",
@@ -271,7 +273,6 @@ const CategoriesTabContent: React.FC<{
 
 // ── Mobile form fields (plain AntD Form.Item — full width) ────────────────────
 const MobileDetailsFields: React.FC<{
-  form: any;
   isAdmin: boolean;
   isProfile: boolean;
   isEditingOwnProfile: boolean;
@@ -285,7 +286,6 @@ const MobileDetailsFields: React.FC<{
   handleShopChange: (id: string) => void;
   isShopLevelStaffManagement: boolean;
 }> = ({
-  form,
   isAdmin,
   isProfile,
   isEditingOwnProfile,
@@ -371,25 +371,6 @@ const MobileDetailsFields: React.FC<{
                   label: r.role_type,
                   value: r._id,
                 }))}
-              />
-            </Form.Item>
-          )}
-          {isAdmin && (
-            <Form.Item
-              name="signatureAccess"
-              label={fieldLabel("Signature Access")}
-              tooltip="Grant user access to E-Signature module"
-              style={{ marginBottom: 10 }}
-            >
-              <Select
-                placeholder="Select signature access level"
-                disabled={isProfile || isEditingOwnProfile}
-                style={{ borderRadius: 8 }}
-                options={[
-                  { label: "No Access", value: "none" },
-                  { label: "View Only", value: "view" },
-                  { label: "Full Access", value: "full" },
-                ]}
               />
             </Form.Item>
           )}
@@ -660,16 +641,34 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
     return payload;
   };
 
+  // Map a backend field error onto the matching form control
+  const setFieldError = (field?: string, msg?: string) => {
+    if (!field) return;
+    try {
+      form.setFields([{ name: field, errors: [msg || "Invalid value"] }]);
+    } catch {
+      // form instance may not be mounted (e.g. modal closed)
+    }
+  };
+
   const submitPayload = async (payload: any) => {
     try {
       if (edit) {
         await updateUsers({ value: payload, _id: data._id });
         if (isProfile) await queryClient.invalidateQueries(["user", userId]);
       } else {
-        await handleConfirmAddUser(payload);
+        const result = await handleConfirmAddUser(payload);
+        if (!result?.success) {
+          setFieldError(result?.field, result?.message);
+          message.error(result?.message || "Failed to add a new user");
+          return false;
+        }
       }
-    } catch {
-      message.error("Failed to save user");
+    } catch (error: any) {
+      const msg =
+        error?.response?.data?.message || error?.message || "Failed to save user";
+      setFieldError(error?.response?.data?.field || error?.field, msg);
+      message.error(msg);
       return false;
     }
 
@@ -706,8 +705,8 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
         position: true,
       });
       if (!confirmed) return;
-      await submitPayload(buildPayload(values));
-      handleOpenChange(false);
+      const ok = await submitPayload(buildPayload(values));
+      if (ok) handleOpenChange(false);
     } catch {
       // validation errors shown inline
     }
@@ -806,9 +805,10 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
       {/* Avatar upload */}
       <div
         style={{
-          background: C.bg,
+          background: "#ffffff",
           border: `1px solid ${C.border}`,
-          borderRadius: 10,
+          borderRadius: 12,
+          boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
           padding: "14px 14px 10px",
           marginBottom: 16,
         }}
@@ -848,9 +848,10 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
       {/* Fields */}
       <div
         style={{
-          background: C.bg,
+          background: "#ffffff",
           border: `1px solid ${C.border}`,
-          borderRadius: 10,
+          borderRadius: 12,
+          boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
           padding: "14px 14px 4px",
           marginBottom: 16,
         }}
@@ -859,7 +860,7 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
         <ProForm.Group>
           <ProFormText
             hasFeedback
-            width="xl"
+            width="md"
             name="fullname"
             label="Full Name"
             rules={[{ required: true, message: "Name is required" }]}
@@ -867,44 +868,17 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
           />
           <ProFormText
             hasFeedback
-            width="xl"
+            width="md"
             name="username"
             label="Username"
             rules={[{ required: true, message: "Username is required" }]}
             placeholder="Preferred username"
           />
-          {isAdmin && (
-            <ProFormSelect
-              hasFeedback
-              width="xl"
-              name="roleId"
-              label="Role"
-              disabled={isProfile || isEditingOwnProfile}
-              rules={[{ required: true, message: "Role is required" }]}
-              showSearch
-              placeholder="Select role"
-              request={roleRequest}
-            />
-          )}
-          {isAdmin && (
-            <ProFormSelect
-              hasFeedback
-              width="xl"
-              name="signatureAccess"
-              label="Signature Access"
-              tooltip="Grant user access to E-Signature module"
-              disabled={isProfile || isEditingOwnProfile}
-              placeholder="Select signature access level"
-              options={[
-                { label: "No Access", value: "none" },
-                { label: "View Only", value: "view" },
-                { label: "Full Access", value: "full" },
-              ]}
-            />
-          )}
+        </ProForm.Group>
+        <ProForm.Group>
           <ProFormText
             hasFeedback
-            width="xl"
+            width="md"
             name="email"
             label="Email"
             rules={[
@@ -914,24 +888,41 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
           />
           <ProFormText.Password
             hasFeedback
-            width="xl"
+            width="md"
             name="pin"
             label="PIN"
             tooltip="4-digit login PIN"
             rules={[{ required: true, pattern: /^[0-9]{4}$/, message: "Must be 4 digits" }]}
             placeholder="••••"
           />
+        </ProForm.Group>
+        <ProForm.Group>
+          {isAdmin && (
+            <ProFormSelect
+              hasFeedback
+              width="md"
+              name="roleId"
+              label="Role"
+              disabled={isProfile || isEditingOwnProfile}
+              rules={[{ required: true, message: "Role is required" }]}
+              showSearch
+              placeholder="Select role"
+              request={roleRequest}
+            />
+          )}
           <ProFormDigit
             hasFeedback
-            width="xl"
+            width="md"
             name="idNumber"
             label="National ID"
             placeholder="Enter national ID number"
           />
+        </ProForm.Group>
+        <ProForm.Group>
           {user?.role !== "cashier" && (!isAdmin || !isEditingOwnProfile) && !isShopLevelStaffManagement && (
             <ProFormSelect
               hasFeedback
-              width="xl"
+              width="md"
               name="shop_id"
               label="Branch"
               rules={[{ required: true, message: "Branch is required" }]}
@@ -1010,7 +1001,6 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
                   ),
                   children: (
                     <MobileDetailsFields
-                      form={form}
                       isAdmin={isAdmin}
                       isProfile={!!isProfile}
                       isEditingOwnProfile={!!isEditingOwnProfile}

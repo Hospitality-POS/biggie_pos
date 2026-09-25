@@ -230,6 +230,20 @@ export const fetchMyAttendance = async (params: ParamsType = {}) => {
     }
 };
 
+// Admin: delete a clock session (also removes its attendance summary)
+export const deleteClockRecord = async (id: string) => {
+    try {
+        const response = await axiosInstance.delete(`${hr_url}/attendance/${id}`);
+        message.success(response.data?.message || "Session deleted");
+        return response.data;
+    } catch (error: any) {
+        const errorMessage =
+            error?.response?.data?.message || error?.message || "Failed to delete session";
+        message.error(errorMessage);
+        throw new Error(errorMessage);
+    }
+};
+
 // Admin: get all staff attendance
 export const fetchAllAttendance = async (params: ParamsType = {}) => {
     try {

@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { getUser } from '@services/tenants';
 import { fetchSystemSetupDetailsById } from '@services/systemsetup';
+import { BASE_URL } from '@utils/config';
 import { getPrimaryColor, hexToRgb } from './getPrimaryColor';
 
 interface PayslipData {
@@ -20,6 +21,9 @@ interface PayslipData {
     _id: string;
     employee_number: string;
     job_title: string;
+    fullname?: string;
+    email?: string;
+    user_id?: { fullname?: string; email?: string } | null;
     blood_group?: string;
     date_of_birth?: string;
     gender?: string;
@@ -36,6 +40,9 @@ interface PayslipData {
     nssf: number;
     nhif: number;
     housing_levy: number;
+    taxable_pay?: number;
+    income_tax?: number;
+    personal_relief?: number;
     custom: Array<{ name: string; amount: number }>;
     total: number;
   };
@@ -54,11 +61,37 @@ interface PayslipData {
   updatedAt: string;
 }
 
+// Resolve a stored logo reference (URL, path, or base64) into a data URL
+const loadLogoAsDataUrl = async (logo?: string | null): Promise<string | null> => {
+  if (!logo) return null;
+  try {
+    const url = logo.startsWith('data:')
+      ? logo
+      : logo.startsWith('http')
+        ? logo
+        : `${BASE_URL.replace(/\/$/, '')}${logo.startsWith('/') ? '' : '/'}${logo}`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+};
+
+const fmt = (n?: number | null) => (n ?? 0).toLocaleString();
+const fmtDate = (d?: string) => (d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A');
+
 export const generatePayslipPDF = async (payslip: PayslipData) => {
   const doc = new jsPDF();
   const user = getUser();
   const tenant = JSON.parse(localStorage.getItem('tenant') || '{}');
-  
+
   // Fetch system settings for company details
   let systemSettings: any = {};
   try {
@@ -66,231 +99,233 @@ export const generatePayslipPDF = async (payslip: PayslipData) => {
   } catch (error) {
     console.log('Could not fetch system settings');
   }
-  
-  // Use system settings or tenant data for company info
-  const companyName = systemSettings?.name || systemSettings?.business_name || tenant.tenant_name || 'Company Name';
+
+  const companyName =
+    systemSettings?.name || systemSettings?.business_name || tenant.tenant_name || 'Company Name';
   const companyAddress = systemSettings?.location || systemSettings?.address || tenant.address;
   const companyPhone = systemSettings?.phone || tenant.phone;
   const companyEmail = systemSettings?.email || tenant.email;
-  const companyLogo = systemSettings?.logo || tenant.tenant_logo;
-  
+  const logoData = await loadLogoAsDataUrl(systemSettings?.logo || tenant.tenant_logo);
+
   // Colors
   const primaryColor: [number, number, number] = hexToRgb(getPrimaryColor());
-  const textColor: [number, number, number] = [15, 23, 42]; // #0f172a
-  const subTextColor: [number, number, number] = [100, 116, 139]; // #64748b
-  
-  // Page width and margins
+  const textColor: [number, number, number] = [15, 23, 42];
+  const subTextColor: [number, number, number] = [100, 116, 139];
+  const cardBg: [number, number, number] = [248, 250, 252];
+  const borderColor: [number, number, number] = [226, 232, 240];
+
   const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 14;
-  const contentWidth = pageWidth - (margin * 2);
-  
-  // ── Header with Logo and Letterhead ────────────────────────────────────────
-  
-  // Add logo if available
-  if (companyLogo) {
+  const contentWidth = pageWidth - margin * 2;
+
+  // ── Header band ────────────────────────────────────────────────────────────
+  doc.setFillColor(...primaryColor);
+  doc.rect(0, 0, pageWidth, 4, 'F');
+
+  // Logo (left) or placeholder tile
+  if (logoData) {
     try {
-      doc.addImage(companyLogo, 'PNG', margin, 10, 30, 30);
+      doc.addImage(logoData, 'PNG', margin, 12, 26, 26);
     } catch (error) {
       console.log('Could not add logo to PDF');
     }
+  } else {
+    doc.setFillColor(...cardBg);
+    doc.setDrawColor(...borderColor);
+    doc.roundedRect(margin, 12, 26, 26, 3, 3, 'FD');
+    doc.setFontSize(16);
+    doc.setTextColor(...primaryColor);
+    doc.setFont('helvetica', 'bold');
+    doc.text(companyName.charAt(0).toUpperCase(), margin + 13, 28, { align: 'center' });
   }
-  
-  // Company name and letterhead
-  doc.setFontSize(20);
-  doc.setTextColor(...primaryColor);
-  doc.text(companyName, margin + 35, 20);
-  
-  doc.setFontSize(10);
+
+  // Company details next to logo
+  let cx = margin + 32;
+  doc.setFontSize(18);
+  doc.setTextColor(...textColor);
+  doc.setFont('helvetica', 'bold');
+  doc.text(companyName, cx, 20);
+
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'normal');
   doc.setTextColor(...subTextColor);
+  let cy = 26;
   if (companyAddress) {
     const addressStr = typeof companyAddress === 'string' ? companyAddress : JSON.stringify(companyAddress);
-    doc.text(addressStr, margin + 35, 26);
+    doc.text(addressStr, cx, cy);
+    cy += 4.5;
   }
-  if (companyPhone) {
-    doc.text(`Phone: ${companyPhone}`, margin + 35, 31);
+  const contactBits = [companyPhone && `Phone: ${companyPhone}`, companyEmail && `Email: ${companyEmail}`]
+    .filter(Boolean)
+    .join('   ');
+  if (contactBits) {
+    doc.text(contactBits, cx, cy);
   }
-  if (companyEmail) {
-    doc.text(`Email: ${companyEmail}`, margin + 35, 36);
-  }
-  
-  // Divider line
-  doc.setDrawColor(...primaryColor);
-  doc.setLineWidth(0.5);
-  doc.line(margin, 45, pageWidth - margin, 45);
-  
-  // ── Payslip Title ─────────────────────────────────────────────────────────
-  
-  doc.setFontSize(16);
+
+  // Payslip title block (right side)
+  doc.setFontSize(20);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...primaryColor);
+  doc.text('PAYSLIP', pageWidth - margin, 20, { align: 'right' });
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...subTextColor);
+  doc.text(payslip.period_label || '', pageWidth - margin, 26, { align: 'right' });
+  doc.text(`Generated ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`, pageWidth - margin, 31, { align: 'right' });
+
+  doc.setDrawColor(...borderColor);
+  doc.setLineWidth(0.4);
+  doc.line(margin, 44, pageWidth - margin, 44);
+
+  // ── Employee / Period info cards ───────────────────────────────────────────
+  const cardY = 50;
+  const cardH = 34;
+  const colW = (contentWidth - 6) / 2;
+
+  // Employee card
+  doc.setFillColor(...cardBg);
+  doc.setDrawColor(...borderColor);
+  doc.roundedRect(margin, cardY, colW, cardH, 2, 2, 'FD');
+
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...subTextColor);
+  doc.text('EMPLOYEE', margin + 5, cardY + 7);
+
+  const empName =
+    payslip.employee_id?.user_id?.fullname ||
+    payslip.employee_id?.fullname ||
+    payslip.employee_id?.employee_number ||
+    'N/A';
+  const empEmail = payslip.employee_id?.user_id?.email || payslip.employee_id?.email || 'N/A';
+
+  doc.setFontSize(11);
   doc.setTextColor(...textColor);
-  doc.text('Payslip', pageWidth / 2, 55, { align: 'center' });
-  
+  doc.text(empName, margin + 5, cardY + 14);
+
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...subTextColor);
+  doc.text(`${payslip.employee_id?.employee_number || 'N/A'} · ${payslip.employee_id?.job_title || 'N/A'}`, margin + 5, cardY + 20);
+  doc.text(empEmail, margin + 5, cardY + 25.5);
+  doc.text(`Dept: ${payslip.payroll_id?.department_id?.name || 'N/A'}`, margin + 5, cardY + 31);
+
+  // Period card
+  const periodX = margin + colW + 6;
+  doc.setFillColor(...cardBg);
+  doc.roundedRect(periodX, cardY, colW, cardH, 2, 2, 'FD');
+
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...subTextColor);
+  doc.text('PAY PERIOD', periodX + 5, cardY + 7);
+
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Period: ${payslip.period_label}`, periodX + 5, cardY + 14);
+  doc.text(`From ${fmtDate(payslip.period_start)} to ${fmtDate(payslip.period_end)}`, periodX + 5, cardY + 20);
+  doc.text(
+    `Days worked: ${payslip.days_worked ?? 0}   Overtime: ${payslip.overtime_hours ?? 0} hrs`,
+    periodX + 5,
+    cardY + 26
+  );
+
+  // ── Earnings & Deductions — side-by-side tables ────────────────────────────
+  const tableTop = cardY + cardH + 8;
+  const halfWidth = (contentWidth - 6) / 2;
+
   doc.setFontSize(10);
-  doc.setTextColor(...subTextColor);
-  doc.text(`Generated on: ${new Date().toLocaleDateString()}`, pageWidth / 2, 61, { align: 'center' });
-  
-  // ── Employee Information ──────────────────────────────────────────────────
-  
-  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
   doc.setTextColor(...textColor);
-  doc.text('Employee Information', margin, 75);
-  
-  doc.setFontSize(9);
-  doc.setTextColor(...subTextColor);
-  const employeeNumber = payslip.employee_id?.employee_number || 'N/A';
-  const jobTitle = payslip.employee_id?.job_title || 'N/A';
-  const gender = payslip.employee_id?.gender || 'N/A';
-  const bloodGroup = payslip.employee_id?.blood_group || 'N/A';
-  const dateOfBirth = payslip.employee_id?.date_of_birth 
-    ? new Date(payslip.employee_id.date_of_birth).toLocaleDateString() 
-    : 'N/A';
-  
-  doc.text(`Employee Number: ${employeeNumber}`, margin, 82);
-  doc.text(`Job Title: ${jobTitle}`, margin, 88);
-  doc.text(`Gender: ${gender}`, margin, 94);
-  doc.text(`Blood Group: ${bloodGroup}`, margin, 100);
-  doc.text(`Date of Birth: ${dateOfBirth}`, margin, 106);
-  
-  // ── Pay Period ─────────────────────────────────────────────────────────────
-  
-  doc.setFontSize(12);
-  doc.setTextColor(...textColor);
-  doc.text('Pay Period', margin, 118);
-  
-  doc.setFontSize(9);
-  doc.setTextColor(...subTextColor);
-  doc.text(`Period: ${payslip.period_label}`, margin, 125);
-  doc.text(`From: ${new Date(payslip.period_start).toLocaleDateString()}`, margin, 131);
-  doc.text(`To: ${new Date(payslip.period_end).toLocaleDateString()}`, margin, 137);
-  
-  // ── Earnings Table ────────────────────────────────────────────────────────
-  
-  doc.setFontSize(12);
-  doc.setTextColor(...textColor);
-  doc.text('Earnings', margin, 150);
-  
+  doc.text('Earnings', margin, tableTop);
+  doc.text('Deductions', margin + halfWidth + 6, tableTop);
+
   autoTable(doc, {
-    startY: 155,
+    startY: tableTop + 2,
+    margin: { left: margin, right: margin + halfWidth + 6 },
     head: [['Description', 'Amount (KES)']],
     body: [
-      ['Basic Salary', (payslip.earnings?.basic_salary || 0).toLocaleString()],
-      ['Allowances', (payslip.earnings?.allowances || 0).toLocaleString()],
-      ['Benefits', (payslip.earnings?.benefits || 0).toLocaleString()],
-      ['Overtime Pay', (payslip.earnings?.overtime_pay || 0).toLocaleString()],
-      ['', ''],
-      ['Gross Salary', (payslip.earnings?.gross_salary || 0).toLocaleString()],
+      ['Basic Salary', fmt(payslip.earnings?.basic_salary)],
+      ['Allowances', fmt(payslip.earnings?.allowances)],
+      ['Benefits', fmt(payslip.earnings?.benefits)],
+      ['Overtime Pay', fmt(payslip.earnings?.overtime_pay)],
+      ['Gross Salary', fmt(payslip.earnings?.gross_salary)],
     ],
-    theme: 'striped',
-    headStyles: {
-      fillColor: primaryColor,
-      textColor: 255,
-      fontStyle: 'bold',
-    },
-    columnStyles: {
-      0: { cellWidth: contentWidth * 0.6 },
-      1: { cellWidth: contentWidth * 0.4, halign: 'right' },
-    },
-    styles: {
-      fontSize: 9,
-      cellPadding: 3,
-    },
+    theme: 'grid',
+    headStyles: { fillColor: primaryColor, textColor: 255, fontStyle: 'bold', fontSize: 8 },
+    columnStyles: { 1: { halign: 'right' } },
+    styles: { fontSize: 8.5, cellPadding: 2.4 },
     didParseCell: (data) => {
-      if (data.row.index === 5) {
+      if (data.row.index === 4) {
         data.cell.styles.fontStyle = 'bold';
-        data.cell.styles.fillColor = [240, 240, 240];
+        data.cell.styles.fillColor = cardBg;
       }
     },
   });
-  
-  // ── Deductions Table ─────────────────────────────────────────────────────
-  
-  const earningsTableEnd = (doc as any).lastAutoTable.finalY + 10;
-  
-  doc.setFontSize(12);
-  doc.setTextColor(...textColor);
-  doc.text('Deductions', margin, earningsTableEnd);
-  
-  const deductionsBody = [
-    ['PAYE', (payslip.deductions?.paye || 0).toLocaleString()],
-    ['NSSF', (payslip.deductions?.nssf || 0).toLocaleString()],
-    ['NHIF', (payslip.deductions?.nhif || 0).toLocaleString()],
-    ['Housing Levy', (payslip.deductions?.housing_levy || 0).toLocaleString()],
+  const earningsEnd = (doc as any).lastAutoTable.finalY;
+
+  const deductionsBody: string[][] = [
+    ['NSSF', fmt(payslip.deductions?.nssf)],
+    ['SHIF', fmt(payslip.deductions?.nhif)],
+    ['Housing Levy', fmt(payslip.deductions?.housing_levy)],
+    ['Taxable Pay', fmt(payslip.deductions?.taxable_pay)],
+    ['Income Tax', fmt(payslip.deductions?.income_tax)],
+    ['Personal Relief', payslip.deductions?.personal_relief != null ? `-${fmt(payslip.deductions.personal_relief)}` : '-'],
+    ['P.A.Y.E', fmt(payslip.deductions?.paye)],
   ];
-  
-  // Add custom deductions if any
-  if (payslip.deductions?.custom && Array.isArray(payslip.deductions.custom)) {
-    payslip.deductions.custom.forEach((deduction) => {
-      deductionsBody.push([deduction.name, deduction.amount.toLocaleString()]);
+  if (Array.isArray(payslip.deductions?.custom)) {
+    payslip.deductions.custom.forEach((d) => {
+      deductionsBody.push([d.name, fmt(d.amount)]);
     });
   }
-  
-  deductionsBody.push(['', '']);
-  deductionsBody.push(['Total Deductions', (payslip.deductions?.total || 0).toLocaleString()]);
-  
+  deductionsBody.push(['Total Deductions', fmt(payslip.deductions?.total)]);
+
   autoTable(doc, {
-    startY: earningsTableEnd + 5,
+    startY: tableTop + 2,
+    margin: { left: margin + halfWidth + 6, right: margin },
     head: [['Description', 'Amount (KES)']],
     body: deductionsBody,
-    theme: 'striped',
-    headStyles: {
-      fillColor: primaryColor,
-      textColor: 255,
-      fontStyle: 'bold',
-    },
-    columnStyles: {
-      0: { cellWidth: contentWidth * 0.6 },
-      1: { cellWidth: contentWidth * 0.4, halign: 'right' },
-    },
-    styles: {
-      fontSize: 9,
-      cellPadding: 3,
-    },
+    theme: 'grid',
+    headStyles: { fillColor: [239, 68, 68], textColor: 255, fontStyle: 'bold', fontSize: 8 },
+    columnStyles: { 1: { halign: 'right' } },
+    styles: { fontSize: 8.5, cellPadding: 2.4 },
     didParseCell: (data) => {
-      const rowIndex = data.row.index;
-      const totalRowIndex = deductionsBody.length - 1;
-      if (rowIndex === totalRowIndex) {
+      if (data.row.index === deductionsBody.length - 1) {
         data.cell.styles.fontStyle = 'bold';
-        data.cell.styles.fillColor = [240, 240, 240];
+        data.cell.styles.fillColor = cardBg;
       }
     },
   });
-  
-  // ── Summary ───────────────────────────────────────────────────────────────
-  
-  const deductionsTableEnd = (doc as any).lastAutoTable.finalY + 10;
-  
-  doc.setFontSize(12);
-  doc.setTextColor(...textColor);
-  doc.text('Summary', margin, deductionsTableEnd);
-  
+  const deductionsEnd = (doc as any).lastAutoTable.finalY;
+
+  // ── Net pay banner ─────────────────────────────────────────────────────────
+  const netY = Math.max(earningsEnd, deductionsEnd) + 8;
+
+  doc.setFillColor(16, 185, 129);
+  doc.roundedRect(margin, netY, contentWidth, 16, 2, 2, 'F');
+
   doc.setFontSize(9);
-  doc.setTextColor(...subTextColor);
-  doc.text(`Days Worked: ${payslip.days_worked || 0}`, margin, deductionsTableEnd + 7);
-  doc.text(`Overtime Hours: ${payslip.overtime_hours || 0}`, margin, deductionsTableEnd + 13);
-  
-  // ── Net Pay (Highlighted) ─────────────────────────────────────────────────
-  
-  const netPayY = deductionsTableEnd + 25;
-  
-  doc.setFillColor(16, 185, 129); // Green background
-  doc.rect(margin, netPayY - 5, contentWidth, 15, 'F');
-  
-  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
   doc.setTextColor(255, 255, 255);
-  doc.text('Net Pay', margin + 5, netPayY + 4);
-  
-  doc.setFontSize(14);
-  doc.text(`${(payslip.net_pay || 0).toLocaleString()} KES`, pageWidth - margin - 5, netPayY + 4, { align: 'right' });
-  
-  // ── Footer ────────────────────────────────────────────────────────────────
-  
-  const footerY = doc.internal.pageSize.getHeight() - 20;
-  doc.setFontSize(8);
+  doc.text('NET PAY', margin + 6, netY + 10);
+
+  doc.setFontSize(15);
+  doc.text(`KES ${fmt(payslip.net_pay)}`, pageWidth - margin - 6, netY + 11, { align: 'right' });
+
+  // ── Footer ─────────────────────────────────────────────────────────────────
+  const footerY = pageHeight - 14;
+  doc.setDrawColor(...borderColor);
+  doc.line(margin, footerY - 4, pageWidth - margin, footerY - 4);
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'normal');
   doc.setTextColor(...subTextColor);
-  doc.text('This is a computer-generated payslip and does not require a signature.', pageWidth / 2, footerY, { align: 'center' });
-  doc.text(`Generated by ${user?.name || 'System'}`, pageWidth / 2, footerY + 5, { align: 'center' });
-  
-  // Save the PDF
-  const periodLabel = payslip.period_label || 'unknown_period';
-  const filename = `Payslip_${employeeNumber}_${periodLabel.replace(/\s+/g, '_')}.pdf`;
-  doc.save(filename);
+  doc.text('This is a computer-generated payslip and does not require a signature.', pageWidth / 2, footerY + 1, {
+    align: 'center',
+  });
+  doc.text(`Generated by ${user?.name || 'System'}`, pageWidth / 2, footerY + 5.5, { align: 'center' });
+
+  const periodLabel = (payslip.period_label || 'unknown_period').replace(/\s+/g, '_');
+  const empNo = payslip.employee_id?.employee_number || 'employee';
+  doc.save(`Payslip_${empNo}_${periodLabel}.pdf`);
 };

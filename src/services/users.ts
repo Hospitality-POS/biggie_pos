@@ -234,7 +234,9 @@ export const updateUsers = async (data: ParamsType) => {
 
       if (!response.ok) {
         console.error("Server error response:", responseData);
-        throw new Error(responseData.message || "Failed to update user");
+        const err: any = new Error(responseData.message || "Failed to update user");
+        err.field = responseData.field;
+        throw err;
       }
 
      // message.success("User updated successfully");
@@ -271,9 +273,13 @@ export const updateUsers = async (data: ParamsType) => {
   } catch (error: any) {
     console.error("Error updating user:", error);
     if (error?.response?.status !== 403) {
-      message.error("Failed to update user");
+      message.error(error?.response?.data?.message || error?.message || "Failed to update user");
     }
-    throw new Error(error?.message || "Failed to update user");
+    const err: any = new Error(
+      error?.response?.data?.message || error?.message || "Failed to update user"
+    );
+    err.field = error?.response?.data?.field || error?.field;
+    throw err;
   }
 };
 

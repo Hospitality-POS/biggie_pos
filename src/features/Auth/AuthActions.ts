@@ -65,7 +65,7 @@ export const createUser = createAsyncThunk(
       dispatch(fetchAllUsers())
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response.data.message);
+      return rejectWithValue(error?.response?.data || { message: error?.message || "Failed to add a new User" });
     }
   }
 );

@@ -569,7 +569,7 @@ function RoleSettings() {
           search: false,
           sorter: true,
           width: 120,
-          render: (v: string) => <Text style={{ fontSize: 12, color: C.subText }}>{new Date(v).toLocaleDateString()}</Text>,
+          render: (_: any, record: any) => <Text style={{ fontSize: 12, color: C.subText }}>{record.createdAt ? new Date(record.createdAt).toLocaleDateString() : "—"}</Text>,
         },
         {
           title: "Updated",
@@ -578,7 +578,7 @@ function RoleSettings() {
           search: false,
           sorter: true,
           width: 120,
-          render: (v: string) => <Text style={{ fontSize: 12, color: C.subText }}>{new Date(v).toLocaleDateString()}</Text>,
+          render: (_: any, record: any) => <Text style={{ fontSize: 12, color: C.subText }}>{record.updatedAt ? new Date(record.updatedAt).toLocaleDateString() : "—"}</Text>,
         },
         {
           title: "Actions",
