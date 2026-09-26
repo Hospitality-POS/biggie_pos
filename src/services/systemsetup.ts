@@ -14,23 +14,59 @@ export const fetchSystemSetupDetails = async () => {
     throw new Error(error?.message);
   }
 };
-export const fetchSystemSetupDetailsById = async () => {
-  try {
-    // const url = `${BASE_URL}/users/fetch-system-setting/6637797763064f893911fd92`;
-    const url = `${BASE_URL}/users/fetch-system-setting/${localStorage.getItem("shopId")}`;
-    const response = await axiosInstance.get(url);
-    // console.log("system..", response.data);
+interface CacheEntry {
+  shopId: string;
+  data: any;
+  timestamp: number;
+}
 
-    return response.data;
-  } catch (error) {
-    throw new Error(error?.message);
+let cachedSettings: CacheEntry | null = null;
+let inflightSettingsPromise: Promise<any> | null = null;
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes cache
+
+export const clearSystemSetupCache = () => {
+  cachedSettings = null;
+  inflightSettingsPromise = null;
+};
+
+export const fetchSystemSetupDetailsById = async (forceRefresh = false) => {
+  const shopId = localStorage.getItem("shopId");
+  if (!shopId) return null;
+
+  const now = Date.now();
+  if (!forceRefresh && cachedSettings && cachedSettings.shopId === shopId && now - cachedSettings.timestamp < CACHE_TTL_MS) {
+    return cachedSettings.data;
   }
+
+  if (inflightSettingsPromise) {
+    return inflightSettingsPromise;
+  }
+
+  inflightSettingsPromise = (async () => {
+    try {
+      const url = `${BASE_URL}/users/fetch-system-setting/${shopId}`;
+      const response = await axiosInstance.get(url);
+      cachedSettings = {
+        shopId,
+        data: response.data,
+        timestamp: Date.now(),
+      };
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error?.message);
+    } finally {
+      inflightSettingsPromise = null;
+    }
+  })();
+
+  return inflightSettingsPromise;
 };
 
 export const createSystemSetup = async (data: ParamsType) => {
   try {
     const url = `${BASE_URL}/users/new-system-setting`;
     const response = await axiosInstance.post(url, data);
+    clearSystemSetupCache();
     localStorage.setItem("businessId", response?.data?._id);
     // console.log("create..", response.data);
     message.success("System Setup created successfully");
@@ -45,6 +81,7 @@ export const updateSystemSetup = async (data: ParamsType) => {
     // console.log("update..", data);
     const url = `${BASE_URL}/users/update-system-setting`;
     const response = await axiosInstance.put(`${url}/${data._id}`, data.data);
+    clearSystemSetupCache();
     //message.success("System Setup updated successfully");
     return response.data;
   } catch (error) {

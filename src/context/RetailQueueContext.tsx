@@ -102,14 +102,15 @@ export const RetailQueueProvider: React.FC<{ children: React.ReactNode }> = ({ c
             // If privacy is enabled and user is waiter, lock tables where served_by is not current user
             if (enablePrivacy && userRole === "waiter" && currentUser) {
                 tables = tables.map((table: any) => {
+                    if (table.cart_amount === 0) {
+                        return { ...table, isLocked: false };
+                    }
                     const servedByCurrentUser = table.served_by === currentUser || table.served_by === user.name;
                     const isEmpty = !table.isOccupied && table.status !== 'occupied';
                     // Lock if not served by current user AND not empty
                     const isLocked = !servedByCurrentUser && !isEmpty;
-                    console.log(`[RetailQueueContext] Table ${table.name}: served_by=${table.served_by}, isOccupied=${table.isOccupied}, isLocked=${isLocked}`);
                     return { ...table, isLocked };
                 });
-                console.log('[RetailQueueContext] Applied privacy locking, locked tables:', tables.filter((t: any) => t.isLocked).length);
             }
 
             if (!tables?.length) {
