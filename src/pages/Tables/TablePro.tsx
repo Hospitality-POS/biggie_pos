@@ -306,7 +306,17 @@ export default function TablePro() {
   const STORAGE_KEY = "activeTableTabId";
   const VISIT_KEY = "hasVisitedTablesBefore";
 
-  const [activeTabId, setActiveTabId] = useState(DEFAULT_TAB);
+  const [activeTabId, setActiveTabId] = useState(() => {
+    const isFirstVisit = localStorage.getItem(VISIT_KEY) !== "true";
+    if (isFirstVisit) {
+      localStorage.setItem(VISIT_KEY, "true");
+      return DEFAULT_TAB;
+    }
+    const savedTabId = localStorage.getItem(STORAGE_KEY);
+    return savedTabId && savedTabId !== "undefined" && savedTabId !== "null" && String(savedTabId).trim() !== ""
+      ? savedTabId
+      : DEFAULT_TAB;
+  });
 
   const setValidActiveTab = useCallback((tabId: any) => {
     const validTabId =
@@ -316,17 +326,6 @@ export default function TablePro() {
     setActiveTabId(validTabId);
     localStorage.setItem(STORAGE_KEY, validTabId);
     return validTabId;
-  }, []);
-
-  useEffect(() => {
-    const isFirstVisit = localStorage.getItem(VISIT_KEY) !== "true";
-    if (isFirstVisit) {
-      localStorage.setItem(VISIT_KEY, "true");
-      setValidActiveTab(DEFAULT_TAB);
-    } else {
-      const savedTabId = localStorage.getItem(STORAGE_KEY);
-      setValidActiveTab(savedTabId);
-    }
   }, []);
 
   useEffect(() => {
@@ -366,6 +365,7 @@ export default function TablePro() {
     },
     networkMode: "always",
     enabled: !!storedCode && !isRetailMode && !isHospitalMode && !isModeLoading,
+    staleTime: 30 * 1000,
     retry: 2,
     retryDelay: 1000,
   });
