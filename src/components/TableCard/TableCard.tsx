@@ -21,9 +21,10 @@ interface Table {
 interface itemProps {
   item: Table;
   openModal: any;
+  enablePrivacy?: boolean;
 }
 
-const TableCard: React.FC<itemProps> = ({ item, openModal }) => {
+const TableCard: React.FC<itemProps> = ({ item, openModal, enablePrivacy }) => {
   const { user } = useAppSelector((state) => state.auth);
   const { error } = useAppSelector((state) => state.cart);
 
@@ -34,48 +35,32 @@ const TableCard: React.FC<itemProps> = ({ item, openModal }) => {
   // Color state management
   const primaryColor = usePrimaryColor();
 
-  // Compute isLocked based on privacy settings
-  const [isLocked, setIsLocked] = React.useState(false);
-  const [enablePrivacy, setEnablePrivacy] = React.useState(false);
+  // Determine isLocked: prefer pre-calculated item.isLocked; fallback to synchronous calculation
+  const isLocked = React.useMemo(() => {
+    if (typeof item.isLocked === "boolean") {
+      return item.isLocked;
+    }
 
-  React.useEffect(() => {
-    const fetchPrivacySetting = async () => {
-      try {
-        const { fetchSystemSetupDetailsById } = await import('../../services/systemsetup');
-        const systemSettings = await fetchSystemSetupDetailsById();
-        setEnablePrivacy(systemSettings?.enable_privacy || false);
-      } catch {
-        setEnablePrivacy(false);
-      }
-    };
-    fetchPrivacySetting();
-  }, []);
-
-  React.useEffect(() => {
     if (!enablePrivacy) {
-      setIsLocked(false);
-      return;
+      return false;
     }
 
     const currentUser = user?._id || user?.id;
-    const userRole = (typeof user?.role === 'string' ? user?.role : user?.roleData?.role_type)?.toLowerCase();
+    const userRole = (typeof user?.role === "string" ? user?.role : user?.roleData?.role_type)?.toLowerCase();
 
     if (userRole !== "waiter" || !currentUser) {
-      setIsLocked(false);
-      return;
+      return false;
     }
 
     // If cart_amount is 0, allow any waiter to open the table
     if (item.cart_amount === 0) {
-      setIsLocked(false);
-      return;
+      return false;
     }
 
     const servedByCurrentUser = item.served_by === currentUser || item.served_by === user?.name;
-    const isEmpty = !item.isOccupied && item.status !== 'occupied';
-    const locked = !servedByCurrentUser && !isEmpty;
-    setIsLocked(locked);
-  }, [enablePrivacy, user, item.served_by, item.isOccupied, item.status, item.cart_amount]);
+    const isEmpty = !item.isOccupied && item.status !== "occupied";
+    return !servedByCurrentUser && !isEmpty;
+  }, [item.isLocked, enablePrivacy, user, item.served_by, item.isOccupied, item.status, item.cart_amount]);
 
   // Helper function to lighten color
   const lightenColor = (color: string, percent = 15) => {

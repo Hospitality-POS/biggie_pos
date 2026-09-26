@@ -57,15 +57,15 @@ export const getAllTables = async (data: ParamsType) => {
     // If privacy is enabled and user is waiter, lock tables where served_by is not current user
     if (enablePrivacy && userRole === "waiter" && currentUser) {
       tables = tables.map((table: any) => {
+        if (table.cart_amount === 0) {
+          return { ...table, isLocked: false };
+        }
         const servedByCurrentUser = table.served_by === currentUser || table.served_by === user.name;
         const isEmpty = !table.isOccupied && table.status !== 'occupied';
         // Lock if not served by current user AND not empty
         const isLocked = !servedByCurrentUser && !isEmpty;
-        console.log(`🔍 Table ${table.name}: served_by=${table.served_by}, isOccupied=${table.isOccupied}, isLocked=${isLocked}`);
         return { ...table, isLocked };
       });
-      console.log('🔍 Applied privacy locking, locked tables:', tables.filter((t: any) => t.isLocked).length);
-      console.log('🔍 Final tables with isLocked flags:', tables.map((t: any) => ({ name: t.name, isLocked: t.isLocked })));
     }
 
     return tables;
@@ -105,19 +105,38 @@ export const fetchTableUsequery = async (params: any) => {
       console.log('🔍 Failed to fetch enable_privacy in fetchTableUsequery');
     }
 
-    // If privacy is enabled and user is waiter, lock tables where served_by is not current user
-    if (enablePrivacy && userRole === "waiter" && currentUser) {
-      tables = tables.map((table: any) => {
-        const servedByCurrentUser = table.served_by === currentUser || table.served_by === user.name;
-        // If served_by is undefined, treat as not served by current user (lock as safety)
-        const isServedByCurrentUser = table.served_by ? servedByCurrentUser : false;
+    // Apply privacy locking to individual tables (handling both locations with nested tables and flat table lists)
+    if (Array.isArray(tables)) {
+      tables = tables.map((item: any) => {
+        if (item?.tables && Array.isArray(item.tables)) {
+          const mappedTables = item.tables.map((table: any) => {
+            if (!enablePrivacy || userRole !== "waiter" || !currentUser) {
+              return { ...table, isLocked: false };
+            }
+            if (table.cart_amount === 0) {
+              return { ...table, isLocked: false };
+            }
+            const servedByCurrentUser = table.served_by === currentUser || table.served_by === user.name;
+            const isServedByCurrentUser = table.served_by ? servedByCurrentUser : false;
+            const isEmpty = !table.isOccupied && table.status !== 'occupied';
+            const isLocked = !isServedByCurrentUser && !isEmpty;
+            return { ...table, isLocked };
+          });
+          return { ...item, tables: mappedTables };
+        }
+
+        if (!enablePrivacy || userRole !== "waiter" || !currentUser) {
+          return { ...item, isLocked: false };
+        }
+        if (item.cart_amount === 0) {
+          return { ...item, isLocked: false };
+        }
+        const servedByCurrentUser = item.served_by === currentUser || item.served_by === user.name;
+        const isServedByCurrentUser = item.served_by ? servedByCurrentUser : false;
         const isEmpty = !table.isOccupied && table.status !== 'occupied';
-        // Lock if not served by current user AND not empty
         const isLocked = !isServedByCurrentUser && !isEmpty;
-        console.log(`🔍 [fetchTableUsequery] Table ${table.name}: served_by=${table.served_by}, isOccupied=${table.isOccupied}, isLocked=${isLocked}`);
-        return { ...table, isLocked };
+        return { ...item, isLocked };
       });
-      console.log('🔍 [fetchTableUsequery] Applied privacy locking, locked tables:', tables.filter((t: any) => t.isLocked).length);
     }
 
     return tables;
