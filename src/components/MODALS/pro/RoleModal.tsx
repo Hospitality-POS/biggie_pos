@@ -393,6 +393,9 @@ const StepPermissions: React.FC<{
             onChange={(v) => setFilterScope(v as ModuleScope | "all")}
             style={{ width: 180, height: 34 }}
             options={scopeOptions}
+            // Render the dropdown outside the scrollable modal body — otherwise
+            // it realigns on every ancestor scroll and flickers/drops the click.
+            getPopupContainer={() => document.body}
           />
         )}
 
@@ -419,7 +422,8 @@ const StepPermissions: React.FC<{
       {Object.keys(filteredGroups).length === 0 ? (
         <Empty description="No permissions match your filter" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: "32px 0" }} />
       ) : (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+        // fixed-height scroll area — filtering must not resize the modal (avoids flicker)
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignContent: "flex-start", minHeight: 260 }}>
           {Object.entries(filteredGroups).map(([mod, perms]) => (
             <PermissionGroupCard
               key={mod}
@@ -537,7 +541,7 @@ const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({ 
   // hasCRM maps to hasMteja — the CRM scope is gated on tenant.modules.crm.
   const groupedPermissions = useMemo(
     () => getPermissionsGroupedByModuleForTenant({ hasHR, hasAccounting, hasCRM: hasMteja, hasDala, hasPOS, hasSignature }),
-    [hasHR, hasAccounting, hasMteja, hasDala, hasPOS]
+    [hasHR, hasAccounting, hasMteja, hasDala, hasPOS, hasSignature]
   );
 
   const [open, setOpen] = useState(false);
@@ -726,7 +730,9 @@ const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({ 
         open={open}
         onCancel={() => handleOpen(false)}
         destroyOnClose
-        centered
+        // Not `centered` — centered modals re-position on every content height
+        // change, which made the dialog jump/flicker when filtering modules.
+        style={{ top: 48 }}
         getContainer={() => document.body}
         width="min(960px, 96vw)"
         title={modalTitle}

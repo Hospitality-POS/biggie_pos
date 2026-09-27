@@ -27,8 +27,6 @@ import {
   DollarOutlined,
   SyncOutlined,
   DashboardOutlined,
-  RiseOutlined,
-  FallOutlined,
   UserOutlined,
   CheckCircleOutlined,
   LogoutOutlined,
@@ -866,7 +864,7 @@ const BanduHRDashboard: React.FC = () => {
                   <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} tickFormatter={fmtK} />
                   <ReTooltip
-                    formatter={(val: any) => [`KES ${fmt(val || 0)}`, undefined]}
+                    formatter={(val: any) => `KES ${fmt(val || 0)}`}
                     contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }}
                   />
                   <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />

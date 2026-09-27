@@ -370,6 +370,7 @@ const BanduReports: React.FC = () => {
                 { title: "NSSF", dataIndex: "nssf", key: "nssf", render: (v: number) => (v ?? 0).toLocaleString() },
                 { title: "SHA", dataIndex: "nhif", key: "nhif", render: (v: number) => (v ?? 0).toLocaleString() },
                 { title: "Housing Levy", dataIndex: "housing_levy", key: "housing_levy", render: (v: number) => (v ?? 0).toLocaleString() },
+                { title: "NITA", dataIndex: "nita", key: "nita", render: (v: number) => (v ?? 0).toLocaleString() },
                 { title: "Net Pay", dataIndex: "net_pay", key: "net_pay", render: (v: number) => (v ?? 0).toLocaleString() },
                 { title: "Payment Method", dataIndex: "payment_method", key: "payment_method" },
                 { title: "Status", dataIndex: "status", key: "status" },
@@ -388,6 +389,7 @@ const BanduReports: React.FC = () => {
                     { title: "NSSF", dataIndex: "nssf" },
                     { title: "SHA", dataIndex: "nhif" },
                     { title: "Housing Levy", dataIndex: "housing_levy" },
+                    { title: "NITA", dataIndex: "nita" },
                     { title: "Net Pay", dataIndex: "net_pay" },
                     { title: "Payment Method", dataIndex: "payment_method" },
                   ]

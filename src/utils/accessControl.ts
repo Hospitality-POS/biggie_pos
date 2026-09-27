@@ -43,6 +43,7 @@ export const MODULES = {
     HR_LEAVE: "HR · Leave Management",
     HR_LEAVE_POLICIES: "HR · Leave Policies",
     HR_ATTENDANCE: "HR · Attendance",
+    HR_PAYROLL: "HR · Payroll",
     HR_PAYSLIPS: "HR · Payslips",
     HR_LEAVE_APPROVALS: "HR · Leave Approvals",
     // ── Accounting module ────────────────────────────────────────────────────
@@ -453,6 +454,8 @@ export const PERMISSIONS: Record<string, Permission> = {
     BANDU_EMPLOYEES_CREATE: { key: "BANDU_EMPLOYEES_CREATE", label: "Create Employee", module: MODULES.HR_EMPLOYEES, action: "create", moduleScope: "hr" },
     BANDU_EMPLOYEES_UPDATE: { key: "BANDU_EMPLOYEES_UPDATE", label: "Update Employee", module: MODULES.HR_EMPLOYEES, action: "update", moduleScope: "hr" },
     BANDU_EMPLOYEES_DELETE: { key: "BANDU_EMPLOYEES_DELETE", label: "Delete Employee", module: MODULES.HR_EMPLOYEES, action: "delete", moduleScope: "hr" },
+    BANDU_EMPLOYEES_IMPORT: { key: "BANDU_EMPLOYEES_IMPORT", label: "Import Employees (Excel)", module: MODULES.HR_EMPLOYEES, action: "create", moduleScope: "hr" },
+    BANDU_EMPLOYEES_EXPORT: { key: "BANDU_EMPLOYEES_EXPORT", label: "Export Employees", module: MODULES.HR_EMPLOYEES, action: "special", moduleScope: "hr" },
 
     // ── HR Leave Management ─────────────────────────────────────────────────────
     BANDU_LEAVE_VIEW: { key: "BANDU_LEAVE_VIEW", label: "View Leave Requests", module: MODULES.HR_LEAVE, action: "read", moduleScope: "hr" },
@@ -481,10 +484,24 @@ export const PERMISSIONS: Record<string, Permission> = {
     HR_ATTENDANCE_VIEW_REPORT: { key: "HR_ATTENDANCE_VIEW_REPORT", label: "View Attendance Report", module: MODULES.HR_ATTENDANCE, action: "read", moduleScope: "hr" },
     HR_ATTENDANCE_EMAIL_REPORT: { key: "HR_ATTENDANCE_EMAIL_REPORT", label: "Email Attendance Report", module: MODULES.HR_ATTENDANCE, action: "special", moduleScope: "hr" },
     HR_ATTENDANCE_RECONCILE: { key: "HR_ATTENDANCE_RECONCILE", label: "Reconcile Attendance for a Date", module: MODULES.HR_ATTENDANCE, action: "special", moduleScope: "hr" },
+    HR_ATTENDANCE_DELETE: { key: "HR_ATTENDANCE_DELETE", label: "Delete Clock-in Session", module: MODULES.HR_ATTENDANCE, action: "delete", moduleScope: "hr" },
+
+    // ── HR Payroll ────────────────────────────────────────────────────────────────
+    BANDU_PAYROLL_VIEW: { key: "BANDU_PAYROLL_VIEW", label: "View Payroll", module: MODULES.HR_PAYROLL, action: "read", moduleScope: "hr" },
+    BANDU_PAYROLL_GENERATE: { key: "BANDU_PAYROLL_GENERATE", label: "Generate / Duplicate Payroll", module: MODULES.HR_PAYROLL, action: "create", moduleScope: "hr" },
+    BANDU_PAYROLL_UPDATE: { key: "BANDU_PAYROLL_UPDATE", label: "Edit Payroll Lines & Settings", module: MODULES.HR_PAYROLL, action: "update", moduleScope: "hr" },
+    BANDU_PAYROLL_APPROVE: { key: "BANDU_PAYROLL_APPROVE", label: "Approve Payroll", module: MODULES.HR_PAYROLL, action: "special", moduleScope: "hr" },
+    BANDU_PAYROLL_PROCESS: { key: "BANDU_PAYROLL_PROCESS", label: "Process / Mark Payroll Paid", module: MODULES.HR_PAYROLL, action: "special", moduleScope: "hr" },
+    BANDU_PAYROLL_DELETE: { key: "BANDU_PAYROLL_DELETE", label: "Delete / Void Payroll", module: MODULES.HR_PAYROLL, action: "delete", moduleScope: "hr" },
+    BANDU_PAYROLL_EXPORT: { key: "BANDU_PAYROLL_EXPORT", label: "Export Payroll (PDF / Excel)", module: MODULES.HR_PAYROLL, action: "special", moduleScope: "hr" },
 
     // ── HR Payslips ───────────────────────────────────────────────────────────────
     BANDU_PAYSLIPS_VIEW: { key: "BANDU_PAYSLIPS_VIEW", label: "View Payslips", module: MODULES.HR_PAYSLIPS, action: "read", moduleScope: "hr" },
+    BANDU_PAYSLIPS_VIEW_ALL: { key: "BANDU_PAYSLIPS_VIEW_ALL", label: "View All Employee Payslips", module: MODULES.HR_PAYSLIPS, action: "read", moduleScope: "hr" },
     BANDU_PAYSLIPS_GENERATE: { key: "BANDU_PAYSLIPS_GENERATE", label: "Generate Payslip", module: MODULES.HR_PAYSLIPS, action: "create", moduleScope: "hr" },
+    BANDU_PAYSLIPS_EMAIL: { key: "BANDU_PAYSLIPS_EMAIL", label: "Email Payslips to Employees", module: MODULES.HR_PAYSLIPS, action: "special", moduleScope: "hr" },
+    BANDU_PAYSLIPS_EXPORT: { key: "BANDU_PAYSLIPS_EXPORT", label: "Export Payslips & P9", module: MODULES.HR_PAYSLIPS, action: "special", moduleScope: "hr" },
+    BANDU_PAYSLIPS_DELETE: { key: "BANDU_PAYSLIPS_DELETE", label: "Delete Payslip", module: MODULES.HR_PAYSLIPS, action: "delete", moduleScope: "hr" },
 
     // ── HR Leave Approvals ────────────────────────────────────────────────────────
     BANDU_LEAVE_APPROVALS_VIEW: { key: "BANDU_LEAVE_APPROVALS_VIEW", label: "View Leave Approvals", module: MODULES.HR_LEAVE_APPROVALS, action: "read", moduleScope: "hr" },
@@ -985,6 +1002,7 @@ export const ROLE_PRESETS: Record<string, string[]> = {
         "HR_LEAVE_APPLY", "HR_LEAVE_VIEW", "HR_LEAVE_VIEW_ONE", "HR_LEAVE_CANCEL", "HR_LEAVE_VIEW_BALANCE",
         "HR_ATTENDANCE_CLOCK_IN", "HR_ATTENDANCE_CLOCK_OUT",
         "HR_ATTENDANCE_VIEW_STATUS", "HR_ATTENDANCE_VIEW_MY",
+        "BANDU_PAYSLIPS_VIEW", "BANDU_PAYSLIPS_EXPORT",
         "EMAIL_SEND_LEAVE_APPLICATION",
         "NOTIFICATIONS_VIEW_MY", "NOTIFICATIONS_MARK_READ",
     ],

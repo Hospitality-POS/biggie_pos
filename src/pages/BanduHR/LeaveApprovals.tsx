@@ -14,6 +14,7 @@ import {
   Tabs,
   Empty,
   Avatar,
+  Grid,
 } from "antd";
 import {
   CheckCircleOutlined,
@@ -25,6 +26,8 @@ import {
 } from "@ant-design/icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchLeaves, type Leave } from "@services/bandu";
+import { getUser } from "@services/tenants";
+import { getPermissionChecker } from "@utils/getPermissionChecker";
 import dayjs from "dayjs";
 import { THEME_C } from "@utils/getPrimaryColor";
 
@@ -80,6 +83,13 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const LeaveApprovals: React.FC = () => {
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
+  const user = getUser();
+  const checkPerms = getPermissionChecker();
+  const can = (k: string) => user?.role === "admin" || user?.isAdmin === true || checkPerms(k);
+  const canApprove = can("HR_LEAVE_APPROVE");
+  const canReject = can("HR_LEAVE_REJECT");
   const [activeTab, setActiveTab] = useState<string>("Pending");
   const [selectedLeave, setSelectedLeave] = useState<Leave | null>(null);
   const [isRejectModalVisible, setIsRejectModalVisible] = useState(false);
@@ -195,30 +205,34 @@ const LeaveApprovals: React.FC = () => {
           </Button>
           {record.status === "Pending" && (
             <>
-              <Button
-                type="text"
-                size="small"
-                icon={<CheckCircleOutlined />}
-                style={{ color: "#10b981" }}
-                onClick={() => {
-                  setSelectedLeave(record);
-                  setIsApproveModalVisible(true);
-                }}
-              >
-                Approve
-              </Button>
-              <Button
-                type="text"
-                size="small"
-                danger
-                icon={<CloseCircleOutlined />}
-                onClick={() => {
-                  setSelectedLeave(record);
-                  setIsRejectModalVisible(true);
-                }}
-              >
-                Reject
-              </Button>
+              {canApprove && (
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<CheckCircleOutlined />}
+                  style={{ color: "#10b981" }}
+                  onClick={() => {
+                    setSelectedLeave(record);
+                    setIsApproveModalVisible(true);
+                  }}
+                >
+                  Approve
+                </Button>
+              )}
+              {canReject && (
+                <Button
+                  type="text"
+                  size="small"
+                  danger
+                  icon={<CloseCircleOutlined />}
+                  onClick={() => {
+                    setSelectedLeave(record);
+                    setIsRejectModalVisible(true);
+                  }}
+                >
+                  Reject
+                </Button>
+              )}
             </>
           )}
         </Space>
@@ -253,7 +267,7 @@ const LeaveApprovals: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24, background: "#f8fafc", minHeight: "100%" }}>
+    <div style={{ padding: isMobile ? 12 : 24, background: "#f8fafc", minHeight: "100%" }}>
       {/* Header */}
       <div
         style={{
@@ -285,16 +299,16 @@ const LeaveApprovals: React.FC = () => {
 
       {/* Stats */}
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
-        <Col xs={12} md={6}>
+        <Col xs={24} sm={12} md={6}>
           <StatCard title="Total Requests" value={leaveStats.total} icon={<CalendarOutlined />} color="#3b82f6" />
         </Col>
-        <Col xs={12} md={6}>
+        <Col xs={24} sm={12} md={6}>
           <StatCard title="Pending" value={leaveStats.pending} icon={<ClockCircleOutlined />} color="#f59e0b" />
         </Col>
-        <Col xs={12} md={6}>
+        <Col xs={24} sm={12} md={6}>
           <StatCard title="Approved" value={leaveStats.approved} icon={<CheckCircleOutlined />} color="#10b981" />
         </Col>
-        <Col xs={12} md={6}>
+        <Col xs={24} sm={12} md={6}>
           <StatCard title="Rejected" value={leaveStats.rejected} icon={<CloseCircleOutlined />} color="#ef4444" />
         </Col>
       </Row>
@@ -313,6 +327,7 @@ const LeaveApprovals: React.FC = () => {
           loading={isLoading}
           rowKey="_id"
           size="small"
+          scroll={{ x: "max-content" }}
           pagination={{ pageSize: 10 }}
           locale={{
             emptyText: (
@@ -330,7 +345,7 @@ const LeaveApprovals: React.FC = () => {
       <Drawer
         title="Leave Request Details"
         placement="right"
-        width={520}
+        width={isMobile ? "100%" : 520}
         open={isDrawerVisible}
         onClose={() => {
           setIsDrawerVisible(false);
@@ -455,30 +470,34 @@ const LeaveApprovals: React.FC = () => {
               </div>
             )}
 
-            {selectedLeave.status === "Pending" && (
+            {selectedLeave.status === "Pending" && (canApprove || canReject) && (
               <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
-                <Button
-                  type="primary"
-                  block
-                  icon={<CheckCircleOutlined />}
-                  onClick={() => {
-                    setIsDrawerVisible(false);
-                    setIsApproveModalVisible(true);
-                  }}
-                >
-                  Approve
-                </Button>
-                <Button
-                  danger
-                  block
-                  icon={<CloseCircleOutlined />}
-                  onClick={() => {
-                    setIsDrawerVisible(false);
-                    setIsRejectModalVisible(true);
-                  }}
-                >
-                  Reject
-                </Button>
+                {canApprove && (
+                  <Button
+                    type="primary"
+                    block
+                    icon={<CheckCircleOutlined />}
+                    onClick={() => {
+                      setIsDrawerVisible(false);
+                      setIsApproveModalVisible(true);
+                    }}
+                  >
+                    Approve
+                  </Button>
+                )}
+                {canReject && (
+                  <Button
+                    danger
+                    block
+                    icon={<CloseCircleOutlined />}
+                    onClick={() => {
+                      setIsDrawerVisible(false);
+                      setIsRejectModalVisible(true);
+                    }}
+                  >
+                    Reject
+                  </Button>
+                )}
               </div>
             )}
           </div>
@@ -489,6 +508,7 @@ const LeaveApprovals: React.FC = () => {
       <Modal
         title="Reject Leave Request"
         open={isRejectModalVisible}
+        width={isMobile ? "94%" : 480}
         onOk={handleReject}
         okText="Reject"
         okButtonProps={{ danger: true }}
@@ -515,6 +535,7 @@ const LeaveApprovals: React.FC = () => {
       <Modal
         title="Approve Leave Request"
         open={isApproveModalVisible}
+        width={isMobile ? "94%" : 480}
         onOk={handleApprove}
         okText="Approve"
         onCancel={() => {

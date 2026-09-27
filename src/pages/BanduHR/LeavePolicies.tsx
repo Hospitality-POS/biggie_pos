@@ -18,6 +18,7 @@ import {
   Empty,
   Segmented,
   Drawer,
+  Grid,
 } from "antd";
 import {
   PlusOutlined,
@@ -40,6 +41,8 @@ import {
   type CreateLeavePolicyParams,
 } from "@services/bandu";
 import { fetchAllDepartments } from "@services/crm/departments";
+import { getUser } from "@services/tenants";
+import { getPermissionChecker } from "@utils/getPermissionChecker";
 import { THEME_C } from "@utils/getPrimaryColor";
 
 const { Title, Text } = Typography;
@@ -142,6 +145,15 @@ const POLICY_TEMPLATES: {
 ];
 
 const LeavePolicies: React.FC = () => {
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
+  const user = getUser();
+  const checkPerms = getPermissionChecker();
+  const can = (k: string) => user?.role === "admin" || user?.isAdmin === true || checkPerms(k);
+  const canCreatePolicy = can("BANDU_LEAVE_POLICIES_CREATE");
+  const canUpdatePolicy = can("BANDU_LEAVE_POLICIES_UPDATE");
+  const canDeletePolicy = can("BANDU_LEAVE_POLICIES_DELETE");
+  const canInitializeBalances = can("BANDU_LEAVE_POLICIES_INITIALIZE");
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedPolicy, setSelectedPolicy] = useState<LeavePolicy | null>(null);
   const [viewMode, setViewMode] = useState<"list" | "cards">("list");
@@ -270,39 +282,43 @@ const LeavePolicies: React.FC = () => {
           >
             View
           </Button>
-          <Button
-            type="text"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => {
-              setSelectedPolicy(record);
-              form.setFieldsValue(record);
-              setIsModalVisible(true);
-            }}
-          >
-            Edit
-          </Button>
-          <Button
-            type="text"
-            size="small"
-            icon={<FileTextOutlined />}
-            onClick={() => {
-              Modal.confirm({
-                title: "Initialize Leave Balances",
-                content: "This will create leave balance records for all employees based on this policy. Continue?",
-                onOk: async () => {
-                  try {
-                    await initializeMutation.mutateAsync(record._id);
-                  } catch (error) {
-                    // Error handled by mutation
-                  }
-                },
-              });
-            }}
-          >
-            Init Balances
-          </Button>
-          {!record.is_default && (
+          {canUpdatePolicy && (
+            <Button
+              type="text"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => {
+                setSelectedPolicy(record);
+                form.setFieldsValue(record);
+                setIsModalVisible(true);
+              }}
+            >
+              Edit
+            </Button>
+          )}
+          {canInitializeBalances && (
+            <Button
+              type="text"
+              size="small"
+              icon={<FileTextOutlined />}
+              onClick={() => {
+                Modal.confirm({
+                  title: "Initialize Leave Balances",
+                  content: "This will create leave balance records for all employees based on this policy. Continue?",
+                  onOk: async () => {
+                    try {
+                      await initializeMutation.mutateAsync(record._id);
+                    } catch (error) {
+                      // Error handled by mutation
+                    }
+                  },
+                });
+              }}
+            >
+              Init Balances
+            </Button>
+          )}
+          {!record.is_default && canDeletePolicy && (
             <Button
               type="text"
               size="small"
@@ -343,7 +359,7 @@ const LeavePolicies: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: 24, background: "#f8fafc", minHeight: "100%" }}>
+    <div style={{ padding: isMobile ? 12 : 24, background: "#f8fafc", minHeight: "100%" }}>
       <div
         style={{
           display: "flex",
@@ -379,9 +395,11 @@ const LeavePolicies: React.FC = () => {
           >
             Refresh
           </Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalVisible(true)}>
-            Create Policy
-          </Button>
+          {canCreatePolicy && (
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalVisible(true)}>
+              Create Policy
+            </Button>
+          )}
         </Space>
       </div>
 
@@ -401,6 +419,7 @@ const LeavePolicies: React.FC = () => {
             loading={isLoading}
             rowKey="_id"
             size="small"
+            scroll={{ x: "max-content" }}
             pagination={{ pageSize: 10 }}
             onRow={(record: LeavePolicy) => ({
               onClick: () => setViewPolicy(record),
@@ -490,7 +509,7 @@ const LeavePolicies: React.FC = () => {
       <Drawer
         title="Leave Policy"
         placement="right"
-        width={480}
+        width={isMobile ? "100%" : 480}
         open={!!viewPolicy}
         onClose={() => setViewPolicy(null)}
       >
@@ -609,43 +628,47 @@ const LeavePolicies: React.FC = () => {
             </div>
 
             {/* Actions */}
-            <div style={{ display: "flex", gap: 8 }}>
-              <Button
-                type="primary"
-                icon={<EditOutlined />}
-                block
-                onClick={() => {
-                  setSelectedPolicy(viewPolicy);
-                  setViewPolicy(null);
-                  form.setFieldsValue(viewPolicy);
-                  setIsModalVisible(true);
-                }}
-              >
-                Edit Policy
-              </Button>
-              {!viewPolicy.is_default && (
-                <Button
-                  danger
-                  icon={<DeleteOutlined />}
-                  onClick={() => {
-                    Modal.confirm({
-                      title: "Delete Policy",
-                      content: "Are you sure you want to delete this leave policy?",
-                      onOk: async () => {
-                        try {
-                          await deleteMutation.mutateAsync(viewPolicy._id);
-                          setViewPolicy(null);
-                        } catch (error) {
-                          // Error handled by mutation
-                        }
-                      },
-                    });
-                  }}
-                >
-                  Delete
-                </Button>
-              )}
-            </div>
+            {(canUpdatePolicy || (canDeletePolicy && !viewPolicy.is_default)) && (
+              <div style={{ display: "flex", gap: 8 }}>
+                {canUpdatePolicy && (
+                  <Button
+                    type="primary"
+                    icon={<EditOutlined />}
+                    block
+                    onClick={() => {
+                      setSelectedPolicy(viewPolicy);
+                      setViewPolicy(null);
+                      form.setFieldsValue(viewPolicy);
+                      setIsModalVisible(true);
+                    }}
+                  >
+                    Edit Policy
+                  </Button>
+                )}
+                {!viewPolicy.is_default && canDeletePolicy && (
+                  <Button
+                    danger
+                    icon={<DeleteOutlined />}
+                    onClick={() => {
+                      Modal.confirm({
+                        title: "Delete Policy",
+                        content: "Are you sure you want to delete this leave policy?",
+                        onOk: async () => {
+                          try {
+                            await deleteMutation.mutateAsync(viewPolicy._id);
+                            setViewPolicy(null);
+                          } catch (error) {
+                            // Error handled by mutation
+                          }
+                        },
+                      });
+                    }}
+                  >
+                    Delete
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         )}
       </Drawer>
@@ -660,7 +683,8 @@ const LeavePolicies: React.FC = () => {
           form.resetFields();
         }}
         footer={null}
-        width={800}
+        width={isMobile ? "100%" : 800}
+        style={{ top: isMobile ? 0 : 20 }}
       >
         {!selectedPolicy && (
           <>
