@@ -448,13 +448,13 @@ export const useProLayoutNav = () => {
   const banduRoutesBase = [
     { path: p("/hr/dashboard"), name: "HR Dashboard", icon: <DashboardOutlined />, _bare: "/hr/dashboard" },
     { path: p("/hr/employees"), name: "Employees", icon: <UserOutlined />, _bare: "/hr/employees" },
+    { path: p("/hr/payroll"), name: "Payroll", icon: <DollarOutlined />, _bare: "/hr/payroll" },
+    { path: p("/hr/payslips"), name: "Payslips", icon: <FileTextOutlined />, _bare: "/hr/payslips" },
     { path: p("/hr/attendance"), name: "Attendance", icon: <ClockCircleOutlined />, _bare: "/hr/attendance" },
     { path: p("/hr/leave"), name: "Leave", icon: <CalendarOutlined />, _bare: "/hr/leave" },
     { path: p("/hr/leave-policies"), name: "Leave Policies", icon: <FileTextOutlined />, _bare: "/hr/leave-policies" },
     { path: p("/hr/leave-calendar"), name: "Leave Calendar", icon: <CalendarOutlined />, _bare: "/hr/leave-calendar" },
     { path: p("/hr/leave-approvals"), name: "Leave Approvals", icon: <FileDoneOutlined />, _bare: "/hr/leave-approvals" },
-    { path: p("/hr/payroll"), name: "Payroll", icon: <DollarOutlined />, _bare: "/hr/payroll" },
-    { path: p("/hr/payslips"), name: "Payslips", icon: <FileTextOutlined />, _bare: "/hr/payslips" },
     { path: p("/reports"), name: "Reports", icon: <FileTextOutlined />, _bare: "/reports" },
     { path: p("/staff-management"), name: "Crew Management", icon: <TeamOutlined />, _bare: "/staff-management" },
     { ...documentRoute },
@@ -539,10 +539,10 @@ export const useProLayoutNav = () => {
 
   const banduAppTiles = [
     { icon: makeTile("#f59e0b", ICONS.customers), title: "Employees", desc: "Staff directory.", url: p("/hr/employees") },
-    { icon: makeTile("#10b981", ICONS.checklist), title: "Attendance", desc: "Staff attendance.", url: p("/hr/attendance") },
-    { icon: makeTile("#6366f1", ICONS.checklist), title: "Leave", desc: "Leave requests.", url: p("/hr/leave") },
     { icon: makeTile("#0ea5e9", ICONS.payment), title: "Payroll", desc: "Payroll processing.", url: p("/hr/payroll") },
     { icon: makeTile("#8b5cf6", ICONS.invoice), title: "Payslips", desc: "Employee payslips.", url: p("/hr/payslips") },
+    { icon: makeTile("#10b981", ICONS.checklist), title: "Attendance", desc: "Staff attendance.", url: p("/hr/attendance") },
+    { icon: makeTile("#6366f1", ICONS.checklist), title: "Leave", desc: "Leave requests.", url: p("/hr/leave") },
   ];
 
   const dalaAppTiles = [

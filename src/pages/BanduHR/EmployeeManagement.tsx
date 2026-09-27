@@ -26,6 +26,9 @@ import {
   Checkbox,
   Avatar,
   Empty,
+  Divider,
+  Progress,
+  Grid,
 } from "antd";
 import {
   PlusOutlined,
@@ -41,6 +44,7 @@ import {
   ExportOutlined,
   InboxOutlined,
   DeleteOutlined,
+  StopOutlined,
   CheckCircleOutlined,
   WarningOutlined,
   CloseCircleOutlined,
@@ -55,6 +59,7 @@ import {
   createEmployee,
   updateEmployee,
   deleteEmployee,
+  permanentlyDeleteEmployee,
   uploadEmployeeDocument,
   fetchEmployeeDocuments,
   deleteEmployeeDocument,
@@ -68,7 +73,10 @@ import {
   type EmployeeAnalysisResult,
 } from "@services/bandu";
 import { fetchAllUsersList } from "@services/users";
-import { fetchAllDepartments, type Department } from "@services/crm/departments";
+import { getUser } from "@services/tenants";
+import { getPermissionChecker } from "@utils/getPermissionChecker";
+import { fetchAllDepartments, createDepartment, type Department } from "@services/crm/departments";
+import { useAppDispatch } from "../../store";
 import dayjs from "dayjs";
 import { THEME_C } from "@utils/getPrimaryColor";
 
@@ -135,6 +143,16 @@ const InfoItem: React.FC<{ label: string; children?: React.ReactNode }> = ({ lab
 );
 
 const EmployeeManagement: React.FC = () => {
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
+  const user = getUser();
+  const checkPerms = getPermissionChecker();
+  const can = (k: string) => user?.role === "admin" || user?.isAdmin === true || checkPerms(k);
+  const canCreateEmployee = can("BANDU_EMPLOYEES_CREATE");
+  const canUpdateEmployee = can("BANDU_EMPLOYEES_UPDATE");
+  const canDeleteEmployee = can("BANDU_EMPLOYEES_DELETE");
+  const canImportEmployees = can("BANDU_EMPLOYEES_IMPORT");
+  const canExportEmployees = can("BANDU_EMPLOYEES_EXPORT");
   const [searchText, setSearchText] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [departmentFilter, setDepartmentFilter] = useState<string>("");
@@ -153,6 +171,8 @@ const EmployeeManagement: React.FC = () => {
   const [importResult, setImportResult] = useState<EmployeeImportResult | null>(null);
   const [analysis, setAnalysis] = useState<EmployeeAnalysisResult | null>(null);
   const [analysing, setAnalysing] = useState(false);
+  const [analyseProgress, setAnalyseProgress] = useState<number | null>(null);
+  const [importProgress, setImportProgress] = useState<number | null>(null);
   const [updateExisting, setUpdateExisting] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "card">("list");
@@ -161,7 +181,10 @@ const EmployeeManagement: React.FC = () => {
   const [allowanceForm] = Form.useForm();
   const [benefitForm] = Form.useForm();
   const [allFormValues, setAllFormValues] = useState<Record<string, any>>({});
+  const [newDeptName, setNewDeptName] = useState("");
+  const [addingDept, setAddingDept] = useState(false);
   const queryClient = useQueryClient();
+  const dispatch = useAppDispatch();
 
   // Fetch crew/users for selection
   const { data: usersData } = useQuery({
@@ -178,6 +201,36 @@ const EmployeeManagement: React.FC = () => {
   });
 
   const departments = departmentsData?.departments || [];
+
+  // Suggest the next employee number based on the highest existing EMP-XXXX
+  const generateEmployeeNumber = () => {
+    const max = employees.reduce((acc: number, emp: Employee) => {
+      const match = /EMP-?(\d+)/i.exec(emp.employee_number || "");
+      return match ? Math.max(acc, parseInt(match[1], 10)) : acc;
+    }, 0);
+    return `EMP-${String(max + 1).padStart(4, "0")}`;
+  };
+
+  const handleAddDepartment = async () => {
+    const name = newDeptName.trim();
+    if (!name) return;
+    setAddingDept(true);
+    try {
+      const tenant_id = JSON.parse(localStorage.getItem("tenant") || "{}")?._id;
+      const result = await dispatch(createDepartment({ name, tenant_id })).unwrap();
+      const dept = (result as any)?.department;
+      await queryClient.invalidateQueries({ queryKey: ["departments-list"] });
+      if (dept?._id) {
+        form.setFieldsValue({ department_id: dept._id });
+        setAllFormValues((prev) => ({ ...prev, department_id: dept._id }));
+      }
+      setNewDeptName("");
+    } catch {
+      // error handled by thunk
+    } finally {
+      setAddingDept(false);
+    }
+  };
 
   // Fetch employees
   const { data: employeesData, isLoading } = useQuery({
@@ -234,6 +287,15 @@ const EmployeeManagement: React.FC = () => {
     },
   });
 
+  // Permanently delete employee mutation
+  const permanentDeleteMutation = useMutation({
+    mutationFn: permanentlyDeleteEmployee,
+    onSuccess: () => {
+      message.success("Employee permanently deleted");
+      queryClient.invalidateQueries({ queryKey: ["bandu-employees"] });
+    },
+  });
+
   // Upload document mutation
   const uploadDocumentMutation = useMutation({
     mutationFn: ({
@@ -266,8 +328,15 @@ const EmployeeManagement: React.FC = () => {
 
   // Import employees mutation
   const importMutation = useMutation({
-    mutationFn: (file: File) =>
-      importEmployeesFromExcel(file, localStorage.getItem("shopId"), updateExisting),
+    mutationFn: (file: File) => {
+      setImportProgress(0);
+      return importEmployeesFromExcel(
+        file,
+        localStorage.getItem("shopId"),
+        updateExisting,
+        setImportProgress
+      );
+    },
     onSuccess: (result) => {
       setImportResult(result);
       queryClient.invalidateQueries({ queryKey: ["bandu-employees"] });
@@ -276,6 +345,9 @@ const EmployeeManagement: React.FC = () => {
     },
     onError: () => {
       setImportResult(null);
+    },
+    onSettled: () => {
+      setImportProgress(null);
     },
   });
 
@@ -295,16 +367,18 @@ const EmployeeManagement: React.FC = () => {
 
   const handleAnalyseFile = async (file: File) => {
     setAnalysing(true);
+    setAnalyseProgress(0);
     setAnalysis(null);
     setImportResult(null);
     setUpdateExisting(false);
     try {
-      const result = await analyseEmployeeFile(file);
+      const result = await analyseEmployeeFile(file, setAnalyseProgress);
       setAnalysis(result);
     } catch {
       setAnalysis(null);
     } finally {
       setAnalysing(false);
+      setAnalyseProgress(null);
     }
   };
 
@@ -314,6 +388,8 @@ const EmployeeManagement: React.FC = () => {
     setImportResult(null);
     setAnalysis(null);
     setUpdateExisting(false);
+    setAnalyseProgress(null);
+    setImportProgress(null);
   };
 
   const ADVICE_CONFIG: Record<string, { icon: React.ReactNode; color: string }> = {
@@ -332,6 +408,7 @@ const EmployeeManagement: React.FC = () => {
     { title: "Job Title", dataIndex: "job_title" },
     { title: "Hire Date", dataIndex: "hire_date" },
     { title: "Salary", dataIndex: "basic_salary" },
+    { title: "Salary Type", dataIndex: "salary_type" },
     { title: "User Email", dataIndex: "user_email" },
   ];
 
@@ -407,7 +484,14 @@ const EmployeeManagement: React.FC = () => {
       title: "Basic Salary",
       dataIndex: "basic_salary",
       key: "basic_salary",
-      render: (salary: number) => <Text>{salary ? `${salary.toLocaleString()} KES` : "—"}</Text>,
+      render: (salary: number, record: Employee) => (
+        <Text>
+          {salary ? `${salary.toLocaleString()} KES` : "—"}
+          {record.salary_type === "net" && (
+            <Tag color="purple" style={{ marginLeft: 6, fontSize: 10 }}>net</Tag>
+          )}
+        </Text>
+      ),
     },
     {
       title: "Gender",
@@ -429,18 +513,33 @@ const EmployeeManagement: React.FC = () => {
           <Button type="link" icon={<EyeOutlined />} onClick={() => openViewDrawer(record)}>
             View
           </Button>
-          <Button type="link" icon={<EditOutlined />} onClick={() => openEditModal(record)}>
-            Edit
-          </Button>
-          <Popconfirm
-            title="Terminate employee"
-            description="This will mark the employee as terminated. Continue?"
-            okText="Terminate"
-            okButtonProps={{ danger: true }}
-            onConfirm={() => deleteMutation.mutate(record._id)}
-          >
-            <Button type="link" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
+          {canUpdateEmployee && (
+            <Button type="link" icon={<EditOutlined />} onClick={() => openEditModal(record)}>
+              Edit
+            </Button>
+          )}
+          {canUpdateEmployee && (
+            <Popconfirm
+              title="Terminate employee"
+              description="This will mark the employee as terminated. Continue?"
+              okText="Terminate"
+              okButtonProps={{ danger: true }}
+              onConfirm={() => deleteMutation.mutate(record._id)}
+            >
+              <Button type="link" danger icon={<StopOutlined />} title="Terminate" />
+            </Popconfirm>
+          )}
+          {canDeleteEmployee && (
+            <Popconfirm
+              title="Delete employee permanently"
+              description="This will permanently delete the employee record and all their documents. This cannot be undone."
+              okText="Delete"
+              okButtonProps={{ danger: true }}
+              onConfirm={() => permanentDeleteMutation.mutate(record._id)}
+            >
+              <Button type="link" danger icon={<DeleteOutlined />} title="Delete permanently" />
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
@@ -469,6 +568,7 @@ const EmployeeManagement: React.FC = () => {
       hire_date: record.hire_date ? dayjs(record.hire_date) : null,
       termination_date: record.termination_date ? dayjs(record.termination_date) : null,
       basic_salary: record.basic_salary,
+      salary_type: record.salary_type || "gross",
       currency: record.currency,
       payment_frequency: record.payment_frequency,
       hourly_rate: record.hourly_rate,
@@ -494,9 +594,7 @@ const EmployeeManagement: React.FC = () => {
 
   // Fields required on the employee record itself
   const REQUIRED_EMPLOYEE_FIELDS = [
-    "department_id",
-    "employee_number",
-    "job_title",
+    "id_number",
     "employment_type",
     "hire_date",
     "basic_salary",
@@ -507,6 +605,9 @@ const EmployeeManagement: React.FC = () => {
   const buildEmployeePayload = (values: any): Record<string, any> => {
     const merged = { ...allFormValues, ...values };
     const payload: Record<string, any> = { ...merged };
+    if (!payload.department_id) payload.department_id = null;
+    if (!payload.job_title) payload.job_title = "";
+    if (!payload.employee_number) delete payload.employee_number;
     if (linkToUser) {
       // Identity comes from the linked user account
       delete payload.fullname;
@@ -562,8 +663,8 @@ const EmployeeManagement: React.FC = () => {
 
   const STEP_FIELDS: Record<number, string[]> = {
     0: linkToUser
-      ? ["user_id", "department_id", "employee_number", "job_title"]
-      : ["fullname", "department_id", "employee_number", "job_title"],
+      ? ["user_id", "id_number"]
+      : ["fullname", "id_number"],
     1: ["employment_type", "hire_date", "basic_salary", "currency", "payment_frequency"],
     2: [],
     3: [],
@@ -642,45 +743,65 @@ const EmployeeManagement: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <Title level={3} style={{ margin: 0, color: C.darkText }}>
+    <div style={{ padding: isMobile ? 12 : 24 }}>
+      <div
+        style={{
+          marginBottom: 24,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: isMobile ? "flex-start" : "center",
+          flexDirection: isMobile ? "column" : "row",
+          gap: isMobile ? 10 : 0,
+        }}
+      >
+        <Title level={isMobile ? 4 : 3} style={{ margin: 0, color: C.darkText }}>
           <UserOutlined style={{ marginRight: 8, color: C.primary }} />
           Employee Management
         </Title>
-        <Space>
-          <Button icon={<DownloadOutlined />} onClick={() => downloadEmployeeTemplate()}>
-            Template
-          </Button>
-          <Button
-            icon={<FileExcelOutlined />}
-            onClick={() => {
-              setImportFile(null);
-              setImportResult(null);
-              setAnalysis(null);
-              setUpdateExisting(false);
-              setIsImportModalVisible(true);
-            }}
-          >
-            Import
-          </Button>
-          <Button icon={<ExportOutlined />} onClick={handleExport} loading={exporting}>
-            Export
-          </Button>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => {
-              setSelectedEmployee(null);
-              setLinkToUser(true);
-              setCurrentStep(0);
-              setAllFormValues({});
-              form.resetFields();
-              setIsModalVisible(true);
-            }}
-          >
-            Add Employee
-          </Button>
+        <Space wrap>
+          {!isMobile && canImportEmployees && (
+            <Button icon={<DownloadOutlined />} onClick={() => downloadEmployeeTemplate()}>
+              Template
+            </Button>
+          )}
+          {canImportEmployees && (
+            <Button
+              icon={<FileExcelOutlined />}
+              onClick={() => {
+                setImportFile(null);
+                setImportResult(null);
+                setAnalysis(null);
+                setUpdateExisting(false);
+                setIsImportModalVisible(true);
+              }}
+            >
+              Import
+            </Button>
+          )}
+          {canExportEmployees && (
+            <Button icon={<ExportOutlined />} onClick={handleExport} loading={exporting}>
+              Export
+            </Button>
+          )}
+          {canCreateEmployee && (
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => {
+                setSelectedEmployee(null);
+                setLinkToUser(true);
+                setCurrentStep(0);
+                setAllFormValues({});
+                form.resetFields();
+                const suggested = generateEmployeeNumber();
+                form.setFieldsValue({ employee_number: suggested });
+                setAllFormValues({ employee_number: suggested });
+                setIsModalVisible(true);
+              }}
+            >
+              Add Employee
+            </Button>
+          )}
         </Space>
       </div>
 
@@ -692,7 +813,7 @@ const EmployeeManagement: React.FC = () => {
               prefix={<SearchOutlined />}
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
-              style={{ width: 270 }}
+              style={{ width: isMobile ? "100%" : 270 }}
               allowClear
             />
             <Select
@@ -753,13 +874,14 @@ const EmployeeManagement: React.FC = () => {
             dataSource={employees}
             loading={isLoading}
             rowKey="_id"
+            scroll={{ x: "max-content" }}
             pagination={{ pageSize: 10 }}
           />
         ) : (
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
+              gridTemplateColumns: `repeat(auto-fill, minmax(${isMobile ? "200px" : "240px"}, 1fr))`,
               gap: 12,
             }}
           >
@@ -849,6 +971,7 @@ const EmployeeManagement: React.FC = () => {
                   <Text style={{ fontSize: 11, color: C.subText }}>{emp.employee_number}</Text>
                   <Text style={{ fontSize: 11, color: C.darkText, fontWeight: 600 }}>
                     {emp.basic_salary != null ? `${emp.basic_salary.toLocaleString()} ${emp.currency || "KES"}` : "—"}
+                    {emp.salary_type === "net" && <span style={{ color: "#8b5cf6", fontWeight: 400 }}> · net</span>}
                   </Text>
                 </div>
 
@@ -858,16 +981,31 @@ const EmployeeManagement: React.FC = () => {
                   onClick={(e) => e.stopPropagation()}
                 >
                   <Button type="text" size="small" icon={<EyeOutlined />} onClick={() => openViewDrawer(emp)} />
-                  <Button type="text" size="small" icon={<EditOutlined style={{ color: C.primary }} />} onClick={() => openEditModal(emp)} />
-                  <Popconfirm
-                    title="Terminate employee"
-                    description="This will mark the employee as terminated. Continue?"
-                    okText="Terminate"
-                    okButtonProps={{ danger: true }}
-                    onConfirm={() => deleteMutation.mutate(emp._id)}
-                  >
-                    <Button type="text" size="small" danger icon={<DeleteOutlined />} />
-                  </Popconfirm>
+                  {canUpdateEmployee && (
+                    <Button type="text" size="small" icon={<EditOutlined style={{ color: C.primary }} />} onClick={() => openEditModal(emp)} />
+                  )}
+                  {canUpdateEmployee && (
+                    <Popconfirm
+                      title="Terminate employee"
+                      description="This will mark the employee as terminated. Continue?"
+                      okText="Terminate"
+                      okButtonProps={{ danger: true }}
+                      onConfirm={() => deleteMutation.mutate(emp._id)}
+                    >
+                      <Button type="text" size="small" danger icon={<StopOutlined />} title="Terminate" />
+                    </Popconfirm>
+                  )}
+                  {canDeleteEmployee && (
+                    <Popconfirm
+                      title="Delete employee permanently"
+                      description="This will permanently delete the employee record and all their documents. This cannot be undone."
+                      okText="Delete"
+                      okButtonProps={{ danger: true }}
+                      onConfirm={() => permanentDeleteMutation.mutate(emp._id)}
+                    >
+                      <Button type="text" size="small" danger icon={<DeleteOutlined />} title="Delete permanently" />
+                    </Popconfirm>
+                  )}
                 </div>
               </div>
             ))}
@@ -888,7 +1026,8 @@ const EmployeeManagement: React.FC = () => {
           setAllFormValues({});
         }}
         footer={null}
-        width={900}
+        width={isMobile ? "100%" : 900}
+        style={{ top: isMobile ? 0 : 20 }}
       >
         <Row gutter={24}>
           <Col span={6}>
@@ -968,14 +1107,40 @@ const EmployeeManagement: React.FC = () => {
                   </Col>
                 )}
                 <Col span={12}>
-                  <Form.Item label="Department" name="department_id" rules={[{ required: true, message: "Required" }]}>
+                  <Form.Item label="Department" name="department_id">
                     <Select
-                      placeholder="Select a department"
+                      placeholder="Select a department (optional)"
                       showSearch
+                      allowClear
                       optionFilterProp="children"
                       filterOption={(input, option) =>
                         (option?.label ?? "").toString().toLowerCase().includes(input.toLowerCase())
                       }
+                      dropdownRender={(menu) => (
+                        <>
+                          {menu}
+                          <Divider style={{ margin: "8px 0" }} />
+                          <Space style={{ padding: "0 8px 4px" }}>
+                            <Input
+                              placeholder="New department name"
+                              value={newDeptName}
+                              onChange={(e) => setNewDeptName(e.target.value)}
+                              onKeyDown={(e) => {
+                                e.stopPropagation();
+                                if (e.key === "Enter") handleAddDepartment();
+                              }}
+                            />
+                            <Button
+                              type="text"
+                              icon={<PlusOutlined />}
+                              loading={addingDept}
+                              onClick={handleAddDepartment}
+                            >
+                              Add
+                            </Button>
+                          </Space>
+                        </>
+                      )}
                     >
                       {departments.map((dept: Department) => (
                         <Option key={dept._id} value={dept._id} label={dept.name}>
@@ -1020,17 +1185,21 @@ const EmployeeManagement: React.FC = () => {
               )}
               <Row gutter={16}>
                 <Col span={8}>
-                  <Form.Item label="Employee Number" name="employee_number" rules={[{ required: true, message: "Required" }]}>
-                    <Input placeholder="e.g., EMP001" />
+                  <Form.Item
+                    label="Employee Number"
+                    name="employee_number"
+                    extra="Auto-generated if left blank"
+                  >
+                    <Input placeholder="Auto-generated" />
                   </Form.Item>
                 </Col>
                 <Col span={8}>
-                  <Form.Item label="ID Number" name="id_number">
+                  <Form.Item label="ID Number" name="id_number" rules={[{ required: true, message: "Required" }]}>
                     <Input placeholder="e.g., 12345678" />
                   </Form.Item>
                 </Col>
                 <Col span={8}>
-                  <Form.Item label="Job Title" name="job_title" rules={[{ required: true, message: "Required" }]}>
+                  <Form.Item label="Job Title" name="job_title">
                     <Input placeholder="e.g., Software Engineer" />
                   </Form.Item>
                 </Col>
@@ -1060,12 +1229,25 @@ const EmployeeManagement: React.FC = () => {
                 </Col>
               </Row>
               <Row gutter={16}>
-                <Col span={12}>
+                <Col span={8}>
                   <Form.Item label="Basic Salary" name="basic_salary" rules={[{ required: true, message: "Required" }]}>
                     <InputNumber style={{ width: "100%" }} placeholder="0" />
                   </Form.Item>
                 </Col>
-                <Col span={12}>
+                <Col span={8}>
+                  <Form.Item
+                    label="Salary Basis"
+                    name="salary_type"
+                    initialValue="gross"
+                    tooltip="Gross: salary before deductions. Net: take-home amount — payroll calculates the gross needed to reach it."
+                  >
+                    <Select placeholder="Gross or Net">
+                      <Option value="gross">Gross Pay</Option>
+                      <Option value="net">Net Pay</Option>
+                    </Select>
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
                   <Form.Item label="Currency" name="currency" rules={[{ required: true, message: "Required" }]}>
                     <Select placeholder="Select currency">
                       <Option value="KES">KES</Option>
@@ -1140,6 +1322,7 @@ const EmployeeManagement: React.FC = () => {
                     { value: "SHA", label: "SHA (Health Insurance)" },
                     { value: "NHIF", label: "NHIF (legacy)" },
                     { value: "HOUSING_LEVY", label: "Housing Levy" },
+                    { value: "NITA", label: "NITA (Training Levy)" },
                     { value: "CUSTOM", label: "Custom Deductions" },
                   ]}
                 />
@@ -1265,7 +1448,7 @@ const EmployeeManagement: React.FC = () => {
       <Drawer
         title="Employee Details"
         placement="right"
-        width={720}
+        width={isMobile ? "100%" : 720}
         open={isDrawerVisible}
         onClose={() => {
           setIsDrawerVisible(false);
@@ -1360,6 +1543,9 @@ const EmployeeManagement: React.FC = () => {
                     {dayjs(selectedEmployee.termination_date).format("DD MMM YYYY")}
                   </InfoItem>
                 )}
+                {selectedEmployee.termination_reason && (
+                  <InfoItem label="Termination Reason">{selectedEmployee.termination_reason}</InfoItem>
+                )}
               </InfoCard>
 
               <InfoCard title="Compensation">
@@ -1368,6 +1554,18 @@ const EmployeeManagement: React.FC = () => {
                     ? `${selectedEmployee.basic_salary.toLocaleString()} ${selectedEmployee.currency || ""}`
                     : "—"}
                 </InfoItem>
+                <InfoItem label="Salary Basis">
+                  {selectedEmployee.salary_type === "net" ? (
+                    <Tag color="purple" style={{ margin: 0, fontSize: 11 }}>Net Pay (grossed up at payroll)</Tag>
+                  ) : (
+                    "Gross Pay"
+                  )}
+                </InfoItem>
+                {selectedEmployee.salary_type === "net" && selectedEmployee.gross_salary != null && (
+                  <InfoItem label="Package Total">
+                    {`${selectedEmployee.gross_salary.toLocaleString()} ${selectedEmployee.currency || ""}`}
+                  </InfoItem>
+                )}
                 <InfoItem label="Payment Frequency">
                   <span style={{ textTransform: "capitalize" }}>
                     {selectedEmployee.payment_frequency?.replace(/_/g, " ")}
@@ -1399,6 +1597,7 @@ const EmployeeManagement: React.FC = () => {
               <InfoCard title="Banking & Statutory">
                 <InfoItem label="Bank Name">{selectedEmployee.bank_name}</InfoItem>
                 <InfoItem label="Bank Account">{selectedEmployee.bank_account_number}</InfoItem>
+                <InfoItem label="Bank Branch">{selectedEmployee.bank_branch}</InfoItem>
                 <InfoItem label="KRA PIN">{selectedEmployee.kra_pin}</InfoItem>
                 <InfoItem label="NSSF Number">{selectedEmployee.nssf_number}</InfoItem>
                 <InfoItem label="SHA Number">{selectedEmployee.nhif_number}</InfoItem>
@@ -1452,15 +1651,17 @@ const EmployeeManagement: React.FC = () => {
                     {selectedEmployee.allowances?.length || 0}
                   </span>
                 </Space>
-                <Button
-                  type="primary"
-                  size="small"
-                  icon={<DollarOutlined />}
-                  style={{ borderRadius: 7 }}
-                  onClick={() => setIsAllowanceModalVisible(true)}
-                >
-                  Add Allowance
-                </Button>
+                {canUpdateEmployee && (
+                  <Button
+                    type="primary"
+                    size="small"
+                    icon={<DollarOutlined />}
+                    style={{ borderRadius: 7 }}
+                    onClick={() => setIsAllowanceModalVisible(true)}
+                  >
+                    Add Allowance
+                  </Button>
+                )}
               </div>
 
               <div style={{ ...detailCardStyle, overflow: "hidden" }}>
@@ -1538,15 +1739,17 @@ const EmployeeManagement: React.FC = () => {
                     {selectedEmployee.benefits?.length || 0}
                   </span>
                 </Space>
-                <Button
-                  type="primary"
-                  size="small"
-                  icon={<GiftOutlined />}
-                  style={{ borderRadius: 7 }}
-                  onClick={() => setIsBenefitModalVisible(true)}
-                >
-                  Add Benefit
-                </Button>
+                {canUpdateEmployee && (
+                  <Button
+                    type="primary"
+                    size="small"
+                    icon={<GiftOutlined />}
+                    style={{ borderRadius: 7 }}
+                    onClick={() => setIsBenefitModalVisible(true)}
+                  >
+                    Add Benefit
+                  </Button>
+                )}
               </div>
 
               <div style={{ ...detailCardStyle, overflow: "hidden" }}>
@@ -1624,15 +1827,17 @@ const EmployeeManagement: React.FC = () => {
                     {documents?.length || 0}
                   </span>
                 </Space>
-                <Button
-                  type="primary"
-                  size="small"
-                  icon={<UploadOutlined />}
-                  style={{ borderRadius: 7 }}
-                  onClick={() => setIsDocumentModalVisible(true)}
-                >
-                  Upload Document
-                </Button>
+                {canUpdateEmployee && (
+                  <Button
+                    type="primary"
+                    size="small"
+                    icon={<UploadOutlined />}
+                    style={{ borderRadius: 7 }}
+                    onClick={() => setIsDocumentModalVisible(true)}
+                  >
+                    Upload Document
+                  </Button>
+                )}
               </div>
 
               <div style={{ ...detailCardStyle, padding: "6px 0" }}>
@@ -1734,6 +1939,7 @@ const EmployeeManagement: React.FC = () => {
           setIsDocumentModalVisible(false);
           documentForm.resetFields();
         }}
+        width={isMobile ? "94%" : 520}
         footer={null}
       >
         <Form form={documentForm} layout="vertical" onFinish={handleUploadDocument}>
@@ -1792,6 +1998,7 @@ const EmployeeManagement: React.FC = () => {
           setIsAllowanceModalVisible(false);
           allowanceForm.resetFields();
         }}
+        width={isMobile ? "94%" : 520}
         footer={null}
       >
         <Form form={allowanceForm} layout="vertical" onFinish={handleAddAllowance}>
@@ -1840,6 +2047,7 @@ const EmployeeManagement: React.FC = () => {
           setIsBenefitModalVisible(false);
           benefitForm.resetFields();
         }}
+        width={isMobile ? "94%" : 520}
         footer={null}
       >
         <Form form={benefitForm} layout="vertical" onFinish={handleAddBenefit}>
@@ -1886,7 +2094,8 @@ const EmployeeManagement: React.FC = () => {
         open={isImportModalVisible}
         onCancel={closeImportModal}
         footer={null}
-        width={860}
+        width={isMobile ? "100%" : 860}
+        style={{ top: isMobile ? 0 : 20 }}
       >
         <Alert
           type="info"
@@ -1923,13 +2132,40 @@ const EmployeeManagement: React.FC = () => {
           </p>
           <p className="ant-upload-text">Click or drag an Excel file to this area to upload</p>
           <p className="ant-upload-hint">
-            Required columns: employee_number, department, job_title, hire_date, basic_salary.
+            Required columns: id_number, hire_date, basic_salary. employee_number is
+            auto-generated when blank; department and job_title are optional.
+            Use the salary_type column (gross/net) for take-home salaries.
             Employees can be standalone or linked to a user via the user_email column.
           </p>
         </Upload.Dragger>
 
         {analysing && (
-          <Alert style={{ marginTop: 16 }} type="info" showIcon message="Analysing file..." />
+          <div style={{ marginTop: 16 }}>
+            <Progress
+              percent={analyseProgress === 100 ? 99 : (analyseProgress ?? 0)}
+              status="active"
+            />
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              {analyseProgress === 100
+                ? "Processing file on server — analysing rows…"
+                : `Uploading file… ${analyseProgress ?? 0}%`}
+            </Typography.Text>
+          </div>
+        )}
+
+        {importMutation.isLoading && (
+          <div style={{ marginTop: 16 }}>
+            <Progress
+              percent={importProgress === 100 ? 99 : (importProgress ?? 0)}
+              status="active"
+              strokeColor={{ from: "#108ee9", to: "#87d068" }}
+            />
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              {importProgress === 100
+                ? "Importing employees — this may take a while for large files…"
+                : `Uploading file… ${importProgress ?? 0}%`}
+            </Typography.Text>
+          </div>
         )}
 
         {analysis && !analysing && (

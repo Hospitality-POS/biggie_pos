@@ -26,6 +26,7 @@ import NotificationSettings from "./NotificationSettings";
 import WhatsAppSenderRegistration from "./WhatsAppSenderRegistration";
 import HotelSettings from "./HotelSettings";
 import TransactionLocking from "./TransactionLocking";
+import PayrollSettings from "./PayrollSettings";
 import ChartOfAccountsSettings from "./ChartOfAccountsSettings";
 import CurrencyPage from "@pages/Currency/CurrencyPage";
 import { fetchShop } from "@services/shops";
@@ -91,6 +92,8 @@ const SystemSetup: React.FC = () => {
     tenant?.accounting_database?.enabled ||
     tenant?.modules?.accounting
   );
+  // Bandu HR module — shown unless explicitly disabled
+  const hasBandu = tenant?.modules?.bandu_hr !== false;
 
   const { user } = useAppSelector((state) => state.auth);
   const rolePermissions: string[] =
@@ -190,6 +193,19 @@ const SystemSetup: React.FC = () => {
         render: () => <WhatsAppSenderRegistration />,
       }
     );
+
+    if (hasBandu) {
+      list.push({
+        key: "payroll-settings",
+        label: "Payroll",
+        description: "First-month pay & proration",
+        icon: <DollarCircleOutlined />,
+        color: "#0d9488",
+        bg: "#f0fdfa",
+        group: "HR & Payroll",
+        render: () => <PayrollSettings />,
+      });
+    }
 
     if (hasAccounting) {
       list.push(
