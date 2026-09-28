@@ -619,6 +619,7 @@ const BanduReports: React.FC = () => {
                     <Option value="full-time">Full-time</Option>
                     <Option value="part-time">Part-time</Option>
                     <Option value="contract">Contract</Option>
+                    <Option value="consultant">Consultant</Option>
                   </Select>
                 </Form.Item>
               </div>

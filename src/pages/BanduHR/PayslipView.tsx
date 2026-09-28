@@ -19,6 +19,9 @@ import {
   Spin,
   ColorPicker,
   Grid,
+  Input,
+  Checkbox,
+  Switch,
 } from "antd";
 import {
   FileTextOutlined,
@@ -50,7 +53,7 @@ import { getUser } from "@services/tenants";
 import { getPermissionChecker } from "@utils/getPermissionChecker";
 import { fetchSystemSetupDetailsById } from "@services/systemsetup";
 import { generatePayslipPDF } from "@utils/payslipPDF";
-import { exportPayslipsToExcel, exportPayslipToExcel, generatePayslipsPDF, exportP9ToExcel } from "@utils/payslipExport";
+import { exportPayslipsToExcel, exportPayslipToExcel, generatePayslipsPDF, buildPayslipsPDFDoc, exportP9ToExcel } from "@utils/payslipExport";
 import { generateP9FormPDF, buildP9FormDoc } from "@utils/p9FormPDF";
 import dayjs from "dayjs";
 import { THEME_C } from "@utils/getPrimaryColor";
@@ -155,7 +158,7 @@ const PayslipView: React.FC = () => {
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.md;
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState<number | undefined>(undefined);
+  const [selectedMonth, setSelectedMonth] = useState<number | undefined>(new Date().getMonth() + 1);
   const [isDrawerVisible, setIsDrawerVisible] = useState(false);
   const [selectedPayslip, setSelectedPayslip] = useState<Payslip | null>(null);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | undefined>(undefined);
@@ -165,12 +168,20 @@ const PayslipView: React.FC = () => {
   const [emailProgress, setEmailProgress] = useState<{ sent: number; total: number } | null>(null);
   // Email template modal — preview exactly what will be sent
   const [emailModal, setEmailModal] = useState<{ open: boolean; ids: string[] }>({ open: false, ids: [] });
-  const [emailTemplate, setEmailTemplate] = useState<"summary" | "detailed" | "classic" | "minimal" | "statement">("detailed");
+  const [emailTemplate, setEmailTemplate] = useState<"summary" | "detailed" | "classic" | "minimal" | "statement">("statement");
   // Brand color override — empty = tenant primary color (falls back to #0b2f78 server-side)
   const [emailColor, setEmailColor] = useState<string>("");
   const [emailPreviewHtml, setEmailPreviewHtml] = useState("");
   const [emailPreviewSubject, setEmailPreviewSubject] = useState("");
   const [previewLoading, setPreviewLoading] = useState(false);
+  // Single-payslip send — editable recipient/cc/subject/message + PDF attach
+  const [emailTo, setEmailTo] = useState("");
+  const [emailCc, setEmailCc] = useState("");
+  const [emailRecipientName, setEmailRecipientName] = useState("");
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailSubjectEdited, setEmailSubjectEdited] = useState(false);
+  const [emailMessage, setEmailMessage] = useState("");
+  const [emailAttachPdf, setEmailAttachPdf] = useState(false);
 
   const user = getUser();
   const isAdmin = user?.role === "admin";
@@ -224,32 +235,54 @@ const PayslipView: React.FC = () => {
 
   // Email payslip mutation
   const emailMutation = useMutation({
-    mutationFn: ({ id, template, color }: { id: string; template?: string; color?: string }) =>
-      emailPayslip(id, template, color),
+    mutationFn: ({ id, template, color, opts }: { id: string; template?: string; color?: string; opts?: any }) =>
+      emailPayslip(id, template, color, opts),
     onSuccess: () => {
       message.success("Payslip emailed successfully");
     },
   });
 
-  // Render the server-side preview whenever the modal/template changes —
-  // the previewed HTML is the exact payload sent by the email endpoints.
+  // Render the server-side preview whenever the modal/template/overrides
+  // change — the previewed HTML is the exact payload sent by the email endpoints.
+  // Message/recipient-name edits re-render live (debounced).
   useEffect(() => {
     if (!emailModal.open || !emailModal.ids.length) return;
-    setPreviewLoading(true);
-    previewPayslipEmail(emailModal.ids[0], emailTemplate, emailColor || undefined)
-      .then((r) => {
-        setEmailPreviewHtml(r.html);
-        setEmailPreviewSubject(r.subject);
+    const isSingle = emailModal.ids.length === 1;
+    const timer = setTimeout(() => {
+      setPreviewLoading(true);
+      previewPayslipEmail(emailModal.ids[0], emailTemplate, emailColor || undefined, {
+        message: isSingle ? emailMessage || undefined : undefined,
+        recipient_name: isSingle ? emailRecipientName || undefined : undefined,
       })
-      .catch(() => {
-        setEmailPreviewHtml("");
-        setEmailPreviewSubject("");
-      })
-      .finally(() => setPreviewLoading(false));
-  }, [emailModal.open, emailModal.ids, emailTemplate, emailColor]);
+        .then((r) => {
+          setEmailPreviewHtml(r.html);
+          setEmailPreviewSubject(r.subject);
+          if (!emailSubjectEdited) setEmailSubject(r.subject);
+        })
+        .catch(() => {
+          setEmailPreviewHtml("");
+          setEmailPreviewSubject("");
+        })
+        .finally(() => setPreviewLoading(false));
+    }, 350);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [emailModal.open, emailModal.ids, emailTemplate, emailColor, emailMessage, emailRecipientName]);
 
   const openEmailModal = (ids: string[]) => {
     if (!ids.length) return;
+    const slip = payslips.find((p: Payslip) => p._id === ids[0]);
+    setEmailTo(slip?.employee_id?.email || slip?.employee_id?.user_id?.email || "");
+    setEmailRecipientName(
+      slip?.employee_id?.fullname || slip?.employee_id?.user_id?.fullname || ""
+    );
+    setEmailCc("");
+    setEmailSubject("");
+    setEmailSubjectEdited(false);
+    setEmailMessage(
+      "Your payslip for the period below is now available. Please find the details of your earnings and deductions."
+    );
+    setEmailAttachPdf(false);
     setEmailModal({ open: true, ids });
   };
 
@@ -258,7 +291,26 @@ const PayslipView: React.FC = () => {
     setEmailModal({ open: false, ids: [] });
     if (ids.length === 1) {
       try {
-        await emailMutation.mutateAsync({ id: ids[0], template: emailTemplate, color: emailColor || undefined });
+        // Optionally render the payslip PDF client-side and attach it
+        let pdf: string | undefined;
+        if (emailAttachPdf) {
+          const slip = payslips.find((p: Payslip) => p._id === ids[0]);
+          const doc = slip ? await buildPayslipsPDFDoc([slip]) : null;
+          pdf = doc?.output("datauristring").split(",")[1];
+        }
+        await emailMutation.mutateAsync({
+          id: ids[0],
+          template: emailTemplate,
+          color: emailColor || undefined,
+          opts: {
+            to: emailTo.trim() || undefined,
+            cc: emailCc.trim() || undefined,
+            recipient_name: emailRecipientName.trim() || undefined,
+            subject: emailSubject.trim() || undefined,
+            message: emailMessage.trim() || undefined,
+            pdf,
+          },
+        });
       } catch {
         /* handled by mutation */
       }
@@ -348,6 +400,7 @@ const PayslipView: React.FC = () => {
   const [isP9ModalOpen, setIsP9ModalOpen] = useState(false);
   const [p9EmployeeId, setP9EmployeeId] = useState<string | null>(null);
   const [p9Settings, setP9Settings] = useState<any>(null);
+  const [p9HideEmployer, setP9HideEmployer] = useState(false);
 
   // Unique employees present in the loaded payslips
   const p9Employees = (() => {
@@ -381,13 +434,16 @@ const PayslipView: React.FC = () => {
     setIsP9ModalOpen(true);
     if (!p9Settings) {
       fetchSystemSetupDetailsById()
-        .then(setP9Settings)
-        .catch(() => {});
+        .then((s) => {
+          setP9Settings(s);
+          setP9HideEmployer(!!s?.payroll_settings?.p9_hide_employer);
+        })
+        .catch(() => undefined);
     }
   };
 
   const handleDownloadP9Form = async () => {
-    await generateP9FormPDF(p9Payslips, selectedYear);
+    await generateP9FormPDF(p9Payslips, selectedYear, { hideEmployer: p9HideEmployer });
   };
 
   const [isP9Emailing, setIsP9Emailing] = useState(false);
@@ -395,7 +451,7 @@ const PayslipView: React.FC = () => {
     if (!p9ActiveEmployeeId || p9Payslips.length === 0 || isP9Emailing) return;
     setIsP9Emailing(true);
     try {
-      const doc = await buildP9FormDoc(p9Payslips, selectedYear);
+      const doc = await buildP9FormDoc(p9Payslips, selectedYear, { hideEmployer: p9HideEmployer });
       const base64 = (doc.output("datauristring") as string).split(",")[1];
       const empNo = p9Payslips[0]?.employee_id?.employee_number || "employee";
       const res = await emailP9FormPdf({
@@ -478,9 +534,22 @@ const PayslipView: React.FC = () => {
     moneyColumn("NSSF", (p) => p.deductions?.nssf, "#ef4444"),
     moneyColumn("SHA", (p) => p.deductions?.nhif, "#ef4444"),
     moneyColumn("Housing", (p) => p.deductions?.housing_levy, "#ef4444"),
-    moneyColumn("NITA", (p) => (p.deductions as any)?.nita, "#ef4444"),
-    moneyColumn("Other", (p) =>
-      (p.deductions?.custom || []).reduce((s: number, c: any) => s + (c.amount || 0), 0), "#ef4444"),
+    moneyColumn("WHT", (p) => (p.deductions as any)?.withholding_tax, "#ef4444"),
+    // Custom deductions shown as named columns (loans, advances…) — not a
+    // generic "Other" bucket
+    ...Array.from(
+      new Set(
+        payslips.flatMap((p: Payslip) =>
+          (p.deductions?.custom || []).map((c: any) => c.name).filter(Boolean)
+        )
+      )
+    ).map((name) =>
+      moneyColumn(
+        String(name),
+        (p) => (p.deductions?.custom || []).find((c: any) => c.name === name)?.amount || 0,
+        "#ef4444"
+      )
+    ),
     moneyColumn("Total Ded.", (p) => p.deductions?.total, "#ef4444", true),
     {
       title: "Net Pay",
@@ -537,6 +606,18 @@ const PayslipView: React.FC = () => {
       ),
     },
   ];
+
+  // Hide Allowances / Benefits / Overtime columns when every row is zero
+  const hiddenColumns = new Set(
+    [
+      ["Allowances", payslips.every((p: Payslip) => !(p.earnings?.allowances || 0))],
+      ["Benefits", payslips.every((p: Payslip) => !(p.earnings?.benefits || 0))],
+      ["Overtime", payslips.every((p: Payslip) => !(p.earnings?.overtime_pay || 0))],
+    ]
+      .filter(([, hidden]) => payslips.length > 0 && hidden)
+      .map(([title]) => title)
+  );
+  const visibleColumns = columns.filter((c: any) => !hiddenColumns.has(c.title));
 
   const totalGross = payslips.reduce((sum: number, p: Payslip) => sum + (p.earnings?.gross_salary || 0), 0);
   const totalNet = payslips.reduce((sum: number, p: Payslip) => sum + (p.net_pay || 0), 0);
@@ -786,7 +867,7 @@ const PayslipView: React.FC = () => {
             selectedRowKeys,
             onChange: (keys) => setSelectedRowKeys(keys),
           }}
-          columns={columns}
+          columns={visibleColumns}
           dataSource={payslips}
           loading={isLoading}
           rowKey="_id"
@@ -903,7 +984,7 @@ const PayslipView: React.FC = () => {
               <MoneyRow label="NSSF" value={selectedPayslip.deductions?.nssf} color="#ef4444" />
               <MoneyRow label="SHIF" value={selectedPayslip.deductions?.nhif} color="#ef4444" />
               <MoneyRow label="Housing Levy" value={selectedPayslip.deductions?.housing_levy} color="#ef4444" />
-              <MoneyRow label="NITA" value={(selectedPayslip.deductions as any)?.nita} color="#ef4444" />
+              <MoneyRow label="Withholding Tax" value={(selectedPayslip.deductions as any)?.withholding_tax} color="#ef4444" />
               <div style={{ borderTop: "1px dashed #e2e8f0", margin: "6px 0", paddingTop: 6 }}>
                 <MoneyRow label="Taxable Pay" value={(selectedPayslip.deductions as any)?.taxable_pay} strong color="#64748b" />
               </div>
@@ -1036,7 +1117,12 @@ const PayslipView: React.FC = () => {
 
       {/* ── P9 Form Preview Modal ── */}
       <Modal
-        title={null}
+        title={
+          <Space size={8}>
+            <FilePdfOutlined style={{ color: C.red }} />
+            <Text strong>P9 Form — Income Tax Deduction Card</Text>
+          </Space>
+        }
         open={isP9ModalOpen}
         onCancel={() => setIsP9ModalOpen(false)}
         width={isMobile ? "100%" : 1080}
@@ -1053,7 +1139,7 @@ const PayslipView: React.FC = () => {
                 <Tooltip title="Export this P9 card to Excel (official format)">
                   <Button
                     icon={<FileExcelOutlined />}
-                    onClick={() => exportP9ToExcel(p9Payslips, selectedYear)}
+                    onClick={() => exportP9ToExcel(p9Payslips, selectedYear, { hideEmployer: p9HideEmployer })}
                     disabled={p9Payslips.length === 0}
                   >
                     Excel
@@ -1134,8 +1220,20 @@ const PayslipView: React.FC = () => {
           return (
             <div>
               {/* Employee picker — above the document */}
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
-                <Text strong style={{ fontSize: 13 }}>Employee:</Text>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  marginBottom: 12,
+                  flexWrap: "wrap",
+                  padding: "10px 12px",
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: 8,
+                }}
+              >
+                <Text strong style={{ fontSize: 13, whiteSpace: "nowrap" }}>Employee</Text>
                 <Select
                   value={p9ActiveEmployeeId}
                   onChange={setP9EmployeeId}
@@ -1143,11 +1241,23 @@ const PayslipView: React.FC = () => {
                   showSearch
                   optionFilterProp="label"
                   placeholder="Select employee"
-                  style={{ minWidth: isMobile ? "100%" : 300, flex: isMobile ? 1 : undefined }}
+                  style={{ minWidth: isMobile ? "100%" : 280, flex: isMobile ? 1 : undefined }}
                 />
-                <Text type="secondary" style={{ fontSize: 11, marginLeft: "auto" }}>
-                  Year of income {selectedYear}
-                </Text>
+                <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
+                  <Tooltip title="Removes the Employer's Name and Employer's P.I.N. rows from the P9 (preview, PDF, Excel, and email)">
+                    <Space size={6}>
+                      <Switch
+                        size="small"
+                        checked={p9HideEmployer}
+                        onChange={setP9HideEmployer}
+                      />
+                      <Text type="secondary" style={{ fontSize: 11, whiteSpace: "nowrap" }}>
+                        Hide employer name & PIN
+                      </Text>
+                    </Space>
+                  </Tooltip>
+                  <Tag style={{ margin: 0 }}>Year {selectedYear}</Tag>
+                </div>
               </div>
 
               {/* ── Official P9 document ── */}
@@ -1167,15 +1277,19 @@ const PayslipView: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Employer / employee info — official two-column layout */}
+                {/* Employer / employee info — official two-column layout; the
+                    employer rows are dropped entirely when privacy mode is on */}
                 <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", columnGap: 48, marginBottom: 8 }}>
                   <div>
-                    <div style={infoRow}><span style={infoLabel}>Employer's Name:</span><span style={infoValue}>{employerName}</span></div>
+                    {!p9HideEmployer && (
+                      <div style={infoRow}><span style={infoLabel}>Employer's Name:</span><span style={infoValue}>{employerName}</span></div>
+                    )}
                     <div style={infoRow}><span style={infoLabel}>Employee's Main Name:</span><span style={infoValue}>{employeeName}</span></div>
-                    <div style={infoRow}><span style={infoLabel}>Employee's Other Names:</span><span style={infoValue}>{emp.other_names || ""}</span></div>
                   </div>
                   <div>
-                    <div style={infoRow}><span style={infoLabel}>Employer's P.I.N.:</span><span style={infoValue}>{employerPin}</span></div>
+                    {!p9HideEmployer && (
+                      <div style={infoRow}><span style={infoLabel}>Employer's P.I.N.:</span><span style={infoValue}>{employerPin}</span></div>
+                    )}
                     <div style={infoRow}><span style={infoLabel}>Employee's P.I.N.:</span><span style={infoValue}>{emp.kra_pin || ""}</span></div>
                   </div>
                 </div>
@@ -1311,10 +1425,31 @@ const PayslipView: React.FC = () => {
         onCancel={() => setEmailModal({ open: false, ids: [] })}
         width={isMobile ? "100%" : 760}
         style={{ top: isMobile ? 0 : 100 }}
-        okText={emailModal.ids.length > 1 ? `Send All (${emailModal.ids.length})` : "Send"}
-        onOk={handleConfirmEmail}
-        confirmLoading={isBulkSending || emailMutation.isLoading}
-        okButtonProps={{ icon: <MailOutlined /> }}
+        footer={
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            {emailModal.ids.length === 1 ? (
+              <Checkbox
+                checked={emailAttachPdf}
+                onChange={(e) => setEmailAttachPdf(e.target.checked)}
+              >
+                Attach payslip as PDF
+              </Checkbox>
+            ) : (
+              <span />
+            )}
+            <Space>
+              <Button onClick={() => setEmailModal({ open: false, ids: [] })}>Cancel</Button>
+              <Button
+                type="primary"
+                icon={<MailOutlined />}
+                loading={isBulkSending || emailMutation.isPending}
+                onClick={handleConfirmEmail}
+              >
+                {emailModal.ids.length > 1 ? `Send All (${emailModal.ids.length})` : "Send"}
+              </Button>
+            </Space>
+          </div>
+        }
       >
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
           <Text strong style={{ fontSize: 13 }}>Template:</Text>
@@ -1353,6 +1488,78 @@ const PayslipView: React.FC = () => {
             </Text>
           </div>
         </div>
+        {emailModal.ids.length === 1 && (
+          <div style={{ marginBottom: 12 }}>
+            <Row gutter={12}>
+              <Col span={12}>
+                <Text strong style={{ fontSize: 12 }}>To</Text>
+                <Input
+                  size="small"
+                  value={emailTo}
+                  onChange={(e) => setEmailTo(e.target.value)}
+                  placeholder="Employee's email (default)"
+                  style={{ marginTop: 4 }}
+                />
+              </Col>
+              <Col span={12}>
+                <Text strong style={{ fontSize: 12 }}>Cc</Text>
+                <Input
+                  size="small"
+                  value={emailCc}
+                  onChange={(e) => setEmailCc(e.target.value)}
+                  placeholder="Comma-separated emails"
+                  style={{ marginTop: 4 }}
+                />
+              </Col>
+            </Row>
+            <Row gutter={12} style={{ marginTop: 8 }}>
+              <Col span={12}>
+                <Text strong style={{ fontSize: 12 }}>Recipient Name</Text>
+                <Input
+                  size="small"
+                  value={emailRecipientName}
+                  onChange={(e) => setEmailRecipientName(e.target.value)}
+                  placeholder="e.g. Simon Maina"
+                  style={{ marginTop: 4 }}
+                />
+              </Col>
+              <Col span={12}>
+                <Text strong style={{ fontSize: 12 }}>Subject</Text>
+                <Input
+                  size="small"
+                  value={emailSubject}
+                  onChange={(e) => {
+                    setEmailSubject(e.target.value);
+                    setEmailSubjectEdited(true);
+                  }}
+                  style={{ marginTop: 4 }}
+                />
+              </Col>
+            </Row>
+            {/* Editable greeting — this text replaces the intro in the preview below */}
+            <div
+              style={{
+                marginTop: 10,
+                border: "1px solid #e2e8f0",
+                borderRadius: 8,
+                padding: "10px 12px",
+                background: "#fff",
+              }}
+            >
+              <Text strong style={{ fontSize: 12 }}>Dear {emailRecipientName || "…"},</Text>
+              <Input.TextArea
+                bordered={false}
+                autoSize={{ minRows: 2, maxRows: 5 }}
+                value={emailMessage}
+                onChange={(e) => setEmailMessage(e.target.value)}
+                style={{ padding: "4px 0 0", fontSize: 12, resize: "none" }}
+              />
+              <Text type="secondary" style={{ fontSize: 10 }}>
+                Type here — the preview below updates as you edit.
+              </Text>
+            </div>
+          </div>
+        )}
         {emailModal.ids.length > 1 && (
           <Text type="secondary" style={{ fontSize: 11, display: "block", marginBottom: 10 }}>
             Preview shows the first payslip — same template and color applies to all {emailModal.ids.length}

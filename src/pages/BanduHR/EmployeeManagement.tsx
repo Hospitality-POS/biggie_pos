@@ -76,6 +76,8 @@ import { fetchAllUsersList } from "@services/users";
 import { getUser } from "@services/tenants";
 import { getPermissionChecker } from "@utils/getPermissionChecker";
 import { fetchAllDepartments, createDepartment, type Department } from "@services/crm/departments";
+import { fetchSystemSetupDetailsById } from "@services/systemsetup";
+import { resolveBenefitTypes, computeBenefitAmount } from "@utils/benefitTypes";
 import { useAppDispatch } from "../../store";
 import dayjs from "dayjs";
 import { THEME_C } from "@utils/getPrimaryColor";
@@ -165,7 +167,45 @@ const EmployeeManagement: React.FC = () => {
   const [isBenefitModalVisible, setIsBenefitModalVisible] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [activeTab, setActiveTab] = useState("details");
-  const [linkToUser, setLinkToUser] = useState<boolean>(true);
+  const [linkToUser, setLinkToUser] = useState<boolean>(false);
+
+  // ── In-progress form draft (session-scoped) ──────────────────────────────
+  // Add-mode progress survives closing the modal; cleared on successful create,
+  // on Cancel, or when the browser session ends.
+  const DRAFT_KEY = "add-employee-draft";
+  const DRAFT_DATE_FIELDS = ["hire_date", "date_of_birth", "termination_date"];
+
+  const persistDraft = (step = currentStep) => {
+    if (selectedEmployee) return; // drafts only apply to new employees
+    const values = { ...allFormValues, ...form.getFieldsValue() };
+    const serialized: Record<string, any> = {};
+    for (const [k, v] of Object.entries(values)) {
+      serialized[k] = v && typeof (v as any)?.toISOString === "function" ? (v as any).toISOString() : v;
+    }
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ values: serialized, step, linkToUser }));
+  };
+
+  const clearDraft = () => sessionStorage.removeItem(DRAFT_KEY);
+
+  const restoreDraft = (): { values: Record<string, any>; step: number; linkToUser: boolean } => {
+    try {
+      const draft = JSON.parse(sessionStorage.getItem(DRAFT_KEY) || "null");
+      if (draft?.values) {
+        const values = { ...draft.values };
+        for (const f of DRAFT_DATE_FIELDS) {
+          if (typeof values[f] === "string") values[f] = dayjs(values[f]);
+        }
+        return {
+          values,
+          step: Math.min(Math.max(Number(draft.step) || 0, 0), 4),
+          linkToUser: !!draft.linkToUser,
+        };
+      }
+    } catch {
+      // Malformed draft — start fresh
+    }
+    return { values: {}, step: 0, linkToUser: false };
+  };
   const [isImportModalVisible, setIsImportModalVisible] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importResult, setImportResult] = useState<EmployeeImportResult | null>(null);
@@ -255,7 +295,8 @@ const EmployeeManagement: React.FC = () => {
       setIsModalVisible(false);
       setSelectedEmployee(null);
       setCurrentStep(0);
-      setLinkToUser(true);
+      setLinkToUser(false);
+      clearDraft();
       form.resetFields();
       setAllFormValues({});
       queryClient.invalidateQueries({ queryKey: ["bandu-employees"] });
@@ -605,6 +646,17 @@ const EmployeeManagement: React.FC = () => {
   const buildEmployeePayload = (values: any): Record<string, any> => {
     const merged = { ...allFormValues, ...values };
     const payload: Record<string, any> = { ...merged };
+    // Non-KES salary — auto-convert at the given rate and store in KES
+    if (payload.currency && payload.currency !== "KES" && payload.exchange_rate) {
+      payload.original_currency = payload.currency;
+      payload.original_basic_salary = payload.basic_salary;
+      payload.basic_salary = Math.round(Number(payload.basic_salary || 0) * Number(payload.exchange_rate));
+      payload.currency = "KES";
+    } else {
+      delete payload.exchange_rate;
+      delete payload.original_currency;
+      delete payload.original_basic_salary;
+    }
     if (!payload.department_id) payload.department_id = null;
     if (!payload.job_title) payload.job_title = "";
     if (!payload.employee_number) delete payload.employee_number;
@@ -640,7 +692,7 @@ const EmployeeManagement: React.FC = () => {
     if (!validateRequiredFields(payload)) return;
     try {
       await createMutation.mutateAsync(payload as CreateEmployeeParams);
-      setLinkToUser(true);
+      setLinkToUser(false);
       setAllFormValues({});
     } catch (error) {
       // Error handled by mutation
@@ -655,17 +707,26 @@ const EmployeeManagement: React.FC = () => {
       const payload = buildEmployeePayload(currentValues);
       if (!validateRequiredFields(payload)) return;
       await updateMutation.mutateAsync({ employeeId: selectedEmployee._id, params: payload });
-      setLinkToUser(true);
+      setLinkToUser(false);
     } catch (error) {
       // Error handled by mutation
     }
   };
 
+  // Foreign-currency salary — ask for an exchange rate and save in KES
+  const watchedCurrency = Form.useWatch("currency", form);
+  const watchedBasicSalary = Form.useWatch("basic_salary", form);
+  const watchedExchangeRate = Form.useWatch("exchange_rate", form);
+  const isForeignCurrency = !!watchedCurrency && watchedCurrency !== "KES";
+
   const STEP_FIELDS: Record<number, string[]> = {
     0: linkToUser
       ? ["user_id", "id_number"]
       : ["fullname", "id_number"],
-    1: ["employment_type", "hire_date", "basic_salary", "currency", "payment_frequency"],
+    1: [
+      "employment_type", "hire_date", "basic_salary", "currency", "payment_frequency",
+      ...(isForeignCurrency ? ["exchange_rate"] : []),
+    ],
     2: [],
     3: [],
     4: [],
@@ -678,6 +739,7 @@ const EmployeeManagement: React.FC = () => {
       const currentValues = form.getFieldsValue();
       setAllFormValues({ ...allFormValues, ...currentValues });
       setCurrentStep(currentStep + 1);
+      persistDraft(currentStep + 1);
     } catch {
       // Stay on current step until required fields are valid
     }
@@ -715,7 +777,14 @@ const EmployeeManagement: React.FC = () => {
   const handleAddAllowance = async (values: any) => {
     if (!selectedEmployee) return;
     try {
-      const updatedAllowances = [...(selectedEmployee.allowances || []), values];
+      const allowance = {
+        allowance_type: values.allowance_type !== "custom" ? values.allowance_type : undefined,
+        name: values.name,
+        amount: values.amount,
+        frequency: values.frequency,
+        is_taxable: values.is_taxable,
+      };
+      const updatedAllowances = [...(selectedEmployee.allowances || []), allowance];
       await updateMutation.mutateAsync({
         employeeId: selectedEmployee._id,
         params: { allowances: updatedAllowances },
@@ -727,10 +796,32 @@ const EmployeeManagement: React.FC = () => {
     }
   };
 
+  // Benefit type defaults — configured in System Setup → Payroll
+  const { data: systemSettingsData } = useQuery({
+    queryKey: ["systemSetup"],
+    queryFn: () => fetchSystemSetupDetailsById(),
+  });
+  const benefitTypes = React.useMemo(
+    () => resolveBenefitTypes(systemSettingsData?.payroll_settings),
+    [systemSettingsData]
+  );
+  const watchedBenefitKey = Form.useWatch("benefit_type", benefitForm);
+  const watchedBenefit = benefitTypes.find((b) => b.key === watchedBenefitKey);
+  const isComputedBenefit = !!watchedBenefit && watchedBenefit.mode !== "fixed";
+
   const handleAddBenefit = async (values: any) => {
     if (!selectedEmployee) return;
     try {
-      const updatedBenefits = [...(selectedEmployee.benefits || []), values];
+      // Model expects `value`; asset_value/rent_amount are only computation inputs
+      const { asset_value, rent_amount, ...rest } = values;
+      const benefit = {
+        benefit_type: values.benefit_type !== "custom" ? values.benefit_type : undefined,
+        name: rest.name,
+        description: rest.description,
+        value: rest.amount,
+        frequency: rest.frequency,
+      };
+      const updatedBenefits = [...(selectedEmployee.benefits || []), benefit];
       await updateMutation.mutateAsync({
         employeeId: selectedEmployee._id,
         params: { benefits: updatedBenefits },
@@ -789,13 +880,13 @@ const EmployeeManagement: React.FC = () => {
               icon={<PlusOutlined />}
               onClick={() => {
                 setSelectedEmployee(null);
-                setLinkToUser(true);
-                setCurrentStep(0);
-                setAllFormValues({});
                 form.resetFields();
-                const suggested = generateEmployeeNumber();
-                form.setFieldsValue({ employee_number: suggested });
-                setAllFormValues({ employee_number: suggested });
+                const draft = restoreDraft();
+                setLinkToUser(draft.linkToUser);
+                if (!draft.values.employee_number) draft.values.employee_number = generateEmployeeNumber();
+                setAllFormValues(draft.values);
+                form.setFieldsValue(draft.values);
+                setCurrentStep(draft.step);
                 setIsModalVisible(true);
               }}
             >
@@ -856,6 +947,7 @@ const EmployeeManagement: React.FC = () => {
               <Option value="contract">Contract</Option>
               <Option value="intern">Intern</Option>
               <Option value="casual">Casual</Option>
+              <Option value="consultant">Consultant</Option>
             </Select>
           </Space>
           <Segmented
@@ -1018,10 +1110,11 @@ const EmployeeManagement: React.FC = () => {
         title={selectedEmployee ? "Edit Employee" : "Add Employee"}
         open={isModalVisible}
         onCancel={() => {
+          persistDraft(); // keep in-progress values for this session
           setIsModalVisible(false);
           setSelectedEmployee(null);
           setCurrentStep(0);
-          setLinkToUser(true);
+          setLinkToUser(false);
           form.resetFields();
           setAllFormValues({});
         }}
@@ -1035,12 +1128,19 @@ const EmployeeManagement: React.FC = () => {
               current={currentStep}
               direction="vertical"
               size="small"
+              onChange={(step) => {
+                // Click an earlier step to jump straight back to it
+                if (step < currentStep) {
+                  setAllFormValues({ ...allFormValues, ...form.getFieldsValue() });
+                  setCurrentStep(step);
+                }
+              }}
             >
               <Steps.Step title="Basic Info" />
-              <Steps.Step title="Employment" />
-              <Steps.Step title="Banking & Tax" />
-              <Steps.Step title="Personal Info" />
-              <Steps.Step title="Emergency" />
+              <Steps.Step title="Employment" disabled={currentStep < 1} />
+              <Steps.Step title="Banking & Tax" disabled={currentStep < 2} />
+              <Steps.Step title="Personal Info" disabled={currentStep < 3} />
+              <Steps.Step title="Emergency" disabled={currentStep < 4} />
             </Steps>
           </Col>
           <Col span={18}>
@@ -1057,8 +1157,8 @@ const EmployeeManagement: React.FC = () => {
                   value={linkToUser ? "linked" : "standalone"}
                   onChange={(v) => setLinkToUser(v === "linked")}
                   options={[
-                    { label: "Linked to User Account", value: "linked" },
                     { label: "No User Account", value: "standalone" },
+                    { label: "Linked to User Account", value: "linked" },
                   ]}
                 />
               </Form.Item>
@@ -1219,6 +1319,7 @@ const EmployeeManagement: React.FC = () => {
                       <Option value="contract">Contract</Option>
                       <Option value="intern">Intern</Option>
                       <Option value="casual">Casual</Option>
+                      <Option value="consultant">Consultant</Option>
                     </Select>
                   </Form.Item>
                 </Col>
@@ -1270,6 +1371,33 @@ const EmployeeManagement: React.FC = () => {
                   </Form.Item>
                 </Col>
               </Row>
+
+              {isForeignCurrency && (
+                <Row gutter={16}>
+                  <Col span={12}>
+                    <Form.Item
+                      label={`Exchange Rate — 1 ${watchedCurrency} in KES`}
+                      name="exchange_rate"
+                      rules={[{ required: true, message: "Required for non-KES salary" }]}
+                      tooltip="The salary is converted and saved in KES"
+                    >
+                      <InputNumber min={0.0001} style={{ width: "100%" }} placeholder="e.g. 130" />
+                    </Form.Item>
+                  </Col>
+                  <Col span={12}>
+                    <Form.Item label="Salary in KES (auto-converted)">
+                      <Input
+                        disabled
+                        value={
+                          watchedBasicSalary && watchedExchangeRate
+                            ? `KES ${Math.round(watchedBasicSalary * watchedExchangeRate).toLocaleString()}`
+                            : "—"
+                        }
+                      />
+                    </Form.Item>
+                  </Col>
+                </Row>
+              )}
             </>
           )}
 
@@ -1323,6 +1451,7 @@ const EmployeeManagement: React.FC = () => {
                     { value: "NHIF", label: "NHIF (legacy)" },
                     { value: "HOUSING_LEVY", label: "Housing Levy" },
                     { value: "NITA", label: "NITA (Training Levy)" },
+                    { value: "WITHHOLDING_TAX", label: "Withholding Tax" },
                     { value: "CUSTOM", label: "Custom Deductions" },
                   ]}
                 />
@@ -1428,10 +1557,11 @@ const EmployeeManagement: React.FC = () => {
                 </Button>
               )}
               <Button onClick={() => {
+                clearDraft(); // explicit discard
                 setIsModalVisible(false);
                 setSelectedEmployee(null);
                 setCurrentStep(0);
-                setLinkToUser(true);
+                setLinkToUser(false);
                 form.resetFields();
                 setAllFormValues({});
               }}>
@@ -1771,11 +1901,11 @@ const EmployeeManagement: React.FC = () => {
                     { title: "Name", dataIndex: "name", render: (v: string) => <Text style={{ fontSize: 12 }}>{v}</Text> },
                     {
                       title: "Amount",
-                      dataIndex: "amount",
+                      dataIndex: "value",
                       align: "right",
-                      render: (amount: number) => (
+                      render: (value: number) => (
                         <Text style={{ fontSize: 12, fontWeight: 600 }}>
-                          {amount?.toLocaleString()} {selectedEmployee.currency || "KES"}
+                          {value?.toLocaleString()} {selectedEmployee.currency || "KES"}
                         </Text>
                       ),
                     },
@@ -1784,16 +1914,6 @@ const EmployeeManagement: React.FC = () => {
                       dataIndex: "frequency",
                       render: (f: string) => (
                         <span style={{ textTransform: "capitalize", fontSize: 12 }}>{f?.replace(/_/g, " ") || "—"}</span>
-                      ),
-                    },
-                    {
-                      title: "Taxable",
-                      dataIndex: "is_taxable",
-                      width: 90,
-                      render: (taxable: boolean) => (
-                        <Tag color={taxable ? "green" : "default"} style={{ margin: 0, fontSize: 11 }}>
-                          {taxable ? "Yes" : "No"}
-                        </Tag>
                       ),
                     },
                   ]}
@@ -2002,6 +2122,26 @@ const EmployeeManagement: React.FC = () => {
         footer={null}
       >
         <Form form={allowanceForm} layout="vertical" onFinish={handleAddAllowance}>
+          <Form.Item label="Allowance Type" name="allowance_type" rules={[{ required: true }]}>
+            <Select
+              placeholder="Select allowance type"
+              onChange={(key: string) => {
+                const t = benefitTypes.find((b) => b.key === key);
+                allowanceForm.setFieldsValue({
+                  name: t ? t.label : "",
+                  amount: t?.amount ?? 0,
+                  is_taxable: t ? t.taxable : true,
+                });
+              }}
+            >
+              {benefitTypes
+                .filter((b) => b.enabled && b.kind === "allowance")
+                .map((t) => (
+                  <Option key={t.key} value={t.key}>{t.label}</Option>
+                ))}
+              <Option value="custom">Custom</Option>
+            </Select>
+          </Form.Item>
           <Form.Item label="Allowance Name" name="name" rules={[{ required: true }]}>
             <Input placeholder="e.g., Housing Allowance" />
           </Form.Item>
@@ -2051,25 +2191,92 @@ const EmployeeManagement: React.FC = () => {
         footer={null}
       >
         <Form form={benefitForm} layout="vertical" onFinish={handleAddBenefit}>
+          <Form.Item label="Benefit Type" name="benefit_type" rules={[{ required: true }]}>
+            <Select
+              placeholder="Select benefit type"
+              onChange={(key: string) => {
+                const t = benefitTypes.find((b) => b.key === key);
+                benefitForm.setFieldsValue({
+                  name: t ? t.label : "",
+                  amount: t?.mode === "fixed" ? t.amount ?? 0 : undefined,
+                  asset_value: undefined,
+                  rent_amount: undefined,
+                });
+              }}
+            >
+              {benefitTypes
+                .filter((b) => b.enabled && b.kind === "benefit")
+                .map((t) => (
+                  <Option key={t.key} value={t.key}>{t.label}</Option>
+                ))}
+              <Option value="custom">Custom</Option>
+            </Select>
+          </Form.Item>
           <Form.Item label="Benefit Name" name="name" rules={[{ required: true }]}>
             <Input placeholder="e.g., Health Insurance" />
           </Form.Item>
-          <Form.Item label="Amount" name="amount" rules={[{ required: true }]}>
-            <InputNumber style={{ width: "100%" }} placeholder="0" />
+
+          {watchedBenefit?.mode === "percent_of_value" && (
+            <Form.Item
+              label="Vehicle / Asset Value (KES)"
+              name="asset_value"
+              rules={[{ required: true }]}
+              extra={`Benefit = ${watchedBenefit.percent}% of this value per month`}
+            >
+              <InputNumber
+                min={0}
+                style={{ width: "100%" }}
+                onChange={(v) =>
+                  benefitForm.setFieldValue(
+                    "amount",
+                    computeBenefitAmount(watchedBenefit, { value: Number(v) || 0 })
+                  )
+                }
+              />
+            </Form.Item>
+          )}
+          {watchedBenefit?.mode === "higher_of_rent_or_percent" && (
+            <Form.Item
+              label="Actual Monthly Rent (KES)"
+              name="rent_amount"
+              rules={[{ required: true }]}
+              extra={`Benefit = higher of ${watchedBenefit.percent}% of gross salary (KES ${Math.round(
+                ((selectedEmployee?.basic_salary || 0) * (watchedBenefit.percent || 0)) / 100
+              ).toLocaleString()}) or the rent paid`}
+            >
+              <InputNumber
+                min={0}
+                style={{ width: "100%" }}
+                onChange={(v) =>
+                  benefitForm.setFieldValue(
+                    "amount",
+                    computeBenefitAmount(watchedBenefit, {
+                      rent: Number(v) || 0,
+                      gross: selectedEmployee?.basic_salary || 0,
+                    })
+                  )
+                }
+              />
+            </Form.Item>
+          )}
+
+          <Form.Item
+            label={isComputedBenefit ? "Benefit Amount (auto-computed)" : "Amount"}
+            name="amount"
+            rules={[{ required: true }]}
+          >
+            <InputNumber
+              style={{ width: "100%" }}
+              placeholder="0"
+              min={0}
+              disabled={isComputedBenefit}
+            />
           </Form.Item>
-          <Form.Item label="Frequency" name="frequency" rules={[{ required: true }]}>
+          <Form.Item label="Frequency" name="frequency" rules={[{ required: true }]} initialValue="monthly">
             <Select placeholder="Select frequency">
               <Option value="monthly">Monthly</Option>
-              <Option value="weekly">Weekly</Option>
-              <Option value="bi-weekly">Bi-weekly</Option>
-              <Option value="daily">Daily</Option>
               <Option value="annual">Annual</Option>
-            </Select>
-          </Form.Item>
-          <Form.Item label="Taxable" name="is_taxable" valuePropName="checked">
-            <Select placeholder="Select">
-              <Option value={true}>Yes</Option>
-              <Option value={false}>No</Option>
+              <Option value="one-time">One-time</Option>
             </Select>
           </Form.Item>
           <Form.Item>

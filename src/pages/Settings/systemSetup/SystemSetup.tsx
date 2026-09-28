@@ -7,12 +7,12 @@ import {
   FontColorsOutlined,
   BankOutlined,
   BellOutlined,
-  WhatsAppOutlined,
   HomeOutlined,
   BookOutlined,
   SettingOutlined,
   RightOutlined,
   GlobalOutlined,
+  ScanOutlined,
 } from "@ant-design/icons";
 import { Typography, Grid } from "antd";
 import { useQuery } from "@tanstack/react-query";
@@ -23,10 +23,11 @@ import PrivacySettings from "./PrivacySettings";
 import ReceiptAppearanceSettings from "./ReceiptAppearanceSettings";
 import BankDetailsSettings from "./BankDetailsSettings";
 import NotificationSettings from "./NotificationSettings";
-import WhatsAppSenderRegistration from "./WhatsAppSenderRegistration";
+
 import HotelSettings from "./HotelSettings";
 import TransactionLocking from "./TransactionLocking";
 import PayrollSettings from "./PayrollSettings";
+import AccessSettings from "./AccessSettings";
 import ChartOfAccountsSettings from "./ChartOfAccountsSettings";
 import CurrencyPage from "@pages/Currency/CurrencyPage";
 import { fetchShop } from "@services/shops";
@@ -182,29 +183,31 @@ const SystemSetup: React.FC = () => {
         group: "General",
         render: () => <NotificationSettings />,
       },
-      {
-        key: "whatsapp-registration",
-        label: "WhatsApp",
-        description: "Sender registration & messaging",
-        icon: <WhatsAppOutlined />,
-        color: "#22c55e",
-        bg: "#f0fdf4",
-        group: "Integrations",
-        render: () => <WhatsAppSenderRegistration />,
-      }
     );
 
     if (hasBandu) {
-      list.push({
-        key: "payroll-settings",
-        label: "Payroll",
-        description: "First-month pay & proration",
-        icon: <DollarCircleOutlined />,
-        color: "#0d9488",
-        bg: "#f0fdfa",
-        group: "HR & Payroll",
-        render: () => <PayrollSettings />,
-      });
+      list.push(
+        {
+          key: "payroll-settings",
+          label: "Payroll",
+          description: "First-month pay & proration",
+          icon: <DollarCircleOutlined />,
+          color: "#0d9488",
+          bg: "#f0fdfa",
+          group: "HR & Payroll",
+          render: () => <PayrollSettings />,
+        },
+        {
+          key: "access-settings",
+          label: "Access",
+          description: "Biometrics & device clock-in",
+          icon: <ScanOutlined />,
+          color: "#6366f1",
+          bg: "#eef2ff",
+          group: "HR & Payroll",
+          render: () => <AccessSettings />,
+        }
+      );
     }
 
     if (hasAccounting) {

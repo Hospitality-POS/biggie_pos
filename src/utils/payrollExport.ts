@@ -9,7 +9,7 @@ import { getPrimaryColor, hexToRgb } from './getPrimaryColor';
  * Payroll "Muster Roll" export — Excel + PDF.
  * Shares one column layout with the on-screen payroll tables:
  * Employee | Basic | Allowances | Benefits | Overtime | Gross |
- * SHIF | NSSF | Housing Levy | NITA | PAYE | Other | Total Deductions |
+ * SHIF | NSSF | Housing Levy | WHT | PAYE | Other | Total Deductions |
  * Net Pay | NSSF Employer | AHL Employer | NITA Employer
  */
 
@@ -39,7 +39,7 @@ const HEADERS = [
   'S.H.I.F.',
   'N.S.S.F.',
   'Housing Levy',
-  'NITA',
+  'WHT',
   'PAYE (Tax)',
   'Other',
   'Total Deductions',
@@ -87,14 +87,14 @@ const buildMusterRoll = (lines: any[], withDepartment = false): MusterRoll => {
       num(d.nhif),           // SHIF (stored under nhif)
       num(d.nssf),
       num(d.housing_levy),
-      num(d.nita),
+      num(d.withholding_tax),
       num(d.paye),
       num(lineCustomTotal(line)),
       num(d.total),
       num(line.net_pay),
-      num(d.nssf),           // employer NSSF matches employee share
-      num(d.housing_levy),   // employer AHL matches employee share
-      num(d.nita),           // statutory KES 50 employer levy
+      num(d.employer_nssf ?? d.nssf),                 // employer NSSF matches employee share
+      num(d.employer_housing_levy ?? d.housing_levy), // employer AHL matches employee share
+      num(d.employer_nita ?? d.nita),                 // statutory KES 50 employer levy
     ];
   };
 
@@ -117,19 +117,24 @@ const buildMusterRoll = (lines: any[], withDepartment = false): MusterRoll => {
   // Deductions summary (employee deductions + employer contributions)
   const o = firstMoneyCol; // money-column offset
   const payeTotal = sum(o + 9), shifTotal = sum(o + 5), nssfTotal = sum(o + 6);
-  const ahlTotal = sum(o + 7), nitaTotal = sum(o + 8), otherTotal = sum(o + 10);
+  const ahlTotal = sum(o + 7), whtTotal = sum(o + 8), otherTotal = sum(o + 10);
   const dedTotal = sum(o + 11), netTotal = sum(o + 12);
-  const employerTotal = nssfTotal + ahlTotal + nitaTotal;
+  const nssfErTotal = sum(o + 13), ahlErTotal = sum(o + 14), nitaTotal = sum(o + 15);
+  const employerTotal = nssfErTotal + ahlErTotal + nitaTotal; // employer-paid — not employee deductions
 
+  // One row per levy — employee / employer amounts, with the combined total
   const summary: [string, string | number][] = [
     ['PAYE', payeTotal],
     ['SHIF', shifTotal],
-    ['NSSF', nssfTotal],
-    ['NITA', nitaTotal],
-    ['AHL', ahlTotal],
+    ['NSSF (EE / ER)', `${fmt(nssfTotal)} / ${fmt(nssfErTotal)}`],
+    ['NSSF — Total', nssfTotal + nssfErTotal],
+    ['Withholding Tax', whtTotal],
+    ['AHL (EE / ER)', `${fmt(ahlTotal)} / ${fmt(ahlErTotal)}`],
+    ['AHL — Total', ahlTotal + ahlErTotal],
+    ['NITA (Employer)', nitaTotal],
     ['Other Deductions', otherTotal],
     ['Total Deductions', dedTotal],
-    ['Employer: NSSF + AHL + NITA', employerTotal],
+    ['Employer Contributions (NSSF + AHL + NITA)', employerTotal],
     ['Total Payments', dedTotal + employerTotal],
     ['Employees', lines.length],
     ['Net Salaries', netTotal],
@@ -161,13 +166,8 @@ const buildMusterRollSheet = (
 ) => {
   const { headers, bodyNums, totalsNums, summary } = buildMusterRoll(lines, withDepartment);
 
-  const meta = withDepartment
-    ? `Payrolls: ${payroll.payroll_id || ''}    ·    All departments    ·    Merged export`
-    : `Payroll: ${payroll.payroll_id || ''}    ·    ${payroll.department_id?.name || 'All departments'}    ·    ${(payroll.status || '').toUpperCase()}`;
-
   const aoa: any[][] = [
     [payrollTitle(payroll, company)],
-    [meta],
     [],
     headers,
     ...bodyNums,
@@ -182,11 +182,10 @@ const buildMusterRollSheet = (
   ws['!cols'] = [{ wch: 26 }, ...headers.slice(1).map(() => ({ wch: 14 }))];
   ws['!merges'] = [
     { s: { r: 0, c: 0 }, e: { r: 0, c: headers.length - 1 } },   // title
-    { s: { r: 1, c: 0 }, e: { r: 1, c: headers.length - 1 } },   // meta
   ];
 
   // Numeric formatting — every non-name cell below the header
-  const headerRow = 3; // 0-based index of HEADERS row
+  const headerRow = 2; // 0-based index of HEADERS row
   const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
   for (let r = headerRow + 1; r <= range.e.r; r++) {
     for (let c = 1; c <= range.e.c; c++) {
@@ -278,13 +277,6 @@ const renderPayrollPage = (
   doc.text(`MUSTER ROLL — ${payroll.period_label || ''}`, margin, 37);
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
-  doc.text(
-    withDepartment
-      ? `Payrolls: ${payroll.payroll_id || ''}    ·    All departments    ·    Merged export`
-      : `Payroll: ${payroll.payroll_id || ''}    ·    ${payroll.department_id?.name || 'All departments'}    ·    ${(payroll.status || '').toUpperCase()}`,
-    margin,
-    47
-  );
 
   // Sub-header labels for the grouped sections
   const subHead = [

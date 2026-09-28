@@ -36,7 +36,7 @@ export interface Employee {
     name: string;
   };
   hire_date: string;
-  employment_type: 'full-time' | 'part-time' | 'contract' | 'intern' | 'casual';
+  employment_type: 'full-time' | 'part-time' | 'contract' | 'intern' | 'casual' | 'consultant';
   job_title: string;
   employment_status: 'active' | 'on_leave' | 'suspended' | 'terminated' | 'resigned';
   termination_date?: string;
@@ -84,7 +84,7 @@ export interface CreateEmployeeParams {
   department_id?: string;
   employee_number?: string;
   hire_date: string;
-  employment_type: 'full-time' | 'part-time' | 'contract' | 'intern' | 'casual';
+  employment_type: 'full-time' | 'part-time' | 'contract' | 'intern' | 'casual' | 'consultant';
   job_title?: string;
   employment_status?: 'active' | 'on_leave' | 'suspended' | 'terminated' | 'resigned';
   basic_salary: number;
@@ -948,7 +948,14 @@ export interface Payroll {
   total_nhif: number;
   total_housing_levy: number;
   total_nita?: number;
+  total_withholding_tax?: number;
   total_custom_deductions: number;
+  rejection_reason?: string | null;
+  rejected_at?: string;
+  rejected_by?: string;
+  payslips_generated?: boolean;
+  payslips_generated_at?: string;
+  supplementary_of?: string | null;
   lines: Array<{
     employee_id: {
       _id: string;
@@ -966,6 +973,7 @@ export interface Payroll {
       nhif: number;
       housing_levy: number;
       nita?: number;
+      withholding_tax?: number;
       custom: Array<{ name: string; amount: number }>;
       total: number;
     };
@@ -998,6 +1006,19 @@ export interface GeneratePayrollParams {
   period_end: string;
   period_label: string;
   shop_id?: string;
+  // Per-employee adjustments applied at preview/generate time
+  // (keyed by employee _id) — salary, extras and custom deductions (loans etc.)
+  overrides?: Record<
+    string,
+    {
+      basic_salary?: number;
+      allowances?: number;
+      benefits?: number;
+      overtime_hours?: number;
+      overtime_pay?: number;
+      custom_deductions?: Array<{ name: string; amount: number }>;
+    }
+  >;
 }
 
 export interface PayrollPreviewLine {
@@ -1016,6 +1037,7 @@ export interface PayrollPreviewLine {
     nhif: number;
     housing_levy: number;
     nita?: number;
+    withholding_tax?: number;
     custom: Array<{ name: string; amount: number }>;
     total: number;
   };
@@ -1041,6 +1063,7 @@ export interface PayrollPreviewResult {
     total_nhif: number;
     total_housing_levy: number;
     total_nita?: number;
+    total_withholding_tax?: number;
   }>;
   conflicts: Array<{ department_id?: string; department_name?: string; reason: string; payroll_id?: string }>;
 }
@@ -1186,6 +1209,25 @@ export const deletePayroll = async (payrollId: string) => {
   }
 };
 
+// List all deduction configurations (statutory + custom/loans)
+export const fetchDeductionConfigs = async () => {
+  const response = await axiosInstance.get(`${bandu_url}/deduction-settings`);
+  return (response.data?.data || []) as any[];
+};
+
+// Delete a deduction configuration (e.g. a custom loan/advance)
+export const deleteDeductionConfig = async (id: string) => {
+  try {
+    const response = await axiosInstance.delete(`${bandu_url}/deduction-settings/${id}`);
+    message.success("Deduction removed");
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.message || error?.message || "Failed to delete deduction";
+    message.error(errorMessage);
+    throw new Error(errorMessage);
+  }
+};
+
 // Save Deduction Settings
 export const saveDeductionSettings = async (settings: any) => {
   try {
@@ -1220,6 +1262,19 @@ export const approvePayrollRequest = async (payrollId: string) => {
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.message || error?.message || "Failed to approve payroll";
+    message.error(errorMessage);
+    throw new Error(errorMessage);
+  }
+};
+
+// Reject Payroll — returns it to drafts for amendments
+export const rejectPayrollRequest = async (payrollId: string, reason?: string) => {
+  try {
+    const response = await axiosInstance.post(`${bandu_url}/payroll/${payrollId}/reject`, { reason });
+    message.success("Payroll rejected — moved back to drafts");
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.message || error?.message || "Failed to reject payroll";
     message.error(errorMessage);
     throw new Error(errorMessage);
   }
@@ -1374,6 +1429,7 @@ export interface Payslip {
     nhif: number;
     housing_levy: number;
     nita?: number;
+    withholding_tax?: number;
     custom: Array<{ name: string; amount: number }>;
     total: number;
   };
@@ -1406,12 +1462,19 @@ export const emailP9FormPdf = async (payload: {
   return response.data;
 };
 
-// Preview the payslip email HTML for a template without sending
-export const previewPayslipEmail = async (payslipId: string, template: string, color?: string) => {
+// Preview the payslip email HTML for a template without sending —
+// accepts the same overrides as the send endpoint so the preview is exact
+export const previewPayslipEmail = async (
+  payslipId: string,
+  template: string,
+  color?: string,
+  extras?: { message?: string; recipient_name?: string; subject?: string }
+) => {
   const response = await axiosInstance.post(`${bandu_url}/payslips/email-preview`, {
     payslip_id: payslipId,
     template,
     color,
+    ...extras,
   });
   return response.data as { subject: string; html: string; template: string };
 };
@@ -1507,10 +1570,20 @@ export const getPayslipById = async (payslipId: string) => {
   }
 };
 
-// Email Payslip to Employee
-export const emailPayslip = async (payslipId: string, template?: string, color?: string) => {
+// Email Payslip to Employee — optional overrides for recipient, cc, subject,
+// message and a base64 PDF attachment
+export const emailPayslip = async (
+  payslipId: string,
+  template?: string,
+  color?: string,
+  opts?: { to?: string; cc?: string; subject?: string; message?: string; pdf?: string; recipient_name?: string }
+) => {
   try {
-    const response = await axiosInstance.post(`${bandu_url}/payslips/${payslipId}/email`, { template, color });
+    const response = await axiosInstance.post(`${bandu_url}/payslips/${payslipId}/email`, {
+      template,
+      color,
+      ...opts,
+    });
     message.success("Payslip emailed successfully");
     return response.data;
   } catch (error: any) {
