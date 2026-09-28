@@ -3,6 +3,7 @@ import React from "react";
 import { Space, Button, Alert } from "antd";
 import { CreditCardOutlined, LogoutOutlined } from "@ant-design/icons";
 import { ProCard } from "@ant-design/pro-components";
+import { clearBusinessHealthCache } from "src/services/healthScore";
 
 const SubscriptionGuard: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -43,6 +44,8 @@ const SubscriptionGuard: React.FC<{ children: React.ReactNode }> = ({
     localStorage.removeItem("companyCode");
     localStorage.removeItem("shopId");
     localStorage.removeItem("user");
+
+    clearBusinessHealthCache();
 
     navigate("/login");
   };
