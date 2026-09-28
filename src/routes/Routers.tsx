@@ -32,6 +32,7 @@ const PaymentSubscriptionPage = lazy(() => import("src/components/billing/Billin
 const AdminCustomersList = lazy(() => import("src/AdminDashboard/Customers/CustomerList"));
 const TenantSettings = lazy(() => import("src/AdminDashboard/Settings/TenantSettings"));
 const DiscoverPage = lazy(() => import("src/AdminDashboard/DiscoverPage"));
+const BusinessHealthScorePage = lazy(() => import("@pages/HealthScore/BusinessHealthScorePage"));
 const PrivacyPolicy = lazy(() => import("@pages/Legal/PrivacyPolicy"));
 const TermsAndConditions = lazy(() => import("@pages/Legal/TermsAndConditions"));
 
@@ -666,6 +667,12 @@ const routes = sentryCreateBrowserRouter(
             </PermissionRoute>
           }
         />
+
+        <Route path="health-score" errorElement={<NotFound />}
+          element={adminPage(BusinessHealthScorePage)} />
+
+        <Route path="business-health" errorElement={<NotFound />}
+          element={adminPage(BusinessHealthScorePage)} />
 
         <Route path="wages" errorElement={<NotFound />}
           element={adminPage(WagesList)} />

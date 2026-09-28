@@ -48,6 +48,7 @@ import {
   markNotificationAsRead,
   markAllNotificationsAsRead,
 } from "@services/notifications";
+import { clearBusinessHealthCache } from "@services/healthScore";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -244,8 +245,9 @@ const AdminDashboard: React.FC = () => {
   const handleLogout = () => {
     localStorage.removeItem("user");
     localStorage.removeItem("token");
-    navigate("/login");
     queryClient.removeQueries(["userNotifications"]);
+    clearBusinessHealthCache();
+    navigate("/login");
   };
 
   const { data: notificationData, isLoading } = useQuery({

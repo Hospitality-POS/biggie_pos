@@ -8,6 +8,7 @@ import {
   SettingOutlined,
   ShopOutlined,
   RollbackOutlined,
+  SafetyCertificateOutlined,
 } from "@ant-design/icons";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useActiveProduct, ProductConfig } from "src/context/ProductContext";
@@ -306,6 +307,71 @@ export const EcosystemAppMenu: React.FC<{ onClose?: () => void }> = ({ onClose }
               }}
             >
               Executive overview & key metrics
+            </div>
+          </div>
+        </div>
+
+        {/* Business Health Diagnostic */}
+        <div
+          onClick={() => {
+            onClose?.();
+            navigate(isAdminRoute ? "/admin/health-score" : "/admin/health-score");
+          }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            padding: "10px 12px",
+            borderRadius: 10,
+            cursor: "pointer",
+            backgroundColor: "#ffffff",
+            border: "1.5px solid #f1f5f9",
+            transition: "all 0.16s ease",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = "#f8fafc";
+            e.currentTarget.style.borderColor = "#cbd5e1";
+            e.currentTarget.style.transform = "translateY(-1px)";
+            e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.05)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = "#ffffff";
+            e.currentTarget.style.borderColor = "#f1f5f9";
+            e.currentTarget.style.transform = "none";
+            e.currentTarget.style.boxShadow = "none";
+          }}
+        >
+          <div
+            style={{
+              width: 42,
+              height: 42,
+              borderRadius: 10,
+              backgroundColor: "#10b98118",
+              color: "#10b981",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 20,
+              flexShrink: 0,
+            }}
+          >
+            <SafetyCertificateOutlined />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <Text strong style={{ fontSize: 13, color: "#1e293b", display: "block" }}>
+              Business Health Score
+            </Text>
+            <div
+              style={{
+                fontSize: 11.5,
+                color: "#64748b",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                marginTop: 2,
+              }}
+            >
+              Comprehensive 75-point diagnostic
             </div>
           </div>
         </div>

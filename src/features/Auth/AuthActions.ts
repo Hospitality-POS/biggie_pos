@@ -2,6 +2,7 @@ import { createAsyncThunk } from "@reduxjs/toolkit";
 import { BASE_URL } from "@utils/config";
 import { message, notification } from "antd";
 import axiosInstance from "../../services/request";
+import { clearBusinessHealthCache } from "../../services/healthScore";
 
 const baseUrl = `${BASE_URL}/users`;
 
@@ -33,6 +34,7 @@ export const logoutUser = createAsyncThunk(
   "authUser/logoutUser",
   async () => {
     try {
+      clearBusinessHealthCache();
       const response = await localStorage.removeItem('user')
       return response
     } catch (error: any) {

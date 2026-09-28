@@ -64,6 +64,7 @@ import {
   markNotificationAsRead,
   markAllNotificationsAsRead,
 } from "@services/notifications";
+import { clearBusinessHealthCache } from "@services/healthScore";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
@@ -208,8 +209,9 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
     dispatch(logoutUser());
     localStorage.removeItem("shopId");
     dispatch(reset());
-    navigate("/login");
     queryClient.removeQueries(["userNotifications"]);
+    clearBusinessHealthCache();
+    navigate("/login");
     setMobileDrawerOpen(false);
   };
 

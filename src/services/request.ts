@@ -40,6 +40,7 @@ const EXCLUDED_ROUTES = [
     '/business-types',
     '/suppliers',
     '/customers/other-branches',
+    '/business-health',
 ];
 
 const NON_CACHEABLE_ROUTES = [

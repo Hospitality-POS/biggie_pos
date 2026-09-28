@@ -7,6 +7,7 @@ import {
   CompassOutlined,
   UsergroupAddOutlined,
   ReconciliationOutlined,
+  SafetyCertificateOutlined,
 } from "@ant-design/icons";
 
 /**
@@ -58,6 +59,7 @@ const useAdminProLayoutNav = () => {
   // ── Common routes (always shown) ──────────────────────────────────────────
   const commonRoutes = [
     { path: "/admin/dashboard", name: "Dashboard", icon: <DashboardOutlined /> },
+    { path: "/admin/health-score", name: "Business Health", icon: <SafetyCertificateOutlined /> },
     { path: "/admin/reports", name: "Reports", icon: <ReconciliationOutlined /> },
     { path: "/admin/shop-management", name: "Branch Management", icon: <ShopOutlined /> },
     { path: "/admin/staff-management", name: "Crew Management", icon: <UsergroupAddOutlined /> },
