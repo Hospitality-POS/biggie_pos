@@ -200,6 +200,18 @@ export const clockOut = async () => {
     }
 };
 
+// Admin: probe the configured biometric device (TCP reachability to host:port)
+export const testBiometricConnection = async () => {
+    try {
+        const response = await axiosInstance.get(`${hr_url}/attendance/biometric/test`);
+        return response.data;
+    } catch (error: any) {
+        console.error("Biometric test failed:", error);
+        message.error(error?.response?.data?.message || "Biometric connection test failed");
+        return { configured: false, reachable: false, message: "Request failed" };
+    }
+};
+
 // Staff: get today's clock status (clocked in / clocked out / not started)
 export const fetchClockStatus = async () => {
     try {

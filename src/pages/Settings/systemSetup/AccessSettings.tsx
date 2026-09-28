@@ -1,9 +1,10 @@
 import React from "react";
-import { Switch, Typography, Space, Form, Select, Input, InputNumber, Button, message, Row, Col, Card } from "antd";
+import { Switch, Typography, Space, Form, Select, Input, InputNumber, Button, message, Row, Col, Card, Alert, Tag } from "antd";
 import { ProCard } from "@ant-design/pro-components";
-import { ScanOutlined, IdcardOutlined, ClockCircleOutlined, SaveOutlined } from "@ant-design/icons";
+import { ScanOutlined, IdcardOutlined, ClockCircleOutlined, SaveOutlined, ApiOutlined } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchSystemSetupDetailsById, updateSystemSetup } from "../../../services/systemsetup";
+import { testBiometricConnection } from "../../../services/hr/leave";
 import { THEME_C } from "../../../utils/getPrimaryColor";
 
 const { Text } = Typography;
@@ -20,6 +21,8 @@ const BIOMETRIC_PROVIDERS = [
 const AccessSettings: React.FC = () => {
   const queryClient = useQueryClient();
   const [form] = Form.useForm();
+  const [testing, setTesting] = React.useState(false);
+  const [testResult, setTestResult] = React.useState<any>(null);
 
   const { data: savedData, isFetching } = useQuery({
     queryKey: ["systemSetup"],
@@ -112,15 +115,57 @@ const AccessSettings: React.FC = () => {
           </Row>
         </Form>
 
-        <Button
-          type="primary"
-          icon={<SaveOutlined />}
-          loading={updateMutation.isPending || isFetching}
-          disabled={!savedData?._id}
-          onClick={handleSave}
-        >
-          Save Biometric Settings
-        </Button>
+        <Space wrap>
+          <Button
+            type="primary"
+            icon={<SaveOutlined />}
+            loading={updateMutation.isPending || isFetching}
+            disabled={!savedData?._id}
+            onClick={handleSave}
+          >
+            Save Biometric Settings
+          </Button>
+          <Button
+            icon={<ApiOutlined />}
+            loading={testing}
+            onClick={async () => {
+              // Save first so the probe uses the latest host/port
+              await handleSave().catch(() => undefined);
+              setTesting(true);
+              try {
+                setTestResult(await testBiometricConnection());
+              } finally {
+                setTesting(false);
+              }
+            }}
+          >
+            Test Connection
+          </Button>
+        </Space>
+
+        {testResult && (
+          <Alert
+            style={{ marginTop: 14 }}
+            type={testResult.reachable ? "success" : "warning"}
+            showIcon
+            message={
+              <Space size={8} wrap>
+                {testResult.reachable ? "Device connected" : testResult.configured === false ? "Not configured" : "Device unreachable"}
+                {testResult.provider && <Tag style={{ margin: 0 }}>{testResult.provider}</Tag>}
+                {testResult.latency_ms != null && (
+                  <Text type="secondary" style={{ fontSize: 11 }}>{testResult.latency_ms}ms</Text>
+                )}
+              </Space>
+            }
+            description={testResult.message}
+          />
+        )}
+
+        <Text type="secondary" style={{ fontSize: 11, display: "block", marginTop: 14 }}>
+          Punches from the device land in <Text strong style={{ fontSize: 11 }}>HR → Attendance</Text> via
+          {" "}<Text code style={{ fontSize: 11 }}>POST /hr/attendance/biometric/punch</Text> —
+          map each device user to a staff member's biometric PIN (or employee number).
+        </Text>
       </ProCard>
         </Col>
 
