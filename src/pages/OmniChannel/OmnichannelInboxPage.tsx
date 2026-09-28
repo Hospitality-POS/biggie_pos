@@ -134,7 +134,7 @@ const OmnichannelInboxPage: React.FC = () => {
 
     const [activeChannel] = useState<Channel>("whatsapp");
     const [activeMainTab, setActiveMainTab] = useState<"inbox" | "scripts" | "welcome" | "analytics" | "agents">("inbox");
-    const [activeStatus, setActiveStatus] = useState<ConversationStatus | "all" | "queue">("all");
+    const [activeStatus, setActiveStatus] = useState<ConversationStatus | "all" | "queue" | "needs_reply">("all");
     const [selectedAgent, setSelectedAgent] = useState<string>("");
     const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
     const [connectDrawerOpen, setConnectDrawerOpen] = useState(false);
@@ -213,6 +213,29 @@ const OmnichannelInboxPage: React.FC = () => {
                 const data = await fetchQueue({ shop_id: shopId });
                 return { ...data, conversations: data.queue };
             }
+            if (activeStatus === "needs_reply") {
+                // No single backend status covers "unanswered" conversations, so pull a
+                // larger page across open + pending and filter/sort them client-side.
+                const data = await fetchConversations({
+                    shop_id: shopId,
+                    channel: activeChannel === "all" ? undefined : activeChannel,
+                    assigned_to: getAssignedTo(),
+                    page: 1,
+                    limit: 100,
+                    search: search || undefined,
+                });
+                const needsReply = (data.conversations || [])
+                    .filter(
+                        (c: Conversation) =>
+                            c.unread_count > 0 &&
+                            (c.status === "open" || c.status === "pending" || c.status === "pending_dispatch")
+                    )
+                    .sort(
+                        (a: Conversation, b: Conversation) =>
+                            new Date(a.last_message_at).getTime() - new Date(b.last_message_at).getTime()
+                    );
+                return { ...data, conversations: needsReply, total: needsReply.length };
+            }
             return fetchConversations({
                 shop_id: shopId,
                 channel: activeChannel === "all" ? undefined : activeChannel,
@@ -230,8 +253,21 @@ const OmnichannelInboxPage: React.FC = () => {
         refetchOnWindowFocus: true,
     });
 
-    const conversations = conversationsData?.conversations || [];
+    const rawConversations = conversationsData?.conversations || [];
     const totalCount = conversationsData?.total || 0;
+
+    // Bubble unanswered conversations to the top of the list so they don't get
+    // buried under recently-active but already-answered chats. "Needs Reply" is
+    // already curated/sorted (oldest-unanswered-first) above, so leave it as-is.
+    const conversations = useMemo(() => {
+        if (activeStatus === "needs_reply" || activeStatus === "queue") return rawConversations;
+        return [...rawConversations].sort((a: Conversation, b: Conversation) => {
+            const aUnread = a.unread_count > 0 ? 1 : 0;
+            const bUnread = b.unread_count > 0 ? 1 : 0;
+            if (aUnread !== bUnread) return bUnread - aUnread;
+            return new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime();
+        });
+    }, [rawConversations, activeStatus]);
 
     // Keep the selected conversation in sync with the list refetches
     useEffect(() => {
@@ -249,6 +285,7 @@ const OmnichannelInboxPage: React.FC = () => {
             pending_dispatch: 0,
             resolved: 0,
             closed: 0,
+            needs_reply: 0,
             resolved_today: conversationsData?.status_counts?.resolved_today || 0
         };
 
@@ -258,6 +295,12 @@ const OmnichannelInboxPage: React.FC = () => {
             else if (conv.status === "pending_dispatch") counts.pending_dispatch++;
             else if (conv.status === "resolved") counts.resolved++;
             else if (conv.status === "closed") counts.closed++;
+            if (
+                conv.unread_count > 0 &&
+                (conv.status === "open" || conv.status === "pending" || conv.status === "pending_dispatch")
+            ) {
+                counts.needs_reply++;
+            }
         });
 
         return counts;
