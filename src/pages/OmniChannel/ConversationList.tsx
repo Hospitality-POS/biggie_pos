@@ -43,7 +43,7 @@ interface Props {
     conversations: Conversation[];
     loading: boolean;
     selectedId: string | null;
-    activeStatus: ConversationStatus | "all" | "queue";
+    activeStatus: ConversationStatus | "all" | "queue" | "needs_reply";
     total: number;
     page: number;
     pageSize: number;
@@ -56,15 +56,16 @@ interface Props {
     selectedAgent?: string;
     onSelect: (conv: Conversation) => void;
     onSearchChange: (v: string) => void;
-    onStatusChange: (s: ConversationStatus | "all" | "queue") => void;
+    onStatusChange: (s: ConversationStatus | "all" | "queue" | "needs_reply") => void;
     onPageChange: (p: number) => void;
     onAgentChange?: (v: string) => void;
 }
 
 // ── Status tab items ──────────────────────────────────────────────────────────
 
-const STATUS_TABS: { key: ConversationStatus | "all" | "queue"; label: string }[] = [
+const STATUS_TABS: { key: ConversationStatus | "all" | "queue" | "needs_reply"; label: string }[] = [
     { key: "all", label: "All" },
+    { key: "needs_reply", label: "Needs Reply" },
     { key: "open", label: "Open" },
     { key: "pending", label: "Pending" },
     { key: "pending_dispatch", label: "Dispatch" },
@@ -348,7 +349,7 @@ const ConversationList: React.FC<Props> = ({
             {/* ── Status tabs ── */}
             <Tabs
                 activeKey={activeStatus}
-                onChange={(k) => onStatusChange(k as ConversationStatus | "all")}
+                onChange={(k) => onStatusChange(k as ConversationStatus | "all" | "queue" | "needs_reply")}
                 size="small"
                 style={{ paddingLeft: 8, paddingRight: 8 }}
                 tabBarStyle={{ marginBottom: 0 }}
@@ -369,11 +370,13 @@ const ConversationList: React.FC<Props> = ({
                                         style={{
                                             fontSize: 9,
                                             backgroundColor:
-                                                tab.key === "open"
-                                                    ? "#52c41a"
-                                                    : tab.key === "pending" || tab.key === "queue"
-                                                        ? "#faad14"
-                                                        : "#8c8c8c",
+                                                tab.key === "needs_reply"
+                                                    ? "#ff4d4f"
+                                                    : tab.key === "open"
+                                                        ? "#52c41a"
+                                                        : tab.key === "pending" || tab.key === "queue"
+                                                            ? "#faad14"
+                                                            : "#8c8c8c",
                                         }}
                                     />
                                 )}
