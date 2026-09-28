@@ -8,7 +8,6 @@ import {
   Space,
   Typography,
   Table,
-  Tag,
   Row,
   Col,
   message,
@@ -17,13 +16,12 @@ import {
   Divider,
 } from "antd";
 import {
-  DollarOutlined,
   SaveOutlined,
   PlusOutlined,
   DeleteOutlined,
   SettingOutlined,
 } from "@ant-design/icons";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 
 const { Title, Text } = Typography;
@@ -32,7 +30,6 @@ const { Title, Text } = Typography;
 
 const DeductionSettings: React.FC = () => {
   const primaryColor = usePrimaryColor();
-  const queryClient = useQueryClient();
   const [form] = Form.useForm();
   const [customDeductions, setCustomDeductions] = useState<
     Array<{ id: string; name: string; amount: number; is_percentage: boolean }>
@@ -428,22 +425,6 @@ const DeductionSettings: React.FC = () => {
               <Row gutter={16}>
                 <Col span={12}>
                   <Form.Item
-                    name="sha_employer_rate"
-                    label="Employer Rate (%)"
-                    initialValue={2.75}
-                    rules={[{ required: true, message: "Required" }]}
-                  >
-                    <InputNumber
-                      min={0}
-                      max={100}
-                      step={0.25}
-                      style={{ width: "100%" }}
-                      addonAfter="%"
-                    />
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item
                     name="sha_income_limit"
                     label="Income Limit (KES)"
                     initialValue={100000}
@@ -458,7 +439,7 @@ const DeductionSettings: React.FC = () => {
                 </Col>
               </Row>
               <Text type="secondary" style={{ fontSize: 12 }}>
-                SHA (Social Health Insurance) replaces NHIF. Both employee and employer contribute 2.75% of gross pay.
+                SHA (Social Health Insurance) replaces NHIF. Employees contribute 2.75% of gross pay.
               </Text>
             </Form>
           </Card>
@@ -529,6 +510,43 @@ const DeductionSettings: React.FC = () => {
               </Row>
               <Text type="secondary" style={{ fontSize: 12 }}>
                 Housing Levy is 1.5% of gross pay, shared equally between employee and employer.
+              </Text>
+            </Form>
+          </Card>
+        </Tabs.TabPane>
+
+        {/* ── NITA Settings ── */}
+        <Tabs.TabPane tab="NITA" key="nita">
+          <Card>
+            <Form form={form} layout="vertical">
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item
+                    name="nita_enabled"
+                    label="Enable NITA Levy"
+                    valuePropName="checked"
+                    initialValue={true}
+                  >
+                    <Switch />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item
+                    name="nita_amount"
+                    label="Amount per Employee (KES)"
+                    initialValue={50}
+                    rules={[{ required: true, message: "Required" }]}
+                  >
+                    <InputNumber
+                      min={0}
+                      style={{ width: "100%" }}
+                      addonBefore="KES"
+                    />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                NITA (National Industrial Training Authority) levy is a standard KES 50 deducted from every employee each month.
               </Text>
             </Form>
           </Card>

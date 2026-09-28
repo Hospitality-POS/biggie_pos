@@ -12,6 +12,7 @@ import {
   Avatar,
   Popconfirm,
   Tooltip,
+  Grid,
 } from "antd";
 import {
   ClockCircleOutlined,
@@ -25,6 +26,7 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchAllAttendance, fetchClockStatus, deleteClockRecord } from "@services/hr/leave";
 import { getUser } from "@services/tenants";
+import { getPermissionChecker } from "@utils/getPermissionChecker";
 import dayjs from "dayjs";
 import { THEME_C } from "@utils/getPrimaryColor";
 
@@ -74,9 +76,13 @@ const StatCard: React.FC<{
 );
 
 const AttendanceTracking: React.FC = () => {
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
   const queryClient = useQueryClient();
   const user = getUser();
   const isAdmin = user?.role === "admin" || user?.isAdmin === true;
+  const checkPerms = getPermissionChecker();
+  const canDeleteSession = isAdmin || checkPerms("HR_ATTENDANCE_DELETE");
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
     dayjs().startOf("month"),
     dayjs().endOf("month"),
@@ -196,8 +202,8 @@ const AttendanceTracking: React.FC = () => {
           </Tag>
         ),
     },
-    // Admin-only: delete a session
-    ...(isAdmin
+    // Delete a session — requires HR_ATTENDANCE_DELETE (admins always pass)
+    ...(canDeleteSession
       ? [
           {
             title: "",
@@ -224,7 +230,7 @@ const AttendanceTracking: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24, background: "#f8fafc", minHeight: "100%" }}>
+    <div style={{ padding: isMobile ? 12 : 24, background: "#f8fafc", minHeight: "100%" }}>
       {/* Header */}
       <div
         style={{
@@ -250,7 +256,7 @@ const AttendanceTracking: React.FC = () => {
           <RangePicker
             value={dateRange}
             onChange={(dates) => dates && setDateRange(dates as [dayjs.Dayjs, dayjs.Dayjs])}
-            style={{ borderRadius: 8 }}
+            style={{ borderRadius: 8, width: isMobile ? "100%" : undefined }}
           />
           <Button
             icon={<ReloadOutlined />}
@@ -301,16 +307,16 @@ const AttendanceTracking: React.FC = () => {
 
       {/* Stats */}
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
-        <Col xs={12} md={6}>
+        <Col xs={24} sm={12} md={6}>
           <StatCard title="Sessions" value={stats.sessions} icon={<CalendarOutlined />} color="#3b82f6" />
         </Col>
-        <Col xs={12} md={6}>
+        <Col xs={24} sm={12} md={6}>
           <StatCard title="Staff" value={stats.staff.size} icon={<TeamOutlined />} color="#8b5cf6" />
         </Col>
-        <Col xs={12} md={6}>
+        <Col xs={24} sm={12} md={6}>
           <StatCard title="Active Now" value={stats.active} icon={<ClockCircleOutlined />} color="#f59e0b" />
         </Col>
-        <Col xs={12} md={6}>
+        <Col xs={24} sm={12} md={6}>
           <StatCard title="Total Hours" value={`${stats.hours.toFixed(1)}h`} icon={<CheckCircleOutlined />} color="#10b981" />
         </Col>
       </Row>
@@ -323,6 +329,7 @@ const AttendanceTracking: React.FC = () => {
           loading={isLoading}
           rowKey="_id"
           size="small"
+          scroll={{ x: "max-content" }}
           pagination={{ pageSize: 15 }}
           locale={{
             emptyText: (

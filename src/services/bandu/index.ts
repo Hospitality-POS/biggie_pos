@@ -26,11 +26,11 @@ export interface Employee {
   email?: string;
   phone?: string;
   id_number?: string;
-  department_id: {
+  department_id?: {
     _id: string;
     name: string;
     code: string;
-  };
+  } | null;
   shop_id?: {
     _id: string;
     name: string;
@@ -42,6 +42,8 @@ export interface Employee {
   termination_date?: string;
   termination_reason?: string;
   basic_salary: number;
+  /** "gross" = entered salary is gross pay; "net" = take-home (payroll grosses it up) */
+  salary_type?: 'gross' | 'net';
   currency: string;
   payment_frequency: 'daily' | 'weekly' | 'bi-weekly' | 'monthly';
   hourly_rate?: number;
@@ -59,6 +61,7 @@ export interface Employee {
   }>;
   bank_name?: string;
   bank_account_number?: string;
+  bank_branch?: string;
   kra_pin?: string;
   nssf_number?: string;
   nhif_number?: string;
@@ -78,13 +81,15 @@ export interface Employee {
 
 export interface CreateEmployeeParams {
   user_id?: string | null;
-  department_id: string;
-  employee_number: string;
+  department_id?: string;
+  employee_number?: string;
   hire_date: string;
   employment_type: 'full-time' | 'part-time' | 'contract' | 'intern' | 'casual';
-  job_title: string;
+  job_title?: string;
   employment_status?: 'active' | 'on_leave' | 'suspended' | 'terminated' | 'resigned';
   basic_salary: number;
+  /** "gross" (default) or "net" — when "net", payroll grosses the salary up */
+  salary_type?: 'gross' | 'net';
   currency: string;
   payment_frequency: 'daily' | 'weekly' | 'bi-weekly' | 'monthly';
   // Standalone identity fields (required when user_id is not provided)
@@ -188,6 +193,19 @@ export const deleteEmployee = async (employeeId: string) => {
   try {
     const response = await axiosInstance.delete(`${bandu_url}/employees/${employeeId}`);
     message.success("Employee deleted successfully");
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.message || error?.message || "Failed to delete employee";
+    message.error(errorMessage);
+    throw new Error(errorMessage);
+  }
+};
+
+// Permanently Delete Employee (Hard Delete)
+export const permanentlyDeleteEmployee = async (employeeId: string) => {
+  try {
+    const response = await axiosInstance.delete(`${bandu_url}/employees/${employeeId}/permanent`);
+    message.success("Employee permanently deleted");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.message || error?.message || "Failed to delete employee";
@@ -300,12 +318,16 @@ export interface EmployeeAnalysisResult {
     job_title: string;
     hire_date: string;
     basic_salary: string;
+    salary_type: string;
     user_email: string;
   }>;
 }
 
 // ── ANALYSE FILE (preview before import — does NOT import anything) ───────────
-export const analyseEmployeeFile = async (file: File): Promise<EmployeeAnalysisResult> => {
+export const analyseEmployeeFile = async (
+  file: File,
+  onProgress?: (percent: number) => void
+): Promise<EmployeeAnalysisResult> => {
   try {
     const formData = new FormData();
     formData.append("file", file);
@@ -313,7 +335,12 @@ export const analyseEmployeeFile = async (file: File): Promise<EmployeeAnalysisR
     const response = await axiosInstance.post<EmployeeAnalysisResult>(
       `${bandu_url}/employees/analyse-import`,
       formData,
-      { headers: { "Content-Type": undefined } }
+      {
+        headers: { "Content-Type": undefined },
+        onUploadProgress: (e) => {
+          if (e.total) onProgress?.(Math.round((e.loaded / e.total) * 100));
+        },
+      }
     );
 
     return response.data;
@@ -332,7 +359,8 @@ export const analyseEmployeeFile = async (file: File): Promise<EmployeeAnalysisR
 export const importEmployeesFromExcel = async (
   file: File,
   shopId?: string | null,
-  updateMode = false
+  updateMode = false,
+  onProgress?: (percent: number) => void
 ): Promise<EmployeeImportResult> => {
   try {
     const formData = new FormData();
@@ -343,7 +371,12 @@ export const importEmployeesFromExcel = async (
     const response = await axiosInstance.post<EmployeeImportResult>(
       `${bandu_url}/employees/import`,
       formData,
-      { headers: { "Content-Type": undefined } }
+      {
+        headers: { "Content-Type": undefined },
+        onUploadProgress: (e) => {
+          if (e.total) onProgress?.(Math.round((e.loaded / e.total) * 100));
+        },
+      }
     );
 
     const data = response.data;
@@ -914,6 +947,7 @@ export interface Payroll {
   total_nssf: number;
   total_nhif: number;
   total_housing_levy: number;
+  total_nita?: number;
   total_custom_deductions: number;
   lines: Array<{
     employee_id: {
@@ -923,6 +957,7 @@ export interface Payroll {
     };
     gross_salary: number;
     basic_salary: number;
+    salary_type?: 'gross' | 'net';
     allowances: number;
     benefits: number;
     deductions: {
@@ -930,10 +965,12 @@ export interface Payroll {
       nssf: number;
       nhif: number;
       housing_levy: number;
+      nita?: number;
       custom: Array<{ name: string; amount: number }>;
       total: number;
     };
     net_pay: number;
+    proration_factor?: number;
     days_worked: number;
     overtime_hours: number;
     overtime_pay: number;
@@ -970,6 +1007,7 @@ export interface PayrollPreviewLine {
   fullname?: string;
   gross_salary: number;
   basic_salary: number;
+  salary_type?: 'gross' | 'net';
   allowances: number;
   benefits: number;
   deductions: {
@@ -977,10 +1015,13 @@ export interface PayrollPreviewLine {
     nssf: number;
     nhif: number;
     housing_levy: number;
+    nita?: number;
     custom: Array<{ name: string; amount: number }>;
     total: number;
   };
   net_pay: number;
+  proration_factor?: number;
+  days_worked?: number;
 }
 
 export interface PayrollPreviewResult {
@@ -999,6 +1040,7 @@ export interface PayrollPreviewResult {
     total_nssf: number;
     total_nhif: number;
     total_housing_levy: number;
+    total_nita?: number;
   }>;
   conflicts: Array<{ department_id?: string; department_name?: string; reason: string; payroll_id?: string }>;
 }
@@ -1331,6 +1373,7 @@ export interface Payslip {
     nssf: number;
     nhif: number;
     housing_levy: number;
+    nita?: number;
     custom: Array<{ name: string; amount: number }>;
     total: number;
   };
@@ -1343,11 +1386,34 @@ export interface Payslip {
 }
 
 // Email Payslips in Batch — sends each payslip to its employee's email
-export const emailPayslipsBatch = async (payslipIds: string[]) => {
+export const emailPayslipsBatch = async (payslipIds: string[], template?: string, color?: string) => {
   const response = await axiosInstance.post(`${bandu_url}/payslips/email-batch`, {
     payslip_ids: payslipIds,
+    template,
+    color,
   });
   return response.data;
+};
+
+// Email a P9 form — frontend generates the PDF and posts it as base64
+export const emailP9FormPdf = async (payload: {
+  employee_id: string;
+  year: number;
+  pdf_base64: string;
+  filename?: string;
+}) => {
+  const response = await axiosInstance.post(`${bandu_url}/payslips/email-p9`, payload);
+  return response.data;
+};
+
+// Preview the payslip email HTML for a template without sending
+export const previewPayslipEmail = async (payslipId: string, template: string, color?: string) => {
+  const response = await axiosInstance.post(`${bandu_url}/payslips/email-preview`, {
+    payslip_id: payslipId,
+    template,
+    color,
+  });
+  return response.data as { subject: string; html: string; template: string };
 };
 
 // Delete Payslip
@@ -1418,6 +1484,7 @@ export const fetchAllPayslips = async (params: ParamsType = {}) => {
         year: params.year,
         month: params.month,
         employee_id: params.employee_id,
+        department_id: params.department_id,
       },
     });
     return response.data;
@@ -1441,9 +1508,9 @@ export const getPayslipById = async (payslipId: string) => {
 };
 
 // Email Payslip to Employee
-export const emailPayslip = async (payslipId: string) => {
+export const emailPayslip = async (payslipId: string, template?: string, color?: string) => {
   try {
-    const response = await axiosInstance.post(`${bandu_url}/payslips/${payslipId}/email`);
+    const response = await axiosInstance.post(`${bandu_url}/payslips/${payslipId}/email`, { template, color });
     message.success("Payslip emailed successfully");
     return response.data;
   } catch (error: any) {

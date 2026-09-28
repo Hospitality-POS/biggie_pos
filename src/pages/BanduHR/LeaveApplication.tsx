@@ -18,6 +18,7 @@ import {
   Popconfirm,
   Segmented,
   Drawer,
+  Grid,
 } from "antd";
 import {
   PlusOutlined,
@@ -44,6 +45,8 @@ import {
 } from "@services/bandu";
 import dayjs from "dayjs";
 import { THEME_C } from "@utils/getPrimaryColor";
+import { getUser } from "@services/tenants";
+import { getPermissionChecker } from "@utils/getPermissionChecker";
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -100,6 +103,13 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const LeaveApplication: React.FC = () => {
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
+  const user = getUser();
+  const checkPerms = getPermissionChecker();
+  const can = (k: string) => user?.role === "admin" || user?.isAdmin === true || checkPerms(k);
+  const canApplyLeave = can("HR_LEAVE_APPLY");
+  const canCancelLeave = can("HR_LEAVE_CANCEL");
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedLeave, setSelectedLeave] = useState<Leave | null>(null);
   const [isDocumentModalVisible, setIsDocumentModalVisible] = useState(false);
@@ -231,7 +241,7 @@ const LeaveApplication: React.FC = () => {
           <Tag color={required ? "orange" : "green"} style={{ margin: 0 }}>
             {required ? "Required" : "No"}
           </Tag>
-          {required && !record.document_provided && (
+          {required && !record.document_provided && canApplyLeave && (
             <Button
               type="text"
               size="small"
@@ -250,7 +260,7 @@ const LeaveApplication: React.FC = () => {
       key: "actions",
       width: 70,
       render: (_: unknown, record: Leave) =>
-        record.status === "Pending" ? (
+        record.status === "Pending" && canCancelLeave ? (
           <Popconfirm
             title="Cancel this leave request?"
             okText="Cancel Leave"
@@ -286,7 +296,7 @@ const LeaveApplication: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: 24, background: "#f8fafc", minHeight: "100%" }}>
+    <div style={{ padding: isMobile ? 12 : 24, background: "#f8fafc", minHeight: "100%" }}>
       {/* Header */}
       <div
         style={{
@@ -323,9 +333,11 @@ const LeaveApplication: React.FC = () => {
           >
             Refresh
           </Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalVisible(true)}>
-            Apply for Leave
-          </Button>
+          {canApplyLeave && (
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalVisible(true)}>
+              Apply for Leave
+            </Button>
+          )}
         </Space>
       </div>
 
@@ -333,7 +345,7 @@ const LeaveApplication: React.FC = () => {
       {balances.length > 0 && (
         <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
           {balances.map((balance: any) => (
-            <Col xs={12} sm={8} md={6} key={balance._id}>
+            <Col xs={24} sm={8} md={6} key={balance._id}>
               <StatCard
                 title={`${balance.leave_type} Leave`}
                 value={balance.remaining}
@@ -352,16 +364,16 @@ const LeaveApplication: React.FC = () => {
 
       {/* Request stats */}
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
-        <Col xs={12} md={6}>
+        <Col xs={24} sm={12} md={6}>
           <StatCard title="Total Requests" value={leaveStats.total} icon={<CalendarOutlined />} color="#3b82f6" />
         </Col>
-        <Col xs={12} md={6}>
+        <Col xs={24} sm={12} md={6}>
           <StatCard title="Approved" value={leaveStats.approved} icon={<CheckCircleOutlined />} color="#10b981" />
         </Col>
-        <Col xs={12} md={6}>
+        <Col xs={24} sm={12} md={6}>
           <StatCard title="Pending" value={leaveStats.pending} icon={<ClockCircleOutlined />} color="#f59e0b" />
         </Col>
-        <Col xs={12} md={6}>
+        <Col xs={24} sm={12} md={6}>
           <StatCard title="Rejected" value={leaveStats.rejected} icon={<CloseCircleOutlined />} color="#ef4444" />
         </Col>
       </Row>
@@ -375,6 +387,7 @@ const LeaveApplication: React.FC = () => {
             loading={isLoading}
             rowKey="_id"
             size="small"
+            scroll={{ x: "max-content" }}
             pagination={{ pageSize: 10 }}
             onRow={(record: Leave) => ({
               onClick: () => {
@@ -450,7 +463,7 @@ const LeaveApplication: React.FC = () => {
       <Drawer
         title="Leave Request"
         placement="right"
-        width={440}
+        width={isMobile ? "100%" : 440}
         open={isDetailDrawerVisible}
         onClose={() => {
           setIsDetailDrawerVisible(false);
@@ -550,7 +563,7 @@ const LeaveApplication: React.FC = () => {
             {(selectedLeave.status === "Pending" ||
               (selectedLeave.document_required && !selectedLeave.document_provided)) && (
               <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                {selectedLeave.document_required && !selectedLeave.document_provided && (
+                {selectedLeave.document_required && !selectedLeave.document_provided && canApplyLeave && (
                   <Button
                     icon={<PaperClipOutlined />}
                     block
@@ -562,7 +575,7 @@ const LeaveApplication: React.FC = () => {
                     Upload Document
                   </Button>
                 )}
-                {selectedLeave.status === "Pending" && (
+                {selectedLeave.status === "Pending" && canCancelLeave && (
                   <Popconfirm
                     title="Cancel this leave request?"
                     okText="Cancel Leave"
@@ -610,7 +623,7 @@ const LeaveApplication: React.FC = () => {
           form.resetFields();
         }}
         footer={null}
-        width={560}
+        width={isMobile ? "94%" : 560}
       >
         <Form form={form} layout="vertical" onFinish={handleApplyLeave}>
           <Form.Item label="Leave Type" name="leave_type" rules={[{ required: true, message: "Required" }]}>
@@ -657,6 +670,7 @@ const LeaveApplication: React.FC = () => {
           setIsDocumentModalVisible(false);
           documentForm.resetFields();
         }}
+        width={isMobile ? "94%" : 520}
         footer={null}
       >
         <Form form={documentForm} layout="vertical" onFinish={handleUploadDocument}>

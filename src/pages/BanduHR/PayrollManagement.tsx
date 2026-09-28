@@ -25,6 +25,9 @@ import {
   Alert,
   Empty,
   Steps,
+  Progress,
+  Dropdown,
+  Grid,
 } from "antd";
 import {
   DollarOutlined,
@@ -41,8 +44,15 @@ import {
   EditOutlined,
   ThunderboltOutlined,
   PayCircleOutlined,
+  FileExcelOutlined,
+  FilePdfOutlined,
+  MoreOutlined,
+  DownloadOutlined,
 } from "@ant-design/icons";
+import { exportPayrollToExcel, exportPayrollToPDF, exportPayrollsToExcel, exportPayrollsToPDF } from "@utils/payrollExport";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getUser } from "@services/tenants";
+import { getPermissionChecker } from "@utils/getPermissionChecker";
 import {
   fetchPayrolls,
   generatePayroll,
@@ -122,6 +132,18 @@ const STATUS_CONFIG: Record<string, { color: string; label: string }> = {
 
 const PayrollManagement: React.FC = () => {
   const primaryColor = usePrimaryColor();
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
+  const user = getUser();
+  const checkPerms = getPermissionChecker();
+  const can = (k: string) => user?.role === "admin" || user?.isAdmin === true || checkPerms(k);
+  const canGenerate = can("BANDU_PAYROLL_GENERATE");
+  const canUpdatePayroll = can("BANDU_PAYROLL_UPDATE");
+  const canApprovePayroll = can("BANDU_PAYROLL_APPROVE");
+  const canProcessPayroll = can("BANDU_PAYROLL_PROCESS");
+  const canDeletePayroll = can("BANDU_PAYROLL_DELETE");
+  const canExportPayroll = can("BANDU_PAYROLL_EXPORT");
+  const canGeneratePayslips = can("BANDU_PAYSLIPS_GENERATE");
   const queryClient = useQueryClient();
   const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
   const [isDetailDrawerOpen, setIsDetailDrawerOpen] = useState(false);
@@ -130,6 +152,9 @@ const PayrollManagement: React.FC = () => {
   const [activeTab, setActiveTab] = useState("draft");
   const [filterYear, setFilterYear] = useState<number | undefined>(undefined);
   const [filterMonth, setFilterMonth] = useState<number | undefined>(undefined);
+  const [filterDept, setFilterDept] = useState<string | undefined>(undefined);
+  // Payroll detail drawer — toggle between employee names and numbers
+  const [showEmployeeNames, setShowEmployeeNames] = useState(true);
   const [form] = Form.useForm();
   const [deductionForm] = Form.useForm();
   const [customDeductions, setCustomDeductions] = useState<
@@ -165,11 +190,28 @@ const PayrollManagement: React.FC = () => {
     [payrollsData]
   );
 
+  // Pipeline tabs are cumulative: an "approved" payroll keeps showing under
+  // Approved when it moves to processed/paid; paid also shows under Processed.
+  const TAB_STATUS_MAP: Record<string, string[]> = {
+    draft: ["draft"],
+    pending_approval: ["pending_approval"],
+    approved: ["approved", "processed", "paid"],
+    processed: ["processed", "paid"],
+    paid: ["paid"],
+  };
+
+  // Department filter applies before the status tabs
+  const deptFilteredPayrolls = React.useMemo(
+    () => (filterDept ? payrolls.filter((p: Payroll) => p.department_id?._id === filterDept) : payrolls),
+    [payrolls, filterDept]
+  );
+
   // Filter payrolls based on active tab
   const filteredPayrolls = React.useMemo(() => {
     if (activeTab === "deductions") return [];
-    return payrolls.filter((p: Payroll) => p.status === activeTab);
-  }, [payrolls, activeTab]);
+    const statuses = TAB_STATUS_MAP[activeTab] || [activeTab];
+    return deptFilteredPayrolls.filter((p: Payroll) => statuses.includes(p.status));
+  }, [deptFilteredPayrolls, activeTab]);
 
   // Fetch employees for payroll generation
   const { data: employeesData } = useQuery({
@@ -193,24 +235,127 @@ const PayrollManagement: React.FC = () => {
     return Array.from(deptMap.values());
   }, [employees]);
 
-  // Generate payroll mutation
-  const generateMutation = useMutation({
-    mutationFn: (params: GeneratePayrollParams) => generatePayroll(params),
-    onSuccess: (data) => {
-      const skipped = data?.skipped || [];
-      if (skipped.length) {
-        message.warning(
-          `Some payrolls were skipped: ${skipped.map((s: any) => s.department_name || s.department_id).join(", ")}`
-        );
-      }
-      setIsGenerateModalOpen(false);
-      setGenerateStep(0);
-      setPreviewData(null);
-      setPendingGenerateParams(null);
-      form.resetFields();
-      queryClient.invalidateQueries({ queryKey: ["payrolls"] });
-    },
+  // ── Per-employee "Results" breakdown (KRA payslip sequence) ──
+  const renderLineResults = (line: any, periodLabel?: string) => {
+    const d = line.deductions || {};
+    const taxable =
+      d.taxable_pay ??
+      Math.max(0, (line.gross_salary || 0) - (d.nssf || 0) - (d.nhif || 0) - (d.housing_levy || 0));
+    const incomeTax = d.income_tax ?? 0;
+    const relief = d.personal_relief ?? 0;
+    const paye = d.paye ?? Math.max(0, incomeTax - relief);
+    const payAfterTax = taxable - paye;
+    const nita = d.nita || 0;
+    const customTotal = (d.custom || []).reduce((s: number, c: any) => s + (c.amount || 0), 0);
+
+    const f = (v: any) =>
+      Number(v || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const Row = ({ label, value, strong = false, color = "#334155" }: any) => (
+      <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", borderBottom: "1px solid #f1f5f9" }}>
+        <Text strong={strong} style={{ fontSize: 11.5, color, letterSpacing: 0.4, textTransform: "uppercase" }}>{label}</Text>
+        <Text strong={strong} style={{ fontSize: 11.5, color }}>{f(value)}</Text>
+      </div>
+    );
+
+    return (
+      <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "10px 16px", maxWidth: 380, margin: "2px 0 6px" }}>
+        <Text strong style={{ fontSize: 10.5, color: "#94a3b8", letterSpacing: 0.6, textTransform: "uppercase", display: "block", marginBottom: 4 }}>
+          Results{periodLabel ? ` · Payslip for ${periodLabel}` : ""}
+        </Text>
+        <Row label="Basic Pay" value={line.gross_salary} />
+        <Row label="NSSF" value={-(d.nssf || 0)} color="#64748b" />
+        <Row label="S.H.I.F." value={-(d.nhif || 0)} color="#64748b" />
+        <Row label="Housing Levy" value={-(d.housing_levy || 0)} color="#64748b" />
+        <Row label="Taxable Pay" value={taxable} strong />
+        <Row label="Income Tax" value={incomeTax} />
+        <Row label="Personal Relief" value={-relief} />
+        <Row label="P.A.Y.E" value={paye} strong color="#ef4444" />
+        <Row label="Pay After Tax" value={payAfterTax} strong />
+        {nita > 0 && <Row label="NITA" value={-nita} color="#64748b" />}
+        {customTotal > 0 && <Row label="Other Deductions" value={-customTotal} color="#64748b" />}
+        <Row label="Net Pay" value={line.net_pay} strong color="#10b981" />
+      </div>
+    );
+  };
+
+  // Full payroll-line columns — every deduction shown inline (master-roll layout)
+  const moneyCol = (
+    title: string,
+    getter: (l: any) => number | undefined,
+    color?: string,
+    strong = false,
+    width = 96
+  ) => ({
+    title,
+    align: "right" as const,
+    width,
+    render: (_: any, line: any) => (
+      <Text strong={strong} style={color ? { color } : undefined}>
+        {(getter(line) ?? 0).toLocaleString()}
+      </Text>
+    ),
   });
+
+  const payrollLineColumns = (showNames: boolean) => [
+    {
+      title: "Employee",
+      key: "employee",
+      fixed: "left" as const,
+      width: 190,
+      render: (_: any, line: any) => {
+        const empName =
+          line.employee_id?.user_id?.fullname ||
+          line.employee_id?.fullname ||
+          line.fullname ||
+          undefined;
+        const empNo = line.employee_id?.employee_number || line.employee_number;
+        return (
+          <div>
+            <Text style={{ fontSize: 12, fontWeight: 500, display: "block" }}>
+              {showNames ? empName || empNo || "—" : empNo || empName || "—"}
+            </Text>
+            <Text style={{ fontSize: 11, color: "#94a3b8" }}>
+              {[showNames ? empNo : empName, line.employee_id?.job_title || line.job_title]
+                .filter(Boolean)
+                .join(" · ")}
+            </Text>
+            {line.proration_factor != null && line.proration_factor < 1 && (
+              <Tag color="orange" style={{ margin: "2px 0 0", fontSize: 10 }}>
+                Prorated{line.days_worked ? ` — ${line.days_worked} days` : ""} ({Math.round(line.proration_factor * 100)}%)
+              </Tag>
+            )}
+          </div>
+        );
+      },
+    },
+    moneyCol("Basic Pay", (l) => l.basic_salary),
+    moneyCol("Allowances", (l) => l.allowances),
+    moneyCol("Benefits", (l) => l.benefits),
+    moneyCol("Overtime", (l) => l.overtime_pay, undefined, false, 80),
+    moneyCol("Gross Pay", (l) => l.gross_salary, undefined, true),
+    moneyCol("S.H.I.F.", (l) => l.deductions?.nhif, undefined, false, 80),
+    moneyCol("N.S.S.F.", (l) => l.deductions?.nssf, undefined, false, 80),
+    moneyCol("Housing Levy", (l) => l.deductions?.housing_levy, undefined, false, 90),
+    moneyCol("NITA", (l) => l.deductions?.nita, undefined, false, 70),
+    moneyCol("PAYE (Tax)", (l) => l.deductions?.paye, undefined, false, 90),
+    moneyCol("Other", (l) => (l.deductions?.custom || []).reduce((s: number, c: any) => s + (c.amount || 0), 0), undefined, false, 80),
+    moneyCol("Total Deductions", (l) => l.deductions?.total, "#ef4444", true, 110),
+    moneyCol("Net Pay", (l) => l.net_pay, "#10b981", true),
+    // Single employer-side total — per-deduction employer columns stay in the exports
+    moneyCol(
+      "Employer Contrib.",
+      (l) => (l.deductions?.nssf || 0) + (l.deductions?.housing_levy || 0) + (l.deductions?.nita || 0),
+      "#64748b",
+      false,
+      115
+    ),
+  ];
+
+  // Generate payroll mutation
+  // Payroll generation runs one request per department so the progress bar
+  // shows real advancement (each chunk completes a department).
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generateProgress, setGenerateProgress] = useState<{ done: number; total: number } | null>(null);
 
   // Preview payroll mutation — computes lines/totals without saving
   const previewMutation = useMutation({
@@ -296,13 +441,15 @@ const PayrollManagement: React.FC = () => {
       // SHA — 2.75% of gross, no cap (replaced NHIF)
       sha_enabled: true,
       sha_employee_rate: 2.75,
-      sha_employer_rate: 2.75,
       sha_income_limit: 0,
       // Housing Levy — 1.5% of gross, uncapped
       housing_levy_enabled: true,
       housing_levy_rate: 1.5,
       housing_levy_income_limit: 0,
       housing_levy_employee_share: 50,
+      // NITA — flat KES 50 per employee
+      nita_enabled: true,
+      nita_amount: 50,
     });
     message.success("Form filled with current Kenyan statutory rates — review then Save Settings");
   };
@@ -448,10 +595,42 @@ const PayrollManagement: React.FC = () => {
     }
   };
 
-  // Step 2 → confirm and generate draft
-  const handleGeneratePayroll = () => {
-    if (pendingGenerateParams) {
-      generateMutation.mutate(pendingGenerateParams);
+  // Step 2 → confirm and generate draft (chunked per department for progress)
+  const handleGeneratePayroll = async () => {
+    if (!pendingGenerateParams || isGenerating) return;
+
+    const { department_ids, employee_ids, ...rest } = pendingGenerateParams;
+    const chunks: GeneratePayrollParams[] = department_ids?.length
+      ? department_ids.map((id) => ({ ...rest, department_ids: [id] }))
+      : [{ ...rest, employee_ids }];
+
+    setIsGenerating(true);
+    setGenerateProgress({ done: 0, total: chunks.length });
+    const allSkipped: any[] = [];
+    let created = 0;
+    try {
+      for (const chunk of chunks) {
+        const res = await generatePayroll(chunk);
+        allSkipped.push(...(res?.skipped || []));
+        created += res?.payrolls?.length ?? (res?.payroll ? 1 : 0);
+        setGenerateProgress((p) => (p ? { ...p, done: p.done + 1 } : p));
+      }
+      if (allSkipped.length) {
+        message.warning(
+          `Some payrolls were skipped: ${allSkipped.map((s: any) => s.department_name || s.reason || s.department_id).join(", ")}`
+        );
+      }
+      message.success(`${created} payroll draft${created === 1 ? "" : "s"} generated`);
+      closeGenerateModal();
+      queryClient.invalidateQueries({ queryKey: ["payrolls"] });
+    } catch (error: any) {
+      const doneMsg = created > 0 ? ` (${created} already created)` : "";
+      message.error(
+        (error?.response?.data?.message || error?.message || "Failed to generate payroll") + doneMsg
+      );
+    } finally {
+      setIsGenerating(false);
+      setGenerateProgress(null);
     }
   };
 
@@ -569,16 +748,36 @@ const PayrollManagement: React.FC = () => {
       title: "Gross",
       dataIndex: "total_gross",
       key: "total_gross",
+      align: "right" as const,
       render: (amount: number) => (
         <Text style={{ fontSize: 12, fontWeight: 500 }}>
           KES {(amount ?? 0).toLocaleString()}
         </Text>
       ),
     },
+    ...[
+      { title: "PAYE", field: "total_paye" },
+      { title: "NSSF", field: "total_nssf" },
+      { title: "S.H.I.F.", field: "total_nhif" },
+      { title: "Housing Levy", field: "total_housing_levy" },
+      { title: "NITA", field: "total_nita" },
+      { title: "Other", field: "total_custom_deductions" },
+    ].map(({ title, field }) => ({
+      title,
+      dataIndex: field,
+      key: field,
+      align: "right" as const,
+      render: (amount: number) => (
+        <Text style={{ fontSize: 12, color: "#ef4444" }}>
+          {(amount ?? 0).toLocaleString()}
+        </Text>
+      ),
+    })),
     {
       title: "Net Pay",
       dataIndex: "total_net",
       key: "total_net",
+      align: "right" as const,
       render: (amount: number) => (
         <Text style={{ fontSize: 12, fontWeight: 500, color: "#10b981" }}>
           KES {(amount ?? 0).toLocaleString()}
@@ -595,106 +794,112 @@ const PayrollManagement: React.FC = () => {
       },
     },
     {
-      title: "Actions",
+      title: "",
       key: "actions",
-      render: (_: any, record: Payroll) => (
-        <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => handleViewDetails(record)}
-          >
-            View
-          </Button>
-          <Tooltip title="Duplicate to a new period">
-            <Button
-              type="link"
-              size="small"
-              icon={<CopyOutlined />}
-              onClick={() => openDuplicateModal(record)}
-            >
-              Duplicate
-            </Button>
-          </Tooltip>
-          {record.status === "draft" && (
-            <Popconfirm
-              title="Submit for approval?"
-              description="This will submit the payroll for approval."
-              onConfirm={() => submitForApprovalMutation.mutate(record._id)}
-            >
-              <Button type="link" size="small" icon={<SendOutlined />}>
-                Submit
-              </Button>
-            </Popconfirm>
-          )}
-          {record.status === "pending_approval" && (
-            <Popconfirm
-              title="Approve this payroll?"
-              description="This will approve the payroll for processing."
-              onConfirm={() => approveMutation.mutate(record._id)}
-            >
-              <Button type="link" size="small" icon={<CheckCircleOutlined />}>
-                Approve
-              </Button>
-            </Popconfirm>
-          )}
-          {record.status === "approved" && (
-            <Popconfirm
-              title="Process this payroll?"
-              description="This will post the payroll accrual to accounting."
-              onConfirm={() => processMutation.mutate(record._id)}
-            >
-              <Button type="link" size="small" icon={<SendOutlined />}>
-                Process
-              </Button>
-            </Popconfirm>
-          )}
-          {(record.status === "approved" || record.status === "processed") && (
-            <Button
-              type="link"
-              size="small"
-              icon={<PayCircleOutlined />}
-              onClick={() => handleMarkPaid(record)}
-            >
-              Mark Paid
-            </Button>
-          )}
-          {(record.status === "approved" || record.status === "processed" || record.status === "paid") && (
-            <Popconfirm
-              title="Generate payslips for all employees?"
-              description="This will create payslips for all employees in this payroll."
-              onConfirm={() => generateBatchPayslipsMutation.mutate(record._id)}
-            >
-              <Button type="link" size="small" icon={<FileTextOutlined />}>
-                Generate Payslips
-              </Button>
-            </Popconfirm>
-          )}
-          <Popconfirm
-            title="Delete payroll?"
-            description="This action cannot be undone."
-            onConfirm={() => deleteMutation.mutate(record._id)}
-            okText="Delete"
-            okType="danger"
-          >
-            <Button
-              type="link"
-              size="small"
-              danger
-              icon={<DeleteOutlined />}
-              loading={deleteMutation.isLoading}
-            >
-              Delete
-            </Button>
-          </Popconfirm>
-        </Space>
-      ),
+      width: 48,
+      align: "center" as const,
+      render: (_: any, record: Payroll) => {
+        const confirmThen = (title: string, onOk: () => void, danger = false) => () =>
+          Modal.confirm({
+            title,
+            content: danger ? "This action cannot be undone." : "Do you want to continue?",
+            okText: danger ? "Delete" : "Confirm",
+            okButtonProps: danger ? { danger: true } : undefined,
+            onOk,
+          });
+
+        const items: any[] = [
+          {
+            key: "view",
+            label: "View",
+            icon: <EyeOutlined />,
+            onClick: () => handleViewDetails(record),
+          },
+        ];
+        if (canGenerate) {
+          items.push({
+            key: "duplicate",
+            label: "Duplicate",
+            icon: <CopyOutlined />,
+            onClick: () => openDuplicateModal(record),
+          });
+        }
+
+        if (record.status === "draft" && canUpdatePayroll) {
+          items.push({
+            key: "submit",
+            label: "Submit for Approval",
+            icon: <SendOutlined />,
+            onClick: confirmThen("Submit this payroll for approval?", () =>
+              submitForApprovalMutation.mutate(record._id)
+            ),
+          });
+        }
+        if (record.status === "pending_approval" && canApprovePayroll) {
+          items.push({
+            key: "approve",
+            label: "Approve",
+            icon: <CheckCircleOutlined />,
+            onClick: confirmThen("Approve this payroll?", () =>
+              approveMutation.mutate(record._id)
+            ),
+          });
+        }
+        if (record.status === "approved" && canProcessPayroll) {
+          items.push({
+            key: "process",
+            label: "Process",
+            icon: <SendOutlined />,
+            onClick: confirmThen("Process this payroll? (posts accrual to accounting)", () =>
+              processMutation.mutate(record._id)
+            ),
+          });
+        }
+        if ((record.status === "approved" || record.status === "processed") && canProcessPayroll) {
+          items.push({
+            key: "paid",
+            label: "Mark Paid",
+            icon: <PayCircleOutlined />,
+            onClick: () => handleMarkPaid(record),
+          });
+        }
+        if (["approved", "processed", "paid"].includes(record.status) && canGeneratePayslips) {
+          items.push({
+            key: "payslips",
+            label: "Generate Payslips",
+            icon: <FileTextOutlined />,
+            onClick: confirmThen("Generate payslips for all employees?", () =>
+              generateBatchPayslipsMutation.mutate(record._id)
+            ),
+          });
+        }
+
+        if (canDeletePayroll) {
+          items.push({ type: "divider" });
+          items.push({
+            key: "delete",
+            label: "Delete",
+            icon: <DeleteOutlined />,
+            danger: true,
+            onClick: confirmThen(
+              "Delete payroll?",
+              () => deleteMutation.mutate(record._id),
+              true
+            ),
+          });
+        }
+
+        return (
+          <Dropdown menu={{ items }} trigger={["click"]} placement="bottomRight">
+            <Button type="text" size="small" icon={<MoreOutlined />} />
+          </Dropdown>
+        );
+      },
     },
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: isMobile ? 12 : 24 }}>
       {/* ── Header ── */}
       <div
         style={{
@@ -730,6 +935,19 @@ const PayrollManagement: React.FC = () => {
 
         <Space wrap>
           <Select
+            value={filterDept}
+            onChange={setFilterDept}
+            allowClear
+            showSearch
+            optionFilterProp="label"
+            placeholder="All departments"
+            style={{ width: 180 }}
+            options={departments.map((d: any) => ({
+              value: d._id,
+              label: d.code ? `${d.name} (${d.code})` : d.name,
+            }))}
+          />
+          <Select
             value={filterMonth}
             onChange={setFilterMonth}
             allowClear
@@ -751,6 +969,32 @@ const PayrollManagement: React.FC = () => {
               return { value: y, label: `${y}` };
             })}
           />
+          {canExportPayroll && (
+            <Dropdown
+              menu={{
+                items: [
+                  {
+                    key: "excel",
+                    label: `Export to Excel (${filteredPayrolls.length} payroll${filteredPayrolls.length === 1 ? "" : "s"})`,
+                    icon: <FileExcelOutlined />,
+                    onClick: () => exportPayrollsToExcel(filteredPayrolls),
+                  },
+                  {
+                    key: "pdf",
+                    label: `Export to PDF (${filteredPayrolls.length} payroll${filteredPayrolls.length === 1 ? "" : "s"})`,
+                    icon: <FilePdfOutlined />,
+                    onClick: () => exportPayrollsToPDF(filteredPayrolls),
+                  },
+                ],
+              }}
+              trigger={["click"]}
+              disabled={filteredPayrolls.length === 0 || activeTab === "deductions"}
+            >
+              <Button icon={<DownloadOutlined />} disabled={filteredPayrolls.length === 0 || activeTab === "deductions"}>
+                Export
+              </Button>
+            </Dropdown>
+          )}
           <Button
             icon={<ReloadOutlined />}
             onClick={() => queryClient.invalidateQueries({ queryKey: ["payrolls"] })}
@@ -758,19 +1002,21 @@ const PayrollManagement: React.FC = () => {
           >
             Refresh
           </Button>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => {
-              setGenerateStep(0);
-              setPreviewData(null);
-              setPendingGenerateParams(null);
-              setPayrollMode("department");
-              setIsGenerateModalOpen(true);
-            }}
-          >
-            Generate Payroll
-          </Button>
+          {canGenerate && (
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => {
+                setGenerateStep(0);
+                setPreviewData(null);
+                setPendingGenerateParams(null);
+                setPayrollMode("department");
+                setIsGenerateModalOpen(true);
+              }}
+            >
+              Generate Payroll
+            </Button>
+          )}
         </Space>
       </div>
 
@@ -799,14 +1045,14 @@ const PayrollManagement: React.FC = () => {
                     padding: "1px 8px",
                   }}
                 >
-                  {payrolls.filter((p: Payroll) => p.status === tab.key).length}
+                  {deptFilteredPayrolls.filter((p: Payroll) => (TAB_STATUS_MAP[tab.key] || [tab.key]).includes(p.status)).length}
                 </span>
               </Space>
             }
           >
             {/* ── Summary Stats ── */}
             <Row gutter={12} style={{ marginBottom: 16 }}>
-              <Col xs={12} md={6}>
+              <Col xs={24} sm={12} md={6}>
                 <StatCard
                   title={tab.countTitle}
                   value={filteredPayrolls.length}
@@ -814,7 +1060,7 @@ const PayrollManagement: React.FC = () => {
                   color={tab.color}
                 />
               </Col>
-              <Col xs={12} md={6}>
+              <Col xs={24} sm={12} md={6}>
                 <StatCard
                   title="Total Gross"
                   value={`KES ${filteredPayrolls.reduce((sum: number, p: Payroll) => sum + (p.total_gross || 0), 0).toLocaleString()}`}
@@ -822,7 +1068,7 @@ const PayrollManagement: React.FC = () => {
                   color="#3b82f6"
                 />
               </Col>
-              <Col xs={12} md={6}>
+              <Col xs={24} sm={12} md={6}>
                 <StatCard
                   title="Total Net"
                   value={`KES ${filteredPayrolls.reduce((sum: number, p: Payroll) => sum + (p.total_net || 0), 0).toLocaleString()}`}
@@ -830,7 +1076,7 @@ const PayrollManagement: React.FC = () => {
                   color="#10b981"
                 />
               </Col>
-              <Col xs={12} md={6}>
+              <Col xs={24} sm={12} md={6}>
                 <StatCard
                   title="Total Deductions"
                   value={`KES ${filteredPayrolls.reduce((sum: number, p: Payroll) => sum + (p.total_deductions || 0), 0).toLocaleString()}`}
@@ -849,6 +1095,32 @@ const PayrollManagement: React.FC = () => {
                 loading={isLoading}
                 pagination={{ pageSize: 10 }}
                 size="small"
+                scroll={{ x: 1350 }}
+                summary={() => {
+                  const sum = (field: keyof Payroll) =>
+                    filteredPayrolls.reduce((s: number, p: any) => s + (p[field] || 0), 0);
+                  const cellStyle: React.CSSProperties = { fontSize: 12, fontWeight: 700 };
+                  return (
+                    <Table.Summary.Row style={{ background: "#f8fafc" }}>
+                      <Table.Summary.Cell index={0} colSpan={3}>
+                        <Text strong style={{ fontSize: 12 }}>TOTALS</Text>
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={3} align="right">
+                        <Text style={cellStyle}>KES {sum("total_gross").toLocaleString()}</Text>
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={4} align="right"><Text style={{ ...cellStyle, color: "#ef4444" }}>{sum("total_paye").toLocaleString()}</Text></Table.Summary.Cell>
+                      <Table.Summary.Cell index={5} align="right"><Text style={{ ...cellStyle, color: "#ef4444" }}>{sum("total_nssf").toLocaleString()}</Text></Table.Summary.Cell>
+                      <Table.Summary.Cell index={6} align="right"><Text style={{ ...cellStyle, color: "#ef4444" }}>{sum("total_nhif").toLocaleString()}</Text></Table.Summary.Cell>
+                      <Table.Summary.Cell index={7} align="right"><Text style={{ ...cellStyle, color: "#ef4444" }}>{sum("total_housing_levy").toLocaleString()}</Text></Table.Summary.Cell>
+                      <Table.Summary.Cell index={8} align="right"><Text style={{ ...cellStyle, color: "#ef4444" }}>{sum("total_nita").toLocaleString()}</Text></Table.Summary.Cell>
+                      <Table.Summary.Cell index={9} align="right"><Text style={{ ...cellStyle, color: "#ef4444" }}>{sum("total_custom_deductions").toLocaleString()}</Text></Table.Summary.Cell>
+                      <Table.Summary.Cell index={10} align="right">
+                        <Text style={{ ...cellStyle, color: "#10b981" }}>KES {sum("total_net").toLocaleString()}</Text>
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={11} colSpan={2} />
+                    </Table.Summary.Row>
+                  );
+                }}
                 locale={{
                   emptyText: (
                     <Empty
@@ -863,6 +1135,7 @@ const PayrollManagement: React.FC = () => {
           </Tabs.TabPane>
         ))}
 
+        {canUpdatePayroll && (
         <Tabs.TabPane tab="Deduction Settings" key="deductions">
           <Card>
             <div style={{ marginBottom: 16, display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>
@@ -1133,22 +1406,6 @@ const PayrollManagement: React.FC = () => {
                   <Row gutter={16}>
                     <Col span={12}>
                       <Form.Item
-                        name="sha_employer_rate"
-                        label="Employer Rate (%)"
-                        initialValue={2.75}
-                        rules={[{ required: true, message: "Required" }]}
-                      >
-                        <InputNumber
-                          min={0}
-                          max={100}
-                          step={0.25}
-                          style={{ width: "100%" }}
-                          addonAfter="%"
-                        />
-                      </Form.Item>
-                    </Col>
-                    <Col span={12}>
-                      <Form.Item
                         name="sha_income_limit"
                         label="Income Limit (KES)"
                         initialValue={100000}
@@ -1163,7 +1420,7 @@ const PayrollManagement: React.FC = () => {
                     </Col>
                   </Row>
                   <Text type="secondary" style={{ fontSize: 12 }}>
-                    SHA (Social Health Insurance) replaces NHIF. Both employee and employer contribute 2.75% of gross pay.
+                    SHA (Social Health Insurance) replaces NHIF. Employees contribute 2.75% of gross pay.
                   </Text>
                 </Form>
               </Tabs.TabPane>
@@ -1232,6 +1489,41 @@ const PayrollManagement: React.FC = () => {
                   </Row>
                   <Text type="secondary" style={{ fontSize: 12 }}>
                     Housing Levy is 1.5% of gross pay, shared equally between employee and employer.
+                  </Text>
+                </Form>
+              </Tabs.TabPane>
+
+              {/* ── NITA Settings ── */}
+              <Tabs.TabPane tab="NITA" key="nita">
+                <Form form={deductionForm} layout="vertical">
+                  <Row gutter={16}>
+                    <Col span={12}>
+                      <Form.Item
+                        name="nita_enabled"
+                        label="Enable NITA Levy"
+                        valuePropName="checked"
+                        initialValue={true}
+                      >
+                        <Switch />
+                      </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                      <Form.Item
+                        name="nita_amount"
+                        label="Amount per Employee (KES)"
+                        initialValue={50}
+                        rules={[{ required: true, message: "Required" }]}
+                      >
+                        <InputNumber
+                          min={0}
+                          style={{ width: "100%" }}
+                          addonBefore="KES"
+                        />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    NITA (National Industrial Training Authority) levy is a standard KES 50 deducted from every employee each month.
                   </Text>
                 </Form>
               </Tabs.TabPane>
@@ -1318,6 +1610,7 @@ const PayrollManagement: React.FC = () => {
             </Tabs>
           </Card>
         </Tabs.TabPane>
+        )}
       </Tabs>
 
       {/* ── Generate Payroll Modal (2 steps: configure → review) ── */}
@@ -1340,7 +1633,8 @@ const PayrollManagement: React.FC = () => {
           }
         }}
         footer={null}
-        width={generateStep === 0 ? 600 : 920}
+        width={isMobile ? "100%" : generateStep === 0 ? 600 : 1420}
+        style={generateStep === 1 || isMobile ? { top: isMobile ? 0 : 24 } : undefined}
       >
         <Steps
           current={generateStep}
@@ -1509,107 +1803,13 @@ const PayrollManagement: React.FC = () => {
                     rowKey="employee_id"
                     size="small"
                     pagination={false}
-                    scroll={{ y: 300 }}
+                    scroll={{ x: 1520, y: 300 }}
                     expandable={{
-                      expandedRowRender: (line: any) => {
-                        const items = [
-                          { label: "PAYE", value: line.deductions?.paye },
-                          { label: "NSSF", value: line.deductions?.nssf },
-                          { label: "SHA", value: line.deductions?.nhif },
-                          { label: "Housing Levy", value: line.deductions?.housing_levy },
-                          ...(line.deductions?.custom || []).map((c: any) => ({
-                            label: `${c.name} (custom)`,
-                            value: c.amount,
-                          })),
-                        ];
-                        return (
-                          <div
-                            style={{
-                              display: "flex",
-                              gap: 16,
-                              flexWrap: "wrap",
-                              padding: "8px 4px",
-                              background: "#fafafa",
-                              borderRadius: 8,
-                            }}
-                          >
-                            {/* Earnings */}
-                            <div style={{ minWidth: 180 }}>
-                              <Text style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", display: "block", marginBottom: 4 }}>
-                                Earnings
-                              </Text>
-                              {[
-                                { label: "Basic", value: line.basic_salary },
-                                { label: "Allowances", value: line.allowances },
-                                { label: "Benefits", value: line.benefits },
-                              ].map((e) => (
-                                <div key={e.label} style={{ display: "flex", justifyContent: "space-between", gap: 16, fontSize: 12 }}>
-                                  <Text style={{ color: "#64748b" }}>{e.label}</Text>
-                                  <Text>KES {(e.value ?? 0).toLocaleString()}</Text>
-                                </div>
-                              ))}
-                            </div>
-                            {/* Deductions */}
-                            <div style={{ minWidth: 200 }}>
-                              <Text style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", display: "block", marginBottom: 4 }}>
-                                Deductions
-                              </Text>
-                              {items.map((d) => (
-                                <div key={d.label} style={{ display: "flex", justifyContent: "space-between", gap: 16, fontSize: 12 }}>
-                                  <Text style={{ color: "#64748b" }}>{d.label}</Text>
-                                  <Text style={{ color: "#ef4444" }}>KES {(d.value ?? 0).toLocaleString()}</Text>
-                                </div>
-                              ))}
-                            </div>
-                            {/* Net */}
-                            <div style={{ marginLeft: "auto", alignSelf: "center" }}>
-                              <Text style={{ fontSize: 10, color: "#64748b", display: "block" }}>Net Pay</Text>
-                              <Text strong style={{ fontSize: 15, color: "#10b981" }}>
-                                KES {(line.net_pay ?? 0).toLocaleString()}
-                              </Text>
-                            </div>
-                          </div>
-                        );
-                      },
+                      expandedRowRender: (line: any) =>
+                        renderLineResults(line, previewData?.period_label || pendingGenerateParams?.period_label),
+                      expandRowByClick: true,
                     }}
-                    columns={[
-                      {
-                        title: "Employee",
-                        key: "employee",
-                        render: (_: any, line: any) => (
-                          <div>
-                            <Text style={{ fontSize: 12, fontWeight: 500, display: "block" }}>
-                              {line.fullname || line.employee_number || "—"}
-                            </Text>
-                            <Text style={{ fontSize: 11, color: "#94a3b8" }}>
-                              {[line.employee_number, line.job_title].filter(Boolean).join(" · ")}
-                            </Text>
-                          </div>
-                        ),
-                      },
-                      {
-                        title: "Gross",
-                        dataIndex: "gross_salary",
-                        align: "right",
-                        render: (v: number) => `KES ${(v ?? 0).toLocaleString()}`,
-                      },
-                      {
-                        title: "Deductions",
-                        dataIndex: ["deductions", "total"],
-                        align: "right",
-                        render: (v: number) => (
-                          <Text style={{ color: "#ef4444" }}>KES {(v ?? 0).toLocaleString()}</Text>
-                        ),
-                      },
-                      {
-                        title: "Net Pay",
-                        dataIndex: "net_pay",
-                        align: "right",
-                        render: (v: number) => (
-                          <Text strong style={{ color: "#10b981" }}>KES {(v ?? 0).toLocaleString()}</Text>
-                        ),
-                      },
-                    ]}
+                    columns={payrollLineColumns(true)}
                   />
                 </div>
               ))
@@ -1641,17 +1841,31 @@ const PayrollManagement: React.FC = () => {
           </div>
         )}
 
+        {/* Generation progress */}
+        {isGenerating && generateProgress && (
+          <div style={{ marginTop: 16 }}>
+            <Progress
+              percent={Math.round((generateProgress.done / generateProgress.total) * 100)}
+              status="active"
+            />
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              Generating payroll… {generateProgress.done} of {generateProgress.total}{" "}
+              {generateProgress.total === 1 ? "batch" : "department(s)"}
+            </Text>
+          </div>
+        )}
+
         {/* Footer */}
         <div style={{ display: "flex", justifyContent: "space-between", marginTop: 20 }}>
           {generateStep === 1 ? (
-            <Button onClick={() => setGenerateStep(0)} disabled={generateMutation.isLoading}>
+            <Button onClick={() => setGenerateStep(0)} disabled={isGenerating}>
               ← Back
             </Button>
           ) : (
             <span />
           )}
           <Space>
-            <Button onClick={closeGenerateModal} disabled={previewMutation.isLoading || generateMutation.isLoading}>
+            <Button onClick={closeGenerateModal} disabled={previewMutation.isLoading || isGenerating}>
               Cancel
             </Button>
             {generateStep === 0 ? (
@@ -1662,7 +1876,7 @@ const PayrollManagement: React.FC = () => {
               <Button
                 type="primary"
                 onClick={handleGeneratePayroll}
-                loading={generateMutation.isLoading}
+                loading={isGenerating}
                 disabled={!previewData || previewData.previews.length === 0}
               >
                 Generate Draft
@@ -1684,7 +1898,7 @@ const PayrollManagement: React.FC = () => {
         onOk={handleDuplicatePayroll}
         okText="Duplicate as Draft"
         confirmLoading={duplicateMutation.isLoading}
-        width={480}
+        width={isMobile ? "92%" : 480}
       >
         <Alert
           type="info"
@@ -1730,7 +1944,7 @@ const PayrollManagement: React.FC = () => {
         onOk={handleSaveLine}
         okText="Save Line"
         confirmLoading={updateLineMutation.isLoading}
-        width={560}
+        width={isMobile ? "94%" : 560}
       >
         <Alert
           type="info"
@@ -1821,7 +2035,7 @@ const PayrollManagement: React.FC = () => {
       <Drawer
         title="Payroll Details"
         placement="right"
-        width={640}
+        width={isMobile ? "100%" : Math.min(1280, window.innerWidth * 0.92)}
         open={isDetailDrawerOpen}
         onClose={() => setIsDetailDrawerOpen(false)}
         styles={{ body: { background: "#f8fafc", padding: 16 } }}
@@ -1850,9 +2064,29 @@ const PayrollManagement: React.FC = () => {
                   {dayjs(selectedPayroll.period_end).format("MMM D, YYYY")}
                 </Text>
               </div>
-              <Tag color={STATUS_CONFIG[selectedPayroll.status]?.color} style={{ margin: 0 }}>
-                {STATUS_CONFIG[selectedPayroll.status]?.label}
-              </Tag>
+              <Space size={8}>
+                  <Tooltip title="Download payroll (Muster Roll) as Excel">
+                    <Button
+                      size="small"
+                      icon={<FileExcelOutlined />}
+                      onClick={() => exportPayrollToExcel(selectedPayroll)}
+                    >
+                      Excel
+                    </Button>
+                  </Tooltip>
+                  <Tooltip title="Download payroll (Muster Roll) as PDF">
+                    <Button
+                      size="small"
+                      icon={<FilePdfOutlined />}
+                      onClick={() => exportPayrollToPDF(selectedPayroll)}
+                    >
+                      PDF
+                    </Button>
+                  </Tooltip>
+                  <Tag color={STATUS_CONFIG[selectedPayroll.status]?.color} style={{ margin: 0 }}>
+                    {STATUS_CONFIG[selectedPayroll.status]?.label}
+                  </Tag>
+                </Space>
             </div>
 
             {/* Totals */}
@@ -1905,6 +2139,7 @@ const PayrollManagement: React.FC = () => {
                   { label: "NSSF", value: selectedPayroll.total_nssf },
                   { label: "SHA", value: selectedPayroll.total_nhif },
                   { label: "Housing Levy", value: selectedPayroll.total_housing_levy },
+                  { label: "NITA", value: selectedPayroll.total_nita },
                   { label: "Custom", value: selectedPayroll.total_custom_deductions },
                 ].map((d) => (
                   <div
@@ -1940,121 +2175,36 @@ const PayrollManagement: React.FC = () => {
                 >
                   Payroll Lines ({selectedPayroll.lines?.length || 0})
                 </Text>
-                {selectedPayroll.status === "draft" && (
-                  <Text style={{ fontSize: 11, color: "#94a3b8" }}>Draft — lines can be edited</Text>
-                )}
+                <Space size={8}>
+                  <Radio.Group
+                    size="small"
+                    optionType="button"
+                    value={showEmployeeNames ? "name" : "number"}
+                    onChange={(e) => setShowEmployeeNames(e.target.value === "name")}
+                    options={[
+                      { label: "Name", value: "name" },
+                      { label: "Emp No.", value: "number" },
+                    ]}
+                  />
+                  {selectedPayroll.status === "draft" && (
+                    <Text style={{ fontSize: 11, color: "#94a3b8" }}>Draft — lines can be edited</Text>
+                  )}
+                </Space>
               </div>
               <Table
                 dataSource={selectedPayroll.lines || []}
                 rowKey={(record: any) => record._id || record.employee_id?._id}
                 size="small"
                 pagination={false}
-                scroll={{ y: 320 }}
+                scroll={{ x: 1520, y: 320 }}
                 expandable={{
-                  expandedRowRender: (line: any) => {
-                    const items = [
-                      { label: "PAYE", value: line.deductions?.paye },
-                      { label: "NSSF", value: line.deductions?.nssf },
-                      { label: "SHA", value: line.deductions?.nhif },
-                      { label: "Housing Levy", value: line.deductions?.housing_levy },
-                      ...(line.deductions?.custom || []).map((c: any) => ({
-                        label: `${c.name} (custom)`,
-                        value: c.amount,
-                      })),
-                    ];
-                    return (
-                      <div
-                        style={{
-                          display: "flex",
-                          gap: 16,
-                          flexWrap: "wrap",
-                          padding: "8px 4px",
-                          background: "#fafafa",
-                          borderRadius: 8,
-                        }}
-                      >
-                        <div style={{ minWidth: 180 }}>
-                          <Text style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", display: "block", marginBottom: 4 }}>
-                            Earnings
-                          </Text>
-                          {[
-                            { label: "Basic", value: line.basic_salary },
-                            { label: "Allowances", value: line.allowances },
-                            { label: "Benefits", value: line.benefits },
-                            { label: "Overtime", value: line.overtime_pay },
-                          ].map((e) => (
-                            <div key={e.label} style={{ display: "flex", justifyContent: "space-between", gap: 16, fontSize: 12 }}>
-                              <Text style={{ color: "#64748b" }}>{e.label}</Text>
-                              <Text>KES {(e.value ?? 0).toLocaleString()}</Text>
-                            </div>
-                          ))}
-                        </div>
-                        <div style={{ minWidth: 200 }}>
-                          <Text style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", display: "block", marginBottom: 4 }}>
-                            Deductions
-                          </Text>
-                          {items.map((d) => (
-                            <div key={d.label} style={{ display: "flex", justifyContent: "space-between", gap: 16, fontSize: 12 }}>
-                              <Text style={{ color: "#64748b" }}>{d.label}</Text>
-                              <Text style={{ color: "#ef4444" }}>KES {(d.value ?? 0).toLocaleString()}</Text>
-                            </div>
-                          ))}
-                        </div>
-                        <div style={{ marginLeft: "auto", alignSelf: "center" }}>
-                          <Text style={{ fontSize: 10, color: "#64748b", display: "block" }}>Net Pay</Text>
-                          <Text strong style={{ fontSize: 15, color: "#10b981" }}>
-                            KES {(line.net_pay ?? 0).toLocaleString()}
-                          </Text>
-                        </div>
-                      </div>
-                    );
-                  },
+                  expandedRowRender: (line: any) =>
+                    renderLineResults(line, selectedPayroll?.period_label),
+                  expandRowByClick: true,
                 }}
                 columns={[
-                  {
-                    title: "Employee",
-                    key: "employee",
-                    render: (_: any, line: any) => (
-                      <div>
-                        <Text style={{ fontSize: 12, fontWeight: 500, display: "block" }}>
-                          {line.employee_id?.user_id?.fullname ||
-                            line.employee_id?.fullname ||
-                            line.employee_id?.employee_number ||
-                            "—"}
-                        </Text>
-                        <Text style={{ fontSize: 11, color: "#94a3b8" }}>
-                          {[line.employee_id?.employee_number, line.employee_id?.job_title]
-                            .filter(Boolean)
-                            .join(" · ")}
-                        </Text>
-                      </div>
-                    ),
-                  },
-                  {
-                    title: "Gross",
-                    dataIndex: "gross_salary",
-                    align: "right",
-                    render: (val: number) => `KES ${(val ?? 0).toLocaleString()}`,
-                  },
-                  {
-                    title: "Deductions",
-                    dataIndex: ["deductions", "total"],
-                    align: "right",
-                    render: (val: number) => (
-                      <Text style={{ color: "#ef4444" }}>KES {(val || 0).toLocaleString()}</Text>
-                    ),
-                  },
-                  {
-                    title: "Net Pay",
-                    dataIndex: "net_pay",
-                    align: "right",
-                    render: (val: number) => (
-                      <Text style={{ color: "#10b981", fontWeight: 600 }}>
-                        KES {(val ?? 0).toLocaleString()}
-                      </Text>
-                    ),
-                  },
-                  ...(selectedPayroll.status === "draft"
+                  ...payrollLineColumns(showEmployeeNames),
+                  ...(selectedPayroll.status === "draft" && canUpdatePayroll
                     ? [
                         {
                           title: "",
