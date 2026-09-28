@@ -8,7 +8,6 @@ import {
   Divider,
   Alert,
   Switch,
-  Radio,
   Tag,
 } from "antd";
 import {
@@ -239,69 +238,7 @@ const NotificationSettings: React.FC = () => {
             </Space>
           </Card>
 
-          {/* WhatsApp Mode Configuration */}
-          <Card
-            title={
-              <Space>
-                <WhatsAppOutlined style={{ color: "#25D366" }} />
-                <Text strong>WhatsApp Mode Configuration</Text>
-              </Space>
-            }
-            style={{ borderRadius: 8 }}
-          >
-            <Alert
-              message="Mode Selection"
-              description="Choose between sandbox for testing or production for live messaging."
-              type="info"
-              showIcon
-              style={{ marginBottom: 16 }}
-            />
-            
-            <Radio.Group 
-              value={whatsappMode} 
-              onChange={(e) => setWhatsappMode(e.target.value)}
-              style={{ marginBottom: 16, width: '100%' }}
-            >
-              <Space direction="vertical" style={{ width: '100%' }}>
-                <Radio value="sandbox">
-                  <div>
-                    <strong>Sandbox Mode</strong>
-                    <div style={{ fontSize: 12, color: '#666' }}>
-                      Testing with Twilio sandbox number (+1 415 523 8886)
-                    </div>
-                  </div>
-                </Radio>
-                <Radio value="production">
-                  <div>
-                    <strong>Production Mode</strong>
-                    <div style={{ fontSize: 12, color: '#666' }}>
-                      Live messaging with registered WhatsApp numbers
-                    </div>
-                  </div>
-                </Radio>
-              </Space>
-            </Radio.Group>
-
-            {whatsappMode === 'sandbox' && (
-              <Alert
-                message="Sandbox Mode Active"
-                description="Recipients must send 'join knowledge-could' to +1 415 523 8886 to receive messages."
-                type="warning"
-                showIcon
-                style={{ marginBottom: 16 }}
-              />
-            )}
-
-            {whatsappMode === 'production' && (
-              <Alert
-                message="Production Mode Active"
-                description="Set up your WhatsApp sender in the WhatsApp Registration tab to enable live messaging."
-                type="success"
-                showIcon
-                style={{ marginBottom: 16 }}
-              />
-            )}
-          </Card>
+          {/* WhatsApp mode configuration hidden — sender registration tab removed */}
 
           {/* Save Button */}
           <div style={{ textAlign: "right" }}>

@@ -22,6 +22,7 @@ import {
   ReloadOutlined,
   FieldTimeOutlined,
   DeleteOutlined,
+  ScanOutlined,
 } from "@ant-design/icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchAllAttendance, fetchClockStatus, deleteClockRecord } from "@services/hr/leave";
@@ -189,6 +190,19 @@ const AttendanceTracking: React.FC = () => {
           </Text>
         );
       },
+    },
+    {
+      title: "Source",
+      key: "source",
+      width: 90,
+      render: (_: unknown, record: any) =>
+        record.source === "biometric" ? (
+          <Tag color="purple" icon={<ScanOutlined />} style={{ margin: 0 }}>
+            Biometric
+          </Tag>
+        ) : (
+          <Tag color="default" style={{ margin: 0 }}>Manual</Tag>
+        ),
     },
     {
       title: "Status",

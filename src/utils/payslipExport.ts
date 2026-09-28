@@ -75,7 +75,7 @@ const payslipRows = (p: any) => {
     ['N.S.S.F.', fmt(d.nssf)],
     ['SHIF (NHIF)', fmt(d.nhif)],
     ['Housing Levy', fmt(d.housing_levy)],
-    ...(d.nita || 0) > 0 ? [['NITA', fmt(d.nita)] as [string, string]] : [],
+    ...(d.withholding_tax || 0) > 0 ? [['Withholding Tax', fmt(d.withholding_tax)] as [string, string]] : [],
     ...custom.map((c: any): [string, string] => [c.name, fmt(c.amount)]),
     ['TOTAL DEDUCTIONS', fmt(d.total)],
   ];
@@ -92,6 +92,7 @@ const getExportContext = async (headerOverride?: PayslipHeaderMode) => {
   let kraPin: string | undefined;
   let address: string | undefined;
   let headerMode: PayslipHeaderMode = 'company';
+  let p9HideEmployer = false;
   try {
     const s = await fetchSystemSetupDetailsById();
     company = s?.name || s?.business_name || tenant.tenant_name || 'Company';
@@ -99,11 +100,12 @@ const getExportContext = async (headerOverride?: PayslipHeaderMode) => {
     address = s?.location || s?.address || tenant.address;
     const ps = s?.payroll_settings || {};
     if (ps.payslip_export_header === 'department') headerMode = 'department';
+    p9HideEmployer = !!ps.p9_hide_employer;
   } catch {
     company = tenant.tenant_name || 'Company';
   }
   if (headerOverride) headerMode = headerOverride;
-  return { company, kraPin, address, user, primary: hexToRgb(getPrimaryColor()), headerMode };
+  return { company, kraPin, address, user, primary: hexToRgb(getPrimaryColor()), headerMode, p9HideEmployer };
 };
 
 // The name that appears at the top of an exported payslip
@@ -131,8 +133,10 @@ export const renderPayslipPage = (
   const [pr, pg, pb] = primary;
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 32;
-  const contentWidth = pageWidth - margin * 2;
+  // Squeeze the payslip into a centered column — figures stay compact in the
+  // middle of the page instead of stretching edge-to-edge (privacy-friendly)
+  const contentWidth = Math.min(pageWidth * 0.48, 300);
+  const margin = (pageWidth - contentWidth) / 2;
   const { infoRows, earningsRows, payeRows, deductionRows, netPay } = payslipRows(payslip);
 
   if (!isFirstPage) doc.addPage();
@@ -169,9 +173,9 @@ export const renderPayslipPage = (
     theme: 'grid',
     styles: { fontSize: 8, cellPadding: 2.5, lineColor: [203, 213, 225], lineWidth: 0.4 },
     columnStyles: {
-      0: { fontStyle: 'bold', cellWidth: 92, textColor: [71, 85, 105] },
-      1: { cellWidth: 120 },
-      2: { fontStyle: 'bold', cellWidth: 92, textColor: [71, 85, 105] },
+      0: { fontStyle: 'bold', cellWidth: 62, textColor: [71, 85, 105] },
+      1: { cellWidth: 68 },
+      2: { fontStyle: 'bold', cellWidth: 62, textColor: [71, 85, 105] },
       3: {},
     },
     margin: { left: margin, right: margin },
@@ -187,7 +191,7 @@ export const renderPayslipPage = (
       headStyles: { fillColor: [pr, pg, pb], textColor: 255, fontSize: 8.5, fontStyle: 'bold' },
       styles: { fontSize: 8.5, cellPadding: 3, lineColor: [203, 213, 225], lineWidth: 0.4 },
       columnStyles: {
-        0: { fontStyle: 'bold', cellWidth: 220, textColor: [51, 65, 85] },
+        0: { fontStyle: 'bold', cellWidth: 190, textColor: [51, 65, 85] },
         1: { halign: 'right' },
       },
       margin: { left: margin, right: margin },
@@ -228,11 +232,10 @@ export const renderPayslipPage = (
   });
 };
 
-export const generatePayslipsPDF = async (payslips: any[], headerMode?: PayslipHeaderMode) => {
-  if (!payslips.length) {
-    message.warning('No payslips to export for the current filter');
-    return;
-  }
+// Build a payslip PDF document without saving — returns the jsPDF instance
+// (used for email attachments via doc.output('datauristring'))
+export const buildPayslipsPDFDoc = async (payslips: any[], headerMode?: PayslipHeaderMode) => {
+  if (!payslips.length) return null;
   const ctx = await getExportContext(headerMode);
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
 
@@ -245,14 +248,23 @@ export const generatePayslipsPDF = async (payslips: any[], headerMode?: PayslipH
       console.error(`Failed to render payslip ${p?._id}:`, err);
     }
   }
-  if (!rendered) {
+  return rendered ? doc : null;
+};
+
+export const generatePayslipsPDF = async (payslips: any[], headerMode?: PayslipHeaderMode) => {
+  if (!payslips.length) {
+    message.warning('No payslips to export for the current filter');
+    return;
+  }
+  const doc = await buildPayslipsPDFDoc(payslips, headerMode);
+  if (!doc) {
     message.error('Export failed — no payslips could be rendered');
     return;
   }
 
   const period = payslips[0]?.period_label?.replace(/\s+/g, '_') || 'export';
   doc.save(`payslips_${period}.pdf`);
-  message.success(`Exported ${rendered} payslip${rendered === 1 ? '' : 's'} to PDF`);
+  message.success(`Exported ${payslips.length} payslip${payslips.length === 1 ? '' : 's'} to PDF`);
 };
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -264,12 +276,15 @@ const sanitizeSheetName = (name: string, fallback: string) =>
 // ═════════════════════════════════════════════════════════════════════════════
 // P9 — Excel export of the official KRA income tax deduction card (columns A–O)
 // ═════════════════════════════════════════════════════════════════════════════
-export const exportP9ToExcel = async (payslips: any[], year: number) => {
+export const exportP9ToExcel = async (payslips: any[], year: number, opts?: { hideEmployer?: boolean }) => {
   if (!payslips.length) {
     message.warning('No payslips to export for the selected year');
     return;
   }
-  const { company, kraPin } = await getExportContext();
+  const ctx = await getExportContext();
+  const hideEmployer = opts?.hideEmployer ?? ctx.p9HideEmployer;
+  const company = hideEmployer ? '' : ctx.company;
+  const kraPin = hideEmployer ? '' : ctx.kraPin;
   const emp = payslips[0]?.employee_id || {};
   const empName = employeeName(payslips[0]);
 
@@ -302,9 +317,12 @@ export const exportP9ToExcel = async (payslips: any[], year: number) => {
     [company.toUpperCase()],
     [`KENYA REVENUE AUTHORITY — INCOME TAX DEDUCTION CARD YEAR ${year}`],
     [],
-    ["Employer's Name:", company, '', "Employer's P.I.N.:", kraPin || ''],
+    // Privacy mode drops the employer labels entirely, not just the values
+    ...(hideEmployer
+      ? [[]]
+      : [["Employer's Name:", company, '', "Employer's P.I.N.:", kraPin || '']]),
     ["Employee's Main Name:", empName, '', "Employee's P.I.N.:", emp.kra_pin || ''],
-    ["Employee's Other Names:", emp.other_names || ''],
+    [],
     [],
     // Header row 1 — grouped
     [
@@ -458,7 +476,7 @@ export const exportPayslipsToExcel = async (payslips: any[], headerMode?: Paysli
   // ── Summary sheet ──
   const summaryHead = [
     'Employee', 'Employee No', 'Department', 'Period',
-    'Gross', 'PAYE', 'NSSF', 'SHIF', 'Housing Levy', 'NITA',
+    'Gross', 'PAYE', 'NSSF', 'SHIF', 'Housing Levy', 'WHT',
     'Other', 'Total Deductions', 'Net Pay', 'Emailed',
   ];
   const summaryBody = payslips.map((p: any) => [
@@ -471,7 +489,7 @@ export const exportPayslipsToExcel = async (payslips: any[], headerMode?: Paysli
     p.deductions?.nssf || 0,
     p.deductions?.nhif || 0,
     p.deductions?.housing_levy || 0,
-    p.deductions?.nita || 0,
+    p.deductions?.withholding_tax || 0,
     (p.deductions?.custom || []).reduce((s: number, c: any) => s + (c.amount || 0), 0),
     p.deductions?.total || 0,
     p.net_pay || 0,

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Card,
   Table,
@@ -28,11 +28,14 @@ import {
   Progress,
   Dropdown,
   Grid,
+  Segmented,
+  AutoComplete,
 } from "antd";
 import {
   DollarOutlined,
   PlusOutlined,
   CheckCircleOutlined,
+  CloseCircleOutlined,
   ClockCircleOutlined,
   EyeOutlined,
   FileTextOutlined,
@@ -60,6 +63,7 @@ import {
   saveDeductionSettings,
   submitPayrollForApproval,
   approvePayrollRequest,
+  rejectPayrollRequest,
   generateBatchPayslips,
   previewPayroll,
   duplicatePayroll,
@@ -67,6 +71,7 @@ import {
   processPayrollRequest,
   markPayrollPaid,
   initializeDeductionSettings,
+  fetchDeductionConfigs,
   getPayrollById,
   Payroll,
   GeneratePayrollParams,
@@ -150,20 +155,31 @@ const PayrollManagement: React.FC = () => {
   const [selectedPayroll, setSelectedPayroll] = useState<Payroll | null>(null);
   const [payrollMode, setPayrollMode] = useState<"department" | "employee">("department");
   const [activeTab, setActiveTab] = useState("draft");
-  const [filterYear, setFilterYear] = useState<number | undefined>(undefined);
-  const [filterMonth, setFilterMonth] = useState<number | undefined>(undefined);
+  const [filterYear, setFilterYear] = useState<number | undefined>(new Date().getFullYear());
+  const [filterMonth, setFilterMonth] = useState<number | undefined>(new Date().getMonth() + 1);
   const [filterDept, setFilterDept] = useState<string | undefined>(undefined);
   // Payroll detail drawer — toggle between employee names and numbers
   const [showEmployeeNames, setShowEmployeeNames] = useState(true);
   const [form] = Form.useForm();
   const [deductionForm] = Form.useForm();
   const [customDeductions, setCustomDeductions] = useState<
-    Array<{ id: string; name: string; amount: number; is_percentage: boolean }>
+    Array<{ id: string; _id?: string; name: string; amount: number; is_percentage: boolean; end_date?: string | null }>
   >([]);
+  // Custom configs removed in the UI — sent as deleted_custom_ids on save
+  const [deletedCustomIds, setDeletedCustomIds] = useState<string[]>([]);
 
   // Generate modal 2-step state: 0 = configure, 1 = review computed preview
   const [generateStep, setGenerateStep] = useState<0 | 1>(0);
   const [previewData, setPreviewData] = useState<PayrollPreviewResult | null>(null);
+
+  // Bulk row selection — toolbar actions appear when payrolls are picked.
+  // Employees view selects payroll *lines*; actions apply to their parent payrolls.
+  const [selectedPayrollIds, setSelectedPayrollIds] = useState<string[]>([]);
+  const [selectedLineKeys, setSelectedLineKeys] = useState<string[]>([]);
+  const [bulkBusy, setBulkBusy] = useState(false);
+
+  // Payroll list view — flat employee lines (default) or grouped by department
+  const [payrollView, setPayrollView] = useState<"employees" | "branches">("employees");
   const [pendingGenerateParams, setPendingGenerateParams] = useState<GeneratePayrollParams | null>(null);
 
   // Duplicate payroll modal state
@@ -178,6 +194,33 @@ const PayrollManagement: React.FC = () => {
   const [lineCustomDeductions, setLineCustomDeductions] = useState<
     Array<{ key: number; name: string; amount: number }>
   >([]);
+
+  // Preview-line edit — per-employee overrides recomputed server-side
+  const [isPreviewLineModalOpen, setIsPreviewLineModalOpen] = useState(false);
+  const [editingPreviewLine, setEditingPreviewLine] = useState<any>(null);
+  const [previewOverrides, setPreviewOverrides] = useState<Record<string, any>>({});
+
+  // Configured deduction types — custom entries (loans, advances…) persist here
+  const { data: deductionConfigs } = useQuery({
+    queryKey: ["deduction-configs"],
+    queryFn: () => fetchDeductionConfigs(),
+  });
+
+  useEffect(() => {
+    if (!deductionConfigs) return;
+    setCustomDeductions(
+      deductionConfigs
+        .filter((c: any) => c.deduction_type === "CUSTOM")
+        .map((c: any) => ({
+          id: c._id,
+          _id: c._id,
+          name: c.name,
+          amount: c.calculation_method === "percentage" ? (c.rate || 0) * 100 : (c.fixed_amount || 0),
+          is_percentage: c.calculation_method === "percentage",
+          end_date: c.end_date || null,
+        }))
+    );
+  }, [deductionConfigs]);
 
   // Fetch payrolls
   const { data: payrollsData, isLoading } = useQuery({
@@ -245,7 +288,7 @@ const PayrollManagement: React.FC = () => {
     const relief = d.personal_relief ?? 0;
     const paye = d.paye ?? Math.max(0, incomeTax - relief);
     const payAfterTax = taxable - paye;
-    const nita = d.nita || 0;
+    const wht = d.withholding_tax || 0;
     const customTotal = (d.custom || []).reduce((s: number, c: any) => s + (c.amount || 0), 0);
 
     const f = (v: any) =>
@@ -271,7 +314,7 @@ const PayrollManagement: React.FC = () => {
         <Row label="Personal Relief" value={-relief} />
         <Row label="P.A.Y.E" value={paye} strong color="#ef4444" />
         <Row label="Pay After Tax" value={payAfterTax} strong />
-        {nita > 0 && <Row label="NITA" value={-nita} color="#64748b" />}
+        {wht > 0 && <Row label="Withholding Tax" value={-wht} color="#64748b" />}
         {customTotal > 0 && <Row label="Other Deductions" value={-customTotal} color="#64748b" />}
         <Row label="Net Pay" value={line.net_pay} strong color="#10b981" />
       </div>
@@ -287,6 +330,7 @@ const PayrollManagement: React.FC = () => {
     width = 96
   ) => ({
     title,
+    key: title,
     align: "right" as const,
     width,
     render: (_: any, line: any) => (
@@ -296,7 +340,16 @@ const PayrollManagement: React.FC = () => {
     ),
   });
 
-  const payrollLineColumns = (showNames: boolean) => [
+  const payrollLineColumns = (showNames: boolean, lines?: any[]) => {
+    // Hide Allowances / Benefits / Overtime when every line has zero
+    const hideZero = (key: string, getter: (l: any) => number | undefined) =>
+      !!lines && lines.length > 0 && lines.every((l) => !(getter(l) || 0));
+    const hidden = {
+      Allowances: hideZero("Allowances", (l) => l.allowances),
+      Benefits: hideZero("Benefits", (l) => l.benefits),
+      Overtime: hideZero("Overtime", (l) => l.overtime_pay),
+    };
+    return [
     {
       title: "Employee",
       key: "employee",
@@ -334,21 +387,119 @@ const PayrollManagement: React.FC = () => {
     moneyCol("Overtime", (l) => l.overtime_pay, undefined, false, 80),
     moneyCol("Gross Pay", (l) => l.gross_salary, undefined, true),
     moneyCol("S.H.I.F.", (l) => l.deductions?.nhif, undefined, false, 80),
-    moneyCol("N.S.S.F.", (l) => l.deductions?.nssf, undefined, false, 80),
-    moneyCol("Housing Levy", (l) => l.deductions?.housing_levy, undefined, false, 90),
-    moneyCol("NITA", (l) => l.deductions?.nita, undefined, false, 70),
+    // NSSF & Housing Levy are matched contributions — show employee + employer
+    // shares and the combined total (old payrolls lack employer_* fields; the
+    // employer share equals the employee's for both levies)
+    {
+      title: "N.S.S.F. (EE / ER / Σ)",
+      key: "nssf",
+      align: "right" as const,
+      width: 115,
+      render: (_: any, l: any) => {
+        const ee = l.deductions?.nssf || 0;
+        const er = l.deductions?.employer_nssf ?? ee;
+        return (
+          <div style={{ lineHeight: 1.4 }}>
+            <Text style={{ fontSize: 11 }}>{ee.toLocaleString()}</Text>
+            <Text style={{ fontSize: 11, color: "#64748b" }}> / {er.toLocaleString()} / </Text>
+            <Text strong style={{ fontSize: 11 }}>{(ee + er).toLocaleString()}</Text>
+          </div>
+        );
+      },
+    },
+    {
+      title: "Housing Levy (EE / ER / Σ)",
+      key: "housing_levy",
+      align: "right" as const,
+      width: 115,
+      render: (_: any, l: any) => {
+        const ee = l.deductions?.housing_levy || 0;
+        const er = l.deductions?.employer_housing_levy ?? ee;
+        return (
+          <div style={{ lineHeight: 1.4 }}>
+            <Text style={{ fontSize: 11 }}>{ee.toLocaleString()}</Text>
+            <Text style={{ fontSize: 11, color: "#64748b" }}> / {er.toLocaleString()} / </Text>
+            <Text strong style={{ fontSize: 11 }}>{(ee + er).toLocaleString()}</Text>
+          </div>
+        );
+      },
+    },
+    moneyCol("WHT", (l) => l.deductions?.withholding_tax, undefined, false, 70),
     moneyCol("PAYE (Tax)", (l) => l.deductions?.paye, undefined, false, 90),
-    moneyCol("Other", (l) => (l.deductions?.custom || []).reduce((s: number, c: any) => s + (c.amount || 0), 0), undefined, false, 80),
+    // Custom deductions shown as named columns (loans, advances…) instead of a
+    // generic "Other" bucket — one column per name present in the data
+    ...(lines
+      ? Array.from(
+          new Set(
+            lines.flatMap((l) => (l.deductions?.custom || []).map((c: any) => c.name).filter(Boolean))
+          )
+        ).map((name) =>
+          moneyCol(
+            String(name),
+            (l) => (l.deductions?.custom || []).find((c: any) => c.name === name)?.amount || 0,
+            undefined,
+            false,
+            90
+          )
+        )
+      : []),
     moneyCol("Total Deductions", (l) => l.deductions?.total, "#ef4444", true, 110),
     moneyCol("Net Pay", (l) => l.net_pay, "#10b981", true),
     // Single employer-side total — per-deduction employer columns stay in the exports
     moneyCol(
       "Employer Contrib.",
-      (l) => (l.deductions?.nssf || 0) + (l.deductions?.housing_levy || 0) + (l.deductions?.nita || 0),
+      (l) =>
+        (l.deductions?.employer_nssf ?? l.deductions?.nssf ?? 0) +
+        (l.deductions?.employer_housing_levy ?? l.deductions?.housing_levy ?? 0) +
+        (l.deductions?.employer_nita ?? l.deductions?.nita ?? 0),
       "#64748b",
       false,
       115
     ),
+    ].filter((c: any) => !hidden[c.title as keyof typeof hidden]);
+  };
+
+  // Employees view — flat payroll-line rows across all payrolls in the tab
+  const employeeRows = React.useMemo(
+    () =>
+      filteredPayrolls.flatMap((p: Payroll) =>
+        (p.lines || []).map((l: any) => ({ ...l, _payroll: p }))
+      ),
+    [filteredPayrolls]
+  );
+
+  const lineKey = (r: any) =>
+    r._id || `${r._payroll?._id}-${r.employee_id?._id || r.employee_id}`;
+
+  const employeeViewColumns = [
+    payrollLineColumns(showEmployeeNames, employeeRows)[0],
+    {
+      title: "Department",
+      key: "department",
+      width: 130,
+      render: (_: any, l: any) => (
+        <Text style={{ fontSize: 12 }}>{l._payroll?.department_id?.name || "—"}</Text>
+      ),
+    },
+    {
+      title: "Period",
+      key: "period",
+      width: 110,
+      render: (_: any, l: any) => (
+        <Text style={{ fontSize: 12 }}>{l._payroll?.period_label || "—"}</Text>
+      ),
+    },
+    ...payrollLineColumns(showEmployeeNames, employeeRows).slice(1),
+    {
+      title: "Status",
+      key: "status",
+      width: 105,
+      render: (_: any, l: any) => {
+        const s = l._payroll?.status;
+        const cfg = STATUS_CONFIG[s] || { color: "default", label: s || "—" };
+        return <Tag color={cfg.color}>{cfg.label}</Tag>;
+      },
+    },
   ];
 
   // Generate payroll mutation
@@ -447,9 +598,12 @@ const PayrollManagement: React.FC = () => {
       housing_levy_rate: 1.5,
       housing_levy_income_limit: 0,
       housing_levy_employee_share: 50,
-      // NITA — flat KES 50 per employee
+      // NITA — flat KES 50 per employee (employer-paid)
       nita_enabled: true,
       nita_amount: 50,
+      // Withholding Tax — 5% for consultants
+      withholding_tax_enabled: true,
+      withholding_tax_rate: 5,
     });
     message.success("Form filled with current Kenyan statutory rates — review then Save Settings");
   };
@@ -457,10 +611,26 @@ const PayrollManagement: React.FC = () => {
   const handleSaveDeductions = async () => {
     try {
       const values = await deductionForm.validateFields();
-      saveDeductionMutation.mutate({
-        ...values,
-        custom_deductions: customDeductions,
-      });
+      saveDeductionMutation.mutate(
+        {
+          ...values,
+          // Persisted customs keep their _id; new rows have none (created by name)
+          custom_deductions: customDeductions.map((d) => ({
+            _id: d._id,
+            name: d.name,
+            amount: d.amount,
+            is_percentage: d.is_percentage,
+            end_date: d.end_date || null,
+          })),
+          deleted_custom_ids: deletedCustomIds,
+        },
+        {
+          onSuccess: () => {
+            setDeletedCustomIds([]);
+            queryClient.invalidateQueries({ queryKey: ["deduction-configs"] });
+          },
+        }
+      );
     } catch (error) {
       console.error("Validation failed:", error);
     }
@@ -468,7 +638,7 @@ const PayrollManagement: React.FC = () => {
 
   const addCustomDeduction = () => {
     const newDeduction = {
-      id: Date.now().toString(),
+      id: `new-${Date.now()}`,
       name: "",
       amount: 0,
       is_percentage: false,
@@ -477,6 +647,8 @@ const PayrollManagement: React.FC = () => {
   };
 
   const removeCustomDeduction = (id: string) => {
+    const removed = customDeductions.find((d) => d.id === id);
+    if (removed?._id) setDeletedCustomIds([...deletedCustomIds, removed._id]);
     setCustomDeductions(customDeductions.filter((d) => d.id !== id));
   };
 
@@ -501,6 +673,84 @@ const PayrollManagement: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ["payrolls"] });
     },
   });
+
+  // Reject payroll mutation — returns pending_approval payrolls to drafts
+  const rejectMutation = useMutation({
+    mutationFn: ({ payrollId, reason }: { payrollId: string; reason?: string }) =>
+      rejectPayrollRequest(payrollId, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["payrolls"] });
+    },
+  });
+
+  const handleRejectPayroll = (payroll: Payroll) => {
+    let reason = "";
+    Modal.confirm({
+      title:
+        payroll.status === "pending_approval"
+          ? "Reject this payroll?"
+          : "Return this payroll to drafts?",
+      content: (
+        <div>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            It will be moved back to Drafts for amendments.
+            {payroll.status === "processed" && " The accounting entry will be reversed."}
+          </Text>
+          <Input.TextArea
+            rows={2}
+            placeholder="Reason (optional)"
+            style={{ marginTop: 8 }}
+            onChange={(e) => { reason = e.target.value; }}
+          />
+        </div>
+      ),
+      okText: payroll.status === "pending_approval" ? "Reject" : "Return to Drafts",
+      okButtonProps: { danger: true },
+      onOk: () =>
+        rejectMutation.mutate({ payrollId: payroll._id, reason: reason.trim() || undefined }),
+    });
+  };
+
+  // ── Bulk actions on selected payrolls ────────────────────────────────────
+  const runBulk = async (label: string, fn: (id: string) => Promise<any>) => {
+    setBulkBusy(true);
+    try {
+      const results = await Promise.allSettled(selectedPayrolls.map((p) => fn(p._id)));
+      const ok = results.filter((r) => r.status === "fulfilled").length;
+      const failed = results.length - ok;
+      if (failed === 0) message.success(`${label} — ${ok} payroll(s)`);
+      else if (ok === 0) message.error(`${label} failed for all ${results.length} payroll(s)`);
+      else message.warning(`${label} — ${ok} succeeded, ${failed} failed`);
+      queryClient.invalidateQueries({ queryKey: ["payrolls"] });
+    } finally {
+      setBulkBusy(false);
+      setSelectedPayrollIds([]);
+      setSelectedLineKeys([]);
+    }
+  };
+
+  const handleBulkReject = () => {
+    let reason = "";
+    Modal.confirm({
+      title: `Return ${selectedPayrolls.length} payroll(s) to drafts?`,
+      content: (
+        <div>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            They will be moved back to Drafts for amendments. Accounting entries already posted will be reversed.
+          </Text>
+          <Input.TextArea
+            rows={2}
+            placeholder="Reason for rejection (optional — applies to all)"
+            style={{ marginTop: 8 }}
+            onChange={(e) => { reason = e.target.value; }}
+          />
+        </div>
+      ),
+      okText: "Return to Drafts",
+      okButtonProps: { danger: true },
+      onOk: () => runBulk("Return to drafts", (id) => rejectPayrollRequest(id, reason.trim() || undefined)),
+    });
+  };
 
   // Process payroll mutation (approved → processed, posts accrual JE)
   const processMutation = useMutation({
@@ -601,8 +851,8 @@ const PayrollManagement: React.FC = () => {
 
     const { department_ids, employee_ids, ...rest } = pendingGenerateParams;
     const chunks: GeneratePayrollParams[] = department_ids?.length
-      ? department_ids.map((id) => ({ ...rest, department_ids: [id] }))
-      : [{ ...rest, employee_ids }];
+      ? department_ids.map((id) => ({ ...rest, department_ids: [id], overrides: previewOverrides }))
+      : [{ ...rest, employee_ids, overrides: previewOverrides }];
 
     setIsGenerating(true);
     setGenerateProgress({ done: 0, total: chunks.length });
@@ -639,6 +889,7 @@ const PayrollManagement: React.FC = () => {
     setGenerateStep(0);
     setPreviewData(null);
     setPendingGenerateParams(null);
+    setPreviewOverrides({});
     form.resetFields();
     setPayrollMode("department");
   };
@@ -670,6 +921,125 @@ const PayrollManagement: React.FC = () => {
     } catch (error) {
       console.error("Validation failed:", error);
     }
+  };
+
+  // Shared line-edit form — used by the draft line modal and the preview edit modal
+  const renderLineEditForm = () => {
+    const configuredCustoms = (deductionConfigs || []).filter(
+      (c: any) => c.deduction_type === "CUSTOM" && c.is_active !== false
+    );
+    return (
+      <Form form={lineForm} layout="vertical">
+        <Row gutter={12}>
+          <Col span={12}>
+            <Form.Item name="basic_salary" label="Basic Salary" rules={[{ required: true }]}>
+              <InputNumber min={0} style={{ width: "100%" }} addonBefore="KES" />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item name="allowances" label="Allowances">
+              <InputNumber min={0} style={{ width: "100%" }} addonBefore="KES" />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item name="benefits" label="Benefits">
+              <InputNumber min={0} style={{ width: "100%" }} addonBefore="KES" />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item name="overtime_hours" label="Overtime Hours">
+              <InputNumber min={0} style={{ width: "100%" }} addonAfter="hrs" />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item
+              name="overtime_pay"
+              label="Overtime Pay"
+              tooltip="Only used when overtime hours are left blank"
+            >
+              <InputNumber min={0} style={{ width: "100%" }} addonBefore="KES" />
+            </Form.Item>
+          </Col>
+        </Row>
+
+        <Divider style={{ margin: "8px 0 12px" }}>
+          <Text style={{ fontSize: 11, color: "#64748b", textTransform: "uppercase" }}>
+            Custom Deductions — loans, advances, union dues…
+          </Text>
+        </Divider>
+
+        {lineCustomDeductions.map((ded) => (
+          <Row key={ded.key} gutter={8} style={{ marginBottom: 8 }}>
+            <Col span={14}>
+              <AutoComplete
+                style={{ width: "100%" }}
+                allowClear
+                placeholder="Deduction name — pick configured or type custom"
+                value={ded.name}
+                options={configuredCustoms.map((c: any) => ({ value: c.name }))}
+                getPopupContainer={(node) => node.parentElement as HTMLElement}
+                filterOption={(input, option) =>
+                  String(option?.value ?? "").toLowerCase().includes(input.toLowerCase())
+                }
+                onChange={(v) => {
+                  const cfg = configuredCustoms.find((c: any) => c.name === v);
+                  setLineCustomDeductions(
+                    lineCustomDeductions.map((d) =>
+                      d.key === ded.key
+                        ? {
+                            ...d,
+                            name: v,
+                            // Prefill the configured amount for known deductions (e.g. a loan)
+                            amount:
+                              cfg && !d.amount
+                                ? cfg.calculation_method === "percentage"
+                                  ? 0
+                                  : cfg.fixed_amount || 0
+                                : d.amount,
+                          }
+                        : d
+                    )
+                  );
+                }}
+              />
+            </Col>
+            <Col span={8}>
+              <InputNumber
+                min={0}
+                placeholder="Amount"
+                value={ded.amount}
+                style={{ width: "100%" }}
+                addonBefore="KES"
+                onChange={(v) =>
+                  setLineCustomDeductions(
+                    lineCustomDeductions.map((d) => (d.key === ded.key ? { ...d, amount: v || 0 } : d))
+                  )
+                }
+              />
+            </Col>
+            <Col span={2}>
+              <Button
+                type="text"
+                danger
+                icon={<DeleteOutlined />}
+                onClick={() => setLineCustomDeductions(lineCustomDeductions.filter((d) => d.key !== ded.key))}
+              />
+            </Col>
+          </Row>
+        ))}
+        <Button
+          type="dashed"
+          size="small"
+          icon={<PlusOutlined />}
+          onClick={() =>
+            setLineCustomDeductions([...lineCustomDeductions, { key: Date.now(), name: "", amount: 0 }])
+          }
+          block
+        >
+          Add Custom Deduction
+        </Button>
+      </Form>
+    );
   };
 
   // Open line edit modal (draft payrolls)
@@ -704,12 +1074,65 @@ const PayrollManagement: React.FC = () => {
             allowances: values.allowances,
             benefits: values.benefits,
             overtime_hours: values.overtime_hours,
+            overtime_pay: values.overtime_pay,
             custom_deductions: lineCustomDeductions
               .filter((d) => d.name && d.amount > 0)
               .map(({ name, amount }) => ({ name, amount })),
           },
         },
       });
+    } catch (error) {
+      console.error("Validation failed:", error);
+    }
+  };
+
+  // Open preview-line edit modal — overrides are recomputed server-side
+  const openPreviewLineModal = (line: any) => {
+    const employeeId = String(line.employee_id?._id || line.employee_id);
+    const existing = previewOverrides[employeeId];
+    setEditingPreviewLine(line);
+    lineForm.setFieldsValue({
+      basic_salary: existing?.basic_salary ?? line.basic_salary,
+      allowances: existing?.allowances ?? line.allowances,
+      benefits: existing?.benefits ?? line.benefits,
+      overtime_hours: existing?.overtime_hours ?? line.overtime_hours,
+      overtime_pay: existing?.overtime_pay ?? line.overtime_pay,
+    });
+    setLineCustomDeductions(
+      (existing?.custom_deductions || line.deductions?.custom || []).map((c: any, i: number) => ({
+        key: i,
+        name: c.name,
+        amount: c.amount,
+      }))
+    );
+    setIsPreviewLineModalOpen(true);
+  };
+
+  const handleSavePreviewLine = async () => {
+    if (!editingPreviewLine || !pendingGenerateParams) return;
+    try {
+      const values = await lineForm.validateFields();
+      const employeeId = String(editingPreviewLine.employee_id?._id || editingPreviewLine.employee_id);
+      const overrides = {
+        ...previewOverrides,
+        [employeeId]: {
+          basic_salary: values.basic_salary,
+          allowances: values.allowances,
+          benefits: values.benefits,
+          overtime_hours: values.overtime_hours,
+          overtime_pay: values.overtime_pay,
+          custom_deductions: lineCustomDeductions
+            .filter((d) => d.name && d.amount > 0)
+            .map(({ name, amount }) => ({ name, amount })),
+        },
+      };
+      setPreviewOverrides(overrides);
+      setIsPreviewLineModalOpen(false);
+      setEditingPreviewLine(null);
+      lineForm.resetFields();
+      setLineCustomDeductions([]);
+      // Re-run the preview so statutory deductions recompute on the new figures
+      previewMutation.mutate({ ...pendingGenerateParams, overrides });
     } catch (error) {
       console.error("Validation failed:", error);
     }
@@ -727,7 +1150,16 @@ const PayrollManagement: React.FC = () => {
       title: "Payroll ID",
       dataIndex: "payroll_id",
       key: "payroll_id",
-      render: (id: string) => <Text style={{ fontSize: 12 }}>{id}</Text>,
+      render: (id: string, record: Payroll) => (
+        <Space size={6}>
+          <Text style={{ fontSize: 12 }}>{id}</Text>
+          {record.supplementary_of && (
+            <Tooltip title="Supplementary run — employees added after the main payroll">
+              <Tag color="blue" style={{ fontSize: 10, margin: 0 }}>Supp.</Tag>
+            </Tooltip>
+          )}
+        </Space>
+      ),
     },
     {
       title: "Period",
@@ -760,7 +1192,8 @@ const PayrollManagement: React.FC = () => {
       { title: "NSSF", field: "total_nssf" },
       { title: "S.H.I.F.", field: "total_nhif" },
       { title: "Housing Levy", field: "total_housing_levy" },
-      { title: "NITA", field: "total_nita" },
+      { title: "WHT", field: "total_withholding_tax" },
+      { title: "NITA (Employer)", field: "total_nita" },
       { title: "Other", field: "total_custom_deductions" },
     ].map(({ title, field }) => ({
       title,
@@ -788,9 +1221,23 @@ const PayrollManagement: React.FC = () => {
       title: "Status",
       dataIndex: "status",
       key: "status",
-      render: (status: string) => {
+      render: (status: string, record: Payroll) => {
         const config = STATUS_CONFIG[status] || { color: "default", label: status };
-        return <Tag color={config.color}>{config.label}</Tag>;
+        return (
+          <Space size={4}>
+            <Tag color={config.color}>{config.label}</Tag>
+            {status === "draft" && record.rejection_reason && (
+              <Tooltip title={`Rejected: ${record.rejection_reason}`}>
+                <Tag color="red">Rejected</Tag>
+              </Tooltip>
+            )}
+            {record.payslips_generated && (
+              <Tooltip title={`Payslips generated${record.payslips_generated_at ? ` on ${dayjs(record.payslips_generated_at).format("DD MMM YYYY HH:mm")}` : ""}`}>
+                <Tag color="cyan" icon={<FileTextOutlined />}>Payslips</Tag>
+              </Tooltip>
+            )}
+          </Space>
+        );
       },
     },
     {
@@ -827,6 +1274,12 @@ const PayrollManagement: React.FC = () => {
 
         if (record.status === "draft" && canUpdatePayroll) {
           items.push({
+            key: "edit",
+            label: "Edit Lines",
+            icon: <EditOutlined />,
+            onClick: () => handleViewDetails(record),
+          });
+          items.push({
             key: "submit",
             label: "Submit for Approval",
             icon: <SendOutlined />,
@@ -843,6 +1296,22 @@ const PayrollManagement: React.FC = () => {
             onClick: confirmThen("Approve this payroll?", () =>
               approveMutation.mutate(record._id)
             ),
+          });
+          items.push({
+            key: "reject",
+            label: "Reject to Drafts",
+            icon: <CloseCircleOutlined />,
+            danger: true,
+            onClick: () => handleRejectPayroll(record),
+          });
+        }
+        if (["approved", "processed"].includes(record.status) && canApprovePayroll) {
+          items.push({
+            key: "revert",
+            label: "Return to Drafts",
+            icon: <CloseCircleOutlined />,
+            danger: true,
+            onClick: () => handleRejectPayroll(record),
           });
         }
         if (record.status === "approved" && canProcessPayroll) {
@@ -890,13 +1359,37 @@ const PayrollManagement: React.FC = () => {
         }
 
         return (
-          <Dropdown menu={{ items }} trigger={["click"]} placement="bottomRight">
-            <Button type="text" size="small" icon={<MoreOutlined />} />
-          </Dropdown>
+          <div onClick={(e) => e.stopPropagation()}>
+            <Dropdown menu={{ items }} trigger={["click"]} placement="bottomRight">
+              <Button type="text" size="small" icon={<MoreOutlined />} />
+            </Dropdown>
+          </div>
         );
       },
     },
   ];
+
+  // Which bulk actions apply to the current selection — branches view selects
+  // payrolls directly; employees view selects lines, deduped to parent payrolls.
+  const selectedPayrolls =
+    payrollView === "branches"
+      ? filteredPayrolls.filter((p: Payroll) => selectedPayrollIds.includes(p._id))
+      : Array.from(
+          new Map(
+            employeeRows
+              .filter((l: any) => selectedLineKeys.includes(lineKey(l)))
+              .map((l: any) => [l._payroll._id, l._payroll])
+          ).values()
+        );
+  const allSelectedStatus = (...statuses: string[]) =>
+    selectedPayrolls.length > 0 && selectedPayrolls.every((p) => statuses.includes(p.status));
+  const allSelectedPending = allSelectedStatus("pending_approval");
+  const allSelectedRevertible = allSelectedStatus("pending_approval", "approved", "processed");
+  const allSelectedDraft = allSelectedStatus("draft");
+  const allSelectedProcessable = allSelectedStatus("approved");
+  const allSelectedPayable = allSelectedStatus("approved", "processed");
+  const allSelectedPayslipable = allSelectedStatus("approved", "processed", "paid");
+  const allSelectedDeletable = allSelectedStatus("draft", "pending_approval", "approved", "void");
 
   return (
     <div style={{ padding: isMobile ? 12 : 24 }}>
@@ -1021,7 +1514,7 @@ const PayrollManagement: React.FC = () => {
       </div>
 
       {/* ── Tabs ── */}
-      <Tabs activeKey={activeTab} onChange={setActiveTab}>
+      <Tabs activeKey={activeTab} onChange={(k) => { setActiveTab(k); setSelectedPayrollIds([]); setSelectedLineKeys([]); }}>
         {[
           { key: "draft", label: "Draft", icon: <FileTextOutlined />, color: "#64748b", countTitle: "Draft Payrolls" },
           { key: "pending_approval", label: "Pending Approval", icon: <ClockCircleOutlined />, color: "#f59e0b", countTitle: "Pending Approval" },
@@ -1088,15 +1581,198 @@ const PayrollManagement: React.FC = () => {
 
             {/* ── Payroll Table ── */}
             <div style={{ ...cardStyle, overflow: "hidden" }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "8px 12px",
+                  borderBottom: "1px solid #f1f5f9",
+                }}
+              >
+                <Text style={{ fontSize: 12, color: "#64748b" }}>
+                  {payrollView === "employees"
+                    ? `${employeeRows.length} employee line(s)`
+                    : `${filteredPayrolls.length} payroll(s)`}
+                </Text>
+                <Segmented
+                  size="small"
+                  value={payrollView}
+                  onChange={(v) => {
+                    setPayrollView(v as "employees" | "branches");
+                    setSelectedPayrollIds([]);
+                    setSelectedLineKeys([]);
+                  }}
+                  options={[
+                    { label: "Employees", value: "employees" },
+                    { label: "Departments", value: "branches" },
+                  ]}
+                />
+              </div>
+              {(selectedPayrollIds.length > 0 || selectedLineKeys.length > 0) && (
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: 8,
+                    padding: "8px 12px",
+                    background: "#f8fafc",
+                    borderBottom: "1px solid #e2e8f0",
+                  }}
+                >
+                  <Text style={{ fontSize: 12 }}>
+                    <Text strong style={{ fontSize: 12 }}>
+                      {payrollView === "branches" ? selectedPayrollIds.length : selectedLineKeys.length}
+                    </Text>
+                    {payrollView === "branches" ? " payroll(s) selected" : " employee line(s) selected"}
+                    {payrollView === "employees" && ` — ${selectedPayrolls.length} payroll(s) affected`}
+                  </Text>
+                  <Space size={8} wrap>
+                    {allSelectedPending && canApprovePayroll && (
+                      <Button
+                        size="small"
+                        type="primary"
+                        icon={<CheckCircleOutlined />}
+                        loading={bulkBusy}
+                        onClick={() =>
+                          Modal.confirm({
+                            title: `Approve ${selectedPayrolls.length} payroll(s)?`,
+                            onOk: () => runBulk("Approve", approvePayrollRequest),
+                          })
+                        }
+                      >
+                        Approve
+                      </Button>
+                    )}
+                    {allSelectedRevertible && canApprovePayroll && (
+                      <Button
+                        size="small"
+                        danger
+                        icon={<CloseCircleOutlined />}
+                        loading={bulkBusy}
+                        onClick={handleBulkReject}
+                      >
+                        Return to Drafts
+                      </Button>
+                    )}
+                    {allSelectedDraft && canUpdatePayroll && (
+                      <Button
+                        size="small"
+                        type="primary"
+                        icon={<SendOutlined />}
+                        loading={bulkBusy}
+                        onClick={() =>
+                          Modal.confirm({
+                            title: `Submit ${selectedPayrolls.length} payroll(s) for approval?`,
+                            onOk: () => runBulk("Submit for approval", submitPayrollForApproval),
+                          })
+                        }
+                      >
+                        Submit for Approval
+                      </Button>
+                    )}
+                    {allSelectedProcessable && canProcessPayroll && (
+                      <Button
+                        size="small"
+                        icon={<SendOutlined />}
+                        loading={bulkBusy}
+                        onClick={() =>
+                          Modal.confirm({
+                            title: `Process ${selectedPayrolls.length} payroll(s)? (posts accrual to accounting)`,
+                            onOk: () => runBulk("Process", processPayrollRequest),
+                          })
+                        }
+                      >
+                        Process
+                      </Button>
+                    )}
+                    {allSelectedPayable && canProcessPayroll && (
+                      <Button
+                        size="small"
+                        type="primary"
+                        icon={<PayCircleOutlined />}
+                        loading={bulkBusy}
+                        onClick={() =>
+                          Modal.confirm({
+                            title: `Mark ${selectedPayrolls.length} payroll(s) as paid?`,
+                            onOk: () => runBulk("Mark paid", (id) => markPayrollPaid(id)),
+                          })
+                        }
+                      >
+                        Mark Paid
+                      </Button>
+                    )}
+                    {allSelectedPayslipable && canGeneratePayslips && (
+                      <Button
+                        size="small"
+                        icon={<FileTextOutlined />}
+                        loading={bulkBusy}
+                        onClick={() =>
+                          Modal.confirm({
+                            title: `Generate payslips for ${selectedPayrolls.length} payroll(s)?`,
+                            onOk: () => runBulk("Generate payslips", generateBatchPayslips),
+                          })
+                        }
+                      >
+                        Generate Payslips
+                      </Button>
+                    )}
+                    {allSelectedDeletable && canDeletePayroll && (
+                      <Button
+                        size="small"
+                        danger
+                        icon={<DeleteOutlined />}
+                        loading={bulkBusy}
+                        onClick={() =>
+                          Modal.confirm({
+                            title: `Delete ${selectedPayrolls.length} payroll(s)?`,
+                            content: "This action cannot be undone.",
+                            okText: "Delete",
+                            okButtonProps: { danger: true },
+                            onOk: () => runBulk("Delete", deletePayroll),
+                          })
+                        }
+                      >
+                        Delete
+                      </Button>
+                    )}
+                    <Button
+                      size="small"
+                      type="text"
+                      onClick={() => {
+                        setSelectedPayrollIds([]);
+                        setSelectedLineKeys([]);
+                      }}
+                    >
+                      Clear
+                    </Button>
+                  </Space>
+                </div>
+              )}
               <Table
-                columns={columns}
-                dataSource={filteredPayrolls}
-                rowKey="_id"
+                columns={payrollView === "branches" ? columns : employeeViewColumns}
+                dataSource={payrollView === "branches" ? filteredPayrolls : employeeRows}
+                rowKey={payrollView === "branches" ? "_id" : lineKey}
+                rowSelection={{
+                  selectedRowKeys:
+                    payrollView === "branches" ? selectedPayrollIds : selectedLineKeys,
+                  onChange: (keys) =>
+                    payrollView === "branches"
+                      ? setSelectedPayrollIds(keys as string[])
+                      : setSelectedLineKeys(keys as string[]),
+                }}
+                onRow={(record: any) => ({
+                  onClick: () =>
+                    handleViewDetails(payrollView === "branches" ? record : record._payroll),
+                  style: { cursor: "pointer" },
+                })}
                 loading={isLoading}
                 pagination={{ pageSize: 10 }}
                 size="small"
-                scroll={{ x: 1350 }}
-                summary={() => {
+                scroll={{ x: payrollView === "branches" ? 1350 : 1600 }}
+                summary={payrollView === "branches" ? () => {
                   const sum = (field: keyof Payroll) =>
                     filteredPayrolls.reduce((s: number, p: any) => s + (p[field] || 0), 0);
                   const cellStyle: React.CSSProperties = { fontSize: 12, fontWeight: 700 };
@@ -1112,15 +1788,16 @@ const PayrollManagement: React.FC = () => {
                       <Table.Summary.Cell index={5} align="right"><Text style={{ ...cellStyle, color: "#ef4444" }}>{sum("total_nssf").toLocaleString()}</Text></Table.Summary.Cell>
                       <Table.Summary.Cell index={6} align="right"><Text style={{ ...cellStyle, color: "#ef4444" }}>{sum("total_nhif").toLocaleString()}</Text></Table.Summary.Cell>
                       <Table.Summary.Cell index={7} align="right"><Text style={{ ...cellStyle, color: "#ef4444" }}>{sum("total_housing_levy").toLocaleString()}</Text></Table.Summary.Cell>
-                      <Table.Summary.Cell index={8} align="right"><Text style={{ ...cellStyle, color: "#ef4444" }}>{sum("total_nita").toLocaleString()}</Text></Table.Summary.Cell>
-                      <Table.Summary.Cell index={9} align="right"><Text style={{ ...cellStyle, color: "#ef4444" }}>{sum("total_custom_deductions").toLocaleString()}</Text></Table.Summary.Cell>
-                      <Table.Summary.Cell index={10} align="right">
+                      <Table.Summary.Cell index={8} align="right"><Text style={{ ...cellStyle, color: "#ef4444" }}>{sum("total_withholding_tax").toLocaleString()}</Text></Table.Summary.Cell>
+                      <Table.Summary.Cell index={9} align="right"><Text style={{ ...cellStyle, color: "#ef4444" }}>{sum("total_nita").toLocaleString()}</Text></Table.Summary.Cell>
+                      <Table.Summary.Cell index={10} align="right"><Text style={{ ...cellStyle, color: "#ef4444" }}>{sum("total_custom_deductions").toLocaleString()}</Text></Table.Summary.Cell>
+                      <Table.Summary.Cell index={11} align="right">
                         <Text style={{ ...cellStyle, color: "#10b981" }}>KES {sum("total_net").toLocaleString()}</Text>
                       </Table.Summary.Cell>
-                      <Table.Summary.Cell index={11} colSpan={2} />
+                      <Table.Summary.Cell index={12} colSpan={2} />
                     </Table.Summary.Row>
                   );
-                }}
+                } : undefined}
                 locale={{
                   emptyText: (
                     <Empty
@@ -1494,7 +2171,7 @@ const PayrollManagement: React.FC = () => {
               </Tabs.TabPane>
 
               {/* ── NITA Settings ── */}
-              <Tabs.TabPane tab="NITA" key="nita">
+              <Tabs.TabPane tab="NITA (Employer)" key="nita">
                 <Form form={deductionForm} layout="vertical">
                   <Row gutter={16}>
                     <Col span={12}>
@@ -1510,7 +2187,7 @@ const PayrollManagement: React.FC = () => {
                     <Col span={12}>
                       <Form.Item
                         name="nita_amount"
-                        label="Amount per Employee (KES)"
+                        label="Employer Amount per Employee (KES)"
                         initialValue={50}
                         rules={[{ required: true, message: "Required" }]}
                       >
@@ -1523,7 +2200,45 @@ const PayrollManagement: React.FC = () => {
                     </Col>
                   </Row>
                   <Text type="secondary" style={{ fontSize: 12 }}>
-                    NITA (National Industrial Training Authority) levy is a standard KES 50 deducted from every employee each month.
+                    NITA (National Industrial Training Authority) is a statutory EMPLOYER levy — KES 50
+                    per employee each month. It is recorded under employer contributions and is never
+                    deducted from the employee's pay.
+                  </Text>
+                </Form>
+              </Tabs.TabPane>
+
+              {/* ── Withholding Tax Settings ── */}
+              <Tabs.TabPane tab="Withholding Tax" key="withholding">
+                <Form form={deductionForm} layout="vertical">
+                  <Row gutter={16}>
+                    <Col span={12}>
+                      <Form.Item
+                        name="withholding_tax_enabled"
+                        label="Enable Withholding Tax"
+                        valuePropName="checked"
+                        initialValue={true}
+                      >
+                        <Switch />
+                      </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                      <Form.Item
+                        name="withholding_tax_rate"
+                        label="Withholding Tax Rate (%)"
+                        initialValue={5}
+                        rules={[{ required: true, message: "Required" }]}
+                      >
+                        <InputNumber
+                          min={0}
+                          max={100}
+                          style={{ width: "100%" }}
+                          addonAfter="%"
+                        />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    Withholding tax applies to employees with the &quot;Consultant&quot; employment type — it is the only deduction withheld from their pay (5% for resident consultants by default).
                   </Text>
                 </Form>
               </Tabs.TabPane>
@@ -1582,6 +2297,24 @@ const PayrollManagement: React.FC = () => {
                       ),
                     },
                     {
+                      title: "Ends",
+                      dataIndex: "end_date",
+                      key: "end_date",
+                      render: (endDate: string, record: any) => (
+                        <DatePicker
+                          picker="month"
+                          size="small"
+                          placeholder="Runs until…"
+                          value={endDate ? dayjs(endDate) : null}
+                          onChange={(d) =>
+                            updateCustomDeduction(record.id, "end_date", d ? d.endOf("month").toISOString() : null)
+                          }
+                          allowClear
+                          style={{ width: 140 }}
+                        />
+                      ),
+                    },
+                    {
                       title: "Actions",
                       key: "actions",
                       render: (_: any, record: any) => (
@@ -1603,7 +2336,8 @@ const PayrollManagement: React.FC = () => {
                 />
                 {customDeductions.length === 0 && (
                   <div style={{ textAlign: "center", padding: 40, color: "#64748b" }}>
-                    No custom deductions configured. Click "Add Custom Deduction" to create one.
+                    No custom deductions configured. Click "Add Custom Deduction" to create one
+                    — loans, advances, union dues… Set an "Ends" month to stop a loan automatically.
                   </div>
                 )}
               </Tabs.TabPane>
@@ -1709,6 +2443,21 @@ const PayrollManagement: React.FC = () => {
             </Form.Item>
           )}
 
+          <Form.Item label="Payroll Month" tooltip="Sets the label and period dates for the selected month">
+            <DatePicker
+              picker="month"
+              style={{ width: "100%" }}
+              defaultValue={dayjs()}
+              onChange={(d) => {
+                if (!d) return;
+                form.setFieldsValue({
+                  period_label: d.format("MMMM YYYY"),
+                  period_start: d.startOf("month"),
+                  period_end: d.endOf("month"),
+                });
+              }}
+            />
+          </Form.Item>
           <Form.Item
             name="period_label"
             label="Period Label"
@@ -1809,7 +2558,27 @@ const PayrollManagement: React.FC = () => {
                         renderLineResults(line, previewData?.period_label || pendingGenerateParams?.period_label),
                       expandRowByClick: true,
                     }}
-                    columns={payrollLineColumns(true)}
+                    columns={[
+                      ...payrollLineColumns(true, group.lines),
+                      {
+                        title: "",
+                        key: "preview-edit",
+                        width: 60,
+                        render: (_: any, line: any) => (
+                          <Tooltip title="Edit this line">
+                            <Button
+                              type="text"
+                              size="small"
+                              icon={<EditOutlined />}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openPreviewLineModal(line);
+                              }}
+                            />
+                          </Tooltip>
+                        ),
+                      },
+                    ]}
                   />
                 </div>
               ))
@@ -1952,83 +2721,31 @@ const PayrollManagement: React.FC = () => {
           message="Gross pay and statutory deductions (PAYE, NSSF, SHA, Housing Levy) are recalculated automatically when you change salary or overtime."
           style={{ borderRadius: 8, marginBottom: 16 }}
         />
-        <Form form={lineForm} layout="vertical">
-          <Row gutter={12}>
-            <Col span={12}>
-              <Form.Item name="basic_salary" label="Basic Salary" rules={[{ required: true }]}>
-                <InputNumber min={0} style={{ width: "100%" }} addonBefore="KES" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="allowances" label="Allowances">
-                <InputNumber min={0} style={{ width: "100%" }} addonBefore="KES" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="benefits" label="Benefits">
-                <InputNumber min={0} style={{ width: "100%" }} addonBefore="KES" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="overtime_hours" label="Overtime Hours">
-                <InputNumber min={0} style={{ width: "100%" }} addonAfter="hrs" />
-              </Form.Item>
-            </Col>
-          </Row>
+        {renderLineEditForm()}
+      </Modal>
 
-          <Divider style={{ margin: "8px 0 12px" }}>
-            <Text style={{ fontSize: 11, color: "#64748b", textTransform: "uppercase" }}>Custom Deductions</Text>
-          </Divider>
-
-          {lineCustomDeductions.map((ded) => (
-            <Row key={ded.key} gutter={8} style={{ marginBottom: 8 }}>
-              <Col span={14}>
-                <Input
-                  placeholder="Deduction name"
-                  value={ded.name}
-                  onChange={(e) =>
-                    setLineCustomDeductions(
-                      lineCustomDeductions.map((d) => (d.key === ded.key ? { ...d, name: e.target.value } : d))
-                    )
-                  }
-                />
-              </Col>
-              <Col span={8}>
-                <InputNumber
-                  min={0}
-                  placeholder="Amount"
-                  value={ded.amount}
-                  style={{ width: "100%" }}
-                  addonBefore="KES"
-                  onChange={(v) =>
-                    setLineCustomDeductions(
-                      lineCustomDeductions.map((d) => (d.key === ded.key ? { ...d, amount: v || 0 } : d))
-                    )
-                  }
-                />
-              </Col>
-              <Col span={2}>
-                <Button
-                  type="text"
-                  danger
-                  icon={<DeleteOutlined />}
-                  onClick={() => setLineCustomDeductions(lineCustomDeductions.filter((d) => d.key !== ded.key))}
-                />
-              </Col>
-            </Row>
-          ))}
-          <Button
-            type="dashed"
-            size="small"
-            icon={<PlusOutlined />}
-            onClick={() =>
-              setLineCustomDeductions([...lineCustomDeductions, { key: Date.now(), name: "", amount: 0 }])
-            }
-            block
-          >
-            Add Custom Deduction
-          </Button>
-        </Form>
+      {/* ── Edit Preview Line Modal (before generate) ── */}
+      <Modal
+        title={`Edit Line — ${editingPreviewLine?.fullname || editingPreviewLine?.employee_number || ""}`}
+        open={isPreviewLineModalOpen}
+        onCancel={() => {
+          setIsPreviewLineModalOpen(false);
+          setEditingPreviewLine(null);
+          lineForm.resetFields();
+          setLineCustomDeductions([]);
+        }}
+        onOk={handleSavePreviewLine}
+        okText="Apply & Re-run Preview"
+        confirmLoading={previewMutation.isLoading}
+        width={isMobile ? "94%" : 560}
+      >
+        <Alert
+          type="info"
+          showIcon
+          message="Changes are applied as overrides and the preview is recomputed — statutory deductions and custom loans/advances update automatically."
+          style={{ borderRadius: 8, marginBottom: 16 }}
+        />
+        {renderLineEditForm()}
       </Modal>
 
       {/* ── Payroll Details Drawer ── */}
@@ -2134,14 +2851,37 @@ const PayrollManagement: React.FC = () => {
                 Deduction Breakdown
               </Text>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {[
-                  { label: "PAYE", value: selectedPayroll.total_paye },
-                  { label: "NSSF", value: selectedPayroll.total_nssf },
-                  { label: "SHA", value: selectedPayroll.total_nhif },
-                  { label: "Housing Levy", value: selectedPayroll.total_housing_levy },
-                  { label: "NITA", value: selectedPayroll.total_nita },
-                  { label: "Custom", value: selectedPayroll.total_custom_deductions },
-                ].map((d) => (
+                {(() => {
+                  // Employer-side sums from the lines (fallback = matched 1:1)
+                  const erSum = (key: string, eeKey: string) =>
+                    (selectedPayroll.lines || []).reduce(
+                      (s: number, l: any) => s + (l.deductions?.[key] ?? l.deductions?.[eeKey] ?? 0),
+                      0
+                    );
+                  const nssfEr = erSum("employer_nssf", "nssf");
+                  const housingEr = erSum("employer_housing_levy", "housing_levy");
+                  const nitaEr = erSum("employer_nita", "nita");
+                  return [
+                    { label: "PAYE", value: selectedPayroll.total_paye },
+                    {
+                      label: "NSSF",
+                      value: (selectedPayroll.total_nssf || 0) + nssfEr,
+                      sub: `EE ${(selectedPayroll.total_nssf || 0).toLocaleString()} · ER ${nssfEr.toLocaleString()}`,
+                    },
+                    { label: "SHA", value: selectedPayroll.total_nhif },
+                    {
+                      label: "Housing Levy",
+                      value: (selectedPayroll.total_housing_levy || 0) + housingEr,
+                      sub: `EE ${(selectedPayroll.total_housing_levy || 0).toLocaleString()} · ER ${housingEr.toLocaleString()}`,
+                    },
+                    { label: "WHT", value: (selectedPayroll as any).total_withholding_tax },
+                    {
+                      label: "NITA (Employer)",
+                      value: nitaEr || selectedPayroll.total_nita,
+                    },
+                    { label: "Custom", value: selectedPayroll.total_custom_deductions },
+                  ];
+                })().map((d: any) => (
                   <div
                     key={d.label}
                     style={{
@@ -2156,6 +2896,9 @@ const PayrollManagement: React.FC = () => {
                     <Text style={{ fontSize: 13, fontWeight: 600 }}>
                       KES {(d.value || 0).toLocaleString()}
                     </Text>
+                    {d.sub && (
+                      <Text style={{ fontSize: 10, color: "#64748b", display: "block" }}>{d.sub}</Text>
+                    )}
                   </div>
                 ))}
               </div>
@@ -2203,7 +2946,7 @@ const PayrollManagement: React.FC = () => {
                   expandRowByClick: true,
                 }}
                 columns={[
-                  ...payrollLineColumns(showEmployeeNames),
+                  ...payrollLineColumns(showEmployeeNames, selectedPayroll?.lines),
                   ...(selectedPayroll.status === "draft" && canUpdatePayroll
                     ? [
                         {
