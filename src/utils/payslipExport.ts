@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import { message } from 'antd';
 import { fetchSystemSetupDetailsById } from '@services/systemsetup';
 import { getUser } from '@services/tenants';
@@ -198,7 +198,8 @@ export const renderPayslipPage = (
       didParseCell: (data) => {
         if (highlightLast && data.section === 'body' && data.row.index === rows.length - 1) {
           data.cell.styles.fontStyle = 'bold';
-          data.cell.styles.fillColor = [241, 245, 249];
+          data.cell.styles.fillColor = [pr, pg, pb];
+          data.cell.styles.textColor = [255, 255, 255];
         }
       },
     });
@@ -209,8 +210,8 @@ export const renderPayslipPage = (
   sectionTable('PAYE COMPUTATION', payeRows);
   sectionTable('DEDUCTIONS', deductionRows);
 
-  // ── Net pay banner ──
-  doc.setFillColor(6, 95, 70);
+  // ── Net pay banner — same brand color as the highlighted totals rows ──
+  doc.setFillColor(pr, pg, pb);
   doc.roundedRect(margin, y, contentWidth, 26, 4, 4, 'F');
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
@@ -317,10 +318,8 @@ export const exportP9ToExcel = async (payslips: any[], year: number, opts?: { hi
     [company.toUpperCase()],
     [`KENYA REVENUE AUTHORITY — INCOME TAX DEDUCTION CARD YEAR ${year}`],
     [],
-    // Privacy mode drops the employer labels entirely, not just the values
-    ...(hideEmployer
-      ? [[]]
-      : [["Employer's Name:", company, '', "Employer's P.I.N.:", kraPin || '']]),
+    // Privacy mode blanks the employer values but keeps the labels
+    ["Employer's Name:", company, '', "Employer's P.I.N.:", kraPin || ''],
     ["Employee's Main Name:", empName, '', "Employee's P.I.N.:", emp.kra_pin || ''],
     [],
     [],
@@ -420,27 +419,113 @@ export const exportP9ToExcel = async (payslips: any[], year: number, opts?: { hi
 
 const buildPayslipSheet = (p: any, company: string) => {
   const { infoRows, earningsRows, payeRows, deductionRows, netPay } = payslipRows(p);
+  const brand = (getPrimaryColor() || '#0E388A').replace('#', '').toUpperCase().padStart(6, '0');
+
   const aoa: any[][] = [
     [company.toUpperCase()],
     [`${(p.period_label || '').toUpperCase()} PAYSLIP`],
     [`Period: ${fmtDate(p.period_start)} – ${fmtDate(p.period_end)}`],
     [],
-    ...infoRows,
-    [],
-    ['EARNINGS', 'KSH'],
-    ...earningsRows,
-    [],
-    ['PAYE COMPUTATION', 'KSH'],
-    ...payeRows,
-    [],
-    ['DEDUCTIONS', 'KSH'],
-    ...deductionRows,
-    [],
-    ['NET PAY', `KES ${fmt(netPay)}`],
   ];
+  const infoStart = aoa.length;
+  infoRows.forEach((r) => aoa.push(r));
+  aoa.push([]);
+
+  const sectionIdx: number[] = [];
+  const dataIdx: number[] = [];
+  const totalIdx: number[] = [];
+  const pushSection = (title: string, rows: [string, string][]) => {
+    sectionIdx.push(aoa.length);
+    aoa.push([title, 'KSH']);
+    rows.forEach((r) => {
+      aoa.push(r);
+      dataIdx.push(aoa.length - 1);
+    });
+    totalIdx.push(aoa.length - 1);
+    aoa.push([]);
+  };
+  pushSection('EARNINGS', earningsRows);
+  pushSection('PAYE COMPUTATION', payeRows);
+  pushSection('DEDUCTIONS', deductionRows);
+  const netPayIdx = aoa.length;
+  aoa.push(['NET PAY', `KES ${fmt(netPay)}`]);
 
   const ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws['!cols'] = [{ wch: 30 }, { wch: 22 }];
+  ws['!cols'] = [{ wch: 32 }, { wch: 24 }];
+  ws['!merges'] = [0, 1, 2].map((r) => ({ s: { r, c: 0 }, e: { r, c: 1 } }));
+  ws['!rows'] = [{ hpt: 22 }, { hpt: 15 }, { hpt: 15 }];
+
+  // ── Cell styles (written by xlsx-js-style) ──
+  const thin = { style: 'thin', color: { rgb: 'FFCBD5E1' } };
+  const border = { top: thin, bottom: thin, left: thin, right: thin };
+  const companyStyle: any = {
+    font: { bold: true, sz: 14, color: { rgb: `FF${brand}` } },
+    alignment: { horizontal: 'center', vertical: 'center' },
+  };
+  const titleStyle: any = {
+    font: { bold: true, sz: 10, color: { rgb: 'FF64748B' } },
+    alignment: { horizontal: 'center' },
+  };
+  const periodStyle: any = {
+    font: { sz: 9, color: { rgb: 'FF94A3B8' } },
+    alignment: { horizontal: 'center' },
+    border: { bottom: { style: 'medium', color: { rgb: `FF${brand}` } } },
+  };
+  const infoLabel: any = {
+    font: { bold: true, sz: 9, color: { rgb: 'FF475569' } },
+    fill: { fgColor: { rgb: 'FFF1F5F9' } },
+    border,
+  };
+  const infoValue: any = { font: { sz: 9 }, border };
+  const sectionLabel: any = {
+    font: { bold: true, sz: 9.5, color: { rgb: 'FFFFFFFF' } },
+    fill: { fgColor: { rgb: `FF${brand}` } },
+    border,
+  };
+  const bodyLabel: any = { font: { sz: 9, color: { rgb: 'FF334155' } }, border };
+  const bodyValue: any = { font: { sz: 9 }, border, alignment: { horizontal: 'right' } };
+  const totalLabel: any = {
+    font: { bold: true, sz: 9.5, color: { rgb: 'FFFFFFFF' } },
+    fill: { fgColor: { rgb: `FF${brand}` } },
+    border,
+  };
+  const netPayLabel: any = {
+    font: { bold: true, sz: 11, color: { rgb: 'FFFFFFFF' } },
+    fill: { fgColor: { rgb: `FF${brand}` } },
+    border,
+  };
+
+  const setCell = (r: number, c: number, s: any) => {
+    const ref = XLSX.utils.encode_cell({ r, c });
+    if (!ws[ref]) ws[ref] = { t: 's', v: '' };
+    ws[ref].s = s;
+  };
+
+  // Centered, merged company header rows
+  [0, 1, 2].forEach((r) =>
+    [0, 1].forEach((c) => setCell(r, c, r === 0 ? companyStyle : r === 1 ? titleStyle : periodStyle))
+  );
+  // Employee info block — bold shaded labels, bordered values
+  for (let r = infoStart; r < infoStart + infoRows.length; r++) {
+    setCell(r, 0, infoLabel);
+    setCell(r, 1, infoValue);
+  }
+  // Section headers + data borders + brand-highlighted totals
+  sectionIdx.forEach((r) => {
+    setCell(r, 0, sectionLabel);
+    setCell(r, 1, { ...sectionLabel, alignment: { horizontal: 'right' } });
+  });
+  dataIdx.forEach((r) => {
+    setCell(r, 0, bodyLabel);
+    setCell(r, 1, bodyValue);
+  });
+  totalIdx.forEach((r) => {
+    setCell(r, 0, totalLabel);
+    setCell(r, 1, { ...totalLabel, alignment: { horizontal: 'right' } });
+  });
+  setCell(netPayIdx, 0, netPayLabel);
+  setCell(netPayIdx, 1, { ...netPayLabel, alignment: { horizontal: 'right' } });
+
   // Number-format all numeric cells in the value column
   const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
   for (let r = 0; r <= range.e.r; r++) {

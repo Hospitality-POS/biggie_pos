@@ -23,6 +23,9 @@ export interface Employee {
   } | null;
   // Standalone identity fields (used when no user account is linked)
   fullname?: string;
+  firstname?: string;
+  middle_name?: string;
+  lastname?: string;
   email?: string;
   phone?: string;
   id_number?: string;
@@ -94,6 +97,9 @@ export interface CreateEmployeeParams {
   payment_frequency: 'daily' | 'weekly' | 'bi-weekly' | 'monthly';
   // Standalone identity fields (required when user_id is not provided)
   fullname?: string;
+  firstname?: string;
+  middle_name?: string;
+  lastname?: string;
   email?: string;
   phone?: string;
   id_number?: string;
@@ -1006,6 +1012,9 @@ export interface GeneratePayrollParams {
   period_end: string;
   period_label: string;
   shop_id?: string;
+  // When true, skips the admin auto-approve step so the run stays a plain
+  // draft ("Save as Draft") instead of going straight to approved.
+  save_as_draft?: boolean;
   // Per-employee adjustments applied at preview/generate time
   // (keyed by employee _id) — salary, extras and custom deductions (loans etc.)
   overrides?: Record<
@@ -1122,6 +1131,30 @@ export const patchPayrollLine = async (
   }
 };
 
+// Act on a subset of employees within a payroll — delete, approve or submit
+// just the given employee(s) without affecting the rest of the payroll's
+// lines. If the employees given aren't the whole payroll, the backend splits
+// them into their own payroll (linked via supplementary_of) before acting.
+export const payrollLineAction = async (
+  payrollId: string,
+  employeeIds: string[],
+  action: "delete" | "approve" | "submit"
+) => {
+  try {
+    const response = await axiosInstance.post(`${bandu_url}/payroll/${payrollId}/lines/action`, {
+      employee_ids: employeeIds,
+      action,
+    });
+    message.success(response.data?.message || "Done");
+    return response.data;
+  } catch (error: any) {
+    const errorMessage =
+      error?.response?.data?.message || error?.message || `Failed to ${action} the selected employee(s)`;
+    message.error(errorMessage);
+    throw new Error(errorMessage);
+  }
+};
+
 // Process Payroll — post accrual to accounting (approved payrolls)
 export const processPayrollRequest = async (payrollId: string) => {
   try {
@@ -1161,10 +1194,12 @@ export const initializeDeductionSettings = async () => {
 };
 
 // Generate Payroll Draft
+// Note: the caller runs this once per department chunk and shows its own
+// aggregate summary toast once all chunks finish, so this does not
+// self-report success (that would fire one toast per chunk).
 export const generatePayroll = async (params: GeneratePayrollParams) => {
   try {
     const response = await axiosInstance.post(`${bandu_url}/payroll/generate`, params);
-    message.success("Payroll draft generated successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.message || error?.message || "Failed to generate payroll";
@@ -1241,11 +1276,12 @@ export const saveDeductionSettings = async (settings: any) => {
   }
 };
 
-// Submit Payroll for Approval
+// Submit Payroll for Approval — admins skip pending_approval and go
+// straight to approved; the backend message reflects which happened.
 export const submitPayrollForApproval = async (payrollId: string) => {
   try {
     const response = await axiosInstance.post(`${bandu_url}/payroll/${payrollId}/submit`);
-    message.success("Payroll submitted for approval");
+    message.success(response.data?.message || "Payroll submitted for approval");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.message || error?.message || "Failed to submit payroll for approval";
@@ -1442,11 +1478,17 @@ export interface Payslip {
 }
 
 // Email Payslips in Batch — sends each payslip to its employee's email
-export const emailPayslipsBatch = async (payslipIds: string[], template?: string, color?: string) => {
+export const emailPayslipsBatch = async (
+  payslipIds: string[],
+  template?: string,
+  color?: string,
+  header?: "company" | "department"
+) => {
   const response = await axiosInstance.post(`${bandu_url}/payslips/email-batch`, {
     payslip_ids: payslipIds,
     template,
     color,
+    header,
   });
   return response.data;
 };
@@ -1468,7 +1510,7 @@ export const previewPayslipEmail = async (
   payslipId: string,
   template: string,
   color?: string,
-  extras?: { message?: string; recipient_name?: string; subject?: string }
+  extras?: { message?: string; recipient_name?: string; subject?: string; header?: "company" | "department" }
 ) => {
   const response = await axiosInstance.post(`${bandu_url}/payslips/email-preview`, {
     payslip_id: payslipId,
@@ -1576,7 +1618,7 @@ export const emailPayslip = async (
   payslipId: string,
   template?: string,
   color?: string,
-  opts?: { to?: string; cc?: string; subject?: string; message?: string; pdf?: string; recipient_name?: string }
+  opts?: { to?: string; cc?: string; subject?: string; message?: string; pdf?: string; recipient_name?: string; header?: "company" | "department" }
 ) => {
   try {
     const response = await axiosInstance.post(`${bandu_url}/payslips/${payslipId}/email`, {

@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
-import { Alert, Button, Grid, List, Select, Space, Spin, Tag, Typography, Switch, message } from "antd";
+import { Alert, Button, Grid, List, Select, Space, Spin, Tabs, Tag, Typography, Switch, message } from "antd";
 import { ProCard } from "@ant-design/pro-components";
 import {
   ApiOutlined, CheckCircleOutlined,
   PrinterOutlined, ReloadOutlined, SendOutlined, PlusOutlined, DeleteOutlined,
-  DownloadOutlined, AppleOutlined, WindowsOutlined, SettingOutlined,
+  DownloadOutlined, AppleOutlined, WindowsOutlined, SettingOutlined, LinuxOutlined,
+  StarFilled,
 } from "@ant-design/icons";
 import {
   getConnectedAgents, sendPrintJob,
@@ -20,6 +21,7 @@ const C = THEME_C;
 
 const PrinterSettings: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("agents");
+  const [driversSubTab, setDriversSubTab] = useState<string>("download-drivers");
   const [agents, setAgents] = useState<ConnectedAgent[]>([]);
   const [loading, setLoading] = useState(false);
   const [testLoading, setTestLoading] = useState<string | null>(null);
@@ -222,21 +224,28 @@ const PrinterSettings: React.FC = () => {
     version: string,
     desc: string,
     href: string,
-    btnLabel: string
+    btnLabel: string,
+    recommended = false
   ) => (
     <div
       key={title}
       style={{
-        background: "#f8fafc",
-        border: "1px solid #e2e8f0",
+        background: recommended ? "#f5f3ff" : "#f8fafc",
+        border: recommended ? `1px solid ${C.primary}` : "1px solid #e2e8f0",
         borderRadius: 8,
         padding: isMobile ? 12 : 16,
+        position: "relative",
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
         {icon}
         <Text strong style={{ fontSize: 14 }}>{title}</Text>
         <Tag color="blue" style={{ fontSize: 11 }}>{version}</Tag>
+        {recommended && (
+          <Tag icon={<StarFilled />} color="gold" style={{ fontSize: 11 }}>
+            Recommended
+          </Tag>
+        )}
       </div>
       <Text style={{ fontSize: 12, color: C.subText, display: "block", marginTop: 4 }}>
         {desc}
@@ -587,6 +596,236 @@ const PrinterSettings: React.FC = () => {
               ],
               { marginTop: 16 }
             )}
+          </ProCard>
+        </ProCard.TabPane>
+
+        {/* ── Printer Drivers Tab (with internal sub-tabs) ─────────────────────── */}
+        <ProCard.TabPane
+          key="drivers"
+          tab={
+            <Space>
+              <PrinterOutlined style={{ color: C.primary }} />
+              <Text>Printer Drivers</Text>
+            </Space>
+          }
+        >
+          <ProCard
+            bordered={!isMobile}
+            bodyStyle={{ padding: isMobile ? "12px 10px" : "14px 16px" }}
+          >
+            <Tabs
+              activeKey={driversSubTab}
+              onChange={setDriversSubTab}
+              size={isMobile ? "small" : "middle"}
+              items={[
+                {
+                  key: "download-drivers",
+                  label: (
+                    <Space size={6}>
+                      <DownloadOutlined style={{ color: C.primary }} />
+                      <span>Download Drivers</span>
+                    </Space>
+                  ),
+                  children: (
+                    <>
+                      <Alert
+                        type="info"
+                        showIcon
+                        message="Install this first"
+                        description={
+                          <>
+                            Install the OS driver below so your computer can see the thermal
+                            receipt printer at all. Once installed, see the{" "}
+                            <strong>Setup Guide</strong> tab for how to print with or without the
+                            Print Agent.
+                          </>
+                        }
+                        style={{ marginBottom: 16, borderRadius: 8 }}
+                      />
+
+                      <Text strong style={{ fontSize: 13, display: "block", marginBottom: 8 }}>
+                        Windows
+                      </Text>
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)",
+                          gap: 12,
+                        }}
+                      >
+                        {downloadCard(
+                          <WindowsOutlined style={{ fontSize: 20, color: C.primary }} />,
+                          "Xprinter 80MM Printer Driver",
+                          "Universal",
+                          "Recommended for most 80mm thermal receipt printers (Xprinter and most generic/compatible models) on Windows 10/11.",
+                          "https://reliatechdocs.nyc3.digitaloceanspaces.com/Drivers/Xprinter%2080MM%20Printer%20Driver.exe",
+                          "Download for Windows",
+                          true
+                        )}
+                        {downloadCard(
+                          <WindowsOutlined style={{ fontSize: 20, color: C.primary }} />,
+                          "POS Printer Driver Setup",
+                          "Generic",
+                          "Alternative generic POS printer driver — use only if the Xprinter driver above doesn't detect your printer.",
+                          "https://reliatechdocs.nyc3.digitaloceanspaces.com/Drivers/POS%20Printer%20Driver%20Setup%20.exe",
+                          "Download for Windows"
+                        )}
+                      </div>
+
+                      <Text strong style={{ fontSize: 13, display: "block", margin: "20px 0 8px" }}>
+                        macOS
+                      </Text>
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)",
+                          gap: 12,
+                        }}
+                      >
+                        {downloadCard(
+                          <AppleOutlined style={{ fontSize: 20, color: C.primary }} />,
+                          "macOS Printer Driver",
+                          "Universal",
+                          "Thermal receipt printer driver for macOS.",
+                          "https://reliatechdocs.nyc3.digitaloceanspaces.com/Drivers/macOSDriver.dmg",
+                          "Download for macOS"
+                        )}
+                      </div>
+
+                      <Text strong style={{ fontSize: 13, display: "block", margin: "20px 0 8px" }}>
+                        Linux
+                      </Text>
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)",
+                          gap: 12,
+                        }}
+                      >
+                        {downloadCard(
+                          <LinuxOutlined style={{ fontSize: 20, color: C.primary }} />,
+                          "Linux Driver Package",
+                          "ZIP — all versions",
+                          "Contains the 64-bit v8.0, 32-bit v8.0, and legacy 32-bit v5.8 installers — pick the one matching your distro after unzipping.",
+                          "https://reliatechdocs.nyc3.digitaloceanspaces.com/Drivers/Linux%20Driver.zip",
+                          "Download ZIP"
+                        )}
+                      </div>
+
+                      <Alert
+                        type="success"
+                        showIcon
+                        message="After installing the driver"
+                        description={
+                          <>
+                            Connect the printer via USB and power it on, then open the{" "}
+                            <strong>Setup Guide</strong> tab to finish configuring it — with or
+                            without the Print Agent.
+                          </>
+                        }
+                        style={{ marginTop: 16, borderRadius: 8 }}
+                      />
+                    </>
+                  ),
+                },
+                {
+                  key: "guide",
+                  label: (
+                    <Space size={6}>
+                      <SettingOutlined style={{ color: C.primary }} />
+                      <span>Setup Guide</span>
+                    </Space>
+                  ),
+                  children: (
+                    <>
+                      <Alert
+                        type="info"
+                        showIcon
+                        message="Haven't installed the driver yet?"
+                        description={
+                          <>
+                            Install the OS driver for your printer first in the{" "}
+                            <strong>Download Drivers</strong> tab, then come back here to finish
+                            setup.
+                          </>
+                        }
+                        style={{ marginBottom: 16, borderRadius: 8 }}
+                      />
+
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)",
+                          gap: 12,
+                        }}
+                      >
+                        <div
+                          style={{
+                            background: "#fff",
+                            border: "1px solid #e2e8f0",
+                            borderRadius: 8,
+                            padding: isMobile ? 12 : 16,
+                          }}
+                        >
+                          <Space size={6}>
+                            <PrinterOutlined style={{ color: C.primary }} />
+                            <Text strong style={{ fontSize: 14 }}>Without Agent — Browser Printing</Text>
+                            <Tag style={{ fontSize: 11 }}>Default</Tag>
+                          </Space>
+                          <Text style={{ fontSize: 12, color: C.subText, display: "block", margin: "6px 0 10px" }}>
+                            Works out of the box for a single printer connected to the same
+                            computer the cashier is using. No extra software beyond the OS driver.
+                          </Text>
+                          {renderSteps([
+                            <>Install the matching printer driver for your OS and plug in the printer.</>,
+                            <>Set it as the default printer in your OS print settings.</>,
+                            <>
+                              In the <strong>Printing Controls</strong> tab, keep{" "}
+                              <strong>Print Method</strong> set to <strong>Browser</strong> —
+                              receipts print straight from the browser's print dialog, no agent
+                              required.
+                            </>,
+                          ])}
+                        </div>
+
+                        <div
+                          style={{
+                            background: "#f5f3ff",
+                            border: `1px solid ${C.primary}`,
+                            borderRadius: 8,
+                            padding: isMobile ? 12 : 16,
+                          }}
+                        >
+                          <Space size={6}>
+                            <ApiOutlined style={{ color: C.primary }} />
+                            <Text strong style={{ fontSize: 14 }}>With Agent — API Printing</Text>
+                            <Tag color="blue" style={{ fontSize: 11 }}>Multiple printers</Tag>
+                          </Space>
+                          <Text style={{ fontSize: 12, color: C.subText, display: "block", margin: "6px 0 10px" }}>
+                            Needed for kitchen/bar/cashier routing, printing from other devices
+                            (tablets, other computers), or printing silently without the browser's
+                            print dialog.
+                          </Text>
+                          {renderSteps([
+                            <>Install the matching printer driver for your OS on the computer the printer is plugged into.</>,
+                            <>
+                              Install the <strong>Print Agent</strong> from the{" "}
+                              <strong>Download Agent</strong> tab on that same computer and connect
+                              it with your Company Code and Shop ID.
+                            </>,
+                            <>
+                              In the <strong>Printing Controls</strong> tab, switch{" "}
+                              <strong>Print Method</strong> to <strong>API</strong>, then assign
+                              categories to the agent in <strong>Connected Agents</strong>.
+                            </>,
+                          ])}
+                        </div>
+                      </div>
+                    </>
+                  ),
+                },
+              ]}
+            />
           </ProCard>
         </ProCard.TabPane>
 

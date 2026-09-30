@@ -182,6 +182,8 @@ const PayslipView: React.FC = () => {
   const [emailSubjectEdited, setEmailSubjectEdited] = useState(false);
   const [emailMessage, setEmailMessage] = useState("");
   const [emailAttachPdf, setEmailAttachPdf] = useState(false);
+  // Email header — "company" shows the company name, "department" shows the payslip's department
+  const [emailHeader, setEmailHeader] = useState<"company" | "department">("company");
 
   const user = getUser();
   const isAdmin = user?.role === "admin";
@@ -233,13 +235,21 @@ const PayslipView: React.FC = () => {
 
   const payslips = Array.isArray(payslipsData) ? payslipsData : payslipsData?.data || [];
 
+  // P9 is an annual deduction card — it needs every payslip in the selected
+  // YEAR, regardless of the month / employee / department filters above.
+  const { data: p9PayslipsData } = useQuery({
+    queryKey: ["p9-payslips", selectedYear, canViewAllPayslips ? "all" : user?._id || user?.id],
+    queryFn: () =>
+      canViewAllPayslips
+        ? fetchAllPayslips({ year: selectedYear })
+        : fetchEmployeePayslips(user?._id || user?.id, { year: selectedYear }),
+  });
+  const p9YearPayslips = Array.isArray(p9PayslipsData) ? p9PayslipsData : p9PayslipsData?.data || [];
+
   // Email payslip mutation
   const emailMutation = useMutation({
     mutationFn: ({ id, template, color, opts }: { id: string; template?: string; color?: string; opts?: any }) =>
       emailPayslip(id, template, color, opts),
-    onSuccess: () => {
-      message.success("Payslip emailed successfully");
-    },
   });
 
   // Render the server-side preview whenever the modal/template/overrides
@@ -251,6 +261,7 @@ const PayslipView: React.FC = () => {
     const timer = setTimeout(() => {
       setPreviewLoading(true);
       previewPayslipEmail(emailModal.ids[0], emailTemplate, emailColor || undefined, {
+        header: emailHeader,
         message: isSingle ? emailMessage || undefined : undefined,
         recipient_name: isSingle ? emailRecipientName || undefined : undefined,
       })
@@ -267,7 +278,7 @@ const PayslipView: React.FC = () => {
     }, 350);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [emailModal.open, emailModal.ids, emailTemplate, emailColor, emailMessage, emailRecipientName]);
+  }, [emailModal.open, emailModal.ids, emailTemplate, emailColor, emailMessage, emailRecipientName, emailHeader]);
 
   const openEmailModal = (ids: string[]) => {
     if (!ids.length) return;
@@ -283,6 +294,7 @@ const PayslipView: React.FC = () => {
       "Your payslip for the period below is now available. Please find the details of your earnings and deductions."
     );
     setEmailAttachPdf(false);
+    setEmailHeader("company");
     setEmailModal({ open: true, ids });
   };
 
@@ -308,6 +320,7 @@ const PayslipView: React.FC = () => {
             recipient_name: emailRecipientName.trim() || undefined,
             subject: emailSubject.trim() || undefined,
             message: emailMessage.trim() || undefined,
+            header: emailHeader,
             pdf,
           },
         });
@@ -316,7 +329,7 @@ const PayslipView: React.FC = () => {
       }
       return;
     }
-    await handleBulkEmail(ids, emailTemplate, emailColor || undefined);
+    await handleBulkEmail(ids, emailTemplate, emailColor || undefined, emailHeader);
   };
 
   // Delete payslip mutation
@@ -330,6 +343,36 @@ const PayslipView: React.FC = () => {
       }
     },
   });
+
+  // Bulk delete — same pattern as payroll: per-item calls with a summary toast
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const handleBulkDelete = () => {
+    if (!selectedRowKeys.length) return;
+    Modal.confirm({
+      title: `Delete ${selectedRowKeys.length} payslip(s)?`,
+      content: "This action cannot be undone.",
+      okText: "Delete",
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        setIsBulkDeleting(true);
+        try {
+          const results = await Promise.allSettled(
+            selectedRowKeys.map((id) => deletePayslip(String(id)))
+          );
+          const ok = results.filter((r) => r.status === "fulfilled").length;
+          const failed = results.length - ok;
+          if (ok === 0) message.error(`Delete failed for all ${results.length} payslip(s)`);
+          else if (failed > 0) message.warning(`Deleted ${ok} payslip(s) — ${failed} failed`);
+          queryClient.invalidateQueries({ queryKey: ["all-payslips"] });
+          queryClient.invalidateQueries({ queryKey: ["employee-payslips"] });
+          queryClient.invalidateQueries({ queryKey: ["p9-payslips"] });
+          setSelectedRowKeys([]);
+        } finally {
+          setIsBulkDeleting(false);
+        }
+      },
+    });
+  };
 
   const handleViewPayslip = async (payslipId: string) => {
     try {
@@ -345,7 +388,7 @@ const PayslipView: React.FC = () => {
 
   // Send payslips to a list of ids — chunked batches so progress is real
   // and large sends don't hit request timeouts
-  const handleBulkEmail = async (ids: string[], template?: string, color?: string) => {
+  const handleBulkEmail = async (ids: string[], template?: string, color?: string, header?: "company" | "department") => {
     if (!ids.length || isBulkSending) return;
     setIsBulkSending(true);
     const BATCH = 10;
@@ -354,7 +397,7 @@ const PayslipView: React.FC = () => {
     let sent = 0;
     try {
       for (let i = 0; i < ids.length; i += BATCH) {
-        const res = await emailPayslipsBatch(ids.slice(i, i + BATCH), template, color);
+        const res = await emailPayslipsBatch(ids.slice(i, i + BATCH), template, color, header);
         sent += res?.results?.sent?.length ?? 0;
         allSkipped.push(...(res?.results?.skipped || []));
         allFailed.push(...(res?.results?.failed || []));
@@ -402,10 +445,10 @@ const PayslipView: React.FC = () => {
   const [p9Settings, setP9Settings] = useState<any>(null);
   const [p9HideEmployer, setP9HideEmployer] = useState(false);
 
-  // Unique employees present in the loaded payslips
+  // Unique employees present in the year's payslips (month filter ignored)
   const p9Employees = (() => {
     const map = new Map<string, string>();
-    payslips.forEach((p: any) => {
+    p9YearPayslips.forEach((p: any) => {
       const id = p.employee_id?._id;
       if (id && !map.has(id)) {
         map.set(
@@ -422,11 +465,11 @@ const PayslipView: React.FC = () => {
 
   const p9ActiveEmployeeId = p9EmployeeId || p9Employees[0]?.value || null;
   const p9Payslips = p9ActiveEmployeeId
-    ? payslips.filter((p: any) => p.employee_id?._id === p9ActiveEmployeeId)
-    : payslips;
+    ? p9YearPayslips.filter((p: any) => p.employee_id?._id === p9ActiveEmployeeId)
+    : p9YearPayslips;
 
   const handleOpenP9Modal = () => {
-    if (payslips.length === 0) {
+    if (p9YearPayslips.length === 0) {
       message.warning("No payslips available for the selected year");
       return;
     }
@@ -782,7 +825,7 @@ const PayslipView: React.FC = () => {
           )}
           {canExportPayslips && (
             <Tooltip title="Preview & download P9 Form for the selected year">
-              <Button icon={<FilePdfOutlined />} onClick={handleOpenP9Modal} disabled={payslips.length === 0}>
+              <Button icon={<FilePdfOutlined />} onClick={handleOpenP9Modal} disabled={p9YearPayslips.length === 0}>
                 P9 Form
               </Button>
             </Tooltip>
@@ -854,6 +897,17 @@ const PayslipView: React.FC = () => {
                 onClick={() => openEmailModal(selectedRowKeys.map(String))}
               >
                 Email Selected
+              </Button>
+            )}
+            {canDeletePayslip && (
+              <Button
+                size="small"
+                danger
+                icon={<DeleteOutlined />}
+                loading={isBulkDeleting}
+                onClick={handleBulkDelete}
+              >
+                Delete Selected
               </Button>
             )}
           </Space>
@@ -1277,19 +1331,15 @@ const PayslipView: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Employer / employee info — official two-column layout; the
-                    employer rows are dropped entirely when privacy mode is on */}
+                {/* Employer / employee info — official two-column layout; privacy
+                    mode blanks the employer values but keeps the labels */}
                 <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", columnGap: 48, marginBottom: 8 }}>
                   <div>
-                    {!p9HideEmployer && (
-                      <div style={infoRow}><span style={infoLabel}>Employer's Name:</span><span style={infoValue}>{employerName}</span></div>
-                    )}
+                    <div style={infoRow}><span style={infoLabel}>Employer's Name:</span><span style={infoValue}>{p9HideEmployer ? "" : employerName}</span></div>
                     <div style={infoRow}><span style={infoLabel}>Employee's Main Name:</span><span style={infoValue}>{employeeName}</span></div>
                   </div>
                   <div>
-                    {!p9HideEmployer && (
-                      <div style={infoRow}><span style={infoLabel}>Employer's P.I.N.:</span><span style={infoValue}>{employerPin}</span></div>
-                    )}
+                    <div style={infoRow}><span style={infoLabel}>Employer's P.I.N.:</span><span style={infoValue}>{p9HideEmployer ? "" : employerPin}</span></div>
                     <div style={infoRow}><span style={infoLabel}>Employee's P.I.N.:</span><span style={infoValue}>{emp.kra_pin || ""}</span></div>
                   </div>
                 </div>
@@ -1486,6 +1536,18 @@ const PayslipView: React.FC = () => {
             <Text type="secondary" style={{ fontSize: 11 }}>
               {emailColor ? "Custom" : `Company color (${C.primary})`}
             </Text>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Text strong style={{ fontSize: 13 }}>Header:</Text>
+            <Select
+              value={emailHeader}
+              onChange={(v) => setEmailHeader(v)}
+              style={{ width: 150 }}
+              options={[
+                { value: "company", label: "Company name" },
+                { value: "department", label: "Department" },
+              ]}
+            />
           </div>
         </div>
         {emailModal.ids.length === 1 && (

@@ -93,14 +93,11 @@ export const buildP9FormDoc = async (
   const leftX = margin;
   const rightX = pageWidth / 2 + 30;
   const lineW = pageWidth / 2 - margin - 150;
-  // Privacy mode drops the employer label lines entirely (not just the values)
-  const empY = hideEmployer ? y : y + 15;
-  if (!hideEmployer) {
-    infoLine("Employer's Name", employerName, leftX, y, lineW);
-    infoLine("Employer's P.I.N.", employerPin, rightX, y, lineW - 40);
-  }
-  infoLine("Employee's Main Name", employeeName, leftX, empY, lineW);
-  infoLine("Employee's P.I.N.", emp.kra_pin || '', rightX, empY, lineW - 40);
+  // Privacy mode blanks the employer values but keeps the label lines
+  infoLine("Employer's Name", employerName, leftX, y, lineW);
+  infoLine("Employer's P.I.N.", employerPin, rightX, y, lineW - 40);
+  infoLine("Employee's Main Name", employeeName, leftX, y + 15, lineW);
+  infoLine("Employee's P.I.N.", emp.kra_pin || '', rightX, y + 15, lineW - 40);
   y += 30;
 
   // ── Monthly grid — official columns A–O ────────────────────────────────────
