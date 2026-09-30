@@ -139,7 +139,6 @@ const LeaveApplication: React.FC = () => {
   const applyMutation = useMutation({
     mutationFn: (params: CreateLeaveParams) => applyForLeave(params),
     onSuccess: () => {
-      message.success("Leave application submitted successfully");
       setIsModalVisible(false);
       form.resetFields();
       queryClient.invalidateQueries({ queryKey: ["bandu-leaves"] });
@@ -162,7 +161,6 @@ const LeaveApplication: React.FC = () => {
     mutationFn: ({ leaveId, file }: { leaveId: string; file: File }) =>
       uploadLeaveDocument(leaveId, file),
     onSuccess: () => {
-      message.success("Document uploaded successfully");
       setIsDocumentModalVisible(false);
       documentForm.resetFields();
       if (selectedLeave) {

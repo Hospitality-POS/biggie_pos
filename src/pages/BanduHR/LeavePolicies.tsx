@@ -181,7 +181,6 @@ const LeavePolicies: React.FC = () => {
   const createMutation = useMutation({
     mutationFn: createLeavePolicy,
     onSuccess: () => {
-      message.success("Leave policy created successfully");
       setIsModalVisible(false);
       form.resetFields();
       queryClient.invalidateQueries({ queryKey: ["leave-policies"] });
@@ -193,7 +192,6 @@ const LeavePolicies: React.FC = () => {
     mutationFn: ({ policyId, params }: { policyId: string; params: Partial<CreateLeavePolicyParams> }) =>
       updateLeavePolicy(policyId, params),
     onSuccess: () => {
-      message.success("Leave policy updated successfully");
       setIsModalVisible(false);
       setSelectedPolicy(null);
       form.resetFields();
@@ -205,7 +203,6 @@ const LeavePolicies: React.FC = () => {
   const deleteMutation = useMutation({
     mutationFn: deleteLeavePolicy,
     onSuccess: () => {
-      message.success("Leave policy deleted successfully");
       queryClient.invalidateQueries({ queryKey: ["leave-policies"] });
     },
   });
@@ -213,9 +210,6 @@ const LeavePolicies: React.FC = () => {
   // Initialize balances mutation
   const initializeMutation = useMutation({
     mutationFn: initializeLeaveBalances,
-    onSuccess: () => {
-      message.success("Leave balances initialized successfully");
-    },
   });
 
   const columns = [

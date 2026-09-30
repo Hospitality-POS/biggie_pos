@@ -166,6 +166,11 @@ const EmployeeManagement: React.FC = () => {
   const [isAllowanceModalVisible, setIsAllowanceModalVisible] = useState(false);
   const [isBenefitModalVisible, setIsBenefitModalVisible] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
+  // Highest step index reachable so far. Editing an existing employee starts
+  // with every step unlocked (all data is already prefilled); adding a new
+  // one unlocks steps progressively as the user completes them, but once a
+  // step has been visited it stays clickable even after navigating back.
+  const [maxStepReached, setMaxStepReached] = useState(0);
   const [activeTab, setActiveTab] = useState("details");
   const [linkToUser, setLinkToUser] = useState<boolean>(false);
 
@@ -291,10 +296,10 @@ const EmployeeManagement: React.FC = () => {
   const createMutation = useMutation({
     mutationFn: createEmployee,
     onSuccess: () => {
-      message.success("Employee created successfully");
       setIsModalVisible(false);
       setSelectedEmployee(null);
       setCurrentStep(0);
+      setMaxStepReached(0);
       setLinkToUser(false);
       clearDraft();
       form.resetFields();
@@ -308,11 +313,11 @@ const EmployeeManagement: React.FC = () => {
     mutationFn: ({ employeeId, params }: { employeeId: string; params: Partial<CreateEmployeeParams> }) =>
       updateEmployee(employeeId, params),
     onSuccess: () => {
-      message.success("Employee updated successfully");
       setIsModalVisible(false);
       setIsDrawerVisible(false);
       setSelectedEmployee(null);
       setCurrentStep(0);
+      setMaxStepReached(0);
       form.resetFields();
       setAllFormValues({});
       queryClient.invalidateQueries({ queryKey: ["bandu-employees"] });
@@ -323,7 +328,6 @@ const EmployeeManagement: React.FC = () => {
   const deleteMutation = useMutation({
     mutationFn: deleteEmployee,
     onSuccess: () => {
-      message.success("Employee deleted successfully");
       queryClient.invalidateQueries({ queryKey: ["bandu-employees"] });
     },
   });
@@ -332,7 +336,6 @@ const EmployeeManagement: React.FC = () => {
   const permanentDeleteMutation = useMutation({
     mutationFn: permanentlyDeleteEmployee,
     onSuccess: () => {
-      message.success("Employee permanently deleted");
       queryClient.invalidateQueries({ queryKey: ["bandu-employees"] });
     },
   });
@@ -358,7 +361,6 @@ const EmployeeManagement: React.FC = () => {
     }) =>
       uploadEmployeeDocument(employeeId, file, documentType, documentName, description, expirationDate, accessLevel),
     onSuccess: () => {
-      message.success("Document uploaded successfully");
       setIsDocumentModalVisible(false);
       documentForm.resetFields();
       if (selectedEmployee) {
@@ -445,11 +447,31 @@ const EmployeeManagement: React.FC = () => {
     { title: "Emp No.", dataIndex: "employee_number" },
     { title: "Full Name", dataIndex: "fullname" },
     { title: "ID Number", dataIndex: "id_number" },
+    { title: "Email", dataIndex: "email" },
+    { title: "Phone", dataIndex: "phone" },
     { title: "Department", dataIndex: "department" },
     { title: "Job Title", dataIndex: "job_title" },
+    { title: "Employment Type", dataIndex: "employment_type" },
+    { title: "Employment Status", dataIndex: "employment_status" },
     { title: "Hire Date", dataIndex: "hire_date" },
     { title: "Salary", dataIndex: "basic_salary" },
     { title: "Salary Type", dataIndex: "salary_type" },
+    { title: "Currency", dataIndex: "currency" },
+    { title: "Payment Frequency", dataIndex: "payment_frequency" },
+    { title: "Bank Name", dataIndex: "bank_name" },
+    { title: "Bank Account Number", dataIndex: "bank_account_number" },
+    { title: "Bank Branch", dataIndex: "bank_branch" },
+    { title: "Date of Birth", dataIndex: "date_of_birth" },
+    { title: "Gender", dataIndex: "gender" },
+    { title: "Blood Group", dataIndex: "blood_group" },
+    { title: "Marital Status", dataIndex: "marital_status" },
+    { title: "Nationality", dataIndex: "nationality" },
+    { title: "KRA PIN", dataIndex: "kra_pin" },
+    { title: "NSSF Number", dataIndex: "nssf_number" },
+    { title: "SHA/NHIF Number", dataIndex: "nhif_number" },
+    { title: "Emergency Contact Name", dataIndex: "emergency_contact_name" },
+    { title: "Emergency Contact Phone", dataIndex: "emergency_contact_phone" },
+    { title: "Emergency Contact Relationship", dataIndex: "emergency_contact_relationship" },
     { title: "User Email", dataIndex: "user_email" },
   ];
 
@@ -541,10 +563,12 @@ const EmployeeManagement: React.FC = () => {
       render: (gender: string) => <Text style={{ textTransform: "capitalize" }}>{gender || "—"}</Text>,
     },
     {
-      title: "Date of Birth",
-      dataIndex: "date_of_birth",
-      key: "date_of_birth",
-      render: (dob: string) => <Text>{dob ? dayjs(dob).format("DD MMM YYYY") : "—"}</Text>,
+      title: "Employee Type",
+      dataIndex: "employment_type",
+      key: "employment_type",
+      render: (type: string) => (
+        <Text style={{ textTransform: "capitalize" }}>{type ? type.replace(/[_-]/g, " ") : "—"}</Text>
+      ),
     },
     {
       title: "Actions",
@@ -601,6 +625,9 @@ const EmployeeManagement: React.FC = () => {
       employee_number: record.employee_number,
       job_title: record.job_title,
       fullname: record.fullname,
+      firstname: record.firstname,
+      middle_name: record.middle_name,
+      lastname: record.lastname,
       email: record.email,
       phone: record.phone,
       id_number: record.id_number,
@@ -630,6 +657,8 @@ const EmployeeManagement: React.FC = () => {
     };
     form.setFieldsValue(initialValues);
     setAllFormValues(initialValues);
+    setCurrentStep(0);
+    setMaxStepReached(4); // all data is already filled in, so unlock every step
     setIsModalVisible(true);
   };
 
@@ -663,11 +692,20 @@ const EmployeeManagement: React.FC = () => {
     if (linkToUser) {
       // Identity comes from the linked user account
       delete payload.fullname;
+      delete payload.firstname;
+      delete payload.middle_name;
+      delete payload.lastname;
       delete payload.email;
       delete payload.phone;
     } else {
       payload.user_id = null;
-      if (!payload.fullname) payload.fullname = "";
+      // Fullname is derived from the name parts (backend also recomputes it
+      // as a safety net), so the rest of the app that still reads
+      // `fullname` directly keeps working unchanged.
+      payload.fullname = [payload.firstname, payload.middle_name, payload.lastname]
+        .map((p) => String(p || "").trim())
+        .filter(Boolean)
+        .join(" ");
     }
     return payload;
   };
@@ -678,7 +716,10 @@ const EmployeeManagement: React.FC = () => {
       return v === undefined || v === null || v === "";
     });
     if (linkToUser && !payload.user_id) missing.unshift("user_id");
-    if (!linkToUser && !String(payload.fullname || "").trim()) missing.unshift("fullname");
+    if (!linkToUser) {
+      if (!String(payload.firstname || "").trim()) missing.unshift("firstname");
+      if (!String(payload.lastname || "").trim()) missing.unshift("lastname");
+    }
     if (missing.length > 0) {
       message.error(`Missing required fields: ${missing.join(", ")}. Please go back and complete them.`);
       setCurrentStep(0);
@@ -722,7 +763,7 @@ const EmployeeManagement: React.FC = () => {
   const STEP_FIELDS: Record<number, string[]> = {
     0: linkToUser
       ? ["user_id", "id_number"]
-      : ["fullname", "id_number"],
+      : ["firstname", "lastname", "id_number"],
     1: [
       "employment_type", "hire_date", "basic_salary", "currency", "payment_frequency",
       ...(isForeignCurrency ? ["exchange_rate"] : []),
@@ -739,6 +780,7 @@ const EmployeeManagement: React.FC = () => {
       const currentValues = form.getFieldsValue();
       setAllFormValues({ ...allFormValues, ...currentValues });
       setCurrentStep(currentStep + 1);
+      setMaxStepReached((prev) => Math.max(prev, currentStep + 1));
       persistDraft(currentStep + 1);
     } catch {
       // Stay on current step until required fields are valid
@@ -887,6 +929,7 @@ const EmployeeManagement: React.FC = () => {
                 setAllFormValues(draft.values);
                 form.setFieldsValue(draft.values);
                 setCurrentStep(draft.step);
+                setMaxStepReached(draft.step);
                 setIsModalVisible(true);
               }}
             >
@@ -1114,6 +1157,7 @@ const EmployeeManagement: React.FC = () => {
           setIsModalVisible(false);
           setSelectedEmployee(null);
           setCurrentStep(0);
+          setMaxStepReached(0);
           setLinkToUser(false);
           form.resetFields();
           setAllFormValues({});
@@ -1129,18 +1173,18 @@ const EmployeeManagement: React.FC = () => {
               direction="vertical"
               size="small"
               onChange={(step) => {
-                // Click an earlier step to jump straight back to it
-                if (step < currentStep) {
+                // Jump directly to any step already visited, in either direction
+                if (step <= maxStepReached && step !== currentStep) {
                   setAllFormValues({ ...allFormValues, ...form.getFieldsValue() });
                   setCurrentStep(step);
                 }
               }}
             >
               <Steps.Step title="Basic Info" />
-              <Steps.Step title="Employment" disabled={currentStep < 1} />
-              <Steps.Step title="Banking & Tax" disabled={currentStep < 2} />
-              <Steps.Step title="Personal Info" disabled={currentStep < 3} />
-              <Steps.Step title="Emergency" disabled={currentStep < 4} />
+              <Steps.Step title="Employment" disabled={maxStepReached < 1} />
+              <Steps.Step title="Banking & Tax" disabled={maxStepReached < 2} />
+              <Steps.Step title="Personal Info" disabled={maxStepReached < 3} />
+              <Steps.Step title="Emergency" disabled={maxStepReached < 4} />
             </Steps>
           </Col>
           <Col span={18}>
@@ -1200,11 +1244,23 @@ const EmployeeManagement: React.FC = () => {
                     </Form.Item>
                   </Col>
                 ) : (
-                  <Col span={12}>
-                    <Form.Item label="Full Name" name="fullname" rules={[{ required: true, message: "Required" }]}>
-                      <Input placeholder="e.g., Jane Doe" />
-                    </Form.Item>
-                  </Col>
+                  <>
+                    <Col span={8}>
+                      <Form.Item label="First Name" name="firstname" rules={[{ required: true, message: "Required" }]}>
+                        <Input placeholder="e.g., Jane" />
+                      </Form.Item>
+                    </Col>
+                    <Col span={8}>
+                      <Form.Item label="Middle Name" name="middle_name">
+                        <Input placeholder="Optional" />
+                      </Form.Item>
+                    </Col>
+                    <Col span={8}>
+                      <Form.Item label="Last Name" name="lastname" rules={[{ required: true, message: "Required" }]}>
+                        <Input placeholder="e.g., Doe" />
+                      </Form.Item>
+                    </Col>
+                  </>
                 )}
                 <Col span={12}>
                   <Form.Item label="Department" name="department_id">
@@ -1556,11 +1612,23 @@ const EmployeeManagement: React.FC = () => {
                   {selectedEmployee ? "Update" : "Create"} Employee
                 </Button>
               )}
+              {/* Editing an existing employee: every field is already saved somewhere,
+                  so let the user save from whichever step they're on instead of
+                  forcing them to click through the remaining steps. */}
+              {selectedEmployee && currentStep < 4 && (
+                <Button
+                  onClick={handleUpdateEmployee}
+                  loading={updateMutation.isLoading}
+                >
+                  Save & Finish
+                </Button>
+              )}
               <Button onClick={() => {
                 clearDraft(); // explicit discard
                 setIsModalVisible(false);
                 setSelectedEmployee(null);
                 setCurrentStep(0);
+                setMaxStepReached(0);
                 setLinkToUser(false);
                 form.resetFields();
                 setAllFormValues({});

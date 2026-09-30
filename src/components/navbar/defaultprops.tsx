@@ -446,7 +446,7 @@ export const useProLayoutNav = () => {
   // 4. BANDU (HR & PAYROLL) ROUTES
   // ════════════════════════════════════════════════════════════════════════════
   const banduRoutesBase = [
-    { path: p("/hr/dashboard"), name: "HR Dashboard", icon: <DashboardOutlined />, _bare: "/hr/dashboard" },
+    { path: p("/hr/dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/hr/dashboard" },
     { path: p("/hr/employees"), name: "Employees", icon: <UserOutlined />, _bare: "/hr/employees" },
     { path: p("/hr/payroll"), name: "Payroll", icon: <DollarOutlined />, _bare: "/hr/payroll" },
     { path: p("/hr/payslips"), name: "Payslips", icon: <FileTextOutlined />, _bare: "/hr/payslips" },

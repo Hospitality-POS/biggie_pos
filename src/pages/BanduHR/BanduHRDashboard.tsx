@@ -336,7 +336,6 @@ const BanduHRDashboard: React.FC = () => {
   const handleClockIn = async () => {
     try {
       await clockIn();
-      message.success("Clocked in successfully");
       queryClient.invalidateQueries({ queryKey: ["clock-status"] });
     } catch {
       // Error handled by service
@@ -346,7 +345,6 @@ const BanduHRDashboard: React.FC = () => {
   const handleClockOut = async () => {
     try {
       await clockOut();
-      message.success("Clocked out successfully");
       queryClient.invalidateQueries({ queryKey: ["clock-status"] });
     } catch {
       // Error handled by service
