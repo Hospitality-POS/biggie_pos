@@ -704,27 +704,11 @@ const PrinterSettings: React.FC = () => {
                       >
                         {downloadCard(
                           <LinuxOutlined style={{ fontSize: 20, color: C.primary }} />,
-                          "Linux Driver (64-bit)",
-                          "v8.0",
-                          "For 64-bit Linux distributions.",
-                          "https://reliatechdocs.nyc3.digitaloceanspaces.com/Drivers/install80%2864bit%29",
-                          "Download (64-bit)"
-                        )}
-                        {downloadCard(
-                          <LinuxOutlined style={{ fontSize: 20, color: C.primary }} />,
-                          "Linux Driver (32-bit)",
-                          "v8.0",
-                          "For 32-bit Linux distributions.",
-                          "https://reliatechdocs.nyc3.digitaloceanspaces.com/Drivers/install80",
-                          "Download (32-bit)"
-                        )}
-                        {downloadCard(
-                          <LinuxOutlined style={{ fontSize: 20, color: C.primary }} />,
-                          "Linux Driver (32-bit, legacy)",
-                          "v5.8",
-                          "Older driver version — use only if v8.0 above doesn't work for your distro.",
-                          "https://reliatechdocs.nyc3.digitaloceanspaces.com/Drivers/install58",
-                          "Download (32-bit legacy)"
+                          "Linux Driver Package",
+                          "ZIP — all versions",
+                          "Contains the 64-bit v8.0, 32-bit v8.0, and legacy 32-bit v5.8 installers — pick the one matching your distro after unzipping.",
+                          "https://reliatechdocs.nyc3.digitaloceanspaces.com/Drivers/Linux%20Driver.zip",
+                          "Download ZIP"
                         )}
                       </div>
 
