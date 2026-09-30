@@ -658,7 +658,7 @@ const PrinterSettings: React.FC = () => {
                           "Xprinter 80MM Printer Driver",
                           "Universal",
                           "Recommended for most 80mm thermal receipt printers (Xprinter and most generic/compatible models) on Windows 10/11.",
-                          "/Drivers/windows/Xprinter%2080MM%20Printer%20Driver.exe",
+                          "https://reliatechdocs.nyc3.digitaloceanspaces.com/Drivers/Xprinter%2080MM%20Printer%20Driver.exe",
                           "Download for Windows",
                           true
                         )}
@@ -667,7 +667,7 @@ const PrinterSettings: React.FC = () => {
                           "POS Printer Driver Setup",
                           "Generic",
                           "Alternative generic POS printer driver — use only if the Xprinter driver above doesn't detect your printer.",
-                          "/Drivers/windows/POS%20Printer%20Driver%20Setup%20.exe",
+                          "https://reliatechdocs.nyc3.digitaloceanspaces.com/Drivers/POS%20Printer%20Driver%20Setup%20.exe",
                           "Download for Windows"
                         )}
                       </div>
@@ -687,7 +687,7 @@ const PrinterSettings: React.FC = () => {
                           "macOS Printer Driver",
                           "Universal",
                           "Thermal receipt printer driver for macOS.",
-                          "/Drivers/Mac/macOSDriver.dmg",
+                          "https://reliatechdocs.nyc3.digitaloceanspaces.com/Drivers/macOSDriver.dmg",
                           "Download for macOS"
                         )}
                       </div>
@@ -707,7 +707,7 @@ const PrinterSettings: React.FC = () => {
                           "Linux Driver (64-bit)",
                           "v8.0",
                           "For 64-bit Linux distributions.",
-                          "/Drivers/linux/linux64bit/install80",
+                          "https://reliatechdocs.nyc3.digitaloceanspaces.com/Drivers/install80%2864bit%29",
                           "Download (64-bit)"
                         )}
                         {downloadCard(
@@ -715,7 +715,7 @@ const PrinterSettings: React.FC = () => {
                           "Linux Driver (32-bit)",
                           "v8.0",
                           "For 32-bit Linux distributions.",
-                          "/Drivers/linux/linux32bit/install80",
+                          "https://reliatechdocs.nyc3.digitaloceanspaces.com/Drivers/install80",
                           "Download (32-bit)"
                         )}
                         {downloadCard(
@@ -723,7 +723,7 @@ const PrinterSettings: React.FC = () => {
                           "Linux Driver (32-bit, legacy)",
                           "v5.8",
                           "Older driver version — use only if v8.0 above doesn't work for your distro.",
-                          "/Drivers/linux/linux32bit/install58",
+                          "https://reliatechdocs.nyc3.digitaloceanspaces.com/Drivers/install58",
                           "Download (32-bit legacy)"
                         )}
                       </div>
