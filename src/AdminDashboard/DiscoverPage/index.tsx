@@ -335,7 +335,7 @@ const INTEGRATIONS = [
         status: "available",
         icon: RobotOutlined,
         color: C.primary,
-        tags: ["AI", "Enabled", "Assistant"],
+        tags: ["AI", "Beta", "Assistant"],
     },
     {
         id: "pesapal",
@@ -419,12 +419,17 @@ const FormSection: React.FC<{ children: React.ReactNode; style?: React.CSSProper
     </div>
 );
 
-const ModalTitle: React.FC<{ icon: React.ReactNode; color: string; title: string }> = ({ icon, color, title }) => (
+const ModalTitle: React.FC<{ icon: React.ReactNode; color: string; title: string; tag?: string }> = ({ icon, color, title, tag }) => (
     <Space size={8}>
         <div style={{ width: 32, height: 32, borderRadius: 8, background: color + "18", color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>
             {icon}
         </div>
         <Text strong style={{ fontSize: 13, color: C.darkText }}>{title}</Text>
+        {tag && (
+            <span style={{ background: "#fffbeb", color: C.orange, borderRadius: 4, fontSize: 10, fontWeight: 700, padding: "1px 6px", textTransform: "uppercase", border: `1px solid ${C.orange}30` }}>
+                {tag}
+            </span>
+        )}
     </Space>
 );
 
@@ -496,6 +501,11 @@ const IntegrationCard: React.FC<{
                     <Icon />
                 </div>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                    {integration.tags?.includes("Beta") && (
+                        <span style={{ background: "#fffbeb", color: C.orange, borderRadius: 6, fontSize: 10, fontWeight: 700, padding: "3px 8px", textTransform: "uppercase", border: `1px solid ${C.orange}30` }}>
+                            Beta
+                        </span>
+                    )}
                     {isEnabled && (
                         <span style={{ background: "#f0fdf4", color: C.green, borderRadius: 6, fontSize: 10, fontWeight: 700, padding: "3px 8px", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 4 }}>
                             <CheckCircleOutlined style={{ fontSize: 10 }} /> Enabled
@@ -519,10 +529,10 @@ const IntegrationCard: React.FC<{
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
                 {integration.tags.map((tag, i) => (
                     <span key={i} style={{
-                        background: i === 0 ? integration.color + "14" : C.bg,
-                        color: i === 0 ? integration.color : C.subText,
+                        background: tag === "Beta" ? "#fffbeb" : (i === 0 ? integration.color + "14" : C.bg),
+                        color: tag === "Beta" ? C.orange : (i === 0 ? integration.color : C.subText),
                         borderRadius: 5, fontSize: 10, fontWeight: 600, padding: "2px 7px",
-                        border: `1px solid ${i === 0 ? integration.color + "30" : C.border}`,
+                        border: `1px solid ${tag === "Beta" ? C.orange + "40" : (i === 0 ? integration.color + "30" : C.border)}`,
                     }}>
                         {tag}
                     </span>
@@ -580,7 +590,7 @@ const LearnMoreModal: React.FC<{
 
     return (
         <Modal open={open} onCancel={onClose} footer={null} style={{ top: 20 }} width="min(660px, 96vw)" destroyOnClose
-            title={<ModalTitle icon={<Icon />} color={integration.color} title={integration.name} />}
+            title={<ModalTitle icon={<Icon />} color={integration.color} title={integration.name} tag={integration.tags?.includes("Beta") ? "Beta" : undefined} />}
         >
             <div style={{ display: "flex", flexDirection: "column", gap: 14, paddingTop: 4 }}>
                 {isComingSoon && <Alert message="Coming Soon" description="This integration is under development. Stay tuned for updates!" type="warning" showIcon />}
