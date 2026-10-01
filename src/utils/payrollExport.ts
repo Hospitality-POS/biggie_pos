@@ -1,17 +1,20 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import { message } from 'antd';
 import { fetchSystemSetupDetailsById } from '@services/systemsetup';
 import { getPrimaryColor, hexToRgb } from './getPrimaryColor';
 
 /**
  * Payroll "Muster Roll" export — Excel + PDF.
- * Shares one column layout with the on-screen payroll tables:
- * Employee | Basic | Allowances | Benefits | Overtime | Gross |
+ * Employee | Basic | <one column per employee allowance name> |
+ * <one column per employee benefit name> | Overtime | Gross |
  * SHIF | NSSF | Housing Levy | WHT | PAYE | <one column per custom
  * deduction name> | Total Deductions |
- * Net Pay | NSSF Employer | AHL Employer | NITA Employer
+ * Net Pay | NSSF Employer | AHL Employer | NITA Employer.
+ * The Overtime column is hidden when every line is zero, matching the
+ * on-screen table. The document title can be the company or the payroll's
+ * department name (export option, same as payslips).
  */
 
 const fmt = (v: any) =>
@@ -27,27 +30,14 @@ const lineName = (line: any) =>
   line.employee_number ||
   '—';
 
-// Fixed columns before and after the dynamic per-name custom deduction ones
-const PRE_CUSTOM_HEADERS = [
-  'Employee Name',
-  'Basic Pay',
-  'Allowances',
-  'Benefits',
-  'Overtime',
-  'Gross Pay',
-  'S.H.I.F.',
-  'N.S.S.F.',
-  'Housing Levy',
-  'WHT',
-  'PAYE (Tax)',
-];
-const POST_CUSTOM_HEADERS = [
-  'Total Deductions',
-  'Net Pay',
-  'N.S.S.F. Employer',
-  'AHL Employer',
-  'NITA Employer Contribution',
-];
+// Money columns — Allowances/Benefits/Overtime hide when every line is zero
+// (same rule as the on-screen payroll table); custom deductions get one column
+// per name, between PAYE and Total Deductions.
+interface MoneyCol {
+  header: string;
+  get: (line: any) => number;
+  hideZero?: boolean;
+}
 
 // One column per custom deduction name — same approach as the on-screen table
 const collectCustomNames = (lines: any[]) => {
@@ -79,96 +69,164 @@ interface MusterRoll {
  * `withDepartment` inserts a Department column after the employee name —
  * used when several payrolls are merged into one document.
  */
-const buildMusterRoll = (lines: any[], withDepartment = false): MusterRoll => {
+const buildMusterRoll = (lines: any[], withDepartment = false, rounded = false): MusterRoll => {
   const customNames = collectCustomNames(lines);
-  const headers = withDepartment
-    ? [PRE_CUSTOM_HEADERS[0], 'Department', ...PRE_CUSTOM_HEADERS.slice(1), ...customNames, ...POST_CUSTOM_HEADERS]
-    : [...PRE_CUSTOM_HEADERS, ...customNames, ...POST_CUSTOM_HEADERS];
 
-  const perLineNums = (line: any): (string | number)[] => {
-    const d = line.deductions || {};
-    const customByName = new Map((d.custom || []).map((c: any) => [c.name, num(c.amount)]));
-    return [
-      lineName(line),
-      ...(withDepartment ? [line._department || '—'] : []),
-      num(line.basic_salary),
-      num(line.allowances),
-      num(line.benefits),
-      num(line.overtime_pay),
-      num(line.gross_salary),
-      num(d.nhif),           // SHIF (stored under nhif)
-      num(d.nssf),
-      num(d.housing_levy),
-      num(d.withholding_tax),
-      num(d.paye),
-      ...customNames.map((n) => customByName.get(n) ?? 0),
-      num(d.total),
-      num(line.net_pay),
-      num(d.employer_nssf ?? d.nssf),                 // employer NSSF matches employee share
-      num(d.employer_housing_levy ?? d.housing_levy), // employer AHL matches employee share
-      num(d.employer_nita ?? d.nita),                 // statutory KES 50 employer levy
-    ];
-  };
+  // rounded → whole-shilling values so exported totals foot exactly
+  const rn = (v: any) => (rounded ? Math.round(num(v)) : num(v));
+  const fmtV = (v: any) =>
+    rounded ? Math.round(num(v)).toLocaleString('en-KE') : fmt(v);
+
+  // Getter-based columns so all-zero columns can be dropped without breaking
+  // the totals/summary math.
+  const dOf = (l: any) => l.deductions || {};
+
+  // Allowances and benefits are itemized per employee record — one column
+  // per name (falling back to the configured type key, e.g. "house" →
+  // "House", "motor_vehicle" → "Motor Vehicle"). When a line has no
+  // itemized entries at all but carries a total (e.g. employee record
+  // missing/unpopulated), a single labeled fallback column keeps it visible.
+  const typeLabel = (key: any, fallback: string) =>
+    key
+      ? String(key)
+          .replace(/[_-]+/g, ' ')
+          .replace(/\b\w/g, (c) => c.toUpperCase())
+      : fallback;
+  const allowanceItems = (l: any): any[] =>
+    Array.isArray(empOf(l).allowances) ? empOf(l).allowances : [];
+  const benefitItems = (l: any): any[] =>
+    Array.isArray(empOf(l).benefits) ? empOf(l).benefits : [];
+  const allowanceLabel = (a: any) => a?.name || typeLabel(a?.allowance_type, 'Allowance');
+  const benefitLabel = (b: any) => b?.name || typeLabel(b?.benefit_type, 'Benefit');
+  const allowanceNames = [
+    ...new Set(lines.flatMap((l) => allowanceItems(l).map(allowanceLabel))),
+  ];
+  const benefitNames = [
+    ...new Set(lines.flatMap((l) => benefitItems(l).map(benefitLabel))),
+  ];
+
+  const moneyCols: MoneyCol[] = [
+    { header: 'Basic Pay', get: (l) => rn(l.basic_salary) },
+    ...allowanceNames.map((n): MoneyCol => ({
+      header: n,
+      get: (l) =>
+        rn(
+          allowanceItems(l)
+            .filter((a: any) => allowanceLabel(a) === n)
+            .reduce((s: number, a: any) => s + num(a?.amount), 0)
+        ),
+    })),
+    // Fallback only used when NO named allowance items exist on any line —
+    // keeps a bare line total (legacy data / unpopulated employee) visible.
+    ...(allowanceNames.length === 0 && lines.some((l) => num(l.allowances) > 0)
+      ? [{ header: 'Allowances', get: (l: any) => rn(l.allowances) }]
+      : []),
+    ...benefitNames.map((n): MoneyCol => ({
+      header: n,
+      get: (l) =>
+        rn(
+          benefitItems(l)
+            .filter((b: any) => benefitLabel(b) === n)
+            .reduce((s: number, b: any) => s + num(b?.value), 0)
+        ),
+    })),
+    ...(benefitNames.length === 0 && lines.some((l) => num(l.benefits) > 0)
+      ? [{ header: 'Benefits', get: (l: any) => rn(l.benefits) }]
+      : []),
+    { header: 'Overtime', get: (l) => rn(l.overtime_pay), hideZero: true },
+    { header: 'Gross Pay', get: (l) => rn(l.gross_salary) },
+    { header: 'S.H.I.F.', get: (l) => rn(dOf(l).nhif) },
+    { header: 'N.S.S.F.', get: (l) => rn(dOf(l).nssf) },
+    { header: 'Housing Levy', get: (l) => rn(dOf(l).housing_levy) },
+    { header: 'WHT', get: (l) => rn(dOf(l).withholding_tax) },
+    { header: 'PAYE (Tax)', get: (l) => rn(dOf(l).paye) },
+    ...customNames.map((n): MoneyCol => ({
+      header: n,
+      get: (l) => rn((dOf(l).custom || []).find((c: any) => c.name === n)?.amount ?? 0),
+    })),
+    { header: 'Total Deductions', get: (l) => rn(dOf(l).total) },
+    { header: 'Net Pay', get: (l) => rn(l.net_pay) },
+    { header: 'N.S.S.F. Employer', get: (l) => rn(dOf(l).employer_nssf ?? dOf(l).nssf) },
+    { header: 'AHL Employer', get: (l) => rn(dOf(l).employer_housing_levy ?? dOf(l).housing_levy) },
+    { header: 'NITA Employer Contribution', get: (l) => rn(dOf(l).employer_nita ?? dOf(l).nita) },
+  ];
+  const cols = moneyCols.filter((c) => !c.hideZero || lines.some((l) => c.get(l) !== 0));
+
+  const headers = withDepartment
+    ? ['Employee Name', 'Department', ...cols.map((c) => c.header)]
+    : ['Employee Name', ...cols.map((c) => c.header)];
+
+  const perLineNums = (line: any): (string | number)[] => [
+    lineName(line),
+    ...(withDepartment ? [line._department || '—'] : []),
+    ...cols.map((c) => c.get(line)),
+  ];
 
   const bodyNums = lines.map(perLineNums);
   const firstMoneyCol = withDepartment ? 2 : 1;
   const bodyText = bodyNums.map((r) =>
-    r.map((c, i) => (i < firstMoneyCol ? String(c) : fmt(c)))
+    r.map((c, i) => (i < firstMoneyCol ? String(c) : fmtV(c)))
   );
 
-  const sum = (col: number) =>
-    bodyNums.reduce((s: number, r) => s + (typeof r[col] === 'number' ? (r[col] as number) : 0), 0);
+  const sumOf = (get: (l: any) => number) =>
+    lines.reduce((s: number, l: any) => s + num(get(l)), 0);
 
   const totalsNums: (string | number)[] = [
     'GRAND TOTALS',
     ...(withDepartment ? [''] : []),
-    ...headers.slice(withDepartment ? 2 : 1).map((_, i) => sum(firstMoneyCol + i)),
+    ...cols.map((c) => sumOf(c.get)),
   ];
-  const totalsText = totalsNums.map((c, i) => (i === 0 ? String(c) : typeof c === 'number' ? fmt(c) : c));
+  const totalsText = totalsNums.map((c, i) => (i === 0 ? String(c) : typeof c === 'number' ? fmtV(c) : c));
 
-  // Deductions summary (employee deductions + employer contributions)
-  const o = firstMoneyCol; // money-column offset
-  const N = customNames.length;
-  const payeTotal = sum(o + 9), shifTotal = sum(o + 5), nssfTotal = sum(o + 6);
-  const ahlTotal = sum(o + 7), whtTotal = sum(o + 8);
-  const customTotals = customNames.map((_, i) => sum(o + 10 + i));
-  const dedTotal = sum(o + 10 + N), netTotal = sum(o + 11 + N);
-  const nssfErTotal = sum(o + 12 + N), ahlErTotal = sum(o + 13 + N), nitaTotal = sum(o + 14 + N);
+  // Statutory deductions summary (employee deductions + employer contributions).
+  // Custom deductions (loans, advances, HELB…) are intentionally left out —
+  // they still appear as named columns in the main table.
+  const payeTotal = sumOf((l) => dOf(l).paye), shifTotal = sumOf((l) => dOf(l).nhif);
+  const nssfTotal = sumOf((l) => dOf(l).nssf), ahlTotal = sumOf((l) => dOf(l).housing_levy);
+  const whtTotal = sumOf((l) => dOf(l).withholding_tax);
+  const dedTotal = sumOf((l) => dOf(l).total), netTotal = sumOf((l) => l.net_pay);
+  const nssfErTotal = sumOf((l) => dOf(l).employer_nssf ?? dOf(l).nssf);
+  const ahlErTotal = sumOf((l) => dOf(l).employer_housing_levy ?? dOf(l).housing_levy);
+  const nitaTotal = sumOf((l) => dOf(l).employer_nita ?? dOf(l).nita);
   const employerTotal = nssfErTotal + ahlErTotal + nitaTotal; // employer-paid — not employee deductions
 
   // One row per levy — the combined employee + employer total, matching the
   // single NSSF / Housing Levy columns shown on-screen
   const summary: [string, string | number][] = [
-    ['PAYE', payeTotal],
-    ['SHIF', shifTotal],
-    ['NSSF', nssfTotal + nssfErTotal],
-    ['Withholding Tax', whtTotal],
-    ['Housing Levy', ahlTotal + ahlErTotal],
-    ['NITA (Employer)', nitaTotal],
-    ...customNames.map(
-      (n, i) => [n, customTotals[i]] as [string, string | number]
-    ),
-    ['Total Deductions', dedTotal],
-    ['Employer Contributions (NSSF + AHL + NITA)', employerTotal],
-    ['Total Payments', dedTotal + employerTotal],
+    ['PAYE', rn(payeTotal)],
+    ['SHIF', rn(shifTotal)],
+    ['NSSF', rn(nssfTotal + nssfErTotal)],
+    ['Withholding Tax', rn(whtTotal)],
+    ['Housing Levy', rn(ahlTotal + ahlErTotal)],
+    ['NITA (Employer)', rn(nitaTotal)],
+    ['Total Deductions', rn(dedTotal)],
+    ['Employer Contributions (NSSF + AHL + NITA)', rn(employerTotal)],
+    ['Total Payments', rn(dedTotal + employerTotal)],
     ['Employees', lines.length],
-    ['Net Salaries', netTotal],
+    ['Net Salaries', rn(netTotal)],
   ];
 
   return { headers, customNames, bodyText, bodyNums, totalsText, totalsNums, summary };
 };
 
-const getCompanyName = async (payroll: any): Promise<string> => {
+export type MusterRollHeaderMode = 'company' | 'department';
+
+// Title shown at the top of a muster roll — company name, or the payroll's
+// department name when department mode is chosen/persisted (same setting as
+// payslips: payroll_settings.payslip_export_header).
+const getHeaderName = async (payroll: any, override?: MusterRollHeaderMode): Promise<string> => {
+  let company = payroll?.shop_id?.name || 'Company';
+  let mode: MusterRollHeaderMode = 'company';
   try {
     const s = await fetchSystemSetupDetailsById();
-    return s?.name || payroll?.shop_id?.name || 'Company';
+    company = s?.name || company;
+    if (s?.payroll_settings?.payslip_export_header === 'department') mode = 'department';
   } catch {
-    return payroll?.shop_id?.name || 'Company';
+    /* keep fallbacks */
   }
+  if (override) mode = override;
+  return mode === 'department' ? payroll?.department_id?.name || company : company;
 };
-
-const payrollTitle = (payroll: any, company: string) =>
-  `${company} Muster Roll for ${payroll.period_label || ''}`.trim();
 
 // ═════════════════════════════════════════════════════════════════════════════
 // EXCEL
@@ -177,66 +235,174 @@ const buildMusterRollSheet = (
   payroll: any,
   company: string,
   lines: any[],
-  withDepartment: boolean
+  withDepartment: boolean,
+  rounded = false
 ) => {
-  const { headers, bodyNums, totalsNums, summary } = buildMusterRoll(lines, withDepartment);
+  const { headers, bodyNums, totalsNums, summary } = buildMusterRoll(lines, withDepartment, rounded);
+  const brand = (getPrimaryColor() || '#0E388A').replace('#', '').toUpperCase().padStart(6, '0');
+  const moneyFmt = rounded ? '#,##0' : '#,##0.00';
+  const nCols = headers.length;
+  const firstMoneyCol = withDepartment ? 2 : 1;
+
+  // ── Layout: title band → headers → body → totals → statutory summary ──
+  const TITLE_ROW = 0, SUB_ROW = 1, META_ROW = 2, HEADER_ROW = 4;
+  const bodyStart = HEADER_ROW + 1;
+  const totalsRow = bodyStart + bodyNums.length;
+  const summaryHeadRow = totalsRow + 3;
+  const summaryStart = summaryHeadRow + 1;
 
   const aoa: any[][] = [
-    [payrollTitle(payroll, company)],
+    [company.toUpperCase()],
+    [`MUSTER ROLL${payroll.period_label ? ` — ${payroll.period_label}` : ''}`],
+    [`Generated ${new Date().toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })}${rounded ? ' · Amounts rounded to whole KES' : ''}`],
     [],
     headers,
     ...bodyNums,
     totalsNums,
     [],
     [],
-    ['Deductions Summary', ''],
+    ['Statutory Deductions', ''],
     ...summary,
   ];
 
   const ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws['!cols'] = [{ wch: 26 }, ...headers.slice(1).map(() => ({ wch: 14 }))];
+  ws['!cols'] = [{ wch: 28 }, ...headers.slice(1).map(() => ({ wch: 14 }))];
+  ws['!rows'] = [{ hpt: 24 }, { hpt: 16 }, { hpt: 14 }, {}, { hpt: 30 }];
   ws['!merges'] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: headers.length - 1 } },   // title
+    { s: { r: TITLE_ROW, c: 0 }, e: { r: TITLE_ROW, c: nCols - 1 } },
+    { s: { r: SUB_ROW, c: 0 }, e: { r: SUB_ROW, c: nCols - 1 } },
+    { s: { r: META_ROW, c: 0 }, e: { r: META_ROW, c: nCols - 1 } },
+    { s: { r: summaryHeadRow, c: 0 }, e: { r: summaryHeadRow, c: 1 } },
   ];
 
-  // Numeric formatting — every non-name cell below the header
-  const headerRow = 2; // 0-based index of HEADERS row
+  // ── Cell styles (xlsx-js-style) — mirrors the payslip sheet styling ──
+  const thin = { style: 'thin', color: { rgb: 'FFCBD5E1' } };
+  const border = { top: thin, bottom: thin, left: thin, right: thin };
+  const companyStyle: any = {
+    font: { bold: true, sz: 15, color: { rgb: `FF${brand}` } },
+    alignment: { horizontal: 'center', vertical: 'center' },
+  };
+  const titleStyle: any = {
+    font: { bold: true, sz: 10, color: { rgb: 'FF64748B' } },
+    alignment: { horizontal: 'center' },
+  };
+  const metaStyle: any = {
+    font: { sz: 8.5, color: { rgb: 'FF94A3B8' } },
+    alignment: { horizontal: 'center' },
+    border: { bottom: { style: 'medium', color: { rgb: `FF${brand}` } } },
+  };
+  const headerStyle: any = {
+    font: { bold: true, sz: 9, color: { rgb: 'FFFFFFFF' } },
+    fill: { fgColor: { rgb: `FF${brand}` } },
+    border,
+    alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+  };
+  const textCell: any = { font: { sz: 9, color: { rgb: 'FF334155' } }, border, alignment: { horizontal: 'left' } };
+  const moneyCell: any = { font: { sz: 9 }, border, alignment: { horizontal: 'right' } };
+  const zebraText: any = { ...textCell, fill: { fgColor: { rgb: 'FFF8FAFC' } } };
+  const zebraMoney: any = { ...moneyCell, fill: { fgColor: { rgb: 'FFF8FAFC' } } };
+  const totalsText: any = {
+    font: { bold: true, sz: 9.5, color: { rgb: 'FFFFFFFF' } },
+    fill: { fgColor: { rgb: `FF${brand}` } },
+    border,
+    alignment: { horizontal: 'left' },
+  };
+  const totalsMoney: any = { ...totalsText, alignment: { horizontal: 'right' } };
+  const summaryHead: any = {
+    font: { bold: true, sz: 10, color: { rgb: 'FFFFFFFF' } },
+    fill: { fgColor: { rgb: `FF${brand}` } },
+    border,
+  };
+  const summaryLabel: any = {
+    font: { bold: true, sz: 9, color: { rgb: 'FF475569' } },
+    fill: { fgColor: { rgb: 'FFF1F5F9' } },
+    border,
+  };
+  const summaryValue: any = { font: { sz: 9 }, border, alignment: { horizontal: 'right' } };
+  const summaryLabelHot: any = {
+    font: { bold: true, sz: 9, color: { rgb: 'FFFFFFFF' } },
+    fill: { fgColor: { rgb: `FF${brand}` } },
+    border,
+  };
+  const summaryValueHot: any = { ...summaryLabelHot, alignment: { horizontal: 'right' } };
+
+  const setCell = (r: number, c: number, s: any) => {
+    const ref = XLSX.utils.encode_cell({ r, c });
+    if (!ws[ref]) ws[ref] = { t: 's', v: '' };
+    ws[ref].s = s;
+  };
+
+  // Title band — merged, centered, brand-coloured
+  for (let c = 0; c < nCols; c++) {
+    setCell(TITLE_ROW, c, companyStyle);
+    setCell(SUB_ROW, c, titleStyle);
+    setCell(META_ROW, c, metaStyle);
+  }
+  // Column headers — white bold on brand fill
+  for (let c = 0; c < nCols; c++) setCell(HEADER_ROW, c, headerStyle);
+  // Body — bordered, zebra-striped, money right-aligned
+  bodyNums.forEach((_, i) => {
+    const r = bodyStart + i;
+    const zebra = i % 2 === 1;
+    for (let c = 0; c < nCols; c++) {
+      setCell(r, c, c < firstMoneyCol ? (zebra ? zebraText : textCell) : (zebra ? zebraMoney : moneyCell));
+    }
+  });
+  // Totals — dark band, bold white
+  for (let c = 0; c < nCols; c++) setCell(totalsRow, c, c < firstMoneyCol ? totalsText : totalsMoney);
+  // Statutory summary — section band + bordered rows; total rows highlighted
+  setCell(summaryHeadRow, 0, summaryHead);
+  setCell(summaryHeadRow, 1, { ...summaryHead, alignment: { horizontal: 'right' } });
+  summary.forEach(([label], i) => {
+    const r = summaryStart + i;
+    const hot = /total|net salaries/i.test(String(label));
+    setCell(r, 0, hot ? summaryLabelHot : summaryLabel);
+    setCell(r, 1, hot ? summaryValueHot : summaryValue);
+  });
+
+  // Number formats — money cells in body/totals, plus summary values
   const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
-  for (let r = headerRow + 1; r <= range.e.r; r++) {
-    for (let c = 1; c <= range.e.c; c++) {
+  for (let r = HEADER_ROW + 1; r <= totalsRow; r++) {
+    for (let c = firstMoneyCol; c <= range.e.c; c++) {
       const cell = ws[XLSX.utils.encode_cell({ r, c })];
-      if (cell && cell.t === 'n') cell.z = '#,##0.00';
+      if (cell && cell.t === 'n') cell.z = moneyFmt;
     }
   }
+  summary.forEach(([label], i) => {
+    const cell = ws[XLSX.utils.encode_cell({ r: summaryStart + i, c: 1 })];
+    if (cell && cell.t === 'n') cell.z = label === 'Employees' ? '#,##0' : moneyFmt;
+  });
   return ws;
 };
 
 const sanitizeSheetName = (name: string, fallback: string) =>
   (name || fallback).replace(/[\\/?*[\]:]/g, ' ').trim().slice(0, 31) || fallback;
 
-export const exportPayrollToExcel = async (payroll: any) => {
-  const company = await getCompanyName(payroll);
+export const exportPayrollToExcel = async (payroll: any, opts: { rounded?: boolean; headerMode?: MusterRollHeaderMode } = {}) => {
+  const company = await getHeaderName(payroll, opts.headerMode);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(
     wb,
-    buildMusterRollSheet(payroll, company, payroll.lines || [], false),
+    buildMusterRollSheet(payroll, company, payroll.lines || [], false, !!opts.rounded),
     'Muster Roll'
   );
-  XLSX.writeFile(wb, `${payroll.payroll_id || 'payroll'}_muster_roll.xlsx`);
+  XLSX.writeFile(wb, `${payroll.payroll_id || 'payroll'}_muster_roll${opts.rounded ? '_rounded' : ''}.xlsx`);
 };
 
 /**
  * Filtered export — merges every payroll into ONE muster roll sheet.
  * A Department column is added so combined rows stay attributable.
  */
-export const exportPayrollsToExcel = async (payrolls: any[]) => {
+export const exportPayrollsToExcel = async (payrolls: any[], opts: { rounded?: boolean; headerMode?: MusterRollHeaderMode } = {}) => {
   if (!payrolls.length) {
     message.warning('No payrolls to export for the current filter');
     return;
   }
   console.info('[payroll-export] exporting payrolls:', payrolls.map((p) => p.payroll_id || p._id));
   const merged = payrolls.length > 1;
-  const company = await getCompanyName(payrolls[0]);
+  // A single payroll in department mode shows its department as the title;
+  // merged exports have no single department → company name.
+  const company = await getHeaderName(merged ? null : payrolls[0], opts.headerMode);
   const wb = XLSX.utils.book_new();
 
   try {
@@ -244,7 +410,7 @@ export const exportPayrollsToExcel = async (payrolls: any[]) => {
       ? { ...payrolls[0], payroll_id: `${payrolls.length} payrolls`, department_id: null }
       : payrolls[0];
     const lines = merged ? mergedLines(payrolls) : payrolls[0].lines || [];
-    const ws = buildMusterRollSheet(display, company, lines, merged);
+    const ws = buildMusterRollSheet(display, company, lines, merged, !!opts.rounded);
     XLSX.utils.book_append_sheet(
       wb,
       ws,
@@ -257,7 +423,7 @@ export const exportPayrollsToExcel = async (payrolls: any[]) => {
   }
 
   const firstPeriod = payrolls[0].period_label?.replace(/\s+/g, '_') || 'export';
-  XLSX.writeFile(wb, `payroll_muster_rolls_${firstPeriod}.xlsx`);
+  XLSX.writeFile(wb, `payroll_muster_rolls_${firstPeriod}${opts.rounded ? '_rounded' : ''}.xlsx`);
   message.success(
     merged
       ? `Exported ${payrolls.length} merged payrolls (${mergedLines(payrolls).length} employees) to Excel`
@@ -274,9 +440,12 @@ const renderPayrollPage = (
   company: string,
   primary: [number, number, number],
   lines: any[],
-  withDepartment: boolean
+  withDepartment: boolean,
+  rounded = false
 ) => {
-  const { headers, customNames, bodyText, totalsText, summary } = buildMusterRoll(lines, withDepartment);
+  const { headers, bodyText, totalsText, summary } = buildMusterRoll(lines, withDepartment, rounded);
+  const fmtV = (v: any) =>
+    rounded ? Math.round(num(v)).toLocaleString('en-KE') : fmt(v);
   const [pr, pg, pb] = primary;
   const margin = 24;
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -293,15 +462,23 @@ const renderPayrollPage = (
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
 
-  // Sub-header labels for the grouped sections — one column per custom
-  // deduction name sits between PAYE and Total Deductions
-  const subHead = [
-    'Basic Pay', 'Allowances', 'Benefits', 'Overtime', 'Gross Pay',
-    'SHIF', 'NSSF', 'Housing', 'WHT', 'PAYE',
-    ...customNames,
-    'Total Ded.',
-    'NSSF', 'AHL', 'NITA',
-  ];
+  // Sub-header labels derived from the actual visible columns (all-zero
+  // Allowances/Benefits/Overtime columns are dropped upstream) — Net Pay is a
+  // rowSpan column so it is excluded here.
+  const firstMoneyCol = withDepartment ? 2 : 1;
+  const iShif = headers.indexOf('S.H.I.F.');
+  const iTotDed = headers.indexOf('Total Deductions');
+  const earnSpan = iShif - firstMoneyCol;
+  const dedSpan = iTotDed - iShif + 1;
+  const SHORT: Record<string, string> = {
+    'S.H.I.F.': 'SHIF', 'N.S.S.F.': 'NSSF', 'Housing Levy': 'Housing',
+    'PAYE (Tax)': 'PAYE', 'Total Deductions': 'Total Ded.',
+    'N.S.S.F. Employer': 'NSSF', 'AHL Employer': 'AHL', 'NITA Employer Contribution': 'NITA',
+  };
+  const subHead = headers
+    .slice(firstMoneyCol)
+    .filter((h) => h !== 'Net Pay')
+    .map((h) => SHORT[h] || h);
 
   // ── Main table with grouped section headers ──
   autoTable(doc, {
@@ -312,8 +489,8 @@ const renderPayrollPage = (
         ...(withDepartment
           ? [{ content: 'Department', rowSpan: 2 }]
           : []),
-        { content: 'Earnings', colSpan: 5, styles: { halign: 'center' } },
-        { content: 'Employee Deductions', colSpan: 6 + customNames.length, styles: { halign: 'center' } },
+        { content: 'Earnings', colSpan: earnSpan, styles: { halign: 'center' } },
+        { content: 'Employee Deductions', colSpan: dedSpan, styles: { halign: 'center' } },
         { content: 'Net Pay', rowSpan: 2 },
         { content: 'Employer Contributions', colSpan: 3, styles: { halign: 'center' } },
       ],
@@ -337,7 +514,7 @@ const renderPayrollPage = (
       lineColor: [pr, pg, pb],
     },
     footStyles: {
-      fillColor: [30, 41, 59],
+      fillColor: [pr, pg, pb],
       textColor: 255,
       fontStyle: 'bold',
       fontSize: 7.8,
@@ -355,16 +532,16 @@ const renderPayrollPage = (
     tableWidth: 'wrap',
   });
 
-  // ── Deductions summary block ──
+  // ── Statutory deductions summary block ──
   const afterTable = (doc as any).lastAutoTable.finalY + 14;
   doc.setTextColor(15, 23, 42);
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
-  doc.text('Deductions Summary', margin, afterTable);
+  doc.text('Statutory Deductions', margin, afterTable);
 
   autoTable(doc, {
     startY: afterTable + 6,
-    body: summary.map(([k, v]) => [k, typeof v === 'number' ? fmt(v) : v]),
+    body: summary.map(([k, v]) => [k, typeof v === 'number' ? fmtV(v) : v]),
     theme: 'grid',
     styles: { fontSize: 8, cellPadding: 3, lineColor: [226, 232, 240], lineWidth: 0.4 },
     columnStyles: { 0: { fontStyle: 'bold', cellWidth: 180 }, 1: { halign: 'right', cellWidth: 100 } },
@@ -399,29 +576,29 @@ const addPageFooters = (doc: jsPDF, primary: [number, number, number]) => {
   }
 };
 
-export const exportPayrollToPDF = async (payroll: any) => {
-  const company = await getCompanyName(payroll);
+export const exportPayrollToPDF = async (payroll: any, opts: { rounded?: boolean; headerMode?: MusterRollHeaderMode } = {}) => {
+  const company = await getHeaderName(payroll, opts.headerMode);
   // A3 landscape — the muster roll has ~17 columns; a wider page keeps every
   // column readable and lets the viewer scroll sideways if needed
   const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a3' });
   const primary = hexToRgb(getPrimaryColor());
-  renderPayrollPage(doc, payroll, company, primary, payroll.lines || [], false);
+  renderPayrollPage(doc, payroll, company, primary, payroll.lines || [], false, !!opts.rounded);
   addPageFooters(doc, primary);
-  doc.save(`${payroll.payroll_id || 'payroll'}_muster_roll.pdf`);
+  doc.save(`${payroll.payroll_id || 'payroll'}_muster_roll${opts.rounded ? '_rounded' : ''}.pdf`);
 };
 
 /**
  * Filtered export — merges every payroll into ONE muster roll document
  * (Department column added when several payrolls are combined).
  */
-export const exportPayrollsToPDF = async (payrolls: any[]) => {
+export const exportPayrollsToPDF = async (payrolls: any[], opts: { rounded?: boolean; headerMode?: MusterRollHeaderMode } = {}) => {
   if (!payrolls.length) {
     message.warning('No payrolls to export for the current filter');
     return;
   }
   console.info('[payroll-export] exporting payrolls:', payrolls.map((p) => p.payroll_id || p._id));
   const merged = payrolls.length > 1;
-  const company = await getCompanyName(payrolls[0]);
+  const company = await getHeaderName(merged ? null : payrolls[0], opts.headerMode);
   // A3 landscape — keeps all muster-roll columns readable on a merged export
   const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a3' });
   const primary = hexToRgb(getPrimaryColor());
@@ -431,7 +608,7 @@ export const exportPayrollsToPDF = async (payrolls: any[]) => {
     const display = merged
       ? { ...payrolls[0], payroll_id: `${payrolls.length} payrolls`, department_id: null }
       : payrolls[0];
-    renderPayrollPage(doc, display, company, primary, lines, merged);
+    renderPayrollPage(doc, display, company, primary, lines, merged, !!opts.rounded);
   } catch (err) {
     console.error('Failed to render muster roll page:', err);
     message.error('Export failed — could not render payrolls');
@@ -440,7 +617,7 @@ export const exportPayrollsToPDF = async (payrolls: any[]) => {
 
   addPageFooters(doc, primary);
   const firstPeriod = payrolls[0].period_label?.replace(/\s+/g, '_') || 'export';
-  doc.save(`payroll_muster_rolls_${firstPeriod}.pdf`);
+  doc.save(`payroll_muster_rolls_${firstPeriod}${opts.rounded ? '_rounded' : ''}.pdf`);
   message.success(
     merged
       ? `Exported ${payrolls.length} merged payrolls (${lines.length} employees) to PDF`
@@ -483,24 +660,52 @@ const filingLines = (payrolls: any[], employeeIds?: string[]) => {
   return lines.filter((l: any) => ids.has(String(l.employee_id?._id || l.employee_id)));
 };
 
+// RFC-4180-ish CSV cell — quote anything containing commas, quotes or breaks
+const csvCell = (v: any) => {
+  const s = v == null ? '' : String(v);
+  return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+};
+
+const downloadCsv = (rows: (string | number)[][], filename: string) => {
+  const csv = rows.map((r) => r.map(csvCell).join(',')).join('\r\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
+
 const writeFilingSheet = (
   payrolls: any[],
   headers: string[],
   rowOf: (line: any, index: number) => (string | number)[],
   filePrefix: string,
-  employeeIds?: string[]
+  employeeIds?: string[],
+  opts: { csv?: boolean; withHeader?: boolean } = {}
 ) => {
   const lines = filingLines(payrolls, employeeIds);
   if (!lines.length) {
     message.warning('Selected payrolls have no employee lines');
     return;
   }
-  const aoa = [headers, ...lines.map((l, i) => rowOf(l, i + 1))];
+  const rows = lines.map((l, i) => rowOf(l, i + 1));
+  const period = payrolls[0].period_label?.replace(/\s+/g, '_') || 'export';
+
+  if (opts.csv) {
+    downloadCsv(
+      [...(opts.withHeader === false ? [] : [headers]), ...rows],
+      `${filePrefix}_${period}.csv`
+    );
+    message.success(`${filePrefix} filing file exported (${lines.length} employees)`);
+    return;
+  }
+
+  const aoa = [headers, ...rows];
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   ws['!cols'] = headers.map((h) => ({ wch: Math.max(h.length + 4, 14) }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Data');
-  const period = payrolls[0].period_label?.replace(/\s+/g, '_') || 'export';
   XLSX.writeFile(wb, `${filePrefix}_${period}.xlsx`);
   message.success(`${filePrefix} filing file exported (${lines.length} employees)`);
 };
@@ -553,63 +758,76 @@ export const exportShifFiling = (payrolls: any[], employeeIds?: string[]) =>
   );
 
 /**
- * PAYE return — KRA iTax payroll register layout (Excel upload for the
- * PAYE/P10 monthly return). Blank columns are left for values we don't
- * track (housing benefit, directors fees…) so they can be filled in Excel.
+ * PAYE return — aligned to the KRA "P10 Return Simplified" template
+ * (B_Employees_Dtls_Simplified sheet, columns A–Y + AC). Exported as a
+ * headerless CSV so rows can be pasted/uploaded straight into the template.
+ * Benefit items are split into the KRA columns: motor_vehicle → Car Benefit
+ * (B), house → Housing Benefit (F), meals → Value of Meals (C), everything
+ * else → Non Cash Benefits (D).
  */
 export const exportPayeFiling = (payrolls: any[], employeeIds?: string[]) =>
   writeFilingSheet(
     payrolls,
     [
-      'PIN of Employee', 'Name of Employee', 'Residential Status', 'Type of Employee',
-      'Primary Employee', 'Basic Salary', 'Housing Allowance', 'Transport Allowance',
-      'Leave Pay', 'Overtime Allowance', 'Directors Fee', 'Lump Sum Payment',
-      'Other Allowance', 'Total Cash Pay', 'Value of Car Benefit',
-      'Other Non-Cash Benefits', 'Total Non-Cash Pay', 'Global Income',
-      'Type of Housing', 'Rent of House', 'Computed Rent of House', 'Rent Recovered',
-      'Net Value of Housing', 'Total Gross Pay', 'Total Taxable Pay',
-      'Tax Payable on Taxable Pay', 'Amount of Relief', 'Insurance Relief', 'PAYE Tax',
+      'PIN of Employee', 'Name of Employee', 'Resident Status', 'Type of Employee',
+      'Persons With Disability (PWD)', 'Exemption Certificate Number',
+      'Total Cash Pay (A)', 'Value of Car Benefit (B)', 'Value of Meals (C)',
+      'Non Cash Benefits (D)', 'Type of Housing', 'Housing Benefit (F)',
+      'Other Benefits (G)', 'Total Gross Pay (Ksh) (H)', 'SHIF (I)',
+      'NSSF Contribution (J)', 'Other Pension Contribution (K)',
+      'Post Retirement Medical Fund (L)', 'Mortgage Interest (M)',
+      'Affordable Housing Levy (N)', 'Taxable Pay (O)', 'Monthly Personal Relief (P)',
+      'Amount of Insurance Relief (Q)', 'PAYE Tax (R)', 'Self Assessed PAYE Tax (S)',
+      '', '', '', 'Deposit on Home Ownership Saving Plan',
     ],
     (line) => {
       const emp = empOf(line);
       const d = line.deductions || {};
-      const allowances = num(line.allowances);
-      const benefits = num(line.benefits);
-      const overtime = num(line.overtime_pay);
       const gross = num(line.gross_salary);
-      const taxable = num(d.taxable_pay ?? gross);
-      const paye = num(d.paye);
-      const relief = num(d.personal_relief);
-      const incomeTax = num(d.income_tax ?? paye + relief);
+      const benefits = num(line.benefits);
+
+      // Split the employee's named benefit items into the KRA columns
+      const items: any[] = Array.isArray(emp.benefits) ? emp.benefits : [];
+      const bSum = (re: RegExp, types: string[]) =>
+        items
+          .filter((b) => types.includes(String(b?.benefit_type || '')) || re.test(String(b?.name || '')))
+          .reduce((s, b) => s + num(b?.value), 0);
+      const carBenefit = bSum(/car|motor|vehicle/i, ['motor_vehicle', 'car']);
+      const mealBenefit = bSum(/meal/i, ['meal', 'meals']);
+      const houseBenefit = bSum(/house|housing|rent|quarters/i, ['house', 'housing']);
+      const otherNonCash = Math.max(0, benefits - carBenefit - mealBenefit - houseBenefit);
+
       return [
-        emp.kra_pin || '',
-        lineName(line),
-        'Resident',
-        'Primary Employee',
-        'Yes',
-        num(line.basic_salary),
-        0,                    // Housing Allowance
-        0,                    // Transport Allowance
-        0,                    // Leave Pay
-        overtime,
-        0,                    // Directors Fee
-        0,                    // Lump Sum Payment
-        allowances + benefits, // Other Allowance
-        gross,                // Total Cash Pay
-        0,                    // Value of Car Benefit
-        0,                    // Other Non-Cash Benefits
-        0,                    // Total Non-Cash Pay
-        gross,                // Global Income
-        'Benefit not provided', // Type of Housing
-        0, 0, 0, 0,           // Rent / computed / recovered / net housing
-        gross,                // Total Gross Pay
-        taxable,              // Total Taxable Pay
-        incomeTax,            // Tax Payable on Taxable Pay
-        relief,               // Amount of Relief (personal relief)
-        0,                    // Insurance Relief
-        paye,                 // PAYE Tax
+        emp.kra_pin || '',                                      // PIN of Employee
+        lineName(line),                                         // Name of Employee
+        emp.residential_status === 'non_resident' ? 'Non-Resident' : 'Resident',
+        'Primary Employee',                                     // Type of Employee
+        'No',                                                   // Persons With Disability
+        '',                                                     // Exemption Certificate Number
+        num(gross - benefits),                                  // Total Cash Pay (A)
+        carBenefit,                                             // Value of Car Benefit (B)
+        mealBenefit,                                            // Value of Meals (C)
+        otherNonCash,                                           // Non Cash Benefits (D)
+        houseBenefit > 0 ? "Employer's Rented House" : 'Benefit not given', // Type of Housing
+        houseBenefit,                                           // Housing Benefit (F)
+        0,                                                      // Other Benefits (G)
+        gross,                                                  // Total Gross Pay (H)
+        num(d.nhif),                                            // SHIF (I)
+        num(d.nssf),                                            // NSSF Contribution (J)
+        0,                                                      // Other Pension Contribution (K)
+        0,                                                      // Post Retirement Medical Fund (L)
+        0,                                                      // Mortgage Interest (M)
+        num(d.housing_levy),                                    // Affordable Housing Levy (N)
+        num(d.taxable_pay ?? gross),                            // Taxable Pay (O)
+        num(d.personal_relief),                                 // Monthly Personal Relief (P)
+        0,                                                      // Amount of Insurance Relief (Q)
+        num(d.paye),                                            // PAYE Tax (R)
+        num(d.paye),                                            // Self Assessed PAYE Tax (S)
+        '', '', '',                                             // blank template columns
+        0,                                                      // Deposit on Home Ownership Saving Plan
       ];
     },
     'PAYE_Return',
-    employeeIds
+    employeeIds,
+    { csv: true, withHeader: false }
   );

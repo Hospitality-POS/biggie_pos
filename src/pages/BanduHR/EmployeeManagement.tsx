@@ -52,6 +52,7 @@ import {
   UnorderedListOutlined,
   AppstoreOutlined,
   FileTextOutlined,
+  SaveOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -87,6 +88,18 @@ const { Option } = Select;
 const { TextArea } = Input;
 
 const C = THEME_C;
+
+// Nationality options for the employee form — common nationalities first
+// (East African neighbours), then others alphabetically.
+const NATIONALITIES = [
+  "Kenyan", "Ugandan", "Tanzanian", "Rwandan", "Burundian", "Somali", "Ethiopian",
+  "South Sudanese", "Congolese", "Sudanese", "Nigerian", "Ghanaian", "Zambian",
+  "Zimbabwean", "Malawian", "Mozambican", "South African", "Egyptian", "Moroccan",
+  "Indian", "Pakistani", "Bangladeshi", "Chinese", "Filipino", "Japanese",
+  "British", "Irish", "American", "Canadian", "Australian", "German", "French",
+  "Dutch", "Italian", "Spanish", "Swedish", "Norwegian", "Belgian", "Swiss",
+  "Turkish", "Emirati", "Saudi", "Qatari", "Other",
+];
 
 const EMPLOYMENT_STATUS_COLORS: Record<string, string> = {
   active: "green",
@@ -165,6 +178,7 @@ const EmployeeManagement: React.FC = () => {
   const [isDocumentModalVisible, setIsDocumentModalVisible] = useState(false);
   const [isAllowanceModalVisible, setIsAllowanceModalVisible] = useState(false);
   const [isBenefitModalVisible, setIsBenefitModalVisible] = useState(false);
+  const [helbDraft, setHelbDraft] = useState<number | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
   // Highest step index reachable so far. Editing an existing employee starts
   // with every step unlocked (all data is already prefilled); adding a new
@@ -469,6 +483,7 @@ const EmployeeManagement: React.FC = () => {
     { title: "KRA PIN", dataIndex: "kra_pin" },
     { title: "NSSF Number", dataIndex: "nssf_number" },
     { title: "SHA/NHIF Number", dataIndex: "nhif_number" },
+    { title: "Residential Status", dataIndex: "residential_status" },
     { title: "Emergency Contact Name", dataIndex: "emergency_contact_name" },
     { title: "Emergency Contact Phone", dataIndex: "emergency_contact_phone" },
     { title: "Emergency Contact Relationship", dataIndex: "emergency_contact_relationship" },
@@ -612,6 +627,7 @@ const EmployeeManagement: React.FC = () => {
 
   const openViewDrawer = (record: Employee) => {
     setSelectedEmployee(record);
+    setHelbDraft(null);
     setIsDrawerVisible(true);
   };
 
@@ -642,6 +658,7 @@ const EmployeeManagement: React.FC = () => {
       hourly_rate: record.hourly_rate,
       bank_name: record.bank_name,
       bank_account_number: record.bank_account_number,
+      residential_status: record.residential_status || "resident",
       kra_pin: record.kra_pin,
       nssf_number: record.nssf_number,
       nhif_number: record.nhif_number,
@@ -870,6 +887,22 @@ const EmployeeManagement: React.FC = () => {
       });
       setIsBenefitModalVisible(false);
       benefitForm.resetFields();
+    } catch (error) {
+      // Error handled by mutation
+    }
+  };
+
+  // HELB is managed per employee from the details drawer (not the wizard) —
+  // mirrors how allowances/benefits are added on the record itself.
+  const handleSaveHelb = async () => {
+    if (!selectedEmployee || helbDraft === null) return;
+    try {
+      await updateMutation.mutateAsync({
+        employeeId: selectedEmployee._id,
+        params: { helb_amount: helbDraft },
+      });
+      setSelectedEmployee({ ...selectedEmployee, helb_amount: helbDraft });
+      setHelbDraft(null);
     } catch (error) {
       // Error handled by mutation
     }
@@ -1474,17 +1507,30 @@ const EmployeeManagement: React.FC = () => {
               </Row>
               <Row gutter={16}>
                 <Col span={12}>
+                  <Form.Item
+                    label="Residential Status"
+                    name="residential_status"
+                    initialValue="resident"
+                    tooltip="KRA tax residency — non-resident employees receive no personal relief on PAYE, and non-resident consultants are withheld at the non-resident rate"
+                  >
+                    <Select placeholder="Select residential status">
+                      <Option value="resident">Resident</Option>
+                      <Option value="non_resident">Non-Resident</Option>
+                    </Select>
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
                   <Form.Item label="KRA PIN" name="kra_pin">
                     <Input placeholder="Enter KRA PIN" />
                   </Form.Item>
                 </Col>
+              </Row>
+              <Row gutter={16}>
                 <Col span={12}>
                   <Form.Item label="NSSF Number" name="nssf_number">
                     <Input placeholder="Enter NSSF number" />
                   </Form.Item>
                 </Col>
-              </Row>
-              <Row gutter={16}>
                 <Col span={12}>
                   <Form.Item label="SHA Number" name="nhif_number">
                     <Input placeholder="Enter SHA number" />
@@ -1508,6 +1554,7 @@ const EmployeeManagement: React.FC = () => {
                     { value: "HOUSING_LEVY", label: "Housing Levy" },
                     { value: "NITA", label: "NITA (Training Levy)" },
                     { value: "WITHHOLDING_TAX", label: "Withholding Tax" },
+                    { value: "HELB", label: "HELB (Student Loan)" },
                     { value: "CUSTOM", label: "Custom Deductions" },
                   ]}
                 />
@@ -1564,7 +1611,12 @@ const EmployeeManagement: React.FC = () => {
               <Row gutter={16}>
                 <Col span={12}>
                   <Form.Item label="Nationality" name="nationality">
-                    <Input placeholder="Enter nationality" />
+                    <Select
+                      showSearch
+                      allowClear
+                      placeholder="Select nationality"
+                      options={NATIONALITIES.map((n) => ({ value: n, label: n }))}
+                    />
                   </Form.Item>
                 </Col>
               </Row>
@@ -1796,9 +1848,17 @@ const EmployeeManagement: React.FC = () => {
                 <InfoItem label="Bank Name">{selectedEmployee.bank_name}</InfoItem>
                 <InfoItem label="Bank Account">{selectedEmployee.bank_account_number}</InfoItem>
                 <InfoItem label="Bank Branch">{selectedEmployee.bank_branch}</InfoItem>
+                <InfoItem label="Residential Status">
+                  <span style={{ textTransform: "capitalize" }}>
+                    {(selectedEmployee.residential_status || "resident").replace(/_/g, " ")}
+                  </span>
+                </InfoItem>
                 <InfoItem label="KRA PIN">{selectedEmployee.kra_pin}</InfoItem>
                 <InfoItem label="NSSF Number">{selectedEmployee.nssf_number}</InfoItem>
                 <InfoItem label="SHA Number">{selectedEmployee.nhif_number}</InfoItem>
+                <InfoItem label="HELB Deduction">
+                  {selectedEmployee.helb_amount ? `KES ${Number(selectedEmployee.helb_amount).toLocaleString()} / month` : "—"}
+                </InfoItem>
                 <InfoItem label="Deduction Exemptions">
                   {selectedEmployee.exempt_deductions?.length ? (
                     <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
@@ -1985,6 +2045,51 @@ const EmployeeManagement: React.FC = () => {
                       ),
                     },
                   ]}
+                />
+              </div>
+            </Tabs.TabPane>
+
+            <Tabs.TabPane tab="Deductions" key="deductions">
+              <div
+                style={{
+                  ...detailCardStyle,
+                  padding: "12px 16px",
+                  marginBottom: 14,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <Space size={8}>
+                  <Text strong style={{ fontSize: 13, color: C.darkText }}>HELB Deduction</Text>
+                </Space>
+                {canUpdateEmployee && (
+                  <Button
+                    type="primary"
+                    size="small"
+                    icon={<SaveOutlined />}
+                    style={{ borderRadius: 7 }}
+                    loading={updateMutation.isLoading}
+                    disabled={helbDraft === null || helbDraft === (selectedEmployee.helb_amount ?? 0)}
+                    onClick={handleSaveHelb}
+                  >
+                    Save
+                  </Button>
+                )}
+              </div>
+              <div style={{ ...detailCardStyle, padding: "14px 16px" }}>
+                <Text style={{ fontSize: 11, color: "#64748b", display: "block", marginBottom: 6 }}>
+                  Monthly student-loan repayment deducted from the employee's net pay — shown as a
+                  "HELB" deduction in payroll previews and payslips. Set 0 if not applicable.
+                </Text>
+                <InputNumber
+                  key={`${selectedEmployee._id}-${selectedEmployee.helb_amount ?? 0}`}
+                  min={0}
+                  defaultValue={selectedEmployee.helb_amount ?? 0}
+                  onChange={(v) => setHelbDraft(Number(v) || 0)}
+                  style={{ width: 220 }}
+                  addonBefore="KES / month"
+                  disabled={!canUpdateEmployee}
                 />
               </div>
             </Tabs.TabPane>

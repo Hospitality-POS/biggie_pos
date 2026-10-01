@@ -65,9 +65,13 @@ export interface Employee {
   bank_name?: string;
   bank_account_number?: string;
   bank_branch?: string;
+  /** KRA tax residency — non-residents get no personal relief on PAYE */
+  residential_status?: 'resident' | 'non_resident';
   kra_pin?: string;
   nssf_number?: string;
   nhif_number?: string;
+  /** Monthly HELB loan repayment deducted from net pay (0/absent = none) */
+  helb_amount?: number;
   exempt_deductions?: string[];
   date_of_birth?: string;
   gender?: 'male' | 'female' | 'other' | 'prefer_not_to_say';
@@ -106,9 +110,13 @@ export interface CreateEmployeeParams {
   bank_name?: string;
   bank_account_number?: string;
   bank_branch?: string;
+  /** KRA tax residency — non-residents get no personal relief on PAYE */
+  residential_status?: 'resident' | 'non_resident';
   kra_pin?: string;
   nssf_number?: string;
   nhif_number?: string;
+  /** Monthly HELB loan repayment deducted from net pay (0/absent = none) */
+  helb_amount?: number;
   exempt_deductions?: string[];
   hourly_rate?: number;
   termination_date?: string;
