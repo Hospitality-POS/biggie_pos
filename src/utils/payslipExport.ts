@@ -45,15 +45,35 @@ const payslipRows = (p: any) => {
     ['Employee No', p.employee_id?.employee_number || '—'],
     ['ID No', p.employee_id?.id_number || '—'],
     ['KRA PIN', p.employee_id?.kra_pin || '—'],
+    ['Residential Status', p.employee_id?.residential_status === 'non_resident' ? 'Non-Resident' : 'Resident'],
     ['NSSF No', p.employee_id?.nssf_number || '—'],
     ['NHIF No', p.employee_id?.nhif_number || '—'],
     ['Job Title', p.employee_id?.job_title || '—'],
     ['Department', departmentName(p)],
   ];
 
+  // Itemize the employee's named allowances instead of one generic
+  // "Allowances" row; a remainder covers line-level overrides that aren't
+  // on the employee record.
+  const allowanceTotal = Number(e.allowances || 0);
+  const allowanceRows: [string, string][] = [];
+  if (allowanceTotal > 0) {
+    const items: any[] = Array.isArray(p.employee_id?.allowances) ? p.employee_id.allowances : [];
+    const itemsSum = items
+      .filter((a: any) => Number(a?.amount) > 0)
+      .map((a: any) => {
+        allowanceRows.push([String(a.name || 'Allowance'), fmt(a.amount)]);
+        return Number(a.amount) || 0;
+      })
+      .reduce((s, v) => s + v, 0);
+    const remainder = allowanceTotal - itemsSum;
+    if (remainder > 0) allowanceRows.push([itemsSum > 0 ? 'Other Allowances' : 'Allowances', fmt(remainder)]);
+    if (allowanceRows.length === 0) allowanceRows.push(['Allowances', fmt(allowanceTotal)]);
+  }
+
   const earningsRows: [string, string][] = [
     ['Basic Pay', fmt(e.basic_salary)],
-    ['Allowances', (e.allowances || 0) > 0 ? fmt(e.allowances) : '—'],
+    ...allowanceRows,
     ['Benefits', (e.benefits || 0) > 0 ? fmt(e.benefits) : '—'],
     ['Overtime Pay', (e.overtime_pay || 0) > 0 ? fmt(e.overtime_pay) : '—'],
     ['TOTAL EARNINGS', fmt(e.gross_salary)],

@@ -84,7 +84,8 @@ import {
 import dayjs from "dayjs";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { fetchSystemSetupDetailsById } from "@services/systemsetup";
-import { resolveBenefitTypes } from "@utils/benefitTypes";
+import { resolveBenefitTypes, computeBenefitAmount } from "@utils/benefitTypes";
+import type { BenefitTypeDefault } from "@utils/benefitTypes";
 
 const { Text, Title, Paragraph } = Typography;
 
@@ -166,6 +167,9 @@ const PayrollManagement: React.FC = () => {
   const [filterDept, setFilterDept] = useState<string | undefined>(undefined);
   // Payroll detail drawer — toggle between employee names and numbers
   const [showEmployeeNames, setShowEmployeeNames] = useState(true);
+  // Rounds every money figure shown in the payroll table (and passed to
+  // muster-roll exports) to whole shillings — display/export only.
+  const [roundOff, setRoundOff] = useState(false);
   const [form] = Form.useForm();
   const [deductionForm] = Form.useForm();
   const [customDeductions, setCustomDeductions] = useState<
@@ -210,10 +214,10 @@ const PayrollManagement: React.FC = () => {
   // Selected allowance / benefit items — named rows picked from the predefined
   // types (or the employee's own items); their amounts sum into the line totals
   const [lineAllowanceItems, setLineAllowanceItems] = useState<
-    Array<{ key: number; name: string; amount: number }>
+    Array<{ key: number; name: string; amount: number; basis?: number }>
   >([]);
   const [lineBenefitItems, setLineBenefitItems] = useState<
-    Array<{ key: number; name: string; amount: number }>
+    Array<{ key: number; name: string; amount: number; basis?: number }>
   >([]);
 
   // Preview-line edit — per-employee overrides recomputed server-side
@@ -229,6 +233,19 @@ const PayrollManagement: React.FC = () => {
 
   useEffect(() => {
     if (!deductionConfigs) return;
+    // Reflect the saved HELB config in the settings form (the rest of the
+    // statutory fields keep their hardcoded defaults — see autoFillStatutoryRates)
+    const helbCfg = deductionConfigs.find((c: any) => c.deduction_type === "HELB");
+    const whtCfg = deductionConfigs.find((c: any) => c.deduction_type === "WITHHOLDING_TAX");
+    deductionForm.setFieldsValue({
+      helb_enabled: helbCfg ? helbCfg.is_active !== false : true,
+      helb_amount: helbCfg?.fixed_amount ?? 0,
+      ...(whtCfg && {
+        withholding_tax_enabled: whtCfg.is_active !== false,
+        withholding_tax_rate: (whtCfg.rate ?? 0.05) * 100,
+        withholding_tax_non_resident_rate: (whtCfg.non_resident_rate ?? 0.20) * 100,
+      }),
+    });
     setCustomDeductions(
       deductionConfigs
         .filter((c: any) => c.deduction_type === "CUSTOM")
@@ -357,7 +374,9 @@ const PayrollManagement: React.FC = () => {
     const customTotal = (d.custom || []).reduce((s: number, c: any) => s + (c.amount || 0), 0);
 
     const f = (v: any) =>
-      Number(v || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      roundOff
+        ? Math.round(Number(v || 0)).toLocaleString("en-KE")
+        : Number(v || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const Row = ({ label, value, strong = false, color = "#334155" }: any) => (
       <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", borderBottom: "1px solid #f1f5f9" }}>
         <Text strong={strong} style={{ fontSize: 11.5, color, letterSpacing: 0.4, textTransform: "uppercase" }}>{label}</Text>
@@ -386,6 +405,10 @@ const PayrollManagement: React.FC = () => {
     );
   };
 
+  // Table money formatter — honours the Rounded view toggle
+  const fmtTableMoney = (v: number | undefined | null) =>
+    (roundOff ? Math.round(Number(v || 0)) : Number(v || 0)).toLocaleString();
+
   // Full payroll-line columns — every deduction shown inline (master-roll layout)
   const moneyCol = (
     title: string,
@@ -403,7 +426,7 @@ const PayrollManagement: React.FC = () => {
     sumColor: color,
     render: (_: any, line: any) => (
       <Text strong={strong} style={color ? { color } : undefined}>
-        {(getter(line) ?? 0).toLocaleString()}
+        {fmtTableMoney(getter(line))}
       </Text>
     ),
   });
@@ -543,14 +566,65 @@ const PayrollManagement: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateProgress, setGenerateProgress] = useState<{ done: number; total: number } | null>(null);
 
-  // Preview payroll mutation — computes lines/totals without saving
-  const previewMutation = useMutation({
-    mutationFn: (params: GeneratePayrollParams) => previewPayroll(params),
-    onSuccess: (data) => {
-      setPreviewData(data);
+  // Preview payroll — computes lines/totals without saving. The request is
+  // chunked (one call per department, or batches of employees) so the UI can
+  // show real compile progress instead of a bare spinner.
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const [previewProgress, setPreviewProgress] = useState<{ done: number; total: number } | null>(null);
+  const PREVIEW_EMPLOYEE_BATCH = 10;
+
+  const runPreview = async (params: GeneratePayrollParams) => {
+    const { department_ids, employee_ids, ...rest } = params;
+    const chunks: GeneratePayrollParams[] = department_ids?.length
+      ? department_ids.map((id) => ({ ...rest, department_ids: [id] }))
+      : Array.from(
+          { length: Math.max(1, Math.ceil((employee_ids?.length || 0) / PREVIEW_EMPLOYEE_BATCH)) },
+          (_, i) => ({ ...rest, employee_ids: (employee_ids || []).slice(i * PREVIEW_EMPLOYEE_BATCH, (i + 1) * PREVIEW_EMPLOYEE_BATCH) })
+        );
+    if (!chunks.length) return;
+
+    setIsPreviewing(true);
+    setPreviewProgress({ done: 0, total: chunks.length });
+    const merged: PayrollPreviewResult = {
+      period_start: rest.period_start,
+      period_end: rest.period_end,
+      period_label: rest.period_label,
+      previews: [],
+      conflicts: [],
+    };
+    try {
+      for (const chunk of chunks) {
+        const res = await previewPayroll(chunk);
+        for (const p of res?.previews || []) {
+          const key = String(p.department_id || p.department_name);
+          const existing = merged.previews.find(
+            (m) => String(m.department_id || m.department_name) === key
+          );
+          if (existing) {
+            existing.lines.push(...p.lines);
+            existing.employee_count += p.employee_count;
+            for (const f of [
+              "total_gross", "total_deductions", "total_net", "total_paye",
+              "total_nssf", "total_nhif", "total_housing_levy", "total_nita", "total_withholding_tax",
+            ] as const) {
+              (existing as any)[f] = ((existing as any)[f] || 0) + (p[f] || 0);
+            }
+          } else {
+            merged.previews.push(p);
+          }
+        }
+        merged.conflicts.push(...(res?.conflicts || []));
+        setPreviewProgress((p) => (p ? { ...p, done: p.done + 1 } : p));
+      }
+      setPreviewData(merged);
       setGenerateStep(1);
-    },
-  });
+    } catch (error) {
+      console.error("Payroll preview failed:", error);
+    } finally {
+      setIsPreviewing(false);
+      setPreviewProgress(null);
+    }
+  };
 
   // Duplicate payroll mutation
   const duplicateMutation = useMutation({
@@ -636,9 +710,13 @@ const PayrollManagement: React.FC = () => {
       // NITA — flat KES 50 per employee (employer-paid)
       nita_enabled: true,
       nita_amount: 50,
-      // Withholding Tax — 5% for consultants
+      // HELB — per-employee student loan, no global default
+      helb_enabled: true,
+      helb_amount: 0,
+      // Withholding Tax — 5% resident / 20% non-resident consultants
       withholding_tax_enabled: true,
       withholding_tax_rate: 5,
+      withholding_tax_non_resident_rate: 20,
     });
     message.success("Form filled with current Kenyan statutory rates — review then Save Settings");
   };
@@ -905,7 +983,7 @@ const PayrollManagement: React.FC = () => {
     try {
       const params = await buildGenerateParams();
       setPendingGenerateParams(params);
-      previewMutation.mutate(params);
+      runPreview(params);
     } catch (error) {
       console.error("Validation failed:", error);
     }
@@ -1009,7 +1087,7 @@ const PayrollManagement: React.FC = () => {
       ((e.target as HTMLElement).closest(".ant-modal-wrap")?.querySelector(".ant-modal-body")
         ?.getBoundingClientRect().height || 480);
     const onMove = (ev: MouseEvent) => {
-      const next = Math.min(Math.max(startH + (ev.clientY - startY), 300), window.innerHeight - 140);
+      const next = Math.min(Math.max(startH + (ev.clientY - startY), 300), window.innerHeight - 160);
       setPreviewHeight(next);
     };
     const onUp = () => {
@@ -1068,10 +1146,15 @@ const PayrollManagement: React.FC = () => {
       const empItems = (kind === "allowance" ? empAllowances : empBenefits).map((it: any) => ({
         value: it.name || it.allowance_type || it.benefit_type,
         amount: Number(kind === "allowance" ? it.amount : it.value) || 0,
+        // The employee item keeps a pointer to its configured type so
+        // computed types (House, Motor Vehicle) can expose their basis input
+        type: configuredBenefitTypes.find(
+          (t) => t.key === (kind === "allowance" ? it.allowance_type : it.benefit_type)
+        ),
       }));
       const typeItems = configuredBenefitTypes
         .filter((t) => t.kind === kind)
-        .map((t) => ({ value: t.label, amount: Number(t.amount) || 0 }));
+        .map((t) => ({ value: t.label, amount: Number(t.amount) || 0, type: t }));
       const seen = new Set<string>();
       return [...empItems, ...typeItems].filter((o) => {
         if (!o.value || seen.has(o.value)) return false;
@@ -1080,14 +1163,37 @@ const PayrollManagement: React.FC = () => {
       });
     };
 
+    // Gross figure used when computing benefits like House (x% of gross) —
+    // follows the salary currently entered on this line's form
+    const lineBasic = Number(lineForm.getFieldValue("basic_salary")) || Number(editedLine?.basic_salary) || 0;
+
+    // Basis (rent / asset value) a computed benefit was likely derived from —
+    // lets seeded rows show their underlying input instead of just the amount
+    const deriveBasis = (type: BenefitTypeDefault, amount: number): number | undefined => {
+      if (type.mode === "percent_of_value") {
+        return type.percent ? Math.round((amount * 100) / type.percent) : undefined;
+      }
+      if (type.mode === "higher_of_rent_or_percent") {
+        const pctAmount = Math.round((lineBasic * (type.percent || 0)) / 100);
+        return amount > pctAmount ? amount : undefined;
+      }
+      return undefined;
+    };
+
+    const computedAmount = (type: BenefitTypeDefault, basis: number) =>
+      computeBenefitAmount(
+        type,
+        type.mode === "percent_of_value" ? { value: basis } : { rent: basis, gross: lineBasic }
+      );
+
     // Row editor shared by Allowances and Benefits — pick a predefined type
     // (prefills its amount) or type a custom name; rows sum into the line total
     const itemsEditor = (
       title: string,
       hint: string,
-      items: Array<{ key: number; name: string; amount: number }>,
-      setItems: (v: Array<{ key: number; name: string; amount: number }>) => void,
-      options: Array<{ value: string; amount: number }>
+      items: Array<{ key: number; name: string; amount: number; basis?: number }>,
+      setItems: (v: Array<{ key: number; name: string; amount: number; basis?: number }>) => void,
+      options: Array<{ value: string; amount: number; type?: BenefitTypeDefault }>
     ) => (
       <>
         <Divider style={{ margin: "8px 0 12px" }}>
@@ -1095,9 +1201,12 @@ const PayrollManagement: React.FC = () => {
             {title} — {hint}
           </Text>
         </Divider>
-        {items.map((it) => (
+        {items.map((it) => {
+          const optType = options.find((o) => o.value === it.name)?.type;
+          const isComputed = !!optType && optType.mode !== "fixed";
+          return (
           <Row key={it.key} gutter={8} style={{ marginBottom: 8 }}>
-            <Col span={14}>
+            <Col span={isComputed ? 8 : 14}>
               <AutoComplete
                 style={{ width: "100%" }}
                 allowClear
@@ -1105,7 +1214,9 @@ const PayrollManagement: React.FC = () => {
                 value={it.name}
                 options={options.map((o) => ({
                   value: o.value,
-                  label: `${o.value}${o.amount ? ` — KES ${o.amount.toLocaleString()}` : ""}`,
+                  label: o.type && o.type.mode !== "fixed"
+                    ? `${o.value} — auto-computed`
+                    : `${o.value}${o.amount ? ` — KES ${o.amount.toLocaleString()}` : ""}`,
                 }))}
                 getPopupContainer={(node) => node.parentElement as HTMLElement}
                 filterOption={(input, option) =>
@@ -1114,22 +1225,53 @@ const PayrollManagement: React.FC = () => {
                 onChange={(v) => {
                   const opt = options.find((o) => o.value === v);
                   setItems(
-                    items.map((d) =>
-                      d.key === it.key
-                        ? { ...d, name: v, amount: opt && !d.amount ? opt.amount : d.amount }
-                        : d
-                    )
+                    items.map((d) => {
+                      if (d.key !== it.key) return d;
+                      // Computed types (House, Motor Vehicle) derive their
+                      // amount from the basis input — prefill it right away
+                      // (e.g. House defaults to x% of basic pay until rent entered)
+                      if (opt?.type && opt.type.mode !== "fixed") {
+                        const basis = d.basis ?? 0;
+                        return { ...d, name: v, amount: computedAmount(opt.type, basis) };
+                      }
+                      return { ...d, name: v, amount: opt && !d.amount ? opt.amount : d.amount };
+                    })
                   );
                 }}
               />
             </Col>
-            <Col span={8}>
+            {isComputed && optType && (
+              <Col span={7}>
+                <InputNumber
+                  min={0}
+                  placeholder={optType.mode === "percent_of_value" ? "Asset value" : "Monthly rent"}
+                  title={
+                    optType.mode === "percent_of_value"
+                      ? `Benefit = ${optType.percent}% of this asset value per month`
+                      : `Benefit = higher of ${optType.percent}% of basic pay or the rent paid`
+                  }
+                  value={it.basis ?? deriveBasis(optType, it.amount)}
+                  style={{ width: "100%" }}
+                  addonBefore="KES"
+                  onChange={(v) => {
+                    const basis = Number(v) || 0;
+                    setItems(
+                      items.map((d) =>
+                        d.key === it.key ? { ...d, basis, amount: computedAmount(optType, basis) } : d
+                      )
+                    );
+                  }}
+                />
+              </Col>
+            )}
+            <Col span={isComputed ? 7 : 8}>
               <InputNumber
                 min={0}
                 placeholder="Amount"
                 value={it.amount}
                 style={{ width: "100%" }}
                 addonBefore="KES"
+                disabled={isComputed}
                 onChange={(v) =>
                   setItems(items.map((d) => (d.key === it.key ? { ...d, amount: v || 0 } : d)))
                 }
@@ -1144,7 +1286,8 @@ const PayrollManagement: React.FC = () => {
               />
             </Col>
           </Row>
-        ))}
+          );
+        })}
         <Row align="middle" gutter={8} style={{ marginBottom: 8 }}>
           <Col flex="auto">
             <Button
@@ -1400,7 +1543,7 @@ const PayrollManagement: React.FC = () => {
       setLineBenefitItems([]);
       setLineCustomDeductions([]);
       // Re-run the preview so statutory deductions recompute on the new figures
-      previewMutation.mutate({ ...pendingGenerateParams, overrides });
+      runPreview({ ...pendingGenerateParams, overrides });
     } catch (error) {
       console.error("Validation failed:", error);
     }
@@ -1451,7 +1594,7 @@ const PayrollManagement: React.FC = () => {
       align: "right" as const,
       render: (amount: number) => (
         <Text style={{ fontSize: 12, fontWeight: 500 }}>
-          KES {(amount ?? 0).toLocaleString()}
+          KES {fmtTableMoney(amount)}
         </Text>
       ),
     },
@@ -1470,7 +1613,7 @@ const PayrollManagement: React.FC = () => {
       align: "right" as const,
       render: (amount: number) => (
         <Text style={{ fontSize: 12, color: "#ef4444" }}>
-          {(amount ?? 0).toLocaleString()}
+          {fmtTableMoney(amount)}
         </Text>
       ),
     })),
@@ -1481,7 +1624,7 @@ const PayrollManagement: React.FC = () => {
       align: "right" as const,
       render: (amount: number) => (
         <Text style={{ fontSize: 12, fontWeight: 500, color: "#10b981" }}>
-          KES {(amount ?? 0).toLocaleString()}
+          KES {fmtTableMoney(amount)}
         </Text>
       ),
     },
@@ -1746,16 +1889,55 @@ const PayrollManagement: React.FC = () => {
               menu={{
                 items: [
                   {
+                    key: "roundoff",
+                    label: "Round off amounts (whole KES)",
+                    icon: roundOff ? <CheckCircleOutlined style={{ color: "#10b981" }} /> : <span style={{ display: "inline-block", width: 14 }} />,
+                    onClick: () => setRoundOff((v) => !v),
+                  },
+                  { type: "divider" },
+                  {
                     key: "excel",
-                    label: `Export to Excel (${filteredPayrolls.length} payroll${filteredPayrolls.length === 1 ? "" : "s"})`,
+                    label: `Export to Excel${roundOff ? " — rounded" : ""} (${filteredPayrolls.length} payroll${filteredPayrolls.length === 1 ? "" : "s"})`,
                     icon: <FileExcelOutlined />,
-                    onClick: () => exportPayrollsToExcel(filteredPayrolls),
+                    children: [
+                      {
+                        key: "excel-default",
+                        label: "Default header",
+                        onClick: () => exportPayrollsToExcel(filteredPayrolls, { rounded: roundOff }),
+                      },
+                      {
+                        key: "excel-company",
+                        label: "Company name header",
+                        onClick: () => exportPayrollsToExcel(filteredPayrolls, { rounded: roundOff, headerMode: "company" }),
+                      },
+                      {
+                        key: "excel-dept",
+                        label: "Department name header",
+                        onClick: () => exportPayrollsToExcel(filteredPayrolls, { rounded: roundOff, headerMode: "department" }),
+                      },
+                    ],
                   },
                   {
                     key: "pdf",
-                    label: `Export to PDF (${filteredPayrolls.length} payroll${filteredPayrolls.length === 1 ? "" : "s"})`,
+                    label: `Export to PDF${roundOff ? " — rounded" : ""} (${filteredPayrolls.length} payroll${filteredPayrolls.length === 1 ? "" : "s"})`,
                     icon: <FilePdfOutlined />,
-                    onClick: () => exportPayrollsToPDF(filteredPayrolls),
+                    children: [
+                      {
+                        key: "pdf-default",
+                        label: "Default header",
+                        onClick: () => exportPayrollsToPDF(filteredPayrolls, { rounded: roundOff }),
+                      },
+                      {
+                        key: "pdf-company",
+                        label: "Company name header",
+                        onClick: () => exportPayrollsToPDF(filteredPayrolls, { rounded: roundOff, headerMode: "company" }),
+                      },
+                      {
+                        key: "pdf-dept",
+                        label: "Department name header",
+                        onClick: () => exportPayrollsToPDF(filteredPayrolls, { rounded: roundOff, headerMode: "department" }),
+                      },
+                    ],
                   },
                 ],
               }}
@@ -1874,19 +2056,69 @@ const PayrollManagement: React.FC = () => {
                     ? `${employeeRows.length} employee line(s)`
                     : `${filteredPayrolls.length} payroll(s)`}
                 </Text>
-                <Segmented
-                  size="small"
-                  value={payrollView}
-                  onChange={(v) => {
-                    setPayrollView(v as "employees" | "branches");
-                    setSelectedPayrollIds([]);
-                    setSelectedLineKeys([]);
-                  }}
-                  options={[
-                    { label: "Employees", value: "employees" },
-                    { label: "Departments", value: "branches" },
-                  ]}
-                />
+                <Space size={12}>
+                  <Tooltip title="Show amounts rounded off to whole shillings — also applies to muster roll exports">
+                    <div
+                      role="switch"
+                      aria-checked={roundOff}
+                      onClick={() => setRoundOff((v) => !v)}
+                      style={{
+                        position: "relative",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        height: 26,
+                        width: 104,
+                        borderRadius: 999,
+                        cursor: "pointer",
+                        userSelect: "none",
+                        background: roundOff ? primaryColor : "#e2e8f0",
+                        transition: "background 0.25s ease",
+                      }}
+                    >
+                      <span
+                        style={{
+                          position: "absolute",
+                          top: 3,
+                          left: 3,
+                          width: 20,
+                          height: 20,
+                          borderRadius: "50%",
+                          background: "#fff",
+                          boxShadow: "0 1px 3px rgba(15, 23, 42, 0.35)",
+                          transform: roundOff ? "translateX(78px)" : "translateX(0)",
+                          transition: "transform 0.25s ease",
+                        }}
+                      />
+                      <span
+                        style={{
+                          flex: 1,
+                          textAlign: roundOff ? "left" : "right",
+                          padding: roundOff ? "0 10px 0 12px" : "0 12px 0 10px",
+                          fontSize: 12,
+                          fontWeight: 600,
+                          letterSpacing: 0.2,
+                          color: roundOff ? "#fff" : "#64748b",
+                          transition: "color 0.25s ease",
+                        }}
+                      >
+                        Rounded
+                      </span>
+                    </div>
+                  </Tooltip>
+                  <Segmented
+                    size="small"
+                    value={payrollView}
+                    onChange={(v) => {
+                      setPayrollView(v as "employees" | "branches");
+                      setSelectedPayrollIds([]);
+                      setSelectedLineKeys([]);
+                    }}
+                    options={[
+                      { label: "Employees", value: "employees" },
+                      { label: "Departments", value: "branches" },
+                    ]}
+                  />
+                </Space>
               </div>
               {(selectedPayrollIds.length > 0 || selectedLineKeys.length > 0) && (
                 <div
@@ -1911,7 +2143,7 @@ const PayrollManagement: React.FC = () => {
                       const selGross = selLines.reduce((s: number, l: any) => s + (l.gross_salary || 0), 0);
                       const selDeductions = selLines.reduce((s: number, l: any) => s + (l.deductions?.total || 0), 0);
                       const selNet = selLines.reduce((s: number, l: any) => s + (l.net_pay || 0), 0);
-                      return ` — Gross KES ${selGross.toLocaleString()} · Deductions KES ${selDeductions.toLocaleString()} · Net KES ${selNet.toLocaleString()}`;
+                      return ` — Gross KES ${fmtTableMoney(selGross)} · Deductions KES ${fmtTableMoney(selDeductions)} · Net KES ${fmtTableMoney(selNet)}`;
                     })()}
                   </Text>
                   <Space size={8} wrap>
@@ -2101,17 +2333,17 @@ const PayrollManagement: React.FC = () => {
                           <Text strong style={{ fontSize: 12 }}>TOTALS</Text>
                         </Table.Summary.Cell>
                         <Table.Summary.Cell index={4} align="right">
-                          <Text style={cellStyle}>KES {sum("total_gross").toLocaleString()}</Text>
+                          <Text style={cellStyle}>{fmtTableMoney(sum("total_gross"))}</Text>
                         </Table.Summary.Cell>
-                        <Table.Summary.Cell index={5} align="right"><Text style={{ ...cellStyle, color: "#ef4444" }}>{sum("total_paye").toLocaleString()}</Text></Table.Summary.Cell>
-                        <Table.Summary.Cell index={6} align="right"><Text style={{ ...cellStyle, color: "#ef4444" }}>{sum("total_nssf").toLocaleString()}</Text></Table.Summary.Cell>
-                        <Table.Summary.Cell index={7} align="right"><Text style={{ ...cellStyle, color: "#ef4444" }}>{sum("total_nhif").toLocaleString()}</Text></Table.Summary.Cell>
-                        <Table.Summary.Cell index={8} align="right"><Text style={{ ...cellStyle, color: "#ef4444" }}>{sum("total_housing_levy").toLocaleString()}</Text></Table.Summary.Cell>
-                        <Table.Summary.Cell index={9} align="right"><Text style={{ ...cellStyle, color: "#ef4444" }}>{sum("total_withholding_tax").toLocaleString()}</Text></Table.Summary.Cell>
-                        <Table.Summary.Cell index={10} align="right"><Text style={{ ...cellStyle, color: "#ef4444" }}>{sum("total_nita").toLocaleString()}</Text></Table.Summary.Cell>
-                        <Table.Summary.Cell index={11} align="right"><Text style={{ ...cellStyle, color: "#ef4444" }}>{sum("total_custom_deductions").toLocaleString()}</Text></Table.Summary.Cell>
+                        <Table.Summary.Cell index={5} align="right"><Text style={{ ...cellStyle, color: "#ef4444" }}>{fmtTableMoney(sum("total_paye"))}</Text></Table.Summary.Cell>
+                        <Table.Summary.Cell index={6} align="right"><Text style={{ ...cellStyle, color: "#ef4444" }}>{fmtTableMoney(sum("total_nssf"))}</Text></Table.Summary.Cell>
+                        <Table.Summary.Cell index={7} align="right"><Text style={{ ...cellStyle, color: "#ef4444" }}>{fmtTableMoney(sum("total_nhif"))}</Text></Table.Summary.Cell>
+                        <Table.Summary.Cell index={8} align="right"><Text style={{ ...cellStyle, color: "#ef4444" }}>{fmtTableMoney(sum("total_housing_levy"))}</Text></Table.Summary.Cell>
+                        <Table.Summary.Cell index={9} align="right"><Text style={{ ...cellStyle, color: "#ef4444" }}>{fmtTableMoney(sum("total_withholding_tax"))}</Text></Table.Summary.Cell>
+                        <Table.Summary.Cell index={10} align="right"><Text style={{ ...cellStyle, color: "#ef4444" }}>{fmtTableMoney(sum("total_nita"))}</Text></Table.Summary.Cell>
+                        <Table.Summary.Cell index={11} align="right"><Text style={{ ...cellStyle, color: "#ef4444" }}>{fmtTableMoney(sum("total_custom_deductions"))}</Text></Table.Summary.Cell>
                         <Table.Summary.Cell index={12} align="right">
-                          <Text style={{ ...cellStyle, color: "#10b981" }}>KES {sum("total_net").toLocaleString()}</Text>
+                          <Text style={{ ...cellStyle, color: "#10b981" }}>{fmtTableMoney(sum("total_net"))}</Text>
                         </Table.Summary.Cell>
                         <Table.Summary.Cell index={13} colSpan={2} />
                       </Table.Summary.Row>
@@ -2123,7 +2355,6 @@ const PayrollManagement: React.FC = () => {
                   // automatically since we reuse employeeViewColumns).
                   const cols = employeeViewColumns as any[];
                   const moneyCols = cols.slice(3, cols.length - 1); // between Period and Status
-                  const kesCols = new Set(["Gross Pay", "Net Pay"]);
                   return (
                     <Table.Summary.Row style={{ background: "#f8fafc" }}>
                       <Table.Summary.Cell index={0} colSpan={4}>
@@ -2133,7 +2364,7 @@ const PayrollManagement: React.FC = () => {
                         <Table.Summary.Cell key={c.key || i} index={i + 1} align="right">
                           {c.sumFn ? (
                             <Text style={{ ...cellStyle, color: c.sumColor }}>
-                              {kesCols.has(c.title) ? "KES " : ""}{c.sumFn(employeeRows).toLocaleString()}
+                              {fmtTableMoney(c.sumFn(employeeRows))}
                             </Text>
                           ) : null}
                         </Table.Summary.Cell>
@@ -2171,7 +2402,7 @@ const PayrollManagement: React.FC = () => {
               showIcon
               style={{ marginBottom: 16 }}
               message="Statutory filing files"
-              description="Download NSSF, SHIF and PAYE filing sheets in Excel — prefilled from the selected payrolls, ready to update and upload to the respective portals."
+              description="Download NSSF, SHIF (Excel) and PAYE (CSV) filing files — prefilled from the selected payrolls, ready to update and upload to the respective portals."
             />
             <div style={{ marginBottom: 16, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
               <Text strong>Departments:</Text>
@@ -2256,9 +2487,10 @@ const PayrollManagement: React.FC = () => {
                 {
                   key: "paye",
                   title: "PAYE Return",
-                  desc: "KRA iTax PAYE payroll register — PIN, name, salary breakdown, taxable pay, relief and PAYE tax.",
+                  desc: "KRA iTax PAYE payroll register as CSV — PIN, name, salary breakdown, taxable pay, relief and PAYE tax.",
                   color: "#7c3aed",
                   onClick: () => exportPayeFiling(filingPayrolls, filingEmployeeIds),
+                  format: "CSV",
                 },
               ].map((t) => (
                 <Col xs={24} md={8} key={t.key}>
@@ -2278,7 +2510,7 @@ const PayrollManagement: React.FC = () => {
                       disabled={!canExportPayroll || !filingPayrolls.length}
                       onClick={t.onClick}
                     >
-                      Download Excel
+                      Download {(t as any).format || "Excel"}
                     </Button>
                   </Card>
                 </Col>
@@ -2699,7 +2931,7 @@ const PayrollManagement: React.FC = () => {
                     <Col span={12}>
                       <Form.Item
                         name="withholding_tax_rate"
-                        label="Withholding Tax Rate (%)"
+                        label="Resident Rate (%)"
                         initialValue={5}
                         rules={[{ required: true, message: "Required" }]}
                       >
@@ -2712,8 +2944,64 @@ const PayrollManagement: React.FC = () => {
                       </Form.Item>
                     </Col>
                   </Row>
+                  <Row gutter={16}>
+                    <Col span={12}>
+                      <Form.Item
+                        name="withholding_tax_non_resident_rate"
+                        label="Non-Resident Rate (%)"
+                        initialValue={20}
+                        rules={[{ required: true, message: "Required" }]}
+                        tooltip="Applied to consultants whose residential status is Non-Resident (KRA default 20%)"
+                      >
+                        <InputNumber
+                          min={0}
+                          max={100}
+                          style={{ width: "100%" }}
+                          addonAfter="%"
+                        />
+                      </Form.Item>
+                    </Col>
+                  </Row>
                   <Text type="secondary" style={{ fontSize: 12 }}>
-                    Withholding tax applies to employees with the &quot;Consultant&quot; employment type — it is the only deduction withheld from their pay (5% for resident consultants by default).
+                    Withholding tax applies to employees with the &quot;Consultant&quot; employment type — it is the only deduction withheld from their pay. The rate is chosen by the consultant&apos;s residential status (5% resident / 20% non-resident by default).
+                  </Text>
+                </Form>
+              </Tabs.TabPane>
+
+              {/* ── HELB Settings ── */}
+              <Tabs.TabPane tab="HELB" key="helb">
+                <Form form={deductionForm} layout="vertical">
+                  <Row gutter={16}>
+                    <Col span={12}>
+                      <Form.Item
+                        name="helb_enabled"
+                        label="Enable HELB Deduction"
+                        valuePropName="checked"
+                        initialValue={true}
+                      >
+                        <Switch />
+                      </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                      <Form.Item
+                        name="helb_amount"
+                        label="Default Amount (KES / month)"
+                        initialValue={0}
+                        tooltip="Used when the employee has no HELB amount set on their record"
+                      >
+                        <InputNumber
+                          min={0}
+                          style={{ width: "100%" }}
+                          addonBefore="KES"
+                        />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    HELB student-loan repayments are set per employee (Employees → edit → HELB
+                    Deduction) — only employees with an amount are charged. The default amount
+                    here applies to anyone without their own. Add a HELB exemption on the
+                    employee record to skip them.
                   </Text>
                 </Form>
               </Tabs.TabPane>
@@ -2863,11 +3151,12 @@ const PayrollManagement: React.FC = () => {
         }}
         styles={{
           body:
-            generateStep === 1 && (previewFullScreen || previewHeight != null)
-              ? {
-                  height: previewFullScreen ? "calc(100vh - 110px)" : (previewHeight || undefined),
-                  overflowY: "auto",
-                }
+            generateStep === 1
+              ? previewFullScreen
+                ? { height: "calc(100vh - 110px)", overflowY: "auto" }
+                : previewHeight != null
+                  ? { height: previewHeight, overflowY: "auto" }
+                  : { maxHeight: "calc(100vh - 160px)", overflowY: "auto" }
               : undefined,
         }}
         modalRender={(modal) => (
@@ -2905,24 +3194,25 @@ const PayrollManagement: React.FC = () => {
                   title="Drag down to expand height"
                   style={{
                     position: "absolute",
-                    bottom: 8,
+                    bottom: -30,
                     left: `calc(50% - ${previewModalWidth / 2}px)`,
                     width: previewModalWidth,
-                    height: 28,
+                    height: 30,
                     cursor: "ns-resize",
                     zIndex: 5,
                     display: "flex",
-                    alignItems: "center",
+                    alignItems: "flex-start",
                     justifyContent: "center",
+                    paddingTop: 6,
                   }}
                 >
                   <div
                     style={{
-                      width: 64,
+                      width: 80,
                       height: 6,
                       borderRadius: 3,
                       background: "#94a3b8",
-                      opacity: 0.85,
+                      boxShadow: "0 1px 3px rgba(15, 23, 42, 0.25)",
                     }}
                   />
                 </div>
@@ -3171,6 +3461,20 @@ const PayrollManagement: React.FC = () => {
           </div>
         )}
 
+        {/* Preview compile progress — chunked per department / employee batch */}
+        {isPreviewing && previewProgress && (
+          <div style={{ marginTop: 16 }}>
+            <Progress
+              percent={Math.round((previewProgress.done / previewProgress.total) * 100)}
+              status="active"
+            />
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              Compiling payroll preview… {previewProgress.done} of {previewProgress.total}{" "}
+              {pendingGenerateParams?.department_ids?.length ? "department(s)" : "batch(es)"}
+            </Text>
+          </div>
+        )}
+
         {/* Generation progress */}
         {isGenerating && generateProgress && (
           <div style={{ marginTop: 16 }}>
@@ -3195,11 +3499,11 @@ const PayrollManagement: React.FC = () => {
             <span />
           )}
           <Space>
-            <Button onClick={closeGenerateModal} disabled={previewMutation.isLoading || isGenerating}>
+            <Button onClick={closeGenerateModal} disabled={isPreviewing || isGenerating}>
               Cancel
             </Button>
             {generateStep === 0 ? (
-              <Button type="primary" onClick={handlePreviewPayroll} loading={previewMutation.isLoading}>
+              <Button type="primary" onClick={handlePreviewPayroll} loading={isPreviewing}>
                 Review →
               </Button>
             ) : (
@@ -3312,7 +3616,7 @@ const PayrollManagement: React.FC = () => {
         }}
         onOk={handleSavePreviewLine}
         okText="Apply & Re-run Preview"
-        confirmLoading={previewMutation.isLoading}
+        confirmLoading={isPreviewing}
         width={isMobile ? "94%" : 560}
       >
         <Alert
@@ -3359,22 +3663,32 @@ const PayrollManagement: React.FC = () => {
               </div>
               <Space size={8}>
                   <Tooltip title="Download payroll (Muster Roll) as Excel">
-                    <Button
-                      size="small"
-                      icon={<FileExcelOutlined />}
-                      onClick={() => exportPayrollToExcel(selectedPayroll)}
+                    <Dropdown
+                      trigger={["click"]}
+                      menu={{
+                        items: [
+                          { key: "x-default", label: "Default header", onClick: () => exportPayrollToExcel(selectedPayroll, { rounded: roundOff }) },
+                          { key: "x-company", label: "Company name header", onClick: () => exportPayrollToExcel(selectedPayroll, { rounded: roundOff, headerMode: "company" }) },
+                          { key: "x-dept", label: "Department name header", onClick: () => exportPayrollToExcel(selectedPayroll, { rounded: roundOff, headerMode: "department" }) },
+                        ],
+                      }}
                     >
-                      Excel
-                    </Button>
+                      <Button size="small" icon={<FileExcelOutlined />}>Excel</Button>
+                    </Dropdown>
                   </Tooltip>
                   <Tooltip title="Download payroll (Muster Roll) as PDF">
-                    <Button
-                      size="small"
-                      icon={<FilePdfOutlined />}
-                      onClick={() => exportPayrollToPDF(selectedPayroll)}
+                    <Dropdown
+                      trigger={["click"]}
+                      menu={{
+                        items: [
+                          { key: "p-default", label: "Default header", onClick: () => exportPayrollToPDF(selectedPayroll, { rounded: roundOff }) },
+                          { key: "p-company", label: "Company name header", onClick: () => exportPayrollToPDF(selectedPayroll, { rounded: roundOff, headerMode: "company" }) },
+                          { key: "p-dept", label: "Department name header", onClick: () => exportPayrollToPDF(selectedPayroll, { rounded: roundOff, headerMode: "department" }) },
+                        ],
+                      }}
                     >
-                      PDF
-                    </Button>
+                      <Button size="small" icon={<FilePdfOutlined />}>PDF</Button>
+                    </Dropdown>
                   </Tooltip>
                   <Tag color={STATUS_CONFIG[selectedPayroll.status]?.color} style={{ margin: 0 }}>
                     {STATUS_CONFIG[selectedPayroll.status]?.label}
@@ -3393,19 +3707,19 @@ const PayrollManagement: React.FC = () => {
             >
               <StatCard
                 title="Gross"
-                value={`KES ${(selectedPayroll.total_gross ?? 0).toLocaleString()}`}
+                value={`KES ${fmtTableMoney(selectedPayroll.total_gross)}`}
                 icon={<DollarOutlined />}
                 color="#3b82f6"
               />
               <StatCard
                 title="Deductions"
-                value={`KES ${(selectedPayroll.total_deductions ?? 0).toLocaleString()}`}
+                value={`KES ${fmtTableMoney(selectedPayroll.total_deductions)}`}
                 icon={<DeleteOutlined />}
                 color="#ef4444"
               />
               <StatCard
                 title="Net Pay"
-                value={`KES ${(selectedPayroll.total_net ?? 0).toLocaleString()}`}
+                value={`KES ${fmtTableMoney(selectedPayroll.total_net)}`}
                 icon={<CheckCircleOutlined />}
                 color="#10b981"
               />
@@ -3442,13 +3756,13 @@ const PayrollManagement: React.FC = () => {
                     {
                       label: "NSSF",
                       value: (selectedPayroll.total_nssf || 0) + nssfEr,
-                      sub: `EE ${(selectedPayroll.total_nssf || 0).toLocaleString()} · ER ${nssfEr.toLocaleString()}`,
+                      sub: `EE ${fmtTableMoney(selectedPayroll.total_nssf)} · ER ${fmtTableMoney(nssfEr)}`,
                     },
                     { label: "SHA", value: selectedPayroll.total_nhif },
                     {
                       label: "Housing Levy",
                       value: (selectedPayroll.total_housing_levy || 0) + housingEr,
-                      sub: `EE ${(selectedPayroll.total_housing_levy || 0).toLocaleString()} · ER ${housingEr.toLocaleString()}`,
+                      sub: `EE ${fmtTableMoney(selectedPayroll.total_housing_levy)} · ER ${fmtTableMoney(housingEr)}`,
                     },
                     { label: "WHT", value: (selectedPayroll as any).total_withholding_tax },
                     {
@@ -3470,7 +3784,7 @@ const PayrollManagement: React.FC = () => {
                   >
                     <Text style={{ fontSize: 10, color: "#94a3b8", display: "block" }}>{d.label}</Text>
                     <Text style={{ fontSize: 13, fontWeight: 600 }}>
-                      KES {(d.value || 0).toLocaleString()}
+                      KES {fmtTableMoney(d.value)}
                     </Text>
                     {d.sub && (
                       <Text style={{ fontSize: 10, color: "#64748b", display: "block" }}>{d.sub}</Text>
