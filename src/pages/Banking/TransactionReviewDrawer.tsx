@@ -24,6 +24,8 @@ import {
 } from "@services/accounting/bankStatementImport";
 import { getAllAccounts } from "@services/accounting/accounts";
 import { fetchAllSuppliers } from "@services/supplier";
+import { getUser } from "@services/tenants";
+import { getPermissionChecker } from "@utils/getPermissionChecker";
 import dayjs from "dayjs";
 
 const { Text, Title } = Typography;
@@ -254,6 +256,12 @@ const TransactionReviewDrawer: React.FC<Props> = ({
 }) => {
     const { modal } = App.useApp();
     const queryClient = useQueryClient();
+
+    const user = getUser();
+    const checkPerms = getPermissionChecker();
+    const can = (k: string) => user?.role === "admin" || user?.isAdmin === true || checkPerms(k);
+    const canReapplyRules = can("ACCOUNTING_BANK_STMT_REAPPLY_RULES");
+    const canCompleteUpload = can("ACCOUNTING_BANK_STMT_PUSH_JOURNAL");
 
     const [statusFilter, setStatusFilter] = useState<TransactionStatus | "ALL">("ALL");
     const [page, setPage] = useState(1);
@@ -552,23 +560,27 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                 destroyOnClose
                 extra={
                     <Space>
-                        <Button
-                            icon={<ReloadOutlined />}
-                            onClick={() => reApplyMutation.mutate()}
-                            loading={reApplyMutation.isLoading}
-                            size="large"
-                        >
-                            Re-apply Rules
-                        </Button>
-                        <Button
-                            type="primary"
-                            icon={<SendOutlined />}
-                            onClick={() => setPushModalOpen(true)}
-                            disabled={!importDetail?.categorized_count}
-                            size="large"
-                        >
-                            Push to Journal
-                        </Button>
+                        {canReapplyRules && (
+                            <Button
+                                icon={<ReloadOutlined />}
+                                onClick={() => reApplyMutation.mutate()}
+                                loading={reApplyMutation.isLoading}
+                                size="large"
+                            >
+                                Re-apply Rules
+                            </Button>
+                        )}
+                        {canCompleteUpload && (
+                            <Button
+                                type="primary"
+                                icon={<SendOutlined />}
+                                onClick={() => setPushModalOpen(true)}
+                                disabled={!importDetail?.categorized_count}
+                                size="large"
+                            >
+                                Complete Upload
+                            </Button>
+                        )}
                     </Space>
                 }
             >
@@ -735,14 +747,14 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                 loading={categorizeMutation.isLoading}
             />
 
-            {/* ── Push Modal ── */}
+            {/* ── Complete Upload Modal ── */}
             <Modal
                 open={pushModalOpen}
-                title="Push to Journal Entries"
+                title="Complete Upload"
                 onCancel={() => setPushModalOpen(false)}
                 onOk={() => pushMutation.mutate()}
                 confirmLoading={pushMutation.isLoading}
-                okText="Push"
+                okText="Complete"
                 okButtonProps={{ size: "large" }}
                 cancelButtonProps={{ size: "large" }}
                 width={500}
