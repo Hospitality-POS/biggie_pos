@@ -6,7 +6,7 @@ import {
     ProFormTextArea,
     ProFormSwitch,
 } from "@ant-design/pro-components";
-import { Drawer, Divider, Typography, Switch, Space, AutoComplete } from "antd";
+import { Drawer, Divider, Typography, Switch, Space, Input, message } from "antd";
 import {
     ChartOfAccount,
     AccountType,
@@ -59,6 +59,51 @@ const ACCOUNT_SUBTYPES: Record<AccountType, string[]> = {
         "Tax Expense",
         "Other Expense",
     ],
+};
+
+/**
+ * Next account code that isn't already in use — steps by 10 from the
+ * highest sibling code, or parent + 10 when there are no siblings yet.
+ * Returns null when no numeric suggestion can be derived.
+ */
+const getNextAvailableCode = (
+    accounts: ChartOfAccount[],
+    parentId: string
+): number | null => {
+    const parent = accounts.find((a) => a._id === parentId);
+    if (!parent) return null;
+
+    const taken = new Set(
+        accounts
+            .map((a) => parseInt(a.account_code, 10))
+            .filter((n) => !isNaN(n))
+    );
+
+    const siblingCodes = accounts
+        .filter((a) => {
+            const pid =
+                typeof a.parent_account_id === "object"
+                    ? (a.parent_account_id as ChartOfAccount)?._id
+                    : a.parent_account_id;
+            return String(pid) === String(parentId);
+        })
+        .map((a) => parseInt(a.account_code, 10))
+        .filter((n) => !isNaN(n))
+        .sort((a, b) => b - a);
+
+    const baseCode = parseInt(parent.account_code, 10);
+    let candidate = siblingCodes.length > 0 ? siblingCodes[0] + 10 : baseCode + 10;
+    if (isNaN(candidate)) return null;
+
+    while (taken.has(candidate)) candidate += 10;
+    return candidate;
+};
+
+const isDuplicateCodeError = (err: unknown) => {
+    const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data
+            ?.message || "";
+    return /code/i.test(msg) && /exist|already|duplicate|taken|use/i.test(msg);
 };
 
 interface Props {
@@ -120,38 +165,46 @@ const AccountFormDrawer: React.FC<Props> = ({
     // ── Auto-suggest next AVAILABLE account code ───────────────────────────────
     useEffect(() => {
         if (!requireAccountCode || !autoCode || !selectedParentId) return;
-        const parent = accounts.find((a) => a._id === selectedParentId);
-        if (!parent) return;
+        const next = getNextAvailableCode(accounts, selectedParentId);
+        if (next !== null) form.setFieldValue("account_code", String(next));
+    }, [selectedParentId, autoCode, accounts, form, requireAccountCode]);
 
-        // All codes that exist in this shop — used for collision checking
-        const allCodes = new Set(
-            accounts.map((a) => parseInt(a.account_code)).filter(Boolean)
+    // ── Create with retry: if the backend reports a duplicate code (e.g. the
+    //    local list is stale), skip to the next free code and try again ────────
+    const createWithUniqueCode = async (payload: CreateAccountParams) => {
+        const taken = new Set(
+            accounts
+                .map((a) => parseInt(a.account_code, 10))
+                .filter((n) => !isNaN(n))
         );
 
-        // Highest sibling code (accounts that share the same parent)
-        const siblingCodes = accounts
-            .filter((a) => {
-                const pid =
-                    typeof a.parent_account_id === "object"
-                        ? (a.parent_account_id as ChartOfAccount)?._id
-                        : a.parent_account_id;
-                return String(pid) === String(selectedParentId);
-            })
-            .map((a) => parseInt(a.account_code))
-            .filter(Boolean)
-            .sort((a, b) => b - a);
+        let lastError: unknown;
+        for (let attempt = 0; attempt < 10; attempt++) {
+            try {
+                await createAccount(payload, { silent: true });
+                message.success(
+                    `Account created successfully (code ${payload.account_code})`
+                );
+                return;
+            } catch (err) {
+                lastError = err;
+                const current = parseInt(payload.account_code, 10);
+                if (!autoCode || !isDuplicateCodeError(err) || isNaN(current)) break;
 
-        const baseCode = parseInt(parent.account_code);
-        // Start one step above the highest sibling, or parent + 10 if no siblings yet
-        let candidate = siblingCodes.length > 0 ? siblingCodes[0] + 10 : baseCode + 10;
-
-        // Keep stepping by 10 until we find a code not already in use
-        while (allCodes.has(candidate)) {
-            candidate += 10;
+                taken.add(current);
+                let next = current + 10;
+                while (taken.has(next)) next += 10;
+                payload.account_code = String(next);
+                form.setFieldValue("account_code", String(next));
+            }
         }
 
-        form.setFieldValue("account_code", String(candidate));
-    }, [selectedParentId, autoCode, accounts, form, requireAccountCode]);
+        const msg =
+            (lastError as { response?: { data?: { message?: string } } })?.response
+                ?.data?.message;
+        message.error(msg || "Error creating account");
+        throw lastError;
+    };
 
     // ── Submit ─────────────────────────────────────────────────────────────────
     const handleSubmit = async (values: any) => {
@@ -192,7 +245,7 @@ const AccountFormDrawer: React.FC<Props> = ({
                 );
             }
         } else {
-            await createAccount(payload as CreateAccountParams);
+            await createWithUniqueCode(payload as CreateAccountParams);
         }
 
         onSuccess();
@@ -314,19 +367,36 @@ const AccountFormDrawer: React.FC<Props> = ({
                             </Space>
                         }
                         name="account_code"
-                        rules={[]}
+                        rules={[
+                            {
+                                validator: (_: any, value: any) => {
+                                    const code = String(value ?? "").trim();
+                                    if (!code || autoCode) return Promise.resolve();
+                                    const exists = accounts.find(
+                                        (a) =>
+                                            a._id !== editingAccount?._id &&
+                                            String(a.account_code).trim() === code
+                                    );
+                                    return exists
+                                        ? Promise.reject(
+                                              new Error(
+                                                  `Account code '${code}' already exists`
+                                              )
+                                          )
+                                        : Promise.resolve();
+                                },
+                            },
+                        ]}
                     >
-                        <AutoComplete
+                        <Input
                             placeholder={
                                 autoCode
-                                    ? "Auto-suggested — pick a parent first"
-                                    : "Optional — e.g. 1150"
+                                    ? "Auto-generated — pick a parent first"
+                                    : "e.g. 1150"
                             }
-                            disabled={isEdit && editingAccount?.is_system_account}
-                            options={
-                                autoCode && form.getFieldValue("account_code")
-                                    ? [{ value: form.getFieldValue("account_code") }]
-                                    : []
+                            disabled={
+                                autoCode ||
+                                (isEdit && !!editingAccount?.is_system_account)
                             }
                             style={{ width: "100%" }}
                         />

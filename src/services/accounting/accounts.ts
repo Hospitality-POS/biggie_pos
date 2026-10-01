@@ -230,20 +230,22 @@ export const getAccountById = async (id: string) => {
 /**
  * Create a new account.
  */
-export const createAccount = async (data: CreateAccountParams) => {
+export const createAccount = async (data: CreateAccountParams, opts?: { silent?: boolean }) => {
     try {
         const response = await axiosInstance.post(
             `${BASE_URL}/accounting/chart-of-accounts`,
             data
         );
-        message.success("Account created successfully");
+        if (!opts?.silent) message.success("Account created successfully");
         return response.data as { account: ChartOfAccount };
     } catch (error) {
-        const err = error as ApiError;
-        if (err.response?.data?.message) {
-            message.error(err.response.data.message);
-        } else {
-            message.error("Error creating account");
+        if (!opts?.silent) {
+            const err = error as ApiError;
+            if (err.response?.data?.message) {
+                message.error(err.response.data.message);
+            } else {
+                message.error("Error creating account");
+            }
         }
         throw error;
     }
