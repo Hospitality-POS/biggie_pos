@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
     Drawer, Tabs, Table, Button, Space, Tag, Switch, Typography,
     Popconfirm, Tooltip, Badge, Form, Input, Select, InputNumber,
-    Modal, Row, Col, Divider, Alert, Radio, Checkbox,
+    Modal, Row, Col, Divider, Alert, Radio, Checkbox, message,
 } from "antd";
 import {
     PlusOutlined, EditOutlined, DeleteOutlined,
@@ -135,8 +135,32 @@ const RuleFormModal: React.FC<{
         setConditions(updated);
     };
 
+    const isConditionComplete = (c: Partial<RuleCondition>) => {
+        if (!c.field || !c.operator) return false;
+        if (c.operator === "between") return !!c.value && !!c.value2;
+        return c.value !== undefined && c.value !== "";
+    };
+    const isConditionEmpty = (c: Partial<RuleCondition>) =>
+        !c.field && !c.operator && (c.value === undefined || c.value === "") && (c.value2 === undefined || c.value2 === "");
+
     const handleOk = async () => {
-        const values = await form.validateFields();
+        let values;
+        try {
+            values = await form.validateFields();
+        } catch {
+            return;
+        }
+
+        const completeConditions = conditions.filter(isConditionComplete);
+        if (completeConditions.length === 0) {
+            message.error("At least one complete condition (field, operator and value) is required");
+            return;
+        }
+        if (conditions.some((c) => !isConditionEmpty(c) && !isConditionComplete(c))) {
+            message.error("Each condition must have a field, operator and value");
+            return;
+        }
+
         const acc = accounts.find((a: any) => a._id === values.action_account_id);
         const targetAcc = values.action_target_account_id ? accounts.find((a: any) => a._id === values.action_target_account_id) : null;
         onConfirm({
@@ -156,7 +180,7 @@ const RuleFormModal: React.FC<{
             reference_number: values.reference_number,
             custom_reference: values.custom_reference,
             reporting_tags: values.reporting_tags || [],
-            conditions: conditions.filter((c) => c.field && c.operator) as RuleCondition[],
+            conditions: completeConditions as RuleCondition[],
             actions: {
                 account_id: values.action_account_id,
                 account_code: acc?.account_code,
@@ -190,18 +214,18 @@ const RuleFormModal: React.FC<{
             destroyOnClose
         >
             <Form form={form} layout="vertical">
-                <Form.Item name="name" label="Rule Name" rules={[{ required: true }]}>
+                <Form.Item name="name" label="Rule Name" rules={[{ required: true, message: "Rule name is required" }]}>
                     <Input placeholder="e.g. Match Safaricom payments" />
                 </Form.Item>
 
-                <Form.Item name="apply_to" label="Apply To" initialValue="deposits">
+                <Form.Item name="apply_to" label="Apply To" initialValue="deposits" rules={[{ required: true, message: "Required" }]}>
                     <Radio.Group>
                         <Radio value="deposits">Deposit</Radio>
                         <Radio value="withdrawals">Withdrawal</Radio>
                     </Radio.Group>
                 </Form.Item>
 
-                <Form.Item name="transaction_handling" label="Transaction Handling" initialValue="recognized">
+                <Form.Item name="transaction_handling" label="Transaction Handling" initialValue="recognized" rules={[{ required: true, message: "Required" }]}>
                     <Radio.Group>
                         <Radio value="recognized">Recognized transactions</Radio>
                         <Radio value="categorized">Categorized transactions</Radio>
@@ -301,7 +325,7 @@ const RuleFormModal: React.FC<{
                     Add criterion
                 </Button>
 
-                <Form.Item name="action_record_type" label="Record As">
+                <Form.Item name="action_record_type" label="Record As" rules={[{ required: true, message: "Record type is required" }]}>
                     <Select
                         placeholder="Select type..."
                         options={[
@@ -314,7 +338,7 @@ const RuleFormModal: React.FC<{
                     />
                 </Form.Item>
 
-                <Form.Item name="action_account_id" label="account">
+                <Form.Item name="action_account_id" label="Account" rules={[{ required: true, message: "Account is required" }]}>
                     <Select
                         placeholder="Select account..."
                         options={accountOptions}
@@ -327,7 +351,7 @@ const RuleFormModal: React.FC<{
                 <Form.Item noStyle shouldUpdate={(prev, curr) => prev.action_record_type !== curr.action_record_type}>
                     {({ getFieldValue }) =>
                         getFieldValue("action_record_type") === "transfer" ? (
-                            <Form.Item name="action_target_account_id" label="Target Account (for transfers)">
+                            <Form.Item name="action_target_account_id" label="Target Account (for transfers)" rules={[{ required: true, message: "Target account is required for transfers" }]}>
                                 <Select
                                     placeholder="Select target account..."
                                     options={accountOptions}
@@ -350,7 +374,7 @@ const RuleFormModal: React.FC<{
                     />
                 </Form.Item>
 
-                <Form.Item name="vat_treatment" label="Vat Treatment">
+                <Form.Item name="vat_treatment" label="Vat Treatment" rules={[{ required: !!tenant?.is_vat_enabled, message: "Vat treatment is required" }]}>
                     <Select
                         placeholder="Select vat treatment..."
                         options={[
@@ -363,7 +387,7 @@ const RuleFormModal: React.FC<{
 
                 <Row gutter={12}>
                     <Col span={12}>
-                        <Form.Item name="tax" label="Tax">
+                        <Form.Item name="tax" label="Tax" rules={[{ required: true, message: "Tax is required" }]}>
                             <Select
                                 placeholder="Select tax..."
                                 options={[
@@ -377,7 +401,7 @@ const RuleFormModal: React.FC<{
                         <Form.Item noStyle shouldUpdate={(prev, curr) => prev.tax !== curr.tax}>
                             {({ getFieldValue }) =>
                                 getFieldValue("tax") === "exempt" ? (
-                                    <Form.Item name="tax_exemption_reason" label="Tax Exemption Reason">
+                                    <Form.Item name="tax_exemption_reason" label="Tax Exemption Reason" rules={[{ required: true, message: "Exemption reason is required" }]}>
                                         <Input placeholder="Enter exemption reason..." />
                                     </Form.Item>
                                 ) : null
@@ -386,7 +410,7 @@ const RuleFormModal: React.FC<{
                     </Col>
                 </Row>
 
-                <Form.Item name="reference_number" label="Reference Number">
+                <Form.Item name="reference_number" label="Reference Number" rules={[{ required: true, message: "Reference number is required" }]}>
                     <Select
                         placeholder="Select reference number..."
                         options={[
@@ -399,7 +423,7 @@ const RuleFormModal: React.FC<{
                 <Form.Item noStyle shouldUpdate={(prev, curr) => prev.reference_number !== curr.reference_number}>
                     {({ getFieldValue }) =>
                         getFieldValue("reference_number") === "custom" ? (
-                            <Form.Item name="custom_reference" label="Custom Reference">
+                            <Form.Item name="custom_reference" label="Custom Reference" rules={[{ required: true, message: "Custom reference is required" }]}>
                                 <Input placeholder="Enter custom reference..." />
                             </Form.Item>
                         ) : null
@@ -465,7 +489,7 @@ const RuleFormModal: React.FC<{
                     <Text type="secondary" style={{ fontSize: 12 }}>Associate Accounts</Text>
                 </Divider>
 
-                <Form.Item name="associate_accounts" label="Associate Accounts" initialValue="all_accounts">
+                <Form.Item name="associate_accounts" label="Associate Accounts" initialValue="all_accounts" rules={[{ required: true, message: "Required" }]}>
                     <Radio.Group>
                         <Radio value="all_accounts">All Accounts</Radio>
                         <Radio value="all_banks">All Banks</Radio>
@@ -477,7 +501,7 @@ const RuleFormModal: React.FC<{
                 <Form.Item noStyle shouldUpdate={(prev, curr) => prev.associate_accounts !== curr.associate_accounts}>
                     {({ getFieldValue }) =>
                         getFieldValue("associate_accounts") === "custom" ? (
-                            <Form.Item name="associated_account_id" label="Select Accounts">
+                            <Form.Item name="associated_account_id" label="Select Accounts" rules={[{ required: true, message: "Select at least one account" }]}>
                                 <Select
                                     placeholder="Select accounts..."
                                     options={accountOptions}
