@@ -1031,6 +1031,8 @@ export interface GeneratePayrollParams {
       basic_salary?: number;
       allowances?: number;
       benefits?: number;
+      allowance_items?: Array<{ name: string; amount: number }>;
+      benefit_items?: Array<{ name: string; value: number }>;
       overtime_hours?: number;
       overtime_pay?: number;
       custom_deductions?: Array<{ name: string; amount: number }>;
@@ -1122,6 +1124,8 @@ export const patchPayrollLine = async (
       basic_salary?: number;
       allowances?: number;
       benefits?: number;
+      allowance_items?: Array<{ name: string; amount: number }>;
+      benefit_items?: Array<{ name: string; value: number }>;
       overtime_hours?: number;
       overtime_pay?: number;
       custom_deductions?: Array<{ name: string; amount: number }>;
@@ -1456,6 +1460,7 @@ export interface Payslip {
     fullname?: string;
     user_id?: { fullname?: string; email?: string };
     job_title: string;
+    employment_type?: string;
   };
   period_start: string;
   period_end: string;
@@ -1464,6 +1469,8 @@ export interface Payslip {
     basic_salary: number;
     allowances: number;
     benefits: number;
+    allowance_items?: Array<{ name: string; amount: number }>;
+    benefit_items?: Array<{ name: string; value: number }>;
     overtime_pay: number;
     gross_salary: number;
   };
