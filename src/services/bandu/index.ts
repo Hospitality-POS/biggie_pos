@@ -40,6 +40,11 @@ export interface Employee {
   };
   hire_date: string;
   employment_type: 'full-time' | 'part-time' | 'contract' | 'intern' | 'casual' | 'consultant';
+  /** Kenya payroll classification — "primary" (default) or "secondary" employment */
+  employee_type?: 'primary' | 'secondary';
+  /** Person with Disability — PAYE exemption with a valid NCPWD certificate */
+  is_pwd?: boolean;
+  pwd_certificate_number?: string;
   job_title: string;
   employment_status: 'active' | 'on_leave' | 'suspended' | 'terminated' | 'resigned';
   termination_date?: string;
@@ -72,6 +77,17 @@ export interface Employee {
   nhif_number?: string;
   /** Monthly HELB loan repayment deducted from net pay (0/absent = none) */
   helb_amount?: number;
+  /** Monthly pension contribution — pre-tax deduction, capped at KES 20,000 */
+  pension_contribution?: number;
+  /** Insurance policy — 15% PAYE relief on the monthly-equivalent premium, capped at KES 5,000 */
+  has_insurance_policy?: boolean;
+  insurance_policy?: {
+    provider?: string;
+    policy_number?: string;
+    start_date?: string;
+    contribution_amount?: number;
+    frequency?: 'monthly' | 'quarterly' | 'semi_annually' | 'annually';
+  };
   exempt_deductions?: string[];
   date_of_birth?: string;
   gender?: 'male' | 'female' | 'other' | 'prefer_not_to_say';
@@ -92,6 +108,11 @@ export interface CreateEmployeeParams {
   employee_number?: string;
   hire_date: string;
   employment_type: 'full-time' | 'part-time' | 'contract' | 'intern' | 'casual' | 'consultant';
+  /** Kenya payroll classification — "primary" (default) or "secondary" employment */
+  employee_type?: 'primary' | 'secondary';
+  /** Person with Disability — PAYE exemption with a valid NCPWD certificate */
+  is_pwd?: boolean;
+  pwd_certificate_number?: string;
   job_title?: string;
   employment_status?: 'active' | 'on_leave' | 'suspended' | 'terminated' | 'resigned';
   basic_salary: number;
@@ -117,6 +138,17 @@ export interface CreateEmployeeParams {
   nhif_number?: string;
   /** Monthly HELB loan repayment deducted from net pay (0/absent = none) */
   helb_amount?: number;
+  /** Monthly pension contribution — pre-tax deduction, capped at KES 20,000 */
+  pension_contribution?: number;
+  /** Insurance policy — 15% PAYE relief on the monthly-equivalent premium, capped at KES 5,000 */
+  has_insurance_policy?: boolean;
+  insurance_policy?: {
+    provider?: string;
+    policy_number?: string;
+    start_date?: string;
+    contribution_amount?: number;
+    frequency?: 'monthly' | 'quarterly' | 'semi_annually' | 'annually';
+  };
   exempt_deductions?: string[];
   hourly_rate?: number;
   termination_date?: string;
@@ -470,7 +502,7 @@ export const exportEmployees = async (params: ParamsType = {}): Promise<void> =>
 export interface EmployeeDocument {
   _id: string;
   employee_id: string;
-  document_type: 'employee_contract' | 'id_copy' | 'passport_photo' | 'kra_pin' | 'bank_details' | 'academic_certificates' | 'professional_certificates' | 'disciplinary_record' | 'performance_review' | 'other';
+  document_type: 'employee_contract' | 'id_copy' | 'passport_photo' | 'kra_pin' | 'bank_details' | 'academic_certificates' | 'professional_certificates' | 'disciplinary_record' | 'performance_review' | 'pwd_certificate' | 'other';
   document_name: string;
   description?: string;
   file_name: string;
@@ -524,7 +556,9 @@ export const fetchEmployeeDocuments = async (employeeId: string, params: ParamsT
         status: params.status,
       },
     });
-    return response.data;
+    // API returns { success, data: [...] } — normalize to { documents } for consumers
+    const payload = response.data;
+    return { documents: payload?.data || payload?.documents || [] };
   } catch (error: any) {
     console.error("Error fetching employee documents:", error);
     message.error(error?.response?.data?.message || "Failed to fetch documents");
@@ -548,7 +582,7 @@ export const fetchExpiringDocuments = async (days = 30) => {
 // Delete Document
 export const deleteEmployeeDocument = async (documentId: string) => {
   try {
-    const response = await axiosInstance.delete(`${bandu_url}/employees/${documentId}`);
+    const response = await axiosInstance.delete(`${bandu_url}/employees/documents/${documentId}`);
     message.success("Document deleted successfully");
     return response.data;
   } catch (error: any) {
@@ -1481,6 +1515,11 @@ export interface Payslip {
     housing_levy: number;
     nita?: number;
     withholding_tax?: number;
+    taxable_pay?: number;
+    income_tax?: number;
+    personal_relief?: number;
+    pension?: number;
+    insurance_relief?: number;
     custom: Array<{ name: string; amount: number }>;
     total: number;
   };

@@ -34,10 +34,11 @@ const payslipRows = (p: any) => {
   const d = p.deductions || {};
   const taxable =
     d.taxable_pay ??
-    Math.max(0, (e.gross_salary || 0) - (d.nssf || 0) - (d.nhif || 0) - (d.housing_levy || 0));
+    Math.max(0, (e.gross_salary || 0) - (d.nssf || 0) - (d.nhif || 0) - (d.housing_levy || 0) - (d.pension || 0));
   const incomeTax = d.income_tax ?? 0;
   const relief = d.personal_relief ?? 0;
-  const paye = d.paye ?? Math.max(0, incomeTax - relief);
+  const insuranceRelief = d.insurance_relief ?? 0;
+  const paye = d.paye ?? Math.max(0, incomeTax - relief - insuranceRelief);
   const custom = Array.isArray(d.custom) ? d.custom : [];
 
   const infoRows: [string, string][] = [
@@ -94,11 +95,17 @@ const payslipRows = (p: any) => {
   const payeRows: [string, string][] = [
     ['Liable Pay', fmt(e.gross_salary)],
     ['Less Pension (NSSF)', `(${fmt(d.nssf)})`],
+    ...((d.pension || 0) > 0
+      ? [['Less Pension Contribution', `(${fmt(d.pension)})`] as [string, string][]]
+      : []),
     ['Less SHIF', `(${fmt(d.nhif)})`],
     ['Less Housing Levy (AHL)', `(${fmt(d.housing_levy)})`],
     ['CHARGEABLE AMOUNT', fmt(taxable)],
     ['Tax Charged', fmt(incomeTax)],
     ['Personal Relief', `(${fmt(relief)})`],
+    ...(insuranceRelief > 0
+      ? [['Insurance Relief', `(${fmt(insuranceRelief)})`] as [string, string][]]
+      : []),
     ['P.A.Y.E', fmt(paye)],
   ];
 
@@ -107,6 +114,7 @@ const payslipRows = (p: any) => {
     ['N.S.S.F.', fmt(d.nssf)],
     ['SHIF (NHIF)', fmt(d.nhif)],
     ['Housing Levy', fmt(d.housing_levy)],
+    ...((d.pension || 0) > 0 ? [['Pension', fmt(d.pension)] as [string, string]] : []),
     // WHT applies to consultants only — hidden for other employment types
     ...((d.withholding_tax || 0) > 0 || p.employee_id?.employment_type === 'consultant')
       ? [['Withholding Tax', fmt(d.withholding_tax)] as [string, string]]
@@ -328,7 +336,7 @@ export const exportP9ToExcel = async (payslips: any[], year: number, opts?: { hi
   const monthly: Record<number, any> = {};
   payslips.forEach((p: any) => {
     const m = new Date(p.period_start).getMonth();
-    if (!monthly[m]) monthly[m] = { a: 0, b: 0, d: 0, e2: 0, f: 0, g: 0, l: 0, mm: 0, o: 0 };
+    if (!monthly[m]) monthly[m] = { a: 0, b: 0, d: 0, e2: 0, f: 0, g: 0, l: 0, mm: 0, n: 0, o: 0 };
     const e = p.earnings || {};
     const d = p.deductions || {};
     const basic = e.basic_salary || 0;
@@ -336,11 +344,13 @@ export const exportP9ToExcel = async (payslips: any[], year: number, opts?: { hi
     monthly[m].a += basic;
     monthly[m].b += gross - basic;
     monthly[m].d += gross;
-    monthly[m].e2 += d.nssf || 0;
+    // Defined contribution retirement scheme = NSSF + employee pension
+    monthly[m].e2 += (d.nssf || 0) + (d.pension || 0);
     monthly[m].f += d.housing_levy || 0;
     monthly[m].g += d.nhif || 0;
     monthly[m].l += d.income_tax || 0;
     monthly[m].mm += d.personal_relief || 0;
+    monthly[m].n += d.insurance_relief || 0;
     monthly[m].o += d.paye || 0;
   });
 
@@ -377,7 +387,7 @@ export const exportP9ToExcel = async (payslips: any[], year: number, opts?: { hi
     ],
   ];
 
-  const totals = { a: 0, b: 0, d: 0, e1: 0, e2: 0, f: 0, g: 0, j: 0, k: 0, l: 0, mm: 0, o: 0 };
+  const totals = { a: 0, b: 0, d: 0, e1: 0, e2: 0, f: 0, g: 0, j: 0, k: 0, l: 0, mm: 0, n: 0, o: 0 };
   monthNames.forEach((name, i) => {
     const r = monthly[i];
     if (!r) {
@@ -390,18 +400,18 @@ export const exportP9ToExcel = async (payslips: any[], year: number, opts?: { hi
     const k = r.d - j;
     aoa.push([
       name, r.a, r.b, 0, r.d, e1, r.e2, E3_FIXED,
-      r.f, r.g, 0, 0, j, k, r.l, r.mm, 0, r.o,
+      r.f, r.g, 0, 0, j, k, r.l, r.mm, r.n, r.o,
     ]);
     totals.a += r.a; totals.b += r.b; totals.d += r.d;
     totals.e1 += e1; totals.e2 += r.e2;
     totals.f += r.f; totals.g += r.g;
     totals.j += j; totals.k += k;
-    totals.l += r.l; totals.mm += r.mm; totals.o += r.o;
+    totals.l += r.l; totals.mm += r.mm; totals.n += r.n; totals.o += r.o;
   });
   const monthsWithData = Object.keys(monthly).length;
   aoa.push([
     'TOTALS', totals.a, totals.b, 0, totals.d, totals.e1, totals.e2, monthsWithData * E3_FIXED,
-    totals.f, totals.g, 0, 0, totals.j, totals.k, totals.l, totals.mm, 0, totals.o,
+    totals.f, totals.g, 0, 0, totals.j, totals.k, totals.l, totals.mm, totals.n, totals.o,
   ]);
   aoa.push(
     [],

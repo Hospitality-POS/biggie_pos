@@ -368,7 +368,8 @@ const PayrollManagement: React.FC = () => {
       Math.max(0, (line.gross_salary || 0) - (d.nssf || 0) - (d.nhif || 0) - (d.housing_levy || 0));
     const incomeTax = d.income_tax ?? 0;
     const relief = d.personal_relief ?? 0;
-    const paye = d.paye ?? Math.max(0, incomeTax - relief);
+    const insuranceRelief = d.insurance_relief ?? 0;
+    const paye = d.paye ?? Math.max(0, incomeTax - relief - insuranceRelief);
     const payAfterTax = taxable - paye;
     const wht = d.withholding_tax || 0;
     const customTotal = (d.custom || []).reduce((s: number, c: any) => s + (c.amount || 0), 0);
@@ -393,9 +394,11 @@ const PayrollManagement: React.FC = () => {
         <Row label="NSSF" value={-(d.nssf || 0)} color="#64748b" />
         <Row label="S.H.I.F." value={-(d.nhif || 0)} color="#64748b" />
         <Row label="Housing Levy" value={-(d.housing_levy || 0)} color="#64748b" />
+        {(d.pension || 0) > 0 && <Row label="Pension" value={-d.pension} color="#64748b" />}
         <Row label="Taxable Pay" value={taxable} strong />
         <Row label="Income Tax" value={incomeTax} />
         <Row label="Personal Relief" value={-relief} />
+        {insuranceRelief > 0 && <Row label="Insurance Relief" value={-insuranceRelief} />}
         <Row label="P.A.Y.E" value={paye} strong color="#ef4444" />
         <Row label="Pay After Tax" value={payAfterTax} strong />
         {wht > 0 && <Row label="Withholding Tax" value={-wht} color="#64748b" />}
@@ -437,6 +440,8 @@ const PayrollManagement: React.FC = () => {
       !!lines && lines.length > 0 && lines.every((l) => !(getter(l) || 0));
     const hidden = {
       Overtime: hideZero((l) => l.overtime_pay),
+      Pension: hideZero((l) => l.deductions?.pension),
+      WHT: hideZero((l) => l.deductions?.withholding_tax),
     };
 
     // Itemized allowance/benefit columns — one per named item saved on the
@@ -520,6 +525,7 @@ const PayrollManagement: React.FC = () => {
     // already folded into the "Employer Contrib." column
     moneyCol("N.S.S.F.", (l) => l.deductions?.nssf, undefined, false, 80),
     moneyCol("Housing Levy", (l) => l.deductions?.housing_levy, undefined, false, 95),
+    moneyCol("Pension", (l) => l.deductions?.pension, undefined, false, 85),
     moneyCol("WHT", (l) => l.deductions?.withholding_tax, undefined, false, 70),
     moneyCol("PAYE (Tax)", (l) => l.deductions?.paye, undefined, false, 90),
     // Custom deductions shown as named columns (loans, advances…) instead of a
@@ -2555,7 +2561,7 @@ const PayrollManagement: React.FC = () => {
                 {
                   key: "paye",
                   title: "PAYE Return",
-                  desc: "KRA iTax PAYE payroll register as CSV — PIN, name, salary breakdown, taxable pay, relief and PAYE tax.",
+                  desc: "KRA iTax PAYE return as comma-delimited CSV — PIN, name, salary breakdown and self-assessed PAYE. Fields the KRA portal calculates (gross, NSSF, taxable pay, relief, PAYE tax) are left blank.",
                   color: "#7c3aed",
                   onClick: () => exportPayeFiling(filingPayrolls, filingEmployeeIds),
                   format: "CSV",

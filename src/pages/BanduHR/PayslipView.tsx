@@ -652,6 +652,9 @@ const PayslipView: React.FC = () => {
     moneyColumn("NSSF", (p) => p.deductions?.nssf, "#ef4444"),
     moneyColumn("SHA", (p) => p.deductions?.nhif, "#ef4444"),
     moneyColumn("Housing Levy", (p) => p.deductions?.housing_levy, "#ef4444"),
+    ...(payslips.some((p) => ((p.deductions as any)?.pension || 0) > 0)
+      ? [moneyColumn("Pension", (p) => (p.deductions as any)?.pension, "#ef4444")]
+      : []),
     ...(payslips.some(showWht)
       ? [moneyColumn("WHT", (p) => (p.deductions as any)?.withholding_tax, "#ef4444")]
       : []),
@@ -1131,6 +1134,9 @@ const PayslipView: React.FC = () => {
               <MoneyRow label="NSSF" value={selectedPayslip.deductions?.nssf} color="#ef4444" />
               <MoneyRow label="SHIF" value={selectedPayslip.deductions?.nhif} color="#ef4444" />
               <MoneyRow label="Housing Levy" value={selectedPayslip.deductions?.housing_levy} color="#ef4444" />
+              {((selectedPayslip.deductions as any)?.pension || 0) > 0 && (
+                <MoneyRow label="Pension Contribution" value={(selectedPayslip.deductions as any)?.pension} color="#ef4444" />
+              )}
               {showWht(selectedPayslip) && (
                 <MoneyRow label="Withholding Tax" value={(selectedPayslip.deductions as any)?.withholding_tax} color="#ef4444" />
               )}
@@ -1147,6 +1153,13 @@ const PayslipView: React.FC = () => {
                 }
                 color="#10b981"
               />
+              {((selectedPayslip.deductions as any)?.insurance_relief || 0) > 0 && (
+                <MoneyRow
+                  label="Insurance Relief"
+                  value={-(selectedPayslip.deductions as any).insurance_relief}
+                  color="#10b981"
+                />
+              )}
               <MoneyRow label="P.A.Y.E" value={selectedPayslip.deductions?.paye} strong color="#ef4444" />
               <div style={{ borderTop: "1px dashed #e2e8f0", margin: "6px 0", paddingTop: 6 }}>
                 <MoneyRow

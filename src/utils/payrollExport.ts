@@ -149,6 +149,7 @@ const buildMusterRoll = (lines: any[], withDepartment = false, rounded = false):
     { header: 'S.H.I.F.', get: (l) => rn(dOf(l).nhif) },
     { header: 'N.S.S.F.', get: (l) => rn(dOf(l).nssf) },
     { header: 'Housing Levy', get: (l) => rn(dOf(l).housing_levy) },
+    { header: 'Pension', get: (l) => rn(dOf(l).pension), hideZero: true },
     { header: 'WHT', get: (l) => rn(dOf(l).withholding_tax), hideZero: true },
     { header: 'PAYE (Tax)', get: (l) => rn(dOf(l).paye) },
     ...customNames.map((n): MoneyCol => ({
@@ -197,6 +198,8 @@ const buildMusterRoll = (lines: any[], withDepartment = false, rounded = false):
   const payeTotal = sumOf((l) => rn(dOf(l).paye)), shifTotal = sumOf((l) => rn(dOf(l).nhif));
   const nssfTotal = sumOf((l) => rn(dOf(l).nssf)), ahlTotal = sumOf((l) => rn(dOf(l).housing_levy));
   const whtTotal = sumOf((l) => rn(dOf(l).withholding_tax));
+  const pensionTotal = sumOf((l) => rn(dOf(l).pension));
+  const insReliefTotal = sumOf((l) => rn(dOf(l).insurance_relief));
   // Sum the custom columns' getters so the row foots exactly against the
   // named custom columns in the table (Loan, HELB, advances…)
   const customCols = cols.filter((c) => c.custom);
@@ -212,6 +215,8 @@ const buildMusterRoll = (lines: any[], withDepartment = false, rounded = false):
     ['SHIF', rn(shifTotal)],
     ['NSSF (EE + ER)', rn(nssfTotal + nssfErTotal)],
     ['Housing Levy (EE + ER)', rn(ahlTotal + ahlErTotal)],
+    ...(pensionTotal > 0 ? [['Pension (Employee)', rn(pensionTotal)] as [string, number]] : []),
+    ...(insReliefTotal > 0 ? [['Insurance Relief (inside PAYE)', rn(insReliefTotal)] as [string, number]] : []),
     ...(whtTotal > 0 ? [['Withholding Tax', rn(whtTotal)] as [string, number]] : []),
     ...(customTotal > 0 ? [['Custom Deductions', rn(customTotal)] as [string, number]] : []),
     ['NITA (Employer)', rn(nitaTotal)],
@@ -777,12 +782,16 @@ export const exportShifFiling = (payrolls: any[], employeeIds?: string[]) =>
   );
 
 /**
- * PAYE return — aligned to the KRA "P10 Return Simplified" template
- * (B_Employees_Dtls_Simplified sheet, columns A–Y + AC). Exported as a
- * headerless CSV so rows can be pasted/uploaded straight into the template.
- * Benefit items are split into the KRA columns: motor_vehicle → Car Benefit
- * (B), house → Housing Benefit (F), meals → Value of Meals (C), everything
- * else → Non Cash Benefits (D).
+ * PAYE return — 25-column comma-delimited CSV matching the KRA iTax PAYE
+ * return template (same layout as the filed PAYE_Return_October file).
+ * Headerless so rows upload straight into the portal. Columns the KRA
+ * portal precalculates are intentionally left blank: Total Gross Pay (H),
+ * NSSF (J), Taxable Pay (O), Personal Relief (P) and PAYE Tax (R) — the
+ * portal-computed PAYE is carried in the last column (Self Assessed
+ * PAYE Tax). Pension and insurance relief are declared inputs, so they're
+ * filled when present. Benefit items are split into the KRA columns:
+ * motor_vehicle → Car Benefit (B), house → Housing Benefit (F),
+ * meals → Value of Meals (C), everything else → Non Cash Benefits (D).
  */
 export const exportPayeFiling = (payrolls: any[], employeeIds?: string[]) =>
   writeFilingSheet(
@@ -797,7 +806,6 @@ export const exportPayeFiling = (payrolls: any[], employeeIds?: string[]) =>
       'Post Retirement Medical Fund (L)', 'Mortgage Interest (M)',
       'Affordable Housing Levy (N)', 'Taxable Pay (O)', 'Monthly Personal Relief (P)',
       'Amount of Insurance Relief (Q)', 'PAYE Tax (R)', 'Self Assessed PAYE Tax (S)',
-      '', '', '', 'Deposit on Home Ownership Saving Plan',
     ],
     (line) => {
       const emp = empOf(line);
@@ -816,34 +824,35 @@ export const exportPayeFiling = (payrolls: any[], employeeIds?: string[]) =>
       const houseBenefit = bSum(/house|housing|rent|quarters/i, ['house', 'housing']);
       const otherNonCash = Math.max(0, benefits - carBenefit - mealBenefit - houseBenefit);
 
+      const pension = num(d.pension);
+      const insuranceRelief = num(d.insurance_relief);
+
       return [
         emp.kra_pin || '',                                      // PIN of Employee
         lineName(line),                                         // Name of Employee
         emp.residential_status === 'non_resident' ? 'Non-Resident' : 'Resident',
-        'Primary Employee',                                     // Type of Employee
-        'No',                                                   // Persons With Disability
-        '',                                                     // Exemption Certificate Number
+        emp.employee_type === 'secondary' ? 'Secondary' : 'Primary', // Type of Employee
+        emp.is_pwd ? 'Yes' : 'No',                              // Persons With Disability
+        emp.is_pwd ? emp.pwd_certificate_number || '' : '',     // Exemption Certificate Number
         num(gross - benefits),                                  // Total Cash Pay (A)
         carBenefit,                                             // Value of Car Benefit (B)
         mealBenefit,                                            // Value of Meals (C)
         otherNonCash,                                           // Non Cash Benefits (D)
         houseBenefit > 0 ? "Employer's Rented House" : 'Benefit not given', // Type of Housing
-        houseBenefit,                                           // Housing Benefit (F)
+        houseBenefit || '',                                     // Housing Benefit (F)
         0,                                                      // Other Benefits (G)
-        gross,                                                  // Total Gross Pay (H)
+        '',                                                     // Total Gross Pay (H) — KRA calculates
         num(d.nhif),                                            // SHIF (I)
-        num(d.nssf),                                            // NSSF Contribution (J)
-        0,                                                      // Other Pension Contribution (K)
+        '',                                                     // NSSF Contribution (J) — KRA calculates
+        pension || '',                                          // Other Pension Contribution (K)
         0,                                                      // Post Retirement Medical Fund (L)
         0,                                                      // Mortgage Interest (M)
         num(d.housing_levy),                                    // Affordable Housing Levy (N)
-        num(d.taxable_pay ?? gross),                            // Taxable Pay (O)
-        num(d.personal_relief),                                 // Monthly Personal Relief (P)
-        0,                                                      // Amount of Insurance Relief (Q)
-        num(d.paye),                                            // PAYE Tax (R)
+        '',                                                     // Taxable Pay (O) — KRA calculates
+        '',                                                     // Monthly Personal Relief (P) — KRA calculates
+        insuranceRelief,                                        // Amount of Insurance Relief (Q)
+        '',                                                     // PAYE Tax (R) — KRA calculates
         num(d.paye),                                            // Self Assessed PAYE Tax (S)
-        '', '', '',                                             // blank template columns
-        0,                                                      // Deposit on Home Ownership Saving Plan
       ];
     },
     'PAYE_Return',
