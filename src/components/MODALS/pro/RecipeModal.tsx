@@ -29,7 +29,7 @@ import ShowConfirm from "@utils/ConfirmUtil";
 import { createRecipe, deleteRecipe, fetchRecipe, updateRecipe } from "@services/recipe";
 import { useAppSelector } from "src/store";
 
-const RecipeModal = ({ productId, productName, activateInventory }) => {
+const RecipeModal = ({ productId, productName, activateInventory, onSuccess }) => {
   const [form] = Form.useForm();
   const formRef = useRef(null);
   const [modalVisible, setModalVisible] = useState(false);
@@ -42,6 +42,7 @@ const RecipeModal = ({ productId, productName, activateInventory }) => {
       message.success("Recipe item deleted successfully");
       // Refetch recipe data after deletion
       fetchRecipeData();
+      onSuccess?.();
     },
     onError: (error) => {
       message.error("Failed to delete recipe item");
@@ -173,6 +174,7 @@ const RecipeModal = ({ productId, productName, activateInventory }) => {
 
         message.success(`Formula ${recipeItems.length > 0 ? "updated" : "created"} successfully`);
         handleModalClose();
+        onSuccess?.();
         return true;
       } catch (error) {
         console.error("Error saving Formula:", error);
@@ -385,7 +387,8 @@ const RecipeModal = ({ productId, productName, activateInventory }) => {
                               ]}
                             >
                               <InputNumber
-                                min={0.1}
+                                min={0.0001}
+                                step={0.1}
                                 placeholder="Enter quantity"
                                 style={{ width: "100%" }}
                               />

@@ -578,8 +578,7 @@ const AddEditPurchaseOrderModal: React.FC<AddEditPurchaseOrderModalProps> = ({
                                                     name={[field.name, "quantity_ordered"]}
                                                     label="Quantity"
                                                     placeholder="Enter quantity"
-                                                    min={1}
-                                                    precision={0}
+                                                    min={0.001}
                                                     rules={[{ required: true }]}
                                                     fieldProps={{
                                                         style: { width: '100%' }

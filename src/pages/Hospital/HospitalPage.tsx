@@ -124,13 +124,19 @@ const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
     networkMode: "always",
   });
 
+  // Only main categories marked "Show on POS" are browsable on this screen
+  const posMainCategories = useMemo(
+    () => (Maincategories || []).filter((c: any) => c?.list_on_pos !== false),
+    [Maincategories]
+  );
+
   // Attach icons to departments
   const categoriesWithIcons = useMemo(() => {
-    return (Maincategories || []).map((c: any) => ({
+    return posMainCategories.map((c: any) => ({
       ...c,
       icon: getSectionIcon(c.name),
     }));
-  }, [Maincategories]);
+  }, [posMainCategories]);
 
   useEffect(() => {
     if (!searchTerm.trim()) {
@@ -151,14 +157,14 @@ const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
   }, [services, products]);
 
   useEffect(() => {
-    if (Maincategories?.length > 0) {
-      handleChangeMainCategory(Maincategories[0]._id);
+    if (posMainCategories.length > 0) {
+      handleChangeMainCategory(posMainCategories[0]._id);
     }
-  }, [Maincategories]);
+  }, [posMainCategories]);
 
   const handleChangeMainCategory = (idValue: string) => {
-    if (!Maincategories) return;
-    const main = Maincategories.find((c: any) => c._id === idValue);
+    if (!posMainCategories.length) return;
+    const main = posMainCategories.find((c: any) => c._id === idValue);
     if (main) {
       setSelectedMainCategoryId(idValue);
       setSubcategories(main.sub_categories || []);

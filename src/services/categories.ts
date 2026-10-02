@@ -174,6 +174,7 @@ export const addNewMainCategory = async (params: ParamsType) => {
   try {
     const response = await axiosInstance.post(`${categ_url}/main-categories`, {
       name: params.name,
+      list_on_pos: params.list_on_pos ?? true,
     });
     message.success("Main-Category created successfully");
     return response.data;
@@ -188,6 +189,7 @@ export const editMainCategory = async (data: ParamsType) => {
       `${categ_url}/main-categories/${data?._id}`,
       {
         name: data?.values.name,
+        list_on_pos: data?.values.list_on_pos,
       }
     );
     message.success("Main-Category updated successfully");

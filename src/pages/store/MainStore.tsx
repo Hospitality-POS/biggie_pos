@@ -1,4 +1,4 @@
-import { FolderAddOutlined, HolderOutlined, SearchOutlined, ReloadOutlined, DownloadOutlined, AppstoreOutlined, BarsOutlined, EditOutlined, DeleteFilled } from "@ant-design/icons";
+import { FolderAddOutlined, HolderOutlined, SearchOutlined, ReloadOutlined, DownloadOutlined, AppstoreOutlined, BarsOutlined, EditOutlined, DeleteFilled, ExperimentOutlined } from "@ant-design/icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Empty, Input, Skeleton, Switch, Typography, Popconfirm, notification, Tooltip, message } from "antd";
 import React, { useEffect, useRef, useState } from "react";
@@ -7,6 +7,8 @@ import { getAllProducts, editProduct } from "@services/products";
 import StoreProductCard from "@components/store/StoreProductCard";
 import StoreModal from "@components/MODALS/pro/StoreModal";
 import ImportProductsModal from "@components/store/ImportProductsModal";
+import ImportRecipesModal from "@components/store/ImportRecipesModal";
+import FormulasPanel from "@components/store/FormulasPanel";
 import { exportToExcel } from "@utils/exportUtils";
 import { useAppSelector } from "../../store";
 import { usePrimaryColor } from "../../context/PrimaryColorContext";
@@ -46,7 +48,11 @@ const BulkToggleButton: React.FC<{
   loading: boolean;
   onConfirm: () => void;
   isAdmin: boolean;
-}> = ({ label, count, disable, loading, onConfirm, isAdmin }) => {
+  title?: string;
+  description?: string;
+  okText?: string;
+  buttonText?: string;
+}> = ({ label, count, disable, loading, onConfirm, isAdmin, title, description, okText, buttonText }) => {
   if (count === 0 || !isAdmin) return null;
 
   const color = disable ? "#ef4444" : "#10b981";
@@ -55,14 +61,14 @@ const BulkToggleButton: React.FC<{
 
   return (
     <Popconfirm
-      title={disable ? `Disable all ${count} ${label}?` : `Enable all ${count} ${label}?`}
+      title={title ?? (disable ? `Disable all ${count} ${label}?` : `Enable all ${count} ${label}?`)}
       description={
-        disable
+        description ?? (disable
           ? "They will be hidden from the POS until re-enabled."
-          : "They will become visible at the POS immediately."
+          : "They will become visible at the POS immediately.")
       }
       onConfirm={onConfirm}
-      okText={disable ? "Disable all" : "Enable all"}
+      okText={okText ?? (disable ? "Disable all" : "Enable all")}
       okButtonProps={{ danger: disable, loading }}
       cancelText="Cancel"
       placement="bottomRight"
@@ -81,7 +87,7 @@ const BulkToggleButton: React.FC<{
         }}
       >
         {loading ? "⏳" : disable ? "⏸" : "▶"}
-        {disable ? "Disable" : "Enable"} all ({count})
+        {buttonText ?? `${disable ? "Disable" : "Enable"} all`} ({count})
       </button>
     </Popconfirm>
   );
@@ -370,6 +376,7 @@ export default function MainStore() {
   const [showDisabled, setShowDisabled] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [viewMode, setViewMode] = useState<"card" | "list">("card");
+  const [pageTab, setPageTab] = useState<"services" | "formulas">("services");
 
   // Get tenant primary color from global context (stays in sync with app-wide theme)
   const primaryColor = usePrimaryColor();
@@ -404,6 +411,8 @@ export default function MainStore() {
   const allProducts: any[] = (data ?? []).flatMap((c: any) => c.products ?? []);
   const allActiveCount = allProducts.filter((p) => !p?.is_disabled).length;
   const allDisabledCount = allProducts.filter((p) => p?.is_disabled === true).length;
+  const invActiveCount = allProducts.filter((p) => p?.activateInventory === true).length;
+  const invInactiveCount = allProducts.filter((p) => p?.activateInventory !== true).length;
 
   // ── Core bulk helper — calls the same editProduct API in a loop ───────────
   const bulkToggle = async (products: any[], disable: boolean, key: string) => {
@@ -437,6 +446,46 @@ export default function MainStore() {
     } else {
       notification.warning({
         key: "bulk-toggle",
+        message: `${succeeded} updated, ${failed} failed`,
+        description: "Some services could not be updated. Please try again.",
+        placement: "bottomLeft",
+        duration: 4,
+      });
+    }
+  };
+
+  // ── Bulk Activate Inventory — same editProduct loop, toggles activateInventory ──
+  const bulkInventoryToggle = async (products: any[], activate: boolean, key: string) => {
+    if (!isAdmin || products.length === 0) return;
+    setBulkLoading(key);
+
+    let succeeded = 0;
+    let failed = 0;
+
+    for (const product of products) {
+      try {
+        await editProduct({ ...product, activateInventory: activate }, true);
+        succeeded++;
+      } catch {
+        failed++;
+      }
+    }
+
+    await queryClient.invalidateQueries({ queryKey: ["products"] });
+    await queryClient.invalidateQueries({ queryKey: ["all-recipes"] });
+    setBulkLoading(null);
+
+    notification.destroy("bulk-inv-toggle");
+    if (failed === 0) {
+      notification.success({
+        key: "bulk-inv-toggle",
+        message: `Inventory deduction ${activate ? "activated" : "deactivated"} on ${succeeded} service${succeeded !== 1 ? "s" : ""}`,
+        placement: "bottomLeft",
+        duration: 3,
+      });
+    } else {
+      notification.warning({
+        key: "bulk-inv-toggle",
         message: `${succeeded} updated, ${failed} failed`,
         description: "Some services could not be updated. Please try again.",
         placement: "bottomLeft",
@@ -587,7 +636,7 @@ export default function MainStore() {
 
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           <Search
-            placeholder="Search products…"
+            placeholder={pageTab === "formulas" ? "Search services…" : "Search products…"}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             allowClear
@@ -648,7 +697,53 @@ export default function MainStore() {
             </div>
           )}
 
+          {/* ── Activate Inventory on ALL / Deactivate on ALL ── */}
+          {isAdmin && (
+            <div style={{ display: "flex", gap: 6 }}>
+              <BulkToggleButton
+                label="services"
+                count={invInactiveCount}
+                disable={false}
+                loading={bulkLoading === "inv-enable"}
+                isAdmin={isAdmin}
+                title={`Activate inventory deduction on ${invInactiveCount} service${invInactiveCount !== 1 ? "s" : ""}?`}
+                description="Sales of these services will start deducting stock."
+                okText="Activate all"
+                buttonText="Activate Inventory"
+                onConfirm={() =>
+                  bulkInventoryToggle(
+                    allProducts.filter((p) => p?.activateInventory !== true),
+                    true,
+                    "inv-enable"
+                  )
+                }
+              />
+              <BulkToggleButton
+                label="services"
+                count={invActiveCount}
+                disable={true}
+                loading={bulkLoading === "inv-disable"}
+                isAdmin={isAdmin}
+                title={`Deactivate inventory deduction on ${invActiveCount} service${invActiveCount !== 1 ? "s" : ""}?`}
+                description="Sales of these services will stop deducting stock."
+                okText="Deactivate all"
+                buttonText="Deactivate Inventory"
+                onConfirm={() =>
+                  bulkInventoryToggle(
+                    allProducts.filter((p) => p?.activateInventory === true),
+                    false,
+                    "inv-disable"
+                  )
+                }
+              />
+            </div>
+          )}
+
           <ImportProductsModal onSuccess={() => { setRefreshKey(prev => prev + 1); }} />
+
+          {isAdmin && (
+            <ImportRecipesModal onSuccess={() => { setRefreshKey(prev => prev + 1); queryClient.invalidateQueries({ queryKey: ["all-recipes"] }); }} />
+          )}
 
           <button
             onClick={handleExportToExcel}
@@ -674,6 +769,44 @@ export default function MainStore() {
       {/* ── Body ── */}
       <div style={{ padding: isMobile ? "12px" : "16px 18px" }}>
 
+        {/* ── Services / Formulas tab switcher ── */}
+        <div style={{
+          display: "flex", gap: 4, width: "fit-content",
+          background: palette.bg, border: `1px solid ${palette.border}`,
+          borderRadius: 8, padding: 3, marginBottom: 14,
+        }}>
+          {([
+            { key: "services", label: "Services", icon: <AppstoreOutlined /> },
+            { key: "formulas", label: "Formulas", icon: <ExperimentOutlined /> },
+          ] as const).map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setPageTab(t.key)}
+              style={{
+                display: "flex", alignItems: "center", gap: 6,
+                padding: "5px 14px", border: "none", borderRadius: 6, cursor: "pointer",
+                background: pageTab === t.key ? "#fff" : "transparent",
+                color: pageTab === t.key ? palette.primary : palette.subText,
+                fontSize: 12, fontWeight: pageTab === t.key ? 600 : 500,
+                boxShadow: pageTab === t.key ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                transition: "all 0.15s",
+              }}
+            >
+              {t.icon} {t.label}
+            </button>
+          ))}
+        </div>
+
+        {pageTab === "formulas" ? (
+          <FormulasPanel
+            products={allProducts}
+            palette={palette}
+            searchTerm={searchTerm}
+            onSuccess={() => queryClient.invalidateQueries({ queryKey: ["all-recipes"] })}
+            isAdmin={isAdmin}
+          />
+        ) : (
+        <>
         <CategoryNav
           categories={data}
           active={activeTabId ?? ""}
@@ -861,6 +994,8 @@ export default function MainStore() {
               />
             ))}
           </div>
+        )}
+        </>
         )}
       </div>
     </div>
