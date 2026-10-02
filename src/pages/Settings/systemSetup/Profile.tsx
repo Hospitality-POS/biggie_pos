@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ProForm,
-  ProFormDigit,
   ProFormSelect,
   ProFormSwitch,
   ProFormText,
@@ -32,6 +31,14 @@ import { reversePhoneNumber } from "@components/PhoneNumber/utils/reversePhoneNu
 
 const { Title } = Typography;
 
+// Restores a dropped leading 0 on Kenyan mobile numbers saved when the
+// field was numeric (791273923 → 0791273923). Till/paybill numbers are
+// unaffected — only 9-digit 7x/1x values get prefixed.
+const withLeadingZero = (v?: string | number | null) => {
+  const s = String(v ?? "").trim();
+  return /^[17]\d{8}$/.test(s) ? `0${s}` : s;
+};
+
 interface BankDetails {
   bank_name?: string | null;
   branch?: string | null;
@@ -56,10 +63,10 @@ interface SystemSetupData {
     name: string;
   };
   bank_details?: BankDetails;
-  // Legacy payment fields
-  account_no?: number;
-  business_no?: number;
-  till_no?: number;
+  // Legacy payment fields — strings so leading zeros (e.g. 0791…) survive
+  account_no?: string;
+  business_no?: string;
+  till_no?: string;
   whatsapp_notify_secondary?: boolean;
   secondary_phones?: string[];
 }
@@ -68,6 +75,7 @@ function SystemSetup() {
   const [form] = Form.useForm();
   const queryClient = useQueryClient();
   const [showPaybillDetails, setShowPaybillDetails] = useState(false);
+  const [paymentDetailName, setPaymentDetailName] = useState<string>("");
   const [paymentDetailsList, setPaymentDetailsList] = useState<Array<{ label: string; value: string }>>([]);
 
   const { data, isLoading } = useQuery({
@@ -92,11 +100,13 @@ function SystemSetup() {
   useEffect(() => {
     if (data?.paymentDetails) {
       setShowPaybillDetails(data.paymentDetails.name === "Paybill");
+      setPaymentDetailName(data.paymentDetails.name || "");
     }
   }, [data]);
 
   const onPaymentDetailsChange = (value: string, option: any) => {
     setShowPaybillDetails(option?.label === "Paybill");
+    setPaymentDetailName(option?.label || "");
   };
 
   const onFinish = async (values: any) => {
@@ -174,6 +184,7 @@ function SystemSetup() {
 
     return {
       ...data,
+      till_no: withLeadingZero(data?.till_no),
       phoneNumber: reversePhoneNumber(data?.phone),
       paymentDetailId: data?.paymentDetails?._id
         ? { value: data.paymentDetails._id, label: data.paymentDetails.name }
@@ -327,7 +338,7 @@ function SystemSetup() {
             {showPaybillDetails ? (
               <Row gutter={24}>
                 <Col span={12}>
-                  <ProFormDigit
+                  <ProFormText
                     name="account_no"
                     label="Account No."
                     placeholder="Enter account number"
@@ -339,12 +350,11 @@ function SystemSetup() {
                     ]}
                     fieldProps={{
                       size: "large",
-                      controls: false,
                     }}
                   />
                 </Col>
                 <Col span={12}>
-                  <ProFormDigit
+                  <ProFormText
                     name="business_no"
                     label="Business No."
                     placeholder="Enter business number"
@@ -356,25 +366,27 @@ function SystemSetup() {
                     ]}
                     fieldProps={{
                       size: "large",
-                      controls: false,
                     }}
                   />
                 </Col>
               </Row>
             ) : (
-              <ProFormDigit
+              <ProFormText
                 name="till_no"
-                label="Till No."
-                placeholder="Enter till number"
+                label={
+                  paymentDetailName && !/paybill|till/i.test(paymentDetailName)
+                    ? `${paymentDetailName} No.`
+                    : "Till No."
+                }
+                placeholder={`Enter ${paymentDetailName && !/paybill|till/i.test(paymentDetailName) ? paymentDetailName : "till"} number`}
                 rules={[
                   {
                     required: !showPaybillDetails && showPaybillDetails !== undefined,
-                    message: "Please enter the till number",
+                    message: "Please enter the number",
                   },
                 ]}
                 fieldProps={{
                   size: "large",
-                  controls: false,
                 }}
               />
             )}

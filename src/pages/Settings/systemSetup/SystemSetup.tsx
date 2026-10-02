@@ -14,10 +14,11 @@ import {
   GlobalOutlined,
   ScanOutlined,
 } from "@ant-design/icons";
-import { Typography, Grid } from "antd";
+import { Typography, Grid, Tabs } from "antd";
 import { useQuery } from "@tanstack/react-query";
 import Profile from "./Profile";
 import PaymentDetailsSettings from "../paymentMethodLevel/PaymentDetailsSettings";
+import PaymentsMethodSettings from "../paymentMethodLevel/PaymentSettings";
 import PrinterSettings from "./PrinterSettings";
 import PrivacySettings from "./PrivacySettings";
 import ReceiptAppearanceSettings from "./ReceiptAppearanceSettings";
@@ -108,12 +109,28 @@ const SystemSetup: React.FC = () => {
       {
         key: "payment-detail",
         label: "Payment Methods",
-        description: "Till, paybill & account numbers",
+        description: "Checkout methods, till & paybill details",
         icon: <DollarCircleOutlined />,
         color: "#10b981",
         bg: "#f0fdf4",
         group: "Payments",
-        render: () => <PaymentDetailsSettings />,
+        render: () => (
+          <Tabs
+            defaultActiveKey="methods"
+            items={[
+              {
+                key: "methods",
+                label: "Payment Methods",
+                children: <PaymentsMethodSettings />,
+              },
+              {
+                key: "details",
+                label: "Payment Details",
+                children: <PaymentDetailsSettings />,
+              },
+            ]}
+          />
+        ),
       },
       {
         key: "bank-details",

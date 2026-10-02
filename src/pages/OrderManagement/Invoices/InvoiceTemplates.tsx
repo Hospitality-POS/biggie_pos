@@ -159,7 +159,17 @@ export interface SystemDetails {
     QR_Code?: string;
     tenant_logo?: { url?: string };
     bank_details?: string[];
+    // Name of the payment detail selected in System Profile (e.g. "Pochi")
+    payment_detail_name?: string;
 }
+
+// Label for the till/number line — uses the payment mode selected in
+// System Profile (e.g. "Pochi"), falling back to the provided default.
+const tillLabelFor = (sys: SystemDetails, fallback: string): string => {
+    const n = (sys.payment_detail_name || "").trim();
+    if (!n || /paybill/i.test(n) || /till/i.test(n)) return fallback;
+    return n;
+};
 
 // ── Resolve counterparty ───────────────────────────────────────────────────
 export const resolveParty = (inv: InvoiceForPrint) => {
@@ -455,7 +465,7 @@ const PaymentDetailsBlock = ({
                             padding: "9px 12px",
                         }}
                     >
-                        <div style={{ fontSize: 10, color: C.subText, marginBottom: 2 }}>M-Pesa Till No.</div>
+                        <div style={{ fontSize: 10, color: C.subText, marginBottom: 2 }}>{tillLabelFor(sys, "M-Pesa Till No.")}</div>
                         <div style={{ fontSize: 15, fontWeight: 700, color: accentColor }}>{sys.TILL_NO}</div>
                     </div>
                 )}
@@ -999,7 +1009,7 @@ export const Template1Classic = React.forwardRef<HTMLDivElement, SharedProps>(({
                         </div>
                         {sys.TILL_NO && (
                             <div style={{ fontSize: 12 }}>
-                                Till No: <strong>{sys.TILL_NO}</strong>
+                                {tillLabelFor(sys, "Till No")}: <strong>{sys.TILL_NO}</strong>
                             </div>
                         )}
                         {sys.Paybill_bs && (

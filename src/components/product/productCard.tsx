@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from "react";
-import { Typography, Button } from "antd";
+import { Typography, Button, message } from "antd";
 import {
   ShoppingOutlined,
   CustomerServiceOutlined,
@@ -84,6 +84,15 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu, handleCart, style }) =>
 
   const cartQty = existingCartItem?.quantity ?? 0;
   const currency = (cartDetails as { currency?: string } | null)?.currency || "KES";
+
+  // Selling block message for inventory items — null when the item is sellable
+  const stockBlockMessage = useMemo(() => {
+    if (menu.type !== "product" || menu.quantity === undefined) return null;
+    if (menu.quantity <= 0) return `"${menu.name}" is out of stock`;
+    if (cartQty >= menu.quantity)
+      return `Only ${menu.quantity} of "${menu.name}" left in stock`;
+    return null;
+  }, [menu.type, menu.quantity, menu.name, cartQty]);
   const formattedPrice = useMemo(() => formatPrice(menu.price), [menu.price]);
 
   const hasValidImage = Boolean(
@@ -95,6 +104,11 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu, handleCart, style }) =>
   const handleAddToCart = useCallback(
     async (addons?: string[]) => {
       if (loading || isProcessing) return;
+      // Block selling inventory items that are out of stock
+      if (stockBlockMessage) {
+        message.error(stockBlockMessage);
+        return;
+      }
       if (!tableId) {
         console.warn("ProductCard: no tableId available, skipping addToCart");
         return;
@@ -158,6 +172,9 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu, handleCart, style }) =>
       menu.price,
       menu.desc,
       menu.duration,
+      menu.quantity,
+      menu.name,
+      cartQty,
       cartDetails?._id,
       user?.id,
       user?._id,
@@ -170,6 +187,10 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu, handleCart, style }) =>
 
   const handleClick = useCallback(() => {
     if (!loading && !isProcessing && tableId) {
+      if (stockBlockMessage) {
+        message.error(stockBlockMessage);
+        return;
+      }
       const existingHasAddons = existingCartItem?.addons && existingCartItem.addons.length > 0;
       const productHasAddons = menu.addons && menu.addons.length > 0;
 
@@ -179,7 +200,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu, handleCart, style }) =>
         handleAddToCart();
       }
     }
-  }, [loading, isProcessing, tableId, menu.addons, existingCartItem, handleAddToCart]);
+  }, [loading, isProcessing, tableId, menu.addons, existingCartItem, handleAddToCart, stockBlockMessage]);
 
   const handleAddonModalConfirm = (selectedAddonIds: string[]) => {
     handleAddToCart(selectedAddonIds);

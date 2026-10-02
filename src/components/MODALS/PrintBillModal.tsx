@@ -223,7 +223,16 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
     BRAND_NAME1, EMAIL_URL, PHONE_NO, PO_BOX,
     QR_Code, Paybill_bs, Paybill_ac, TILL_NO, PIN, bank_details,
     receipt_font_size, receipt_text_bold, warranty_settings,
+    payment_detail_name,
   } = useSystemDetails();
+
+  // Label for the till/number line — uses the payment mode selected in
+  // System Profile (e.g. "Pochi"), falling back to "Till No".
+  const tillLabel = (() => {
+    const n = (payment_detail_name || "").trim();
+    if (!n || /paybill/i.test(n) || /till/i.test(n)) return "Till No";
+    return n;
+  })();
 
   // Warranty block is controlled per-shop in system setup (privacy tab).
   const warrantyEnabled = warranty_settings?.enabled === true;
@@ -1193,7 +1202,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
                   </>
                 )}
                 {TILL_NO && (
-                  <div style={S.meta}>Till No: {TILL_NO}</div>
+                  <div style={S.meta}>{tillLabel}: {TILL_NO}</div>
                 )}
               </div>
             </>
@@ -1476,7 +1485,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
                 )}
                 {TILL_NO && (
                   <div style={{ ...pdfNorm, textAlign: "center" }}>
-                    Till No: {TILL_NO}
+                    {tillLabel}: {TILL_NO}
                   </div>
                 )}
               </div>
