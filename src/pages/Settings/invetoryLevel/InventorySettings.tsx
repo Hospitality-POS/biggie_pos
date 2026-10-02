@@ -282,7 +282,7 @@ const ADVICE_CONFIG: Record<string, { icon: React.ReactNode; color: string; bg: 
 const FIELD_LABELS: Record<string, string> = {
   name: "Product Name", quantity: "Quantity", unit_name: "Unit of Measure",
   price: "Selling Price", supplier_price: "Supplier Cost",
-  category_name: "Category", subcategory_name: "Subcategory", main_category_name: "Main Category",
+  main_category_name: "Main Category", subcategory_name: "Subcategory", category_name: "Category",
   supplier_name: "Supplier", barcode: "Barcode", status: "Status", vat_type: "VAT Type",
   min_viable_quantity: "Min Stock Level", location: "Storage Location",
   manufacturer: "Manufacturer", desc: "Description", weight_value: "Weight Value", weight_unit: "Weight Unit",

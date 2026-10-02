@@ -119,6 +119,14 @@ export const updateCartItems = createAsyncThunk(
       );
       return response.data;
     } catch (error: any) {
+      if (error.response?.status === 400) {
+        Modal.error({
+          title: "Oops!",
+          content: `${error?.response?.data?.message || error?.response?.data?.error}`,
+          centered: true,
+          icon: <AlertOutlined />
+        });
+      }
       return rejectWithValue(error.message || error.toString());
     }
   }
@@ -145,6 +153,14 @@ export const addQtyCart = createAsyncThunk(
 
       return response.data;
     } catch (error: any) {
+      if (error.response?.status === 400) {
+        Modal.error({
+          title: "Oops!",
+          content: `${error?.response?.data?.message || error?.response?.data?.error}`,
+          centered: true,
+          icon: <AlertOutlined />
+        });
+      }
       return rejectWithValue(error.message || error.toString());
     }
   }
@@ -191,6 +207,14 @@ export const updateCartItemQty = createAsyncThunk(
       if (tableId) dispatch(getCart(tableId));
       return response.data;
     } catch (error: any) {
+      if (error.response?.status === 400) {
+        Modal.error({
+          title: "Oops!",
+          content: `${error?.response?.data?.message || error?.response?.data?.error}`,
+          centered: true,
+          icon: <AlertOutlined />
+        });
+      }
       return rejectWithValue(error.message || error.toString());
     }
   }
