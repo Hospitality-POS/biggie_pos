@@ -1149,8 +1149,8 @@ const InvoicesTable = ({ quotesOnly = false }: { quotesOnly?: boolean }) => {
               ...rest, 
               page: 1, 
               limit: queryParams.limit,
-              start_date: dateRange?.[0]?.toISOString() || queryParams.start_date,
-              end_date: dateRange?.[1]?.toISOString() || queryParams.end_date
+              start_date: dateRange?.[0] ? dayjs(dateRange[0]).startOf("day").toISOString() : queryParams.start_date,
+              end_date: dateRange?.[1] ? dayjs(dateRange[1]).endOf("day").toISOString() : queryParams.end_date
             });
             return true;
           },

@@ -129,8 +129,8 @@ function ExpensesPage() {
         queryKey: ["expenses", page, dateRange, selectedCustomerId],
         queryFn: () => getAllExpenses({
             page, limit: 10,
-            from: dateRange[0].toISOString(),
-            to: dateRange[1].toISOString(),
+            from: dateRange[0].format("YYYY-MM-DD"),
+            to: dateRange[1].format("YYYY-MM-DD"),
             customer_id: selectedCustomerId,
         }),
     });
@@ -138,8 +138,8 @@ function ExpensesPage() {
     const { data: summaryData } = useQuery({
         queryKey: ["expense-summary", dateRange],
         queryFn: () => getExpenseSummary({
-            from: dateRange[0].toISOString(),
-            to: dateRange[1].toISOString(),
+            from: dateRange[0].format("YYYY-MM-DD"),
+            to: dateRange[1].format("YYYY-MM-DD"),
         }),
     });
 

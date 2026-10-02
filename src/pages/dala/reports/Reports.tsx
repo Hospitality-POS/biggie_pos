@@ -163,7 +163,7 @@ const DateRangeField: React.FC<{
     style={{ marginBottom: 14 }}
   >
     <RangePicker
-      showTime={{ format: "HH:mm" }}
+      showTime={{ format: "HH:mm", defaultValue: [dayjs().startOf("day"), dayjs().endOf("day")] }}
       format="YYYY-MM-DD HH:mm"
       onChange={onChange}
       presets={presets}
