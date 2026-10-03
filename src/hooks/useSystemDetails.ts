@@ -64,6 +64,7 @@ function useSystemDetails() {
     receipt_font_size: (data?.receipt_font_size || 13) as number,
     receipt_text_bold: (data?.receipt_text_bold ?? true) as boolean,
     staff_earning_enabled: (shopData?.staff_earning_enabled ?? false) as boolean,
+    hide_tables_served_by_others: (shopData?.hide_tables_served_by_others ?? false) as boolean,
     warranty_settings: shopData?.warranty_settings as
       | { enabled?: boolean; duration?: string; line_1?: string; line_2?: string }
       | undefined,

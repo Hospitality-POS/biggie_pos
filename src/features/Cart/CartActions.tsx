@@ -148,7 +148,7 @@ export const addQtyCart = createAsyncThunk(
       // Send only the new quantity; price stays as unit price — unchanged
       const response = await axiosInstance.put(
         `${baseUrl}/cart-item/${cartItem._id}`,
-        { ...cartItem, quantity: newQty }
+        { quantity: newQty }
       );
 
       return response.data;
@@ -178,7 +178,7 @@ export const removeQtyCart = createAsyncThunk(
       // Send only the new quantity; price stays as unit price — unchanged
       const response = await axiosInstance.put(
         `${baseUrl}/cart-item/${cartItem._id}`,
-        { ...cartItem, quantity: newQty }
+        { quantity: newQty }
       );
 
       return response.data;
@@ -201,7 +201,7 @@ export const updateCartItemQty = createAsyncThunk(
       // Send only the new quantity; price stays as unit price — unchanged
       const response = await axiosInstance.put(
         `${baseUrl}/cart-item/${cartItem._id}`,
-        { ...cartItem, quantity }
+        { quantity }
       );
 
       if (tableId) dispatch(getCart(tableId));

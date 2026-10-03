@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Switch, Space, Typography, Alert, Spin, Input, Button } from "antd";
 import { ProCard } from "@ant-design/pro-components";
-import { LockOutlined, UnlockOutlined, DollarOutlined, PrinterOutlined, InboxOutlined, SafetyCertificateOutlined } from "@ant-design/icons";
+import { LockOutlined, UnlockOutlined, DollarOutlined, PrinterOutlined, InboxOutlined, SafetyCertificateOutlined, EyeInvisibleOutlined } from "@ant-design/icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { fetchSystemSetupDetailsById, updateSystemSetup } from "../../../services/systemsetup";
 import { fetchShop, updateShop } from "../../../services/shops";
@@ -18,6 +18,7 @@ const PrivacySettings: React.FC = () => {
   const [staffEarningEnabled, setStaffEarningEnabled] = useState(false);
   const [requirePaymentBeforePrint, setRequirePaymentBeforePrint] = useState(false);
   const [cartDeductionEnabled, setCartDeductionEnabled] = useState(false);
+  const [hideServedByOthers, setHideServedByOthers] = useState(false);
   const [warrantyEnabled, setWarrantyEnabled] = useState(false);
   const [warrantyDuration, setWarrantyDuration] = useState("6 MONTHS");
   const [warrantyLine1, setWarrantyLine1] = useState("This receipt is your warranty certificate");
@@ -27,6 +28,7 @@ const PrivacySettings: React.FC = () => {
   const [updatingStaffEarning, setUpdatingStaffEarning] = useState(false);
   const [updatingPaymentBeforePrint, setUpdatingPaymentBeforePrint] = useState(false);
   const [updatingCartDeduction, setUpdatingCartDeduction] = useState(false);
+  const [updatingHideTables, setUpdatingHideTables] = useState(false);
   const [updatingWarranty, setUpdatingWarranty] = useState(false);
   const [systemSettingsId, setSystemSettingsId] = useState<string | null>(null);
   const [shopId, setShopId] = useState<string | null>(null);
@@ -46,6 +48,7 @@ const PrivacySettings: React.FC = () => {
         setStaffEarningEnabled(shopData?.staff_earning_enabled || false);
         setRequirePaymentBeforePrint(shopData?.require_payment_before_print || false);
         setCartDeductionEnabled(shopData?.cart_inventory_deduction_enabled || false);
+        setHideServedByOthers(shopData?.hide_tables_served_by_others || false);
         const ws = shopData?.warranty_settings;
         setWarrantyEnabled(ws?.enabled || false);
         if (ws?.duration) setWarrantyDuration(ws.duration);
@@ -83,6 +86,34 @@ const PrivacySettings: React.FC = () => {
       message.error("Failed to update privacy settings");
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const handleToggleHideTables = async (checked: boolean) => {
+    if (!shopId) {
+      message.error("Shop not found");
+      return;
+    }
+
+    setUpdatingHideTables(true);
+    try {
+      await updateShop({
+        _id: shopId,
+        hide_tables_served_by_others: checked,
+      });
+      setHideServedByOthers(checked);
+      queryClient.invalidateQueries({ queryKey: ["shop", shopId] });
+      queryClient.invalidateQueries({ queryKey: ["tables"] });
+      message.success(
+        checked
+          ? "Waiters now only see tables they are serving"
+          : "Waiters can see all tables again"
+      );
+    } catch (error) {
+      console.error("Failed to update hide-tables setting:", error);
+      message.error("Failed to update hide-tables setting");
+    } finally {
+      setUpdatingHideTables(false);
     }
   };
 
@@ -271,6 +302,46 @@ const PrivacySettings: React.FC = () => {
               checked={enablePrivacy}
               onChange={handleTogglePrivacy}
               loading={updating}
+              style={{ minWidth: 48, marginLeft: 16 }}
+              checkedChildren="ON"
+              unCheckedChildren="OFF"
+            />
+          </div>
+        </div>
+
+        {/* Hide Tables Served by Other Staff Toggle */}
+        <div
+          style={{
+            background: "#fff",
+            border: "1px solid #e2e8f0",
+            borderRadius: 8,
+            padding: "16px 18px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <div style={{ flex: 1 }}>
+              <Text strong style={{ fontSize: 15, display: "block", marginBottom: 6 }}>
+                <Space>
+                  <EyeInvisibleOutlined />
+                  {hideServedByOthers
+                    ? "Tables Served by Other Staff Hidden"
+                    : "All Tables Visible to Staff"}
+                </Space>
+              </Text>
+              <Text style={{ fontSize: 13, color: C.subText, display: "block" }}>
+                When enabled, waiters only see tables they are serving — tables assigned to other staff are hidden from the tables view and the order screen. Admin and cashiers still see all tables.
+              </Text>
+            </div>
+            <Switch
+              checked={hideServedByOthers}
+              onChange={handleToggleHideTables}
+              loading={updatingHideTables}
               style={{ minWidth: 48, marginLeft: 16 }}
               checkedChildren="ON"
               unCheckedChildren="OFF"

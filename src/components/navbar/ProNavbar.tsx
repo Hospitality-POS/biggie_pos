@@ -209,7 +209,7 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
     dispatch(logoutUser());
     localStorage.removeItem("shopId");
     dispatch(reset());
-    queryClient.removeQueries(["userNotifications"]);
+    queryClient.clear();
     clearBusinessHealthCache();
     navigate("/login");
     setMobileDrawerOpen(false);
