@@ -7,6 +7,12 @@ export interface ConnectedAgent {
   company_id: string;
   shop_id: string;
   zone: string;
+  routing_mode?: "category" | "location";
+  main_category_id?: string | null;
+  location_id?: string | null;
+  zones?: string[];
+  main_category_ids?: string[];
+  location_ids?: string[];
   device_name: string;
   is_active: boolean;
   last_seen: string;
