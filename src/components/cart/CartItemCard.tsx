@@ -71,7 +71,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem, cartDeductionEnab
     (!!pendingPrintSnapshot &&
       !!cartDetails?._id &&
       pendingPrintSnapshot.cartDetails?._id === cartDetails._id);
-  const canEditQty = (user?.role === "admin" || user?.role === "cashier") && !cartLocked;
+  const canEditQty = (user?.role === "admin" || user?.role === "cashier" || user?.role === "waiter") && !cartLocked;
 
   // Sync display when cart updates externally
   useEffect(() => {
@@ -730,7 +730,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem, cartDeductionEnab
 
                 </div>
               ) : (
-                // Read-only for non-admin/cashier
+                // Read-only fallback for roles without quantity edit
                 <Typography.Text strong style={{ color: textColor, textAlign: "center" }}>
                   x {cartItem.quantity !== undefined && cartItem.quantity !== null
                     ? formattedQuantity

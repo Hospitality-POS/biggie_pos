@@ -3,6 +3,7 @@ import { BASE_URL } from "@utils/config";
 import { message, notification } from "antd";
 import axiosInstance from "../../services/request";
 import { clearBusinessHealthCache } from "../../services/healthScore";
+import { queryClient } from "../../main";
 
 const baseUrl = `${BASE_URL}/users`;
 
@@ -21,6 +22,22 @@ export const loginUser = createAsyncThunk(
       // console.log(_userDetails);
 
       const response = await axiosInstance.post(`${baseUrl}/login`, _userDetails);
+
+      // A different user signing in must not inherit the previous user's
+      // cached data (e.g. privacy-filtered table lists). Wipe the React Query
+      // cache whenever the logged-in user identity changes.
+      let prevUserId: string | null = null;
+      try {
+        const prev = JSON.parse(localStorage.getItem('user') || "{}");
+        prevUserId = prev._id || prev.id || null;
+      } catch {
+        prevUserId = null;
+      }
+      const nextUserId = response.data?._id || response.data?.id || null;
+      if (nextUserId && nextUserId !== prevUserId) {
+        queryClient.clear();
+      }
+
       localStorage.setItem('user', JSON.stringify(response.data))
       message.success('Login successful')
       return response.data;

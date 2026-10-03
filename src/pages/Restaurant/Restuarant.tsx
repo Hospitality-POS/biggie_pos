@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Alert, Badge, Button, Drawer, message } from "antd";
 import { ShoppingCartOutlined } from "@ant-design/icons";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 
 import ProductCard from "../../components/product/productCard";
@@ -17,6 +17,7 @@ import { useAppDispatch, useAppSelector } from "../../store";
 import { getCart } from "../../features/Cart/CartActions";
 import { fetchProductsByCategory } from "../../features/Product/ProductAction";
 import { fetchMainCategories } from "@services/categories";
+import { fetchAllSellableItems } from "@services/products";
 import { fetchShop } from "@services/shops";
 import { fetchActivePackages, Package } from "@services/subscription";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
@@ -49,9 +50,11 @@ const RestaurantPage: React.FC = () => {
   const { products, services, loading: productsLoading } = useAppSelector(
     (state) => state.product
   );
-  const { cartItems } = useAppSelector((state) => state.cart);
+  const { cartItems, cartDetails } = useAppSelector((state) => state.cart);
+  const { user } = useAppSelector((state) => state.auth);
   const dispatch = useAppDispatch();
   const { id } = useParams();
+  const navigate = useNavigate();
 
   const { isRetailMode } = usePOSMode();
   const { activeTable, refreshSlots } = useRetailQueue();
@@ -102,6 +105,28 @@ const RestaurantPage: React.FC = () => {
     enabled: true,
   });
   const availablePackages = packagesData?.packages || [];
+
+  const searching = searchTerm.trim().length > 0;
+
+  // Universal search — every sellable item across all categories, fetched
+  // lazily the first time the user types so browsing stays cheap
+  const { data: allSellableItems, isLoading: allItemsLoading } = useQuery({
+    queryKey: ["pos-all-sellable-items"],
+    queryFn: fetchAllSellableItems,
+    enabled: searching,
+    staleTime: 5 * 60_000,
+  });
+
+  const searchResults = useMemo(() => {
+    if (!searching) return [];
+    const term = searchTerm.trim().toLowerCase();
+    return (allSellableItems ?? []).filter(
+      (i: any) =>
+        !i?.is_disabled &&
+        (String(i?.name ?? "").toLowerCase().includes(term) ||
+          (i?.price != null && String(i.price).includes(term)))
+    );
+  }, [searching, searchTerm, allSellableItems]);
 
   const { data: Maincategories, isLoading: mainCategoriesLoading } = useQuery({
     queryKey: ["Maincategories"],
@@ -203,12 +228,13 @@ const RestaurantPage: React.FC = () => {
     message.success("Order queued! Ready for next customer.");
   };
 
-  const displayItems =
-    activeItemType === "products"
-      ? filteredProducts
-      : activeItemType === "services"
-      ? filteredServices
-      : availablePackages;
+  const displayItems = searching
+    ? searchResults
+    : activeItemType === "products"
+    ? filteredProducts
+    : activeItemType === "services"
+    ? filteredServices
+    : availablePackages;
 
   const sortedItems =
     activeItemType === "packages"
@@ -217,6 +243,62 @@ const RestaurantPage: React.FC = () => {
 
   const areItemsAvailable = sortedItems.length > 0;
   const isLoading = mainCategoriesLoading || productsLoading || packagesLoading;
+
+  // Shop flag: hide a table actively served by another staff member (waiters
+  // only — admin/cashier always see every table). "Served" means the open cart
+  // holds real value — an empty/0-amount cart stays visible to everyone.
+  const userRole = (
+    typeof user?.role === "string" ? user.role : (user as any)?.roleData?.role_type
+  )?.toLowerCase();
+  const currentUserId = (user as any)?._id || user?.id;
+  const cartForThisTable =
+    String(cartDetails?.table_id?._id ?? cartDetails?.table_id ?? "") ===
+    String(tableId ?? "");
+  const activeCartServedBy: any[] =
+    Array.isArray(cartDetails?.served_by) && cartDetails.served_by.length > 0
+      ? cartDetails.served_by
+      : cartDetails?.created_by
+      ? [cartDetails.created_by]
+      : [];
+  const activeCartValue = (cartItems ?? []).reduce(
+    (sum: number, i: any) => sum + (i?.price ?? 0) * (i?.quantity ?? 0),
+    0
+  );
+  const hideServedTable =
+    Boolean((shopData as any)?.hide_tables_served_by_others) &&
+    userRole === "waiter" &&
+    cartForThisTable &&
+    activeCartServedBy.length > 0 &&
+    activeCartValue > 0 &&
+    !activeCartServedBy.some(
+      (s: any) => String(s?._id ?? s) === String(currentUserId)
+    );
+
+  if (hideServedTable) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: "60vh",
+          padding: 24,
+        }}
+      >
+        <Alert
+          message="Table unavailable"
+          description="This table is being served by another staff member."
+          type="warning"
+          showIcon
+          action={
+            <Button size="small" onClick={() => navigate("/tables")}>
+              Back to Tables
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
 
   return (
     <div
@@ -300,7 +382,83 @@ const RestaurantPage: React.FC = () => {
                       scrollbarColor: "#cbd5e1 transparent",
                     }}
                   >
-                    {showCategories ? (
+                    {/* Universal search — searches across all categories */}
+                    <POSSearchHeader
+                      searchTerm={searchTerm}
+                      onSearchChange={setSearchTerm}
+                      onBack={handleBack}
+                      primaryColor={primaryColor}
+                      placeholder="Search all items…"
+                    />
+
+                    {searching ? (
+                      allItemsLoading ? (
+                        <div
+                          style={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: 10,
+                            width: "100%",
+                            paddingTop: 8,
+                            paddingLeft: 4,
+                            paddingRight: 4,
+                          }}
+                        >
+                          {Array.from({ length: 6 }).map((_, i) => (
+                            <SkeletonProductCard
+                              key={i}
+                              style={{
+                                flex: isMobile
+                                  ? "0 0 100%"
+                                  : isTablet
+                                  ? "0 0 calc(50% - 5px)"
+                                  : "0 0 calc(33% - 7px)",
+                              }}
+                            />
+                          ))}
+                        </div>
+                      ) : searchResults.length ? (
+                        <div
+                          style={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: 10,
+                            width: "100%",
+                            maxHeight: isMobile ? "none" : "calc(100vh - 280px)",
+                            overflowY: isMobile ? "visible" : "auto",
+                            paddingTop: 8,
+                            paddingLeft: 4,
+                            paddingRight: 4,
+                            paddingBottom: 16,
+                            scrollbarWidth: "thin",
+                            scrollbarColor: "#cbd5e1 transparent",
+                          }}
+                        >
+                          {searchResults.map((item: any) => (
+                            <ProductCard
+                              key={item._id}
+                              menu={item}
+                              handleCart={handleCartOpen}
+                              style={{
+                                flex: isMobile
+                                  ? "0 0 100%"
+                                  : isTablet
+                                  ? "0 0 calc(50% - 5px)"
+                                  : "0 0 calc(33% - 7px)",
+                              }}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <Alert
+                          message="No Results"
+                          description={`No items found matching "${searchTerm.trim()}"`}
+                          type="info"
+                          showIcon
+                          style={{ width: "100%", borderRadius: 8 }}
+                        />
+                      )
+                    ) : showCategories ? (
                       isLoading ? (
                         <POSSkeletonCategoryCards isMobile={isMobile} isTablet={isTablet} />
                       ) : categories.length ? (
@@ -347,17 +505,6 @@ const RestaurantPage: React.FC = () => {
                       )
                     ) : (
                       <div>
-                        {/* Search + Back row */}
-                        <POSSearchHeader
-                          searchTerm={searchTerm}
-                          onSearchChange={setSearchTerm}
-                          onBack={handleBack}
-                          primaryColor={primaryColor}
-                          placeholder={
-                            activeItemType === "packages" ? "Search packages…" : "Search items…"
-                          }
-                        />
-
                         {/* Item type filter pills */}
                         <POSItemTypeFilters
                           activeType={activeItemType}
@@ -444,14 +591,6 @@ const RestaurantPage: React.FC = () => {
                                   />
                                 ))}
                           </div>
-                        ) : searchTerm ? (
-                          <Alert
-                            message="No Results"
-                            description={`No items found matching "${searchTerm}"`}
-                            type="info"
-                            showIcon
-                            style={{ width: "100%", borderRadius: 8 }}
-                          />
                         ) : categoryChosen ? (
                           <Alert
                             message="Empty"
