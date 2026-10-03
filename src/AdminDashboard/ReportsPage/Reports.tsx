@@ -41,6 +41,7 @@ import { fetchAllCategories } from "@services/categories";
 import useSystemDetails from "@hooks/useSystemDetails";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { THEME_C } from "@utils/getPrimaryColor";
+import dayjs from "dayjs";
 
 const { RangePicker } = DatePicker;
 const { Text } = Typography;
@@ -157,7 +158,7 @@ const DateRangeField: React.FC<{
     style={{ marginBottom: 14 }}
   >
     <RangePicker
-      showTime={{ format: "HH:mm" }}
+      showTime={{ format: "HH:mm", defaultValue: [dayjs().startOf("day"), dayjs().endOf("day")] }}
       format="YYYY-MM-DD HH:mm"
       presets={rangePresets}
       onChange={onChange}

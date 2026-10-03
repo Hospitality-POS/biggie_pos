@@ -531,6 +531,81 @@ const PayslipView: React.FC = () => {
     render: (_: unknown, p: Payslip) => moneyCell(getter(p), color, strong),
   });
 
+  // WHT applies to consultants only — hide it for everyone else. The value
+  // check is a fallback for records fetched without employment_type.
+  const showWht = (p: Payslip) =>
+    p.employee_id?.employment_type === "consultant" ||
+    ((p.deductions as any)?.withholding_tax || 0) > 0;
+
+  // Expand a lumped earnings total into one row per named item — prefers the
+  // payslip's own snapshot (payroll-line items), falls back to the employee
+  // record, and keeps any unmatched remainder as a generic "Other" row.
+  const earningItemRows = (
+    items: any[] | undefined,
+    empItems: any[] | undefined,
+    field: "amount" | "value",
+    total: number | undefined,
+    label: string
+  ): { label: string; value: number }[] => {
+    const t = Number(total || 0);
+    if (!(t > 0)) return [];
+    const src = items?.length ? items : empItems || [];
+    const rows = src
+      .filter((it) => Number(it?.[field]) > 0)
+      .map((it) => ({
+        label: String(it.name || it.allowance_type || it.benefit_type || label),
+        value: Number(it[field]) || 0,
+      }));
+    const sum = rows.reduce((s, r) => s + r.value, 0);
+    const residual = Math.round((t - sum) * 100) / 100;
+    if (residual > 0) rows.push({ label: rows.length ? `Other ${label}s` : `${label}s`, value: residual });
+    if (!rows.length) rows.push({ label: `${label}s`, value: t });
+    return rows;
+  };
+
+  // Same idea for the flat payslip table — one column per named item plus a
+  // residual "Other" column only when a total exceeds its named parts
+  const earningItemColumns = (
+    lineField: "allowance_items" | "benefit_items",
+    empField: "allowances" | "benefits",
+    field: "amount" | "value",
+    totalField: "allowances" | "benefits",
+    label: string
+  ) => {
+    const itemsOf = (p: Payslip): any[] => {
+      const line = (p.earnings as any)?.[lineField];
+      if (Array.isArray(line) && line.length) return line;
+      return ((p.employee_id as any)?.[empField]) || [];
+    };
+    const labelOf = (it: any) =>
+      it?.name || it?.allowance_type || it?.benefit_type || label;
+    const names = Array.from(
+      new Set(
+        payslips.flatMap((p: Payslip) =>
+          itemsOf(p).filter((it) => Number(it?.[field]) > 0).map(labelOf)
+        )
+      )
+    );
+    const cols = names.map((n) =>
+      moneyColumn(String(n), (p) =>
+        itemsOf(p)
+          .filter((it) => labelOf(it) === n)
+          .reduce((s, it) => s + (Number(it?.[field]) || 0), 0)
+      )
+    );
+    const residualOf = (p: Payslip) =>
+      Math.round(
+        ((p.earnings?.[totalField] || 0) -
+          itemsOf(p)
+            .filter((it) => Number(it?.[field]) > 0)
+            .reduce((s, it) => s + (Number(it?.[field]) || 0), 0)) * 100
+      ) / 100;
+    if (payslips.some((p) => residualOf(p) > 0)) {
+      cols.push(moneyColumn(`Other ${label}s`, residualOf));
+    }
+    return cols;
+  };
+
   const columns = [
     ...(canViewAllPayslips
       ? [
@@ -569,15 +644,20 @@ const PayslipView: React.FC = () => {
       ),
     },
     moneyColumn("Basic", (p) => p.earnings?.basic_salary),
-    moneyColumn("Allowances", (p) => p.earnings?.allowances),
-    moneyColumn("Benefits", (p) => p.earnings?.benefits),
+    ...earningItemColumns("allowance_items", "allowances", "amount", "allowances", "Allowance"),
+    ...earningItemColumns("benefit_items", "benefits", "value", "benefits", "Benefit"),
     moneyColumn("Overtime", (p) => p.earnings?.overtime_pay),
     moneyColumn("Gross", (p) => p.earnings?.gross_salary, "#0f172a", true),
     moneyColumn("PAYE", (p) => p.deductions?.paye, "#ef4444"),
     moneyColumn("NSSF", (p) => p.deductions?.nssf, "#ef4444"),
     moneyColumn("SHA", (p) => p.deductions?.nhif, "#ef4444"),
-    moneyColumn("Housing", (p) => p.deductions?.housing_levy, "#ef4444"),
-    moneyColumn("WHT", (p) => (p.deductions as any)?.withholding_tax, "#ef4444"),
+    moneyColumn("Housing Levy", (p) => p.deductions?.housing_levy, "#ef4444"),
+    ...(payslips.some((p) => ((p.deductions as any)?.pension || 0) > 0)
+      ? [moneyColumn("Pension", (p) => (p.deductions as any)?.pension, "#ef4444")]
+      : []),
+    ...(payslips.some(showWht)
+      ? [moneyColumn("WHT", (p) => (p.deductions as any)?.withholding_tax, "#ef4444")]
+      : []),
     // Custom deductions shown as named columns (loans, advances…) — not a
     // generic "Other" bucket
     ...Array.from(
@@ -1016,8 +1096,24 @@ const PayslipView: React.FC = () => {
                 Earnings
               </SectionTitle>
               <MoneyRow label="Basic Salary" value={selectedPayslip.earnings?.basic_salary} />
-              <MoneyRow label="Allowances" value={selectedPayslip.earnings?.allowances} />
-              <MoneyRow label="Benefits" value={selectedPayslip.earnings?.benefits} />
+              {earningItemRows(
+                selectedPayslip.earnings?.allowance_items,
+                (selectedPayslip.employee_id as any)?.allowances,
+                "amount",
+                selectedPayslip.earnings?.allowances,
+                "Allowance"
+              ).map((r, i) => (
+                <MoneyRow key={`alw-${i}`} label={r.label} value={r.value} />
+              ))}
+              {earningItemRows(
+                selectedPayslip.earnings?.benefit_items,
+                (selectedPayslip.employee_id as any)?.benefits,
+                "value",
+                selectedPayslip.earnings?.benefits,
+                "Benefit"
+              ).map((r, i) => (
+                <MoneyRow key={`ben-${i}`} label={r.label} value={r.value} />
+              ))}
               <MoneyRow label="Overtime Pay" value={selectedPayslip.earnings?.overtime_pay} />
               <div style={{ borderTop: "1px solid #e2e8f0", marginTop: 6, paddingTop: 6 }}>
                 <MoneyRow label="Gross Salary" value={selectedPayslip.earnings?.gross_salary} strong color="#3b82f6" />
@@ -1038,7 +1134,12 @@ const PayslipView: React.FC = () => {
               <MoneyRow label="NSSF" value={selectedPayslip.deductions?.nssf} color="#ef4444" />
               <MoneyRow label="SHIF" value={selectedPayslip.deductions?.nhif} color="#ef4444" />
               <MoneyRow label="Housing Levy" value={selectedPayslip.deductions?.housing_levy} color="#ef4444" />
-              <MoneyRow label="Withholding Tax" value={(selectedPayslip.deductions as any)?.withholding_tax} color="#ef4444" />
+              {((selectedPayslip.deductions as any)?.pension || 0) > 0 && (
+                <MoneyRow label="Pension Contribution" value={(selectedPayslip.deductions as any)?.pension} color="#ef4444" />
+              )}
+              {showWht(selectedPayslip) && (
+                <MoneyRow label="Withholding Tax" value={(selectedPayslip.deductions as any)?.withholding_tax} color="#ef4444" />
+              )}
               <div style={{ borderTop: "1px dashed #e2e8f0", margin: "6px 0", paddingTop: 6 }}>
                 <MoneyRow label="Taxable Pay" value={(selectedPayslip.deductions as any)?.taxable_pay} strong color="#64748b" />
               </div>
@@ -1052,6 +1153,13 @@ const PayslipView: React.FC = () => {
                 }
                 color="#10b981"
               />
+              {((selectedPayslip.deductions as any)?.insurance_relief || 0) > 0 && (
+                <MoneyRow
+                  label="Insurance Relief"
+                  value={-(selectedPayslip.deductions as any).insurance_relief}
+                  color="#10b981"
+                />
+              )}
               <MoneyRow label="P.A.Y.E" value={selectedPayslip.deductions?.paye} strong color="#ef4444" />
               <div style={{ borderTop: "1px dashed #e2e8f0", margin: "6px 0", paddingTop: 6 }}>
                 <MoneyRow

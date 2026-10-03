@@ -34,10 +34,11 @@ const payslipRows = (p: any) => {
   const d = p.deductions || {};
   const taxable =
     d.taxable_pay ??
-    Math.max(0, (e.gross_salary || 0) - (d.nssf || 0) - (d.nhif || 0) - (d.housing_levy || 0));
+    Math.max(0, (e.gross_salary || 0) - (d.nssf || 0) - (d.nhif || 0) - (d.housing_levy || 0) - (d.pension || 0));
   const incomeTax = d.income_tax ?? 0;
   const relief = d.personal_relief ?? 0;
-  const paye = d.paye ?? Math.max(0, incomeTax - relief);
+  const insuranceRelief = d.insurance_relief ?? 0;
+  const paye = d.paye ?? Math.max(0, incomeTax - relief - insuranceRelief);
   const custom = Array.isArray(d.custom) ? d.custom : [];
 
   const infoRows: [string, string][] = [
@@ -52,29 +53,41 @@ const payslipRows = (p: any) => {
     ['Department', departmentName(p)],
   ];
 
-  // Itemize the employee's named allowances instead of one generic
-  // "Allowances" row; a remainder covers line-level overrides that aren't
-  // on the employee record.
-  const allowanceTotal = Number(e.allowances || 0);
-  const allowanceRows: [string, string][] = [];
-  if (allowanceTotal > 0) {
-    const items: any[] = Array.isArray(p.employee_id?.allowances) ? p.employee_id.allowances : [];
+  // Itemize named allowance/benefit entries — prefer the payslip's own
+  // snapshot (earnings.allowance_items / benefit_items, copied from the
+  // payroll line), falling back to the employee record for older payslips.
+  // A remainder row covers totals that don't match named items.
+  const itemize = (
+    total: number,
+    lineItems: any,
+    empItems: any,
+    field: 'amount' | 'value',
+    label: string
+  ): [string, string][] => {
+    if (!(total > 0)) return [];
+    const rows: [string, string][] = [];
+    const items: any[] = Array.isArray(lineItems) && lineItems.length
+      ? lineItems
+      : Array.isArray(empItems)
+        ? empItems
+        : [];
     const itemsSum = items
-      .filter((a: any) => Number(a?.amount) > 0)
-      .map((a: any) => {
-        allowanceRows.push([String(a.name || 'Allowance'), fmt(a.amount)]);
-        return Number(a.amount) || 0;
+      .filter((it: any) => Number(it?.[field]) > 0)
+      .map((it: any) => {
+        rows.push([String(it.name || it.allowance_type || it.benefit_type || label), fmt(it[field])]);
+        return Number(it[field]) || 0;
       })
       .reduce((s, v) => s + v, 0);
-    const remainder = allowanceTotal - itemsSum;
-    if (remainder > 0) allowanceRows.push([itemsSum > 0 ? 'Other Allowances' : 'Allowances', fmt(remainder)]);
-    if (allowanceRows.length === 0) allowanceRows.push(['Allowances', fmt(allowanceTotal)]);
-  }
+    const remainder = Math.round((total - itemsSum) * 100) / 100;
+    if (remainder > 0) rows.push([itemsSum > 0 ? `Other ${label}s` : `${label}s`, fmt(remainder)]);
+    if (rows.length === 0) rows.push([`${label}s`, fmt(total)]);
+    return rows;
+  };
 
   const earningsRows: [string, string][] = [
     ['Basic Pay', fmt(e.basic_salary)],
-    ...allowanceRows,
-    ['Benefits', (e.benefits || 0) > 0 ? fmt(e.benefits) : '—'],
+    ...itemize(Number(e.allowances || 0), e.allowance_items, p.employee_id?.allowances, 'amount', 'Allowance'),
+    ...itemize(Number(e.benefits || 0), e.benefit_items, p.employee_id?.benefits, 'value', 'Benefit'),
     ['Overtime Pay', (e.overtime_pay || 0) > 0 ? fmt(e.overtime_pay) : '—'],
     ['TOTAL EARNINGS', fmt(e.gross_salary)],
   ];
@@ -82,11 +95,17 @@ const payslipRows = (p: any) => {
   const payeRows: [string, string][] = [
     ['Liable Pay', fmt(e.gross_salary)],
     ['Less Pension (NSSF)', `(${fmt(d.nssf)})`],
+    ...((d.pension || 0) > 0
+      ? [['Less Pension Contribution', `(${fmt(d.pension)})`] as [string, string][]]
+      : []),
     ['Less SHIF', `(${fmt(d.nhif)})`],
     ['Less Housing Levy (AHL)', `(${fmt(d.housing_levy)})`],
     ['CHARGEABLE AMOUNT', fmt(taxable)],
     ['Tax Charged', fmt(incomeTax)],
     ['Personal Relief', `(${fmt(relief)})`],
+    ...(insuranceRelief > 0
+      ? [['Insurance Relief', `(${fmt(insuranceRelief)})`] as [string, string][]]
+      : []),
     ['P.A.Y.E', fmt(paye)],
   ];
 
@@ -95,7 +114,11 @@ const payslipRows = (p: any) => {
     ['N.S.S.F.', fmt(d.nssf)],
     ['SHIF (NHIF)', fmt(d.nhif)],
     ['Housing Levy', fmt(d.housing_levy)],
-    ...(d.withholding_tax || 0) > 0 ? [['Withholding Tax', fmt(d.withholding_tax)] as [string, string]] : [],
+    ...((d.pension || 0) > 0 ? [['Pension', fmt(d.pension)] as [string, string]] : []),
+    // WHT applies to consultants only — hidden for other employment types
+    ...((d.withholding_tax || 0) > 0 || p.employee_id?.employment_type === 'consultant')
+      ? [['Withholding Tax', fmt(d.withholding_tax)] as [string, string]]
+      : [],
     ...custom.map((c: any): [string, string] => [c.name, fmt(c.amount)]),
     ['TOTAL DEDUCTIONS', fmt(d.total)],
   ];
@@ -313,7 +336,7 @@ export const exportP9ToExcel = async (payslips: any[], year: number, opts?: { hi
   const monthly: Record<number, any> = {};
   payslips.forEach((p: any) => {
     const m = new Date(p.period_start).getMonth();
-    if (!monthly[m]) monthly[m] = { a: 0, b: 0, d: 0, e2: 0, f: 0, g: 0, l: 0, mm: 0, o: 0 };
+    if (!monthly[m]) monthly[m] = { a: 0, b: 0, d: 0, e2: 0, f: 0, g: 0, l: 0, mm: 0, n: 0, o: 0 };
     const e = p.earnings || {};
     const d = p.deductions || {};
     const basic = e.basic_salary || 0;
@@ -321,11 +344,13 @@ export const exportP9ToExcel = async (payslips: any[], year: number, opts?: { hi
     monthly[m].a += basic;
     monthly[m].b += gross - basic;
     monthly[m].d += gross;
-    monthly[m].e2 += d.nssf || 0;
+    // Defined contribution retirement scheme = NSSF + employee pension
+    monthly[m].e2 += (d.nssf || 0) + (d.pension || 0);
     monthly[m].f += d.housing_levy || 0;
     monthly[m].g += d.nhif || 0;
     monthly[m].l += d.income_tax || 0;
     monthly[m].mm += d.personal_relief || 0;
+    monthly[m].n += d.insurance_relief || 0;
     monthly[m].o += d.paye || 0;
   });
 
@@ -362,7 +387,7 @@ export const exportP9ToExcel = async (payslips: any[], year: number, opts?: { hi
     ],
   ];
 
-  const totals = { a: 0, b: 0, d: 0, e1: 0, e2: 0, f: 0, g: 0, j: 0, k: 0, l: 0, mm: 0, o: 0 };
+  const totals = { a: 0, b: 0, d: 0, e1: 0, e2: 0, f: 0, g: 0, j: 0, k: 0, l: 0, mm: 0, n: 0, o: 0 };
   monthNames.forEach((name, i) => {
     const r = monthly[i];
     if (!r) {
@@ -375,18 +400,18 @@ export const exportP9ToExcel = async (payslips: any[], year: number, opts?: { hi
     const k = r.d - j;
     aoa.push([
       name, r.a, r.b, 0, r.d, e1, r.e2, E3_FIXED,
-      r.f, r.g, 0, 0, j, k, r.l, r.mm, 0, r.o,
+      r.f, r.g, 0, 0, j, k, r.l, r.mm, r.n, r.o,
     ]);
     totals.a += r.a; totals.b += r.b; totals.d += r.d;
     totals.e1 += e1; totals.e2 += r.e2;
     totals.f += r.f; totals.g += r.g;
     totals.j += j; totals.k += k;
-    totals.l += r.l; totals.mm += r.mm; totals.o += r.o;
+    totals.l += r.l; totals.mm += r.mm; totals.n += r.n; totals.o += r.o;
   });
   const monthsWithData = Object.keys(monthly).length;
   aoa.push([
     'TOTALS', totals.a, totals.b, 0, totals.d, totals.e1, totals.e2, monthsWithData * E3_FIXED,
-    totals.f, totals.g, 0, 0, totals.j, totals.k, totals.l, totals.mm, 0, totals.o,
+    totals.f, totals.g, 0, 0, totals.j, totals.k, totals.l, totals.mm, totals.n, totals.o,
   ]);
   aoa.push(
     [],
@@ -579,9 +604,15 @@ export const exportPayslipsToExcel = async (payslips: any[], headerMode?: Paysli
   const usedNames = new Set<string>();
 
   // ── Summary sheet ──
+  // WHT applies to consultants only — the column appears only when at least
+  // one payslip in the export needs it
+  const hasWht = payslips.some(
+    (p: any) => (p.deductions?.withholding_tax || 0) > 0 || p.employee_id?.employment_type === 'consultant'
+  );
   const summaryHead = [
     'Employee', 'Employee No', 'Department', 'Period',
-    'Gross', 'PAYE', 'NSSF', 'SHIF', 'Housing Levy', 'WHT',
+    'Gross', 'PAYE', 'NSSF', 'SHIF', 'Housing Levy',
+    ...(hasWht ? ['WHT'] : []),
     'Other', 'Total Deductions', 'Net Pay', 'Emailed',
   ];
   const summaryBody = payslips.map((p: any) => [
@@ -594,7 +625,7 @@ export const exportPayslipsToExcel = async (payslips: any[], headerMode?: Paysli
     p.deductions?.nssf || 0,
     p.deductions?.nhif || 0,
     p.deductions?.housing_levy || 0,
-    p.deductions?.withholding_tax || 0,
+    ...(hasWht ? [p.deductions?.withholding_tax || 0] : []),
     (p.deductions?.custom || []).reduce((s: number, c: any) => s + (c.amount || 0), 0),
     p.deductions?.total || 0,
     p.net_pay || 0,
@@ -604,11 +635,13 @@ export const exportPayslipsToExcel = async (payslips: any[], headerMode?: Paysli
   summaryWs['!cols'] = [
     { wch: 26 }, { wch: 12 }, { wch: 20 }, { wch: 16 },
     { wch: 12 }, { wch: 11 }, { wch: 10 }, { wch: 10 },
-    { wch: 13 }, { wch: 8 }, { wch: 10 }, { wch: 15 }, { wch: 12 }, { wch: 9 },
+    { wch: 13 },
+    ...(hasWht ? [{ wch: 8 }] : []),
+    { wch: 10 }, { wch: 15 }, { wch: 12 }, { wch: 9 },
   ];
   const sRange = XLSX.utils.decode_range(summaryWs['!ref'] || 'A1');
   for (let r = 1; r <= sRange.e.r; r++) {
-    for (let c = 4; c <= 12; c++) {
+    for (let c = 4; c <= summaryHead.length - 2; c++) {
       const cell = summaryWs[XLSX.utils.encode_cell({ r, c })];
       if (cell && cell.t === 'n') cell.z = '#,##0.00';
     }

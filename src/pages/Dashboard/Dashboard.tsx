@@ -44,6 +44,7 @@ import {
   getSalesChartData,
 } from "@services/orders";
 import dayjs from "dayjs";
+import quarterOfYear from "dayjs/plugin/quarterOfYear";
 import { QRCodeCanvas } from "qrcode.react";
 import { fetchShop } from "@services/shops";
 import {
@@ -55,8 +56,25 @@ import {
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { fmtK } from "@utils/formatters";
 
+dayjs.extend(quarterOfYear);
+
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
+
+const CUSTOM_RANGE_PRESETS = [
+  { label: "Today", value: [dayjs().startOf("day"), dayjs().endOf("day")] },
+  { label: "Yesterday", value: [dayjs().subtract(1, "day").startOf("day"), dayjs().subtract(1, "day").endOf("day")] },
+  { label: "Last 7 Days", value: [dayjs().subtract(6, "day").startOf("day"), dayjs().endOf("day")] },
+  { label: "Last 30 Days", value: [dayjs().subtract(29, "day").startOf("day"), dayjs().endOf("day")] },
+  { label: "This Week", value: [dayjs().startOf("week"), dayjs().endOf("week")] },
+  { label: "Last Week", value: [dayjs().subtract(1, "week").startOf("week"), dayjs().subtract(1, "week").endOf("week")] },
+  { label: "This Month", value: [dayjs().startOf("month"), dayjs().endOf("month")] },
+  { label: "Last Month", value: [dayjs().subtract(1, "month").startOf("month"), dayjs().subtract(1, "month").endOf("month")] },
+  { label: "This Quarter", value: [dayjs().startOf("quarter"), dayjs().endOf("quarter")] },
+  { label: "Last Quarter", value: [dayjs().subtract(3, "month").startOf("quarter"), dayjs().subtract(3, "month").endOf("quarter")] },
+  { label: "This Year", value: [dayjs().startOf("year"), dayjs().endOf("year")] },
+  { label: "Last Year", value: [dayjs().subtract(1, "year").startOf("year"), dayjs().subtract(1, "year").endOf("year")] },
+];
 
 // ── POS mode helper ───────────────────────────────────────────────────────────
 const getPosMode = (): string => localStorage.getItem("posMode") ?? "service";
@@ -323,7 +341,9 @@ const Dashboard: React.FC = () => {
   });
 
   // 2. Sales Chart data
-  const chartPeriod = periodFilter === "custom" ? "day" : (periodFilter as "day" | "week" | "month" | "year");
+  const chartPeriod = periodFilter === "custom"
+    ? (startDate.isSame(endDate, "day") ? "day" : "custom")
+    : (periodFilter as "day" | "week" | "month" | "year");
 
   const { data: chartData, isLoading: chartLoading } = useQuery({
     queryKey: ["salesChartData", periodFilter, startDate.format(), endDate.format(), shopId],
@@ -478,6 +498,7 @@ const Dashboard: React.FC = () => {
             <RangePicker
               value={customDateRange as any}
               onChange={(d) => setCustomDateRange(d || [])}
+              presets={CUSTOM_RANGE_PRESETS}
               allowClear
               style={{ width: "100%" }}
             />
@@ -565,6 +586,7 @@ const Dashboard: React.FC = () => {
                   <RangePicker
                     value={customDateRange as any}
                     onChange={(d) => setCustomDateRange(d || [])}
+                    presets={CUSTOM_RANGE_PRESETS}
                     allowClear
                     size="small"
                     style={{ minWidth: 240 }}

@@ -109,6 +109,32 @@ const EMPLOYMENT_STATUS_COLORS: Record<string, string> = {
   resigned: "default",
 };
 
+// Upload size guard — mirrors the backend limit; shows a clear message instead
+// of letting multer's opaque "File too large" error surface after a round trip.
+const MAX_UPLOAD_MB = 5;
+const checkUploadSize = (file?: { size?: number; name?: string }) => {
+  if (file?.size && file.size > MAX_UPLOAD_MB * 1024 * 1024) {
+    message.error(
+      `"${file.name || "File"}" is too large — the maximum size is ${MAX_UPLOAD_MB} MB. Please upload a smaller file.`
+    );
+    return false;
+  }
+  return true;
+};
+
+// A PWD certificate is whatever file the user picks — the backend can't tell
+// a certificate from an invoice. Warn when the filename looks like the wrong
+// document (advisory only — the file can still be uploaded).
+const PWD_CERT_NAME_SUSPECT = /invoice|receipt|order|bill|statement|payslip/i;
+const warnIfNotCertificate = (name?: string) => {
+  if (name && PWD_CERT_NAME_SUSPECT.test(name)) {
+    message.warning(
+      `"${name}" doesn't look like a certificate — double-check you picked the right file.`,
+      5
+    );
+  }
+};
+
 // ── Dashboard-style detail card ───────────────────────────────────────────────
 const detailCardStyle: React.CSSProperties = {
   background: "#ffffff",
@@ -179,6 +205,9 @@ const EmployeeManagement: React.FC = () => {
   const [isAllowanceModalVisible, setIsAllowanceModalVisible] = useState(false);
   const [isBenefitModalVisible, setIsBenefitModalVisible] = useState(false);
   const [helbDraft, setHelbDraft] = useState<number | null>(null);
+  // Unsaved edits from the drawer's Pension & Insurance tab — null until the
+  // user touches a field, then a partial overlay saved via PATCH
+  const [piDraft, setPiDraft] = useState<Record<string, any> | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
   // Highest step index reachable so far. Editing an existing employee starts
   // with every step unlocked (all data is already prefilled); adding a new
@@ -214,9 +243,16 @@ const EmployeeManagement: React.FC = () => {
         for (const f of DRAFT_DATE_FIELDS) {
           if (typeof values[f] === "string") values[f] = dayjs(values[f]);
         }
+        // Nested date — insurance policy start date
+        if (typeof values.insurance_policy?.start_date === "string") {
+          values.insurance_policy = {
+            ...values.insurance_policy,
+            start_date: dayjs(values.insurance_policy.start_date),
+          };
+        }
         return {
           values,
-          step: Math.min(Math.max(Number(draft.step) || 0, 0), 4),
+          step: Math.min(Math.max(Number(draft.step) || 0, 0), 5),
           linkToUser: !!draft.linkToUser,
         };
       }
@@ -488,16 +524,29 @@ const EmployeeManagement: React.FC = () => {
     { title: "Emergency Contact Phone", dataIndex: "emergency_contact_phone" },
     { title: "Emergency Contact Relationship", dataIndex: "emergency_contact_relationship" },
     { title: "User Email", dataIndex: "user_email" },
+    { title: "Employee Type", dataIndex: "employee_type" },
+    { title: "PWD", dataIndex: "is_pwd" },
+    { title: "PWD Cert No.", dataIndex: "pwd_certificate_number" },
+    { title: "HELB", dataIndex: "helb_amount" },
+    { title: "Pension", dataIndex: "pension_contribution" },
+    { title: "Insurance", dataIndex: "has_insurance_policy" },
+    { title: "Ins. Provider", dataIndex: "insurance_provider" },
+    { title: "Ins. Start", dataIndex: "insurance_start_date" },
+    { title: "Ins. Amount", dataIndex: "insurance_contribution_amount" },
+    { title: "Ins. Frequency", dataIndex: "insurance_frequency" },
   ];
 
   // Fetch employee documents
   const { data: documentsData } = useQuery({
     queryKey: ["employee-documents", selectedEmployee?._id],
     queryFn: () => (selectedEmployee ? fetchEmployeeDocuments(selectedEmployee._id) : Promise.resolve({ documents: [] })),
-    enabled: !!selectedEmployee && isDrawerVisible,
+    // Drawer shows the Documents tab; the edit modal needs the list too so the
+    // PWD certificate field can show the cert already on file
+    enabled: !!selectedEmployee && (isDrawerVisible || isModalVisible),
   });
 
   const documents = documentsData?.documents || [];
+  const existingPwdCert = documents.find((d: any) => d.document_type === "pwd_certificate");
 
   const columns = [
     {
@@ -628,6 +677,7 @@ const EmployeeManagement: React.FC = () => {
   const openViewDrawer = (record: Employee) => {
     setSelectedEmployee(record);
     setHelbDraft(null);
+    setPiDraft(null);
     setIsDrawerVisible(true);
   };
 
@@ -648,6 +698,9 @@ const EmployeeManagement: React.FC = () => {
       phone: record.phone,
       id_number: record.id_number,
       employment_type: record.employment_type,
+      employee_type: record.employee_type || "primary",
+      is_pwd: !!record.is_pwd,
+      pwd_certificate_number: record.pwd_certificate_number,
       employment_status: record.employment_status,
       hire_date: record.hire_date ? dayjs(record.hire_date) : null,
       termination_date: record.termination_date ? dayjs(record.termination_date) : null,
@@ -662,6 +715,16 @@ const EmployeeManagement: React.FC = () => {
       kra_pin: record.kra_pin,
       nssf_number: record.nssf_number,
       nhif_number: record.nhif_number,
+      pension_contribution: record.pension_contribution,
+      has_insurance_policy: !!record.has_insurance_policy,
+      insurance_policy: record.insurance_policy
+        ? {
+            ...record.insurance_policy,
+            start_date: record.insurance_policy.start_date
+              ? dayjs(record.insurance_policy.start_date)
+              : null,
+          }
+        : undefined,
       exempt_deductions: record.exempt_deductions,
       date_of_birth: record.date_of_birth ? dayjs(record.date_of_birth) : null,
       gender: record.gender,
@@ -674,6 +737,7 @@ const EmployeeManagement: React.FC = () => {
     };
     form.setFieldsValue(initialValues);
     setAllFormValues(initialValues);
+    setPwdCertFile(null);
     setCurrentStep(0);
     setMaxStepReached(4); // all data is already filled in, so unlock every step
     setIsModalVisible(true);
@@ -749,7 +813,23 @@ const EmployeeManagement: React.FC = () => {
     const payload = buildEmployeePayload(values);
     if (!validateRequiredFields(payload)) return;
     try {
-      await createMutation.mutateAsync(payload as CreateEmployeeParams);
+      const res = await createMutation.mutateAsync(payload as CreateEmployeeParams);
+      const newId = res?.employee?._id || res?.data?._id || res?._id;
+      if (payload.is_pwd && pwdCertFile && newId) {
+        try {
+          await uploadEmployeeDocument(
+            newId,
+            pwdCertFile,
+            "pwd_certificate",
+            "PWD Certificate",
+            payload.pwd_certificate_number ? `Certificate No: ${payload.pwd_certificate_number}` : undefined
+          );
+          queryClient.invalidateQueries({ queryKey: ["employee-documents"] });
+        } catch {
+          // upload service already toasts the error — don't fail the create
+        }
+      }
+      setPwdCertFile(null);
       setLinkToUser(false);
       setAllFormValues({});
     } catch (error) {
@@ -765,6 +845,21 @@ const EmployeeManagement: React.FC = () => {
       const payload = buildEmployeePayload(currentValues);
       if (!validateRequiredFields(payload)) return;
       await updateMutation.mutateAsync({ employeeId: selectedEmployee._id, params: payload });
+      if (payload.is_pwd && pwdCertFile) {
+        try {
+          await uploadEmployeeDocument(
+            selectedEmployee._id,
+            pwdCertFile,
+            "pwd_certificate",
+            "PWD Certificate",
+            payload.pwd_certificate_number ? `Certificate No: ${payload.pwd_certificate_number}` : undefined
+          );
+          queryClient.invalidateQueries({ queryKey: ["employee-documents"] });
+        } catch {
+          // upload service already toasts the error — don't fail the update
+        }
+      }
+      setPwdCertFile(null);
       setLinkToUser(false);
     } catch (error) {
       // Error handled by mutation
@@ -776,18 +871,44 @@ const EmployeeManagement: React.FC = () => {
   const watchedBasicSalary = Form.useWatch("basic_salary", form);
   const watchedExchangeRate = Form.useWatch("exchange_rate", form);
   const isForeignCurrency = !!watchedCurrency && watchedCurrency !== "KES";
+  // PWD (person with disability) — reveals certificate fields on step 1
+  const watchedIsPwd = Form.useWatch("is_pwd", form);
+  // Picked PWD certificate file — held outside the form (a File can't be
+  // serialized into the session draft) and uploaded after save
+  const [pwdCertFile, setPwdCertFile] = useState<File | null>(null);
+  // Insurance policy — reveals the policy fields on step 3 and lets the form
+  // preview the monthly PAYE relief (15% of the monthly contribution, capped
+  // at KES 5,000)
+  const watchedHasInsurance = Form.useWatch("has_insurance_policy", form);
+  const watchedInsuranceAmount = Form.useWatch(["insurance_policy", "contribution_amount"], form);
+  const watchedInsuranceFrequency = Form.useWatch(["insurance_policy", "frequency"], form);
+  const insuranceReliefPreview = (() => {
+    const amount = Number(watchedInsuranceAmount) || 0;
+    const divisor =
+      { monthly: 1, quarterly: 3, semi_annually: 6, annually: 12 }[
+        watchedInsuranceFrequency || "monthly"
+      ] || 1;
+    return Math.round(Math.min((amount / divisor) * 0.15, 5000) * 100) / 100;
+  })();
 
   const STEP_FIELDS: Record<number, string[]> = {
     0: linkToUser
-      ? ["user_id", "id_number"]
-      : ["firstname", "lastname", "id_number"],
+      ? ["user_id", "id_number", "employee_type"]
+      : ["firstname", "lastname", "id_number", "employee_type"],
     1: [
       "employment_type", "hire_date", "basic_salary", "currency", "payment_frequency",
       ...(isForeignCurrency ? ["exchange_rate"] : []),
     ],
     2: [],
-    3: [],
-    4: [],
+    3: watchedHasInsurance
+      ? [
+          ["insurance_policy", "start_date"],
+          ["insurance_policy", "contribution_amount"],
+          ["insurance_policy", "frequency"],
+        ]
+      : [],
+    4: watchedIsPwd ? ["pwd_certificate_number"] : [],
+    5: [],
   };
 
   const handleNextStep = async () => {
@@ -807,6 +928,8 @@ const EmployeeManagement: React.FC = () => {
 
   const handleUploadDocument = async (values: any) => {
     if (!selectedEmployee || !values.file) return;
+    const uploadFile = values.file?.file || values.file;
+    if (!checkUploadSize(uploadFile)) return;
     try {
       await uploadDocumentMutation.mutateAsync({
         employeeId: selectedEmployee._id,
@@ -908,6 +1031,62 @@ const EmployeeManagement: React.FC = () => {
     }
   };
 
+  // Pension & insurance drawer tab — draft edits overlay the record; saved
+  // together as one PATCH (mirrors handleSaveHelb)
+  const pi = selectedEmployee
+    ? {
+        pension_contribution:
+          piDraft?.pension_contribution ?? selectedEmployee.pension_contribution ?? 0,
+        has_insurance_policy:
+          piDraft?.has_insurance_policy ?? !!selectedEmployee.has_insurance_policy,
+        insurance_policy: {
+          ...(selectedEmployee.insurance_policy || {}),
+          ...(piDraft?.insurance_policy || {}),
+        },
+      }
+    : null;
+
+  const setPi = (patch: Record<string, any>) =>
+    setPiDraft((d) => ({ ...(d || {}), ...patch }));
+  const setPiPolicy = (patch: Record<string, any>) =>
+    setPiDraft((d) => ({
+      ...(d || {}),
+      insurance_policy: {
+        ...(selectedEmployee?.insurance_policy || {}),
+        ...(d?.insurance_policy || {}),
+        ...patch,
+      },
+    }));
+
+  // Same formula as banduDeductionService.calculateInsuranceRelief — shown
+  // live so the user sees the PAYE relief before saving
+  const piReliefPreview = (() => {
+    if (!pi?.has_insurance_policy) return 0;
+    const amount = Number(pi.insurance_policy.contribution_amount) || 0;
+    const divisor =
+      { monthly: 1, quarterly: 3, semi_annually: 6, annually: 12 }[
+        pi.insurance_policy.frequency || "monthly"
+      ] || 1;
+    return Math.round(Math.min((amount / divisor) * 0.15, 5000) * 100) / 100;
+  })();
+
+  const handleSavePensionInsurance = async () => {
+    if (!selectedEmployee || !piDraft) return;
+    const params: Record<string, any> = { ...piDraft };
+    if (params.insurance_policy) {
+      const p = { ...(selectedEmployee.insurance_policy || {}), ...params.insurance_policy };
+      if (p.start_date && dayjs.isDayjs(p.start_date)) p.start_date = p.start_date.toISOString();
+      params.insurance_policy = p;
+    }
+    try {
+      await updateMutation.mutateAsync({ employeeId: selectedEmployee._id, params });
+      setSelectedEmployee({ ...selectedEmployee, ...params });
+      setPiDraft(null);
+    } catch (error) {
+      // Error handled by mutation
+    }
+  };
+
   return (
     <div style={{ padding: isMobile ? 12 : 24 }}>
       <div
@@ -955,6 +1134,7 @@ const EmployeeManagement: React.FC = () => {
               icon={<PlusOutlined />}
               onClick={() => {
                 setSelectedEmployee(null);
+                setPwdCertFile(null);
                 form.resetFields();
                 const draft = restoreDraft();
                 setLinkToUser(draft.linkToUser);
@@ -1192,6 +1372,7 @@ const EmployeeManagement: React.FC = () => {
           setCurrentStep(0);
           setMaxStepReached(0);
           setLinkToUser(false);
+          setPwdCertFile(null);
           form.resetFields();
           setAllFormValues({});
         }}
@@ -1216,8 +1397,9 @@ const EmployeeManagement: React.FC = () => {
               <Steps.Step title="Basic Info" />
               <Steps.Step title="Employment" disabled={maxStepReached < 1} />
               <Steps.Step title="Banking & Tax" disabled={maxStepReached < 2} />
-              <Steps.Step title="Personal Info" disabled={maxStepReached < 3} />
-              <Steps.Step title="Emergency" disabled={maxStepReached < 4} />
+              <Steps.Step title="Pension & Insurance" disabled={maxStepReached < 3} />
+              <Steps.Step title="Personal Info" disabled={maxStepReached < 4} />
+              <Steps.Step title="Emergency" disabled={maxStepReached < 5} />
             </Steps>
           </Col>
           <Col span={18}>
@@ -1393,6 +1575,21 @@ const EmployeeManagement: React.FC = () => {
                   </Form.Item>
                 </Col>
               </Row>
+              <Row gutter={16}>
+                <Col span={8}>
+                  <Form.Item
+                    label="Type of Employee"
+                    name="employee_type"
+                    initialValue="primary"
+                    tooltip="Primary is the employee's main job; secondary applies when this is an additional engagement (taxed without personal relief)"
+                  >
+                    <Select placeholder="Select type">
+                      <Option value="primary">Primary</Option>
+                      <Option value="secondary">Secondary</Option>
+                    </Select>
+                  </Form.Item>
+                </Col>
+              </Row>
             </>
           )}
 
@@ -1537,6 +1734,99 @@ const EmployeeManagement: React.FC = () => {
                   </Form.Item>
                 </Col>
               </Row>
+            </>
+          )}
+
+          {/* Step 4: Pension & Insurance */}
+          {currentStep === 3 && (
+            <>
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item
+                    label="Pension Contribution (Monthly)"
+                    name="pension_contribution"
+                    tooltip="Pre-tax deduction — only the first KES 20,000/month is deductible; any amount above that is ignored"
+                    extra="Deductible portion capped at KES 20,000/month"
+                  >
+                    <InputNumber style={{ width: "100%" }} min={0} placeholder="0" />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item
+                    label="Insurance Policy"
+                    name="has_insurance_policy"
+                    initialValue={false}
+                    tooltip="Life/education/health policy premiums attract 15% PAYE relief, capped at KES 5,000/month"
+                  >
+                    <Select>
+                      <Option value={false}>No</Option>
+                      <Option value={true}>Yes</Option>
+                    </Select>
+                  </Form.Item>
+                </Col>
+              </Row>
+              {watchedHasInsurance && (
+                <>
+                  <Row gutter={16}>
+                    <Col span={12}>
+                      <Form.Item label="Insurance Provider" name={["insurance_policy", "provider"]}>
+                        <Input placeholder="e.g., Britam, Jubilee, APA" />
+                      </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                      <Form.Item label="Policy Number" name={["insurance_policy", "policy_number"]}>
+                        <Input placeholder="Policy number" />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                  <Row gutter={16}>
+                    <Col span={12}>
+                      <Form.Item
+                        label="Contribution Start Date"
+                        name={["insurance_policy", "start_date"]}
+                        rules={[{ required: true, message: "Required" }]}
+                        tooltip="Relief applies from this date onwards"
+                      >
+                        <DatePicker style={{ width: "100%" }} />
+                      </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                      <Form.Item
+                        label="Contribution Amount"
+                        name={["insurance_policy", "contribution_amount"]}
+                        rules={[{ required: true, message: "Required" }]}
+                      >
+                        <InputNumber style={{ width: "100%" }} min={0} placeholder="0" />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                  <Row gutter={16}>
+                    <Col span={12}>
+                      <Form.Item
+                        label="Contribution Frequency"
+                        name={["insurance_policy", "frequency"]}
+                        initialValue="monthly"
+                        rules={[{ required: true, message: "Required" }]}
+                      >
+                        <Select>
+                          <Option value="monthly">Monthly</Option>
+                          <Option value="quarterly">Quarterly</Option>
+                          <Option value="semi_annually">Semi-Annually</Option>
+                          <Option value="annually">Annually</Option>
+                        </Select>
+                      </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                      <Form.Item label="Monthly Relief (15%, capped at KES 5,000)">
+                        <Input
+                          disabled
+                          value={`KES ${insuranceReliefPreview.toLocaleString()}`}
+                        />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                </>
+              )}
               <Form.Item
                 label="Deduction Exemptions"
                 name="exempt_deductions"
@@ -1555,6 +1845,7 @@ const EmployeeManagement: React.FC = () => {
                     { value: "NITA", label: "NITA (Training Levy)" },
                     { value: "WITHHOLDING_TAX", label: "Withholding Tax" },
                     { value: "HELB", label: "HELB (Student Loan)" },
+                    { value: "PENSION", label: "Pension Contribution" },
                     { value: "CUSTOM", label: "Custom Deductions" },
                   ]}
                 />
@@ -1562,8 +1853,8 @@ const EmployeeManagement: React.FC = () => {
             </>
           )}
 
-          {/* Step 4: Personal Information */}
-          {currentStep === 3 && (
+          {/* Step 5: Personal Information */}
+          {currentStep === 4 && (
             <>
               <Row gutter={16}>
                 <Col span={12}>
@@ -1619,12 +1910,127 @@ const EmployeeManagement: React.FC = () => {
                     />
                   </Form.Item>
                 </Col>
+                <Col span={12}>
+                  <Form.Item
+                    label="Person with Disability (PWD)"
+                    name="is_pwd"
+                    initialValue={false}
+                    tooltip="PWD employees holding a valid exemption certificate are exempt from PAYE up to the KRA limit"
+                  >
+                    <Select>
+                      <Option value={false}>No</Option>
+                      <Option value={true}>Yes</Option>
+                    </Select>
+                  </Form.Item>
+                </Col>
               </Row>
+              {watchedIsPwd && (
+                <Row gutter={16}>
+                  <Col span={12}>
+                    <Form.Item
+                      label="PWD Certificate Number"
+                      name="pwd_certificate_number"
+                      rules={[{ required: true, message: "Certificate number is required for PWD employees" }]}
+                    >
+                      <Input placeholder="e.g., NCPWD/2024/00123" />
+                    </Form.Item>
+                  </Col>
+                  <Col span={12}>
+                    <Form.Item
+                      label="PWD Certificate"
+                      extra={
+                        existingPwdCert && !pwdCertFile
+                          ? "A certificate is already on file — upload a new file only to replace it"
+                          : "Saved to employee documents when the employee is saved"
+                      }
+                    >
+                      <Upload
+                        maxCount={1}
+                        // Controlled list — the wizard unmounts this step on
+                        // Next, and an uncontrolled Upload would visually drop
+                        // the picked file when navigating back
+                        fileList={
+                          pwdCertFile
+                            ? [
+                                {
+                                  uid: "pwd-cert",
+                                  name: pwdCertFile.name,
+                                  size: pwdCertFile.size,
+                                  status: "done" as const,
+                                },
+                              ]
+                            : []
+                        }
+                        beforeUpload={(file) =>
+                          checkUploadSize(file) ? false : Upload.LIST_IGNORE
+                        }
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={({ fileList }) => {
+                          const f = fileList[0]?.originFileObj as File | undefined;
+                          // Fallback size guard — beforeUpload should have
+                          // already rejected it, but never store an oversized
+                          // file regardless
+                          if (f && !checkUploadSize(f)) {
+                            setPwdCertFile(null);
+                            return;
+                          }
+                          warnIfNotCertificate(f?.name);
+                          setPwdCertFile(f || null);
+                        }}
+                        onRemove={() => setPwdCertFile(null)}
+                      >
+                        <Button icon={<UploadOutlined />}>Upload Certificate</Button>
+                      </Upload>
+                      {/* Show exactly which file was picked — the stored
+                          document is named "PWD Certificate", so without this
+                          a wrong file (e.g. an invoice) is invisible here */}
+                      {pwdCertFile && (
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            color: "#64748b",
+                            display: "block",
+                            marginTop: 4,
+                            wordBreak: "break-all",
+                          }}
+                        >
+                          Selected file: {pwdCertFile.name} (
+                          {(pwdCertFile.size / 1024 / 1024).toFixed(2)} MB)
+                        </Text>
+                      )}
+                      {/* The stored cert can't repopulate a file input, so
+                          surface it here — the employee keeps it unless a new
+                          file is picked */}
+                      {!pwdCertFile && existingPwdCert && (
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            color: "#166534",
+                            display: "block",
+                            marginTop: 4,
+                            wordBreak: "break-all",
+                          }}
+                        >
+                          On file: {existingPwdCert.file_name || existingPwdCert.document_name}
+                          {existingPwdCert.file_url && (
+                            <>
+                              {" — "}
+                              <a href={existingPwdCert.file_url} target="_blank" rel="noreferrer">
+                                View
+                              </a>
+                            </>
+                          )}
+                        </Text>
+                      )}
+                    </Form.Item>
+                  </Col>
+                </Row>
+              )}
             </>
           )}
 
-          {/* Step 5: Emergency Contact */}
-          {currentStep === 4 && (
+          {/* Step 6: Emergency Contact */}
+          {currentStep === 5 && (
             <>
               <Row gutter={16}>
                 <Col span={12}>
@@ -1651,7 +2057,7 @@ const EmployeeManagement: React.FC = () => {
                   Previous
                 </Button>
               )}
-              {currentStep < 4 ? (
+              {currentStep < 5 ? (
                 <Button type="primary" onClick={handleNextStep}>
                   Next
                 </Button>
@@ -1667,7 +2073,7 @@ const EmployeeManagement: React.FC = () => {
               {/* Editing an existing employee: every field is already saved somewhere,
                   so let the user save from whichever step they're on instead of
                   forcing them to click through the remaining steps. */}
-              {selectedEmployee && currentStep < 4 && (
+              {selectedEmployee && currentStep < 5 && (
                 <Button
                   onClick={handleUpdateEmployee}
                   loading={updateMutation.isLoading}
@@ -1787,6 +2193,25 @@ const EmployeeManagement: React.FC = () => {
                     {selectedEmployee.employment_type?.replace(/_/g, " ")}
                   </span>
                 </InfoItem>
+                <InfoItem label="Type of Employee">
+                  <span style={{ textTransform: "capitalize" }}>
+                    {selectedEmployee.employee_type || "primary"}
+                  </span>
+                </InfoItem>
+                <InfoItem label="PWD">
+                  {selectedEmployee.is_pwd ? (
+                    <Space size={4}>
+                      <Tag color="green" style={{ margin: 0, fontSize: 11 }}>Yes</Tag>
+                      {selectedEmployee.pwd_certificate_number && (
+                        <span style={{ fontSize: 11, color: "#64748b" }}>
+                          Cert: {selectedEmployee.pwd_certificate_number}
+                        </span>
+                      )}
+                    </Space>
+                  ) : (
+                    "No"
+                  )}
+                </InfoItem>
                 <InfoItem label="Hire Date">{dayjs(selectedEmployee.hire_date).format("DD MMM YYYY")}</InfoItem>
                 {selectedEmployee.termination_date && (
                   <InfoItem label="Termination Date">
@@ -1872,6 +2297,51 @@ const EmployeeManagement: React.FC = () => {
                     "None"
                   )}
                 </InfoItem>
+              </InfoCard>
+
+              <InfoCard title="Pension & Insurance">
+                <InfoItem label="Pension Contribution">
+                  {pi?.pension_contribution
+                    ? `KES ${Number(pi.pension_contribution).toLocaleString()} / month`
+                    : "—"}
+                </InfoItem>
+                <InfoItem label="Pension Cap">
+                  {pi?.pension_contribution ? "KES 20,000 / month deductible" : "—"}
+                </InfoItem>
+                <InfoItem label="Insurance Policy">
+                  {pi?.has_insurance_policy ? (
+                    <Tag color="green" style={{ margin: 0, fontSize: 11 }}>Yes</Tag>
+                  ) : (
+                    "No"
+                  )}
+                </InfoItem>
+                {pi?.has_insurance_policy && (
+                  <>
+                    <InfoItem label="Provider / Policy No.">
+                      {[
+                        pi.insurance_policy?.provider,
+                        pi.insurance_policy?.policy_number,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ") || "—"}
+                    </InfoItem>
+                    <InfoItem label="Contribution">
+                      {pi.insurance_policy?.contribution_amount
+                        ? `KES ${Number(pi.insurance_policy.contribution_amount).toLocaleString()} · ${(
+                            pi.insurance_policy.frequency || "monthly"
+                          ).replace(/_/g, " ")}`
+                        : "—"}
+                    </InfoItem>
+                    <InfoItem label="Policy Start">
+                      {pi.insurance_policy?.start_date
+                        ? dayjs(pi.insurance_policy.start_date).format("DD MMM YYYY")
+                        : "—"}
+                    </InfoItem>
+                    <InfoItem label="Monthly Relief">
+                      {`KES ${piReliefPreview.toLocaleString()}`}
+                    </InfoItem>
+                  </>
+                )}
               </InfoCard>
 
               <InfoCard title="Emergency Contact">
@@ -2094,6 +2564,160 @@ const EmployeeManagement: React.FC = () => {
               </div>
             </Tabs.TabPane>
 
+            <Tabs.TabPane tab="Pension & Insurance" key="pension">
+              <div
+                style={{
+                  ...detailCardStyle,
+                  padding: "12px 16px",
+                  marginBottom: 14,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <Space size={8}>
+                  <Text strong style={{ fontSize: 13, color: C.darkText }}>Pension & Insurance</Text>
+                </Space>
+                {canUpdateEmployee && (
+                  <Button
+                    type="primary"
+                    size="small"
+                    icon={<SaveOutlined />}
+                    style={{ borderRadius: 7 }}
+                    loading={updateMutation.isLoading}
+                    disabled={!piDraft}
+                    onClick={handleSavePensionInsurance}
+                  >
+                    Save
+                  </Button>
+                )}
+              </div>
+
+              <div style={{ ...detailCardStyle, padding: "14px 16px", marginBottom: 14 }}>
+                <Text style={{ fontSize: 11, color: "#64748b", display: "block", marginBottom: 6 }}>
+                  Monthly pension contribution — withheld pre-tax, but only the first
+                  KES 20,000/month is deductible (a 25,000 contribution deducts 20,000).
+                </Text>
+                <InputNumber
+                  key={`${selectedEmployee._id}-pension-${selectedEmployee.pension_contribution ?? 0}`}
+                  min={0}
+                  defaultValue={pi?.pension_contribution ?? 0}
+                  onChange={(v) => setPi({ pension_contribution: Number(v) || 0 })}
+                  style={{ width: 220 }}
+                  addonBefore="KES / month"
+                  disabled={!canUpdateEmployee}
+                />
+              </div>
+
+              <div style={{ ...detailCardStyle, padding: "14px 16px" }}>
+                <Text style={{ fontSize: 11, color: "#64748b", display: "block", marginBottom: 10 }}>
+                  Insurance policy premiums attract 15% PAYE relief on the monthly-equivalent
+                  contribution, capped at KES 5,000/month — applied from the start date.
+                </Text>
+                <Row gutter={16}>
+                  <Col span={12}>
+                    <Text style={{ fontSize: 11, color: "#64748b", display: "block", marginBottom: 4 }}>
+                      Has Insurance Policy
+                    </Text>
+                    <Select
+                      style={{ width: "100%" }}
+                      value={pi?.has_insurance_policy ? true : false}
+                      onChange={(v) => setPi({ has_insurance_policy: v })}
+                      disabled={!canUpdateEmployee}
+                      options={[
+                        { value: true, label: "Yes" },
+                        { value: false, label: "No" },
+                      ]}
+                    />
+                  </Col>
+                  {pi?.has_insurance_policy && (
+                    <Col span={12}>
+                      <Text style={{ fontSize: 11, color: "#64748b", display: "block", marginBottom: 4 }}>
+                        Monthly Relief
+                      </Text>
+                      <Input disabled value={`KES ${piReliefPreview.toLocaleString()} (15%, capped at 5,000)`} />
+                    </Col>
+                  )}
+                </Row>
+                {pi?.has_insurance_policy && (
+                  <>
+                    <Row gutter={16} style={{ marginTop: 10 }}>
+                      <Col span={12}>
+                        <Text style={{ fontSize: 11, color: "#64748b", display: "block", marginBottom: 4 }}>
+                          Insurance Provider
+                        </Text>
+                        <Input
+                          value={pi.insurance_policy.provider || ""}
+                          onChange={(e) => setPiPolicy({ provider: e.target.value })}
+                          placeholder="e.g., Britam, Jubilee, APA"
+                          disabled={!canUpdateEmployee}
+                        />
+                      </Col>
+                      <Col span={12}>
+                        <Text style={{ fontSize: 11, color: "#64748b", display: "block", marginBottom: 4 }}>
+                          Policy Number
+                        </Text>
+                        <Input
+                          value={pi.insurance_policy.policy_number || ""}
+                          onChange={(e) => setPiPolicy({ policy_number: e.target.value })}
+                          placeholder="Policy number"
+                          disabled={!canUpdateEmployee}
+                        />
+                      </Col>
+                    </Row>
+                    <Row gutter={16} style={{ marginTop: 10 }}>
+                      <Col span={12}>
+                        <Text style={{ fontSize: 11, color: "#64748b", display: "block", marginBottom: 4 }}>
+                          Contribution Start Date
+                        </Text>
+                        <DatePicker
+                          style={{ width: "100%" }}
+                          value={
+                            pi.insurance_policy.start_date
+                              ? dayjs(pi.insurance_policy.start_date)
+                              : null
+                          }
+                          onChange={(d) => setPiPolicy({ start_date: d ? d.toISOString() : null })}
+                          disabled={!canUpdateEmployee}
+                        />
+                      </Col>
+                      <Col span={12}>
+                        <Text style={{ fontSize: 11, color: "#64748b", display: "block", marginBottom: 4 }}>
+                          Contribution Amount
+                        </Text>
+                        <InputNumber
+                          style={{ width: "100%" }}
+                          min={0}
+                          value={pi.insurance_policy.contribution_amount ?? undefined}
+                          onChange={(v) => setPiPolicy({ contribution_amount: Number(v) || 0 })}
+                          disabled={!canUpdateEmployee}
+                        />
+                      </Col>
+                    </Row>
+                    <Row gutter={16} style={{ marginTop: 10 }}>
+                      <Col span={12}>
+                        <Text style={{ fontSize: 11, color: "#64748b", display: "block", marginBottom: 4 }}>
+                          Contribution Frequency
+                        </Text>
+                        <Select
+                          style={{ width: "100%" }}
+                          value={pi.insurance_policy.frequency || "monthly"}
+                          onChange={(v) => setPiPolicy({ frequency: v })}
+                          disabled={!canUpdateEmployee}
+                          options={[
+                            { value: "monthly", label: "Monthly" },
+                            { value: "quarterly", label: "Quarterly" },
+                            { value: "semi_annually", label: "Semi-Annually" },
+                            { value: "annually", label: "Annually" },
+                          ]}
+                        />
+                      </Col>
+                    </Row>
+                  </>
+                )}
+              </div>
+            </Tabs.TabPane>
+
             <Tabs.TabPane tab="Documents" key="documents">
               <div
                 style={{
@@ -2182,9 +2806,25 @@ const EmployeeManagement: React.FC = () => {
                         >
                           {doc.document_name}
                         </Text>
+                        {doc.file_name && doc.file_name !== doc.document_name && (
+                          <Text
+                            style={{
+                              fontSize: 11,
+                              color: "#94a3b8",
+                              display: "block",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {doc.file_name}
+                          </Text>
+                        )}
                         <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
                           <Text style={{ fontSize: 11, color: C.subText, textTransform: "capitalize" }}>
-                            {doc.document_type?.replace(/_/g, " ")}
+                            {doc.document_type === "pwd_certificate"
+                              ? "PWD Certificate"
+                              : doc.document_type?.replace(/_/g, " ")}
                           </Text>
                           {doc.expiration_date && (
                             <Text style={{ fontSize: 11, color: C.subText }}>
@@ -2242,6 +2882,7 @@ const EmployeeManagement: React.FC = () => {
               <Option value="id_copy">ID Copy</Option>
               <Option value="passport_photo">Passport Photo</Option>
               <Option value="kra_pin">KRA PIN</Option>
+              <Option value="pwd_certificate">PWD Certificate</Option>
               <Option value="bank_details">Bank Details</Option>
               <Option value="academic_certificates">Academic Certificates</Option>
               <Option value="professional_certificates">Professional Certificates</Option>
@@ -2253,8 +2894,13 @@ const EmployeeManagement: React.FC = () => {
           <Form.Item label="Document Name" name="document_name" rules={[{ required: true }]}>
             <Input placeholder="Enter document name" />
           </Form.Item>
-          <Form.Item label="File" name="file" rules={[{ required: true }]}>
-            <Upload beforeUpload={() => false} maxCount={1}>
+          <Form.Item label="File" name="file" rules={[{ required: true }]} extra={`Maximum size ${MAX_UPLOAD_MB} MB`}>
+            <Upload
+              beforeUpload={(file) =>
+                checkUploadSize(file) ? false : Upload.LIST_IGNORE
+              }
+              maxCount={1}
+            >
               <Button icon={<UploadOutlined />}>Select File</Button>
             </Upload>
           </Form.Item>

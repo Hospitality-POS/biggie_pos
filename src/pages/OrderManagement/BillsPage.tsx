@@ -243,16 +243,16 @@ function BillsPage() {
         queryKey: ["bills", page, dateRange],
         queryFn: () => getAllBills({
             page, limit: 10,
-            from: dateRange[0].toISOString(),
-            to: dateRange[1].toISOString(),
+            from: dateRange[0].format("YYYY-MM-DD"),
+            to: dateRange[1].format("YYYY-MM-DD"),
         }),
     });
 
     const { data: summaryData } = useQuery({
         queryKey: ["bill-summary", dateRange],
         queryFn: () => getBillSummary({
-            from: dateRange[0].toISOString(),
-            to: dateRange[1].toISOString(),
+            from: dateRange[0].format("YYYY-MM-DD"),
+            to: dateRange[1].format("YYYY-MM-DD"),
         }),
     });
 

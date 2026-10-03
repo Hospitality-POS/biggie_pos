@@ -114,7 +114,7 @@ interface SalesChartParams {
   startDate?: string;
   endDate?: string;
   shop_id?: string;
-  period?: 'day' | 'week' | 'month' | 'year';
+  period?: 'day' | 'week' | 'month' | 'year' | 'custom';
 }
 
 export const getSalesChartData = async (params: SalesChartParams = {}) => {

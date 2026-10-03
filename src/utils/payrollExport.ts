@@ -37,6 +37,7 @@ interface MoneyCol {
   header: string;
   get: (line: any) => number;
   hideZero?: boolean;
+  custom?: boolean;
 }
 
 // One column per custom deduction name — same approach as the on-screen table
@@ -80,6 +81,12 @@ const buildMusterRoll = (lines: any[], withDepartment = false, rounded = false):
   // Getter-based columns so all-zero columns can be dropped without breaking
   // the totals/summary math.
   const dOf = (l: any) => l.deductions || {};
+  // Employer levies match the employee share 1:1 by design. Legacy payrolls
+  // predate the employer_* fields and Mongoose fills them as 0 on hydrate —
+  // so a `??` fallback never fires. Treat 0/missing alike and fall back to
+  // the employee amount.
+  const erOf = (l: any, erKey: string, eeKey: string) =>
+    num(dOf(l)[erKey]) || num(dOf(l)[eeKey]);
 
   // Allowances and benefits are itemized per employee record — one column
   // per name (falling back to the configured type key, e.g. "house" →
@@ -92,10 +99,14 @@ const buildMusterRoll = (lines: any[], withDepartment = false, rounded = false):
           .replace(/[_-]+/g, ' ')
           .replace(/\b\w/g, (c) => c.toUpperCase())
       : fallback;
+  // Line-level itemized lists (saved at generation/edit time) win over the
+  // employee record — they reflect what was actually paid this period
   const allowanceItems = (l: any): any[] =>
-    Array.isArray(empOf(l).allowances) ? empOf(l).allowances : [];
+    Array.isArray(l.allowance_items) ? l.allowance_items
+    : Array.isArray(empOf(l).allowances) ? empOf(l).allowances : [];
   const benefitItems = (l: any): any[] =>
-    Array.isArray(empOf(l).benefits) ? empOf(l).benefits : [];
+    Array.isArray(l.benefit_items) ? l.benefit_items
+    : Array.isArray(empOf(l).benefits) ? empOf(l).benefits : [];
   const allowanceLabel = (a: any) => a?.name || typeLabel(a?.allowance_type, 'Allowance');
   const benefitLabel = (b: any) => b?.name || typeLabel(b?.benefit_type, 'Benefit');
   const allowanceNames = [
@@ -138,17 +149,19 @@ const buildMusterRoll = (lines: any[], withDepartment = false, rounded = false):
     { header: 'S.H.I.F.', get: (l) => rn(dOf(l).nhif) },
     { header: 'N.S.S.F.', get: (l) => rn(dOf(l).nssf) },
     { header: 'Housing Levy', get: (l) => rn(dOf(l).housing_levy) },
-    { header: 'WHT', get: (l) => rn(dOf(l).withholding_tax) },
+    { header: 'Pension', get: (l) => rn(dOf(l).pension), hideZero: true },
+    { header: 'WHT', get: (l) => rn(dOf(l).withholding_tax), hideZero: true },
     { header: 'PAYE (Tax)', get: (l) => rn(dOf(l).paye) },
     ...customNames.map((n): MoneyCol => ({
       header: n,
+      custom: true,
       get: (l) => rn((dOf(l).custom || []).find((c: any) => c.name === n)?.amount ?? 0),
     })),
     { header: 'Total Deductions', get: (l) => rn(dOf(l).total) },
     { header: 'Net Pay', get: (l) => rn(l.net_pay) },
-    { header: 'N.S.S.F. Employer', get: (l) => rn(dOf(l).employer_nssf ?? dOf(l).nssf) },
-    { header: 'AHL Employer', get: (l) => rn(dOf(l).employer_housing_levy ?? dOf(l).housing_levy) },
-    { header: 'NITA Employer Contribution', get: (l) => rn(dOf(l).employer_nita ?? dOf(l).nita) },
+    { header: 'N.S.S.F. Employer', get: (l) => rn(erOf(l, 'employer_nssf', 'nssf')) },
+    { header: 'AHL Employer', get: (l) => rn(erOf(l, 'employer_housing_levy', 'housing_levy')) },
+    { header: 'NITA Employer Contribution', get: (l) => rn(erOf(l, 'employer_nita', 'nita')) },
   ];
   const cols = moneyCols.filter((c) => !c.hideZero || lines.some((l) => c.get(l) !== 0));
 
@@ -178,30 +191,36 @@ const buildMusterRoll = (lines: any[], withDepartment = false, rounded = false):
   ];
   const totalsText = totalsNums.map((c, i) => (i === 0 ? String(c) : typeof c === 'number' ? fmtV(c) : c));
 
-  // Statutory deductions summary (employee deductions + employer contributions).
-  // Custom deductions (loans, advances, HELB…) are intentionally left out —
-  // they still appear as named columns in the main table.
-  const payeTotal = sumOf((l) => dOf(l).paye), shifTotal = sumOf((l) => dOf(l).nhif);
-  const nssfTotal = sumOf((l) => dOf(l).nssf), ahlTotal = sumOf((l) => dOf(l).housing_levy);
-  const whtTotal = sumOf((l) => dOf(l).withholding_tax);
-  const dedTotal = sumOf((l) => dOf(l).total), netTotal = sumOf((l) => l.net_pay);
-  const nssfErTotal = sumOf((l) => dOf(l).employer_nssf ?? dOf(l).nssf);
-  const ahlErTotal = sumOf((l) => dOf(l).employer_housing_levy ?? dOf(l).housing_levy);
-  const nitaTotal = sumOf((l) => dOf(l).employer_nita ?? dOf(l).nita);
+  // Statutory deductions summary — each row sums the same rounded values the
+  // matching table column shows, so the summary always foots against the
+  // GRAND TOTALS row above it (employee and employer shares kept on separate
+  // rows so nothing is double-counted or hidden in a combined figure).
+  const payeTotal = sumOf((l) => rn(dOf(l).paye)), shifTotal = sumOf((l) => rn(dOf(l).nhif));
+  const nssfTotal = sumOf((l) => rn(dOf(l).nssf)), ahlTotal = sumOf((l) => rn(dOf(l).housing_levy));
+  const whtTotal = sumOf((l) => rn(dOf(l).withholding_tax));
+  const pensionTotal = sumOf((l) => rn(dOf(l).pension));
+  const insReliefTotal = sumOf((l) => rn(dOf(l).insurance_relief));
+  // Sum the custom columns' getters so the row foots exactly against the
+  // named custom columns in the table (Loan, HELB, advances…)
+  const customCols = cols.filter((c) => c.custom);
+  const customTotal = sumOf((l) => customCols.reduce((s, c) => s + c.get(l), 0));
+  const dedTotal = sumOf((l) => rn(dOf(l).total)), netTotal = sumOf((l) => rn(l.net_pay));
+  const nssfErTotal = sumOf((l) => rn(erOf(l, 'employer_nssf', 'nssf')));
+  const ahlErTotal = sumOf((l) => rn(erOf(l, 'employer_housing_levy', 'housing_levy')));
+  const nitaTotal = sumOf((l) => rn(erOf(l, 'employer_nita', 'nita')));
   const employerTotal = nssfErTotal + ahlErTotal + nitaTotal; // employer-paid — not employee deductions
 
-  // One row per levy — the combined employee + employer total, matching the
-  // single NSSF / Housing Levy columns shown on-screen
   const summary: [string, string | number][] = [
     ['PAYE', rn(payeTotal)],
     ['SHIF', rn(shifTotal)],
-    ['NSSF', rn(nssfTotal + nssfErTotal)],
-    ['Withholding Tax', rn(whtTotal)],
-    ['Housing Levy', rn(ahlTotal + ahlErTotal)],
+    ['NSSF (EE + ER)', rn(nssfTotal + nssfErTotal)],
+    ['Housing Levy (EE + ER)', rn(ahlTotal + ahlErTotal)],
+    ...(pensionTotal > 0 ? [['Pension (Employee)', rn(pensionTotal)] as [string, number]] : []),
+    ...(insReliefTotal > 0 ? [['Insurance Relief (inside PAYE)', rn(insReliefTotal)] as [string, number]] : []),
+    ...(whtTotal > 0 ? [['Withholding Tax', rn(whtTotal)] as [string, number]] : []),
+    ...(customTotal > 0 ? [['Custom Deductions', rn(customTotal)] as [string, number]] : []),
     ['NITA (Employer)', rn(nitaTotal)],
-    ['Total Deductions', rn(dedTotal)],
-    ['Employer Contributions (NSSF + AHL + NITA)', rn(employerTotal)],
-    ['Total Payments', rn(dedTotal + employerTotal)],
+    ['Total Deductions', rn(dedTotal + employerTotal)],
     ['Employees', lines.length],
     ['Net Salaries', rn(netTotal)],
   ];
@@ -525,11 +544,13 @@ const renderPayrollPage = (
       ...(withDepartment ? [[1, { cellWidth: 80, halign: 'left' as const }]] : []),
       ...headers.slice(withDepartment ? 2 : 1).map((_, i) => [
         i + (withDepartment ? 2 : 1),
-        { halign: 'right' as const, cellWidth: 56 },
+        { halign: 'right' as const },
       ]),
     ]),
     margin: { left: margin, right: margin },
-    tableWidth: 'wrap',
+    // 'auto' stretches the table edge-to-edge between the margins — matching
+    // the full-width header band — with money columns flexing evenly
+    tableWidth: 'auto',
   });
 
   // ── Statutory deductions summary block ──
@@ -541,7 +562,10 @@ const renderPayrollPage = (
 
   autoTable(doc, {
     startY: afterTable + 6,
-    body: summary.map(([k, v]) => [k, typeof v === 'number' ? fmtV(v) : v]),
+    body: summary.map(([k, v]) => [
+      k,
+      k === 'Employees' ? String(v) : typeof v === 'number' ? fmtV(v) : v,
+    ]),
     theme: 'grid',
     styles: { fontSize: 8, cellPadding: 3, lineColor: [226, 232, 240], lineWidth: 0.4 },
     columnStyles: { 0: { fontStyle: 'bold', cellWidth: 180 }, 1: { halign: 'right', cellWidth: 100 } },
@@ -758,12 +782,16 @@ export const exportShifFiling = (payrolls: any[], employeeIds?: string[]) =>
   );
 
 /**
- * PAYE return — aligned to the KRA "P10 Return Simplified" template
- * (B_Employees_Dtls_Simplified sheet, columns A–Y + AC). Exported as a
- * headerless CSV so rows can be pasted/uploaded straight into the template.
- * Benefit items are split into the KRA columns: motor_vehicle → Car Benefit
- * (B), house → Housing Benefit (F), meals → Value of Meals (C), everything
- * else → Non Cash Benefits (D).
+ * PAYE return — 25-column comma-delimited CSV matching the KRA iTax PAYE
+ * return template (same layout as the filed PAYE_Return_October file).
+ * Headerless so rows upload straight into the portal. Columns the KRA
+ * portal precalculates are intentionally left blank: Total Gross Pay (H),
+ * NSSF (J), Taxable Pay (O), Personal Relief (P) and PAYE Tax (R) — the
+ * portal-computed PAYE is carried in the last column (Self Assessed
+ * PAYE Tax). Pension and insurance relief are declared inputs, so they're
+ * filled when present. Benefit items are split into the KRA columns:
+ * motor_vehicle → Car Benefit (B), house → Housing Benefit (F),
+ * meals → Value of Meals (C), everything else → Non Cash Benefits (D).
  */
 export const exportPayeFiling = (payrolls: any[], employeeIds?: string[]) =>
   writeFilingSheet(
@@ -778,7 +806,6 @@ export const exportPayeFiling = (payrolls: any[], employeeIds?: string[]) =>
       'Post Retirement Medical Fund (L)', 'Mortgage Interest (M)',
       'Affordable Housing Levy (N)', 'Taxable Pay (O)', 'Monthly Personal Relief (P)',
       'Amount of Insurance Relief (Q)', 'PAYE Tax (R)', 'Self Assessed PAYE Tax (S)',
-      '', '', '', 'Deposit on Home Ownership Saving Plan',
     ],
     (line) => {
       const emp = empOf(line);
@@ -797,34 +824,35 @@ export const exportPayeFiling = (payrolls: any[], employeeIds?: string[]) =>
       const houseBenefit = bSum(/house|housing|rent|quarters/i, ['house', 'housing']);
       const otherNonCash = Math.max(0, benefits - carBenefit - mealBenefit - houseBenefit);
 
+      const pension = num(d.pension);
+      const insuranceRelief = num(d.insurance_relief);
+
       return [
         emp.kra_pin || '',                                      // PIN of Employee
         lineName(line),                                         // Name of Employee
         emp.residential_status === 'non_resident' ? 'Non-Resident' : 'Resident',
-        'Primary Employee',                                     // Type of Employee
-        'No',                                                   // Persons With Disability
-        '',                                                     // Exemption Certificate Number
+        emp.employee_type === 'secondary' ? 'Secondary' : 'Primary', // Type of Employee
+        emp.is_pwd ? 'Yes' : 'No',                              // Persons With Disability
+        emp.is_pwd ? emp.pwd_certificate_number || '' : '',     // Exemption Certificate Number
         num(gross - benefits),                                  // Total Cash Pay (A)
         carBenefit,                                             // Value of Car Benefit (B)
         mealBenefit,                                            // Value of Meals (C)
         otherNonCash,                                           // Non Cash Benefits (D)
         houseBenefit > 0 ? "Employer's Rented House" : 'Benefit not given', // Type of Housing
-        houseBenefit,                                           // Housing Benefit (F)
+        houseBenefit || '',                                     // Housing Benefit (F)
         0,                                                      // Other Benefits (G)
-        gross,                                                  // Total Gross Pay (H)
+        '',                                                     // Total Gross Pay (H) — KRA calculates
         num(d.nhif),                                            // SHIF (I)
-        num(d.nssf),                                            // NSSF Contribution (J)
-        0,                                                      // Other Pension Contribution (K)
+        '',                                                     // NSSF Contribution (J) — KRA calculates
+        pension || '',                                          // Other Pension Contribution (K)
         0,                                                      // Post Retirement Medical Fund (L)
         0,                                                      // Mortgage Interest (M)
         num(d.housing_levy),                                    // Affordable Housing Levy (N)
-        num(d.taxable_pay ?? gross),                            // Taxable Pay (O)
-        num(d.personal_relief),                                 // Monthly Personal Relief (P)
-        0,                                                      // Amount of Insurance Relief (Q)
-        num(d.paye),                                            // PAYE Tax (R)
+        '',                                                     // Taxable Pay (O) — KRA calculates
+        '',                                                     // Monthly Personal Relief (P) — KRA calculates
+        insuranceRelief,                                        // Amount of Insurance Relief (Q)
+        '',                                                     // PAYE Tax (R) — KRA calculates
         num(d.paye),                                            // Self Assessed PAYE Tax (S)
-        '', '', '',                                             // blank template columns
-        0,                                                      // Deposit on Home Ownership Saving Plan
       ];
     },
     'PAYE_Return',

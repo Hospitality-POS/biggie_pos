@@ -368,7 +368,8 @@ const PayrollManagement: React.FC = () => {
       Math.max(0, (line.gross_salary || 0) - (d.nssf || 0) - (d.nhif || 0) - (d.housing_levy || 0));
     const incomeTax = d.income_tax ?? 0;
     const relief = d.personal_relief ?? 0;
-    const paye = d.paye ?? Math.max(0, incomeTax - relief);
+    const insuranceRelief = d.insurance_relief ?? 0;
+    const paye = d.paye ?? Math.max(0, incomeTax - relief - insuranceRelief);
     const payAfterTax = taxable - paye;
     const wht = d.withholding_tax || 0;
     const customTotal = (d.custom || []).reduce((s: number, c: any) => s + (c.amount || 0), 0);
@@ -393,9 +394,11 @@ const PayrollManagement: React.FC = () => {
         <Row label="NSSF" value={-(d.nssf || 0)} color="#64748b" />
         <Row label="S.H.I.F." value={-(d.nhif || 0)} color="#64748b" />
         <Row label="Housing Levy" value={-(d.housing_levy || 0)} color="#64748b" />
+        {(d.pension || 0) > 0 && <Row label="Pension" value={-d.pension} color="#64748b" />}
         <Row label="Taxable Pay" value={taxable} strong />
         <Row label="Income Tax" value={incomeTax} />
         <Row label="Personal Relief" value={-relief} />
+        {insuranceRelief > 0 && <Row label="Insurance Relief" value={-insuranceRelief} />}
         <Row label="P.A.Y.E" value={paye} strong color="#ef4444" />
         <Row label="Pay After Tax" value={payAfterTax} strong />
         {wht > 0 && <Row label="Withholding Tax" value={-wht} color="#64748b" />}
@@ -432,14 +435,36 @@ const PayrollManagement: React.FC = () => {
   });
 
   const payrollLineColumns = (showNames: boolean, lines?: any[]) => {
-    // Hide Allowances / Benefits / Overtime when every line has zero
+    // Hide Overtime when every line has zero
     const hideZero = (getter: (l: any) => number | undefined) =>
       !!lines && lines.length > 0 && lines.every((l) => !(getter(l) || 0));
     const hidden = {
-      Allowances: hideZero((l) => l.allowances),
-      Benefits: hideZero((l) => l.benefits),
       Overtime: hideZero((l) => l.overtime_pay),
+      Pension: hideZero((l) => l.deductions?.pension),
+      WHT: hideZero((l) => l.deductions?.withholding_tax),
     };
+
+    // Itemized allowance/benefit columns — one per named item saved on the
+    // line (allowance_items/benefit_items), falling back to the employee
+    // record for payrolls that predate the fields. A line whose stored
+    // total isn't covered by named items surfaces the remainder as
+    // "Other …" so money is never hidden from the table.
+    const itemsOf = (l: any, lineKey: "allowance_items" | "benefit_items", empKey: "allowances" | "benefits"): any[] =>
+      Array.isArray(l?.[lineKey]) ? l[lineKey] : l?.employee_id?.[empKey] || [];
+    const itemName = (it: any) => it?.name || it?.allowance_type || it?.benefit_type || "";
+    const itemAmt = (it: any) => Number(it?.amount ?? it?.value) || 0;
+    const namedSum = (l: any, lineKey: "allowance_items" | "benefit_items", empKey: "allowances" | "benefits") =>
+      itemsOf(l, lineKey, empKey).reduce((s, it) => s + itemAmt(it), 0);
+    const allowanceNames = [
+      ...new Set((lines || []).flatMap((l) => itemsOf(l, "allowance_items", "allowances").map(itemName))),
+    ].filter(Boolean) as string[];
+    const benefitNames = [
+      ...new Set((lines || []).flatMap((l) => itemsOf(l, "benefit_items", "benefits").map(itemName))),
+    ].filter(Boolean) as string[];
+    const allowanceResidual = (l: any) =>
+      Math.max(0, (Number(l?.allowances) || 0) - namedSum(l, "allowance_items", "allowances"));
+    const benefitResidual = (l: any) =>
+      Math.max(0, (Number(l?.benefits) || 0) - namedSum(l, "benefit_items", "benefits"));
     return [
     {
       title: "Employee",
@@ -473,8 +498,26 @@ const PayrollManagement: React.FC = () => {
       },
     },
     moneyCol("Basic Pay", (l) => l.basic_salary),
-    moneyCol("Allowances", (l) => l.allowances),
-    moneyCol("Benefits", (l) => l.benefits),
+    ...allowanceNames.map((n) =>
+      moneyCol(n, (l) =>
+        itemsOf(l, "allowance_items", "allowances")
+          .filter((a) => itemName(a) === n)
+          .reduce((s, a) => s + itemAmt(a), 0)
+      )
+    ),
+    ...((lines || []).some((l) => allowanceResidual(l) > 0)
+      ? [moneyCol("Other Allowances", allowanceResidual)]
+      : []),
+    ...benefitNames.map((n) =>
+      moneyCol(n, (l) =>
+        itemsOf(l, "benefit_items", "benefits")
+          .filter((b) => itemName(b) === n)
+          .reduce((s, b) => s + itemAmt(b), 0)
+      )
+    ),
+    ...((lines || []).some((l) => benefitResidual(l) > 0)
+      ? [moneyCol("Other Benefits", benefitResidual)]
+      : []),
     moneyCol("Overtime", (l) => l.overtime_pay, undefined, false, 80),
     moneyCol("Gross Pay", (l) => l.gross_salary, undefined, true),
     moneyCol("S.H.I.F.", (l) => l.deductions?.nhif, undefined, false, 80),
@@ -482,6 +525,7 @@ const PayrollManagement: React.FC = () => {
     // already folded into the "Employer Contrib." column
     moneyCol("N.S.S.F.", (l) => l.deductions?.nssf, undefined, false, 80),
     moneyCol("Housing Levy", (l) => l.deductions?.housing_levy, undefined, false, 95),
+    moneyCol("Pension", (l) => l.deductions?.pension, undefined, false, 85),
     moneyCol("WHT", (l) => l.deductions?.withholding_tax, undefined, false, 70),
     moneyCol("PAYE (Tax)", (l) => l.deductions?.paye, undefined, false, 90),
     // Custom deductions shown as named columns (loans, advances…) instead of a
@@ -507,9 +551,9 @@ const PayrollManagement: React.FC = () => {
     moneyCol(
       "Employer Contrib.",
       (l) =>
-        (l.deductions?.employer_nssf ?? l.deductions?.nssf ?? 0) +
-        (l.deductions?.employer_housing_levy ?? l.deductions?.housing_levy ?? 0) +
-        (l.deductions?.employer_nita ?? l.deductions?.nita ?? 0),
+        (l.deductions?.employer_nssf || l.deductions?.nssf || 0) +
+        (l.deductions?.employer_housing_levy || l.deductions?.housing_levy || 0) +
+        (l.deductions?.employer_nita || l.deductions?.nita || 0),
       "#64748b",
       false,
       115
@@ -1212,17 +1256,27 @@ const PayrollManagement: React.FC = () => {
                 allowClear
                 placeholder="Pick a predefined type or type custom"
                 value={it.name}
-                options={options.map((o) => ({
-                  value: o.value,
-                  label: o.type && o.type.mode !== "fixed"
-                    ? `${o.value} — auto-computed`
-                    : `${o.value}${o.amount ? ` — KES ${o.amount.toLocaleString()}` : ""}`,
-                }))}
+                options={[
+                  { value: "__custom__", label: "＋ Custom — type your own name" },
+                  ...options.map((o) => ({
+                    value: o.value,
+                    label: o.type && o.type.mode !== "fixed"
+                      ? `${o.value} — auto-computed`
+                      : `${o.value}${o.amount ? ` — KES ${o.amount.toLocaleString()}` : ""}`,
+                  })),
+                ]}
                 getPopupContainer={(node) => node.parentElement as HTMLElement}
                 filterOption={(input, option) =>
+                  option?.value === "__custom__" ||
                   String(option?.value ?? "").toLowerCase().includes(input.toLowerCase())
                 }
                 onChange={(v) => {
+                  // "＋ Custom" pseudo-option — clear the field so the typed
+                  // free-text name becomes the item's name
+                  if (v === "__custom__") {
+                    setItems(items.map((d) => (d.key === it.key ? { ...d, name: "", amount: 0, basis: undefined } : d)));
+                    return;
+                  }
                   const opt = options.find((o) => o.value === v);
                   setItems(
                     items.map((d) => {
@@ -1432,15 +1486,18 @@ const PayrollManagement: React.FC = () => {
   // equals the stored line value. Otherwise the amount was adjusted manually
   // and we can't map it back, so it's kept as a single "Other" row.
   const presetItems = (items: any[], amountField: "amount" | "value", storedTotal: number) => {
-    const sum = items.reduce((s, it) => s + (Number(it[amountField]) || 0), 0);
-    if (items.length && sum === (storedTotal || 0)) {
-      return items.map((it, i) => ({
-        key: i,
-        name: it.name || it.allowance_type || it.benefit_type || "",
-        amount: Number(it[amountField]) || 0,
-      }));
-    }
-    return storedTotal > 0 ? [{ key: 0, name: "Other", amount: storedTotal }] : [];
+    const rows = (items || []).map((it, i) => ({
+      key: i,
+      name: it.name || it.allowance_type || it.benefit_type || "",
+      amount: Number(it[amountField]) || 0,
+      basis: it.basis ?? it.basis_value,
+    }));
+    const sum = rows.reduce((s, it) => s + it.amount, 0);
+    // Stored total larger than the named items — keep the leftover as a
+    // generic "Other" row so the amount is editable instead of dropped
+    const residual = Math.round(((storedTotal || 0) - sum) * 100) / 100;
+    if (residual > 0) rows.push({ key: rows.length, name: "Other", amount: residual, basis: undefined });
+    return rows;
   };
 
   // Open line edit modal (draft payrolls)
@@ -1451,8 +1508,10 @@ const PayrollManagement: React.FC = () => {
       overtime_hours: line.overtime_hours,
       overtime_pay: line.overtime_pay,
     });
-    setLineAllowanceItems(presetItems(line.employee_id?.allowances || [], "amount", line.allowances));
-    setLineBenefitItems(presetItems(line.employee_id?.benefits || [], "value", line.benefits));
+    // Prefer the itemized lists saved on the line — they reflect edits,
+    // while the employee record may have changed since generation
+    setLineAllowanceItems(presetItems(line.allowance_items ?? line.employee_id?.allowances ?? [], "amount", line.allowances));
+    setLineBenefitItems(presetItems(line.benefit_items ?? line.employee_id?.benefits ?? [], "value", line.benefits));
     setLineCustomDeductions(
       (line.deductions?.custom || []).map((c: any, i: number) => ({
         key: i,
@@ -1475,6 +1534,14 @@ const PayrollManagement: React.FC = () => {
             basic_salary: values.basic_salary,
             allowances: lineAllowanceItems.reduce((s, d) => s + (d.amount || 0), 0),
             benefits: lineBenefitItems.reduce((s, d) => s + (d.amount || 0), 0),
+            // Itemized lists so the line keeps the item names — the muster
+            // roll turns these into one column per name
+            allowance_items: lineAllowanceItems
+              .filter((d) => d.name && d.amount > 0)
+              .map(({ name, amount }) => ({ name, amount })),
+            benefit_items: lineBenefitItems
+              .filter((d) => d.name && d.amount > 0)
+              .map(({ name, amount }) => ({ name, value: amount })),
             overtime_hours: values.overtime_hours,
             overtime_pay: values.overtime_pay,
             custom_deductions: lineCustomDeductions
@@ -1502,10 +1569,10 @@ const PayrollManagement: React.FC = () => {
     // from the fetched list to get its configured allowance/benefit items
     const emp = (employees || []).find((e: any) => String(e._id) === employeeId);
     setLineAllowanceItems(
-      presetItems(emp?.allowances || [], "amount", existing?.allowances ?? line.allowances)
+      presetItems(line.allowance_items ?? emp?.allowances ?? [], "amount", existing?.allowances ?? line.allowances)
     );
     setLineBenefitItems(
-      presetItems(emp?.benefits || [], "value", existing?.benefits ?? line.benefits)
+      presetItems(line.benefit_items ?? emp?.benefits ?? [], "value", existing?.benefits ?? line.benefits)
     );
     setLineCustomDeductions(
       (existing?.custom_deductions || line.deductions?.custom || []).map((c: any, i: number) => ({
@@ -1528,6 +1595,12 @@ const PayrollManagement: React.FC = () => {
           basic_salary: values.basic_salary,
           allowances: lineAllowanceItems.reduce((s, d) => s + (d.amount || 0), 0),
           benefits: lineBenefitItems.reduce((s, d) => s + (d.amount || 0), 0),
+          allowance_items: lineAllowanceItems
+            .filter((d) => d.name && d.amount > 0)
+            .map(({ name, amount }) => ({ name, amount })),
+          benefit_items: lineBenefitItems
+            .filter((d) => d.name && d.amount > 0)
+            .map(({ name, amount }) => ({ name, value: amount })),
           overtime_hours: values.overtime_hours,
           overtime_pay: values.overtime_pay,
           custom_deductions: lineCustomDeductions
@@ -1543,7 +1616,8 @@ const PayrollManagement: React.FC = () => {
       setLineBenefitItems([]);
       setLineCustomDeductions([]);
       // Re-run the preview so statutory deductions recompute on the new figures
-      runPreview({ ...pendingGenerateParams, overrides });
+      await runPreview({ ...pendingGenerateParams, overrides });
+      message.success("Preview updated with your changes");
     } catch (error) {
       console.error("Validation failed:", error);
     }
@@ -2487,7 +2561,7 @@ const PayrollManagement: React.FC = () => {
                 {
                   key: "paye",
                   title: "PAYE Return",
-                  desc: "KRA iTax PAYE payroll register as CSV — PIN, name, salary breakdown, taxable pay, relief and PAYE tax.",
+                  desc: "KRA iTax PAYE return as comma-delimited CSV — PIN, name, salary breakdown and self-assessed PAYE. Fields the KRA portal calculates (gross, NSSF, taxable pay, relief, PAYE tax) are left blank.",
                   color: "#7c3aed",
                   onClick: () => exportPayeFiling(filingPayrolls, filingEmployeeIds),
                   format: "CSV",
@@ -3591,7 +3665,7 @@ const PayrollManagement: React.FC = () => {
         onOk={handleSaveLine}
         okText="Save Line"
         confirmLoading={updateLineMutation.isLoading}
-        width={isMobile ? "94%" : 560}
+        width={isMobile ? "94%" : 760}
       >
         <Alert
           type="info"
@@ -3617,7 +3691,7 @@ const PayrollManagement: React.FC = () => {
         onOk={handleSavePreviewLine}
         okText="Apply & Re-run Preview"
         confirmLoading={isPreviewing}
-        width={isMobile ? "94%" : 560}
+        width={isMobile ? "94%" : 760}
       >
         <Alert
           type="info"
@@ -3745,7 +3819,7 @@ const PayrollManagement: React.FC = () => {
                   // Employer-side sums from the lines (fallback = matched 1:1)
                   const erSum = (key: string, eeKey: string) =>
                     (selectedPayroll.lines || []).reduce(
-                      (s: number, l: any) => s + (l.deductions?.[key] ?? l.deductions?.[eeKey] ?? 0),
+                      (s: number, l: any) => s + (l.deductions?.[key] || l.deductions?.[eeKey] || 0),
                       0
                     );
                   const nssfEr = erSum("employer_nssf", "nssf");

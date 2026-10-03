@@ -138,9 +138,13 @@ export const PeriodFilter: React.FC<PeriodFilterProps> = ({
 
     const handlePrimaryChange = (range: [Dayjs | null, Dayjs | null]) => {
         setActiveMonths(null);
-        const next = { ...value, primary: range };
+        const normalized: [Dayjs | null, Dayjs | null] = [
+            range?.[0] ? range[0].startOf("day") : null,
+            range?.[1] ? range[1].endOf("day") : null,
+        ];
+        const next = { ...value, primary: normalized };
         if (value.enabled) {
-            const s = suggestComparePeriod(range);
+            const s = suggestComparePeriod(normalized);
             if (s) next.compare = s;
         }
         onChange(next);
@@ -184,7 +188,7 @@ export const PeriodFilter: React.FC<PeriodFilterProps> = ({
                         {value.enabled && (
                             <>
                                 <RangePicker value={value.compare}
-                                    onChange={(r) => onChange({ ...value, compare: r as [Dayjs | null, Dayjs | null] })}
+                                    onChange={(r) => onChange({ ...value, compare: [r?.[0] ? r[0].startOf("day") : null, r?.[1] ? r[1].endOf("day") : null] })}
                                     allowClear={false} format="DD MMM YYYY" presets={antPresets} style={{ borderRadius: 8 }} />
                                 <ShiftChips onShift={shift} />
                             </>
@@ -238,7 +242,7 @@ export const AsOfFilter: React.FC<AsOfFilterProps> = ({
             <Space wrap align="center" size={8}>
                 <FilterOutlined style={{ color: "#8c8c8c" }} />
                 <Text style={{ fontSize: 12, color: "#64748b", fontWeight: 500 }}>As of:</Text>
-                <DatePicker value={value.primary} onChange={(d) => onChange({ ...value, primary: d })}
+                <DatePicker value={value.primary} onChange={(d) => onChange({ ...value, primary: d ? d.endOf("day") : d })}
                     format="DD MMM YYYY" allowClear={false} presets={asOfPresets} style={{ borderRadius: 8 }} />
                 <Button type="primary" icon={<SearchOutlined />} loading={loading} onClick={onRun} style={{ borderRadius: 8 }}>
                     Run Report
@@ -254,7 +258,7 @@ export const AsOfFilter: React.FC<AsOfFilterProps> = ({
                         <Switch size="small" checked={value.enabled} onChange={handleToggle} checkedChildren="ON" unCheckedChildren="OFF" />
                         {value.enabled && (
                             <>
-                                <DatePicker value={value.compare} onChange={(d) => onChange({ ...value, compare: d })}
+                                <DatePicker value={value.compare} onChange={(d) => onChange({ ...value, compare: d ? d.endOf("day") : d })}
                                     format="DD MMM YYYY" allowClear={false} presets={asOfPresets} style={{ borderRadius: 8 }} />
                                 <ShiftChips onShift={shiftCompare} />
                             </>
