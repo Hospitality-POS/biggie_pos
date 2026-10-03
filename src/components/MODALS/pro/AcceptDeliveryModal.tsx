@@ -349,7 +349,7 @@ const AcceptDeliveryModal: React.FC<AcceptDeliveryModalProps> = ({
                         name={[field.name, "quantity"]}
                         label="Quantity"
                         placeholder="Enter quantity"
-                        min={1}
+                        min={0.001}
                         rules={[{ required: true }]}
                       />
                     </Col>

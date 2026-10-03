@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Button, Form, Space } from "antd";
-import { ModalForm, ProFormText, ProForm } from "@ant-design/pro-form";
+import { ModalForm, ProFormText, ProFormSwitch } from "@ant-design/pro-form";
 import { CrownOutlined, EditOutlined } from "@ant-design/icons";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { addNewMainCategory, editMainCategory } from "@services/categories";
@@ -96,9 +96,15 @@ const MainCategoryModal: React.FC<MainCategoryModalProps> = ({
     >
       <ProFormText
         name="name"
-        label="Create New Main Category"
+        label={edit ? "Main Category Name" : "Create New Main Category"}
         rules={[{ required: true, message: "Main Category Name is required" }]}
         placeholder="Enter Main Category Name"
+      />
+      <ProFormSwitch
+        name="list_on_pos"
+        label="Show on POS"
+        tooltip="When off, this main category and its items are hidden from the POS screen."
+        initialValue={edit ? (data?.list_on_pos ?? true) : true}
       />
     </ModalForm>
   );

@@ -110,6 +110,12 @@ const RestaurantPage: React.FC = () => {
     networkMode: "always",
   });
 
+  // Only main categories marked "Show on POS" are browsable on this screen
+  const posMainCategories = useMemo(
+    () => (Maincategories || []).filter((c: any) => c?.list_on_pos !== false),
+    [Maincategories]
+  );
+
   // Filter enabled products and services by search
   useEffect(() => {
     const enabledProducts = (products || []).filter((p: any) => !p?.is_disabled);
@@ -146,14 +152,14 @@ const RestaurantPage: React.FC = () => {
   }, [services, products]);
 
   useEffect(() => {
-    if (Maincategories?.length > 0) {
-      handleChangeMainCategory(Maincategories[0]._id);
+    if (posMainCategories.length > 0) {
+      handleChangeMainCategory(posMainCategories[0]._id);
     }
-  }, [Maincategories]);
+  }, [posMainCategories]);
 
   const handleChangeMainCategory = (idValue: string) => {
-    if (!Maincategories) return;
-    const main = Maincategories.find((c: any) => c._id === idValue);
+    if (!posMainCategories.length) return;
+    const main = posMainCategories.find((c: any) => c._id === idValue);
     if (main) {
       setSelectedMainCategoryId(idValue);
       setSubcategories(main.sub_categories || []);
@@ -246,7 +252,7 @@ const RestaurantPage: React.FC = () => {
           posMode={posMode}
           onModeChange={setPosMode}
           categoriesLoading={mainCategoriesLoading}
-          categories={Maincategories || []}
+          categories={posMainCategories}
           selectedCategoryId={selectedMainCategoryId}
           onSelectCategory={handleChangeMainCategory}
           slotIndicator={
