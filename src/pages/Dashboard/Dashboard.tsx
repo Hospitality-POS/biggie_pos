@@ -37,6 +37,7 @@ import {
   QrcodeOutlined,
   ShareAltOutlined,
   DownOutlined,
+  AndroidOutlined,
 } from "@ant-design/icons";
 import {
   getDashboardAnalysis,
@@ -81,6 +82,9 @@ const getPosMode = (): string => localStorage.getItem("posMode") ?? "service";
 const isHospitalMode = (): boolean => getPosMode() === "hospital";
 const isHotelMode = (): boolean => getPosMode() === "hotel";
 
+// Direct APK download link (DigitalOcean) — scanning the QR opens this URL and downloads the app
+const APP_DOWNLOAD_URL = "https://reliatechdocs.nyc3.digitaloceanspaces.com/APKS/basepoint-on-going.apk";
+
 const PERIOD_LABELS: Record<string, string> = {
   day: "Today",
   week: "This Week",
@@ -106,9 +110,10 @@ interface URLShareModalProps {
   url: string;
   title: string;
   shopLogo?: string;
+  showCopy?: boolean;
 }
 
-const URLShareModal: React.FC<URLShareModalProps> = ({ open, onClose, url, title, shopLogo }) => {
+const URLShareModal: React.FC<URLShareModalProps> = ({ open, onClose, url, title, shopLogo, showCopy = true }) => {
   const [modalMessage, modalContextHolder] = message.useMessage();
   const [activeTab, setActiveTab] = useState("copy");
   const [qrUrl, setQrUrl] = useState(url);
@@ -120,6 +125,7 @@ const URLShareModal: React.FC<URLShareModalProps> = ({ open, onClose, url, title
 
   const [tenantLogo, setTenantLogo] = React.useState<string | undefined>(shopLogo);
   const [tenantName, setTenantName] = React.useState("");
+  const [tenantCode, setTenantCode] = React.useState("");
 
   React.useEffect(() => {
     try {
@@ -127,9 +133,11 @@ const URLShareModal: React.FC<URLShareModalProps> = ({ open, onClose, url, title
       const t = stored ? JSON.parse(stored) : null;
       setTenantLogo(t?.tenant_logo?.url || shopLogo);
       setTenantName(t?.name || "");
+      setTenantCode(t?.tenant_code || "");
     } catch {
       setTenantLogo(shopLogo);
       setTenantName("");
+      setTenantCode("");
     }
   }, [shopLogo, open]);
 
@@ -153,6 +161,56 @@ const URLShareModal: React.FC<URLShareModalProps> = ({ open, onClose, url, title
       modalMessage.success({ content: "QR Code downloaded!", duration: 2 });
     }
   };
+
+  const qrContent = (
+    <Space direction="vertical" align="center" style={{ width: "100%" }} size={16}>
+      <div style={{
+        padding: 20,
+        background: "#fff",
+        borderRadius: 12,
+        border: "1px solid #e2e8f0",
+        display: "inline-flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 10,
+        boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
+      }}>
+        {tenantCode && (
+          <Text style={{ fontSize: 13, fontWeight: 700, letterSpacing: 1, color: "#0f172a" }}>
+            Business Code: {tenantCode}
+          </Text>
+        )}
+        <QRCodeCanvas
+          id="url-qr-canvas"
+          value={qrUrl || " "}
+          size={200}
+          level="H"
+          includeMargin={false}
+          imageSettings={tenantLogo ? {
+            src: tenantLogo,
+            width: 48,
+            height: 48,
+            excavate: true,
+          } : undefined}
+        />
+        {tenantName && (
+          <Text style={{ fontSize: 12, fontWeight: 600, color: "#0f172a", textAlign: "center" }}>
+            {tenantName}
+          </Text>
+        )}
+      </div>
+
+      <Button
+        icon={<DownloadOutlined />}
+        type="primary"
+        onClick={handleDownload}
+        disabled={!qrUrl?.trim()}
+        style={{ minWidth: 180 }}
+      >
+        Download QR Code
+      </Button>
+    </Space>
+  );
 
   const tabItems = [
     {
@@ -189,50 +247,7 @@ const URLShareModal: React.FC<URLShareModalProps> = ({ open, onClose, url, title
           QR Code
         </Space>
       ),
-      children: (
-        <Space direction="vertical" align="center" style={{ width: "100%" }} size={16}>
-          <div style={{
-            padding: 20,
-            background: "#fff",
-            borderRadius: 12,
-            border: "1px solid #e2e8f0",
-            display: "inline-flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 10,
-            boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
-          }}>
-            <QRCodeCanvas
-              id="url-qr-canvas"
-              value={qrUrl || " "}
-              size={200}
-              level="H"
-              includeMargin={false}
-              imageSettings={tenantLogo ? {
-                src: tenantLogo,
-                width: 48,
-                height: 48,
-                excavate: true,
-              } : undefined}
-            />
-            {tenantName && (
-              <Text style={{ fontSize: 12, fontWeight: 600, color: "#0f172a", textAlign: "center" }}>
-                {tenantName}
-              </Text>
-            )}
-          </div>
-
-          <Button
-            icon={<DownloadOutlined />}
-            type="primary"
-            onClick={handleDownload}
-            disabled={!qrUrl?.trim()}
-            style={{ minWidth: 180 }}
-          >
-            Download QR Code
-          </Button>
-        </Space>
-      ),
+      children: qrContent,
     },
   ];
 
@@ -241,7 +256,7 @@ const URLShareModal: React.FC<URLShareModalProps> = ({ open, onClose, url, title
       open={open}
       onCancel={onClose}
       title={
-        <Space size={8}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
           <div style={{
             background: "#eff6ff", borderRadius: 8, padding: "4px 8px",
             color: "#3b82f6", fontSize: 16, lineHeight: 1, display: "inline-flex",
@@ -249,7 +264,7 @@ const URLShareModal: React.FC<URLShareModalProps> = ({ open, onClose, url, title
             <QrcodeOutlined />
           </div>
           <span style={{ fontWeight: 600 }}>{title}</span>
-        </Space>
+        </div>
       }
       footer={null}
       width={480}
@@ -257,7 +272,11 @@ const URLShareModal: React.FC<URLShareModalProps> = ({ open, onClose, url, title
       styles={{ body: { paddingTop: 8 } }}
     >
       {modalContextHolder}
-      <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} size="middle" />
+      {showCopy ? (
+        <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} size="middle" />
+      ) : (
+        qrContent
+      )}
     </Modal>
   );
 };
@@ -278,6 +297,7 @@ const Dashboard: React.FC = () => {
   const [urlModalOpen, setUrlModalOpen] = useState(false);
   const [urlModalTitle, setUrlModalTitle] = useState("");
   const [urlModalUrl, setUrlModalUrl] = useState("");
+  const [urlModalShowCopy, setUrlModalShowCopy] = useState(true);
 
   const shopId = localStorage.getItem("shopId");
 
@@ -400,6 +420,7 @@ const Dashboard: React.FC = () => {
     const staffUrl = `${import.meta.env.VITE_APP_URL}/admin/staff-clock-in?tenant_id=${tenant?._id}&tenant_code=${tenant?.tenant_code}&shop_id=${shopId}`;
     setUrlModalUrl(staffUrl);
     setUrlModalTitle("Staff Clock-In Link & QR");
+    setUrlModalShowCopy(true);
     setUrlModalOpen(true);
   }, [shopId]);
 
@@ -409,8 +430,16 @@ const Dashboard: React.FC = () => {
     const url = `${import.meta.env.VITE_APP_URL}/admin/customers?tenant_id=${tenant?._id}&shop_id=${shopId}`;
     setUrlModalUrl(url);
     setUrlModalTitle(hospital ? "Patient Portal Link & QR" : hotel ? "Hotel Booking Link & QR" : "Customer Order Link & QR");
+    setUrlModalShowCopy(true);
     setUrlModalOpen(true);
   }, [shopId, hospital, hotel]);
+
+  const handleShareAppUrl = useCallback(() => {
+    setUrlModalUrl(APP_DOWNLOAD_URL);
+    setUrlModalTitle("Scan to Download App");
+    setUrlModalShowCopy(false);
+    setUrlModalOpen(true);
+  }, []);
 
   const shareMenuItems: MenuProps["items"] = [
     {
@@ -424,6 +453,12 @@ const Dashboard: React.FC = () => {
       icon: hospital ? <MedicineBoxOutlined /> : hotel ? <HomeOutlined /> : <ShoppingCartOutlined />,
       label: hospital ? "Patient Portal Link & QR" : hotel ? "Hotel Booking Link & QR" : "Customer Order Link & QR",
       onClick: handleCopyCustomerUrl,
+    },
+    {
+      key: "app",
+      icon: <AndroidOutlined />,
+      label: "App Download QR",
+      onClick: handleShareAppUrl,
     },
   ];
 
@@ -465,6 +500,7 @@ const Dashboard: React.FC = () => {
         url={urlModalUrl}
         title={urlModalTitle}
         shopLogo={shopLogo}
+        showCopy={urlModalShowCopy}
       />
 
       {/* ── Mobile Filter Drawer ── */}
