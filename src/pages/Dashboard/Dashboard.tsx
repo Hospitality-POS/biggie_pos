@@ -16,6 +16,8 @@ import {
   Drawer,
   Dropdown,
   Modal,
+  Tabs,
+  Input,
 } from "antd";
 import type { MenuProps } from "antd";
 import {
@@ -28,6 +30,7 @@ import {
   RiseOutlined,
   FilterOutlined,
   ShopOutlined,
+  CopyOutlined,
   MedicineBoxOutlined,
   HomeOutlined,
   DownloadOutlined,
@@ -107,14 +110,17 @@ interface URLShareModalProps {
   url: string;
   title: string;
   shopLogo?: string;
+  showCopy?: boolean;
 }
 
-const URLShareModal: React.FC<URLShareModalProps> = ({ open, onClose, url, title, shopLogo }) => {
+const URLShareModal: React.FC<URLShareModalProps> = ({ open, onClose, url, title, shopLogo, showCopy = true }) => {
   const [modalMessage, modalContextHolder] = message.useMessage();
+  const [activeTab, setActiveTab] = useState("copy");
   const [qrUrl, setQrUrl] = useState(url);
 
   React.useEffect(() => {
     setQrUrl(url);
+    setActiveTab("copy");
   }, [url, open]);
 
   const [tenantLogo, setTenantLogo] = React.useState<string | undefined>(shopLogo);
@@ -135,6 +141,13 @@ const URLShareModal: React.FC<URLShareModalProps> = ({ open, onClose, url, title
     }
   }, [shopLogo, open]);
 
+  const handleCopy = () => {
+    navigator.clipboard
+      .writeText(url)
+      .then(() => modalMessage.success({ content: "URL copied to clipboard!", duration: 2 }))
+      .catch(() => modalMessage.error({ content: "Failed to copy URL", duration: 2 }));
+  };
+
   const handleDownload = () => {
     const canvas = document.getElementById("url-qr-canvas") as HTMLCanvasElement;
     if (canvas) {
@@ -148,6 +161,95 @@ const URLShareModal: React.FC<URLShareModalProps> = ({ open, onClose, url, title
       modalMessage.success({ content: "QR Code downloaded!", duration: 2 });
     }
   };
+
+  const qrContent = (
+    <Space direction="vertical" align="center" style={{ width: "100%" }} size={16}>
+      <div style={{
+        padding: 20,
+        background: "#fff",
+        borderRadius: 12,
+        border: "1px solid #e2e8f0",
+        display: "inline-flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 10,
+        boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
+      }}>
+        {tenantCode && (
+          <Text style={{ fontSize: 13, fontWeight: 700, letterSpacing: 1, color: "#0f172a" }}>
+            Business Code: {tenantCode}
+          </Text>
+        )}
+        <QRCodeCanvas
+          id="url-qr-canvas"
+          value={qrUrl || " "}
+          size={200}
+          level="H"
+          includeMargin={false}
+          imageSettings={tenantLogo ? {
+            src: tenantLogo,
+            width: 48,
+            height: 48,
+            excavate: true,
+          } : undefined}
+        />
+        {tenantName && (
+          <Text style={{ fontSize: 12, fontWeight: 600, color: "#0f172a", textAlign: "center" }}>
+            {tenantName}
+          </Text>
+        )}
+      </div>
+
+      <Button
+        icon={<DownloadOutlined />}
+        type="primary"
+        onClick={handleDownload}
+        disabled={!qrUrl?.trim()}
+        style={{ minWidth: 180 }}
+      >
+        Download QR Code
+      </Button>
+    </Space>
+  );
+
+  const tabItems = [
+    {
+      key: "copy",
+      label: (
+        <Space size={5}>
+          <CopyOutlined />
+          Copy URL
+        </Space>
+      ),
+      children: (
+        <Space direction="vertical" style={{ width: "100%" }} size="middle">
+          <Text type="secondary" style={{ fontSize: 13 }}>
+            Share this link directly with customers or staff.
+          </Text>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Input
+              value={url}
+              readOnly
+              style={{ flex: 1, fontFamily: "monospace", fontSize: 12, background: "#f8fafc" }}
+            />
+            <Button icon={<CopyOutlined />} type="primary" onClick={handleCopy}>
+              Copy
+            </Button>
+          </div>
+        </Space>
+      ),
+    },
+    {
+      key: "qr",
+      label: (
+        <Space size={5}>
+          <QrcodeOutlined />
+          QR Code
+        </Space>
+      ),
+      children: qrContent,
+    },
+  ];
 
   return (
     <Modal
@@ -170,53 +272,11 @@ const URLShareModal: React.FC<URLShareModalProps> = ({ open, onClose, url, title
       styles={{ body: { paddingTop: 8 } }}
     >
       {modalContextHolder}
-      <Space direction="vertical" align="center" style={{ width: "100%" }} size={16}>
-        <div style={{
-          padding: 20,
-          background: "#fff",
-          borderRadius: 12,
-          border: "1px solid #e2e8f0",
-          display: "inline-flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 10,
-          boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
-        }}>
-          {tenantCode && (
-            <Text style={{ fontSize: 13, fontWeight: 700, letterSpacing: 1, color: "#0f172a" }}>
-              Business Code: {tenantCode}
-            </Text>
-          )}
-          <QRCodeCanvas
-            id="url-qr-canvas"
-            value={qrUrl || " "}
-            size={200}
-            level="H"
-            includeMargin={false}
-            imageSettings={tenantLogo ? {
-              src: tenantLogo,
-              width: 48,
-              height: 48,
-              excavate: true,
-            } : undefined}
-          />
-          {tenantName && (
-            <Text style={{ fontSize: 12, fontWeight: 600, color: "#0f172a", textAlign: "center" }}>
-              {tenantName}
-            </Text>
-          )}
-        </div>
-
-        <Button
-          icon={<DownloadOutlined />}
-          type="primary"
-          onClick={handleDownload}
-          disabled={!qrUrl?.trim()}
-          style={{ minWidth: 180 }}
-        >
-          Download QR Code
-        </Button>
-      </Space>
+      {showCopy ? (
+        <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} size="middle" />
+      ) : (
+        qrContent
+      )}
     </Modal>
   );
 };
@@ -237,6 +297,7 @@ const Dashboard: React.FC = () => {
   const [urlModalOpen, setUrlModalOpen] = useState(false);
   const [urlModalTitle, setUrlModalTitle] = useState("");
   const [urlModalUrl, setUrlModalUrl] = useState("");
+  const [urlModalShowCopy, setUrlModalShowCopy] = useState(true);
 
   const shopId = localStorage.getItem("shopId");
 
@@ -359,6 +420,7 @@ const Dashboard: React.FC = () => {
     const staffUrl = `${import.meta.env.VITE_APP_URL}/admin/staff-clock-in?tenant_id=${tenant?._id}&tenant_code=${tenant?.tenant_code}&shop_id=${shopId}`;
     setUrlModalUrl(staffUrl);
     setUrlModalTitle("Staff Clock-In Link & QR");
+    setUrlModalShowCopy(true);
     setUrlModalOpen(true);
   }, [shopId]);
 
@@ -368,12 +430,14 @@ const Dashboard: React.FC = () => {
     const url = `${import.meta.env.VITE_APP_URL}/admin/customers?tenant_id=${tenant?._id}&shop_id=${shopId}`;
     setUrlModalUrl(url);
     setUrlModalTitle(hospital ? "Patient Portal Link & QR" : hotel ? "Hotel Booking Link & QR" : "Customer Order Link & QR");
+    setUrlModalShowCopy(true);
     setUrlModalOpen(true);
   }, [shopId, hospital, hotel]);
 
   const handleShareAppUrl = useCallback(() => {
     setUrlModalUrl(APP_DOWNLOAD_URL);
     setUrlModalTitle("Scan to Download App");
+    setUrlModalShowCopy(false);
     setUrlModalOpen(true);
   }, []);
 
@@ -436,6 +500,7 @@ const Dashboard: React.FC = () => {
         url={urlModalUrl}
         title={urlModalTitle}
         shopLogo={shopLogo}
+        showCopy={urlModalShowCopy}
       />
 
       {/* ── Mobile Filter Drawer ── */}
