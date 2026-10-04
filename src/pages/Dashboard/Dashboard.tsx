@@ -16,8 +16,6 @@ import {
   Drawer,
   Dropdown,
   Modal,
-  Tabs,
-  Input,
 } from "antd";
 import type { MenuProps } from "antd";
 import {
@@ -30,13 +28,13 @@ import {
   RiseOutlined,
   FilterOutlined,
   ShopOutlined,
-  CopyOutlined,
   MedicineBoxOutlined,
   HomeOutlined,
   DownloadOutlined,
   QrcodeOutlined,
   ShareAltOutlined,
   DownOutlined,
+  AndroidOutlined,
 } from "@ant-design/icons";
 import {
   getDashboardAnalysis,
@@ -81,6 +79,9 @@ const getPosMode = (): string => localStorage.getItem("posMode") ?? "service";
 const isHospitalMode = (): boolean => getPosMode() === "hospital";
 const isHotelMode = (): boolean => getPosMode() === "hotel";
 
+// Direct APK download link (DigitalOcean) — scanning the QR opens this URL and downloads the app
+const APP_DOWNLOAD_URL = "https://reliatechdocs.nyc3.digitaloceanspaces.com/APKS/basepoint-on-going.apk";
+
 const PERIOD_LABELS: Record<string, string> = {
   day: "Today",
   week: "This Week",
@@ -110,16 +111,15 @@ interface URLShareModalProps {
 
 const URLShareModal: React.FC<URLShareModalProps> = ({ open, onClose, url, title, shopLogo }) => {
   const [modalMessage, modalContextHolder] = message.useMessage();
-  const [activeTab, setActiveTab] = useState("copy");
   const [qrUrl, setQrUrl] = useState(url);
 
   React.useEffect(() => {
     setQrUrl(url);
-    setActiveTab("copy");
   }, [url, open]);
 
   const [tenantLogo, setTenantLogo] = React.useState<string | undefined>(shopLogo);
   const [tenantName, setTenantName] = React.useState("");
+  const [tenantCode, setTenantCode] = React.useState("");
 
   React.useEffect(() => {
     try {
@@ -127,18 +127,13 @@ const URLShareModal: React.FC<URLShareModalProps> = ({ open, onClose, url, title
       const t = stored ? JSON.parse(stored) : null;
       setTenantLogo(t?.tenant_logo?.url || shopLogo);
       setTenantName(t?.name || "");
+      setTenantCode(t?.tenant_code || "");
     } catch {
       setTenantLogo(shopLogo);
       setTenantName("");
+      setTenantCode("");
     }
   }, [shopLogo, open]);
-
-  const handleCopy = () => {
-    navigator.clipboard
-      .writeText(url)
-      .then(() => modalMessage.success({ content: "URL copied to clipboard!", duration: 2 }))
-      .catch(() => modalMessage.error({ content: "Failed to copy URL", duration: 2 }));
-  };
 
   const handleDownload = () => {
     const canvas = document.getElementById("url-qr-canvas") as HTMLCanvasElement;
@@ -154,94 +149,12 @@ const URLShareModal: React.FC<URLShareModalProps> = ({ open, onClose, url, title
     }
   };
 
-  const tabItems = [
-    {
-      key: "copy",
-      label: (
-        <Space size={5}>
-          <CopyOutlined />
-          Copy URL
-        </Space>
-      ),
-      children: (
-        <Space direction="vertical" style={{ width: "100%" }} size="middle">
-          <Text type="secondary" style={{ fontSize: 13 }}>
-            Share this link directly with customers or staff.
-          </Text>
-          <div style={{ display: "flex", gap: 8 }}>
-            <Input
-              value={url}
-              readOnly
-              style={{ flex: 1, fontFamily: "monospace", fontSize: 12, background: "#f8fafc" }}
-            />
-            <Button icon={<CopyOutlined />} type="primary" onClick={handleCopy}>
-              Copy
-            </Button>
-          </div>
-        </Space>
-      ),
-    },
-    {
-      key: "qr",
-      label: (
-        <Space size={5}>
-          <QrcodeOutlined />
-          QR Code
-        </Space>
-      ),
-      children: (
-        <Space direction="vertical" align="center" style={{ width: "100%" }} size={16}>
-          <div style={{
-            padding: 20,
-            background: "#fff",
-            borderRadius: 12,
-            border: "1px solid #e2e8f0",
-            display: "inline-flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 10,
-            boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
-          }}>
-            <QRCodeCanvas
-              id="url-qr-canvas"
-              value={qrUrl || " "}
-              size={200}
-              level="H"
-              includeMargin={false}
-              imageSettings={tenantLogo ? {
-                src: tenantLogo,
-                width: 48,
-                height: 48,
-                excavate: true,
-              } : undefined}
-            />
-            {tenantName && (
-              <Text style={{ fontSize: 12, fontWeight: 600, color: "#0f172a", textAlign: "center" }}>
-                {tenantName}
-              </Text>
-            )}
-          </div>
-
-          <Button
-            icon={<DownloadOutlined />}
-            type="primary"
-            onClick={handleDownload}
-            disabled={!qrUrl?.trim()}
-            style={{ minWidth: 180 }}
-          >
-            Download QR Code
-          </Button>
-        </Space>
-      ),
-    },
-  ];
-
   return (
     <Modal
       open={open}
       onCancel={onClose}
       title={
-        <Space size={8}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
           <div style={{
             background: "#eff6ff", borderRadius: 8, padding: "4px 8px",
             color: "#3b82f6", fontSize: 16, lineHeight: 1, display: "inline-flex",
@@ -249,7 +162,7 @@ const URLShareModal: React.FC<URLShareModalProps> = ({ open, onClose, url, title
             <QrcodeOutlined />
           </div>
           <span style={{ fontWeight: 600 }}>{title}</span>
-        </Space>
+        </div>
       }
       footer={null}
       width={480}
@@ -257,7 +170,53 @@ const URLShareModal: React.FC<URLShareModalProps> = ({ open, onClose, url, title
       styles={{ body: { paddingTop: 8 } }}
     >
       {modalContextHolder}
-      <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} size="middle" />
+      <Space direction="vertical" align="center" style={{ width: "100%" }} size={16}>
+        <div style={{
+          padding: 20,
+          background: "#fff",
+          borderRadius: 12,
+          border: "1px solid #e2e8f0",
+          display: "inline-flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 10,
+          boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
+        }}>
+          {tenantCode && (
+            <Text style={{ fontSize: 13, fontWeight: 700, letterSpacing: 1, color: "#0f172a" }}>
+              Business Code: {tenantCode}
+            </Text>
+          )}
+          <QRCodeCanvas
+            id="url-qr-canvas"
+            value={qrUrl || " "}
+            size={200}
+            level="H"
+            includeMargin={false}
+            imageSettings={tenantLogo ? {
+              src: tenantLogo,
+              width: 48,
+              height: 48,
+              excavate: true,
+            } : undefined}
+          />
+          {tenantName && (
+            <Text style={{ fontSize: 12, fontWeight: 600, color: "#0f172a", textAlign: "center" }}>
+              {tenantName}
+            </Text>
+          )}
+        </div>
+
+        <Button
+          icon={<DownloadOutlined />}
+          type="primary"
+          onClick={handleDownload}
+          disabled={!qrUrl?.trim()}
+          style={{ minWidth: 180 }}
+        >
+          Download QR Code
+        </Button>
+      </Space>
     </Modal>
   );
 };
@@ -412,6 +371,12 @@ const Dashboard: React.FC = () => {
     setUrlModalOpen(true);
   }, [shopId, hospital, hotel]);
 
+  const handleShareAppUrl = useCallback(() => {
+    setUrlModalUrl(APP_DOWNLOAD_URL);
+    setUrlModalTitle("Scan to Download App");
+    setUrlModalOpen(true);
+  }, []);
+
   const shareMenuItems: MenuProps["items"] = [
     {
       key: "staff",
@@ -424,6 +389,12 @@ const Dashboard: React.FC = () => {
       icon: hospital ? <MedicineBoxOutlined /> : hotel ? <HomeOutlined /> : <ShoppingCartOutlined />,
       label: hospital ? "Patient Portal Link & QR" : hotel ? "Hotel Booking Link & QR" : "Customer Order Link & QR",
       onClick: handleCopyCustomerUrl,
+    },
+    {
+      key: "app",
+      icon: <AndroidOutlined />,
+      label: "App Download QR",
+      onClick: handleShareAppUrl,
     },
   ];
 
