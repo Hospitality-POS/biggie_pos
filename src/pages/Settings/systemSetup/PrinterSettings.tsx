@@ -100,8 +100,16 @@ const PrinterSettings: React.FC = () => {
     setTestLoading(agentId);
     setTestResult((prev) => ({ ...prev, [agentId]: null }));
     try {
+      const agent = agents.find((a) => a.agent_id === agentId);
       const assignedCats = getCategoriesForAgent(agentId);
-      const categoryName = assignedCats.length > 0 ? assignedCats[0] : "test";
+      // Location-mode agents match jobs by their zone (the location name), so
+      // route the test print through it directly.
+      const categoryName =
+        agent?.routing_mode === "location" && agent.zone
+          ? agent.zone
+          : assignedCats.length > 0
+            ? assignedCats[0]
+            : "test";
       console.log(`[test print] Using category name: ${categoryName} for agent ${agentId}`);
       const result = await sendPrintJob({
         shop_id: shopId,
@@ -397,6 +405,7 @@ const PrinterSettings: React.FC = () => {
                 rowKey="agent_id"
                 renderItem={(agent) => {
                   const key = agent.agent_id;
+                  const isLocationAgent = agent.routing_mode === "location";
                   const result = testResult[key];
                   const assignedCats = getCategoriesForAgent(key);
                   const actionNodes = [
@@ -442,6 +451,14 @@ const PrinterSettings: React.FC = () => {
                             <Tag color="blue" style={{ borderRadius: 4, fontSize: 11 }}>
                               Online
                             </Tag>
+                            <Tag
+                              color={isLocationAgent ? "purple" : "default"}
+                              style={{ borderRadius: 4, fontSize: 11 }}
+                            >
+                              {isLocationAgent
+                                ? `Location: ${(agent.zones?.length ? agent.zones : [agent.zone]).join(", ")}`
+                                : `Category: ${(agent.zones?.length ? agent.zones : [agent.zone]).join(", ")}`}
+                            </Tag>
                           </Space>
                         }
                         description={
@@ -450,6 +467,13 @@ const PrinterSettings: React.FC = () => {
                               Shop: {agent.shop_id}
                             </Text>
                             <div style={{ marginTop: 8 }}>
+                              {isLocationAgent ? (
+                                <Text style={{ fontSize: 11, color: C.subText }}>
+                                  Routes all jobs from location "{agent.zone}" — no category
+                                  assignment needed.
+                                </Text>
+                              ) : (
+                                <>
                               <Text style={{ fontSize: 11, color: C.subText, display: "block", marginBottom: 4 }}>
                                 Assigned Categories:
                               </Text>
@@ -519,6 +543,8 @@ const PrinterSettings: React.FC = () => {
                                   </Button>
                                 )}
                               </div>
+                                </>
+                              )}
                             </div>
                             {isMobile && (
                               <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
