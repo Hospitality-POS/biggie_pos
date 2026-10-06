@@ -537,6 +537,12 @@ const PayslipView: React.FC = () => {
     p.employee_id?.employment_type === "consultant" ||
     ((p.deductions as any)?.withholding_tax || 0) > 0;
 
+  // Named allowance items show with an "Allowance" suffix (e.g. "Airtime" ->
+  // "Airtime Allowance") unless the name already ends with it. Benefits keep
+  // their bare name — only allowances get the suffix.
+  const withAllowanceSuffix = (name: string) =>
+    /allowance$/i.test(name.trim()) ? name : `${name} Allowance`;
+
   // Expand a lumped earnings total into one row per named item — prefers the
   // payslip's own snapshot (payroll-line items), falls back to the employee
   // record, and keeps any unmatched remainder as a generic "Other" row.
@@ -552,10 +558,10 @@ const PayslipView: React.FC = () => {
     const src = items?.length ? items : empItems || [];
     const rows = src
       .filter((it) => Number(it?.[field]) > 0)
-      .map((it) => ({
-        label: String(it.name || it.allowance_type || it.benefit_type || label),
-        value: Number(it[field]) || 0,
-      }));
+      .map((it) => {
+        const name = String(it.name || it.allowance_type || it.benefit_type || label);
+        return { label: label === "Allowance" ? withAllowanceSuffix(name) : name, value: Number(it[field]) || 0 };
+      });
     const sum = rows.reduce((s, r) => s + r.value, 0);
     const residual = Math.round((t - sum) * 100) / 100;
     if (residual > 0) rows.push({ label: rows.length ? `Other ${label}s` : `${label}s`, value: residual });
@@ -577,8 +583,10 @@ const PayslipView: React.FC = () => {
       if (Array.isArray(line) && line.length) return line;
       return ((p.employee_id as any)?.[empField]) || [];
     };
-    const labelOf = (it: any) =>
-      it?.name || it?.allowance_type || it?.benefit_type || label;
+    const labelOf = (it: any) => {
+      const name = it?.name || it?.allowance_type || it?.benefit_type || label;
+      return label === "Allowance" ? withAllowanceSuffix(String(name)) : String(name);
+    };
     const names = Array.from(
       new Set(
         payslips.flatMap((p: Payslip) =>

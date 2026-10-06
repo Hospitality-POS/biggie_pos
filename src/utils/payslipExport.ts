@@ -53,6 +53,12 @@ const payslipRows = (p: any) => {
     ['Department', departmentName(p)],
   ];
 
+  // Named allowance items show with an "Allowance" suffix (e.g. "Airtime" ->
+  // "Airtime Allowance") unless the name already ends with it. Benefits keep
+  // their bare name — only allowances get the suffix.
+  const withAllowanceSuffix = (name: string) =>
+    /allowance$/i.test(name.trim()) ? name : `${name} Allowance`;
+
   // Itemize named allowance/benefit entries — prefer the payslip's own
   // snapshot (earnings.allowance_items / benefit_items, copied from the
   // payroll line), falling back to the employee record for older payslips.
@@ -74,7 +80,8 @@ const payslipRows = (p: any) => {
     const itemsSum = items
       .filter((it: any) => Number(it?.[field]) > 0)
       .map((it: any) => {
-        rows.push([String(it.name || it.allowance_type || it.benefit_type || label), fmt(it[field])]);
+        const name = String(it.name || it.allowance_type || it.benefit_type || label);
+        rows.push([label === 'Allowance' ? withAllowanceSuffix(name) : name, fmt(it[field])]);
         return Number(it[field]) || 0;
       })
       .reduce((s, v) => s + v, 0);
