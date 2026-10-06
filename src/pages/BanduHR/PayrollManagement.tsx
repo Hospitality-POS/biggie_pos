@@ -53,6 +53,7 @@ import {
   DownloadOutlined,
   ExpandOutlined,
   CompressOutlined,
+  UserOutlined,
 } from "@ant-design/icons";
 import { exportPayrollToExcel, exportPayrollToPDF, exportPayrollsToExcel, exportPayrollsToPDF, exportNssfFiling, exportShifFiling, exportPayeFiling } from "@utils/payrollExport";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -80,6 +81,7 @@ import {
   GeneratePayrollParams,
   PayrollPreviewResult,
   fetchEmployees,
+  updateEmployee,
 } from "@services/bandu";
 import dayjs from "dayjs";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
@@ -219,11 +221,21 @@ const PayrollManagement: React.FC = () => {
   const [lineBenefitItems, setLineBenefitItems] = useState<
     Array<{ key: number; name: string; amount: number; basis?: number }>
   >([]);
+  // Pension/insurance override — this run only, layered on the employee's
+  // own record (mirrors the Pension & Insurance step on the employee form)
+  const [lineHasInsurance, setLineHasInsurance] = useState(false);
 
   // Preview-line edit — per-employee overrides recomputed server-side
   const [isPreviewLineModalOpen, setIsPreviewLineModalOpen] = useState(false);
   const [editingPreviewLine, setEditingPreviewLine] = useState<any>(null);
   const [previewOverrides, setPreviewOverrides] = useState<Record<string, any>>({});
+
+  // Quick employee-record edit — lets a draft payroll's department/job title
+  // be fixed without leaving the payroll screen (payroll figures stay on the
+  // line edit modal above; this only touches the employee's own record)
+  const [isEmployeeQuickEditOpen, setIsEmployeeQuickEditOpen] = useState(false);
+  const [quickEditEmployee, setQuickEditEmployee] = useState<any>(null);
+  const [employeeQuickEditForm] = Form.useForm();
 
   // Configured deduction types — custom entries (loans, advances…) persist here
   const { data: deductionConfigs } = useQuery({
@@ -602,6 +614,26 @@ const PayrollManagement: React.FC = () => {
         return <Tag color={cfg.color}>{cfg.label}</Tag>;
       },
     },
+    {
+      title: "",
+      key: "actions",
+      width: 40,
+      render: (_: any, l: any) =>
+        l._payroll?.status === "draft" && canUpdatePayroll ? (
+          <Tooltip title="Edit line — salary, allowances, deductions">
+            <Button
+              type="text"
+              size="small"
+              icon={<EditOutlined style={{ color: primaryColor }} />}
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedPayroll(l._payroll);
+                openLineModal(l);
+              }}
+            />
+          </Tooltip>
+        ) : null,
+    },
   ];
 
   // Generate payroll mutation
@@ -703,6 +735,47 @@ const PayrollManagement: React.FC = () => {
     },
   });
 
+  // Quick employee-record edit mutation — Department/Job Title only, so a
+  // draft payroll's employee record can be fixed without leaving this page
+  const updateEmployeeQuickMutation = useMutation({
+    mutationFn: ({ employeeId, params }: { employeeId: string; params: Record<string, any> }) =>
+      updateEmployee(employeeId, params),
+    onSuccess: async () => {
+      setIsEmployeeQuickEditOpen(false);
+      setQuickEditEmployee(null);
+      employeeQuickEditForm.resetFields();
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
+      if (selectedPayroll) {
+        const fresh = await getPayrollById(selectedPayroll._id);
+        setSelectedPayroll(fresh?.data || selectedPayroll);
+      }
+    },
+  });
+
+  const openEmployeeQuickEdit = (line: any) => {
+    const emp = line.employee_id;
+    if (!emp || typeof emp !== "object") return;
+    setQuickEditEmployee(emp);
+    employeeQuickEditForm.setFieldsValue({
+      department_id: emp.department_id?._id || emp.department_id,
+      job_title: emp.job_title,
+    });
+    setIsEmployeeQuickEditOpen(true);
+  };
+
+  const handleSaveEmployeeQuickEdit = async () => {
+    try {
+      const values = await employeeQuickEditForm.validateFields();
+      if (!quickEditEmployee) return;
+      await updateEmployeeQuickMutation.mutateAsync({
+        employeeId: quickEditEmployee._id,
+        params: values,
+      });
+    } catch (error) {
+      // Error handled by mutation / validation
+    }
+  };
+
   // Delete payroll mutation
   const deleteMutation = useMutation({
     mutationFn: (payrollId: string) => deletePayroll(payrollId),
@@ -742,6 +815,7 @@ const PayrollManagement: React.FC = () => {
       paye_bracket3_limit: 500000,
       paye_bracket3_rate: 30,
       paye_bracket4_rate: 35,
+      paye_pwd_exemption_limit: 150000,
       // SHA — 2.75% of gross, no cap (replaced NHIF)
       sha_enabled: true,
       sha_employee_rate: 2.75,
@@ -891,8 +965,9 @@ const PayrollManagement: React.FC = () => {
   // Per-employee bulk action (Employees view) — group the selected payroll
   // lines by their parent payroll and act on each subset so unselected
   // employees in the same payroll are never touched.
-  const runLineBulk = async (action: "delete" | "approve" | "submit") => {
-    const label = action === "delete" ? "Delete" : action === "approve" ? "Approve" : "Submit";
+  const runLineBulk = async (action: "delete" | "approve" | "submit" | "revert") => {
+    const label =
+      action === "delete" ? "Delete" : action === "approve" ? "Approve" : action === "revert" ? "Return to drafts" : "Submit";
     setBulkBusy(true);
     try {
       const byPayroll = new Map<string, Set<string>>();
@@ -1173,9 +1248,23 @@ const PayrollManagement: React.FC = () => {
 
   // Shared line-edit form — used by the draft line modal and the preview edit modal
   const renderLineEditForm = () => {
-    const configuredCustoms = (deductionConfigs || []).filter(
-      (c: any) => c.deduction_type === "CUSTOM" && c.is_active !== false
-    );
+    const helbConfig = (deductionConfigs || []).find((c: any) => c.deduction_type === "HELB");
+    const configuredCustoms = [
+      ...(deductionConfigs || []).filter(
+        (c: any) => c.deduction_type === "CUSTOM" && c.is_active !== false
+      ),
+      // HELB isn't a "CUSTOM" config, but repayments are stored in the same
+      // deductions.custom bucket (see banduDeductionService) — list it here
+      // too so it can be added/overridden for just this employee/period,
+      // even when the employee has no helb_amount set on their record.
+      ...(helbConfig && helbConfig.is_active !== false
+        ? [{
+            name: "HELB",
+            calculation_method: "fixed",
+            fixed_amount: helbConfig.fixed_amount || 0,
+          }]
+        : []),
+    ];
     // Options = the predefined types of this kind (from payroll settings) +
     // the employee's own items — the line stores just the summed total
     const editedLine = editingLine || editingPreviewLine;
@@ -1212,8 +1301,11 @@ const PayrollManagement: React.FC = () => {
     const lineBasic = Number(lineForm.getFieldValue("basic_salary")) || Number(editedLine?.basic_salary) || 0;
 
     // Basis (rent / asset value) a computed benefit was likely derived from —
-    // lets seeded rows show their underlying input instead of just the amount
+    // lets seeded rows show their underlying input instead of just the amount.
+    // No amount yet (fresh row) → undefined, so the input shows its
+    // placeholder ("Asset value" / "Monthly rent") instead of a bare "0".
     const deriveBasis = (type: BenefitTypeDefault, amount: number): number | undefined => {
+      if (!amount) return undefined;
       if (type.mode === "percent_of_value") {
         return type.percent ? Math.round((amount * 100) / type.percent) : undefined;
       }
@@ -1322,7 +1414,7 @@ const PayrollManagement: React.FC = () => {
               <InputNumber
                 min={0}
                 placeholder="Amount"
-                value={it.amount}
+                value={it.amount || undefined}
                 style={{ width: "100%" }}
                 addonBefore="KES"
                 disabled={isComputed}
@@ -1387,6 +1479,80 @@ const PayrollManagement: React.FC = () => {
           </Col>
         </Row>
 
+        <Divider style={{ margin: "8px 0 12px" }}>
+          <Text style={{ fontSize: 11, color: "#64748b", textTransform: "uppercase" }}>
+            Pension & Insurance — this run only
+          </Text>
+        </Divider>
+        <Row gutter={12}>
+          <Col span={12}>
+            <Form.Item
+              name="pension_contribution"
+              label="Pension Contribution (Monthly)"
+              tooltip="Pre-tax deduction — only the first KES 20,000/month is deductible. Defaults to the employee's own record; overriding it here applies to this payroll run only."
+            >
+              <InputNumber min={0} style={{ width: "100%" }} addonBefore="KES" placeholder="From employee record" />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item
+              name="has_insurance_policy"
+              label="Insurance Policy"
+              tooltip="Life/education/health policy premiums attract 15% PAYE relief, capped at KES 5,000/month"
+            >
+              <Select
+                allowClear
+                placeholder="From employee record"
+                onChange={(v) => setLineHasInsurance(!!v)}
+                options={[
+                  { value: true, label: "Yes" },
+                  { value: false, label: "No" },
+                ]}
+              />
+            </Form.Item>
+          </Col>
+        </Row>
+        {lineHasInsurance && (
+          <Row gutter={12}>
+            <Col span={12}>
+              <Form.Item name={["insurance_policy", "provider"]} label="Insurance Provider">
+                <Input placeholder="e.g., Britam, Jubilee, APA" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name={["insurance_policy", "policy_number"]} label="Policy Number">
+                <Input placeholder="Policy number" />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name={["insurance_policy", "start_date"]} label="Contribution Start Date">
+                <DatePicker style={{ width: "100%" }} />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name={["insurance_policy", "contribution_amount"]} label="Contribution Amount">
+                <InputNumber min={0} style={{ width: "100%" }} addonBefore="KES" />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item
+                name={["insurance_policy", "frequency"]}
+                label="Contribution Frequency"
+                initialValue="monthly"
+              >
+                <Select
+                  options={[
+                    { value: "monthly", label: "Monthly" },
+                    { value: "quarterly", label: "Quarterly" },
+                    { value: "semi_annually", label: "Semi-Annually" },
+                    { value: "annually", label: "Annually" },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+        )}
+
         {itemsEditor(
           "Allowances",
           "pick predefined types — multiple allowed",
@@ -1414,14 +1580,26 @@ const PayrollManagement: React.FC = () => {
               <AutoComplete
                 style={{ width: "100%" }}
                 allowClear
-                placeholder="Deduction name — pick configured or type custom"
+                placeholder="Pick configured or type custom"
                 value={ded.name}
-                options={configuredCustoms.map((c: any) => ({ value: c.name }))}
+                options={[
+                  { value: "__custom__", label: "＋ Custom — type your own name" },
+                  ...configuredCustoms.map((c: any) => ({ value: c.name })),
+                ]}
                 getPopupContainer={(node) => node.parentElement as HTMLElement}
                 filterOption={(input, option) =>
+                  option?.value === "__custom__" ||
                   String(option?.value ?? "").toLowerCase().includes(input.toLowerCase())
                 }
                 onChange={(v) => {
+                  // "＋ Custom" pseudo-option — clear the field so the typed
+                  // free-text name becomes the deduction's name
+                  if (v === "__custom__") {
+                    setLineCustomDeductions(
+                      lineCustomDeductions.map((d) => (d.key === ded.key ? { ...d, name: "" } : d))
+                    );
+                    return;
+                  }
                   const cfg = configuredCustoms.find((c: any) => c.name === v);
                   setLineCustomDeductions(
                     lineCustomDeductions.map((d) =>
@@ -1447,7 +1625,7 @@ const PayrollManagement: React.FC = () => {
               <InputNumber
                 min={0}
                 placeholder="Amount"
-                value={ded.amount}
+                value={ded.amount || undefined}
                 style={{ width: "100%" }}
                 addonBefore="KES"
                 onChange={(v) =>
@@ -1503,11 +1681,18 @@ const PayrollManagement: React.FC = () => {
   // Open line edit modal (draft payrolls)
   const openLineModal = (line: any) => {
     setEditingLine(line);
+    const emp = line.employee_id;
     lineForm.setFieldsValue({
       basic_salary: line.basic_salary,
       overtime_hours: line.overtime_hours,
       overtime_pay: line.overtime_pay,
+      pension_contribution: emp?.pension_contribution,
+      has_insurance_policy: !!emp?.has_insurance_policy,
+      insurance_policy: emp?.insurance_policy
+        ? { ...emp.insurance_policy, start_date: emp.insurance_policy.start_date ? dayjs(emp.insurance_policy.start_date) : null }
+        : undefined,
     });
+    setLineHasInsurance(!!emp?.has_insurance_policy);
     // Prefer the itemized lists saved on the line — they reflect edits,
     // while the employee record may have changed since generation
     setLineAllowanceItems(presetItems(line.allowance_items ?? line.employee_id?.allowances ?? [], "amount", line.allowances));
@@ -1547,6 +1732,17 @@ const PayrollManagement: React.FC = () => {
             custom_deductions: lineCustomDeductions
               .filter((d) => d.name && d.amount > 0)
               .map(({ name, amount }) => ({ name, amount })),
+            pension_contribution: values.pension_contribution || 0,
+            has_insurance_policy: !!values.has_insurance_policy,
+            insurance_policy: values.has_insurance_policy
+              ? {
+                  ...values.insurance_policy,
+                  start_date:
+                    values.insurance_policy?.start_date && dayjs.isDayjs(values.insurance_policy.start_date)
+                      ? values.insurance_policy.start_date.toISOString()
+                      : values.insurance_policy?.start_date,
+                }
+              : undefined,
           },
         },
       });
@@ -1560,14 +1756,22 @@ const PayrollManagement: React.FC = () => {
     const employeeId = String(line.employee_id?._id || line.employee_id);
     const existing = previewOverrides[employeeId];
     setEditingPreviewLine(line);
+    // Preview lines carry the bare employee id — resolve the full employee
+    // from the fetched list to get its configured allowance/benefit items
+    const emp = (employees || []).find((e: any) => String(e._id) === employeeId);
+    const existingInsurance = existing?.has_insurance_policy !== undefined ? existing.has_insurance_policy : !!emp?.has_insurance_policy;
     lineForm.setFieldsValue({
       basic_salary: existing?.basic_salary ?? line.basic_salary,
       overtime_hours: existing?.overtime_hours ?? line.overtime_hours,
       overtime_pay: existing?.overtime_pay ?? line.overtime_pay,
+      pension_contribution: existing?.pension_contribution ?? emp?.pension_contribution,
+      has_insurance_policy: existingInsurance,
+      insurance_policy: (() => {
+        const p = existing?.insurance_policy ?? emp?.insurance_policy;
+        return p ? { ...p, start_date: p.start_date ? dayjs(p.start_date) : null } : undefined;
+      })(),
     });
-    // Preview lines carry the bare employee id — resolve the full employee
-    // from the fetched list to get its configured allowance/benefit items
-    const emp = (employees || []).find((e: any) => String(e._id) === employeeId);
+    setLineHasInsurance(!!existingInsurance);
     setLineAllowanceItems(
       presetItems(line.allowance_items ?? emp?.allowances ?? [], "amount", existing?.allowances ?? line.allowances)
     );
@@ -1606,6 +1810,17 @@ const PayrollManagement: React.FC = () => {
           custom_deductions: lineCustomDeductions
             .filter((d) => d.name && d.amount > 0)
             .map(({ name, amount }) => ({ name, amount })),
+          pension_contribution: values.pension_contribution || 0,
+          has_insurance_policy: !!values.has_insurance_policy,
+          insurance_policy: values.has_insurance_policy
+            ? {
+                ...values.insurance_policy,
+                start_date:
+                  values.insurance_policy?.start_date && dayjs.isDayjs(values.insurance_policy.start_date)
+                    ? values.insurance_policy.start_date.toISOString()
+                    : values.insurance_policy?.start_date,
+              }
+            : undefined,
         },
       };
       setPreviewOverrides(overrides);
@@ -1615,6 +1830,7 @@ const PayrollManagement: React.FC = () => {
       setLineAllowanceItems([]);
       setLineBenefitItems([]);
       setLineCustomDeductions([]);
+      setLineHasInsurance(false);
       // Re-run the preview so statutory deductions recompute on the new figures
       await runPreview({ ...pendingGenerateParams, overrides });
       message.success("Preview updated with your changes");
@@ -2247,17 +2463,31 @@ const PayrollManagement: React.FC = () => {
                         Approve
                       </Button>
                     )}
-                    {allSelectedRevertible && canApprovePayroll && (
-                      <Button
-                        size="small"
-                        danger
-                        icon={<CloseCircleOutlined />}
-                        loading={bulkBusy}
-                        onClick={handleBulkReject}
-                      >
-                        Return to Drafts
-                      </Button>
-                    )}
+                    {(payrollView === "employees"
+                      ? allSelectedStatus("pending_approval", "approved")
+                      : allSelectedRevertible) &&
+                      canApprovePayroll && (
+                        <Button
+                          size="small"
+                          danger
+                          icon={<CloseCircleOutlined />}
+                          loading={bulkBusy}
+                          onClick={() =>
+                            payrollView === "employees"
+                              ? Modal.confirm({
+                                  title: `Return ${selectedLineKeys.length} selected employee(s) to drafts?`,
+                                  content:
+                                    "Only the selected employees will be reverted — if their payroll has other employees, those stay approved and untouched. The reverted employee(s) land in a new draft payroll you can amend and re-approve individually.",
+                                  okText: "Return to Drafts",
+                                  okButtonProps: { danger: true },
+                                  onOk: () => runLineBulk("revert"),
+                                })
+                              : handleBulkReject()
+                          }
+                        >
+                          Return to Drafts
+                        </Button>
+                      )}
                     {allSelectedDraft && canUpdatePayroll && (
                       <Button
                         size="small"
@@ -2823,9 +3053,26 @@ const PayrollManagement: React.FC = () => {
                         />
                       </Form.Item>
                     </Col>
+                    <Col span={12}>
+                      <Form.Item
+                        name="paye_pwd_exemption_limit"
+                        label="PWD Exemption Limit (KES/month)"
+                        initialValue={150000}
+                        tooltip="Monthly taxable pay exempted from PAYE for employees with a valid NCPWD certificate. PAYE is only computed on the excess above this amount."
+                        rules={[{ required: true, message: "Required" }]}
+                      >
+                        <InputNumber
+                          min={0}
+                          style={{ width: "100%" }}
+                          addonBefore="KES"
+                        />
+                      </Form.Item>
+                    </Col>
                   </Row>
                   <Text type="secondary" style={{ fontSize: 12 }}>
                     PAYE tax brackets based on current KRA regulations. Personal relief is deducted from taxable income.
+                    Employees marked as PWD (with a valid certificate) are exempt from PAYE on the first
+                    "PWD Exemption Limit" of taxable pay — tax is computed only on the amount above it.
                   </Text>
                 </Form>
               </Tabs.TabPane>
@@ -3661,6 +3908,7 @@ const PayrollManagement: React.FC = () => {
           setLineAllowanceItems([]);
           setLineBenefitItems([]);
           setLineCustomDeductions([]);
+          setLineHasInsurance(false);
         }}
         onOk={handleSaveLine}
         okText="Save Line"
@@ -3687,6 +3935,7 @@ const PayrollManagement: React.FC = () => {
           setLineAllowanceItems([]);
           setLineBenefitItems([]);
           setLineCustomDeductions([]);
+          setLineHasInsurance(false);
         }}
         onOk={handleSavePreviewLine}
         okText="Apply & Re-run Preview"
@@ -3916,14 +4165,89 @@ const PayrollManagement: React.FC = () => {
                         {
                           title: "",
                           key: "edit",
+                          width: 70,
+                          render: (_: any, line: any) => (
+                            <Space size={0}>
+                              <Tooltip title="Edit line — salary, allowances, deductions">
+                                <Button
+                                  type="text"
+                                  size="small"
+                                  icon={<EditOutlined style={{ color: primaryColor }} />}
+                                  onClick={() => openLineModal(line)}
+                                />
+                              </Tooltip>
+                              <Tooltip title="Edit employee record — department, job title">
+                                <Button
+                                  type="text"
+                                  size="small"
+                                  icon={<UserOutlined style={{ color: primaryColor }} />}
+                                  onClick={() => openEmployeeQuickEdit(line)}
+                                />
+                              </Tooltip>
+                            </Space>
+                          ),
+                        },
+                      ]
+                    : []),
+                  ...(["pending_approval", "approved"].includes(selectedPayroll.status) && canApprovePayroll
+                    ? [
+                        {
+                          title: "",
+                          key: "revert",
                           width: 40,
                           render: (_: any, line: any) => (
-                            <Tooltip title="Edit line">
+                            <Tooltip title="Return just this employee to drafts">
                               <Button
                                 type="text"
+                                danger
                                 size="small"
-                                icon={<EditOutlined style={{ color: primaryColor }} />}
-                                onClick={() => openLineModal(line)}
+                                icon={<CloseCircleOutlined />}
+                                loading={bulkBusy}
+                                onClick={() => {
+                                  const employeeId = String(line.employee_id?._id || line.employee_id);
+                                  const empName =
+                                    line.employee_id?.user_id?.fullname ||
+                                    line.employee_id?.fullname ||
+                                    line.employee_id?.employee_number ||
+                                    "this employee";
+                                  let reason = "";
+                                  Modal.confirm({
+                                    title: `Return ${empName} to drafts?`,
+                                    content: (
+                                      <div>
+                                        <Text type="secondary" style={{ fontSize: 12 }}>
+                                          Only this employee is reverted — the rest of this payroll stays
+                                          approved. They land in a new draft payroll you can amend and
+                                          re-approve individually.
+                                        </Text>
+                                        <Input.TextArea
+                                          rows={2}
+                                          placeholder="Reason (optional)"
+                                          style={{ marginTop: 8 }}
+                                          onChange={(e) => { reason = e.target.value; }}
+                                        />
+                                      </div>
+                                    ),
+                                    okText: "Return to Drafts",
+                                    okButtonProps: { danger: true },
+                                    onOk: async () => {
+                                      setBulkBusy(true);
+                                      try {
+                                        await payrollLineAction(
+                                          selectedPayroll._id,
+                                          [employeeId],
+                                          "revert",
+                                          reason.trim() || undefined
+                                        );
+                                        const fresh = await getPayrollById(selectedPayroll._id);
+                                        setSelectedPayroll(fresh?.data || null);
+                                        queryClient.invalidateQueries({ queryKey: ["payrolls"] });
+                                      } finally {
+                                        setBulkBusy(false);
+                                      }
+                                    },
+                                  });
+                                }}
                               />
                             </Tooltip>
                           ),
@@ -3936,6 +4260,44 @@ const PayrollManagement: React.FC = () => {
           </div>
         )}
       </Drawer>
+
+      {/* ── Quick Employee-Record Edit (Department / Job Title) ── */}
+      <Modal
+        title={`Edit Employee — ${quickEditEmployee?.fullname || quickEditEmployee?.employee_number || ""}`}
+        open={isEmployeeQuickEditOpen}
+        onCancel={() => {
+          setIsEmployeeQuickEditOpen(false);
+          setQuickEditEmployee(null);
+          employeeQuickEditForm.resetFields();
+        }}
+        onOk={handleSaveEmployeeQuickEdit}
+        okText="Save"
+        confirmLoading={updateEmployeeQuickMutation.isLoading}
+        destroyOnClose
+      >
+        <Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 12 }}>
+          Updates the employee's own record — not just this payroll. Changing the department
+          here does not move this employee's line between payrolls; it only takes effect on
+          future payroll runs.
+        </Text>
+        <Form form={employeeQuickEditForm} layout="vertical">
+          <Form.Item name="department_id" label="Department">
+            <Select
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              placeholder="Select department"
+              options={departments.map((d: any) => ({
+                value: d._id,
+                label: d.code ? `${d.name} (${d.code})` : d.name,
+              }))}
+            />
+          </Form.Item>
+          <Form.Item name="job_title" label="Job Title">
+            <Input placeholder="e.g., Accountant" />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 };

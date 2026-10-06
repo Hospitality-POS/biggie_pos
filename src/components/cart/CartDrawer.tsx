@@ -278,7 +278,20 @@ const CartDrawer: React.FC = () => {
 
   useEffect(() => {
     const savedCaptainOrder = localStorage.getItem("captain_order_enabled");
-    setShowSendButton(savedCaptainOrder === "true");
+    setShowSendButton(savedCaptainOrder === "true"); // fallback while loading
+
+    // Captain order is a shop-wide setting — the server value wins so a
+    // toggle on any device applies everywhere.
+    const shopIdValue = localStorage.getItem("shopId") ?? "";
+    if (shopIdValue) {
+      fetchShop(shopIdValue)
+        .then((shop: any) => {
+          const enabled = shop?.print_settings?.captain_order_enabled === true;
+          setShowSendButton(enabled);
+          localStorage.setItem("captain_order_enabled", String(enabled));
+        })
+        .catch(() => { /* keep localStorage fallback */ });
+    }
   }, []);
 
   const handleSendToPrinter = async () => {

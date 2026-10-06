@@ -171,11 +171,13 @@ export const getJournalEntryById = async (id: string) => {
 export const getJournalEntrySummary = async (
     shop_id: string,
     fiscal_year?: number,
-    fiscal_month?: number
+    fiscal_month?: number,
+    from?: string,
+    to?: string
 ) => {
     const response = await axiosInstance.get(
         `${BASE_URL}/accounting/journal-entries/summary`,
-        { params: { shop_id, fiscal_year, fiscal_month } }
+        { params: { shop_id, fiscal_year, fiscal_month, from, to } }
     );
     return response.data as { summary: JournalEntrySummary };
 };

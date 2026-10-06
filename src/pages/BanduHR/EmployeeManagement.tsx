@@ -205,9 +205,6 @@ const EmployeeManagement: React.FC = () => {
   const [isAllowanceModalVisible, setIsAllowanceModalVisible] = useState(false);
   const [isBenefitModalVisible, setIsBenefitModalVisible] = useState(false);
   const [helbDraft, setHelbDraft] = useState<number | null>(null);
-  // Unsaved edits from the drawer's Pension & Insurance tab — null until the
-  // user touches a field, then a partial overlay saved via PATCH
-  const [piDraft, setPiDraft] = useState<Record<string, any> | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
   // Highest step index reachable so far. Editing an existing employee starts
   // with every step unlocked (all data is already prefilled); adding a new
@@ -677,11 +674,10 @@ const EmployeeManagement: React.FC = () => {
   const openViewDrawer = (record: Employee) => {
     setSelectedEmployee(record);
     setHelbDraft(null);
-    setPiDraft(null);
     setIsDrawerVisible(true);
   };
 
-  const openEditModal = (record: Employee) => {
+  const openEditModal = (record: Employee, startStep: number = 0) => {
     setSelectedEmployee(record);
     setLinkToUser(!!record.user_id);
     // Map API response to form field structure
@@ -738,7 +734,7 @@ const EmployeeManagement: React.FC = () => {
     form.setFieldsValue(initialValues);
     setAllFormValues(initialValues);
     setPwdCertFile(null);
-    setCurrentStep(0);
+    setCurrentStep(startStep);
     setMaxStepReached(4); // all data is already filled in, so unlock every step
     setIsModalVisible(true);
   };
@@ -1031,35 +1027,17 @@ const EmployeeManagement: React.FC = () => {
     }
   };
 
-  // Pension & insurance drawer tab — draft edits overlay the record; saved
-  // together as one PATCH (mirrors handleSaveHelb)
+  // Pension & insurance — read-only summary for the drawer. Editing happens
+  // exclusively via the employee edit form's "Pension & Insurance" step.
   const pi = selectedEmployee
     ? {
-        pension_contribution:
-          piDraft?.pension_contribution ?? selectedEmployee.pension_contribution ?? 0,
-        has_insurance_policy:
-          piDraft?.has_insurance_policy ?? !!selectedEmployee.has_insurance_policy,
-        insurance_policy: {
-          ...(selectedEmployee.insurance_policy || {}),
-          ...(piDraft?.insurance_policy || {}),
-        },
+        pension_contribution: selectedEmployee.pension_contribution ?? 0,
+        has_insurance_policy: !!selectedEmployee.has_insurance_policy,
+        insurance_policy: selectedEmployee.insurance_policy || {},
       }
     : null;
 
-  const setPi = (patch: Record<string, any>) =>
-    setPiDraft((d) => ({ ...(d || {}), ...patch }));
-  const setPiPolicy = (patch: Record<string, any>) =>
-    setPiDraft((d) => ({
-      ...(d || {}),
-      insurance_policy: {
-        ...(selectedEmployee?.insurance_policy || {}),
-        ...(d?.insurance_policy || {}),
-        ...patch,
-      },
-    }));
-
-  // Same formula as banduDeductionService.calculateInsuranceRelief — shown
-  // live so the user sees the PAYE relief before saving
+  // Same formula as banduDeductionService.calculateInsuranceRelief
   const piReliefPreview = (() => {
     if (!pi?.has_insurance_policy) return 0;
     const amount = Number(pi.insurance_policy.contribution_amount) || 0;
@@ -1069,23 +1047,6 @@ const EmployeeManagement: React.FC = () => {
       ] || 1;
     return Math.round(Math.min((amount / divisor) * 0.15, 5000) * 100) / 100;
   })();
-
-  const handleSavePensionInsurance = async () => {
-    if (!selectedEmployee || !piDraft) return;
-    const params: Record<string, any> = { ...piDraft };
-    if (params.insurance_policy) {
-      const p = { ...(selectedEmployee.insurance_policy || {}), ...params.insurance_policy };
-      if (p.start_date && dayjs.isDayjs(p.start_date)) p.start_date = p.start_date.toISOString();
-      params.insurance_policy = p;
-    }
-    try {
-      await updateMutation.mutateAsync({ employeeId: selectedEmployee._id, params });
-      setSelectedEmployee({ ...selectedEmployee, ...params });
-      setPiDraft(null);
-    } catch (error) {
-      // Error handled by mutation
-    }
-  };
 
   return (
     <div style={{ padding: isMobile ? 12 : 24 }}>
@@ -2582,31 +2543,25 @@ const EmployeeManagement: React.FC = () => {
                   <Button
                     type="primary"
                     size="small"
-                    icon={<SaveOutlined />}
+                    icon={<EditOutlined />}
                     style={{ borderRadius: 7 }}
-                    loading={updateMutation.isLoading}
-                    disabled={!piDraft}
-                    onClick={handleSavePensionInsurance}
+                    onClick={() => openEditModal(selectedEmployee, 3)}
                   >
-                    Save
+                    Edit
                   </Button>
                 )}
               </div>
 
               <div style={{ ...detailCardStyle, padding: "14px 16px", marginBottom: 14 }}>
-                <Text style={{ fontSize: 11, color: "#64748b", display: "block", marginBottom: 6 }}>
+                <Text style={{ fontSize: 11, color: "#64748b", display: "block", marginBottom: 10 }}>
                   Monthly pension contribution — withheld pre-tax, but only the first
                   KES 20,000/month is deductible (a 25,000 contribution deducts 20,000).
                 </Text>
-                <InputNumber
-                  key={`${selectedEmployee._id}-pension-${selectedEmployee.pension_contribution ?? 0}`}
-                  min={0}
-                  defaultValue={pi?.pension_contribution ?? 0}
-                  onChange={(v) => setPi({ pension_contribution: Number(v) || 0 })}
-                  style={{ width: 220 }}
-                  addonBefore="KES / month"
-                  disabled={!canUpdateEmployee}
-                />
+                <InfoItem label="Pension Contribution">
+                  {pi?.pension_contribution
+                    ? `KES ${Number(pi.pension_contribution).toLocaleString()} / month`
+                    : "Not set"}
+                </InfoItem>
               </div>
 
               <div style={{ ...detailCardStyle, padding: "14px 16px" }}>
@@ -2614,107 +2569,43 @@ const EmployeeManagement: React.FC = () => {
                   Insurance policy premiums attract 15% PAYE relief on the monthly-equivalent
                   contribution, capped at KES 5,000/month — applied from the start date.
                 </Text>
-                <Row gutter={16}>
-                  <Col span={12}>
-                    <Text style={{ fontSize: 11, color: "#64748b", display: "block", marginBottom: 4 }}>
-                      Has Insurance Policy
-                    </Text>
-                    <Select
-                      style={{ width: "100%" }}
-                      value={pi?.has_insurance_policy ? true : false}
-                      onChange={(v) => setPi({ has_insurance_policy: v })}
-                      disabled={!canUpdateEmployee}
-                      options={[
-                        { value: true, label: "Yes" },
-                        { value: false, label: "No" },
-                      ]}
-                    />
-                  </Col>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "14px 20px" }}>
+                  <InfoItem label="Has Insurance Policy">
+                    {pi?.has_insurance_policy ? (
+                      <Tag color="green" style={{ margin: 0, fontSize: 11 }}>Yes</Tag>
+                    ) : (
+                      "No"
+                    )}
+                  </InfoItem>
                   {pi?.has_insurance_policy && (
-                    <Col span={12}>
-                      <Text style={{ fontSize: 11, color: "#64748b", display: "block", marginBottom: 4 }}>
-                        Monthly Relief
-                      </Text>
-                      <Input disabled value={`KES ${piReliefPreview.toLocaleString()} (15%, capped at 5,000)`} />
-                    </Col>
+                    <>
+                      <InfoItem label="Insurance Provider">
+                        {pi.insurance_policy.provider || "—"}
+                      </InfoItem>
+                      <InfoItem label="Policy Number">
+                        {pi.insurance_policy.policy_number || "—"}
+                      </InfoItem>
+                      <InfoItem label="Contribution Start Date">
+                        {pi.insurance_policy.start_date
+                          ? dayjs(pi.insurance_policy.start_date).format("DD MMM YYYY")
+                          : "—"}
+                      </InfoItem>
+                      <InfoItem label="Contribution Amount">
+                        {pi.insurance_policy.contribution_amount
+                          ? `KES ${Number(pi.insurance_policy.contribution_amount).toLocaleString()}`
+                          : "—"}
+                      </InfoItem>
+                      <InfoItem label="Contribution Frequency">
+                        <span style={{ textTransform: "capitalize" }}>
+                          {(pi.insurance_policy.frequency || "monthly").replace(/_/g, " ")}
+                        </span>
+                      </InfoItem>
+                      <InfoItem label="Monthly Relief">
+                        {`KES ${piReliefPreview.toLocaleString()} (15%, capped at 5,000)`}
+                      </InfoItem>
+                    </>
                   )}
-                </Row>
-                {pi?.has_insurance_policy && (
-                  <>
-                    <Row gutter={16} style={{ marginTop: 10 }}>
-                      <Col span={12}>
-                        <Text style={{ fontSize: 11, color: "#64748b", display: "block", marginBottom: 4 }}>
-                          Insurance Provider
-                        </Text>
-                        <Input
-                          value={pi.insurance_policy.provider || ""}
-                          onChange={(e) => setPiPolicy({ provider: e.target.value })}
-                          placeholder="e.g., Britam, Jubilee, APA"
-                          disabled={!canUpdateEmployee}
-                        />
-                      </Col>
-                      <Col span={12}>
-                        <Text style={{ fontSize: 11, color: "#64748b", display: "block", marginBottom: 4 }}>
-                          Policy Number
-                        </Text>
-                        <Input
-                          value={pi.insurance_policy.policy_number || ""}
-                          onChange={(e) => setPiPolicy({ policy_number: e.target.value })}
-                          placeholder="Policy number"
-                          disabled={!canUpdateEmployee}
-                        />
-                      </Col>
-                    </Row>
-                    <Row gutter={16} style={{ marginTop: 10 }}>
-                      <Col span={12}>
-                        <Text style={{ fontSize: 11, color: "#64748b", display: "block", marginBottom: 4 }}>
-                          Contribution Start Date
-                        </Text>
-                        <DatePicker
-                          style={{ width: "100%" }}
-                          value={
-                            pi.insurance_policy.start_date
-                              ? dayjs(pi.insurance_policy.start_date)
-                              : null
-                          }
-                          onChange={(d) => setPiPolicy({ start_date: d ? d.toISOString() : null })}
-                          disabled={!canUpdateEmployee}
-                        />
-                      </Col>
-                      <Col span={12}>
-                        <Text style={{ fontSize: 11, color: "#64748b", display: "block", marginBottom: 4 }}>
-                          Contribution Amount
-                        </Text>
-                        <InputNumber
-                          style={{ width: "100%" }}
-                          min={0}
-                          value={pi.insurance_policy.contribution_amount ?? undefined}
-                          onChange={(v) => setPiPolicy({ contribution_amount: Number(v) || 0 })}
-                          disabled={!canUpdateEmployee}
-                        />
-                      </Col>
-                    </Row>
-                    <Row gutter={16} style={{ marginTop: 10 }}>
-                      <Col span={12}>
-                        <Text style={{ fontSize: 11, color: "#64748b", display: "block", marginBottom: 4 }}>
-                          Contribution Frequency
-                        </Text>
-                        <Select
-                          style={{ width: "100%" }}
-                          value={pi.insurance_policy.frequency || "monthly"}
-                          onChange={(v) => setPiPolicy({ frequency: v })}
-                          disabled={!canUpdateEmployee}
-                          options={[
-                            { value: "monthly", label: "Monthly" },
-                            { value: "quarterly", label: "Quarterly" },
-                            { value: "semi_annually", label: "Semi-Annually" },
-                            { value: "annually", label: "Annually" },
-                          ]}
-                        />
-                      </Col>
-                    </Row>
-                  </>
-                )}
+                </div>
               </div>
             </Tabs.TabPane>
 

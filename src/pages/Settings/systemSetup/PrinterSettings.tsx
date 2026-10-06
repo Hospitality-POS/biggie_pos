@@ -13,6 +13,7 @@ import {
   type ConnectedAgent,
 } from "../../../services/printAgent";
 import { fetchMainCategories } from "../../../services/categories";
+import { fetchShop, updateShopPrintSettings } from "../../../services/shops";
 import { THEME_C } from "../../../utils/getPrimaryColor";
 
 const { Text } = Typography;
@@ -66,13 +67,25 @@ const PrinterSettings: React.FC = () => {
     loadMainCategories();
   }, [loadMappings, loadMainCategories]);
 
-  // Load global printing behavior settings from localStorage
+  // Captain order is a shop-wide setting stored on the server — one toggle
+  // applies to every device. Print-by-agent stays per-machine (local printer).
   useEffect(() => {
-    const savedCaptainOrder = localStorage.getItem("captain_order_enabled");
     const savedPrintByAgent = localStorage.getItem("print_by_agent_enabled");
-    setCaptainOrderEnabled(savedCaptainOrder === "true");
     setPrintByAgentEnabled(savedPrintByAgent === "true");
-  }, []);
+
+    const savedCaptainOrder = localStorage.getItem("captain_order_enabled");
+    setCaptainOrderEnabled(savedCaptainOrder === "true"); // fallback while loading
+
+    if (shopId) {
+      fetchShop(shopId)
+        .then((shop: any) => {
+          const enabled = shop?.print_settings?.captain_order_enabled === true;
+          setCaptainOrderEnabled(enabled);
+          localStorage.setItem("captain_order_enabled", String(enabled));
+        })
+        .catch(() => { /* keep localStorage fallback */ });
+    }
+  }, [shopId]);
 
   const checkStatus = useCallback(async () => {
     if (!shopId || !companyCode) { setError("Shop ID or Company Code not found."); return; }
@@ -157,10 +170,15 @@ const PrinterSettings: React.FC = () => {
     return result;
   };
 
-  const handleToggleCaptainOrder = (checked: boolean) => {
+  const handleToggleCaptainOrder = async (checked: boolean) => {
     setCaptainOrderEnabled(checked);
-    localStorage.setItem("captain_order_enabled", checked.toString());
-    message.success(checked ? "Captain Order Mode enabled" : "Captain Order Mode disabled");
+    const ok = await updateShopPrintSettings(shopId, { captain_order_enabled: checked });
+    if (ok) {
+      localStorage.setItem("captain_order_enabled", checked.toString());
+    } else {
+      // Revert — server is the source of truth for this shop-wide setting.
+      setCaptainOrderEnabled(!checked);
+    }
   };
 
   const handleTogglePrintByAgent = (checked: boolean) => {

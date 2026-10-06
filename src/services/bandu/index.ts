@@ -1177,19 +1177,24 @@ export const patchPayrollLine = async (
   }
 };
 
-// Act on a subset of employees within a payroll — delete, approve or submit
-// just the given employee(s) without affecting the rest of the payroll's
-// lines. If the employees given aren't the whole payroll, the backend splits
-// them into their own payroll (linked via supplementary_of) before acting.
+// Act on a subset of employees within a payroll — delete, approve, submit or
+// revert just the given employee(s) without affecting the rest of the
+// payroll's lines. If the employees given aren't the whole payroll, the
+// backend splits them into their own payroll (linked via supplementary_of)
+// before acting. "revert" returns approved/pending employees to drafts —
+// the opposite of "approve" — so a single employee can be sent back for
+// amendment without reopening the whole payroll.
 export const payrollLineAction = async (
   payrollId: string,
   employeeIds: string[],
-  action: "delete" | "approve" | "submit"
+  action: "delete" | "approve" | "submit" | "revert",
+  reason?: string
 ) => {
   try {
     const response = await axiosInstance.post(`${bandu_url}/payroll/${payrollId}/lines/action`, {
       employee_ids: employeeIds,
       action,
+      ...(reason ? { reason } : {}),
     });
     message.success(response.data?.message || "Done");
     return response.data;
