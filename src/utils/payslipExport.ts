@@ -53,11 +53,11 @@ const payslipRows = (p: any) => {
     ['Department', departmentName(p)],
   ];
 
-  // Named allowance items show with an "Allowance" suffix (e.g. "Airtime" ->
-  // "Airtime Allowance") unless the name already ends with it. Benefits keep
-  // their bare name — only allowances get the suffix.
-  const withAllowanceSuffix = (name: string) =>
-    /allowance$/i.test(name.trim()) ? name : `${name} Allowance`;
+  // Named items show with a type suffix (e.g. "Airtime" -> "Airtime
+  // Allowance", "Motor Vehicle" -> "Motor Vehicle Benefit") unless the name
+  // already ends with it.
+  const withTypeSuffix = (name: string, suffix: string) =>
+    new RegExp(`${suffix}$`, 'i').test(name.trim()) ? name : `${name} ${suffix}`;
 
   // Itemize named allowance/benefit entries — prefer the payslip's own
   // snapshot (earnings.allowance_items / benefit_items, copied from the
@@ -81,7 +81,7 @@ const payslipRows = (p: any) => {
       .filter((it: any) => Number(it?.[field]) > 0)
       .map((it: any) => {
         const name = String(it.name || it.allowance_type || it.benefit_type || label);
-        rows.push([label === 'Allowance' ? withAllowanceSuffix(name) : name, fmt(it[field])]);
+        rows.push([withTypeSuffix(name, label), fmt(it[field])]);
         return Number(it[field]) || 0;
       })
       .reduce((s, v) => s + v, 0);
