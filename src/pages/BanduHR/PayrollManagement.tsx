@@ -808,13 +808,16 @@ const PayrollManagement: React.FC = () => {
       // PAYE — current KRA bands
       paye_enabled: true,
       paye_personal_relief: 2400,
+      paye_minimum_taxable_income: 24001,
       paye_bracket1_limit: 24000,
       paye_bracket1_rate: 10,
       paye_bracket2_limit: 32333,
       paye_bracket2_rate: 25,
       paye_bracket3_limit: 500000,
       paye_bracket3_rate: 30,
-      paye_bracket4_rate: 35,
+      paye_bracket4_limit: 800000,
+      paye_bracket4_rate: 32.5,
+      paye_bracket5_rate: 35,
       paye_pwd_exemption_limit: 150000,
       // SHA — 2.75% of gross, no cap (replaced NHIF)
       sha_enabled: true,
@@ -2920,7 +2923,7 @@ const PayrollManagement: React.FC = () => {
               <Tabs.TabPane tab="PAYE" key="paye">
                 <Form form={deductionForm} layout="vertical">
                   <Row gutter={16}>
-                    <Col span={12}>
+                    <Col span={8}>
                       <Form.Item
                         name="paye_enabled"
                         label="Enable PAYE Deduction"
@@ -2930,11 +2933,26 @@ const PayrollManagement: React.FC = () => {
                         <Switch />
                       </Form.Item>
                     </Col>
-                    <Col span={12}>
+                    <Col span={8}>
                       <Form.Item
                         name="paye_personal_relief"
                         label="Personal Relief (KES)"
                         initialValue={2400}
+                        rules={[{ required: true, message: "Required" }]}
+                      >
+                        <InputNumber
+                          min={0}
+                          style={{ width: "100%" }}
+                          addonBefore="KES"
+                        />
+                      </Form.Item>
+                    </Col>
+                    <Col span={8}>
+                      <Form.Item
+                        name="paye_minimum_taxable_income"
+                        label="Minimum Taxable Income (KES/month)"
+                        initialValue={24001}
+                        tooltip="Taxable pay below this amount pays no PAYE (KRA: KES 24,001/month)"
                         rules={[{ required: true, message: "Required" }]}
                       >
                         <InputNumber
@@ -3038,10 +3056,39 @@ const PayrollManagement: React.FC = () => {
                     </Col>
                   </Row>
                   <Row gutter={16}>
-                    <Col span={12}>
+                    <Col span={8}>
+                      <Form.Item
+                        name="paye_bracket4_limit"
+                        label="Bracket 4 Limit (KES)"
+                        initialValue={800000}
+                        rules={[{ required: true, message: "Required" }]}
+                      >
+                        <InputNumber
+                          min={0}
+                          style={{ width: "100%" }}
+                          addonBefore="KES"
+                        />
+                      </Form.Item>
+                    </Col>
+                    <Col span={8}>
                       <Form.Item
                         name="paye_bracket4_rate"
-                        label="Bracket 4+ Rate (%)"
+                        label="Bracket 4 Rate (%)"
+                        initialValue={32.5}
+                        rules={[{ required: true, message: "Required" }]}
+                      >
+                        <InputNumber
+                          min={0}
+                          max={100}
+                          style={{ width: "100%" }}
+                          addonAfter="%"
+                        />
+                      </Form.Item>
+                    </Col>
+                    <Col span={8}>
+                      <Form.Item
+                        name="paye_bracket5_rate"
+                        label="Bracket 5 Rate (% — above limit)"
                         initialValue={35}
                         rules={[{ required: true, message: "Required" }]}
                       >
@@ -3053,6 +3100,8 @@ const PayrollManagement: React.FC = () => {
                         />
                       </Form.Item>
                     </Col>
+                  </Row>
+                  <Row gutter={16}>
                     <Col span={12}>
                       <Form.Item
                         name="paye_pwd_exemption_limit"
@@ -3070,9 +3119,11 @@ const PayrollManagement: React.FC = () => {
                     </Col>
                   </Row>
                   <Text type="secondary" style={{ fontSize: 12 }}>
-                    PAYE tax brackets based on current KRA regulations. Personal relief is deducted from taxable income.
-                    Employees marked as PWD (with a valid certificate) are exempt from PAYE on the first
-                    "PWD Exemption Limit" of taxable pay — tax is computed only on the amount above it.
+                    Monthly KRA bands: 10% up to 24,000 · 25% on the next 8,333 · 30% on the next 467,667 ·
+                    32.5% on the next 300,000 · 35% above 800,000. Personal relief is deducted from the
+                    computed tax; taxable pay below the minimum taxable income is untaxed. Employees marked
+                    as PWD (with a valid certificate) are exempt from PAYE on the first "PWD Exemption Limit"
+                    of taxable pay — tax is computed only on the amount above it.
                   </Text>
                 </Form>
               </Tabs.TabPane>
