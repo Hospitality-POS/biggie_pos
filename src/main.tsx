@@ -13,6 +13,18 @@ import { PrimaryColorProvider, usePrimaryColor } from "./context/PrimaryColorCon
 import { POSModeProvider } from "./context/POSModeContext";
 import { RetailQueueProvider } from "./context/RetailQueueContext";
 import GlobalErrorBoundary from "@components/GlobalErrorBoundary";
+import { reloadForNewVersion } from "@utils/lazyWithReload";
+
+// Recover from stale-asset failures right after a deploy: Vite fires
+// vite:preloadError when a modulepreload'd chunk 404s, before React even
+// mounts — which is the classic blank-white-page scenario.
+if (import.meta.env.PROD) {
+  window.addEventListener("vite:preloadError", (event) => {
+    if (reloadForNewVersion()) {
+      event.preventDefault();
+    }
+  });
+}
 
 // Force-unregister stale service workers and clear caches in dev
 if (import.meta.env.DEV && "serviceWorker" in navigator) {
