@@ -245,8 +245,29 @@ export const previewAudience = async (params: { shop_id: string; audience: "cust
     }
 };
 
-export const downloadContactsTemplate = () => {
-    window.open(`${campaignsUrl}/import/template`, "_blank");
+// Fetch through axiosInstance (auth + tenant headers) and save the blob —
+// a raw window.open hits the API without credentials → "Tenant code required"
+export const downloadContactsTemplate = async () => {
+    try {
+        const response = await axiosInstance.get(`${campaignsUrl}/import/template`, {
+            responseType: "blob",
+        });
+        const blob = new Blob([response.data], {
+            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "contacts-template.xlsx";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+        message.success("Template downloaded successfully");
+    } catch (error: any) {
+        message.error("Failed to download template");
+        throw error;
+    }
 };
 
 export const importContacts = async (shop_id: string, file: File) => {
