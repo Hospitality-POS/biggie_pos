@@ -38,6 +38,8 @@ import {
   PieChartOutlined,
   FireOutlined,
   ArrowRightOutlined,
+  MailOutlined,
+  SendOutlined,
 } from "@ant-design/icons";
 import { ProCard } from "@ant-design/pro-components";
 import {
@@ -58,6 +60,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import axiosInstance from "@services/request";
 import { BASE_URL } from "@utils/config";
 import { fetchConversations, fetchWhatsappChannels } from "@services/whatsappService";
+import { fetchCampaignAnalytics } from "@services/omnichannel/messagingCampaigns";
 import { THEME_C } from "@utils/getPrimaryColor";
 import { fmtK, fmtKES } from "@utils/formatters";
 
@@ -358,6 +361,23 @@ const MtejaDashboard: React.FC = () => {
   });
   const recentLeads: any[] = Array.isArray(recentLeadsData) ? recentLeadsData : [];
 
+  // SMS & Email messaging analytics (per channel, follows the period filter)
+  const { data: smsAnalytics, isLoading: smsLoading } = useQuery({
+    queryKey: ["mteja-msg-analytics", shopId, "sms", start_date, end_date],
+    queryFn: () => fetchCampaignAnalytics({ shop_id: shopId, channel: "sms", start_date, end_date }),
+    enabled: !!shopId,
+    staleTime: 30_000,
+  });
+  const { data: emailAnalytics, isLoading: emailLoading } = useQuery({
+    queryKey: ["mteja-msg-analytics", shopId, "email", start_date, end_date],
+    queryFn: () => fetchCampaignAnalytics({ shop_id: shopId, channel: "email", start_date, end_date }),
+    enabled: !!shopId,
+    staleTime: 30_000,
+  });
+  const smsTotals = smsAnalytics?.totals;
+  const emailTotals = emailAnalytics?.totals;
+  const messagingLoading = smsLoading || emailLoading;
+
   // Handlers
   const handleRefresh = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["mteja-conversations"] });
@@ -366,6 +386,7 @@ const MtejaDashboard: React.FC = () => {
     queryClient.invalidateQueries({ queryKey: ["mteja-stats"] });
     queryClient.invalidateQueries({ queryKey: ["mteja-lead-pipeline"] });
     queryClient.invalidateQueries({ queryKey: ["mteja-recent-leads"] });
+    queryClient.invalidateQueries({ queryKey: ["mteja-msg-analytics"] });
   }, [queryClient]);
 
   const isDataLoading = statsLoading || pipelineLoading || custLoading || convLoading;
@@ -963,6 +984,109 @@ const MtejaDashboard: React.FC = () => {
                   />
                 </PieChart>
               </ResponsiveContainer>
+            )}
+          </ProCard>
+        </Col>
+      </Row>
+
+      {/* ── Tier 3.5: SMS & Email Messaging Stats ── */}
+      <Row gutter={isMobile ? [8, 8] : [12, 12]} style={{ marginBottom: isMobile ? 12 : 16 }}>
+        <Col span={24}>
+          <ProCard
+            bordered
+            headerBordered
+            size="small"
+            style={{ borderRadius: 12, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
+            title={
+              <Space size={6}>
+                <div style={{ background: "#fff7ed", borderRadius: 8, padding: isMobile ? "3px 6px" : "4px 8px", color: "#f97316", display: "inline-flex", fontSize: isMobile ? 12 : 14 }}>
+                  <SendOutlined />
+                </div>
+                <Text strong style={{ fontSize: isMobile ? 13 : 14 }}>SMS &amp; Email Messaging</Text>
+                {(smsTotals?.sent_count || 0) + (emailTotals?.sent_count || 0) > 0 && (
+                  <Tag color="orange" style={{ borderRadius: 10, fontSize: 10, border: "none" }}>
+                    {(smsTotals?.sent_count || 0) + (emailTotals?.sent_count || 0)} sent
+                  </Tag>
+                )}
+              </Space>
+            }
+            extra={
+              !isMobile && (
+                <Button type="link" size="small" onClick={() => navTo("/omnichannel")} style={{ fontSize: 12 }}>
+                  Open Messaging →
+                </Button>
+              )
+            }
+            bodyStyle={{ padding: isMobile ? "10px 8px" : "14px 16px" }}
+          >
+            {messagingLoading ? (
+              <Skeleton active paragraph={{ rows: 3 }} />
+            ) : (
+              <Row gutter={[16, 16]}>
+                {[
+                  {
+                    label: "SMS",
+                    icon: <MessageOutlined />,
+                    color: "#25D366",
+                    bg: "#f0fdf4",
+                    data: smsTotals,
+                    trend: smsAnalytics?.daily_trend || [],
+                  },
+                  {
+                    label: "Email",
+                    icon: <MailOutlined />,
+                    color: "#3b82f6",
+                    bg: "#eff6ff",
+                    data: emailTotals,
+                    trend: emailAnalytics?.daily_trend || [],
+                  },
+                ].map((ch, i) => (
+                  <Col xs={24} md={12} key={i}>
+                    <div style={{ background: "#f8fafc", borderRadius: 8, padding: 16, border: "1px solid #e2e8f0", height: "100%" }}>
+                      <Space size={8} style={{ marginBottom: 12 }}>
+                        <div style={{ background: ch.bg, borderRadius: 7, padding: "3px 7px", color: ch.color, fontSize: 13, lineHeight: 1 }}>
+                          {ch.icon}
+                        </div>
+                        <Text strong style={{ fontSize: 13 }}>{ch.label}</Text>
+                        <Text style={{ fontSize: 11, color: "#64748b" }}>
+                          {(ch.data?.campaigns || 0) + (ch.data?.quick_sends || 0) === 0
+                            ? "No activity in period"
+                            : `${(ch.data?.campaigns || 0) + (ch.data?.quick_sends || 0)} sends`}
+                        </Text>
+                      </Space>
+                      <Row gutter={[10, 10]}>
+                        {[
+                          { label: "Campaigns", value: ch.data?.campaigns || 0, color: "#6366f1" },
+                          { label: "Quick Sends", value: ch.data?.quick_sends || 0, color: "#8b5cf6" },
+                          { label: "Recipients", value: ch.data?.total_recipients || 0, color: "#0d9488" },
+                          { label: "Sent", value: ch.data?.sent_count || 0, color: "#10b981" },
+                          { label: "Failed", value: ch.data?.failed_count || 0, color: (ch.data?.failed_count || 0) > 0 ? "#ef4444" : "#64748b" },
+                          { label: "Success Rate", value: `${ch.data?.success_rate || 0}%`, color: "#f59e0b" },
+                        ].map((s, j) => (
+                          <Col span={8} key={j}>
+                            <div style={{ background: "#ffffff", padding: "8px 10px", borderRadius: 8, border: "1px solid #e2e8f0" }}>
+                              <Text style={{ fontSize: 10, color: "#64748b", display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.label}</Text>
+                              <Text strong style={{ fontSize: isMobile ? 14 : 16, color: s.color }}>{s.value}</Text>
+                            </div>
+                          </Col>
+                        ))}
+                      </Row>
+                      {ch.trend.length > 0 && (
+                        <ResponsiveContainer width="100%" height={isMobile ? 90 : 110}>
+                          <BarChart data={ch.trend.slice(-14)} margin={{ top: 12, right: 4, left: -28, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                            <XAxis dataKey="date" tick={{ fontSize: 9, fill: "#94a3b8" }} axisLine={false} tickLine={false} tickFormatter={(d: string) => d.slice(5)} />
+                            <YAxis tick={{ fontSize: 9, fill: "#94a3b8" }} axisLine={false} tickLine={false} allowDecimals={false} />
+                            <ReTooltip contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 11 }} />
+                            <Bar dataKey="sent" stackId="a" fill="#10b981" name="Sent" />
+                            <Bar dataKey="failed" stackId="a" fill="#ef4444" name="Failed" radius={[3, 3, 0, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      )}
+                    </div>
+                  </Col>
+                ))}
+              </Row>
             )}
           </ProCard>
         </Col>
