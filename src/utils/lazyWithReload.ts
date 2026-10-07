@@ -7,12 +7,24 @@ import { ComponentType, lazy } from "react";
 // server itself is actually broken.
 const RELOAD_FLAG = "chunk-reload-at";
 
-export const reloadForNewVersion = () => {
+export const isChunkLoadError = (error: unknown): boolean => {
+  const message =
+    error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+  return (
+    message.includes("failed to fetch dynamically imported module") ||
+    message.includes("error loading dynamically imported module") ||
+    message.includes("importing a module script failed")
+  );
+};
+
+export const reloadForNewVersion = (): boolean => {
   const last = Number(sessionStorage.getItem(RELOAD_FLAG) ?? 0);
   if (Date.now() - last > 60_000) {
     sessionStorage.setItem(RELOAD_FLAG, String(Date.now()));
     window.location.reload();
+    return true;
   }
+  return false;
 };
 
 export const lazyWithReload = <T extends ComponentType<any>>(
@@ -20,7 +32,11 @@ export const lazyWithReload = <T extends ComponentType<any>>(
 ) =>
   lazy(() =>
     factory().catch((error) => {
-      reloadForNewVersion();
+      if (isChunkLoadError(error) && reloadForNewVersion()) {
+        // Keep suspense fallback visible during reload instead of flashing
+        // error boundary or logging false-alarm errors to Sentry
+        return new Promise<{ default: T }>(() => {});
+      }
       throw error;
     })
   );
