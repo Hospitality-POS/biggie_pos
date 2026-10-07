@@ -85,6 +85,15 @@ jobs:
           # $APP_ROOT/current (a symlink), not from $APP_ROOT directly.
           ssh root@138.197.29.241 bash -s <<EOF
             set -euo pipefail
+            # Union the previous release's hashed assets into this one so
+            # tabs and service-worker precaches still holding old chunk URLs
+            # keep resolving after the symlink flips. Hashed filenames never
+            # collide, so -n (no-clobber) only adds missing files. Pruning
+            # below keeps growth bounded to the retained releases.
+            if [ -d "$APP_ROOT/current/assets" ]; then
+              mkdir -p "$RELEASE_DIR/assets"
+              cp -rn "$APP_ROOT/current/assets/." "$RELEASE_DIR/assets/" || true
+            fi
             ln -sfn "$RELEASE_DIR" "$APP_ROOT/current_tmp"
             mv -Tf "$APP_ROOT/current_tmp" "$APP_ROOT/current"
             cd "$APP_ROOT/releases"

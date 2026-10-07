@@ -57,8 +57,7 @@
   },
   "include": [
     "src",
-    "public",
-    "workbox-config.js"
+    "public"
   ],
   "references": [
     {

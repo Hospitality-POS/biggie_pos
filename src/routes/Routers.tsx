@@ -7,7 +7,8 @@ import {
   Outlet,
 } from "react-router-dom";
 import * as Sentry from "@sentry/react";
-import { Suspense, lazy } from "react";
+import { Suspense } from "react";
+import { lazyWithReload } from "@utils/lazyWithReload";
 import Private, { AdminRoute } from "@components/layout/private/Private";
 import NotFound from "@routes/NotFound";
 import { Spin } from "antd";
@@ -17,24 +18,24 @@ import PaymentCallback from "@components/payment/PaymentCallback";
 import PermissionRoute from "@components/PermissionRoute";
 
 // ─── Lazily Loaded Core & Admin Pages ─────────────────────────────────────────
-const MainCategory = lazy(() => import("@pages/main_category/Main_category"));
-const MainOrders = lazy(() => import("@pages/OrderManagement/MainOrders"));
-const StaffClockTracker = lazy(() => import("@pages/staff/ClockInTracker"));
-const HelpCenter = lazy(() => import("src/AdminDashboard/HelpCenter/HelpCenterPage"));
-const DashboardAdminPage = lazy(() => import("src/AdminDashboard/DashboardPage/DashboardPage"));
-const DukaDashboardPage = lazy(() => import("src/pages/Dashboard/DukaDashboardPage"));
-const AdminDukaDashboardPage = lazy(() => import("src/AdminDashboard/DashboardPage/AdminDukaDashboardPage"));
-const UnifiedDashboardPage = lazy(() => import("src/pages/Report/UnifiedDashboardPage"));
-const UnifiedShopDashboardPage = lazy(() => import("src/pages/Report/UnifiedShopDashboardPage"));
-const ShopManagement = lazy(() => import("src/AdminDashboard/Shops/MainShopPage"));
-const Customer = lazy(() => import("src/pages/Customer/CustomerList"));
-const PaymentSubscriptionPage = lazy(() => import("src/components/billing/Billing"));
-const AdminCustomersList = lazy(() => import("src/AdminDashboard/Customers/CustomerList"));
-const TenantSettings = lazy(() => import("src/AdminDashboard/Settings/TenantSettings"));
-const DiscoverPage = lazy(() => import("src/AdminDashboard/DiscoverPage"));
-const BusinessHealthScorePage = lazy(() => import("@pages/HealthScore/BusinessHealthScorePage"));
-const PrivacyPolicy = lazy(() => import("@pages/Legal/PrivacyPolicy"));
-const TermsAndConditions = lazy(() => import("@pages/Legal/TermsAndConditions"));
+const MainCategory = lazyWithReload(() => import("@pages/main_category/Main_category"));
+const MainOrders = lazyWithReload(() => import("@pages/OrderManagement/MainOrders"));
+const StaffClockTracker = lazyWithReload(() => import("@pages/staff/ClockInTracker"));
+const HelpCenter = lazyWithReload(() => import("src/AdminDashboard/HelpCenter/HelpCenterPage"));
+const DashboardAdminPage = lazyWithReload(() => import("src/AdminDashboard/DashboardPage/DashboardPage"));
+const DukaDashboardPage = lazyWithReload(() => import("src/pages/Dashboard/DukaDashboardPage"));
+const AdminDukaDashboardPage = lazyWithReload(() => import("src/AdminDashboard/DashboardPage/AdminDukaDashboardPage"));
+const UnifiedDashboardPage = lazyWithReload(() => import("src/pages/Report/UnifiedDashboardPage"));
+const UnifiedShopDashboardPage = lazyWithReload(() => import("src/pages/Report/UnifiedShopDashboardPage"));
+const ShopManagement = lazyWithReload(() => import("src/AdminDashboard/Shops/MainShopPage"));
+const Customer = lazyWithReload(() => import("src/pages/Customer/CustomerList"));
+const PaymentSubscriptionPage = lazyWithReload(() => import("src/components/billing/Billing"));
+const AdminCustomersList = lazyWithReload(() => import("src/AdminDashboard/Customers/CustomerList"));
+const TenantSettings = lazyWithReload(() => import("src/AdminDashboard/Settings/TenantSettings"));
+const DiscoverPage = lazyWithReload(() => import("src/AdminDashboard/DiscoverPage"));
+const BusinessHealthScorePage = lazyWithReload(() => import("@pages/HealthScore/BusinessHealthScorePage"));
+const PrivacyPolicy = lazyWithReload(() => import("@pages/Legal/PrivacyPolicy"));
+const TermsAndConditions = lazyWithReload(() => import("@pages/Legal/TermsAndConditions"));
 
 // ─── Fallback spinners ────────────────────────────────────────────────────────
 const fullscreenSpin = <NubaLoader />;
@@ -69,106 +70,106 @@ const guardedAdminPage = (Component: React.ComponentType, permission: string | s
 );
 
 // ─── Wages Module ─────────────────────────────────────────────────────────────
-const WagesList = lazy(() => import("src/AdminDashboard/Wages/WageList"));
+const WagesList = lazyWithReload(() => import("src/AdminDashboard/Wages/WageList"));
 
 // ─── Core App ─────────────────────────────────────────────────────────────────
-const Layout = lazy(() => import("@components/layout/Layout"));
-const RestaurantPage = lazy(() => import("@pages/Restaurant/Restuarant"));
-const MainStore = lazy(() => import("@pages/store/MainStore"));
-const Table = lazy(() => import("@pages/Tables/TablePro"));
-const Faqs = lazy(() => import("@pages/Faqs/Faqs"));
-const Website = lazy(() => import("@pages/Website/website"));
+const Layout = lazyWithReload(() => import("@components/layout/Layout"));
+const RestaurantPage = lazyWithReload(() => import("@pages/Restaurant/Restuarant"));
+const MainStore = lazyWithReload(() => import("@pages/store/MainStore"));
+const Table = lazyWithReload(() => import("@pages/Tables/TablePro"));
+const Faqs = lazyWithReload(() => import("@pages/Faqs/Faqs"));
+const Website = lazyWithReload(() => import("@pages/Website/website"));
 
 // ─── Settings ─────────────────────────────────────────────────────────────────
-const PaymentMainSettings = lazy(() => import("@pages/Settings/paymentMethodLevel/payment_main_settings"));
-const UsersMainSettings = lazy(() => import("@pages/Settings/usersLevel/User_main_settings"));
-const InventoryMainSettings = lazy(() => import("@pages/Settings/invetoryLevel/Inventory_main_settings"));
-const SupplierMainSettings = lazy(() => import("@pages/Settings/supplierLevel/supplier_main_settings"));
-const TableMainSettings = lazy(() => import("@pages/Settings/TableLevel/Table_main_settings"));
-const SystemSetup = lazy(() => import("@pages/Settings/systemSetup/SystemSetup"));
-const CategoryMainSettings = lazy(() => import("@pages/Settings/categoryLevel/Category_main_settings"));
-const Profile = lazy(() => import("@pages/Profile/Profile"));
-const AdminProfile = lazy(() => import("src/AdminDashboard/Profile/AdminProfile"));
-const EmployeeShift = lazy(() => import("@pages/EmployeeShift/Employee"));
-const Notification = lazy(() => import("@pages/Notification/NotificationPage"));
+const PaymentMainSettings = lazyWithReload(() => import("@pages/Settings/paymentMethodLevel/payment_main_settings"));
+const UsersMainSettings = lazyWithReload(() => import("@pages/Settings/usersLevel/User_main_settings"));
+const InventoryMainSettings = lazyWithReload(() => import("@pages/Settings/invetoryLevel/Inventory_main_settings"));
+const SupplierMainSettings = lazyWithReload(() => import("@pages/Settings/supplierLevel/supplier_main_settings"));
+const TableMainSettings = lazyWithReload(() => import("@pages/Settings/TableLevel/Table_main_settings"));
+const SystemSetup = lazyWithReload(() => import("@pages/Settings/systemSetup/SystemSetup"));
+const CategoryMainSettings = lazyWithReload(() => import("@pages/Settings/categoryLevel/Category_main_settings"));
+const Profile = lazyWithReload(() => import("@pages/Profile/Profile"));
+const AdminProfile = lazyWithReload(() => import("src/AdminDashboard/Profile/AdminProfile"));
+const EmployeeShift = lazyWithReload(() => import("@pages/EmployeeShift/Employee"));
+const Notification = lazyWithReload(() => import("@pages/Notification/NotificationPage"));
 
 // ─── Document Center ──────────────────────────────────────────────────────────
-const DocumentCenter = lazy(() => import("@pages/Documents/DocumentCenter"));
+const DocumentCenter = lazyWithReload(() => import("@pages/Documents/DocumentCenter"));
 
 // ─── E-Signature ───────────────────────────────────────────────────────────────
-const ESignPage = lazy(() => import("@pages/ESign/ESignPage"));
-const PublicSignPage = lazy(() => import("@pages/ESign/PublicSignPage"));
+const ESignPage = lazyWithReload(() => import("@pages/ESign/ESignPage"));
+const PublicSignPage = lazyWithReload(() => import("@pages/ESign/PublicSignPage"));
 
 // ─── Omnichannel Inbox ────────────────────────────────────────────────────────
-const OmnichannelInboxPage = lazy(() => import("src/pages/OmniChannel/OmnichannelInboxPage"));
-const OAuthCallbackPage = lazy(() => import("src/pages/OmniChannel/OAuthCallbackPage"));
+const OmnichannelInboxPage = lazyWithReload(() => import("src/pages/OmniChannel/OmnichannelInboxPage"));
+const OAuthCallbackPage = lazyWithReload(() => import("src/pages/OmniChannel/OAuthCallbackPage"));
 
 // ─── Accounting Module ────────────────────────────────────────────────────────
-const ChartOfAccountsPage = lazy(() => import("src/pages/ChartOfAccounts/ChartOfAccountsPage"));
-const JournalEntriesPage = lazy(() => import("src/pages/JournalEntry/JournalEntriesPage"));
-const SalesReceiptsPage = lazy(() => import("src/pages/SalesReceipts/SalesReceiptsPage"));
-const NotesPage = lazy(() => import("src/pages/Notes/NotesPage"));
-const BankStatementPage = lazy(() => import("src/pages/Banking/BankStatementPage"));
-const BankReconciliationPage = lazy(() => import("src/pages/Reconciliation/BankReconciliationPage"));
-const UnifiedReportsPage = lazy(() => import("src/pages/Report/UnifiedReportsPage"));
+const ChartOfAccountsPage = lazyWithReload(() => import("src/pages/ChartOfAccounts/ChartOfAccountsPage"));
+const JournalEntriesPage = lazyWithReload(() => import("src/pages/JournalEntry/JournalEntriesPage"));
+const SalesReceiptsPage = lazyWithReload(() => import("src/pages/SalesReceipts/SalesReceiptsPage"));
+const NotesPage = lazyWithReload(() => import("src/pages/Notes/NotesPage"));
+const BankStatementPage = lazyWithReload(() => import("src/pages/Banking/BankStatementPage"));
+const BankReconciliationPage = lazyWithReload(() => import("src/pages/Reconciliation/BankReconciliationPage"));
+const UnifiedReportsPage = lazyWithReload(() => import("src/pages/Report/UnifiedReportsPage"));
 
 // Petty Cash & Refunds (Duka Only)
-const PettyCashListPage = lazy(() => import("src/pages/PettyCash/PettyCashListPage"));
-const RefundsListPage = lazy(() => import("src/pages/Refunds/RefundsListPage"));
+const PettyCashListPage = lazyWithReload(() => import("src/pages/PettyCash/PettyCashListPage"));
+const RefundsListPage = lazyWithReload(() => import("src/pages/Refunds/RefundsListPage"));
 
 // ─── Expenses / Bills / Income ────────────────────────────────────────────────
-const ExpensesPage = lazy(() => import("@pages/OrderManagement/ExpensesPage"));
-const BillsPage = lazy(() => import("@pages/OrderManagement/BillsPage"));
-const IncomePage = lazy(() => import("@pages/OrderManagement/IncomePage"));
+const ExpensesPage = lazyWithReload(() => import("@pages/OrderManagement/ExpensesPage"));
+const BillsPage = lazyWithReload(() => import("@pages/OrderManagement/BillsPage"));
+const IncomePage = lazyWithReload(() => import("@pages/OrderManagement/IncomePage"));
 
 // ─── Currency ─────────────────────────────────────────────────────────────────
-const CurrencyPage = lazy(() => import("src/pages/Currency/CurrencyPage"));
+const CurrencyPage = lazyWithReload(() => import("src/pages/Currency/CurrencyPage"));
 
 // ─── Asset Management ─────────────────────────────────────────────────────────
-const AssetRegisterPage = lazy(() => import("src/pages/AssetManagement/AssetRegisterPage"));
-const AssetRequestsPage = lazy(() => import("src/pages/AssetManagement/AssetRequestsPage"));
-const AssetMaintenancePage = lazy(() => import("src/pages/AssetManagement/AssetMaintenancePage"));
-const AssetReportsPage = lazy(() => import("src/pages/AssetManagement/AssetReportsPage"));
+const AssetRegisterPage = lazyWithReload(() => import("src/pages/AssetManagement/AssetRegisterPage"));
+const AssetRequestsPage = lazyWithReload(() => import("src/pages/AssetManagement/AssetRequestsPage"));
+const AssetMaintenancePage = lazyWithReload(() => import("src/pages/AssetManagement/AssetMaintenancePage"));
+const AssetReportsPage = lazyWithReload(() => import("src/pages/AssetManagement/AssetReportsPage"));
 
 // ─── CRM / Mteja Module ───────────────────────────────────────────────────────
 // All CRM pages are lazy-loaded and only reachable when hasMteja === true.
 // The MtejaRoute guard below enforces this at runtime.
-const LeadsPage = lazy(() => import("src/pages/Lead/Leads"));
-const CampaignsPage = lazy(() => import("src/pages/Campaign/Campaigns"));
-const SalesTargetsPage = lazy(() => import("src/pages/SalesTargets/SalesTargets"));
-const SalesBudgetsPage = lazy(() => import("src/pages/Salesbudgets/Salesbudgets"));
-const QuotesPage = lazy(() => import("src/pages/Quotes/QuotesPage"));
-const ActivityCalendarPage = lazy(() => import("src/pages/ActivityCalendar/ActivityCalendarPage"));
-const MtejaDashboard = lazy(() => import("src/pages/Dashboard/MtejaDashboard"));
-const AccountingDashboardPage = lazy(() => import("src/pages/AccountingDashboard/AccountingDashboardPage"));
+const LeadsPage = lazyWithReload(() => import("src/pages/Lead/Leads"));
+const CampaignsPage = lazyWithReload(() => import("src/pages/Campaign/Campaigns"));
+const SalesTargetsPage = lazyWithReload(() => import("src/pages/SalesTargets/SalesTargets"));
+const SalesBudgetsPage = lazyWithReload(() => import("src/pages/Salesbudgets/Salesbudgets"));
+const QuotesPage = lazyWithReload(() => import("src/pages/Quotes/QuotesPage"));
+const ActivityCalendarPage = lazyWithReload(() => import("src/pages/ActivityCalendar/ActivityCalendarPage"));
+const MtejaDashboard = lazyWithReload(() => import("src/pages/Dashboard/MtejaDashboard"));
+const AccountingDashboardPage = lazyWithReload(() => import("src/pages/AccountingDashboard/AccountingDashboardPage"));
 
 // ─── Dala Real Estate Module ───────────────────────────────────────────────────
 // All Dala pages are lazy-loaded and only reachable when hasDala === true.
-const DalaDashboard = lazy(() => import("src/pages/dala/Dashboard"));
-const UnifiedDalaDashboard = lazy(() => import("src/pages/dala/UnifiedDalaDashboard"));
-const PropertiesList = lazy(() => import("src/pages/dala/properties/PropertiesList"));
-const PropertyDetail = lazy(() => import("src/pages/dala/properties/PropertyDetail"));
-const PropertyTypesList = lazy(() => import("src/pages/dala/property-types/PropertyTypesList"));
-const UnitsList = lazy(() => import("src/pages/dala/units/UnitsList"));
-const UnitDetail = lazy(() => import("src/pages/dala/units/UnitDetail"));
-const SalesManagement = lazy(() => import("src/pages/dala/sales/SalesManagement"));
-const SaleDetail = lazy(() => import("src/pages/dala/sales/SaleDetail"));
-const CommissionManagement = lazy(() => import("src/pages/dala/commissions/CommissionManagement"));
-const LeaseManagement = lazy(() => import("src/pages/dala/leases/LeaseManagement"));
-const LeaseDetail = lazy(() => import("src/pages/dala/leases/LeaseDetail"));
-const RentCollection = lazy(() => import("src/pages/dala/rent/RentCollection"));
-const MaintenanceManagement = lazy(() => import("src/pages/dala/maintenance/MaintenanceManagement"));
+const DalaDashboard = lazyWithReload(() => import("src/pages/dala/Dashboard"));
+const UnifiedDalaDashboard = lazyWithReload(() => import("src/pages/dala/UnifiedDalaDashboard"));
+const PropertiesList = lazyWithReload(() => import("src/pages/dala/properties/PropertiesList"));
+const PropertyDetail = lazyWithReload(() => import("src/pages/dala/properties/PropertyDetail"));
+const PropertyTypesList = lazyWithReload(() => import("src/pages/dala/property-types/PropertyTypesList"));
+const UnitsList = lazyWithReload(() => import("src/pages/dala/units/UnitsList"));
+const UnitDetail = lazyWithReload(() => import("src/pages/dala/units/UnitDetail"));
+const SalesManagement = lazyWithReload(() => import("src/pages/dala/sales/SalesManagement"));
+const SaleDetail = lazyWithReload(() => import("src/pages/dala/sales/SaleDetail"));
+const CommissionManagement = lazyWithReload(() => import("src/pages/dala/commissions/CommissionManagement"));
+const LeaseManagement = lazyWithReload(() => import("src/pages/dala/leases/LeaseManagement"));
+const LeaseDetail = lazyWithReload(() => import("src/pages/dala/leases/LeaseDetail"));
+const RentCollection = lazyWithReload(() => import("src/pages/dala/rent/RentCollection"));
+const MaintenanceManagement = lazyWithReload(() => import("src/pages/dala/maintenance/MaintenanceManagement"));
 
 // ─── Bandu HR Module ───────────────────────────────────────────────────────────
-const BanduHRDashboard = lazy(() => import("src/pages/BanduHR/BanduHRDashboard"));
-const EmployeeManagement = lazy(() => import("src/pages/BanduHR/EmployeeManagement"));
-const LeaveApplication = lazy(() => import("src/pages/BanduHR/LeaveApplication"));
-const LeavePolicies = lazy(() => import("src/pages/BanduHR/LeavePolicies"));
-const LeaveCalendar = lazy(() => import("src/pages/BanduHR/LeaveCalendar"));
-const PayrollManagement = lazy(() => import("src/pages/BanduHR/PayrollManagement"));
-const AttendanceTracking = lazy(() => import("src/pages/BanduHR/AttendanceTracking"));
-const PayslipView = lazy(() => import("src/pages/BanduHR/PayslipView"));
-const LeaveApprovals = lazy(() => import("src/pages/BanduHR/LeaveApprovals"));
+const BanduHRDashboard = lazyWithReload(() => import("src/pages/BanduHR/BanduHRDashboard"));
+const EmployeeManagement = lazyWithReload(() => import("src/pages/BanduHR/EmployeeManagement"));
+const LeaveApplication = lazyWithReload(() => import("src/pages/BanduHR/LeaveApplication"));
+const LeavePolicies = lazyWithReload(() => import("src/pages/BanduHR/LeavePolicies"));
+const LeaveCalendar = lazyWithReload(() => import("src/pages/BanduHR/LeaveCalendar"));
+const PayrollManagement = lazyWithReload(() => import("src/pages/BanduHR/PayrollManagement"));
+const AttendanceTracking = lazyWithReload(() => import("src/pages/BanduHR/AttendanceTracking"));
+const PayslipView = lazyWithReload(() => import("src/pages/BanduHR/PayslipView"));
+const LeaveApprovals = lazyWithReload(() => import("src/pages/BanduHR/LeaveApprovals"));
 
 // ─── Mteja guard ─────────────────────────────────────────────────────────────
 const getMtejaEnabled = (): boolean => {

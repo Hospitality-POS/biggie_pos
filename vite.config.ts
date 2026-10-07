@@ -74,7 +74,11 @@ export default defineConfig(({ mode }) => {
         skipWaiting: true,
         clientsClaim: true,
         sourcemap: true,
-        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
+        // Must exceed the entry chunk size (currently ~3.3 MB). If the entry
+        // is excluded from the precache, a stale precached index.html points
+        // at a deleted index-<hash>.js that was never cached → guaranteed
+        // blank page after every deploy.
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
           {
