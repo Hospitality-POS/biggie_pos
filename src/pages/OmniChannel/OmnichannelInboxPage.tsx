@@ -53,6 +53,7 @@ import AnalyticsPage from "./AnalyticsPage";
 import AgentsManager from "./AgentsManager";
 import ConnectChannelDrawer from "./ConnectChannelDrawer";
 import NewMessageModal from "./NewMessageModal";
+import CampaignsManager from "./Campaigns/CampaignsManager";
 
 const { Text, Title } = Typography;
 const C = THEME_C;
@@ -133,7 +134,7 @@ const OmnichannelInboxPage: React.FC = () => {
     const queryClient = useQueryClient();
 
     const [activeChannel] = useState<Channel>("whatsapp");
-    const [activeMainTab, setActiveMainTab] = useState<"inbox" | "scripts" | "welcome" | "analytics" | "agents">("inbox");
+    const [activeMainTab, setActiveMainTab] = useState<"inbox" | "scripts" | "welcome" | "analytics" | "agents" | "sms" | "email">("inbox");
     const [activeStatus, setActiveStatus] = useState<ConversationStatus | "all" | "queue" | "needs_reply">("all");
     const [selectedAgent, setSelectedAgent] = useState<string>("");
     const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
@@ -448,11 +449,13 @@ const OmnichannelInboxPage: React.FC = () => {
                         isMobile ? null : (
                             <Tabs
                                 activeKey={activeMainTab}
-                                onChange={(k) => setActiveMainTab(k as "inbox" | "scripts" | "welcome" | "analytics" | "agents")}
+                                onChange={(k) => setActiveMainTab(k as "inbox" | "scripts" | "welcome" | "analytics" | "agents" | "sms" | "email")}
                                 size="middle"
                                 style={{ minWidth: 200 }}
                                 items={[
-                                    { key: "inbox", label: "Inbox" },
+                                    { key: "inbox", label: "WhatsApp" },
+                                    { key: "sms", label: "SMS" },
+                                    { key: "email", label: "Email" },
                                     { key: "scripts", label: "Scripts" },
                                     { key: "welcome", label: "Auto-Reply" },
                                     { key: "analytics", label: "Analytics" },
@@ -480,11 +483,13 @@ const OmnichannelInboxPage: React.FC = () => {
                         >
                             <Tabs
                                 activeKey={activeMainTab}
-                                onChange={(k) => setActiveMainTab(k as "inbox" | "scripts" | "welcome" | "analytics" | "agents")}
+                                onChange={(k) => setActiveMainTab(k as "inbox" | "scripts" | "welcome" | "analytics" | "agents" | "sms" | "email")}
                                 size="small"
                                 style={{ flex: 1, minWidth: 0 }}
                                 items={[
-                                    { key: "inbox", label: "Inbox" },
+                                    { key: "inbox", label: "WhatsApp" },
+                                    { key: "sms", label: "SMS" },
+                                    { key: "email", label: "Email" },
                                     { key: "scripts", label: "Scripts" },
                                     { key: "welcome", label: "Auto" },
                                     { key: "analytics", label: "Analytics" },
@@ -681,6 +686,10 @@ const OmnichannelInboxPage: React.FC = () => {
                         )}
                     </div>
                 </div>
+            ) : activeMainTab === "sms" ? (
+                <CampaignsManager shopId={shopId} channel="sms" />
+            ) : activeMainTab === "email" ? (
+                <CampaignsManager shopId={shopId} channel="email" />
             ) : activeMainTab === "scripts" ? (
                 <ScriptsManager shopId={shopId} />
             ) : activeMainTab === "welcome" ? (
