@@ -20,8 +20,9 @@ import { reloadForNewVersion } from "@utils/lazyWithReload";
 // mounts — which is the classic blank-white-page scenario.
 if (import.meta.env.PROD) {
   window.addEventListener("vite:preloadError", (event) => {
-    event.preventDefault();
-    reloadForNewVersion();
+    if (reloadForNewVersion()) {
+      event.preventDefault();
+    }
   });
 }
 
