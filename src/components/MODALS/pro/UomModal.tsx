@@ -70,7 +70,7 @@ const UomModal: React.FC<UomModalProps> = ({
       trigger={
         // No trigger when controlled externally
         externalOpen !== undefined ? undefined : edit ? (
-          <Button key="button" icon={<EditOutlined style={{ color: "#6c1c2c" }} />} size="small"
+          <Button key="button" icon={<EditOutlined style={{ color: "var(--primary-color)" }} />} size="small"
             onClick={() => form.setFieldsValue(data)}>
             Edit
           </Button>

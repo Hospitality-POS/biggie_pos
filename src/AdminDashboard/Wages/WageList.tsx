@@ -43,6 +43,8 @@ import {
 import WageForm from "./WageForm";
 import dayjs from "dayjs";
 import isBetween from "dayjs/plugin/isBetween";
+import { THEME_C } from "@utils/getPrimaryColor";
+import { fmtWage as fmtK } from "@utils/formatters";
 
 dayjs.extend(isBetween);
 
@@ -51,23 +53,9 @@ const { RangePicker } = DatePicker;
 const { confirm } = Modal;
 
 // ── Palette ───────────────────────────────────────────────────────────────────
-const C = {
-    primary: "#6c1c2c",
-    primaryLight: "#f9f0f2",
-    green: "#10b981",
-    orange: "#f59e0b",
-    red: "#ef4444",
-    blue: "#3b82f6",
-    indigo: "#6366f1",
-    subText: "#64748b",
-    darkText: "#0f172a",
-    border: "#e2e8f0",
-};
+const C = THEME_C;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-const fmtK = (v: number, currency = "KES") =>
-    `${currency} ${v.toLocaleString("en-KE", { minimumFractionDigits: 0 })}`;
-
 const calcNet = (wage: any) => {
     const allowances = wage.allowances?.reduce((s: number, a: any) => s + (a.amount || 0), 0) || 0;
     const deductions = wage.deductions?.reduce((s: number, d: any) => s + (d.amount || 0), 0) || 0;

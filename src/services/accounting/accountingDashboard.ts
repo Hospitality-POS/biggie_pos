@@ -256,13 +256,9 @@ export interface GetDashboardParams {
 export const getAccountingDashboard = async (
     params: GetDashboardParams
 ): Promise<AccountingDashboardResponse> => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/dashboard`,
-            { params }
-        );
-        return response.data as AccountingDashboardResponse;
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/dashboard`,
+        { params }
+    );
+    return response.data as AccountingDashboardResponse;
 };

@@ -55,7 +55,7 @@ const AddProTableLocationModal: React.FC<AddProTableLocationModalProps> = ({
             key="button"
             icon={
               <EditOutlined
-                style={{ color: "#6c1c2c" }}
+                style={{ color: "var(--primary-color)" }}
                 onClick={() => form.setFieldsValue(data)}
               />
             }

@@ -1,30 +1,39 @@
-import React from 'react';
-import { Card, CardContent, Grid, Skeleton, Typography } from '@mui/material';
+import React from "react";
+import { Skeleton } from "antd";
 
 function SkeletonCartItemCard() {
   return (
-    <Card sx={{ mb: 1, boxShadow: "none", backgroundColor: "#FAF9F6" }}>
-      <CardContent>
-        <Grid container spacing={2} alignItems="center">
-          <Grid item xs={4}>
-            <Typography variant="body1">
-              <Skeleton variant="text" animation="wave" height={20} width={100} />
-            </Typography>
-          </Grid>
-          <Grid item xs={3}>
-            <Skeleton sx={{ml: 3}} variant="text" animation="wave" height={20} width={25} />
-          </Grid>
-          <Grid item xs={2} ml={-3}>
-            <Typography variant="body1" fontSize="16px" ml={3}>
-              <Skeleton variant="text" animation="wave" height={20} width={40} />
-            </Typography>
-          </Grid>
-          <Grid item xs={2} ml={4}>
-            <Skeleton variant="rounded" width={40} height={15} animation="wave" />
-          </Grid>
-        </Grid>
-      </CardContent>
-    </Card>
+    <div
+      style={{
+        marginBottom: 8,
+        border: "1px solid #f1f5f9",
+        borderRadius: 8,
+        backgroundColor: "#ffffff",
+        padding: "10px",
+      }}
+    >
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 1fr) 96px 74px minmax(36px, auto)",
+          gap: 6,
+          alignItems: "center",
+        }}
+      >
+        <div>
+          <Skeleton.Input active size="small" style={{ width: "80%", height: 18 }} />
+        </div>
+        <div style={{ display: "flex", justifyContent: "center" }}>
+          <Skeleton.Button active size="small" style={{ width: 80, height: 26, borderRadius: 5 }} />
+        </div>
+        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <Skeleton.Input active size="small" style={{ width: 50, height: 18 }} />
+        </div>
+        <div style={{ display: "flex", justifyContent: "center" }}>
+          <Skeleton.Avatar active size={28} shape="circle" />
+        </div>
+      </div>
+    </div>
   );
 }
 

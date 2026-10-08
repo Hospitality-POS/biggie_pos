@@ -5,7 +5,7 @@ import {
     EditOutlined, EyeOutlined, MoreOutlined, PlusOutlined, SendOutlined,
 } from "@ant-design/icons";
 import {
-    App, Button, DatePicker, Drawer, Dropdown, Form,
+    App, Button, DatePicker, Drawer, Dropdown, Form, Grid,
     Input, InputNumber, Modal, Select, Tag, Typography,
 } from "antd";
 import { useAppDispatch } from "../../store";
@@ -18,23 +18,13 @@ import { fetchAllCampaigns } from "@services/crm/campaigns";
 import { fetchAllDepartments } from "@services/crm/departments";
 import { useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
+import { THEME_C } from "@utils/getPrimaryColor";
 
 const { Text } = Typography;
 const { Option } = Select;
 const { TextArea } = Input;
 
-const C = {
-    primary: "#6c1c2c",
-    primaryLight: "#f9f0f2",
-    green: "#10b981",
-    red: "#ef4444",
-    blue: "#3b82f6",
-    orange: "#f59e0b",
-    subText: "#64748b",
-    darkText: "#0f172a",
-    border: "#e2e8f0",
-    bg: "#f8fafc",
-};
+const C = THEME_C;
 
 const STATUS_CFG: Record<BudgetStatus, { color: string; bg: string; border: string }> = {
     draft: { color: C.subText, bg: C.bg, border: C.border },
@@ -138,7 +128,7 @@ const SalesBudgetTable = forwardRef<SalesBudgetTableHandle, SalesBudgetTableProp
                         </div>
                     }
                     options={{ reload: () => actionRef.current?.reload() }}
-                    scroll={{ x: "100%" }} size="small"
+                    scroll={{ x: 1000 }} size="small"
                 />
             </App>
         );
@@ -200,7 +190,9 @@ const SalesBudgetFormModal: React.FC<SalesBudgetFormModalProps> = ({
                 await dispatch(createSalesBudget(payload)).unwrap();
             }
             form.resetFields(); onClose(); onSuccess?.();
-        } catch { } finally { setLoading(false); }
+        } catch {
+            /* error handled by thunk */
+        } finally { setLoading(false); }
     };
 
     return (
@@ -310,8 +302,14 @@ const SalesBudgetDetailDrawer: React.FC<SalesBudgetDetailDrawerProps> = ({
 
     const handleSubmit = async () => {
         setSubmitLoading(true);
-        try { await dispatch(submitSalesBudget({ id: budget._id, shop_id })).unwrap(); onUpdated?.(); }
-        catch { } finally { setSubmitLoading(false); }
+        try {
+            await dispatch(submitSalesBudget({ id: budget._id, shop_id })).unwrap();
+            onUpdated?.();
+        } catch {
+            /* error handled by thunk */
+        } finally {
+            setSubmitLoading(false);
+        }
     };
 
     const handleApprove = async (action: "approve" | "reject", reason?: string) => {
@@ -319,7 +317,11 @@ const SalesBudgetDetailDrawer: React.FC<SalesBudgetDetailDrawerProps> = ({
         try {
             await dispatch(approveSalesBudget({ id: budget._id, shop_id, action, rejection_reason: reason })).unwrap();
             onUpdated?.();
-        } catch { } finally { setApproveLoading(false); }
+        } catch {
+            /* error handled by thunk */
+        } finally {
+            setApproveLoading(false);
+        }
     };
 
     const MetricRow = ({ label, budgeted, actual }: { label: string; budgeted?: number; actual?: number }) => {
@@ -415,6 +417,8 @@ const SalesBudgetDetailDrawer: React.FC<SalesBudgetDetailDrawerProps> = ({
 // ── Page ──────────────────────────────────────────────────────────────────────
 const SalesBudgets = () => {
     const tableRef = useRef<SalesBudgetTableHandle>(null);
+    const screens = Grid.useBreakpoint();
+    const isMobile = !screens.md;
     const [formOpen, setFormOpen] = useState(false);
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [selected, setSelected] = useState<SalesBudget | null>(null);
@@ -427,7 +431,7 @@ const SalesBudgets = () => {
 
     return (
         <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, padding: "16px 20px 14px", borderBottom: `1px solid ${C.border}` }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, padding: isMobile ? "12px 12px 10px" : "16px 20px 14px", borderBottom: `1px solid ${C.border}` }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <div style={{ background: C.primaryLight, borderRadius: 7, padding: "5px 7px", color: C.primary, fontSize: 16, lineHeight: 1 }}><AuditOutlined /></div>
                     <div>
@@ -440,7 +444,7 @@ const SalesBudgets = () => {
                     New Budget
                 </Button>
             </div>
-            <div style={{ padding: "16px 20px" }}>
+            <div style={{ padding: isMobile ? "12px" : "16px 20px" }}>
                 <SalesBudgetTable ref={tableRef} onView={handleView} onEdit={handleEdit} />
             </div>
             <SalesBudgetFormModal visible={formOpen} mode={mode} budget={selected} onClose={() => setFormOpen(false)} onSuccess={handleSuccess} />

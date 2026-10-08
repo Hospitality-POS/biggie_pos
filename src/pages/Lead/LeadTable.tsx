@@ -1,29 +1,18 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import { ActionType, ProTable } from "@ant-design/pro-components";
 import {
-    CalendarOutlined, CheckCircleOutlined, DeleteOutlined, EditOutlined,
-    EnvironmentOutlined, EyeOutlined, MoreOutlined,
+    CalendarOutlined, DeleteOutlined, EditOutlined,
+    EyeOutlined, MoreOutlined,
     PhoneOutlined, TeamOutlined, UserOutlined,
 } from "@ant-design/icons";
 import { App, Button, Dropdown, Modal, Tag, Typography } from "antd";
-import { deleteLead, fetchAllLeads, Lead, LeadStage } from "@services/crm/leads";
+import { deleteLead, fetchAllLeads, fetchProjectOptions, Lead, LeadStage } from "@services/crm/leads";
 import { useAppDispatch } from "src/store";
+import { THEME_C } from "@utils/getPrimaryColor";
 
 const { Text } = Typography;
 
-const C = {
-    primary: "#6c1c2c",
-    primaryLight: "#f9f0f2",
-    green: "#10b981",
-    red: "#ef4444",
-    blue: "#3b82f6",
-    orange: "#f59e0b",
-    purple: "#8b5cf6",
-    subText: "#64748b",
-    darkText: "#0f172a",
-    border: "#e2e8f0",
-    bg: "#f8fafc",
-};
+const C = THEME_C;
 
 const STAGE_CONFIG: Record<LeadStage, { color: string; bg: string; border: string; label: string }> = {
     new: { color: C.blue, bg: "#eff6ff", border: "#bfdbfe", label: "New" },
@@ -188,6 +177,23 @@ const LeadTable = forwardRef<LeadTableHandle, LeadTableProps>(({ onView, onEdit 
             ) : <Text style={{ fontSize: 12, color: C.subText }}>—</Text>,
         },
         {
+            title: "Project", dataIndex: "project",
+            valueType: "select" as const,
+            fieldProps: {
+                showSearch: true,
+                allowClear: true,
+                optionFilterProp: "label",
+                placeholder: "Filter by project…",
+            },
+            request: async () => {
+                const options = await fetchProjectOptions(shop_id);
+                return options.map(p => ({ label: p, value: p }));
+            },
+            render: (v: string) => v
+                ? <Text style={{ fontSize: 12, color: C.darkText }}>{v}</Text>
+                : <Text style={{ fontSize: 12, color: C.subText }}>—</Text>,
+        },
+        {
             title: "Actions", key: "actions", search: false, fixed: "right" as const, width: 56,
             render: (_: any, record: Lead) => (
                 <Dropdown trigger={["click"]} menu={{
@@ -236,7 +242,7 @@ const LeadTable = forwardRef<LeadTableHandle, LeadTableProps>(({ onView, onEdit 
                     </div>
                 }
                 options={{ reload: () => actionRef.current?.reload(), fullScreen: true }}
-                scroll={{ x: "100%" }}
+                scroll={{ x: 1100 }}
                 size="small"
             />
         </App>

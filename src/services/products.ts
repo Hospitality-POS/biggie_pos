@@ -210,6 +210,33 @@ export const fetchAllInventoryItems = async (params: any) => {
   }
 };
 
+// All items sellable on the POS across every category: service-type items from
+// the Product model plus sellable Product_Inventory rows. Mirrors the
+// usage_type filter applied by GET /product/products/category/:id.
+export const fetchAllSellableItems = async () => {
+  try {
+    const tenant = getTenant();
+    const isRetail = tenant?.business_type?.solution_type === "Retail POS";
+    const [servicesRes, inventoryRes] = await Promise.all([
+      axiosInstance.get(productUrl),
+      axiosInstance.get(invetoryUrl),
+    ]);
+    const services = (servicesRes?.data?.products ?? []).map((p: any) => ({
+      ...p,
+      type: "service",
+    }));
+    const products = (inventoryRes?.data ?? [])
+      .filter(
+        (p: any) =>
+          isRetail || p.usage_type === "selling" || p.usage_type === "both"
+      )
+      .map((p: any) => ({ ...p, type: "product" }));
+    return [...services, ...products];
+  } catch (error) {
+    throw new Error("Failed to fetch sellable items");
+  }
+};
+
 export const fetchAllUnits = async (params: any) => {
   try {
     const response = await axiosInstance.get(`${unitsUrl}`, { headers });

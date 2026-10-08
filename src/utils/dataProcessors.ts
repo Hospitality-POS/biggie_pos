@@ -129,7 +129,7 @@ export const generateAgentCommissionsReport = (
   salesData: Sale[],
   dateRange: DateRange,
   selectedAgents: string[],
-  filterType: string = 'all'
+  filterType = 'all'
 ): any[] => {
   // Filter sales based on criteria
   let filteredSales = [...salesData];

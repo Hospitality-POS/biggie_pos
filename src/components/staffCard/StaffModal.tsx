@@ -1,22 +1,12 @@
 import React, { useState } from "react";
-import {
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  TextField,
-  Grid,
-  IconButton,
-  CircularProgress,
-} from "@mui/material";
-import { Visibility, VisibilityOff } from "@mui/icons-material";
+import { Modal, Button, Input, Row, Col, Typography, Space } from "antd";
+import { LoginOutlined, DeleteOutlined } from "@ant-design/icons";
 import { loginUser } from "../../features/Auth/AuthActions";
 import classes from "./staff.module.css";
-import LoginIcon from "@mui/icons-material/Login";
-import BackspaceIcon from "@mui/icons-material/Backspace";
 import { useAppDispatch, useAppSelector } from "../../store";
 import useCheckIfUserIsLoggedIn from "../../hooks/useCheckIfUserIsLoggedIn";
+
+const { Text } = Typography;
 
 interface StaffModalProps {
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -33,18 +23,13 @@ const StaffModal: React.FC<StaffModalProps> = ({
   open,
   tbl,
 }) => {
-  const [showPassword, setShowPassword] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
-  const { isError, isSuccess, isLoading, user } = useAppSelector(
+  const { isLoading, user } = useAppSelector(
     (state) => state.auth
   );
   const { error: cartError } = useAppSelector((state) => state.cart);
   const dispatch = useAppDispatch();
   const { checkIfUserIsLoggedIn, isUserLoggedIn } = useCheckIfUserIsLoggedIn();
-
-  const handleClickShowPassword = () => {
-    setShowPassword((show) => !show);
-  };
 
   const handleClose = () => {
     setOpen(false);
@@ -70,78 +55,60 @@ const StaffModal: React.FC<StaffModalProps> = ({
   };
 
   return (
-    <>
-      <Dialog
-        open={open}
-        onClose={handleClose}
-        maxWidth="xs"
-        className={classes.modal}
-      >
-        <DialogContent>
-          <DialogContentText sx={{ mb: 1 }}>
-            Enter your PIN to login.
-          </DialogContentText>
-          <TextField
-            label="Enter PIN"
-            variant="filled"
-            autoFocus
-            type={showPassword ? "text" : "password"}
-            value={pin}
-            onChange={(e) => setPin(e.target.value)}
-            fullWidth
-            sx={{ mb: 3 }}
-            error={notificationOpen}
-            helperText={notificationOpen ? "Invalid PIN" : ""}
-            InputProps={{
-              endAdornment: (
-                <IconButton
-                  onClick={handleClickShowPassword}
-                  edge="end"
-                  size="large"
-                >
-                  {showPassword ? <VisibilityOff /> : <Visibility />}
-                </IconButton>
-              ),
-            }}
-          />
-          <Grid container spacing={1} className={classes.numPad}>
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((number) => (
-              <Grid item key={number} className={classes.numPadContainer}>
-                <Button
-                  className={classes.numPadButton}
-                  onClick={() => handleNumberClick(number)}
-                >
-                  {number}
-                </Button>
-              </Grid>
-            ))}
-          </Grid>
-        </DialogContent>
-        <DialogActions>
-          <Button
-            variant="outlined"
-            onClick={handleLogin}
-            className={classes.loginButton}
-            sx={{ display: "flex", alignContent: "center" }}
-          >
-            Login{" "}
-            {isLoading ? (
-              <CircularProgress size={20} thickness={8} sx={{ ml: 1 }} />
-            ) : (
-              <LoginIcon fontSize="small" sx={{ ml: 1 }} />
-            )}
-          </Button>
-          <Button
-            onClick={handleClearPin}
-            variant="outlined"
-            color="warning"
-            sx={{ display: "flex", alignContent: "center" }}
-          >
-            Clear <BackspaceIcon fontSize="small" sx={{ ml: 1 }} />
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </>
+    <Modal
+      open={open}
+      onCancel={handleClose}
+      title="Staff Login"
+      width={360}
+      footer={[
+        <Button
+          key="clear"
+          danger
+          onClick={handleClearPin}
+          icon={<DeleteOutlined />}
+        >
+          Clear
+        </Button>,
+        <Button
+          key="login"
+          type="primary"
+          loading={isLoading}
+          onClick={handleLogin}
+          icon={<LoginOutlined />}
+        >
+          Login
+        </Button>,
+      ]}
+    >
+      <div style={{ padding: "8px 0" }}>
+        <Text type="secondary" style={{ display: "block", marginBottom: 12 }}>
+          Enter your PIN to login.
+        </Text>
+        <Input.Password
+          size="large"
+          placeholder="Enter PIN"
+          autoFocus
+          value={pin}
+          status={notificationOpen ? "error" : ""}
+          onChange={(e) => setPin(e.target.value)}
+          style={{ marginBottom: 16, textAlign: "center", fontSize: 18 }}
+        />
+        <Row gutter={[8, 8]} justify="center">
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((number) => (
+            <Col span={number === 0 ? 24 : 8} key={number}>
+              <Button
+                block
+                size="large"
+                style={{ height: 48, fontSize: 18, fontWeight: "bold" }}
+                onClick={() => handleNumberClick(number)}
+              >
+                {number}
+              </Button>
+            </Col>
+          ))}
+        </Row>
+      </div>
+    </Modal>
   );
 };
 

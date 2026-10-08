@@ -39,27 +39,20 @@ import { useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import { useReactToPrint } from "react-to-print";
 import * as XLSX from "xlsx";
+import { THEME_C } from "@utils/getPrimaryColor";
 
 const { Text } = Typography;
 const { RangePicker } = DatePicker;
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 const C = {
-  primary: "#6c1c2c",
-  primaryLight: "#f9f0f2",
-  green: "#10b981",
+  ...THEME_C,
+  get primary() { return THEME_C.primary; },
+  get primaryLight() { return THEME_C.primaryLight; },
   greenLight: "#f0fdf4",
-  blue: "#3b82f6",
   blueLight: "#eff6ff",
-  orange: "#f59e0b",
   orangeLight: "#fffbeb",
-  purple: "#8b5cf6",
   purpleLight: "#faf5ff",
-  red: "#ef4444",
-  subText: "#64748b",
-  darkText: "#0f172a",
-  border: "#e2e8f0",
-  bg: "#f8fafc",
 };
 
 // ── Types ─────────────────────────────────────────────────────────────────────

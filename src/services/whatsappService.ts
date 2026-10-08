@@ -73,7 +73,7 @@ export interface Message {
     conversation_id: string;
     shop_id: string;
     direction: "inbound" | "outbound";
-    message_type: "text" | "image" | "video" | "audio" | "document" | "location" | "template" | "reaction" | "unsupported";
+    message_type: "text" | "image" | "video" | "audio" | "document" | "location" | "template" | "reaction" | "call" | "unsupported";
     content: string;
     media_url?: string;
     media_id?: string;
@@ -248,6 +248,7 @@ export const connectChannel = connectWhatsappChannel;
 export interface StartWhatsAppWebParams {
     method?: "qr" | "phone";
     phoneNumber?: string;
+    shop_id?: string;
 }
 
 export const startWhatsAppWeb = async (params: StartWhatsAppWebParams = {}) => {
@@ -259,40 +260,58 @@ export const startWhatsAppWeb = async (params: StartWhatsAppWebParams = {}) => {
     }
 };
 
-export const getWhatsAppWebQR = async () => {
+// WhatsApp Web sessions are per tenant+shop on the backend — always pass the
+// shop_id so the poll hits this shop's session, not another tenant's.
+export const getWhatsAppWebQR = async (shop_id?: string) => {
     try {
-        const response = await axiosInstance.get(`${BASE_URL}/omnichannel/channels/whatsapp-web/qr`);
+        const response = await axiosInstance.get(`${BASE_URL}/omnichannel/channels/whatsapp-web/qr`, {
+            params: { shop_id },
+        });
         return response.data;
     } catch (error: any) {
         handleError(error, "Could not fetch WhatsApp QR code.");
     }
 };
 
-export const getWhatsAppWebPairingCode = async () => {
+export const getWhatsAppWebPairingCode = async (shop_id?: string) => {
     try {
-        const response = await axiosInstance.get(`${BASE_URL}/omnichannel/channels/whatsapp-web/pairing-code`);
+        const response = await axiosInstance.get(`${BASE_URL}/omnichannel/channels/whatsapp-web/pairing-code`, {
+            params: { shop_id },
+        });
         return response.data;
     } catch (error: any) {
         handleError(error, "Could not fetch WhatsApp pairing code.");
     }
 };
 
-export const getWhatsAppWebStatus = async () => {
+export const getWhatsAppWebStatus = async (shop_id?: string) => {
     try {
-        const response = await axiosInstance.get(`${BASE_URL}/omnichannel/channels/whatsapp-web/status`);
+        const response = await axiosInstance.get(`${BASE_URL}/omnichannel/channels/whatsapp-web/status`, {
+            params: { shop_id },
+        });
         return response.data;
     } catch (error: any) {
         handleError(error, "Could not fetch WhatsApp Web status.");
     }
 };
 
-export const disconnectWhatsAppWeb = async () => {
+export const disconnectWhatsAppWeb = async (shop_id?: string) => {
     try {
-        const response = await axiosInstance.post(`${BASE_URL}/omnichannel/channels/whatsapp-web/disconnect`);
+        const response = await axiosInstance.post(`${BASE_URL}/omnichannel/channels/whatsapp-web/disconnect`, { shop_id });
         message.success("WhatsApp Web disconnected");
         return response.data;
     } catch (error: any) {
         handleError(error, "Could not disconnect WhatsApp Web.");
+    }
+};
+
+export const resyncWhatsAppWeb = async (shop_id?: string) => {
+    try {
+        const response = await axiosInstance.post(`${BASE_URL}/omnichannel/channels/whatsapp-web/resync`, { shop_id });
+        message.success("WhatsApp chats resynced");
+        return response.data;
+    } catch (error: any) {
+        handleError(error, "Could not resync WhatsApp Web chats.");
     }
 };
 
@@ -348,6 +367,19 @@ export const deleteScript = async (scriptId: string) => {
         return response.data;
     } catch (error: any) {
         handleError(error, "Could not delete script");
+    }
+};
+
+export const extractScriptFromFile = async (file: File) => {
+    try {
+        const formData = new FormData();
+        formData.append("file", file);
+        const response = await axiosInstance.post(`${BASE_URL}/omnichannel/scripts/extract`, formData, {
+            headers: { "Content-Type": "multipart/form-data" },
+        });
+        return response.data as { title: string; content: string };
+    } catch (error: any) {
+        handleError(error, "Could not extract text from file");
     }
 };
 
@@ -428,6 +460,17 @@ export interface AgentStat {
     messages: number;
 }
 
+export interface PerAgentStat extends AgentStat {
+    upsellMessages: number;
+    conversations: number;
+    resolved: number;
+    converted: number;
+    resolutionRate: number;
+    conversionRate: number;
+    avgFirstResponseMinutes: number | null;
+    medianFirstResponseMinutes: number | null;
+}
+
 export interface DailyMessages {
     date: string;
     inbound: number;
@@ -437,6 +480,18 @@ export interface DailyMessages {
 export interface DailyConversations {
     date: string;
     conversations: number;
+}
+
+export interface DispatchAgentStat {
+    user_id: string;
+    name: string;
+    thumbnail?: string;
+    conversations: number;
+}
+
+export interface DailyDispatches {
+    date: string;
+    dispatches: number;
 }
 
 export interface ResponseTimeBuckets {
@@ -454,18 +509,24 @@ export interface AnalyticsData {
     totalOutbound: number;
     resolvedOrClosed: number;
     resolutionRate: number;
-    averageFirstResponseMinutes: number;
-    medianFirstResponseMinutes: number;
+    averageFirstResponseMinutes: number | null;
+    medianFirstResponseMinutes: number | null;
     upsellMessages: number;
     conversionRate: number;
     averageMessagesPerConversation: number;
     totalAgents: number;
     totalCustomers: number;
     topAgents: AgentStat[];
+    perAgentStats: PerAgentStat[];
     statusBreakdown: Record<string, number>;
     responseTimeBuckets: ResponseTimeBuckets;
     messagesByDay: DailyMessages[];
     conversationsByDay: DailyConversations[];
+    pendingDispatch: number;
+    dispatchUnassigned: number;
+    avgDispatchWaitMinutes: number;
+    dispatchByAgent: DispatchAgentStat[];
+    dispatchesByDay: DailyDispatches[];
     insights: string;
 }
 
@@ -592,11 +653,11 @@ export const assignConversation = async (conversationId: string, assignedTo: str
     }
 };
 
-export const updateConversationStatus = async (conversationId: string, status: string) => {
+export const updateConversationStatus = async (conversationId: string, status: string, assignedTo?: string) => {
     try {
         const response = await axiosInstance.patch(
             `${conversationUrl}/${conversationId}/status`,
-            { status }
+            { status, ...(assignedTo ? { assigned_to: assignedTo } : {}) }
         );
         message.success(`Conversation marked as ${status}`);
         return response.data;
@@ -612,6 +673,16 @@ export const markConversationAsRead = async (conversationId: string) => {
     } catch (error: any) {
         console.warn("[markConversationAsRead] failed:", error?.message);
         return null;
+    }
+};
+
+export const deleteConversation = async (conversationId: string) => {
+    try {
+        const response = await axiosInstance.delete(`${conversationUrl}/${conversationId}`);
+        message.success("Conversation deleted");
+        return response.data;
+    } catch (error: any) {
+        handleError(error, "Error deleting conversation");
     }
 };
 
@@ -695,15 +766,68 @@ export const fetchMessages = async (conversationId: string, params?: FetchMessag
     }
 };
 
-export const sendTextMessage = async (params: { conversation_id: string; content: string }) => {
+export const sendTextMessage = async (params: { conversation_id: string; content: string; context_message_id?: string }) => {
     try {
         const response = await axiosInstance.post(`${messageUrl}/text`, {
             conversation_id: params.conversation_id,
             content: params.content,
+            context_message_id: params.context_message_id || null,
         });
         return response.data;
     } catch (error: any) {
         handleError(error, "Error sending message");
+    }
+};
+
+// ── Send to phone number / Broadcast ───────────────────────────────────────────
+
+export const sendToPhoneNumber = async (params: {
+    shop_id: string;
+    phone_number: string;
+    content: string;
+    contact_name?: string;
+}) => {
+    try {
+        const response = await axiosInstance.post(`${messageUrl}/send-to-number`, params);
+        message.success("Message sent");
+        return response.data;
+    } catch (error: any) {
+        handleError(error, "Error sending message");
+    }
+};
+
+export type BroadcastAudience = "customers" | "leads" | "both" | "all_chats";
+
+export interface BroadcastRecipient {
+    id: string;
+    name: string;
+    phone: string;
+    source: "customer" | "lead" | "chat";
+    jid?: string | null;
+    conversation_id?: string;
+}
+
+export const fetchBroadcastRecipients = async (params: { shop_id: string; audience: BroadcastAudience }) => {
+    try {
+        const response = await axiosInstance.get(`${BASE_URL}/omnichannel/broadcast/recipients`, { params });
+        return response.data as { total: number; recipients: BroadcastRecipient[] };
+    } catch (error: any) {
+        handleError(error, "Could not load recipients");
+        return { total: 0, recipients: [] };
+    }
+};
+
+export const sendBroadcastMessage = async (params: {
+    shop_id: string;
+    content: string;
+    audience: BroadcastAudience;
+}) => {
+    try {
+        const response = await axiosInstance.post(`${BASE_URL}/omnichannel/broadcast/send`, params);
+        message.success(response.data?.message || "Broadcast queued");
+        return response.data;
+    } catch (error: any) {
+        handleError(error, "Error sending broadcast");
     }
 };
 
@@ -734,6 +858,7 @@ export const sendMediaMessage = async (params: {
     media_id?: string;
     caption?: string;
     filename?: string;
+    context_message_id?: string;
 }) => {
     try {
         const response = await axiosInstance.post(`${messageUrl}/media`, {
@@ -743,10 +868,11 @@ export const sendMediaMessage = async (params: {
             media_id: params.media_id || null,
             caption: params.caption || "",
             filename: params.filename || null,
+            context_message_id: params.context_message_id || null,
         });
         return response.data;
     } catch (error: any) {
-        handleError(error, "Error sending media");
+        handleError(error);
     }
 };
 
@@ -787,6 +913,7 @@ export const convertConversationToCustomer = async (params: {
     customer_name?: string;
     email?: string;
     location?: string;
+    phone?: string;
 }) => {
     try {
         const response = await axiosInstance.post(`${BASE_URL}/omnichannel/conversations/convert-customer`, params);
@@ -824,6 +951,40 @@ export const linkConversationToLead = async (params: { conversation_id: string; 
         return response.data;
     } catch (error: any) {
         handleError(error, "Error linking lead");
+    }
+};
+
+// ── Calls ─────────────────────────────────────────────────────────────────────
+
+export interface StartCallResponse {
+    call_link: string;
+    message: Message;
+}
+
+/**
+ * Generate a WhatsApp call link (voice or video) and send it to the contact.
+ * The agent joins the call by opening the returned link.
+ */
+export const startWhatsAppCall = async (params: {
+    conversation_id: string;
+    call_type?: "voice" | "video";
+    phone_number?: string;
+}): Promise<StartCallResponse | undefined> => {
+    try {
+        const response = await axiosInstance.post(`${BASE_URL}/omnichannel/calls/start`, params);
+        return response.data;
+    } catch (error: any) {
+        handleError(error, "Could not start WhatsApp call");
+    }
+};
+
+/** Reject an incoming WhatsApp call that is still ringing. */
+export const rejectWhatsAppCall = async (callId: string) => {
+    try {
+        const response = await axiosInstance.post(`${BASE_URL}/omnichannel/calls/reject`, { call_id: callId });
+        return response.data;
+    } catch (error: any) {
+        handleError(error, "Could not reject call");
     }
 };
 

@@ -3,8 +3,63 @@ import axiosInstance from "./request";
 import { BASE_URL } from "@utils/config";
 import { message } from "antd";
 import { fetchSystemSetupDetailsById } from "./systemsetup";
+import { fetchShop } from "./shops";
 
 const tableUrl = `${BASE_URL}/tables`;
+
+// A table counts as "served by someone else" only when the served_by marker is
+// set and none of its entries match the current user. List endpoints return
+// served_by as a username string ("mike" / "mike (+2)") while the single-table
+// endpoint returns raw user ObjectIds — handle both shapes.
+const isServedByOtherStaff = (
+  table: any,
+  currentUserId: string,
+  userName: string
+): boolean => {
+  const servedBy = table?.served_by;
+  if (
+    servedBy === null ||
+    servedBy === undefined ||
+    servedBy === "" ||
+    (Array.isArray(servedBy) && servedBy.length === 0)
+  ) {
+    return false;
+  }
+  const entries = Array.isArray(servedBy) ? servedBy : [servedBy];
+  const me = String(currentUserId ?? "");
+  const myName = String(userName ?? "").trim().toLowerCase();
+  return !entries.some((entry: any) => {
+    const entryId = String(entry?._id ?? entry ?? "");
+    const entryName = String(entry?.username ?? entry ?? "")
+      .split(" (")[0]
+      .trim()
+      .toLowerCase();
+    return (me && entryId === me) || (myName && entryName === myName);
+  });
+};
+
+// "Being served" requires the open cart to hold real value — an empty cart or
+// a stale served_by on an unoccupied table must stay visible to everyone.
+const isHiddenServedTable = (
+  table: any,
+  currentUserId: string,
+  userName: string
+): boolean =>
+  isServedByOtherStaff(table, currentUserId, userName) &&
+  (table?.cart_amount ?? 0) > 0;
+
+// Shop-level flag: when on, waiters see only tables they serve (admin/cashier
+// unaffected). Fail-open on any fetch error.
+const fetchHideTablesServedByOthers = async (): Promise<boolean> => {
+  try {
+    const shopId = localStorage.getItem("shopId");
+    if (!shopId) return false;
+    const shopData = await fetchShop(shopId);
+    return !!shopData?.hide_tables_served_by_others;
+  } catch {
+    return false;
+  }
+};
 
 // ── Helper: check if POS is in restaurant mode ───────────────────────────────
 // The single source of truth is localStorage key "posMode" set by POSModeContext.
@@ -46,6 +101,7 @@ export const getAllTables = async (data: ParamsType) => {
 
     // Apply privacy locking for waiters - lock tables where cart was created by others
     let enablePrivacy = false;
+    let hideServedByOthers = false;
     try {
       const systemSettings = await fetchSystemSetupDetailsById();
       enablePrivacy = systemSettings?.enable_privacy || false;
@@ -53,23 +109,33 @@ export const getAllTables = async (data: ParamsType) => {
     } catch (err) {
       console.log('🔍 Failed to fetch enable_privacy, defaulting to false');
     }
+    hideServedByOthers = await fetchHideTablesServedByOthers();
+
+    // Shop flag: hide tables actively served by other staff (waiters only);
+    // empty tables and 0-value slots stay visible
+    if (hideServedByOthers && userRole === "waiter" && currentUser && Array.isArray(tables)) {
+      tables = tables.filter(
+        (table: any) => !isHiddenServedTable(table, currentUser, user.name)
+      );
+    }
 
     // If privacy is enabled and user is waiter, lock tables where served_by is not current user
-    if (enablePrivacy && userRole === "waiter" && currentUser) {
+    if (enablePrivacy && userRole === "waiter" && currentUser && Array.isArray(tables)) {
       tables = tables.map((table: any) => {
+        if (table.cart_amount === 0) {
+          return { ...table, isLocked: false };
+        }
         const servedByCurrentUser = table.served_by === currentUser || table.served_by === user.name;
         const isEmpty = !table.isOccupied && table.status !== 'occupied';
         // Lock if not served by current user AND not empty
         const isLocked = !servedByCurrentUser && !isEmpty;
-        console.log(`🔍 Table ${table.name}: served_by=${table.served_by}, isOccupied=${table.isOccupied}, isLocked=${isLocked}`);
         return { ...table, isLocked };
       });
-      console.log('🔍 Applied privacy locking, locked tables:', tables.filter((t: any) => t.isLocked).length);
-      console.log('🔍 Final tables with isLocked flags:', tables.map((t: any) => ({ name: t.name, isLocked: t.isLocked })));
     }
 
     return tables;
   } catch (error) {
+    console.error("Error fetching tables:", error);
     throw new Error("Error fetching tables");
   }
 };
@@ -104,25 +170,74 @@ export const fetchTableUsequery = async (params: any) => {
     } catch (err) {
       console.log('🔍 Failed to fetch enable_privacy in fetchTableUsequery');
     }
+    const hideServedByOthers = await fetchHideTablesServedByOthers();
 
-    // If privacy is enabled and user is waiter, lock tables where served_by is not current user
-    if (enablePrivacy && userRole === "waiter" && currentUser) {
-      tables = tables.map((table: any) => {
-        const servedByCurrentUser = table.served_by === currentUser || table.served_by === user.name;
-        // If served_by is undefined, treat as not served by current user (lock as safety)
-        const isServedByCurrentUser = table.served_by ? servedByCurrentUser : false;
+    // Shop flag: drop tables actively served by other staff (waiters only);
+    // empty tables and 0-value slots stay visible
+    if (hideServedByOthers && userRole === "waiter" && currentUser && Array.isArray(tables)) {
+      tables = tables
+        .map((item: any) =>
+          item?.tables && Array.isArray(item.tables)
+            ? {
+                ...item,
+                tables: item.tables.filter(
+                  (t: any) => !isHiddenServedTable(t, currentUser, user.name)
+                ),
+              }
+            : item
+        )
+        .filter((item: any) =>
+          item?.tables ? true : !isHiddenServedTable(item, currentUser, user.name)
+        );
+    }
+
+    // Apply privacy locking to individual tables (handling both locations with nested tables and flat table lists)
+    if (Array.isArray(tables)) {
+      tables = tables.map((item: any) => {
+        if (item?.tables && Array.isArray(item.tables)) {
+          const mappedTables = item.tables.map((table: any) => {
+            if (!enablePrivacy || userRole !== "waiter" || !currentUser) {
+              return { ...table, isLocked: false };
+            }
+            if (table.cart_amount === 0) {
+              return { ...table, isLocked: false };
+            }
+            const servedByCurrentUser = table.served_by === currentUser || table.served_by === user.name;
+            const isServedByCurrentUser = table.served_by ? servedByCurrentUser : false;
+            const isEmpty = !table.isOccupied && table.status !== 'occupied';
+            const isLocked = !isServedByCurrentUser && !isEmpty;
+            return { ...table, isLocked };
+          });
+          return { ...item, tables: mappedTables };
+        }
+
+        if (!enablePrivacy || userRole !== "waiter" || !currentUser) {
+          return { ...item, isLocked: false };
+        }
+        if (item.cart_amount === 0) {
+          return { ...item, isLocked: false };
+        }
+        const servedByCurrentUser = item.served_by === currentUser || item.served_by === user.name;
+        const isServedByCurrentUser = item.served_by ? servedByCurrentUser : false;
         const isEmpty = !table.isOccupied && table.status !== 'occupied';
-        // Lock if not served by current user AND not empty
         const isLocked = !isServedByCurrentUser && !isEmpty;
-        console.log(`🔍 [fetchTableUsequery] Table ${table.name}: served_by=${table.served_by}, isOccupied=${table.isOccupied}, isLocked=${isLocked}`);
-        return { ...table, isLocked };
+        return { ...item, isLocked };
       });
-      console.log('🔍 [fetchTableUsequery] Applied privacy locking, locked tables:', tables.filter((t: any) => t.isLocked).length);
     }
 
     return tables;
   } catch (error) {
     console.log(error);
+    throw new Error("Error fetching table");
+  }
+};
+
+// Single table record (raw doc — served_by is an array of user ObjectIds)
+export const fetchTableById = async (id: string) => {
+  try {
+    const response = await axiosInstance.get(`${tableUrl}/${id}`);
+    return response.data;
+  } catch (error) {
     throw new Error("Error fetching table");
   }
 };

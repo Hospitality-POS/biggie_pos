@@ -8,5 +8,6 @@ export interface User {
   isAdmin: string;
   role: any,
   roleId: string;
+  thumbnail?: string;
   preferredAuthMethod?: 'pin' | 'password' | '2fa' | 'otp';
 }

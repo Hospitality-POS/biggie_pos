@@ -13,29 +13,48 @@ const bandu_url = `${BASE_URL}/bandu`;
 export interface Employee {
   _id: string;
   employee_number: string;
-  user_id: {
+  user_id?: {
     _id: string;
     fullname: string;
     username: string;
     email: string;
+    phone?: string;
     thumbnail?: string;
-  };
-  department_id: {
+  } | null;
+  // Standalone identity fields (used when no user account is linked)
+  fullname?: string;
+  firstname?: string;
+  middle_name?: string;
+  lastname?: string;
+  email?: string;
+  phone?: string;
+  id_number?: string;
+  department_id?: {
     _id: string;
     name: string;
     code: string;
-  };
+  } | null;
   shop_id?: {
     _id: string;
     name: string;
   };
   hire_date: string;
-  employment_type: 'full-time' | 'part-time' | 'contract' | 'intern' | 'casual';
+  employment_type: 'full-time' | 'part-time' | 'contract' | 'intern' | 'casual' | 'consultant';
+  /** Kenya payroll classification — "primary" (default) or "secondary" employment */
+  employee_type?: 'primary' | 'secondary';
+  /** Person with Disability — PAYE exemption with a valid NCPWD certificate */
+  is_pwd?: boolean;
+  pwd_certificate_number?: string;
   job_title: string;
   employment_status: 'active' | 'on_leave' | 'suspended' | 'terminated' | 'resigned';
+  termination_date?: string;
+  termination_reason?: string;
   basic_salary: number;
+  /** "gross" = entered salary is gross pay; "net" = take-home (payroll grosses it up) */
+  salary_type?: 'gross' | 'net';
   currency: string;
   payment_frequency: 'daily' | 'weekly' | 'bi-weekly' | 'monthly';
+  hourly_rate?: number;
   allowances: Array<{
     name: string;
     amount: number;
@@ -50,9 +69,26 @@ export interface Employee {
   }>;
   bank_name?: string;
   bank_account_number?: string;
+  bank_branch?: string;
+  /** KRA tax residency — non-residents get no personal relief on PAYE */
+  residential_status?: 'resident' | 'non_resident';
   kra_pin?: string;
   nssf_number?: string;
   nhif_number?: string;
+  /** Monthly HELB loan repayment deducted from net pay (0/absent = none) */
+  helb_amount?: number;
+  /** Monthly pension contribution — pre-tax deduction, capped at KES 20,000 */
+  pension_contribution?: number;
+  /** Insurance policy — 15% PAYE relief on the monthly-equivalent premium, capped at KES 5,000 */
+  has_insurance_policy?: boolean;
+  insurance_policy?: {
+    provider?: string;
+    policy_number?: string;
+    start_date?: string;
+    contribution_amount?: number;
+    frequency?: 'monthly' | 'quarterly' | 'semi_annually' | 'annually';
+  };
+  exempt_deductions?: string[];
   date_of_birth?: string;
   gender?: 'male' | 'female' | 'other' | 'prefer_not_to_say';
   blood_group?: 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-';
@@ -67,20 +103,60 @@ export interface Employee {
 }
 
 export interface CreateEmployeeParams {
-  user_id: string;
-  department_id: string;
-  employee_number: string;
+  user_id?: string | null;
+  department_id?: string;
+  employee_number?: string;
   hire_date: string;
-  employment_type: 'full-time' | 'part-time' | 'contract' | 'intern' | 'casual';
-  job_title: string;
+  employment_type: 'full-time' | 'part-time' | 'contract' | 'intern' | 'casual' | 'consultant';
+  /** Kenya payroll classification — "primary" (default) or "secondary" employment */
+  employee_type?: 'primary' | 'secondary';
+  /** Person with Disability — PAYE exemption with a valid NCPWD certificate */
+  is_pwd?: boolean;
+  pwd_certificate_number?: string;
+  job_title?: string;
+  employment_status?: 'active' | 'on_leave' | 'suspended' | 'terminated' | 'resigned';
   basic_salary: number;
+  /** "gross" (default) or "net" — when "net", payroll grosses the salary up */
+  salary_type?: 'gross' | 'net';
   currency: string;
   payment_frequency: 'daily' | 'weekly' | 'bi-weekly' | 'monthly';
+  // Standalone identity fields (required when user_id is not provided)
+  fullname?: string;
+  firstname?: string;
+  middle_name?: string;
+  lastname?: string;
+  email?: string;
+  phone?: string;
+  id_number?: string;
   bank_name?: string;
   bank_account_number?: string;
+  bank_branch?: string;
+  /** KRA tax residency — non-residents get no personal relief on PAYE */
+  residential_status?: 'resident' | 'non_resident';
   kra_pin?: string;
   nssf_number?: string;
   nhif_number?: string;
+  /** Monthly HELB loan repayment deducted from net pay (0/absent = none) */
+  helb_amount?: number;
+  /** Monthly pension contribution — pre-tax deduction, capped at KES 20,000 */
+  pension_contribution?: number;
+  /** Insurance policy — 15% PAYE relief on the monthly-equivalent premium, capped at KES 5,000 */
+  has_insurance_policy?: boolean;
+  insurance_policy?: {
+    provider?: string;
+    policy_number?: string;
+    start_date?: string;
+    contribution_amount?: number;
+    frequency?: 'monthly' | 'quarterly' | 'semi_annually' | 'annually';
+  };
+  exempt_deductions?: string[];
+  hourly_rate?: number;
+  termination_date?: string;
+  date_of_birth?: string;
+  gender?: 'male' | 'female' | 'other' | 'prefer_not_to_say';
+  blood_group?: 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-';
+  marital_status?: 'single' | 'married' | 'divorced' | 'widowed';
+  nationality?: string;
   emergency_contact_name?: string;
   emergency_contact_phone?: string;
   emergency_contact_relationship?: string;
@@ -120,6 +196,8 @@ export const fetchEmployees = async (params: ParamsType = {}) => {
         limit: params.limit,
         department_id: params.department_id,
         employment_status: params.employment_status,
+        employment_type: params.employment_type,
+        shop_id: params.shop_id,
         search: params.search,
       },
     });
@@ -169,6 +247,19 @@ export const deleteEmployee = async (employeeId: string) => {
   }
 };
 
+// Permanently Delete Employee (Hard Delete)
+export const permanentlyDeleteEmployee = async (employeeId: string) => {
+  try {
+    const response = await axiosInstance.delete(`${bandu_url}/employees/${employeeId}/permanent`);
+    message.success("Employee permanently deleted");
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.message || error?.message || "Failed to delete employee";
+    message.error(errorMessage);
+    throw new Error(errorMessage);
+  }
+};
+
 // Get Employees by Department
 export const fetchEmployeesByDepartment = async (departmentId: string) => {
   try {
@@ -203,6 +294,207 @@ export const updateEmploymentStatus = createAsyncThunk(
   }
 );
 
+// ── TEMPLATE DOWNLOAD ─────────────────────────────────────────────────────────
+export const downloadEmployeeTemplate = async (): Promise<void> => {
+  try {
+    const response = await axiosInstance.get(`${bandu_url}/employees/template`, {
+      responseType: "blob",
+    });
+
+    const blob = new Blob([response.data], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "employee_import_template.xlsx";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+
+    message.success("Template downloaded successfully");
+  } catch (error) {
+    console.error("Error downloading employee template:", error);
+    message.error("Failed to download template");
+    throw new Error("Failed to download employee template");
+  }
+};
+
+export interface EmployeeImportResult {
+  message: string;
+  summary: {
+    total: number;
+    created: number;
+    updated: number;
+    skipped: number;
+    errors: number;
+    unresolved_user_emails?: string[];
+    auto_created?: { departments?: string[] };
+    format_detected?: {
+      sheet: string;
+      header_row: number;
+      mapped_columns: number;
+    };
+  };
+  errors: Array<{ row: number | string; name: string; reason: string }>;
+}
+
+export interface EmployeeAnalysisResult {
+  canImport: boolean;
+  sheetUsed: string;
+  headerRowDetectedAt: number;
+  totalDataRows: number;
+  mappedColumns: string[];
+  unmappedColumns: string[];
+  missingRequired: string[];
+  missingRecommended: string[];
+  columnMapping: Record<string, string>;
+  rowIssues: Array<{ row: number | string; name: string; reason: string }>;
+  existingRows: Array<{ row: number; name: string; employee_number: string }>;
+  advice: Array<{ level: "success" | "warning" | "error" | "info"; message: string }>;
+  previewRows: Array<{
+    rowNum: number;
+    employee_number: string;
+    fullname: string;
+    id_number: string;
+    email: string;
+    department: string;
+    job_title: string;
+    hire_date: string;
+    basic_salary: string;
+    salary_type: string;
+    user_email: string;
+  }>;
+}
+
+// ── ANALYSE FILE (preview before import — does NOT import anything) ───────────
+export const analyseEmployeeFile = async (
+  file: File,
+  onProgress?: (percent: number) => void
+): Promise<EmployeeAnalysisResult> => {
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await axiosInstance.post<EmployeeAnalysisResult>(
+      `${bandu_url}/employees/analyse-import`,
+      formData,
+      {
+        headers: { "Content-Type": undefined },
+        onUploadProgress: (e) => {
+          if (e.total) onProgress?.(Math.round((e.loaded / e.total) * 100));
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error: any) {
+    console.error("Error analysing employee file:", error);
+    const errMsg =
+      error?.response?.data?.error ||
+      error?.response?.data?.message ||
+      "Failed to analyse file. Please check the file format and try again.";
+    if (error?.response?.status !== 403) message.error(errMsg);
+    throw error;
+  }
+};
+
+// ── EXCEL IMPORT ──────────────────────────────────────────────────────────────
+export const importEmployeesFromExcel = async (
+  file: File,
+  shopId?: string | null,
+  updateMode = false,
+  onProgress?: (percent: number) => void
+): Promise<EmployeeImportResult> => {
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+    if (shopId) formData.append("shop_id", shopId);
+    formData.append("update_mode", updateMode.toString());
+
+    const response = await axiosInstance.post<EmployeeImportResult>(
+      `${bandu_url}/employees/import`,
+      formData,
+      {
+        headers: { "Content-Type": undefined },
+        onUploadProgress: (e) => {
+          if (e.total) onProgress?.(Math.round((e.loaded / e.total) * 100));
+        },
+      }
+    );
+
+    const data = response.data;
+
+    if (data.summary.created > 0 || data.summary.updated > 0) {
+      const autoNote = data.summary.auto_created?.departments?.length
+        ? ` (${data.summary.auto_created.departments.length} department(s) auto-created)`
+        : "";
+      const parts = [
+        data.summary.created > 0 ? `${data.summary.created} created` : "",
+        data.summary.updated > 0 ? `${data.summary.updated} updated` : "",
+        data.summary.skipped > 0 ? `${data.summary.skipped} skipped` : "",
+      ].filter(Boolean).join(", ");
+      message.success(`Import complete — ${parts}${autoNote}`);
+    } else if (data.summary.errors > 0) {
+      const firstErr = data.errors?.[0];
+      message.warning(
+        firstErr
+          ? `Import issue: ${firstErr.reason}`
+          : "No employees were imported — check the error details below."
+      );
+    } else {
+      message.warning("No employees were imported. Check the error details.");
+    }
+
+    return data;
+  } catch (error: any) {
+    console.error("Error importing employees from Excel:", error);
+    const errMsg =
+      error?.response?.data?.error ||
+      error?.response?.data?.message ||
+      "Failed to import employees. Please try again.";
+    if (error?.response?.status !== 403) message.error(errMsg);
+    throw error;
+  }
+};
+
+// ── EXCEL EXPORT ──────────────────────────────────────────────────────────────
+export const exportEmployees = async (params: ParamsType = {}): Promise<void> => {
+  try {
+    const response = await axiosInstance.get(`${bandu_url}/employees/export`, {
+      params: {
+        department_id: params.department_id,
+        shop_id: params.shop_id,
+        employment_status: params.employment_status,
+        employment_type: params.employment_type,
+        search: params.search,
+      },
+      responseType: "blob",
+    });
+
+    const blob = new Blob([response.data], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "employees_export.xlsx";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+
+    message.success("Employees exported successfully");
+  } catch (error) {
+    console.error("Error exporting employees:", error);
+    message.error("Failed to export employees");
+    throw new Error("Failed to export employees");
+  }
+};
+
 /* ============================
    EMPLOYEE DOCUMENTS
 ============================ */
@@ -210,7 +502,7 @@ export const updateEmploymentStatus = createAsyncThunk(
 export interface EmployeeDocument {
   _id: string;
   employee_id: string;
-  document_type: 'employee_contract' | 'id_copy' | 'passport_photo' | 'kra_pin' | 'bank_details' | 'academic_certificates' | 'professional_certificates' | 'disciplinary_record' | 'performance_review' | 'other';
+  document_type: 'employee_contract' | 'id_copy' | 'passport_photo' | 'kra_pin' | 'bank_details' | 'academic_certificates' | 'professional_certificates' | 'disciplinary_record' | 'performance_review' | 'pwd_certificate' | 'other';
   document_name: string;
   description?: string;
   file_name: string;
@@ -264,7 +556,9 @@ export const fetchEmployeeDocuments = async (employeeId: string, params: ParamsT
         status: params.status,
       },
     });
-    return response.data;
+    // API returns { success, data: [...] } — normalize to { documents } for consumers
+    const payload = response.data;
+    return { documents: payload?.data || payload?.documents || [] };
   } catch (error: any) {
     console.error("Error fetching employee documents:", error);
     message.error(error?.response?.data?.message || "Failed to fetch documents");
@@ -288,7 +582,7 @@ export const fetchExpiringDocuments = async (days = 30) => {
 // Delete Document
 export const deleteEmployeeDocument = async (documentId: string) => {
   try {
-    const response = await axiosInstance.delete(`${bandu_url}/employees/${documentId}`);
+    const response = await axiosInstance.delete(`${bandu_url}/employees/documents/${documentId}`);
     message.success("Document deleted successfully");
     return response.data;
   } catch (error: any) {
@@ -701,7 +995,15 @@ export interface Payroll {
   total_nssf: number;
   total_nhif: number;
   total_housing_levy: number;
+  total_nita?: number;
+  total_withholding_tax?: number;
   total_custom_deductions: number;
+  rejection_reason?: string | null;
+  rejected_at?: string;
+  rejected_by?: string;
+  payslips_generated?: boolean;
+  payslips_generated_at?: string;
+  supplementary_of?: string | null;
   lines: Array<{
     employee_id: {
       _id: string;
@@ -710,6 +1012,7 @@ export interface Payroll {
     };
     gross_salary: number;
     basic_salary: number;
+    salary_type?: 'gross' | 'net';
     allowances: number;
     benefits: number;
     deductions: {
@@ -717,10 +1020,13 @@ export interface Payroll {
       nssf: number;
       nhif: number;
       housing_levy: number;
+      nita?: number;
+      withholding_tax?: number;
       custom: Array<{ name: string; amount: number }>;
       total: number;
     };
     net_pay: number;
+    proration_factor?: number;
     days_worked: number;
     overtime_hours: number;
     overtime_pay: number;
@@ -741,19 +1047,210 @@ export interface Payroll {
 
 export interface GeneratePayrollParams {
   department_id?: string;
+  department_ids?: string[];
   employee_id?: string;
   employee_ids?: string[];
   period_start: string;
   period_end: string;
   period_label: string;
   shop_id?: string;
+  // When true, skips the admin auto-approve step so the run stays a plain
+  // draft ("Save as Draft") instead of going straight to approved.
+  save_as_draft?: boolean;
+  // Per-employee adjustments applied at preview/generate time
+  // (keyed by employee _id) — salary, extras and custom deductions (loans etc.)
+  overrides?: Record<
+    string,
+    {
+      basic_salary?: number;
+      allowances?: number;
+      benefits?: number;
+      allowance_items?: Array<{ name: string; amount: number }>;
+      benefit_items?: Array<{ name: string; value: number }>;
+      overtime_hours?: number;
+      overtime_pay?: number;
+      custom_deductions?: Array<{ name: string; amount: number }>;
+    }
+  >;
 }
 
+export interface PayrollPreviewLine {
+  employee_id: string;
+  employee_number?: string;
+  job_title?: string;
+  fullname?: string;
+  gross_salary: number;
+  basic_salary: number;
+  salary_type?: 'gross' | 'net';
+  allowances: number;
+  benefits: number;
+  deductions: {
+    paye: number;
+    nssf: number;
+    nhif: number;
+    housing_levy: number;
+    nita?: number;
+    withholding_tax?: number;
+    custom: Array<{ name: string; amount: number }>;
+    total: number;
+  };
+  net_pay: number;
+  proration_factor?: number;
+  days_worked?: number;
+}
+
+export interface PayrollPreviewResult {
+  period_start: string;
+  period_end: string;
+  period_label: string;
+  previews: Array<{
+    department_id: string | null;
+    department_name: string;
+    employee_count: number;
+    lines: PayrollPreviewLine[];
+    total_gross: number;
+    total_deductions: number;
+    total_net: number;
+    total_paye: number;
+    total_nssf: number;
+    total_nhif: number;
+    total_housing_levy: number;
+    total_nita?: number;
+    total_withholding_tax?: number;
+  }>;
+  conflicts: Array<{ department_id?: string; department_name?: string; reason: string; payroll_id?: string }>;
+}
+
+// Preview Payroll — compute lines/totals without saving (review before run)
+export const previewPayroll = async (params: GeneratePayrollParams): Promise<PayrollPreviewResult> => {
+  try {
+    const response = await axiosInstance.post(`${bandu_url}/payroll/preview`, params);
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.message || error?.message || "Failed to preview payroll";
+    message.error(errorMessage);
+    throw new Error(errorMessage);
+  }
+};
+
+// Duplicate Payroll — copy an existing payroll into a new period as a draft
+export const duplicatePayroll = async (
+  payrollId: string,
+  params: { period_start: string; period_end: string; period_label: string }
+) => {
+  try {
+    const response = await axiosInstance.post(`${bandu_url}/payroll/${payrollId}/duplicate`, params);
+    message.success("Payroll duplicated as draft");
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.message || error?.message || "Failed to duplicate payroll";
+    message.error(errorMessage);
+    throw new Error(errorMessage);
+  }
+};
+
+// Update a payroll line (draft payrolls only)
+export const patchPayrollLine = async (
+  payrollId: string,
+  payload: {
+    line_id: string;
+    adjustments: {
+      basic_salary?: number;
+      allowances?: number;
+      benefits?: number;
+      allowance_items?: Array<{ name: string; amount: number }>;
+      benefit_items?: Array<{ name: string; value: number }>;
+      overtime_hours?: number;
+      overtime_pay?: number;
+      custom_deductions?: Array<{ name: string; amount: number }>;
+    };
+  }
+) => {
+  try {
+    const response = await axiosInstance.patch(`${bandu_url}/payroll/${payrollId}/line`, payload);
+    message.success("Payroll line updated");
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.message || error?.message || "Failed to update payroll line";
+    message.error(errorMessage);
+    throw new Error(errorMessage);
+  }
+};
+
+// Act on a subset of employees within a payroll — delete, approve, submit or
+// revert just the given employee(s) without affecting the rest of the
+// payroll's lines. If the employees given aren't the whole payroll, the
+// backend splits them into their own payroll (linked via supplementary_of)
+// before acting. "revert" returns approved/pending employees to drafts —
+// the opposite of "approve" — so a single employee can be sent back for
+// amendment without reopening the whole payroll.
+export const payrollLineAction = async (
+  payrollId: string,
+  employeeIds: string[],
+  action: "delete" | "approve" | "submit" | "revert",
+  reason?: string
+) => {
+  try {
+    const response = await axiosInstance.post(`${bandu_url}/payroll/${payrollId}/lines/action`, {
+      employee_ids: employeeIds,
+      action,
+      ...(reason ? { reason } : {}),
+    });
+    message.success(response.data?.message || "Done");
+    return response.data;
+  } catch (error: any) {
+    const errorMessage =
+      error?.response?.data?.message || error?.message || `Failed to ${action} the selected employee(s)`;
+    message.error(errorMessage);
+    throw new Error(errorMessage);
+  }
+};
+
+// Process Payroll — post accrual to accounting (approved payrolls)
+export const processPayrollRequest = async (payrollId: string) => {
+  try {
+    const response = await axiosInstance.patch(`${bandu_url}/payroll/${payrollId}/process`);
+    message.success("Payroll processed");
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.message || error?.message || "Failed to process payroll";
+    message.error(errorMessage);
+    throw new Error(errorMessage);
+  }
+};
+
+// Mark Payroll as Paid — posts accrual + payment journal entries when
+// accounting is enabled. Returns 409 MISSING_ACCOUNTS if the chart of
+// accounts lacks required accounts; retry with auto_create_accounts: true.
+export const markPayrollPaid = async (
+  payrollId: string,
+  payload: { payment_date?: string; auto_create_accounts?: boolean } = {}
+) => {
+  const response = await axiosInstance.patch(`${bandu_url}/payroll/${payrollId}/pay`, payload);
+  message.success("Payroll marked as paid");
+  return response.data;
+};
+
+// Initialize default statutory deduction configs (Kenya)
+export const initializeDeductionSettings = async () => {
+  try {
+    const response = await axiosInstance.post(`${bandu_url}/deduction-settings/initialize`);
+    message.success("Default deduction settings initialized");
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.message || error?.message || "Failed to initialize deduction settings";
+    message.error(errorMessage);
+    throw new Error(errorMessage);
+  }
+};
+
 // Generate Payroll Draft
+// Note: the caller runs this once per department chunk and shows its own
+// aggregate summary toast once all chunks finish, so this does not
+// self-report success (that would fire one toast per chunk).
 export const generatePayroll = async (params: GeneratePayrollParams) => {
   try {
     const response = await axiosInstance.post(`${bandu_url}/payroll/generate`, params);
-    message.success("Payroll draft generated successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.message || error?.message || "Failed to generate payroll";
@@ -773,6 +1270,8 @@ export const fetchPayrolls = async (params: ParamsType = {}) => {
         status: params.status,
         period_start: params.period_start,
         period_end: params.period_end,
+        year: params.year,
+        month: params.month,
       },
     });
     return response.data;
@@ -796,6 +1295,25 @@ export const deletePayroll = async (payrollId: string) => {
   }
 };
 
+// List all deduction configurations (statutory + custom/loans)
+export const fetchDeductionConfigs = async () => {
+  const response = await axiosInstance.get(`${bandu_url}/deduction-settings`);
+  return (response.data?.data || []) as any[];
+};
+
+// Delete a deduction configuration (e.g. a custom loan/advance)
+export const deleteDeductionConfig = async (id: string) => {
+  try {
+    const response = await axiosInstance.delete(`${bandu_url}/deduction-settings/${id}`);
+    message.success("Deduction removed");
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.message || error?.message || "Failed to delete deduction";
+    message.error(errorMessage);
+    throw new Error(errorMessage);
+  }
+};
+
 // Save Deduction Settings
 export const saveDeductionSettings = async (settings: any) => {
   try {
@@ -809,11 +1327,12 @@ export const saveDeductionSettings = async (settings: any) => {
   }
 };
 
-// Submit Payroll for Approval
+// Submit Payroll for Approval — admins skip pending_approval and go
+// straight to approved; the backend message reflects which happened.
 export const submitPayrollForApproval = async (payrollId: string) => {
   try {
     const response = await axiosInstance.post(`${bandu_url}/payroll/${payrollId}/submit`);
-    message.success("Payroll submitted for approval");
+    message.success(response.data?.message || "Payroll submitted for approval");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.message || error?.message || "Failed to submit payroll for approval";
@@ -830,6 +1349,19 @@ export const approvePayrollRequest = async (payrollId: string) => {
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.message || error?.message || "Failed to approve payroll";
+    message.error(errorMessage);
+    throw new Error(errorMessage);
+  }
+};
+
+// Reject Payroll — returns it to drafts for amendments
+export const rejectPayrollRequest = async (payrollId: string, reason?: string) => {
+  try {
+    const response = await axiosInstance.post(`${bandu_url}/payroll/${payrollId}/reject`, { reason });
+    message.success("Payroll rejected — moved back to drafts");
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.message || error?.message || "Failed to reject payroll";
     message.error(errorMessage);
     throw new Error(errorMessage);
   }
@@ -964,30 +1496,102 @@ export interface Payslip {
   employee_id: {
     _id: string;
     employee_number: string;
-    fullname: string;
+    fullname?: string;
+    user_id?: { fullname?: string; email?: string };
     job_title: string;
+    employment_type?: string;
   };
   period_start: string;
   period_end: string;
   period_label: string;
-  gross_salary: number;
-  basic_salary: number;
-  allowances: number;
-  benefits: number;
+  earnings: {
+    basic_salary: number;
+    allowances: number;
+    benefits: number;
+    allowance_items?: Array<{ name: string; amount: number }>;
+    benefit_items?: Array<{ name: string; value: number }>;
+    overtime_pay: number;
+    gross_salary: number;
+  };
   deductions: {
     paye: number;
     nssf: number;
     nhif: number;
     housing_levy: number;
+    nita?: number;
+    withholding_tax?: number;
+    taxable_pay?: number;
+    income_tax?: number;
+    personal_relief?: number;
+    pension?: number;
+    insurance_relief?: number;
     custom: Array<{ name: string; amount: number }>;
     total: number;
   };
   net_pay: number;
   days_worked: number;
   overtime_hours: number;
-  overtime_pay: number;
   generated_at: string;
+  emailed_at?: string | null;
+  email_to?: string | null;
 }
+
+// Email Payslips in Batch — sends each payslip to its employee's email
+export const emailPayslipsBatch = async (
+  payslipIds: string[],
+  template?: string,
+  color?: string,
+  header?: "company" | "department"
+) => {
+  const response = await axiosInstance.post(`${bandu_url}/payslips/email-batch`, {
+    payslip_ids: payslipIds,
+    template,
+    color,
+    header,
+  });
+  return response.data;
+};
+
+// Email a P9 form — frontend generates the PDF and posts it as base64
+export const emailP9FormPdf = async (payload: {
+  employee_id: string;
+  year: number;
+  pdf_base64: string;
+  filename?: string;
+}) => {
+  const response = await axiosInstance.post(`${bandu_url}/payslips/email-p9`, payload);
+  return response.data;
+};
+
+// Preview the payslip email HTML for a template without sending —
+// accepts the same overrides as the send endpoint so the preview is exact
+export const previewPayslipEmail = async (
+  payslipId: string,
+  template: string,
+  color?: string,
+  extras?: { message?: string; recipient_name?: string; subject?: string; header?: "company" | "department" }
+) => {
+  const response = await axiosInstance.post(`${bandu_url}/payslips/email-preview`, {
+    payslip_id: payslipId,
+    template,
+    color,
+    ...extras,
+  });
+  return response.data as { subject: string; html: string; template: string };
+};
+
+// Delete Payslip
+export const deletePayslip = async (payslipId: string) => {
+  try {
+    const response = await axiosInstance.delete(`${bandu_url}/payslips/${payslipId}`);
+    message.success("Payslip deleted");
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.message || error?.message || "Failed to delete payslip";
+    message.error(errorMessage);
+    throw new Error(errorMessage);
+  }
+};
 
 // Generate Payslip
 export const generatePayslip = async (payrollId: string, employeeId: string) => {
@@ -1022,6 +1626,8 @@ export const fetchEmployeePayslips = async (employeeId: string, params: ParamsTy
       params: {
         page: params.page,
         limit: params.limit,
+        year: params.year,
+        month: params.month,
       },
     });
     return response.data;
@@ -1039,6 +1645,10 @@ export const fetchAllPayslips = async (params: ParamsType = {}) => {
       params: {
         page: params.page,
         limit: params.limit,
+        year: params.year,
+        month: params.month,
+        employee_id: params.employee_id,
+        department_id: params.department_id,
       },
     });
     return response.data;
@@ -1061,10 +1671,20 @@ export const getPayslipById = async (payslipId: string) => {
   }
 };
 
-// Email Payslip to Employee
-export const emailPayslip = async (payslipId: string) => {
+// Email Payslip to Employee — optional overrides for recipient, cc, subject,
+// message and a base64 PDF attachment
+export const emailPayslip = async (
+  payslipId: string,
+  template?: string,
+  color?: string,
+  opts?: { to?: string; cc?: string; subject?: string; message?: string; pdf?: string; recipient_name?: string; header?: "company" | "department" }
+) => {
   try {
-    const response = await axiosInstance.post(`${bandu_url}/payslips/${payslipId}/email`);
+    const response = await axiosInstance.post(`${bandu_url}/payslips/${payslipId}/email`, {
+      template,
+      color,
+      ...opts,
+    });
     message.success("Payslip emailed successfully");
     return response.data;
   } catch (error: any) {

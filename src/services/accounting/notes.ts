@@ -130,34 +130,26 @@ export interface UpdateNoteParams {
  * Get all notes with optional filters and pagination.
  */
 export const getAllNotes = async (params: GetNotesParams) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/notes`,
-            { params }
-        );
-        return response.data as {
-            notes: Note[];
-            totalPages: number;
-            currentPage: number;
-            totalNotes: number;
-        };
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/notes`,
+        { params }
+    );
+    return response.data as {
+        notes: Note[];
+        totalPages: number;
+        currentPage: number;
+        totalNotes: number;
+    };
 };
 
 /**
  * Get a single note by ID — fully populated.
  */
 export const getNoteById = async (id: string) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/notes/${id}`
-        );
-        return response.data as { note: Note };
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/notes/${id}`
+    );
+    return response.data as { note: Note };
 };
 
 /**
@@ -165,23 +157,19 @@ export const getNoteById = async (id: string) => {
  * Includes net adjustment summary.
  */
 export const getNotesByInvoice = async (invoice_id: string, shop_id: string) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/notes/by-invoice/${invoice_id}`,
-            { params: { shop_id } }
-        );
-        return response.data as {
-            notes: Note[];
-            count: number;
-            summary: {
-                total_credit_notes: number;
-                total_debit_notes: number;
-                net_adjustment: number;
-            };
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/notes/by-invoice/${invoice_id}`,
+        { params: { shop_id } }
+    );
+    return response.data as {
+        notes: Note[];
+        count: number;
+        summary: {
+            total_credit_notes: number;
+            total_debit_notes: number;
+            net_adjustment: number;
         };
-    } catch (error) {
-        throw error;
-    }
+    };
 };
 
 /**
@@ -192,19 +180,15 @@ export const getNotesByCustomer = async (
     shop_id: string,
     status?: NoteStatus
 ) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/notes/by-customer/${customer_id}`,
-            { params: { shop_id, status } }
-        );
-        return response.data as {
-            notes: Note[];
-            count: number;
-            total_credits: number;
-        };
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/notes/by-customer/${customer_id}`,
+        { params: { shop_id, status } }
+    );
+    return response.data as {
+        notes: Note[];
+        count: number;
+        total_credits: number;
+    };
 };
 
 /**
@@ -212,48 +196,44 @@ export const getNotesByCustomer = async (
  * Includes net adjustment summary.
  */
 export const getNotesByBill = async (bill_id: string) => {
-    try {
-        // Get all notes and filter client-side for now
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/notes`,
-            { 
-                params: { 
-                    limit: 200 // Get more results to find all notes for this bill
-                } 
-            }
-        );
-        
-        const allNotes = response.data.notes || [];
-        
-        // Filter notes that reference this bill
-        const notesForBill = allNotes.filter((note: Note) => {
-            // Check if original_bill_id matches (could be string or object)
-            if (typeof note.original_bill_id === 'string') {
-                return note.original_bill_id === bill_id;
-            }
-            if (typeof note.original_bill_id === 'object' && note.original_bill_id?._id) {
-                return note.original_bill_id._id === bill_id;
-            }
-            return false;
-        });
-        
-        const creditNotes = notesForBill.filter((note: Note) => note.note_type === "CREDIT_NOTE");
-        const debitNotes = notesForBill.filter((note: Note) => note.note_type === "DEBIT_NOTE");
-        
-        const totalCreditNotes = creditNotes.reduce((sum: number, note: Note) => sum + (note.grand_total || 0), 0);
-        const totalDebitNotes = debitNotes.reduce((sum: number, note: Note) => sum + (note.grand_total || 0), 0);
-        const netAdjustment = totalCreditNotes - totalDebitNotes;
-        
-        return {
-            notes: notesForBill,
-            count: notesForBill.length,
-            total_credit_notes: totalCreditNotes,
-            total_debit_notes: totalDebitNotes,
-            net_adjustment: netAdjustment,
-        };
-    } catch (error) {
-        throw error;
-    }
+    // Get all notes and filter client-side for now
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/notes`,
+        { 
+            params: { 
+                limit: 200 // Get more results to find all notes for this bill
+            } 
+        }
+    );
+    
+    const allNotes = response.data.notes || [];
+    
+    // Filter notes that reference this bill
+    const notesForBill = allNotes.filter((note: Note) => {
+        // Check if original_bill_id matches (could be string or object)
+        if (typeof note.original_bill_id === 'string') {
+            return note.original_bill_id === bill_id;
+        }
+        if (typeof note.original_bill_id === 'object' && note.original_bill_id?._id) {
+            return note.original_bill_id._id === bill_id;
+        }
+        return false;
+    });
+    
+    const creditNotes = notesForBill.filter((note: Note) => note.note_type === "CREDIT_NOTE");
+    const debitNotes = notesForBill.filter((note: Note) => note.note_type === "DEBIT_NOTE");
+    
+    const totalCreditNotes = creditNotes.reduce((sum: number, note: Note) => sum + (note.grand_total || 0), 0);
+    const totalDebitNotes = debitNotes.reduce((sum: number, note: Note) => sum + (note.grand_total || 0), 0);
+    const netAdjustment = totalCreditNotes - totalDebitNotes;
+    
+    return {
+        notes: notesForBill,
+        count: notesForBill.length,
+        total_credit_notes: totalCreditNotes,
+        total_debit_notes: totalDebitNotes,
+        net_adjustment: netAdjustment,
+    };
 };
 
 /**
@@ -264,19 +244,15 @@ export const getNotesBySupplier = async (
     shop_id: string,
     status?: NoteStatus
 ) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/notes/by-supplier/${supplier_id}`,
-            { params: { shop_id, status } }
-        );
-        return response.data as {
-            notes: Note[];
-            count: number;
-            total_debits: number;
-        };
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/notes/by-supplier/${supplier_id}`,
+        { params: { shop_id, status } }
+    );
+    return response.data as {
+        notes: Note[];
+        count: number;
+        total_debits: number;
+    };
 };
 
 /**

@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button, Form, Input, Switch, Spin, Typography, Space } from "antd";
-import { SaveOutlined, ThunderboltOutlined } from "@ant-design/icons";
+import { Button, Form, Grid, Input, Switch, Spin, Typography, Space } from "antd";
+import { SaveOutlined, ThunderboltOutlined, RobotOutlined } from "@ant-design/icons";
 import {
     fetchWelcomeMessage,
     saveWelcomeMessage,
     refineText,
     type WelcomeMessage,
 } from "@services/whatsappService";
+import TinyMCEInput from "@components/TinyMCEInput";
 
-const { TextArea } = Input;
 const { Title, Paragraph } = Typography;
 
 interface Props {
@@ -18,6 +18,8 @@ interface Props {
 
 const WelcomeMessageManager: React.FC<Props> = ({ shopId }) => {
     const queryClient = useQueryClient();
+    const screens = Grid.useBreakpoint();
+    const isMobile = !screens.md;
     const [form] = Form.useForm();
 
     const { data, isLoading } = useQuery({
@@ -63,14 +65,40 @@ const WelcomeMessageManager: React.FC<Props> = ({ shopId }) => {
     };
 
     return (
-        <div style={{ padding: 24, height: "100%", overflowY: "auto" }}>
-            <Title level={4} style={{ marginBottom: 8 }}>
-                Automated Welcome Message
-            </Title>
-            <Paragraph type="secondary" style={{ marginBottom: 24 }}>
-                This message is sent automatically the first time a customer reaches out on WhatsApp.
-            </Paragraph>
+        <div style={{ padding: isMobile ? 12 : 20, height: "100%", overflowY: "auto" }}>
+            <Space align="center" size={10} style={{ marginBottom: isMobile ? 12 : 16 }}>
+                <div
+                    style={{
+                        background: "#f5f3ff",
+                        borderRadius: 10,
+                        padding: "6px 8px",
+                        color: "#6366f1",
+                        fontSize: 18,
+                        display: "flex",
+                    }}
+                >
+                    <RobotOutlined />
+                </div>
+                <div>
+                    <Title level={isMobile ? 5 : 4} style={{ margin: 0, color: "#0f172a", fontWeight: 600 }}>
+                        Automated Welcome Message
+                    </Title>
+                    <Paragraph style={{ margin: 0, fontSize: 12, color: "#64748b" }}>
+                        Sent automatically the first time a customer reaches out on WhatsApp
+                    </Paragraph>
+                </div>
+            </Space>
 
+            <div
+                style={{
+                    background: "#fff",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: 12,
+                    padding: isMobile ? 14 : 20,
+                    maxWidth: 720,
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+                }}
+            >
             {isLoading ? (
                 <div style={{ textAlign: "center", padding: 60 }}>
                     <Spin />
@@ -88,19 +116,20 @@ const WelcomeMessageManager: React.FC<Props> = ({ shopId }) => {
                         label="Welcome message"
                         rules={[{ required: true, message: "Please enter a welcome message" }]}
                     >
-                        <TextArea
-                            rows={6}
+                        <TinyMCEInput
+                            height={220}
+                            plainText
                             placeholder="Hi! Welcome to our shop. How can we help you today?"
                         />
                     </Form.Item>
 
                     <Form.Item noStyle>
-                        <Space style={{ marginBottom: 24 }}>
+                        <Space wrap style={{ marginBottom: 24, width: "100%" }}>
                             <Input
                                 placeholder="Refine instructions (optional)"
                                 value={refineInstruction}
                                 onChange={(e) => setRefineInstruction(e.target.value)}
-                                style={{ width: 320 }}
+                                style={{ width: isMobile ? "100%" : 320 }}
                             />
                             <Button
                                 icon={<ThunderboltOutlined />}
@@ -137,6 +166,7 @@ const WelcomeMessageManager: React.FC<Props> = ({ shopId }) => {
                     </Form.Item>
                 </Form>
             )}
+            </div>
         </div>
     );
 };

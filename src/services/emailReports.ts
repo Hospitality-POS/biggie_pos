@@ -1,6 +1,7 @@
 import { BASE_URL } from "@utils/config";
 import { message } from "antd";
 import axiosInstance from "./request";
+import { getPrimaryColor } from "@utils/getPrimaryColor";
 
 const EMAIL_URL = `${BASE_URL}/email-reports/send`;
 
@@ -133,7 +134,7 @@ export const sendSalesReportEmail = async (opts: {
         bannerLabel: "📊 Item Sales Report",
         bannerType: "Sales",
         summary: [
-            { label: "Total Sales", value: `KES ${f(totals.overallTotal)}`, color: "#6c1c2c" },
+            { label: "Total Sales", value: `KES ${f(totals.overallTotal)}`, color: getPrimaryColor() },
             { label: "Stock Cost", value: `KES ${f(totals.stockCost)}`, color: "#3b82f6" },
             { label: "Gross Profit", value: `KES ${f(totals.grossProfit)}`, color: "#10b981" },
             ...(totals.commission && totals.commission > 0
@@ -165,7 +166,7 @@ export const sendPurchaseReportEmail = async (opts: {
         bannerLabel: "📊 Purchase Report",
         bannerType: "Purchase",
         summary: [
-            { label: "Total Sales", value: `KES ${f(totals.overallTotal)}`, color: "#6c1c2c" },
+            { label: "Total Sales", value: `KES ${f(totals.overallTotal)}`, color: getPrimaryColor() },
             { label: "Total Discount", value: `KES ${f(totals.totalDiscount)}`, color: "#f59e0b" },
             { label: "Inclusive Discount", value: `KES ${f(totals.totalInclusiveDiscount)}`, color: "#ef4444" },
         ],
@@ -202,12 +203,12 @@ export const sendPurchaseOrderEmail = async (opts: {
         summary: poMeta.isBulk
             ? [
                 { label: "Total Orders", value: String(poMeta.count ?? 0), color: "#7C3AED" },
-                { label: "Total Amount", value: `KES ${f(poMeta.totalAmount)}`, color: "#6c1c2c" },
+                { label: "Total Amount", value: `KES ${f(poMeta.totalAmount)}`, color: getPrimaryColor() },
             ]
             : [
                 { label: "PO Number", value: poMeta.poNumber ?? "—", color: "#7C3AED" },
                 { label: "Supplier", value: poMeta.supplierName ?? "—", color: "#374151" },
-                { label: "Total", value: `KES ${f(poMeta.totalAmount)}`, color: "#6c1c2c" },
+                { label: "Total", value: `KES ${f(poMeta.totalAmount)}`, color: getPrimaryColor() },
                 { label: "Progress", value: `${poMeta.deliveryPercentage ?? 0}%`, color: "#0369A1" },
             ],
     }, "Purchase order email sent successfully");
@@ -235,7 +236,7 @@ export const sendDeliveryNoteEmail = async (opts: {
         summary: [
             { label: "Note #", value: noteMeta.noteNumber ?? "—", color: "#0369A1" },
             { label: "Supplier", value: noteMeta.supplierName ?? "—", color: "#374151" },
-            { label: "Total Items", value: String(noteMeta.totalItems ?? 0), color: "#6c1c2c" },
+            { label: "Total Items", value: String(noteMeta.totalItems ?? 0), color: getPrimaryColor() },
             { label: "Delivered", value: String(noteMeta.deliveredItems ?? 0), color: "#10b981" },
             { label: "Pending", value: String(noteMeta.pendingItems ?? 0), color: "#ef4444" },
         ],
@@ -264,7 +265,7 @@ export const sendInventoryReportEmail = async (opts: {
         bannerType: "Inventory",
         summary: [
             { label: "Total SKUs", value: String(totals.totalSkus), color: "#065F46" },
-            { label: "Total Value", value: `KES ${f(totals.totalValue)}`, color: "#6c1c2c" },
+            { label: "Total Value", value: `KES ${f(totals.totalValue)}`, color: getPrimaryColor() },
             { label: "Low Stock", value: String(totals.lowStock), color: "#ef4444" },
             { label: "Out of Stock", value: String(totals.outOfStock), color: "#DC2626" },
         ],
@@ -294,7 +295,7 @@ export const sendFinancialReportEmail = async (opts: {
         summary: [
             { label: "Revenue", value: `KES ${f(totals.revenue)}`, color: "#065F46" },
             { label: "Expenses", value: `KES ${f(totals.expenses)}`, color: "#ef4444" },
-            { label: "Net Profit", value: `KES ${f(totals.netProfit)}`, color: "#6c1c2c" },
+            { label: "Net Profit", value: `KES ${f(totals.netProfit)}`, color: getPrimaryColor() },
         ],
     }, "Financial report email sent successfully");
 };

@@ -30,24 +30,13 @@ import NoteDetailDrawer from "../../Notes/NoteDetailDrawer";
 import NoteFormDrawer from "../../Notes/NoteFormDrawer";
 import AccountFormDrawer from "@pages/ChartOfAccounts/AccountFormDrawer";
 import dayjs from "dayjs";
+import { THEME_C } from "@utils/getPrimaryColor";
 
 const { Text } = Typography;
 const { RangePicker } = DatePicker;
 
 // ── Palette ────────────────────────────────────────────────────────────────
-const C = {
-  primary: "#6c1c2c",
-  primaryLight: "#f9f0f2",
-  green: "#10b981",
-  red: "#ef4444",
-  blue: "#3b82f6",
-  orange: "#f59e0b",
-  purple: "#8b5cf6",
-  subText: "#64748b",
-  darkText: "#0f172a",
-  border: "#e2e8f0",
-  bg: "#f8fafc",
-};
+const C = THEME_C;
 
 const fmt = (v: number) =>
   (v || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -608,7 +597,7 @@ const printQuote = (record: any) => {
 };
 
 // ── Main ───────────────────────────────────────────────────────────────────
-const InvoicesTable = () => {
+const InvoicesTable = ({ quotesOnly = false }: { quotesOnly?: boolean }) => {
   const isMobile = useIsMobile();
   const actionRef = useRef<ActionType>();
   const formRef = useRef<ProFormInstance>();
@@ -711,6 +700,7 @@ const InvoicesTable = () => {
       const { dateRange, ...rest } = filters;
       const data = await getAllInvoices({
         ...rest, page, limit: 10, shop_id: shopId,
+        ...(quotesOnly ? { status: "Draft" } : {}),
         start_date: dateRange?.[0] ? dayjs(dateRange[0]).startOf("day").toISOString() : dayjs().startOf("day").toISOString(),
         end_date: dateRange?.[1] ? dayjs(dateRange[1]).endOf("day").toISOString() : dayjs().endOf("day").toISOString(),
       });
@@ -1043,20 +1033,22 @@ const InvoicesTable = () => {
     {
       title: "Actions", hideInSearch: true, key: "action", width: 60,
       render: (_: any, record: any) => (
-        <Dropdown
-          menu={{
-            items: getRowActionItems(record),
-            onClick: ({ key }) => handleRowMenuClick(key, record),
-          }}
-          trigger={["click"]}
-        >
-          <Button
-            size="small"
-            icon={<MoreOutlined />}
-            style={{ borderRadius: 6, border: `1px solid ${C.border}` }}
-            onClick={(e) => e.stopPropagation()}
-          />
-        </Dropdown>
+        <div onClick={(e) => e.stopPropagation()}>
+          <Dropdown
+            menu={{
+              items: getRowActionItems(record),
+              onClick: ({ key }) => handleRowMenuClick(key, record),
+            }}
+            trigger={["click"]}
+          >
+            <Button
+              size="small"
+              icon={<MoreOutlined />}
+              style={{ borderRadius: 6, border: `1px solid ${C.border}` }}
+              onClick={(e) => e.stopPropagation()}
+            />
+          </Dropdown>
+        </div>
       ),
     },
   ];
@@ -1073,7 +1065,7 @@ const InvoicesTable = () => {
             display: "flex", alignItems: "center", justifyContent: "space-between",
             padding: "12px 14px", background: C.bg, borderBottom: `1px solid ${C.border}`,
           }}>
-            <Text strong style={{ fontSize: 14, color: C.darkText }}>Invoices & Quotes</Text>
+            <Text strong style={{ fontSize: 14, color: C.darkText }}>{quotesOnly ? "Quotes" : "Invoices & Quotes"}</Text>
             <div style={{ display: "flex", gap: 8 }}>
                             <Button size="small" icon={<FilterOutlined />} onClick={() => setFilterOpen(true)}
                 style={{ borderRadius: 8, borderColor: C.border }}>
@@ -1083,7 +1075,7 @@ const InvoicesTable = () => {
           </div>
           <div style={{ padding: "8px 14px", borderBottom: `1px solid ${C.border}` }}>
             <Text style={{ fontSize: 11, color: C.subText }}>
-              {mobileTotal} invoice{mobileTotal !== 1 ? "s" : ""} found
+              {mobileTotal} {quotesOnly ? "quote" : "invoice"}{mobileTotal !== 1 ? "s" : ""} found
             </Text>
           </div>
         </div>
@@ -1091,7 +1083,7 @@ const InvoicesTable = () => {
         {mobileLoading && mobilePage === 1 ? (
           <div style={{ textAlign: "center", padding: "40px 0", color: C.subText }}>Loading…</div>
         ) : mobileData.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "40px 0", color: C.subText }}>No invoices found.</div>
+          <div style={{ textAlign: "center", padding: "40px 0", color: C.subText }}>{quotesOnly ? "No quotes found." : "No invoices found."}</div>
         ) : (
           <>
             {mobileData.map((record) => (
@@ -1126,7 +1118,7 @@ const InvoicesTable = () => {
           <PaymentModal invoice={payTarget} open={!!payTarget}
             onClose={() => setPayTarget(null)} onSuccess={refreshTable} />
         )}
-        <ManualInvoiceModal open={manualModalOpen} onClose={() => setManualModalOpen(false)} onSuccess={refreshTable} />
+        <ManualInvoiceModal open={manualModalOpen} onClose={() => setManualModalOpen(false)} onSuccess={refreshTable} quoteOnly={quotesOnly} />
       </>
     );
   }
@@ -1157,8 +1149,8 @@ const InvoicesTable = () => {
               ...rest, 
               page: 1, 
               limit: queryParams.limit,
-              start_date: dateRange?.[0]?.toISOString() || queryParams.start_date,
-              end_date: dateRange?.[1]?.toISOString() || queryParams.end_date
+              start_date: dateRange?.[0] ? dayjs(dateRange[0]).startOf("day").toISOString() : queryParams.start_date,
+              end_date: dateRange?.[1] ? dayjs(dateRange[1]).endOf("day").toISOString() : queryParams.end_date
             });
             return true;
           },
@@ -1170,7 +1162,7 @@ const InvoicesTable = () => {
           optionRender: (_, __, dom) => [...dom],
         }}
         toolBarRender={() => [
-          ...(hasPesa ? [
+          ...(quotesOnly || hasPesa ? [
             <Button
               key="new-invoice"
               type="primary"
@@ -1178,7 +1170,7 @@ const InvoicesTable = () => {
               onClick={() => setManualModalOpen(true)}
               style={{ background: C.primary, borderColor: C.primary, borderRadius: 8 }}
             >
-              New Invoice
+              {quotesOnly ? "New Quote" : "New Invoice"}
             </Button>,
           ] : []),
         ]}
@@ -1210,10 +1202,10 @@ const InvoicesTable = () => {
             hideInTable: true,
             valueType: "text",
           },
-          {
+          ...(!quotesOnly ? [{
             title: "Quick Filter", dataIndex: "quick_filter",
             hideInTable: true,
-            valueType: "select",
+            valueType: "select" as const,
             valueEnum: {
               all: { text: "All" },
               not_posted: { text: "Not Posted" },
@@ -1223,14 +1215,16 @@ const InvoicesTable = () => {
               overdue: { text: "Overdue" },
             },
             initialValue: "all",
-          },
+          }] : []),
           ...desktopColumns,
         ]}
         request={async (params) => {
           const { current, pageSize, dateRange, _timestamp, quick_filter, ...rest } = params;
           const apiParams: any = { ...rest, page: current, limit: pageSize, shop_id: shopId };
 
-          if (quick_filter === "not_posted") {
+          if (quotesOnly) {
+            apiParams.status = "Draft";
+          } else if (quick_filter === "not_posted") {
             apiParams.posted = "false";
           } else if (quick_filter === "due") {
             apiParams.status = "Pending,Partially_Paid,Overdue";
@@ -1252,11 +1246,15 @@ const InvoicesTable = () => {
         tableAlertRender={({ selectedRowKeys }) => <p>You have selected {selectedRowKeys?.length}</p>}
         rowSelection={{ alwaysShowAlert: false, selections: false }}
         scroll={{ x: "inherit" }}
-        toolbar={{ title: "Invoices & Quotes", tooltip: "Invoice Management" }}
+        toolbar={{ title: quotesOnly ? "Quotes" : "Invoices & Quotes", tooltip: quotesOnly ? "Quote Management" : "Invoice Management" }}
         options={{ fullScreen: true }}
         expandable={{
           // ── Invoice/receipt FIRST, then details ──
-          expandedRowRender: (record) => <ExpandedRowContent record={record} defaultTab="receipt" onOpenNote={handleOpenNote} />,
+          expandedRowRender: (record) => (
+            <div onClick={(e) => e.stopPropagation()}>
+              <ExpandedRowContent record={record} defaultTab="receipt" onOpenNote={handleOpenNote} />
+            </div>
+          ),
           defaultExpandAllRows: false,
           expandIconColumnIndex: 1,
           columnTitle: " ",
@@ -1265,16 +1263,18 @@ const InvoicesTable = () => {
         }}
         onRow={(record) => ({
           onClick: (e) => {
-            // Don't expand if clicking on action dropdown or its children
+            // Don't expand if the click came from an action or interactive element
             const target = e.target as HTMLElement;
-            if (target.closest('.ant-dropdown-trigger') || target.closest('.ant-btn')) {
-              return;
-            }
+            const interactive = target.closest(
+              '.ant-dropdown-trigger, .ant-dropdown-menu, .ant-btn, button, a, input, textarea, .ant-picker, .ant-select, .ant-select-dropdown, .ant-table-row-expand-icon'
+            );
+            if (interactive) return;
             // Toggle expansion
-            const newKeys = expandedRowKeys.includes(record._id)
-              ? expandedRowKeys.filter((k) => k !== record._id)
-              : [...expandedRowKeys, record._id];
-            setExpandedRowKeys(newKeys);
+            setExpandedRowKeys((prev) =>
+              prev.includes(record._id)
+                ? prev.filter((k) => k !== record._id)
+                : [...prev, record._id]
+            );
           },
           style: { cursor: 'pointer' },
         })}
@@ -1294,14 +1294,24 @@ const InvoicesTable = () => {
         open={manualModalOpen}
         onClose={() => setManualModalOpen(false)}
         onSuccess={refreshTable}
+        quoteOnly={quotesOnly}
       />
+
+      {editTarget && (
+        <ManualInvoiceModal
+          open={!!editTarget}
+          onClose={() => setEditTarget(null)}
+          onSuccess={refreshTable}
+          invoiceToEdit={editTarget}
+        />
+      )}
 
       <NoteDetailDrawer
         open={noteDetailOpen}
         onClose={() => { setNoteDetailOpen(false); setSelectedNoteId(null); }}
         noteId={selectedNoteId}
-        onSuccess={() => {}} // No refresh needed for notes from invoice view
-        onOpenInvoice={() => {}} // No need to navigate back to invoice from here
+        onSuccess={() => undefined} // No refresh needed for notes from invoice view
+        onOpenInvoice={() => undefined} // No need to navigate back to invoice from here
       />
 
       {/* Delete Confirmation Modal */}

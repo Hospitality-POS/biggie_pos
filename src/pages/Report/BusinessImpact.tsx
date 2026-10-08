@@ -271,7 +271,9 @@ const BusinessImpact: React.FC<Props> = ({
                     for (const part of parts) val = val?.[part];
                     if (val) return String(val);
                 }
-            } catch {}
+            } catch {
+                /* ignore JSON parsing error */
+            }
             return "";
         };
         return (

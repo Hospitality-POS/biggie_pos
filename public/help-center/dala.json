@@ -1,0 +1,42 @@
+[
+  {
+    "id": 9,
+    "title": "Dala Property Management",
+    "description": "Real estate and property management",
+    "type": "article",
+    "readTime": "10 min",
+    "views": 1800,
+    "helpful": 140,
+    "content": "\n# Dala Property Management\n\n## What is Dala?\nDala by Base is a property and real estate management system for managing properties, tenants, leases, and maintenance.\n\n## Key Features\n\n### 1. Property Management\n- Property portfolio tracking\n- Unit management\n- Property details and amenities\n- Location mapping\n\n### 2. Tenant Management\n- Tenant database\n- Lease agreements\n- Rent tracking\n- Payment history\n\n### 3. Lease Management\n- Lease creation and renewal\n- Rent schedules\n- Deposit tracking\n- Lease termination\n\n### 4. Maintenance\n- Work order management\n- Vendor management\n- Maintenance tracking\n- Cost tracking\n\n### 5. Financials\n- Rent collection\n- Expense tracking\n- Property P&L\n- Tax reporting\n\n## Getting Started\n\n### Setup\n1. Add properties\n2. Configure units\n3. Set up lease templates\n4. Add vendors\n5. Configure rent schedules\n\n### Daily Operations\n- Process rent payments\n- Handle maintenance requests\n- Update tenant information\n- Generate reports\n      "
+  },
+  {
+    "id": 10,
+    "title": "Lease & Rent Management",
+    "description": "Manage leases and rent collection",
+    "type": "article",
+    "readTime": "7 min",
+    "views": 1300,
+    "helpful": 105,
+    "content": "\n# Lease & Rent Management\n\n## Lease Lifecycle\n\n```\n┌──────────────┐\n│ Create Lease │\n│ (Property,   │\n│  Unit, Tenant)│\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Collect      │\n│ Security     │\n│ Deposit      │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Generate     │\n│ Agreement    │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Schedule     │\n│ Rent Payments│\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Collect Rent │\n│ (Monthly)    │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Track        │\n│ Payments     │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Renewal/     │\n│ Termination  │\n└──────────────┘\n```\n\n## Creating Leases\n1. Select property and unit\n2. Add tenant details\n3. Set lease terms\n4. Configure rent schedule\n5. Collect security deposit\n6. Generate lease agreement\n\n## Rent Collection\n- Automatic rent reminders\n- Online payment processing\n- Receipt generation\n- Late fee calculation\n- Payment tracking\n\n## Lease Renewals\n- Renewal reminders\n- Rent increase options\n- Term modification\n- Agreement updates\n\n## Lease Termination\n- Notice period tracking\n- Deposit refund calculation\n- Final settlement\n- Unit availability update\n      "
+  },
+  {
+    "id": 37,
+    "title": "Maintenance Management",
+    "description": "Handle property maintenance requests",
+    "type": "article",
+    "readTime": "8 min",
+    "views": 1150,
+    "helpful": 95,
+    "content": "\n# Maintenance Management\n\n## Work Orders\n1. Go to **Maintenance > Work Orders**\n2. Click **Create Work Order**\n3. Select property and unit\n4. Describe the issue\n5. Set priority level\n6. Assign to vendor\n\n## Request Types\n- Repairs\n- Inspections\n- Upgrades\n- Emergency maintenance\n- Preventive maintenance\n\n## Vendor Management\n- Add maintenance vendors\n- Track vendor performance\n- Compare pricing\n- Manage contracts\n\n## Scheduling\n- Schedule appointments\n- Track completion\n- Update tenants\n- Document work\n\n## Cost Tracking\n- Labor costs\n- Material costs\n- Vendor invoices\n- Budget tracking\n\n## Reporting\n- Maintenance history\n- Cost analysis\n- Vendor performance\n- Property condition\n      "
+  },
+  {
+    "id": 38,
+    "title": "Property Analytics",
+    "description": "Analyze property performance",
+    "type": "article",
+    "readTime": "6 min",
+    "views": 950,
+    "helpful": 78,
+    "content": "\n# Property Analytics\n\n## Occupancy Rates\n- Track occupancy by property\n- Vacancy analysis\n- Lease expiration tracking\n- Renewal rates\n\n## Revenue Metrics\n- Rental income\n- Additional revenue\n- Revenue trends\n- Comparison by property\n\n## Expense Tracking\n- Maintenance costs\n- Operating expenses\n- Capital improvements\n- Cost per unit\n\n## Property Performance\n- Net operating income\n- Cap rate calculation\n- ROI analysis\n- Property valuation\n\n## Tenant Analytics\n- Tenant retention\n- Payment history\n- Lease terms analysis\n- Default rates\n\n## Reports\n- Property performance reports\n- Portfolio overview\n- Cash flow analysis\n- Investment returns\n      "
+  }
+]

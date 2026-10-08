@@ -16,15 +16,18 @@ import {
   UserOutlined,
   EnvironmentOutlined,
   TagOutlined,
+  ClockCircleOutlined,
 } from "@ant-design/icons";
 import PurchaseReportModal from "@components/Reports/PurchaseReport";
 import VoidReportModal from "@components/Reports/VoidReport";
 import VATReportModal from "@components/Reports/VATReport";
 import { fetchItemSalesReport, fetchProductTypeSalesReport } from "@services/reports";
 import { fetchAllUsersList, fetchAllUsersByShopId } from "@services/users";
+import { fetchHoursWorkedReport } from "@services/hr/leave";
 import ItemSalesModal from "./ItemSalesModal";
 import ProductTypeSalesModal from "./ProductTypeSalesModal";
 import TopEarnersModal from "./TopEarnersModal";
+import StaffHoursReportModal from "./StaffHoursReportModal";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getTableLocation } from "@services/tables";
 import DeliveryReportModal from "@components/Reports/DeliveryReport";
@@ -37,24 +40,14 @@ import { fetchAllInventory } from "@services/inventory";
 import { fetchAllCategories } from "@services/categories";
 import useSystemDetails from "@hooks/useSystemDetails";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
+import { THEME_C } from "@utils/getPrimaryColor";
+import dayjs from "dayjs";
 
 const { RangePicker } = DatePicker;
 const { Text } = Typography;
 
 // ── Palette ───────────────────────────────────────────────────────────────────
-const C = {
-  primary: "#6c1c2c",
-  primaryLight: "#f9f0f2",
-  green: "#10b981",
-  orange: "#f59e0b",
-  red: "#ef4444",
-  blue: "#3b82f6",
-  purple: "#8b5cf6",
-  subText: "#64748b",
-  darkText: "#0f172a",
-  border: "#e2e8f0",
-  bg: "#f8fafc",
-};
+const C = THEME_C;
 
 // ── Mobile hook ───────────────────────────────────────────────────────────────
 const useIsMobile = () => {
@@ -87,6 +80,7 @@ const TAB_CFG = [
   { key: "vat", icon: <DollarOutlined />, iconColor: C.green, label: "VAT Summary" },
   { key: "product_type", icon: <TagOutlined />, iconColor: C.blue, label: "Top sellers" },
   { key: "top_earners", icon: <TrophyOutlined />, iconColor: C.orange, label: "Top Earners" },
+  { key: "staff_hours", icon: <ClockCircleOutlined />, iconColor: C.purple, label: "Staff Hours" },
 ];
 
 // ── Custom tab nav ────────────────────────────────────────────────────────────
@@ -164,7 +158,7 @@ const DateRangeField: React.FC<{
     style={{ marginBottom: 14 }}
   >
     <RangePicker
-      showTime={{ format: "HH:mm" }}
+      showTime={{ format: "HH:mm", defaultValue: [dayjs().startOf("day"), dayjs().endOf("day")] }}
       format="YYYY-MM-DD HH:mm"
       presets={rangePresets}
       onChange={onChange}
@@ -243,6 +237,10 @@ const AdminReports: React.FC = () => {
   const [selectedProductType, setSelectedProductType] = useState<string>("");
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
 
+  const [staffHoursQueryKey, setStaffHoursQueryKey] = useState<any>(null);
+  const [staffHoursModalOpen, setStaffHoursModalOpen] = useState(false);
+  const [staffHoursDateRange, setStaffHoursDateRange] = useState<[string, string]>(["", ""]);
+
   const shopOptions = useShopOptions();
   const userOptions = useUserOptions();
   const locationOptions = useLocationOptions();
@@ -278,6 +276,8 @@ const AdminReports: React.FC = () => {
     setProductTypeSalesQueryKey(null);
     setSelectedProductType("");
     setSelectedCategory(undefined);
+    setStaffHoursQueryKey(null);
+    setStaffHoursModalOpen(false);
     form.resetFields();
   };
 
@@ -313,6 +313,12 @@ const AdminReports: React.FC = () => {
     ["product-type-sales", productTypeSalesQueryKey],
     () => fetchProductTypeSalesReport(productTypeSalesQueryKey),
     { enabled: !!productTypeSalesQueryKey, networkMode: "always" }
+  );
+
+  const { data: staffHoursData, isLoading: staffHoursLoading } = useQuery(
+    ["staff-hours-report", staffHoursQueryKey],
+    () => fetchHoursWorkedReport(staffHoursQueryKey),
+    { enabled: !!staffHoursQueryKey, networkMode: "always" }
   );
 
   const { data: servicesList, isLoading: servicesListLoading } = useQuery(
@@ -866,6 +872,60 @@ const AdminReports: React.FC = () => {
                 No sales data found for the selected period.
               </div>
             )}
+          </Form>
+        );
+
+      case "staff_hours":
+        return (
+          <Form
+            form={form}
+            layout="vertical"
+            onFinish={async (values) => {
+              const { dateRange, servedBy } = values;
+              const [start, end] = dateRange || [];
+              if (!start || !end) return;
+              const startDate = start.format("YYYY-MM-DD");
+              const endDate = end.format("YYYY-MM-DD");
+              setStaffHoursDateRange([startDate, endDate]);
+              setStaffHoursQueryKey({ from: startDate, to: endDate, staff_id: servedBy });
+              setStaffHoursModalOpen(true);
+            }}
+          >
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "0 16px" }}>
+              <div style={{ flex: "1 1 300px", minWidth: 0 }}>
+                <DateRangeField rangePresets={rangePresets} />
+              </div>
+              <div style={{ flex: "1 1 200px", minWidth: 0 }}>
+                <Form.Item
+                  name="servedBy"
+                  label={<span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.subText }}><UserOutlined /> Employee</span>}
+                  style={{ marginBottom: 14 }}
+                >
+                  <Select showSearch allowClear placeholder="All employees" options={userOptions} style={{ width: "100%", borderRadius: 8 }}
+                    filterOption={(i, o) => String(o?.label ?? "").toLowerCase().includes(i.toLowerCase())} />
+                </Form.Item>
+              </div>
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <Form.Item style={{ marginBottom: 0 }}>
+                <Button
+                  type="primary" htmlType="submit"
+                  icon={<ClockCircleOutlined />}
+                  style={{ background: C.primary, borderColor: C.primary, borderRadius: 8, height: 40, fontWeight: 600, fontSize: 13 }}
+                >
+                  Generate Staff Hours Report
+                </Button>
+              </Form.Item>
+            </div>
+            <StaffHoursReportModal
+              open={staffHoursModalOpen}
+              onClose={() => setStaffHoursModalOpen(false)}
+              data={staffHoursData?.report || []}
+              totals={staffHoursData?.totals}
+              loading={staffHoursLoading && !!staffHoursQueryKey}
+              startDate={staffHoursDateRange[0]}
+              endDate={staffHoursDateRange[1]}
+            />
           </Form>
         );
 

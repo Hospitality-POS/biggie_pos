@@ -43,22 +43,17 @@ import { usePurchaseOrders } from "../../hooks/usePurchaseOrders";
 import AddProSupplierModal from "@components/MODALS/pro/AddProSupplierModal";
 import AddEditProInventoryModal from "@components/MODALS/pro/AddEditProInventoryModal";
 import UomModal from "@components/MODALS/pro/UomModal";
+import { THEME_C } from "@utils/getPrimaryColor";
+import { fmtInteger as fmtK } from "@utils/formatters";
 
 const { Text } = Typography;
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 const C = {
-  primary: "#6c1c2c",
-  primaryLight: "#f9f0f2",
-  green: "#10b981",
+  ...THEME_C,
+  get primary() { return THEME_C.primary; },
+  get primaryLight() { return THEME_C.primaryLight; },
   tableBorder: "#e2e8f0",
-  darkText: "#0f172a",
-  subText: "#64748b",
-};
-
-const fmtK = (v: number) => {
-  if (!v && v !== 0) return "0";
-  return v.toLocaleString("en-KE", { minimumFractionDigits: 0 });
 };
 
 // ── Shared dropdown footer ────────────────────────────────────────────────────
@@ -595,7 +590,7 @@ const AddEditPurchaseOrderModal: React.FC<AddEditPurchaseOrderModalProps> = ({
                             name={[field.name, "quantity_ordered"]}
                             label="Qty"
                             placeholder="0"
-                            min={1} precision={0}
+                            min={0.001}
                             rules={[{ required: true }]}
                             fieldProps={{ onChange: calculateTotal }}
                           />

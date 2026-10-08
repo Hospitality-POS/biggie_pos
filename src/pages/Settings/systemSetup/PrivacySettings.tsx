@@ -1,21 +1,35 @@
 import React, { useEffect, useState } from "react";
-import { Switch, Space, Typography, Alert, Spin } from "antd";
+import { Switch, Space, Typography, Alert, Spin, Input, Button } from "antd";
 import { ProCard } from "@ant-design/pro-components";
-import { LockOutlined, UnlockOutlined, DollarOutlined } from "@ant-design/icons";
+import { LockOutlined, UnlockOutlined, DollarOutlined, PrinterOutlined, InboxOutlined, SafetyCertificateOutlined, EyeInvisibleOutlined } from "@ant-design/icons";
+import { useQueryClient } from "@tanstack/react-query";
 import { fetchSystemSetupDetailsById, updateSystemSetup } from "../../../services/systemsetup";
 import { fetchShop, updateShop } from "../../../services/shops";
 import { message } from "antd";
+import { THEME_C } from "../../../utils/getPrimaryColor";
 
 const { Text } = Typography;
 
-const C = { primary: "#6c1c2c", subText: "#64748b" };
+const C = THEME_C;
 
 const PrivacySettings: React.FC = () => {
+  const queryClient = useQueryClient();
   const [enablePrivacy, setEnablePrivacy] = useState(false);
   const [staffEarningEnabled, setStaffEarningEnabled] = useState(false);
+  const [requirePaymentBeforePrint, setRequirePaymentBeforePrint] = useState(false);
+  const [cartDeductionEnabled, setCartDeductionEnabled] = useState(false);
+  const [hideServedByOthers, setHideServedByOthers] = useState(false);
+  const [warrantyEnabled, setWarrantyEnabled] = useState(false);
+  const [warrantyDuration, setWarrantyDuration] = useState("6 MONTHS");
+  const [warrantyLine1, setWarrantyLine1] = useState("This receipt is your warranty certificate");
+  const [warrantyLine2, setWarrantyLine2] = useState("Please retain for warranty claims");
   const [loading, setLoading] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [updatingStaffEarning, setUpdatingStaffEarning] = useState(false);
+  const [updatingPaymentBeforePrint, setUpdatingPaymentBeforePrint] = useState(false);
+  const [updatingCartDeduction, setUpdatingCartDeduction] = useState(false);
+  const [updatingHideTables, setUpdatingHideTables] = useState(false);
+  const [updatingWarranty, setUpdatingWarranty] = useState(false);
   const [systemSettingsId, setSystemSettingsId] = useState<string | null>(null);
   const [shopId, setShopId] = useState<string | null>(null);
 
@@ -32,6 +46,14 @@ const PrivacySettings: React.FC = () => {
         setShopId(currentShopId);
         const shopData = await fetchShop(currentShopId);
         setStaffEarningEnabled(shopData?.staff_earning_enabled || false);
+        setRequirePaymentBeforePrint(shopData?.require_payment_before_print || false);
+        setCartDeductionEnabled(shopData?.cart_inventory_deduction_enabled || false);
+        setHideServedByOthers(shopData?.hide_tables_served_by_others || false);
+        const ws = shopData?.warranty_settings;
+        setWarrantyEnabled(ws?.enabled || false);
+        if (ws?.duration) setWarrantyDuration(ws.duration);
+        if (ws?.line_1) setWarrantyLine1(ws.line_1);
+        if (ws?.line_2) setWarrantyLine2(ws.line_2);
       }
     } catch (error) {
       console.error("Failed to fetch privacy setting:", error);
@@ -67,6 +89,34 @@ const PrivacySettings: React.FC = () => {
     }
   };
 
+  const handleToggleHideTables = async (checked: boolean) => {
+    if (!shopId) {
+      message.error("Shop not found");
+      return;
+    }
+
+    setUpdatingHideTables(true);
+    try {
+      await updateShop({
+        _id: shopId,
+        hide_tables_served_by_others: checked,
+      });
+      setHideServedByOthers(checked);
+      queryClient.invalidateQueries({ queryKey: ["shop", shopId] });
+      queryClient.invalidateQueries({ queryKey: ["tables"] });
+      message.success(
+        checked
+          ? "Waiters now only see tables they are serving"
+          : "Waiters can see all tables again"
+      );
+    } catch (error) {
+      console.error("Failed to update hide-tables setting:", error);
+      message.error("Failed to update hide-tables setting");
+    } finally {
+      setUpdatingHideTables(false);
+    }
+  };
+
   const handleToggleStaffEarning = async (checked: boolean) => {
     if (!shopId) {
       message.error("Shop not found");
@@ -80,12 +130,117 @@ const PrivacySettings: React.FC = () => {
         staff_earning_enabled: checked,
       });
       setStaffEarningEnabled(checked);
+      queryClient.invalidateQueries({ queryKey: ["shop", shopId] });
       message.success(checked ? "Staff earning tracking enabled" : "Staff earning tracking disabled");
     } catch (error) {
       console.error("Failed to update staff earning setting:", error);
       message.error("Failed to update staff earning settings");
     } finally {
       setUpdatingStaffEarning(false);
+    }
+  };
+
+  const handleToggleRequirePaymentBeforePrint = async (checked: boolean) => {
+    if (!shopId) {
+      message.error("Shop not found");
+      return;
+    }
+
+    setUpdatingPaymentBeforePrint(true);
+    try {
+      await updateShop({
+        _id: shopId,
+        require_payment_before_print: checked,
+      });
+      setRequirePaymentBeforePrint(checked);
+      queryClient.invalidateQueries({ queryKey: ["shop", shopId] });
+      message.success(
+        checked
+          ? "Payment must now be completed before the bill can be printed"
+          : "The bill can now be printed without completing payment first"
+      );
+    } catch (error) {
+      console.error("Failed to update payment-before-print setting:", error);
+      message.error("Failed to update payment-before-print setting");
+    } finally {
+      setUpdatingPaymentBeforePrint(false);
+    }
+  };
+
+  const saveWarrantySettings = async (enabled: boolean) => {
+    await updateShop({
+      _id: shopId,
+      warranty_settings: {
+        enabled,
+        duration: warrantyDuration,
+        line_1: warrantyLine1,
+        line_2: warrantyLine2,
+      },
+    });
+    queryClient.invalidateQueries({ queryKey: ["shop", shopId] });
+  };
+
+  const handleToggleWarranty = async (checked: boolean) => {
+    if (!shopId) {
+      message.error("Shop not found");
+      return;
+    }
+
+    setUpdatingWarranty(true);
+    try {
+      await saveWarrantySettings(checked);
+      setWarrantyEnabled(checked);
+      message.success(checked ? "Warranty details enabled" : "Warranty details disabled");
+    } catch (error) {
+      console.error("Failed to update warranty setting:", error);
+      message.error("Failed to update warranty setting");
+    } finally {
+      setUpdatingWarranty(false);
+    }
+  };
+
+  const handleSaveWarrantyDetails = async () => {
+    if (!shopId) {
+      message.error("Shop not found");
+      return;
+    }
+
+    setUpdatingWarranty(true);
+    try {
+      await saveWarrantySettings(warrantyEnabled);
+      message.success("Warranty details saved");
+    } catch (error) {
+      console.error("Failed to save warranty details:", error);
+      message.error("Failed to save warranty details");
+    } finally {
+      setUpdatingWarranty(false);
+    }
+  };
+
+  const handleToggleCartDeduction = async (checked: boolean) => {
+    if (!shopId) {
+      message.error("Shop not found");
+      return;
+    }
+
+    setUpdatingCartDeduction(true);
+    try {
+      await updateShop({
+        _id: shopId,
+        cart_inventory_deduction_enabled: checked,
+      });
+      setCartDeductionEnabled(checked);
+      queryClient.invalidateQueries({ queryKey: ["shop", shopId] });
+      message.success(
+        checked
+          ? "Cart-level inventory deductions enabled"
+          : "Cart-level inventory deductions disabled"
+      );
+    } catch (error) {
+      console.error("Failed to update cart deduction setting:", error);
+      message.error("Failed to update cart deduction setting");
+    } finally {
+      setUpdatingCartDeduction(false);
     }
   };
 
@@ -154,6 +309,46 @@ const PrivacySettings: React.FC = () => {
           </div>
         </div>
 
+        {/* Hide Tables Served by Other Staff Toggle */}
+        <div
+          style={{
+            background: "#fff",
+            border: "1px solid #e2e8f0",
+            borderRadius: 8,
+            padding: "16px 18px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <div style={{ flex: 1 }}>
+              <Text strong style={{ fontSize: 15, display: "block", marginBottom: 6 }}>
+                <Space>
+                  <EyeInvisibleOutlined />
+                  {hideServedByOthers
+                    ? "Tables Served by Other Staff Hidden"
+                    : "All Tables Visible to Staff"}
+                </Space>
+              </Text>
+              <Text style={{ fontSize: 13, color: C.subText, display: "block" }}>
+                When enabled, waiters only see tables they are serving — tables assigned to other staff are hidden from the tables view and the order screen. Admin and cashiers still see all tables.
+              </Text>
+            </div>
+            <Switch
+              checked={hideServedByOthers}
+              onChange={handleToggleHideTables}
+              loading={updatingHideTables}
+              style={{ minWidth: 48, marginLeft: 16 }}
+              checkedChildren="ON"
+              unCheckedChildren="OFF"
+            />
+          </div>
+        </div>
+
         {/* Staff Earning Toggle */}
         <div
           style={{
@@ -192,6 +387,179 @@ const PrivacySettings: React.FC = () => {
               checked={staffEarningEnabled}
               onChange={handleToggleStaffEarning}
               loading={updatingStaffEarning}
+              style={{ minWidth: 48, marginLeft: 16 }}
+              checkedChildren="ON"
+              unCheckedChildren="OFF"
+            />
+          </div>
+        </div>
+
+        {/* Require Payment Before Print Toggle */}
+        <div
+          style={{
+            background: "#fff",
+            border: "1px solid #e2e8f0",
+            borderRadius: 8,
+            padding: "16px 18px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <div style={{ flex: 1 }}>
+              <Text strong style={{ fontSize: 15, display: "block", marginBottom: 6 }}>
+                <Space>
+                  <PrinterOutlined />
+                  {requirePaymentBeforePrint
+                    ? "Payment Required Before Printing Bill"
+                    : "Payment Not Required Before Printing Bill"}
+                </Space>
+              </Text>
+              <Text style={{ fontSize: 13, color: C.subText, display: "block" }}>
+                When enabled, cashiers cannot print the bill until payment has been completed for the cart. The cart shows "Pending Print" while payment is outstanding, and printing unlocks as soon as payment is recorded.
+              </Text>
+            </div>
+            <Switch
+              checked={requirePaymentBeforePrint}
+              onChange={handleToggleRequirePaymentBeforePrint}
+              loading={updatingPaymentBeforePrint}
+              style={{ minWidth: 48, marginLeft: 16 }}
+              checkedChildren="ON"
+              unCheckedChildren="OFF"
+            />
+          </div>
+        </div>
+
+        {/* Warranty Details Toggle */}
+        <div
+          style={{
+            background: "#fff",
+            border: "1px solid #e2e8f0",
+            borderRadius: 8,
+            padding: "16px 18px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <div style={{ flex: 1 }}>
+              <Text strong style={{ fontSize: 15, display: "block", marginBottom: 6 }}>
+                <Space>
+                  <SafetyCertificateOutlined />
+                  {warrantyEnabled
+                    ? "Warranty Details Enabled"
+                    : "Warranty Details Disabled"}
+                </Space>
+              </Text>
+              <Text style={{ fontSize: 13, color: C.subText, display: "block" }}>
+                When enabled, a warranty block is printed on bills and receipts. Cashiers can also hide it per print from the bill modal.
+              </Text>
+            </div>
+            <Switch
+              checked={warrantyEnabled}
+              onChange={handleToggleWarranty}
+              loading={updatingWarranty}
+              style={{ minWidth: 48, marginLeft: 16 }}
+              checkedChildren="ON"
+              unCheckedChildren="OFF"
+            />
+          </div>
+
+          {/* Warranty details form — only when enabled */}
+          {warrantyEnabled && (
+            <div
+              style={{
+                marginTop: 16,
+                paddingTop: 16,
+                borderTop: "1px dashed #e2e8f0",
+              }}
+            >
+              <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+                <div>
+                  <Text style={{ fontSize: 13, display: "block", marginBottom: 4 }}>
+                    Warranty Duration
+                  </Text>
+                  <Input
+                    value={warrantyDuration}
+                    onChange={(e) => setWarrantyDuration(e.target.value)}
+                    placeholder="e.g. 6 MONTHS"
+                    style={{ maxWidth: 320 }}
+                  />
+                </div>
+                <div>
+                  <Text style={{ fontSize: 13, display: "block", marginBottom: 4 }}>
+                    Footer Line 1
+                  </Text>
+                  <Input
+                    value={warrantyLine1}
+                    onChange={(e) => setWarrantyLine1(e.target.value)}
+                    placeholder="e.g. This receipt is your warranty certificate"
+                  />
+                </div>
+                <div>
+                  <Text style={{ fontSize: 13, display: "block", marginBottom: 4 }}>
+                    Footer Line 2
+                  </Text>
+                  <Input
+                    value={warrantyLine2}
+                    onChange={(e) => setWarrantyLine2(e.target.value)}
+                    placeholder="e.g. Please retain for warranty claims"
+                  />
+                </div>
+                <Button
+                  type="primary"
+                  onClick={handleSaveWarrantyDetails}
+                  loading={updatingWarranty}
+                  style={{ background: C.primary }}
+                >
+                  Save Warranty Details
+                </Button>
+              </Space>
+            </div>
+          )}
+        </div>
+
+        {/* Cart-Level Inventory Deduction Toggle */}
+        <div
+          style={{
+            background: "#fff",
+            border: "1px solid #e2e8f0",
+            borderRadius: 8,
+            padding: "16px 18px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <div style={{ flex: 1 }}>
+              <Text strong style={{ fontSize: 15, display: "block", marginBottom: 6 }}>
+                <Space>
+                  <InboxOutlined />
+                  {cartDeductionEnabled
+                    ? "Cart-Level Inventory Deduction Enabled"
+                    : "Cart-Level Inventory Deduction Disabled"}
+                </Space>
+              </Text>
+              <Text style={{ fontSize: 13, color: C.subText, display: "block" }}>
+                When enabled, each cart item shows a "Deduct" option in the cart drawer. Cashiers can attach one or more inventory items (including specific variants) to be deducted from stock when the order is placed.
+              </Text>
+            </div>
+            <Switch
+              checked={cartDeductionEnabled}
+              onChange={handleToggleCartDeduction}
+              loading={updatingCartDeduction}
               style={{ minWidth: 48, marginLeft: 16 }}
               checkedChildren="ON"
               unCheckedChildren="OFF"

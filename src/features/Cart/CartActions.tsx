@@ -119,6 +119,14 @@ export const updateCartItems = createAsyncThunk(
       );
       return response.data;
     } catch (error: any) {
+      if (error.response?.status === 400) {
+        Modal.error({
+          title: "Oops!",
+          content: `${error?.response?.data?.message || error?.response?.data?.error}`,
+          centered: true,
+          icon: <AlertOutlined />
+        });
+      }
       return rejectWithValue(error.message || error.toString());
     }
   }
@@ -140,11 +148,19 @@ export const addQtyCart = createAsyncThunk(
       // Send only the new quantity; price stays as unit price — unchanged
       const response = await axiosInstance.put(
         `${baseUrl}/cart-item/${cartItem._id}`,
-        { ...cartItem, quantity: newQty }
+        { quantity: newQty }
       );
 
       return response.data;
     } catch (error: any) {
+      if (error.response?.status === 400) {
+        Modal.error({
+          title: "Oops!",
+          content: `${error?.response?.data?.message || error?.response?.data?.error}`,
+          centered: true,
+          icon: <AlertOutlined />
+        });
+      }
       return rejectWithValue(error.message || error.toString());
     }
   }
@@ -162,7 +178,7 @@ export const removeQtyCart = createAsyncThunk(
       // Send only the new quantity; price stays as unit price — unchanged
       const response = await axiosInstance.put(
         `${baseUrl}/cart-item/${cartItem._id}`,
-        { ...cartItem, quantity: newQty }
+        { quantity: newQty }
       );
 
       return response.data;
@@ -185,12 +201,20 @@ export const updateCartItemQty = createAsyncThunk(
       // Send only the new quantity; price stays as unit price — unchanged
       const response = await axiosInstance.put(
         `${baseUrl}/cart-item/${cartItem._id}`,
-        { ...cartItem, quantity }
+        { quantity }
       );
 
       if (tableId) dispatch(getCart(tableId));
       return response.data;
     } catch (error: any) {
+      if (error.response?.status === 400) {
+        Modal.error({
+          title: "Oops!",
+          content: `${error?.response?.data?.message || error?.response?.data?.error}`,
+          centered: true,
+          icon: <AlertOutlined />
+        });
+      }
       return rejectWithValue(error.message || error.toString());
     }
   }
@@ -238,6 +262,22 @@ export const cartSent = createAsyncThunk(
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.message || error.toString());
+    }
+  }
+);
+
+export const closeCartAfterPrint = createAsyncThunk(
+  "cart/closeCartAfterPrint",
+  async (cartId: string, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.put(`${baseUrl}/close-after-print`, {
+        cart_id: cartId,
+      });
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(
+        error?.response?.data?.error || error.message || "Failed to close cart"
+      );
     }
   }
 );

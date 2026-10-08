@@ -1,0 +1,32 @@
+[
+  {
+    "id": 15,
+    "title": "Subscription Plans",
+    "description": "Compare plans and pricing",
+    "type": "article",
+    "readTime": "4 min",
+    "views": 950,
+    "helpful": 72,
+    "content": "\n# Subscription Plans\n\n## Plan Tiers\n\n### Starter\n- Basic POS features\n- Single location\n- Limited users\n- Essential reports\n\n### Professional\n- Full POS suite\n- Multiple locations\n- Advanced reports\n- Integration support\n\n### Enterprise\n- All modules included\n- Unlimited locations\n- Custom integrations\n- Priority support\n\n## Pricing\n- Monthly billing\n- Annual discounts\n- Per-location pricing\n- Add-on modules\n\n## Choosing a Plan\n- Assess your needs\n- Consider growth\n- Compare features\n- Calculate ROI\n\n## Upgrading\n- Easy upgrade process\n- Pro-rated billing\n- Data migration\n- No downtime\n      "
+  },
+  {
+    "id": 16,
+    "title": "Payment Methods",
+    "description": "Add and manage payment options",
+    "type": "article",
+    "readTime": "2 min",
+    "views": 650,
+    "helpful": 45,
+    "content": "\n# Payment Methods\n\n## Supported Methods\n- Credit/Debit Cards\n- M-Pesa\n- Bank Transfer\n- Mobile Money\n- Cash\n\n## Adding Payment Method\n1. Go to **Settings > Billing**\n2. Click **Add Payment Method**\n3. Enter card details\n4. Set as default\n5. Save\n\n## Managing Payments\n- View payment history\n- Update payment methods\n- Set auto-renewal\n- Manage invoices\n\n## Invoices\n- Automatic invoicing\n- PDF download\n- Email delivery\n- Payment tracking\n      "
+  },
+  {
+    "id": 41,
+    "title": "Understanding Your Bill",
+    "description": "Read and understand your billing statement",
+    "type": "article",
+    "readTime": "5 min",
+    "views": 750,
+    "helpful": 60,
+    "content": "\n# Understanding Your Bill\n\n## Bill Components\n\n### Base Subscription\n- Plan cost\n- Location fees\n- User licenses\n- Module add-ons\n\n### Usage Charges\n- Transaction fees\n- Storage costs\n- API calls\n- Overages\n\n### Taxes\n- VAT (if applicable)\n- Service taxes\n- Local taxes\n\n## Reading Your Bill\n- Review billing period\n- Check line items\n- Verify charges\n- Compare with previous\n\n## Payment Options\n- Auto-pay\n- Manual payment\n- Payment plans\n- Early payment discounts\n\n## Disputes\n- Contact support\n- Provide documentation\n- Timeline for resolution\n- Credit policies\n      "
+  }
+]

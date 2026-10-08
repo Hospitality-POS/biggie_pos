@@ -1,23 +1,25 @@
-import React from 'react';
-import { Button, Container, Grid } from '@mui/material';
-import { Link, Outlet, useParams } from 'react-router-dom';
+import React from "react";
+import { Button, Flex } from "antd";
+import { Link, Outlet, useParams } from "react-router-dom";
 
 const MainCategory: React.FC = () => {
-  const { id } = useParams()
+  const { id } = useParams();
   return (
-    <Container>
-      <Grid container justifyContent="center" alignItems="center" style={{ height: '100vh' }}>
-        <Grid item xs={12} textAlign="center">
-          <Button component={Link} to={`/main-category/${id}/kitchen`} variant="contained" color="primary" style={{ margin: '8px' }}>
+    <div style={{ minHeight: "100vh", padding: "24px" }}>
+      <Flex justify="center" align="center" style={{ height: "80vh" }} gap="middle">
+        <Link to={`/main-category/${id}/kitchen`}>
+          <Button type="primary" size="large">
             Kitchen
           </Button>
-          <Button component={Link} to={`/main-category/${id}/bar`} variant="contained" color="secondary" style={{ margin: '8px' }}>
-           BAR
+        </Link>
+        <Link to={`/main-category/${id}/bar`}>
+          <Button size="large">
+            BAR
           </Button>
-        </Grid>
-      </Grid>
-      <Outlet/>
-    </Container>
+        </Link>
+      </Flex>
+      <Outlet />
+    </div>
   );
 };
 

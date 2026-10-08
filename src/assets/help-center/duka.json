@@ -1,0 +1,72 @@
+[
+  {
+    "id": 1,
+    "title": "Duka Quick Start Guide",
+    "description": "Get started with Duka POS in 10 minutes",
+    "type": "article",
+    "readTime": "10 min",
+    "views": 2500,
+    "helpful": 190,
+    "content": "\n# Duka Quick Start Guide\n\n## Overview\nDuka by Base is a comprehensive Point of Sale (POS) system for managing sales, inventory, customers, and daily operations.\n\n## Setup Flow\n\n```\n┌─────────────────┐\n│   Login to      │\n│   Base Point    │\n└────────┬────────┘\n         │\n         ▼\n┌─────────────────┐\n│   Admin         │\n│   Dashboard     │\n└────────┬────────┘\n         │\n         ▼\n┌─────────────────┐\n│   Create Shop   │\n│   (Shops Tab)   │\n└────────┬────────┘\n         │\n         ▼\n┌─────────────────┐\n│   Add Products  │\n│   (Products)    │\n└────────┬────────┘\n         │\n         ▼\n┌─────────────────┐\n│   Configure     │\n│   Categories    │\n└────────┬────────┘\n         │\n         ▼\n┌─────────────────┐\n│   Setup         │\n│   Payments      │\n└────────┬────────┘\n         │\n         ▼\n┌─────────────────┐\n│   Start         │\n│   Selling!      │\n└─────────────────┘\n```\n\n## First Steps\n\n### 1. Set Up Your Shop\n- Navigate to **Admin Dashboard > Shops**\n- Click **Create Shop** to add your first location\n- Configure shop details: name, address, phone, and POS mode (Restaurant or Retail)\n- Set up tables if using Restaurant mode\n\n### 2. Add Products\n- Go to **Products** in the sidebar\n- Click **Add Product** to create inventory items\n- Set product name, price, category, and tax settings\n- Upload product images for better recognition\n- Set stock levels for inventory tracking\n\n### 3. Configure Categories\n- Create product categories to organize your menu/catalog\n- Examples: Food, Beverages, Electronics, Clothing\n- Set up sub-categories for better organization\n\n### 4. Add Payment Methods\n- Configure cash, card, M-Pesa, and other payment options\n- Set up Pesapal integration for online payments\n- Configure receipt printing settings\n\n## Making a Sale - Retail Mode\n\n```\n┌──────────────┐\n│ Select/      │\n│ Search       │\n│ Products     │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Add to Cart │\n│ (Qty, Price)│\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Apply        │\n│ Discounts?   │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Select       │\n│ Payment      │\n│ Method       │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Complete     │\n│ Sale         │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Print        │\n│ Receipt      │\n└──────────────┘\n```\n\n### Retail Mode Steps\n1. Select or search for products\n2. Add to cart\n3. Apply discounts if needed\n4. Select payment method\n5. Complete sale and print receipt\n\n## Making a Sale - Restaurant Mode\n\n```\n┌──────────────┐\n│ Select Table │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Add Items    │\n│ to Order     │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Send to      │\n│ Kitchen      │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Track Order  │\n│ Status       │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Generate     │\n│ Bill         │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Process      │\n│ Payment      │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Clear Table  │\n└──────────────┘\n```\n\n### Restaurant Mode Steps\n1. Select table\n2. Add items to order\n3. Send to kitchen\n4. Track order status\n5. Generate bill\n6. Process payment\n\n## Daily Operations\n\n### Shift Management\n- Start and end shifts for staff\n- Track sales by shift\n- Handle shift handovers\n\n### Inventory Management\n- Monitor stock levels\n- Receive new stock\n- Track inventory movements\n- Generate inventory reports\n\n### Customer Management\n- Add customer details\n- Track customer purchases\n- Manage customer accounts\n- Apply customer discounts\n\n## Reports\n- View daily sales reports\n- Analyze best-selling items\n- Track revenue trends\n- Export sales data\n      "
+  },
+  {
+    "id": 2,
+    "title": "Managing Tables & Dining Areas",
+    "description": "Configure tables for restaurant operations",
+    "type": "article",
+    "readTime": "5 min",
+    "views": 1200,
+    "helpful": 85,
+    "content": "\n# Managing Tables & Dining Areas\n\n## Table Setup\n1. Go to **Tables** in the admin panel\n2. Create table locations (e.g., Main Hall, Outdoor, VIP)\n3. Add tables to each location\n4. Set table capacity and numbering\n\n## Table Operations\n- Assign orders to tables\n- Transfer orders between tables\n- Merge tables for large groups\n- Clear tables after payment\n\n## Auto Slots (Retail Mode)\n- Create auto slots for quick checkout\n- Useful for takeaway orders\n- Reduces wait time\n      "
+  },
+  {
+    "id": 3,
+    "title": "Inventory & Stock Management",
+    "description": "Track and manage your inventory",
+    "type": "article",
+    "readTime": "8 min",
+    "views": 1800,
+    "helpful": 120,
+    "content": "\n# Inventory & Stock Management\n\n## Adding Inventory\n- Manually add stock items\n- Import from Excel templates\n- Set minimum stock levels for alerts\n\n## Stock Movements\n- Track stock in (purchases)\n- Track stock out (sales, wastage)\n- Transfer stock between locations\n- Adjust stock for discrepancies\n\n## Low Stock Alerts\n- Receive notifications when stock is low\n- Set reorder points\n- Generate purchase orders\n\n## Inventory Reports\n- View stock valuation\n- Track fast-moving items\n- Identify slow-moving stock\n- Generate inventory usage reports\n      "
+  },
+  {
+    "id": 28,
+    "title": "Delivery Management",
+    "description": "Handle delivery orders and logistics",
+    "type": "article",
+    "readTime": "7 min",
+    "views": 1100,
+    "helpful": 90,
+    "content": "\n# Delivery Management\n\n## Delivery Order Flow\n\n```\n┌──────────────┐\n│ Customer     │\n│ Places Order │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Mark as      │\n│ Delivery     │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Assign to    │\n│ Driver       │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Driver       │\n│ Picks Up     │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ In Transit   │\n│ (Tracking)   │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Delivered    │\n│ (Confirm)    │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Payment      │\n│ Collected    │\n└──────────────┘\n```\n\n## Setting Up Delivery\n1. Go to **Settings > Delivery**\n2. Configure delivery zones\n3. Set delivery fees by zone\n4. Define delivery time slots\n5. Assign delivery staff\n\n## Processing Delivery Orders\n- Mark orders as delivery\n- Assign to delivery driver\n- Track delivery status\n- Update customer on progress\n\n## Delivery Zones\n- Define geographic zones\n- Set zone-specific fees\n- Configure delivery times\n- Manage zone availability\n\n## Delivery Staff\n- Add delivery personnel\n- Assign routes\n- Track performance\n- Calculate commissions\n\n## Customer Communication\n- SMS notifications\n- Order tracking\n- Delivery confirmations\n- Feedback collection\n      "
+  },
+  {
+    "id": 29,
+    "title": "Product Modifiers & Add-ons",
+    "description": "Configure product variations and extras",
+    "type": "article",
+    "readTime": "6 min",
+    "views": 950,
+    "helpful": 75,
+    "content": "\n# Product Modifiers & Add-ons\n\n## What are Modifiers?\nModifiers allow customers to customize their orders with extras, special requests, or variations.\n\n## Creating Modifiers\n1. Go to **Products > Modifiers**\n2. Click **Add Modifier Group**\n3. Name the group (e.g., \"Extra Toppings\")\n4. Add modifier options\n5. Set prices for each option\n\n## Modifier Types\n- **Required**: Customer must select an option\n- **Optional**: Customer can choose to add\n- **Multi-select**: Customer can select multiple options\n- **Single-select**: Customer can only choose one\n\n## Common Use Cases\n- Pizza toppings\n- Burger extras\n- Drink sizes\n- Side dishes\n- Cooking preferences\n\n## Pricing\n- Set base price for modifier group\n- Add individual prices for options\n- Configure free modifiers\n- Set quantity limits\n      "
+  },
+  {
+    "id": 30,
+    "title": "Supplier Management",
+    "description": "Manage vendors and purchase orders",
+    "type": "article",
+    "readTime": "8 min",
+    "views": 1050,
+    "helpful": 88,
+    "content": "\n# Supplier Management\n\n## Purchase Order Flow\n\n```\n┌──────────────┐\n│ Create PO    │\n│ (Select      │\n│  Supplier)   │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Add Items    │\n│ (Qty, Price) │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Review &     │\n│ Approve      │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Send to      │\n│ Supplier    │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Supplier     │\n│ Ships Items  │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Receive      │\n│ Goods        │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Update       │\n│ Inventory    │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Pay Supplier│\n└──────────────┘\n```\n\n## Adding Suppliers\n1. Go to **Inventory > Suppliers**\n2. Click **Add Supplier**\n3. Enter supplier details\n4. Add contact information\n5. Set payment terms\n\n## Supplier Information\n- Company name and address\n- Contact person\n- Phone and email\n- Payment terms\n- Tax information\n\n## Purchase Orders\n- Create purchase orders\n- Send to suppliers\n- Track order status\n- Receive goods\n- Update inventory\n\n## Supplier Performance\n- Track delivery times\n- Monitor quality\n- Compare pricing\n- Rate suppliers\n- Analyze reliability\n\n## Supplier Reports\n- Purchase history\n- Cost analysis\n- Delivery performance\n- Payment tracking\n      "
+  },
+  {
+    "id": 31,
+    "title": "Shift Management",
+    "description": "Manage staff shifts and handovers",
+    "type": "article",
+    "readTime": "6 min",
+    "views": 1300,
+    "helpful": 105,
+    "content": "\n# Shift Management\n\n## Shift Workflow\n\n```\n┌──────────────┐\n│ Start Shift  │\n│ (Opening     │\n│  Cash Count) │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Process      │\n│ Sales        │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Record Cash │\n│ Drops        │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Track Sales  │\n│ Throughout   │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ End Shift    │\n│ (Closing     │\n│  Cash Count) │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Reconcile    │\n│ Cash         │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Handover     │\n│ (Next Shift) │\n└──────────────┘\n```\n\n## Creating Shifts\n1. Go to **Staff > Shifts**\n2. Click **Add Shift**\n3. Set shift name and time\n4. Assign staff members\n5. Configure responsibilities\n\n## Shift Operations\n- Start shift with opening cash\n- Track sales during shift\n- Record cash drops\n- End shift with closing count\n- Handle discrepancies\n\n## Shift Handover\n- Document pending orders\n- Transfer cash\n- Note issues\n- Update inventory\n- Sign off\n\n## Shift Reports\n- Sales by shift\n- Cash reconciliation\n- Staff performance\n- Customer traffic\n- Incident reports\n\n## Best Practices\n- Regular cash counts\n- Clear documentation\n- Proper handovers\n- Timely reporting\n      "
+  }
+]

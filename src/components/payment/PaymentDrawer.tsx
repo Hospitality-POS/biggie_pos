@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { createOrder } from "@features/Order/OrderActions";
+import { closeModal } from "@features/Order/OrderSlice";
 import { cartVoid, createCart, updateCart } from "@features/Cart/CartActions";
+import { setPendingPrint } from "@features/PendingPrint/PendingPrintSlice";
 import SplitBillDialog from "../MODALS/Dialogs/SplitBillDialog";
 import { useAppDispatch, useAppSelector } from "../../store";
 import {
@@ -25,6 +27,10 @@ import { fetchAllPackages } from "@services/subscription";
 import SubscriptionPaymentOption from "./SubscriptionPaymentOption";
 import { usePOSMode } from "@context/POSModeContext";
 import { useRetailQueue } from "@context/RetailQueueContext";
+import { usePrimaryColor } from "@context/PrimaryColorContext";
+import { fmtKSH as fmtKsh } from "@utils/formatters";
+import { useNavigate } from "react-router-dom";
+import { saveOfflineOrder } from "../../services/offlineSync";
 
 const { Text, Title } = Typography;
 
@@ -44,9 +50,6 @@ const useDebounce = (callback: (...args: any[]) => void, delay: number) => {
     timeoutRef.current = setTimeout(() => callback(...args), delay);
   }, [callback, delay]);
 };
-
-const fmtKsh = (v: number) =>
-  `KSH ${v?.toLocaleString("en-KE", { minimumFractionDigits: 0 }) ?? "0"}`;
 
 const getMethodIcon = (name: string, size = 26) => {
   const n = name.toLowerCase();
@@ -123,36 +126,31 @@ const STKStatusCard: React.FC<{
   );
 };
 
-interface PaymentDrawerProps { customerDetails?: CustomerDetails | null; }
+interface PaymentDrawerProps {
+  customerDetails?: CustomerDetails | null;
+  // True when this shop requires the bill to be printed only after payment.
+  // The cart/table is deliberately NOT closed or replaced on payment — a
+  // snapshot of the paid cart is stashed in Redux (via PendingPrintSlice) so
+  // the CartDrawer can keep showing the print/close controls for it, and the
+  // cart is only closed and a fresh one started when the cashier clicks
+  // "Close Order" there.
+  holdForPrint?: boolean;
+}
 
-const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
+const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails, holdForPrint }) => {
   const [form] = Form.useForm();
   const [drawerVisible, setDrawerVisible] = useState(false);
   const dispatch = useAppDispatch();
-  const navigate = (path: string) => (window.location.href = path);
+  const navigate = useNavigate();
 
   const rawId = window.location.pathname.split("/").pop();
   const { isRetailMode, isHospitalMode, isHotelMode } = usePOSMode();
   const { activeTable } = useRetailQueue();
 
-  // Get tenant primary color for branding
-  const getPrimaryColor = () => {
-    try {
-      const storedTenant = localStorage.getItem("tenant");
-      if (storedTenant) {
-        const tenant = JSON.parse(storedTenant);
-        return tenant?.color_scheme?.primary || tenant?.primary_color || "#6c1c2c";
-      }
-    } catch (error) {
-      console.error("Error parsing tenant:", error);
-    }
-    return "#6c1c2c";
-  };
-
-  const primaryColor = getPrimaryColor();
+  const primaryColor = usePrimaryColor();
 
   // ── Single source of truth from store ────────────────────────────────────
-  const { cartDetails, subtotal, totalVatAmount, grandTotal } = useAppSelector((s) => s.cart);
+  const { cartDetails, subtotal, totalVatAmount, grandTotal, cartItems } = useAppSelector((s) => s.cart);
 
   const isSlotMode = isRetailMode || isHospitalMode;
   const id = isSlotMode
@@ -160,8 +158,38 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
     : isHotelMode
       ? (cartDetails?.table_id as unknown as string | undefined)
       : (rawId && rawId !== "tables" ? rawId : undefined);
+
+  const afterPaymentRedirect = () => {
+    if (isSlotMode) return;
+    navigate("/tables");
+  };
   const { loading } = useAppSelector((s) => s.order);
   const { user } = useAppSelector((s) => s.auth);
+
+  // If this shop requires the bill to be printed only after payment, leave
+  // the cart/table exactly as-is (don't clear it or start a new one) — just
+  // stash a snapshot in Redux so the bill can still be printed from the cart
+  // drawer. The cart/table is only actually closed and reset once the
+  // cashier explicitly clicks "Close Order" in the drawer, never
+  // automatically on payment. Also suppress the
+  // generic "order success" animation — it's tied to global state and would
+  // otherwise pop up unexpectedly on a later, unrelated page visit since
+  // we're not navigating to /tables now.
+  const finalizeAfterPayment = () => {
+    if (holdForPrint) {
+      dispatch(setPendingPrint({
+        cartDetails,
+        data: cartItems ?? [],
+        subtotal,
+        totalVatAmount,
+        grandTotal,
+      }));
+      dispatch(closeModal());
+      return;
+    }
+    dispatch(createCart(id));
+    afterPaymentRedirect();
+  };
 
   // ── Discount display math — never affects order_amount sent to backend ────
   const discountAmount = useMemo(() => {
@@ -234,12 +262,12 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
     customerInfo.email || cartDetails?.client_email || customerDetails?.customer_email;
 
   const isValidKenyanPhone = (phone: string) => {
-    const c = phone.replace(/[\s\-\(\)]/g, "");
+    const c = phone.replace(/[\s\-()]/g, "");
     return [/^\+254[17]\d{8}$/, /^254[17]\d{8}$/, /^0[17]\d{8}$/, /^[17]\d{8}$/].some((p) => p.test(c));
   };
 
   const formatPhoneNumber = (phone: string) => {
-    const c = phone.replace(/[\s\-\(\)]/g, "");
+    const c = phone.replace(/[\s\-()]/g, "");
     if (c.startsWith("+254")) return c;
     if (c.startsWith("254")) return "+" + c;
     if (c.startsWith("0")) return "+254" + c.substring(1);
@@ -262,7 +290,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
     try {
       setSearchingCustomers(true);
       const result = await fetchAllCustomers({ search: term.trim() });
-      let arr: any[] = Array.isArray(result) ? result : result?.customers || result?.data || [];
+      const arr: any[] = Array.isArray(result) ? result : result?.customers || result?.data || [];
       setCustomers(filterCustomers(arr, term));
     } catch { setCustomers([]); message.error("Failed to search customers"); }
     finally { setSearchingCustomers(false); }
@@ -340,14 +368,15 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
             setTimeout(() => {
               resetPesapalModal();
               setDrawerVisible(false);
-              dispatch(createCart(id));
-              navigate("/tables");
+              finalizeAfterPayment();
             }, 2000);
           } else if (data.payment_status === "FAILED") {
             setStkPaymentStatus("failed");
             message.error("Payment failed. Please try again.");
           }
-        } catch { }
+        } catch (error) {
+          console.warn("STK status check failed:", error);
+        }
       }, 3000);
     }
     return () => { if (intervalId) clearInterval(intervalId); };
@@ -403,24 +432,77 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
 
   const handleModalClose = () => { setOpenModal(false); setSecondMethod(null); setAmount1(0); setAmount2(0); };
 
-  const handleSplitConfirm = async () => {
-    if (!amount1 || amount1 < 1 || !amount2 || amount2 < 1 || amount1 + amount2 !== grandTotal) {
+  const handleSplitConfirm = async (splitAmount1?: number, splitAmount2?: number, splitMethod1?: string, splitMethod2?: string) => {
+    const a1 = splitAmount1 !== undefined ? splitAmount1 : amount1;
+    const a2 = splitAmount2 !== undefined ? splitAmount2 : amount2;
+    const m1 = splitMethod1 || selectedMethod;
+    const m2 = splitMethod2 || secondMethod;
+    if (!a1 || a1 < 1 || !a2 || a2 < 1 || Math.abs(a1 + a2 - grandTotal) > 0.01) {
       message.error("Split amounts must equal the total."); return;
     }
     if (!id) { message.error("No active table or slot."); return; }
+
+    const recordOfflineSplit = async () => {
+      try {
+        await saveOfflineOrder({
+          offlineId: `OFF-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          orderNumber: String(cartDetails?.order_no || Date.now()),
+          cartId: cartDetails?._id,
+          tableId: id,
+          orderAmount: [a1, a2],
+          methodId: [m1 || "", m2 || ""],
+          cartItems: cartDetails?.items || [],
+          customerName: resolveCustomerName(),
+          customerPhone: resolveCustomerPhone(),
+          customerEmail: resolveCustomerEmail(),
+          customerId: resolveCustomerId(),
+          servedBy: user?.id,
+          shopId: cartDetails?.shop_id || localStorage.getItem("shopId") || undefined,
+        });
+        setOpenModal(false);
+        setDrawerVisible(false);
+        setSelectedCustomerId(null);
+        dispatch(createCart(id));
+        afterPaymentRedirect();
+        message.info("Working offline: Split order saved locally and will sync when internet returns.");
+      } catch (e) {
+        console.error("Failed to save offline split order:", e);
+        message.error("Failed to save order locally.");
+      }
+    };
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      await recordOfflineSplit();
+      return;
+    }
+
     try {
       const result = await dispatch(createOrder({
-        cart_id: cartDetails?._id, order_amount: [amount1, amount2], table_id: id,
+        cart_id: cartDetails?._id, order_amount: [a1, a2], table_id: id,
         updated_by: user?.id, order_no: cartDetails?.order_no, cart_items: cartDetails.items,
-        method_id: [selectedMethod, secondMethod], customer_id: resolveCustomerId(),
+        method_id: [m1, m2], customer_id: resolveCustomerId(),
         customer_name: resolveCustomerName(), customer_phone: resolveCustomerPhone(),
         customer_email: resolveCustomerEmail(),
       }));
       if (result.type.endsWith("/fulfilled")) {
+        setOpenModal(false);
         setDrawerVisible(false); setSelectedCustomerId(null);
-        dispatch(createCart(id)); navigate("/tables"); message.success("Payment successful!");
+        finalizeAfterPayment(); message.success("Payment successful!");
+      } else {
+        const errPayload = String((result as any)?.payload || (result as any)?.error?.message || "");
+        if (
+          !navigator.onLine ||
+          errPayload.includes("Network Error") ||
+          errPayload.includes("fetch") ||
+          errPayload.includes("connect")
+        ) {
+          await recordOfflineSplit();
+        }
       }
-    } catch { }
+    } catch (error) {
+      console.warn("Split payment error:", error);
+      await recordOfflineSplit();
+    }
   };
 
   const handlePayment = async () => {
@@ -438,14 +520,50 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
         if (result.type.endsWith("/fulfilled")) {
           message.success("Order placed using subscription visit!");
           setDrawerVisible(false); setSelectedSubscription(null); setUseSubscription(false);
-          setSelectedCustomerId(null); dispatch(createCart(id)); navigate("/tables");
+          setSelectedCustomerId(null); finalizeAfterPayment();
         }
-      } catch { }
+      } catch (error) {
+        console.warn("Subscription payment error:", error);
+      }
       return;
     }
     if (!selectedMethod) { message.error("Please select a payment method."); return; }
     if (isPesapalMethod(selectedMethod)) { setPesapalModalVisible(true); return; }
     if (secondMethod) { setOpenModal(true); return; }
+
+    const recordOfflineOrder = async () => {
+      try {
+        await saveOfflineOrder({
+          offlineId: `OFF-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          orderNumber: String(cartDetails?.order_no || Date.now()),
+          cartId: cartDetails?._id,
+          tableId: id,
+          orderAmount: grandTotal,
+          methodId: selectedMethod,
+          cartItems: cartDetails?.items || [],
+          customerName: resolveCustomerName(),
+          customerPhone: resolveCustomerPhone(),
+          customerEmail: resolveCustomerEmail(),
+          customerId: resolveCustomerId(),
+          servedBy: user?.id,
+          shopId: cartDetails?.shop_id || localStorage.getItem("shopId") || undefined,
+        });
+        setDrawerVisible(false);
+        setSelectedCustomerId(null);
+        dispatch(createCart(id));
+        afterPaymentRedirect();
+        message.info("Working offline: Order saved locally and will sync when internet returns.");
+      } catch (e) {
+        console.error("Failed to save offline order:", e);
+        message.error("Failed to save order locally.");
+      }
+    };
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      await recordOfflineOrder();
+      return;
+    }
+
     try {
       const result = await dispatch(createOrder({
         cart_id: cartDetails?._id,
@@ -458,9 +576,22 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
       }));
       if (result.type.endsWith("/fulfilled")) {
         setDrawerVisible(false); setSelectedCustomerId(null);
-        dispatch(createCart(id)); navigate("/tables"); message.success("Payment successful!");
+        finalizeAfterPayment(); message.success("Payment successful!");
+      } else {
+        const errPayload = String((result as any)?.payload || (result as any)?.error?.message || "");
+        if (
+          !navigator.onLine ||
+          errPayload.includes("Network Error") ||
+          errPayload.includes("fetch") ||
+          errPayload.includes("connect")
+        ) {
+          await recordOfflineOrder();
+        }
       }
-    } catch { }
+    } catch (error) {
+      console.warn("Order payment error:", error);
+      await recordOfflineOrder();
+    }
   };
 
   const handleSTKPushPayment = async () => {
@@ -511,7 +642,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
         setSelectedSubscription(null);
         setUseSubscription(false);
         message.success("Bill voided.");
-        navigate("/tables");
+        afterPaymentRedirect();
       },
     });
   };

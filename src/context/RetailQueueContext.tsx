@@ -43,12 +43,12 @@ const defaultValue: RetailQueueContextType = {
     availableTables: [],
     occupiedTables: [],
     isLoadingSlots: false,
-    refreshSlots: async () => { },
-    setActiveTable: () => { },
+    refreshSlots: async () => { /* no-op default */ },
+    setActiveTable: () => { /* no-op default */ },
     assignNextAvailableTable: () => null,
     queueOrderAndNext: async () => ({ success: false, nextTable: null }),
-    openNewOrder: async () => { },
-    removeActiveSlot: async () => { },
+    openNewOrder: async () => { /* no-op default */ },
+    removeActiveSlot: async () => { /* no-op default */ },
 };
 
 const RetailQueueContext = createContext<RetailQueueContextType>(defaultValue);
@@ -70,6 +70,7 @@ export const RetailQueueProvider: React.FC<{ children: React.ReactNode }> = ({ c
     const [activeLocation, setActiveLocation] = useState<Location | null>(null);
     const [isLoadingSlots, setIsLoadingSlots] = useState(false);
     const lastShopId = useRef<string | null>(null);
+    const lastUserId = useRef<string | null>(null);
     const activeTableRef = useRef<TableSlot | null>(null);
     const isAutoCreating = useRef(false);
 
@@ -102,14 +103,15 @@ export const RetailQueueProvider: React.FC<{ children: React.ReactNode }> = ({ c
             // If privacy is enabled and user is waiter, lock tables where served_by is not current user
             if (enablePrivacy && userRole === "waiter" && currentUser) {
                 tables = tables.map((table: any) => {
+                    if (table.cart_amount === 0) {
+                        return { ...table, isLocked: false };
+                    }
                     const servedByCurrentUser = table.served_by === currentUser || table.served_by === user.name;
                     const isEmpty = !table.isOccupied && table.status !== 'occupied';
                     // Lock if not served by current user AND not empty
                     const isLocked = !servedByCurrentUser && !isEmpty;
-                    console.log(`[RetailQueueContext] Table ${table.name}: served_by=${table.served_by}, isOccupied=${table.isOccupied}, isLocked=${isLocked}`);
                     return { ...table, isLocked };
                 });
-                console.log('[RetailQueueContext] Applied privacy locking, locked tables:', tables.filter((t: any) => t.isLocked).length);
             }
 
             if (!tables?.length) {
@@ -192,14 +194,28 @@ export const RetailQueueProvider: React.FC<{ children: React.ReactNode }> = ({ c
     useEffect(() => {
         const interval = setInterval(() => {
             const shopId = localStorage.getItem('shopId');
-            if (
-                shopId &&
+            const shopIdValid =
+                !!shopId &&
                 shopId !== 'undefined' &&
                 shopId !== 'null' &&
-                shopId.trim() !== '' &&
-                shopId !== lastShopId.current
-            ) {
-                lastShopId.current = shopId;
+                shopId.trim() !== '';
+
+            // Staff can swap on the same shop via PIN login — the cached slot
+            // list was built for the previous user, so reload on user change too
+            let currentUserId: string | null = null;
+            try {
+                const u = JSON.parse(localStorage.getItem('user') || '{}');
+                currentUserId = u._id || u.id || null;
+            } catch {
+                currentUserId = null;
+            }
+            const userChanged = currentUserId !== lastUserId.current;
+            lastUserId.current = currentUserId;
+
+            const shopChanged = shopIdValid && shopId !== lastShopId.current;
+            if (shopChanged) lastShopId.current = shopId;
+
+            if (shopIdValid && (shopChanged || userChanged)) {
                 setAllLocations([]);
                 setActiveTableState(null);
                 setActiveLocation(null);

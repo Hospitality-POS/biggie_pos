@@ -8,7 +8,6 @@ import {
   Space,
   Typography,
   Table,
-  Tag,
   Row,
   Col,
   message,
@@ -17,13 +16,12 @@ import {
   Divider,
 } from "antd";
 import {
-  DollarOutlined,
   SaveOutlined,
   PlusOutlined,
   DeleteOutlined,
   SettingOutlined,
 } from "@ant-design/icons";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 
 const { Title, Text } = Typography;
@@ -32,7 +30,6 @@ const { Title, Text } = Typography;
 
 const DeductionSettings: React.FC = () => {
   const primaryColor = usePrimaryColor();
-  const queryClient = useQueryClient();
   const [form] = Form.useForm();
   const [customDeductions, setCustomDeductions] = useState<
     Array<{ id: string; name: string; amount: number; is_percentage: boolean }>
@@ -252,7 +249,7 @@ const DeductionSettings: React.FC = () => {
           <Card>
             <Form form={form} layout="vertical">
               <Row gutter={16}>
-                <Col span={12}>
+                <Col span={8}>
                   <Form.Item
                     name="paye_enabled"
                     label="Enable PAYE Deduction"
@@ -262,11 +259,26 @@ const DeductionSettings: React.FC = () => {
                     <Switch />
                   </Form.Item>
                 </Col>
-                <Col span={12}>
+                <Col span={8}>
                   <Form.Item
                     name="paye_personal_relief"
                     label="Personal Relief (KES)"
                     initialValue={2400}
+                    rules={[{ required: true, message: "Required" }]}
+                  >
+                    <InputNumber
+                      min={0}
+                      style={{ width: "100%" }}
+                      addonBefore="KES"
+                    />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item
+                    name="paye_minimum_taxable_income"
+                    label="Minimum Taxable Income (KES/month)"
+                    initialValue={24001}
+                    tooltip="Taxable pay below this amount pays no PAYE (KRA: KES 24,001/month)"
                     rules={[{ required: true, message: "Required" }]}
                   >
                     <InputNumber
@@ -370,10 +382,39 @@ const DeductionSettings: React.FC = () => {
                 </Col>
               </Row>
               <Row gutter={16}>
-                <Col span={12}>
+                <Col span={8}>
+                  <Form.Item
+                    name="paye_bracket4_limit"
+                    label="Bracket 4 Limit (KES)"
+                    initialValue={800000}
+                    rules={[{ required: true, message: "Required" }]}
+                  >
+                    <InputNumber
+                      min={0}
+                      style={{ width: "100%" }}
+                      addonBefore="KES"
+                    />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
                   <Form.Item
                     name="paye_bracket4_rate"
-                    label="Bracket 4+ Rate (%)"
+                    label="Bracket 4 Rate (%)"
+                    initialValue={32.5}
+                    rules={[{ required: true, message: "Required" }]}
+                  >
+                    <InputNumber
+                      min={0}
+                      max={100}
+                      style={{ width: "100%" }}
+                      addonAfter="%"
+                    />
+                  </Form.Item>
+                </Col>
+                <Col span={8}>
+                  <Form.Item
+                    name="paye_bracket5_rate"
+                    label="Bracket 5 Rate (% — above limit)"
                     initialValue={35}
                     rules={[{ required: true, message: "Required" }]}
                   >
@@ -387,7 +428,9 @@ const DeductionSettings: React.FC = () => {
                 </Col>
               </Row>
               <Text type="secondary" style={{ fontSize: 12 }}>
-                PAYE tax brackets based on current KRA regulations. Personal relief is deducted from taxable income.
+                Monthly KRA bands: 10% up to 24,000 · 25% on the next 8,333 · 30% on the next 467,667 ·
+                32.5% on the next 300,000 · 35% above 800,000. Personal relief is deducted from the
+                computed tax; taxable pay below the minimum taxable income is untaxed.
               </Text>
             </Form>
           </Card>
@@ -428,22 +471,6 @@ const DeductionSettings: React.FC = () => {
               <Row gutter={16}>
                 <Col span={12}>
                   <Form.Item
-                    name="sha_employer_rate"
-                    label="Employer Rate (%)"
-                    initialValue={2.75}
-                    rules={[{ required: true, message: "Required" }]}
-                  >
-                    <InputNumber
-                      min={0}
-                      max={100}
-                      step={0.25}
-                      style={{ width: "100%" }}
-                      addonAfter="%"
-                    />
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item
                     name="sha_income_limit"
                     label="Income Limit (KES)"
                     initialValue={100000}
@@ -458,7 +485,7 @@ const DeductionSettings: React.FC = () => {
                 </Col>
               </Row>
               <Text type="secondary" style={{ fontSize: 12 }}>
-                SHA (Social Health Insurance) replaces NHIF. Both employee and employer contribute 2.75% of gross pay.
+                SHA (Social Health Insurance) replaces NHIF. Employees contribute 2.75% of gross pay.
               </Text>
             </Form>
           </Card>
@@ -529,6 +556,43 @@ const DeductionSettings: React.FC = () => {
               </Row>
               <Text type="secondary" style={{ fontSize: 12 }}>
                 Housing Levy is 1.5% of gross pay, shared equally between employee and employer.
+              </Text>
+            </Form>
+          </Card>
+        </Tabs.TabPane>
+
+        {/* ── NITA Settings ── */}
+        <Tabs.TabPane tab="NITA" key="nita">
+          <Card>
+            <Form form={form} layout="vertical">
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item
+                    name="nita_enabled"
+                    label="Enable NITA Levy"
+                    valuePropName="checked"
+                    initialValue={true}
+                  >
+                    <Switch />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item
+                    name="nita_amount"
+                    label="Amount per Employee (KES)"
+                    initialValue={50}
+                    rules={[{ required: true, message: "Required" }]}
+                  >
+                    <InputNumber
+                      min={0}
+                      style={{ width: "100%" }}
+                      addonBefore="KES"
+                    />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                NITA (National Industrial Training Authority) levy is a standard KES 50 deducted from every employee each month.
               </Text>
             </Form>
           </Card>

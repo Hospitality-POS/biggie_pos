@@ -28,24 +28,17 @@ import {
   FallOutlined,
 } from "@ant-design/icons";
 
+import { THEME_C } from "@utils/getPrimaryColor";
+
 const { Text, Title } = Typography;
 const { Option } = Select;
 
 const C = {
-  primary: "#6c1c2c",
-  primaryLight: "#f9f0f2",
-  green: "#10b981",
-  red: "#ef4444",
-  blue: "#3b82f6",
-  orange: "#f59e0b",
-  purple: "#8b5cf6",
-  indigo: "#6366f1",
+  ...THEME_C,
+  get primary() { return THEME_C.primary; },
+  get primaryLight() { return THEME_C.primaryLight; },
   cyan: "#06b6d4",
   pink: "#ec4899",
-  subText: "#64748b",
-  darkText: "#0f172a",
-  border: "#e2e8f0",
-  bg: "#f8fafc",
 };
 
 const COLORS = [C.blue, C.green, C.purple, C.orange, C.red, C.cyan, C.pink, C.indigo];

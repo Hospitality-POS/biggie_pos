@@ -1,0 +1,42 @@
+[
+  {
+    "id": 7,
+    "title": "Mteja CRM Introduction",
+    "description": "Customer relationship management basics",
+    "type": "article",
+    "readTime": "8 min",
+    "views": 2200,
+    "helpful": 175,
+    "content": "\n# Mteja CRM Introduction\n\n## What is Mteja?\nMteja by Base is a customer relationship management (CRM) system that helps you manage leads, customers, and marketing campaigns.\n\n## Key Features\n\n### 1. Lead Management\n- Capture leads from multiple sources\n- Visual pipeline tracking\n- Lead scoring and qualification\n- Convert leads to customers\n\n### 2. Customer Database\n- Centralized customer profiles\n- Purchase history tracking\n- Communication logs\n- Customer segmentation\n\n### 3. Marketing Campaigns\n- Email campaigns\n- SMS campaigns\n- WhatsApp integration\n- Campaign analytics\n\n### 4. Sales Tracking\n- Sales targets and budgets\n- Performance tracking\n- Team sales reports\n- Commission calculations\n\n### 5. Loyalty Programs\n- Customer rewards\n- Points system\n- Tiered membership\n- Special offers\n\n## Getting Started\n\n### Setup\n1. Configure lead stages\n2. Set up customer fields\n3. Create email/SMS templates\n4. Configure communication channels\n5. Set sales targets\n\n### Daily Use\n- Add new leads\n- Update lead status\n- Send communications\n- Track conversions\n- Monitor campaigns\n      "
+  },
+  {
+    "id": 8,
+    "title": "Lead Pipeline Management",
+    "description": "Track and convert leads effectively",
+    "type": "article",
+    "readTime": "6 min",
+    "views": 1400,
+    "helpful": 110,
+    "content": "\n# Lead Pipeline Management\n\n## Lead Conversion Flow\n\n```\n┌──────────────┐\n│ Capture Lead │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Qualify      │\n│ Lead         │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Contact      │\n│ Lead         │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Present      │\n│ Proposal     │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Negotiate    │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Close Deal   │\n│ (Won/Lost)   │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Convert to   │\n│ Customer     │\n└──────────────┘\n```\n\n## Pipeline Stages\nCommon stages include:\n- New\n- Contacted\n- Qualified\n- Proposal\n- Negotiation\n- Won/Lost\n\n## Managing Leads\n- Add leads manually or import\n- Assign to sales team\n- Schedule follow-ups\n- Track activities\n- Move through pipeline\n\n## Lead Scoring\n- Assign scores based on actions\n- Prioritize high-value leads\n- Automate follow-ups\n- Improve conversion rates\n\n## Conversion\n- Convert leads to customers\n- Create opportunities\n- Track conversion rates\n- Analyze pipeline health\n      "
+  },
+  {
+    "id": 35,
+    "title": "Marketing Campaigns",
+    "description": "Create and manage marketing campaigns",
+    "type": "article",
+    "readTime": "9 min",
+    "views": 1250,
+    "helpful": 100,
+    "content": "\n# Marketing Campaigns\n\n## Campaign Types\n- Email campaigns\n- SMS campaigns\n- WhatsApp broadcasts\n- Multi-channel campaigns\n\n## Creating Campaigns\n1. Go to **Marketing > Campaigns**\n2. Click **Create Campaign**\n3. Select campaign type\n4. Define target audience\n5. Create content\n6. Schedule send\n\n## Targeting\n- Segment by customer attributes\n- Filter by purchase history\n- Target by location\n- Custom audience lists\n\n## Content Creation\n- Use templates\n- Customize messages\n- Add personalization\n- Include calls-to-action\n\n## Scheduling\n- Set send date and time\n- Optimize for engagement\n- A/B testing\n- Automated triggers\n\n## Analytics\n- Open rates\n- Click rates\n- Conversion tracking\n- ROI measurement\n      "
+  },
+  {
+    "id": 36,
+    "title": "Loyalty Programs",
+    "description": "Set up and manage customer loyalty",
+    "type": "article",
+    "readTime": "7 min",
+    "views": 1100,
+    "helpful": 92,
+    "content": "\n# Loyalty Programs\n\n## Program Setup\n1. Go to **Customers > Loyalty**\n2. Click **Create Program**\n3. Set earning rules\n4. Configure redemption\n5. Define tiers\n6. Launch program\n\n## Points System\n- Points per purchase\n- Bonus points actions\n- Point expiration\n- Point multipliers\n\n## Tiers and Rewards\n- Bronze, Silver, Gold tiers\n- Tier benefits\n- Upgrade criteria\n- Exclusive offers\n\n## Customer Engagement\n- Points balance tracking\n- Reward notifications\n- Birthday bonuses\n- Referral rewards\n\n## Program Analytics\n- Enrollment rates\n- Redemption rates\n- Customer retention\n- Program ROI\n      "
+  }
+]

@@ -1,22 +1,18 @@
-import {Card, Skeleton } from "@mui/material";
+import { Card, Skeleton } from "antd";
 import classes from "./table.module.css";
 
 const TableCardSkeleton = () => {
   return (
     <Card
-      sx={{
+      bordered={false}
+      style={{
         boxShadow: "none",
-        bgcolor: "transparent",
-        marginTop: "10px"
+        backgroundColor: "transparent",
+        marginTop: "10px",
       }}
       className={classes.container}
     >
-      <Skeleton
-        variant="circular"
-        width={80}
-        height={50}
-        animation="wave"
-      />
+      <Skeleton.Button active style={{ width: 80, height: 50, borderRadius: 25 }} />
     </Card>
   );
 };

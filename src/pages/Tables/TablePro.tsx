@@ -1,6 +1,8 @@
 import {
   AppstoreOutlined,
+  AimOutlined,
   HolderOutlined,
+  LoadingOutlined,
   PlusOutlined,
   MenuOutlined,
   TableOutlined,
@@ -10,8 +12,8 @@ import { ProCard } from "@ant-design/pro-components";
 import SuccesssModal from "@components/MODALS/SuccessModal";
 import TableCard from "@components/TableCard/TableCard";
 import StaffModal from "@components/staffCard/LoginModal";
-import { fetchTableUsequery } from "@services/tables";
-import { useQuery } from "@tanstack/react-query";
+import { fetchTableUsequery, addNewTable } from "@services/tables";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ConfigProvider,
   Skeleton,
@@ -23,18 +25,22 @@ import {
   Empty,
 } from "antd";
 import Lottie from "lottie-react";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, Suspense, lazy } from "react";
 import { useAppSelector } from "src/store";
 import fssanimation from "../../components/Loaders/tables.json";
 import EmptyPage from "@routes/EmptyPage";
 import { useNavigate } from "react-router-dom";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { usePOSMode } from "@context/POSModeContext";
-import HospitalPage from "@pages/Hospital/HospitalPage";
-import HotelPage from "@pages/Hotel/HotelPage";
-import React from "react";
+import QuickAddTableModal from "@components/MODALS/pro/QuickAddTableModal";
+
+const HospitalPage = lazy(() => import("@pages/Hospital/HospitalPage"));
+const HotelPage = lazy(() => import("@pages/Hotel/HotelPage"));
 
 const { Text, Title } = Typography;
+
+// Key for the trailing "+ New Location" pseudo-tab in the locations tab bar
+const ADD_LOCATION_TAB = "__add_location__";
 
 // ── Mobile detection ──────────────────────────────────────────────────────────
 const useIsMobile = () => {
@@ -81,6 +87,44 @@ const LoadingTabs = () => (
   </div>
 );
 
+// ── "Add table" tile rendered inside each location's grid ────────────────────
+const AddTableTile: React.FC<{
+  onClick: () => void;
+  primaryColor: string;
+  isMobile: boolean;
+  loading?: boolean;
+}> = ({ onClick, primaryColor, isMobile, loading }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    disabled={loading}
+    style={{
+      minHeight: isMobile ? 96 : 120,
+      borderRadius: 10,
+      border: `1.5px dashed ${primaryColor}55`,
+      background: `${primaryColor}08`,
+      color: primaryColor,
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      cursor: loading ? "wait" : "pointer",
+      fontWeight: 600,
+      fontSize: isMobile ? 12 : 13,
+      transition: "all 0.15s ease",
+      opacity: loading ? 0.7 : 1,
+    }}
+  >
+    {loading ? (
+      <LoadingOutlined style={{ fontSize: 18 }} />
+    ) : (
+      <PlusOutlined style={{ fontSize: 18 }} />
+    )}
+    Add Table
+  </button>
+);
+
 // ── Mobile slot selector ──────────────────────────────────────────────────────
 interface SlotSelectorProps {
   tabs: any[];
@@ -88,14 +132,15 @@ interface SlotSelectorProps {
   onChange: (key: string) => void;
   primaryColor: string;
   loading: boolean;
+  onAddLocation?: () => void;
 }
 
 const MobileSlotSelector: React.FC<SlotSelectorProps> = ({
-  tabs, activeKey, onChange, primaryColor, loading,
+  tabs, activeKey, onChange, primaryColor, loading, onAddLocation,
 }) => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const activeTab = tabs.find((t) => t.key === activeKey);
-  const slots = tabs.filter((t) => t.key !== "overview");
+  const slots = tabs.filter((t) => t.key !== "overview" && t.key !== ADD_LOCATION_TAB);
 
   return (
     <>
@@ -265,6 +310,36 @@ const MobileSlotSelector: React.FC<SlotSelectorProps> = ({
             );
           })
         )}
+
+        {onAddLocation && (
+          <div
+            onClick={() => { setDrawerOpen(false); onAddLocation(); }}
+            style={{
+              display: "flex", alignItems: "center",
+              padding: "12px 16px", margin: "4px 8px 0", borderRadius: 10,
+              border: `1.5px dashed ${primaryColor}55`,
+              background: `${primaryColor}08`,
+              color: primaryColor,
+              cursor: "pointer", transition: "all 0.15s ease",
+            }}
+          >
+            <Space size={10}>
+              <div
+                style={{
+                  background: `${primaryColor}20`,
+                  borderRadius: 7, padding: "5px 6px",
+                  color: primaryColor,
+                  fontSize: 14, lineHeight: 1,
+                }}
+              >
+                <PlusOutlined />
+              </div>
+              <Text strong style={{ fontSize: 14, color: primaryColor }}>
+                New Location
+              </Text>
+            </Space>
+          </div>
+        )}
       </Drawer>
     </>
   );
@@ -292,6 +367,13 @@ export default function TablePro() {
   const [open, setOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState(null);
   const [isBackgroundBlurred, setIsBackgroundBlurred] = useState(false);
+  const [quickAdd, setQuickAdd] = useState<{
+    mode: "table" | "location";
+    locationId?: string;
+    locationName?: string;
+  } | null>(null);
+  const [addingTableFor, setAddingTableFor] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   const { user } = useAppSelector((state) => state.auth);
   const { openModal: successmodal, loading } = useAppSelector((state) => state.order);
@@ -299,6 +381,7 @@ export default function TablePro() {
   const primaryColor = usePrimaryColor();
   const { isRetailMode, isHospitalMode, isHotelMode, isModeLoading } = usePOSMode();
   const isMobile = useIsMobile();
+  const canManageSlots = user?.role === "admin" || user?.role === "cashier" || user?.role === "waiter";
 
   const storedCode = localStorage.getItem("companyCode");
 
@@ -306,7 +389,17 @@ export default function TablePro() {
   const STORAGE_KEY = "activeTableTabId";
   const VISIT_KEY = "hasVisitedTablesBefore";
 
-  const [activeTabId, setActiveTabId] = useState(DEFAULT_TAB);
+  const [activeTabId, setActiveTabId] = useState(() => {
+    const isFirstVisit = localStorage.getItem(VISIT_KEY) !== "true";
+    if (isFirstVisit) {
+      localStorage.setItem(VISIT_KEY, "true");
+      return DEFAULT_TAB;
+    }
+    const savedTabId = localStorage.getItem(STORAGE_KEY);
+    return savedTabId && savedTabId !== "undefined" && savedTabId !== "null" && String(savedTabId).trim() !== ""
+      ? savedTabId
+      : DEFAULT_TAB;
+  });
 
   const setValidActiveTab = useCallback((tabId: any) => {
     const validTabId =
@@ -319,17 +412,6 @@ export default function TablePro() {
   }, []);
 
   useEffect(() => {
-    const isFirstVisit = localStorage.getItem(VISIT_KEY) !== "true";
-    if (isFirstVisit) {
-      localStorage.setItem(VISIT_KEY, "true");
-      setValidActiveTab(DEFAULT_TAB);
-    } else {
-      const savedTabId = localStorage.getItem(STORAGE_KEY);
-      setValidActiveTab(savedTabId);
-    }
-  }, []);
-
-  useEffect(() => {
     if (!storedCode) {
       setIsBackgroundBlurred(true);
       setOpen(true);
@@ -337,9 +419,12 @@ export default function TablePro() {
     }
   }, [storedCode]);
 
+  // Keyed by user — the fetcher applies per-user privacy filtering, so the
+  // cache entry must not be shared between logins.
+  const currentUserKey = (user as any)?._id || user?.id || "anon";
   const queryKey = useMemo(
-    () => (activeTabId === DEFAULT_TAB ? ["tables", "overview"] : ["tables", activeTabId]),
-    [activeTabId]
+    () => ["tables", currentUserKey, activeTabId === DEFAULT_TAB ? "overview" : activeTabId],
+    [activeTabId, currentUserKey]
   );
 
   const handleOpen = useCallback((productId: any) => {
@@ -349,6 +434,12 @@ export default function TablePro() {
 
   const handleTabChange = useCallback(
     (key: any) => {
+      // The trailing "+ New Location" pseudo-tab opens the quick-add modal
+      // instead of becoming the active tab.
+      if (key === ADD_LOCATION_TAB) {
+        setQuickAdd({ mode: "location" });
+        return;
+      }
       if (key && key !== "undefined" && key !== "null" && String(key).trim() !== "") {
         setValidActiveTab(key);
       } else {
@@ -356,6 +447,50 @@ export default function TablePro() {
       }
     },
     [setValidActiveTab]
+  );
+
+  // Instant add: derive the next table name from the location's naming
+  // pattern (last "L7" → "L8", "Table 12" → "Table 13") and create it
+  // without opening a modal. Falls back to the name-only modal when the
+  // location has no numeric-suffixed table names to follow.
+  const handleInstantAddTable = useCallback(
+    async (location: any) => {
+      const tables = (location?.tables || []).filter((T: any) => !T.isDisabled);
+
+      // Pattern from the LAST numbered table; number = max for that prefix
+      let prefix: string | null = null;
+      let width = 0;
+      for (let i = tables.length - 1; i >= 0 && prefix === null; i--) {
+        const m = String(tables[i]?.name ?? "").match(/^(.*?)(\d+)$/);
+        if (m) {
+          prefix = m[1];
+          width = m[2].length;
+        }
+      }
+      if (prefix === null) {
+        setQuickAdd({ mode: "table", locationId: location._id, locationName: location.name });
+        return;
+      }
+
+      let max = 0;
+      for (const T of tables) {
+        const m = String(T?.name ?? "").match(/^(.*?)(\d+)$/);
+        if (m && m[1] === prefix) max = Math.max(max, parseInt(m[2], 10));
+      }
+      const nextName = `${prefix}${String(max + 1).padStart(width, "0")}`;
+
+      setAddingTableFor(location._id);
+      try {
+        await addNewTable({ name: nextName, locatedAt: location._id });
+        queryClient.invalidateQueries({ queryKey: ["tables"] });
+        setValidActiveTab(location._id);
+      } catch {
+        // service already surfaces an error message
+      } finally {
+        setAddingTableFor(null);
+      }
+    },
+    [queryClient, setValidActiveTab]
   );
 
   const { data, isLoading, isError } = useQuery({
@@ -366,6 +501,7 @@ export default function TablePro() {
     },
     networkMode: "always",
     enabled: !!storedCode && !isRetailMode && !isHospitalMode && !isModeLoading,
+    staleTime: 30 * 1000,
     retry: 2,
     retryDelay: 1000,
   });
@@ -400,20 +536,38 @@ export default function TablePro() {
             ? "Tap a slot from the selector above to view its customer tables."
             : "Select a staff slot from the tabs above to view its customer tables."}
         </Text>
-        <Button
-          type="primary"
-          onClick={() => navigate("/table-settings")}
-          icon={<PlusOutlined />}
-          disabled={user?.role !== "admin" && user?.role !== "cashier"}
-          style={{
-            backgroundColor: primaryColor,
-            borderColor: primaryColor,
-            borderRadius: 8,
-            fontWeight: 500,
-          }}
-        >
-          Add New Slot
-        </Button>
+        <Space size={8} wrap>
+          <Button
+            type="primary"
+            onClick={() => setQuickAdd({ mode: "table" })}
+            icon={<PlusOutlined />}
+            disabled={!canManageSlots}
+            style={{
+              backgroundColor: primaryColor,
+              borderColor: primaryColor,
+              borderRadius: 8,
+              fontWeight: 500,
+            }}
+          >
+            Quick Add Table
+          </Button>
+          <Button
+            onClick={() => setQuickAdd({ mode: "location" })}
+            icon={<AimOutlined />}
+            disabled={!canManageSlots}
+            style={{ borderRadius: 8, fontWeight: 500 }}
+          >
+            New Location
+          </Button>
+          {(user?.role === "admin" || user?.role === "cashier") && (
+            <Button
+              onClick={() => navigate("/table-settings")}
+              style={{ borderRadius: 8, fontWeight: 500 }}
+            >
+              Slot Settings
+            </Button>
+          )}
+        </Space>
       </div>
     </div>
   );
@@ -430,8 +584,10 @@ export default function TablePro() {
             {item.name || "Unnamed"}
           </Space>
         ),
-        children:
-          item?.tables && item.tables.length > 0 ? (
+        children: (() => {
+          const tables = (item?.tables || []).filter((T: any) => !T.isDisabled);
+          if (!tables.length && !canManageSlots) return <EmptyPage />;
+          return (
             <div
               style={{
                 display: "grid",
@@ -445,14 +601,21 @@ export default function TablePro() {
                 alignItems: "start",
               }}
             >
-              {item.tables.filter((T: any) => !T.isDisabled).map((T: any) => {
+              {tables.map((T: any) => {
                 console.log(`🔍 [TablePro] Passing to TableCard: ${T.name}, isLocked=${T.isLocked}`);
                 return <TableCard key={T._id} item={T} openModal={handleOpen} />;
               })}
+              {canManageSlots && (
+                <AddTableTile
+                  isMobile={isMobile}
+                  primaryColor={primaryColor}
+                  loading={addingTableFor === item._id}
+                  onClick={() => handleInstantAddTable(item)}
+                />
+              )}
             </div>
-          ) : (
-            <EmptyPage />
-          ),
+          );
+        })(),
       })) || [];
 
     return [
@@ -468,8 +631,25 @@ export default function TablePro() {
         children: overviewContent,
       },
       ...dynamicTabs,
+      // Trailing "+ New Location" pseudo-tab — opens the quick-add modal,
+      // it never becomes the active tab (intercepted in handleTabChange)
+      ...(canManageSlots
+        ? [
+            {
+              key: ADD_LOCATION_TAB,
+              tab: "add",
+              label: (
+                <Space size={4}>
+                  <PlusOutlined />
+                  New Location
+                </Space>
+              ),
+              children: null,
+            },
+          ]
+        : []),
     ];
-  }, [data, primaryColor, user?.role, navigate, isMobile, handleOpen]);
+  }, [data, primaryColor, user?.role, navigate, isMobile, handleOpen, canManageSlots, addingTableFor, handleInstantAddTable]);
 
   useEffect(() => {
     if (!isLoading && data) {
@@ -508,36 +688,54 @@ export default function TablePro() {
   // ── Hotel mode ────────────────────────────────────────────────────────────
   if (isHotelMode) {
     return (
-      <>
+      <Suspense
+        fallback={
+          <div style={{ display: "grid", placeContent: "center", height: "60vh" }}>
+            <Spin size="large" tip="Loading Hotel Mode..." />
+          </div>
+        }
+      >
         <HotelPage />
         {selectedProductId && (
           <StaffModal setOpen={setOpen} open={open} tbl={selectedProductId} showButton={true} />
         )}
-      </>
+      </Suspense>
     );
   }
 
   // ── Hospital mode ─────────────────────────────────────────────────────────
   if (isHospitalMode) {
     return (
-      <>
+      <Suspense
+        fallback={
+          <div style={{ display: "grid", placeContent: "center", height: "60vh" }}>
+            <Spin size="large" tip="Loading Hospital Mode..." />
+          </div>
+        }
+      >
         <HospitalPage />
         {selectedProductId && (
           <StaffModal setOpen={setOpen} open={open} tbl={selectedProductId} showButton={true} />
         )}
-      </>
+      </Suspense>
     );
   }
 
   // ── Retail mode ───────────────────────────────────────────────────────────
   if (isRetailMode) {
     return (
-      <>
+      <Suspense
+        fallback={
+          <div style={{ display: "grid", placeContent: "center", height: "60vh" }}>
+            <Spin size="large" tip="Loading Retail Mode..." />
+          </div>
+        }
+      >
         <HospitalPage mode="retail" />
         {selectedProductId && (
           <StaffModal setOpen={setOpen} open={open} tbl={selectedProductId} showButton={true} />
         )}
-      </>
+      </Suspense>
     );
   }
 
@@ -551,7 +749,7 @@ export default function TablePro() {
         `}</style>
 
         <div style={{ padding: "0 0 80px" }}>
-          <div style={{ marginBottom: 12 }}>
+          <div style={{ marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <Space align="center" size={8}>
               <div
                 style={{
@@ -566,6 +764,21 @@ export default function TablePro() {
                 <Text style={{ fontSize: 11, color: "#94a3b8" }}>Manage customer slots</Text>
               </div>
             </Space>
+            <Button
+              size="small"
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => setQuickAdd({ mode: "table" })}
+              disabled={!canManageSlots}
+              style={{
+                backgroundColor: primaryColor,
+                borderColor: primaryColor,
+                borderRadius: 8,
+                fontWeight: 500,
+              }}
+            >
+              Add
+            </Button>
           </div>
 
           <MobileSlotSelector
@@ -574,12 +787,23 @@ export default function TablePro() {
             onChange={handleTabChange}
             primaryColor={primaryColor}
             loading={isLoading}
+            onAddLocation={canManageSlots ? () => setQuickAdd({ mode: "location" }) : undefined}
           />
 
           <div style={{ minHeight: 200 }}>
             {isLoading ? <LoadingTabContent isMobile={true} /> : activeTabContent}
           </div>
         </div>
+
+        <QuickAddTableModal
+          open={!!quickAdd}
+          mode={quickAdd?.mode}
+          fixedLocationId={quickAdd?.locationId}
+          fixedLocationName={quickAdd?.locationName}
+          defaultLocationId={safeActiveTabId !== DEFAULT_TAB ? safeActiveTabId : undefined}
+          onClose={() => setQuickAdd(null)}
+          onCreated={setValidActiveTab}
+        />
 
         {selectedProductId && (
           <StaffModal setOpen={setOpen} open={open} tbl={selectedProductId} showButton={true} />
@@ -609,23 +833,49 @@ export default function TablePro() {
         theme={{
           components: {
             Tabs: {
-              itemColor: "#fff",
-              itemActiveColor: "#000",
-              itemHoverColor: "#aa846f",
-              itemSelectedColor: "#000",
+              itemColor: "rgba(255, 255, 255, 0.85)",
+              itemActiveColor: primaryColor,
+              itemHoverColor: "#ffffff",
+              itemSelectedColor: primaryColor,
               cardBg: primaryColor,
             },
           },
         }}
       >
         {isLoading ? (
-          <ProCard title={cardTitle} bordered boxShadow style={{ borderRadius: 12 }}>
+          <ProCard title={cardTitle} style={{ borderRadius: 12, boxShadow: "none", border: "none" }}>
             <LoadingTabs />
             <LoadingTabContent isMobile={false} />
           </ProCard>
         ) : (
           <ProCard
             title={cardTitle}
+            extra={
+              <Space size={8}>
+                <Button
+                  icon={<AimOutlined />}
+                  onClick={() => setQuickAdd({ mode: "location" })}
+                  disabled={!canManageSlots}
+                  style={{ borderRadius: 8, fontWeight: 500 }}
+                >
+                  Location
+                </Button>
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={() => setQuickAdd({ mode: "table" })}
+                  disabled={!canManageSlots}
+                  style={{
+                    backgroundColor: primaryColor,
+                    borderColor: primaryColor,
+                    borderRadius: 8,
+                    fontWeight: 500,
+                  }}
+                >
+                  Add Table
+                </Button>
+              </Space>
+            }
             tabs={{
               type: "card",
               items: generateTabItems,
@@ -633,12 +883,20 @@ export default function TablePro() {
               activeKey: safeActiveTabId,
               destroyInactiveTabPane: false,
             }}
-            bordered
-            boxShadow
-            style={{ borderRadius: 12 }}
+            style={{ borderRadius: 12, boxShadow: "none", border: "none" }}
           />
         )}
       </ConfigProvider>
+
+      <QuickAddTableModal
+        open={!!quickAdd}
+        mode={quickAdd?.mode}
+        fixedLocationId={quickAdd?.locationId}
+        fixedLocationName={quickAdd?.locationName}
+        defaultLocationId={safeActiveTabId !== DEFAULT_TAB ? safeActiveTabId : undefined}
+        onClose={() => setQuickAdd(null)}
+        onCreated={setValidActiveTab}
+      />
 
       {selectedProductId && (
         <StaffModal setOpen={setOpen} open={open} tbl={selectedProductId} showButton={true} />

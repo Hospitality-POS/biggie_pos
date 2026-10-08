@@ -3,6 +3,7 @@ import { message } from "antd";
 import axiosInstance from "../request";
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import { ParamsType } from "@ant-design/pro-components";
+import { fetchProperties } from "../dala";
 
 const BASE = `${BASE_URL}/api/crm/leads`;
 
@@ -20,6 +21,8 @@ export type LeadStage =
     | "lost"
     | "disqualified";
 
+// Built-in defaults — tenants can also define custom sources when creating a
+// lead, so `Lead.source` is typed as `LeadSource | string` where it is used.
 export type LeadSource =
     | "walk_in"
     | "referral"
@@ -56,7 +59,8 @@ export interface Lead {
     website?: string;
     address?: LeadAddress;
     stage: LeadStage;
-    source?: LeadSource;
+    source?: LeadSource | string;
+    project?: string;
     estimated_value?: number;
     currency?: string;
     probability?: number;
@@ -80,7 +84,7 @@ export interface Lead {
     createdAt: string;
     updatedAt: string;
     // attached by getById
-    activities?: import("./crm/leadActivities").LeadActivity[];
+    activities?: import("./leadActivities").LeadActivity[];
     documents?: any[];
 }
 
@@ -101,7 +105,8 @@ export interface LeadListResponse {
 export interface FetchLeadsParams {
     shop_id?: string;
     stage?: LeadStage;
-    source?: LeadSource;
+    source?: string;
+    project?: string;
     assigned_to?: string;
     campaign_id?: string;
     search?: string;
@@ -144,6 +149,56 @@ export const getLeadById = async (
         message.error(msg);
         throw new Error(msg);
     }
+};
+
+/* ============================================================
+   LEAD SOURCES — defaults + custom sources already used by the shop
+============================================================ */
+
+export const fetchLeadSources = async (shop_id?: string): Promise<string[]> => {
+    try {
+        const response = await axiosInstance.get(`${BASE}/sources`, {
+            params: { shop_id },
+        });
+        return response.data?.sources || [];
+    } catch (error: any) {
+        console.error("Error fetching lead sources:", error);
+        return [];
+    }
+};
+
+/* ============================================================
+   PROJECT OPTIONS — dala portfolio property names + custom project
+   names already used by this shop's leads. Returns an empty list
+   when the shop has no dala data; the form's free-text input still
+   works in that case.
+============================================================ */
+
+export const fetchProjectOptions = async (shop_id?: string): Promise<string[]> => {
+    const names = new Set<string>();
+
+    // Projects from the dala property portfolio (if the shop has dala data)
+    try {
+        const res = await fetchProperties(false);
+        const list = res?.data || res?.properties || res || [];
+        (Array.isArray(list) ? list : []).forEach((p: any) => {
+            if (p?.name) names.add(p.name);
+        });
+    } catch {
+        // dala module not available — custom names still work
+    }
+
+    // Custom project names already used on leads (if the API exposes them)
+    try {
+        const response = await axiosInstance.get(`${BASE}/projects`, {
+            params: { shop_id },
+        });
+        (response.data?.projects || []).forEach((p: string) => p && names.add(p));
+    } catch {
+        // endpoint may not exist yet — ignore
+    }
+
+    return [...names];
 };
 
 /* ============================================================

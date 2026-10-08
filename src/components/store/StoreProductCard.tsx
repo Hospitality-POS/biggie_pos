@@ -1,5 +1,4 @@
 import React from "react";
-import CircleIcon from "@mui/icons-material/Circle";
 import { useAppSelector } from "../../store";
 import { Card, Typography, Switch, Tooltip, message } from "antd";
 import { DeleteFilled, EditOutlined } from "@ant-design/icons";
@@ -241,7 +240,7 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
             disabled={!canManageProducts}
             onChange={handleToggleDisabled}
             style={{
-              backgroundColor: isDisabled ? "#d1d5db" : "#6c1c2c",
+              backgroundColor: isDisabled ? "#d1d5db" : primaryColor,
             }}
           />
         </Tooltip>
@@ -300,19 +299,20 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
       >
         <Typography.Text
           ellipsis
-          style={{ fontWeight: 600, color: isDisabled ? "#9ca3af" : (isHovered ? "#fff" : "#6c1c2c") }}
+          style={{ fontWeight: 600, color: isDisabled ? "#9ca3af" : (isHovered ? "#fff" : primaryColor) }}
         >
           Ksh.{price?.toLocaleString()}
         </Typography.Text>
-        <Typography>
-          <CircleIcon
-            style={{
-              fontSize: "10px",
-              color: isDisabled ? "#9ca3af" : (isHovered ? "#fff" : primaryColor),
-              verticalAlign: "middle",
-            }}
-          />
-        </Typography>
+        <span
+          style={{
+            display: "inline-block",
+            width: 6,
+            height: 6,
+            borderRadius: "50%",
+            backgroundColor: isDisabled ? "#9ca3af" : (isHovered ? "#fff" : primaryColor),
+            verticalAlign: "middle",
+          }}
+        />
         <Typography.Text ellipsis style={{ color: isHovered ? "#fff" : "inherit" }}>{bowls}</Typography.Text>
         <Typography.Text style={{ color: isHovered ? "#fff" : "inherit" }}> Item{bowls <= 1 ? " " : "s"}</Typography.Text>
       </div>

@@ -78,15 +78,8 @@ const TransferBillModal: React.FC<TransferBillModalProps> = ({
       }
       trigger={
         <Button
-          style={{
-            pl: 2,
-            color: "#6c1c2c",
-            borderColor: "#6c1c2c",
-            "&:hover": {
-              borderColor: "#bc8c7c",
-              color: "#bc8c7c",
-            },
-          }}
+          type="default"
+          size="small"
           icon={<SwapOutlined />}
         >
           Transfer Bill

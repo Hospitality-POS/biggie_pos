@@ -1,11 +1,15 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
     Avatar,
     Badge,
     Button,
+    Checkbox,
     Divider,
     Dropdown,
+    Empty,
+    Grid,
     Input,
+    List,
     MenuProps,
     Modal,
     Select,
@@ -22,7 +26,6 @@ import {
     CloseCircleOutlined,
     DownOutlined,
     FileOutlined,
-    MoreOutlined,
     PaperClipOutlined,
     SendOutlined,
     UserOutlined,
@@ -32,6 +35,14 @@ import {
     ThunderboltOutlined,
     MessageOutlined,
     CloseOutlined,
+    DeleteOutlined,
+    ArrowLeftOutlined,
+    MoreOutlined,
+    FilePdfOutlined,
+    FileSearchOutlined,
+    PhoneOutlined,
+    VideoCameraOutlined,
+    FileExclamationOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
@@ -42,12 +53,16 @@ import {
     suggestReply,
     convertConversationToCustomer,
     convertConversationToLead,
-    assignConversation,
     updateConversationStatus,
     markConversationAsRead,
     fetchAgents,
     handoverConversation,
+    deleteConversation,
 } from "@services/whatsappService";
+import { useAppDispatch } from "src/store";
+import { createLeadActivity } from "@services/crm/leadActivities";
+import { searchDocuments } from "@services/documents";
+import { formatCurrency } from "@utils/formatters";
 import {
     Conversation,
     ConversationStatus,
@@ -73,10 +88,22 @@ interface Message {
     template_name?: string;
     status: "pending" | "sent" | "delivered" | "read" | "received" | "failed";
     meta_message_id?: string;
+    context_message_id?: string;
     sent_by?: { _id: string; fullname: string; thumbnail?: string };
     location?: { latitude: number; longitude: number; name?: string; address?: string };
     reaction?: { emoji: string; message_id: string };
     createdAt: string;
+}
+
+interface SuggestedProduct {
+    _id: string;
+    name: string;
+    // The exact catalog phrase the reply mentioned (variant name when a
+    // variant was matched) — used to re-check mentions before sending.
+    match_name?: string;
+    price?: number | null;
+    image_url?: string | null;
+    source?: "product" | "inventory";
 }
 
 interface Props {
@@ -85,6 +112,8 @@ interface Props {
     primaryColor: string;
     onMessageSent: () => void;
     onConversationUpdate: () => void;
+    onConversationDeleted?: () => void;
+    onBack?: () => void;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -95,6 +124,15 @@ const STATUS_ICONS: Record<string, React.ReactNode> = {
     delivered: <span style={{ fontSize: 10, color: "#bfbfbf" }}>✓✓</span>,
     read: <span style={{ fontSize: 10, color: "#53bdeb" }}>✓✓</span>,
     failed: <CloseCircleOutlined style={{ fontSize: 10, color: "#ff4d4f" }} />,
+};
+
+// Mirrors the backend mention check: a suggested product's image is only sent
+// if its name still appears in the message the agent actually sends.
+const isProductMentioned = (text: string, name?: string): boolean => {
+    const n = (name || "").trim();
+    if (!text || n.length < 3) return false;
+    const escaped = n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`(^|[^\\w])${escaped}([^\\w]|$)`, "i").test(text);
 };
 
 // ── Text formatting ───────────────────────────────────────────────────────────
@@ -128,14 +166,16 @@ const FormattedText: React.FC<{ text?: string }> = ({ text }) => {
 
 // ── Message Bubble ────────────────────────────────────────────────────────────
 
-const MessageBubble: React.FC<{ msg: Message; channelColor: string }> = ({
+const MessageBubble: React.FC<{ msg: Message; channelColor: string; onReply?: (msg: Message) => void; isReplying?: boolean }> = ({
     msg,
     channelColor,
+    onReply,
+    isReplying,
 }) => {
     const isOut = msg.direction === "outbound";
 
     const bubbleStyle: React.CSSProperties = {
-        maxWidth: "68%",
+        maxWidth: "85%",
         padding: "8px 12px",
         borderRadius: isOut ? "16px 4px 16px 16px" : "4px 16px 16px 16px",
         background: isOut ? channelColor : "#f0f0f0",
@@ -144,6 +184,9 @@ const MessageBubble: React.FC<{ msg: Message; channelColor: string }> = ({
         lineHeight: "1.5",
         wordBreak: "break-word",
         position: "relative",
+        cursor: onReply ? "pointer" : "default",
+        boxShadow: isReplying ? `0 0 0 2px ${channelColor}` : undefined,
+        transition: "box-shadow 0.15s ease",
     };
 
     const renderContent = () => {
@@ -242,6 +285,29 @@ const MessageBubble: React.FC<{ msg: Message; channelColor: string }> = ({
                     <span style={{ fontSize: 22 }}>{msg.reaction?.emoji || "👍"}</span>
                 );
 
+            case "call": {
+                const callLink = msg.content?.match(/https:\/\/call\.whatsapp\.com\/\S+/)?.[0];
+                const isVideo = /video/i.test(msg.content || "");
+                return (
+                    <Space size={6}>
+                        {isVideo ? <VideoCameraOutlined /> : <PhoneOutlined />}
+                        {callLink ? (
+                            <a
+                                href={callLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ color: isOut ? "#fff" : "#1677ff" }}
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                {isOut ? "Tap to join the call" : msg.content}
+                            </a>
+                        ) : (
+                            <span>{msg.content}</span>
+                        )}
+                    </Space>
+                );
+            }
+
             case "template":
                 return (
                     <Space direction="vertical" size={2}>
@@ -292,7 +358,11 @@ const MessageBubble: React.FC<{ msg: Message; channelColor: string }> = ({
                 />
             )}
 
-            <div style={bubbleStyle}>
+            <div
+                style={bubbleStyle}
+                onClick={() => onReply?.(msg)}
+                title={onReply ? "Click to reply" : undefined}
+            >
                 {renderContent()}
                 {["image", "document", "video"].includes(msg.message_type) &&
                     msg.content && (
@@ -355,9 +425,13 @@ const MessageThread: React.FC<Props> = ({
     primaryColor,
     onMessageSent,
     onConversationUpdate,
+    onConversationDeleted,
+    onBack,
 }) => {
     const { message: antMessage } = App.useApp();
     const queryClient = useQueryClient();
+    const screens = Grid.useBreakpoint();
+    const isMobile = !screens.md;
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const { data: agentsData } = useQuery({
@@ -379,61 +453,98 @@ const MessageThread: React.FC<Props> = ({
         },
     });
 
-    const agents = agentsData?.agents || [];
-    const currentAgent = agents.find((a) => a._id === conversation.assigned_to?._id);
+    const agents: any[] = (agentsData?.agents || []) as any[];
     const messagesContainerRef = useRef<HTMLDivElement>(null);
     const [isAutoScroll, setIsAutoScroll] = useState(true);
 
     const [text, setText] = useState("");
-    const [page, setPage] = useState(1);
-    const [allMessages, setAllMessages] = useState<Message[]>([]);
+    const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+    // Older messages loaded on-demand via "scroll up to load more" — kept
+    // separate from the live latest-page poll below so that once a user has
+    // scrolled up, new incoming/sent messages keep arriving instead of the
+    // auto-refresh getting stuck re-polling an older, static page forever.
+    const [historyPage, setHistoryPage] = useState(1);
+    const [olderMessages, setOlderMessages] = useState<Message[]>([]);
     const [hasMore, setHasMore] = useState(true);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [sendingMedia, setSendingMedia] = useState(false);
     const [convertOpen, setConvertOpen] = useState(false);
     const [convertType, setConvertType] = useState<"customer" | "lead" | null>(null);
     const [convertName, setConvertName] = useState(conversation.external_contact_name || "");
+    const [convertPhone, setConvertPhone] = useState(conversation.external_contact_phone || "");
+    const [raiseTicket, setRaiseTicket] = useState(false);
+    const [ticketSubject, setTicketSubject] = useState("");
+    const [standaloneTicketOpen, setStandaloneTicketOpen] = useState(false);
+    const [standaloneTicketSubject, setStandaloneTicketSubject] = useState("");
+    const dispatch = useAppDispatch();
+    const [dispatchModalOpen, setDispatchModalOpen] = useState(false);
+    const [dispatchAgent, setDispatchAgent] = useState<string>("");
     const [scriptsOpen, setScriptsOpen] = useState(false);
+    const [docModalOpen, setDocModalOpen] = useState(false);
+    const [docSearch, setDocSearch] = useState("");
+    const [docResults, setDocResults] = useState<any[]>([]);
+    const [docLoading, setDocLoading] = useState(false);
+    // Products the AI suggestion referenced that have an image — their photos
+    // are attached to the reply so the customer sees what they are buying.
+    const [suggestedProducts, setSuggestedProducts] = useState<SuggestedProduct[]>([]);
+
 
     const cfg = CHANNEL_CONFIG[conversation.channel];
     const statusCfg = STATUS_CONFIG[conversation.status];
 
-    // ── Fetch messages (oldest first, then we'll reverse for display) ─────────
-
+    // ── Fetch messages ──────────────────────────────────────────────────────
+    // Always poll page 1 (the newest 30 messages) on its own query key so new
+    // messages keep syncing in real time regardless of how much history the
+    // user has scrolled up to load.
     const { data, isLoading, refetch } = useQuery({
-        queryKey: ["messages", conversation._id, page],
-        queryFn: () => fetchMessages(conversation._id, { page, limit: 30 }),
+        queryKey: ["messages", conversation._id, "latest"],
+        queryFn: () => fetchMessages(conversation._id, { page: 1, limit: 30 }),
         enabled: !!conversation._id,
-        refetchInterval: 8000,
+        refetchInterval: 5000,
         refetchOnMount: "always",
         staleTime: 0,
     });
 
-    // Handle pagination - load older messages (append to top)
-    useEffect(() => {
-        if (data?.messages) {
-            // API returns messages from oldest to newest per page
-            // For page 1: messages [1-30] (oldest first)
-            // For page 2: messages [31-60] (older messages)
+    const latestMessages = data?.messages || [];
+    const total = data?.total ?? 0;
 
-            if (page === 1) {
-                // First page: store as is (oldest to newest)
-                setAllMessages(data.messages);
-            } else {
-                // Load more: prepend older messages to the beginning
-                setAllMessages(prev => [...data.messages, ...prev]);
+    // Merge older (manually loaded) history with the live latest page,
+    // de-duplicating by _id in case their ranges overlap.
+    const allMessages = useMemo(() => {
+        const merged = new Map<string, Message>();
+        [...olderMessages, ...latestMessages].forEach((m) => merged.set(m._id, m));
+        return Array.from(merged.values()).sort(
+            (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+    }, [olderMessages, latestMessages]);
+
+    useEffect(() => {
+        setHasMore(total > allMessages.length);
+    }, [total, allMessages.length]);
+
+    // Load an older page of history and prepend it (doesn't affect the live poll above).
+    const loadOlderMessages = useCallback(async () => {
+        const nextPage = historyPage + 1;
+        try {
+            const result = await fetchMessages(conversation._id, { page: nextPage, limit: 30 });
+            if (result?.messages?.length) {
+                setOlderMessages((prev) => [...result.messages, ...prev]);
+                setHistoryPage(nextPage);
             }
-            setHasMore(data.hasMore);
+            if (result && !result.hasMore) setHasMore(false);
+        } finally {
             setIsLoadingMore(false);
         }
-    }, [data, page]);
+    }, [conversation._id, historyPage]);
 
     // Reset when conversation changes
     useEffect(() => {
-        setPage(1);
-        setAllMessages([]);
+        setHistoryPage(1);
+        setOlderMessages([]);
         setHasMore(true);
         setText("");
+        setReplyingTo(null);
+        setSuggestedProducts([]);
         setIsAutoScroll(true);
     }, [conversation._id]);
 
@@ -447,7 +558,7 @@ const MessageThread: React.FC<Props> = ({
     // Mark as read when conversation is opened
     useEffect(() => {
         if (conversation.unread_count > 0) {
-            markConversationAsRead(conversation._id).catch(() => { });
+            markConversationAsRead(conversation._id).catch(() => { /* ignore read error */ });
         }
     }, [conversation._id, conversation.unread_count]);
 
@@ -461,22 +572,41 @@ const MessageThread: React.FC<Props> = ({
         setIsAutoScroll(isAtBottom);
 
         // Load more messages when scrolling to top
-        if (isAtTop && hasMore && !isLoadingMore && page > 0) {
+        if (isAtTop && hasMore && !isLoadingMore) {
             setIsLoadingMore(true);
-            setPage(prev => prev + 1);
+            loadOlderMessages();
         }
-    }, [hasMore, isLoadingMore, page]);
+    }, [hasMore, isLoadingMore, loadOlderMessages]);
 
     // ── Send text message ──────────────────────────────────────────────────────
 
     const sendMutation = useMutation({
-        mutationFn: () =>
-            sendTextMessage({
+        mutationFn: async (productsToSend: (SuggestedProduct & { image_url: string })[]) => {
+            await sendTextMessage({
                 conversation_id: conversation._id,
                 content: text.trim(),
-            }),
+                context_message_id: replyingTo?._id,
+            });
+            // Send each suggested product's photo so the customer sees what
+            // they are buying. Failures are toasted by sendMediaMessage — keep
+            // going so one bad image doesn't block the rest.
+            for (const p of productsToSend) {
+                try {
+                    await sendMediaMessage({
+                        conversation_id: conversation._id,
+                        media_type: "image",
+                        media_url: p.image_url,
+                        caption: p.price != null ? `${p.name} — ${formatCurrency(p.price)}` : p.name,
+                    });
+                } catch {
+                    // continue with remaining product images
+                }
+            }
+        },
         onSuccess: () => {
             setText("");
+            setReplyingTo(null);
+            setSuggestedProducts([]);
             refetch();
             onMessageSent();
             onConversationUpdate();
@@ -496,23 +626,48 @@ const MessageThread: React.FC<Props> = ({
         mutationFn: () => suggestReply({ conversation_id: conversation._id, shop_id: shopId }),
         onSuccess: (data: any) => {
             if (data?.result) setText(data.result);
+            setSuggestedProducts(
+                (data?.suggested_products || []).filter((p: SuggestedProduct) => p.image_url)
+            );
         },
         onError: (error: any) => {
             antMessage.error(error?.response?.data?.message || "Could not get AI suggestion");
         },
     });
 
+    // Suggested products whose names still appear in the drafted text and that
+    // have an image — these get sent as WhatsApp photos with the reply.
+    const pendingProductImages = suggestedProducts
+        .filter((p): p is SuggestedProduct & { image_url: string } =>
+            !!p.image_url && isProductMentioned(text, p.match_name || p.name)
+        )
+        .slice(0, 5);
+
+    // Guards against duplicate sends from a rapid double-click/tap: React
+    // state (sendMutation.isLoading) only updates after a re-render, leaving
+    // a brief window where a second click still slips through. A ref check
+    // is synchronous, so it closes that window.
+    const isSendingRef = useRef(false);
+
     const handleSend = () => {
-        if (!text.trim()) return;
-        sendMutation.mutate();
+        const content = text.trim();
+        if (!content) return;
+        if (isSendingRef.current || sendMutation.isLoading) return;
+        isSendingRef.current = true;
+        // Only attach images for products still mentioned in the final text —
+        // if the agent edited the suggestion to drop a product, its image
+        // should not go out either.
+        sendMutation.mutate(pendingProductImages, {
+            onSettled: () => {
+                isSendingRef.current = false;
+            },
+        });
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
-            if (text.trim()) {
-                sendMutation.mutate();
-            }
+            handleSend();
         }
     };
 
@@ -528,44 +683,111 @@ const MessageThread: React.FC<Props> = ({
                     ? "video"
                     : "document";
             setSendingMedia(true);
-            const result = await sendMediaMessage({
-                conversation_id: conversation._id,
-                media_type,
-                media_url,
-                caption: "",
-                filename: file.name,
-            });
-            setSendingMedia(false);
-            if (result) {
-                antMessage.success("Media sent");
-                refetch();
-                onMessageSent();
-                onConversationUpdate();
+            try {
+                const result = await sendMediaMessage({
+                    conversation_id: conversation._id,
+                    media_type,
+                    media_url,
+                    caption: "",
+                    filename: file.name,
+                    context_message_id: replyingTo?._id,
+                });
+                if (result) {
+                    antMessage.success("Media sent");
+                    setReplyingTo(null);
+                    refetch();
+                    onMessageSent();
+                    onConversationUpdate();
+                }
+            } catch {
+                // sendMediaMessage already toasts the error
+            } finally {
+                setSendingMedia(false);
             }
         };
         reader.readAsDataURL(file);
     };
 
+    // ── Suggest / send PDF documents from the Document Center ───────────────────
+
+    const generateDocumentQuery = useCallback(() => {
+        const textMessages = allMessages
+            .filter((m) => m.content && m.message_type !== "template")
+            .slice(-5);
+        const query = textMessages.map((m) => m.content).join("\n").trim();
+        return query || conversation.last_message_preview || "document";
+    }, [allMessages, conversation.last_message_preview]);
+
+    const handleSuggestDocuments = useCallback(async () => {
+        const query = docSearch.trim() || generateDocumentQuery();
+        if (!query) return;
+        setDocLoading(true);
+        try {
+            const res = await searchDocuments({ q: query, mode: "ai", pageSize: 10 });
+            const docs = (res.data || []).filter((d: any) => d.attachments?.length);
+            setDocResults(docs);
+        } catch {
+            antMessage.error("Could not suggest documents");
+        } finally {
+            setDocLoading(false);
+        }
+    }, [docSearch, generateDocumentQuery]);
+
+    const handleSendDocument = async (doc: any) => {
+        const att = doc.attachments?.[0];
+        if (!att?.file_url) return;
+        setSendingMedia(true);
+        try {
+            const result = await sendMediaMessage({
+                conversation_id: conversation._id,
+                media_type: "document",
+                media_url: att.file_url,
+                caption: "",
+                filename: att.file_name || doc.name || "document.pdf",
+                context_message_id: replyingTo?._id,
+            });
+            if (result) {
+                antMessage.success("Document sent");
+                setReplyingTo(null);
+                setDocModalOpen(false);
+                refetch();
+                onMessageSent();
+                onConversationUpdate();
+            }
+        } catch {
+            // sendMediaMessage already toasts the error
+        } finally {
+            setSendingMedia(false);
+        }
+    };
+
     // ── Status update ──────────────────────────────────────────────────────────
 
     const statusMutation = useMutation({
-        mutationFn: (status: ConversationStatus) =>
-            updateConversationStatus(conversation._id, status),
+        mutationFn: ({ status, assignedTo }: { status: ConversationStatus; assignedTo?: string }) =>
+            updateConversationStatus(conversation._id, status, assignedTo),
         onSuccess: () => onConversationUpdate(),
     });
 
     const statusMenu: MenuProps = {
-        items: (["open", "pending", "resolved", "closed"] as ConversationStatus[])
+        items: (["open", "pending", "pending_dispatch", "resolved", "closed"] as ConversationStatus[])
             .filter((s) => s !== conversation.status)
             .map((s) => ({
                 key: s,
                 label: (
                     <Space>
                         <Badge status={STATUS_CONFIG[s].badge} />
-                        <span style={{ textTransform: "capitalize" }}>{s}</span>
+                        <span style={{ textTransform: "capitalize" }}>{s.replace(/_/g, " ")}</span>
                     </Space>
                 ),
-                onClick: () => statusMutation.mutate(s),
+                onClick: () => {
+                    if (s === "pending_dispatch") {
+                        setDispatchAgent(conversation.assigned_to?._id || "");
+                        setDispatchModalOpen(true);
+                    } else {
+                        statusMutation.mutate({ status: s });
+                    }
+                },
             })),
     };
 
@@ -573,17 +795,54 @@ const MessageThread: React.FC<Props> = ({
 
     const openConvert = (type: "customer" | "lead") => {
         setConvertName(conversation.external_contact_name || "");
+        setConvertPhone(conversation.external_contact_phone || "");
         setConvertType(type);
+        setRaiseTicket(false);
+        setTicketSubject("");
         setConvertOpen(true);
+    };
+
+    const raiseTicketFor = async (opts: { lead_id?: string; customer_id?: string }, subject?: string) => {
+        try {
+            await dispatch(createLeadActivity({
+                ...opts,
+                type: "ticket",
+                subject: subject?.trim() || "Support ticket from conversation",
+                description: `Raised from ${conversation.channel} conversation with ${conversation.external_contact_name || conversation.external_contact_id}.`,
+                priority: "medium",
+            }) as any).unwrap();
+            antMessage.success("Ticket raised");
+            queryClient.invalidateQueries({ queryKey: ["crm-activities"] });
+        } catch {
+            /* error toast handled by thunk */
+        }
+    };
+
+    const handleStandaloneRaiseTicket = async () => {
+        if (!conversation.customer_id && !conversation.lead_id) {
+            antMessage.error("Convert this conversation to a customer or lead first");
+            return;
+        }
+        await raiseTicketFor(
+            conversation.customer_id ? { customer_id: conversation.customer_id } : { lead_id: conversation.lead_id },
+            standaloneTicketSubject
+        );
+        setStandaloneTicketOpen(false);
+        setStandaloneTicketSubject("");
     };
 
     const handleConvert = async () => {
         if (!convertName.trim() || !convertType) return;
         let result;
         if (convertType === "customer") {
+            if (!conversation.external_contact_phone && !convertPhone.trim()) {
+                antMessage.error("Phone number is required");
+                return;
+            }
             result = await convertConversationToCustomer({
                 conversation_id: conversation._id,
                 customer_name: convertName.trim(),
+                phone: convertPhone.trim() || undefined,
             });
         } else {
             result = await convertConversationToLead({
@@ -598,15 +857,88 @@ const MessageThread: React.FC<Props> = ({
             queryClient.invalidateQueries({ queryKey: ["leads"] });
             queryClient.invalidateQueries({ queryKey: ["crm-leads"] });
             queryClient.invalidateQueries({ queryKey: ["mteja-recent-leads"] });
+            if (raiseTicket) {
+                const entityId = result.customer?._id || result.lead?._id;
+                if (entityId) {
+                    await raiseTicketFor(convertType === "customer" ? { customer_id: entityId } : { lead_id: entityId }, ticketSubject);
+                }
+            }
             onConversationUpdate();
         }
         setConvertOpen(false);
+    };
+
+    const handleMarkDispatch = () => {
+        if (!dispatchAgent) return;
+        statusMutation.mutate({ status: "pending_dispatch", assignedTo: dispatchAgent });
+        setDispatchModalOpen(false);
+    };
+
+    // ── WhatsApp calls ─────────────────────────────────────────────────────────
+
+    const showCallComingSoon = () => {
+        antMessage.info("WhatsApp calls are coming soon");
+    };
+
+    const handleDelete = () => {
+        Modal.confirm({
+            title: "Delete conversation?",
+            content: "This will permanently remove the conversation and all its messages.",
+            okText: "Delete",
+            okType: "danger",
+            onOk: async () => {
+                try {
+                    await deleteConversation(conversation._id);
+                    onConversationUpdate();
+                    onConversationDeleted?.();
+                } catch {
+                    // Error already handled/toasted by the service
+                }
+            },
+        });
     };
 
     const convertMenu: MenuProps = {
         items: [
             { key: "customer", label: "Convert to Customer", icon: <UserAddOutlined />, onClick: () => openConvert("customer") },
             { key: "lead", label: "Convert to Lead", icon: <UserAddOutlined />, onClick: () => openConvert("lead") },
+        ],
+    };
+
+    const moreMenu: MenuProps = {
+        items: [
+            ...(conversation.channel === "whatsapp"
+                ? [
+                      {
+                          key: "voice-call",
+                          label: "Voice call · Coming soon",
+                          icon: <PhoneOutlined />,
+                          onClick: showCallComingSoon,
+                      },
+                      {
+                          key: "video-call",
+                          label: "Video call · Coming soon",
+                          icon: <VideoCameraOutlined />,
+                          onClick: showCallComingSoon,
+                      },
+                  ]
+                : []),
+            { key: "scripts", label: "Scripts", icon: <MessageOutlined />, onClick: () => setScriptsOpen(true) },
+            {
+                key: "convert",
+                label: "Convert",
+                icon: <UserAddOutlined />,
+                children: convertMenu.items,
+            },
+            {
+                key: "status",
+                label: "Change status",
+                icon: <DownOutlined />,
+                children: statusMenu.items,
+            },
+            { key: "raise-ticket", label: "Raise Ticket", icon: <FileExclamationOutlined />, onClick: () => setStandaloneTicketOpen(true) },
+            { key: "close", label: "Close conversation", icon: <CloseOutlined />, onClick: () => statusMutation.mutate({ status: "closed" }) },
+            { key: "delete", label: "Delete conversation", danger: true, icon: <DeleteOutlined />, onClick: handleDelete },
         ],
     };
 
@@ -646,8 +978,16 @@ const MessageThread: React.FC<Props> = ({
                         flexShrink: 0,
                     }}
                 >
-                    <Space size={10}>
-                        <div style={{ position: "relative" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
+                        {isMobile && onBack && (
+                            <Button
+                                type="text"
+                                icon={<ArrowLeftOutlined />}
+                                onClick={onBack}
+                                style={{ padding: "0 4px", flexShrink: 0 }}
+                            />
+                        )}
+                        <div style={{ position: "relative", flexShrink: 0 }}>
                             <Avatar
                                 size={36}
                                 icon={<UserOutlined />}
@@ -672,78 +1012,130 @@ const MessageThread: React.FC<Props> = ({
                                 {cfg?.icon}
                             </span>
                         </div>
-                        <div>
-                            <Text strong style={{ fontSize: 14, display: "block" }}>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                            <Text strong style={{ fontSize: 14, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                                 {conversation.external_contact_name ||
                                     conversation.external_contact_id}
                             </Text>
-                            <Space size={4}>
+                            <Space size={4} style={{ display: "flex", flexWrap: "nowrap", overflow: "hidden" }}>
                                 <Badge status={statusCfg.badge} />
-                                <Text type="secondary" style={{ fontSize: 11 }}>
+                                <Text type="secondary" style={{ fontSize: 11, whiteSpace: "nowrap" }}>
                                     {statusCfg.label}
                                 </Text>
-                                <Text type="secondary" style={{ fontSize: 11 }}>
+                                <Text type="secondary" style={{ fontSize: 11, whiteSpace: "nowrap" }}>
                                     · {cfg?.label}
                                 </Text>
-                                {conversation.external_contact_phone && (
-                                    <Text type="secondary" style={{ fontSize: 11 }}>
+                                {!isMobile && conversation.external_contact_phone && (
+                                    <Text type="secondary" style={{ fontSize: 11, whiteSpace: "nowrap" }}>
                                         · {conversation.external_contact_phone}
                                     </Text>
                                 )}
                             </Space>
                         </div>
-                    </Space>
+                    </div>
 
-                    <Space>
-                        {conversation.assigned_to && (
-                            <Tooltip title={`Assigned to ${conversation.assigned_to.fullname}`}>
-                                <Tag size="small" icon={<UserOutlined />}>
-                                    {conversation.assigned_to.fullname}
-                                </Tag>
-                            </Tooltip>
-                        )}
-                        <Select
-                            size="small"
-                            placeholder="Handover to…"
-                            value={conversation.assigned_to?._id || undefined}
-                            onChange={(value: string) => {
-                                if (value && value !== conversation.assigned_to?._id) {
-                                    handoverMutation.mutate(value);
-                                }
-                            }}
-                            loading={handoverMutation.isPending}
-                            showSearch
-                            style={{ minWidth: 150 }}
-                            options={agents.map((agent) => ({
-                                value: agent._id,
-                                label: `${agent.fullname} (${agent.open_conversations})`,
-                                disabled: agent._id === conversation.assigned_to?._id,
-                            }))}
-                        />
-                        <Button size="small" onClick={() => setScriptsOpen(true)}>
-                            Scripts
-                        </Button>
-                        <Dropdown menu={convertMenu} trigger={["click"]}>
-                            <Button size="small" icon={<UserAddOutlined />}>
-                                Convert
+                    {isMobile ? (
+                        <Space size={4} wrap>
+                            <Select
+                                size="small"
+                                placeholder="Assign"
+                                value={conversation.assigned_to?._id || undefined}
+                                onChange={(value: string) => {
+                                    if (value && value !== conversation.assigned_to?._id) {
+                                        handoverMutation.mutate(value);
+                                    }
+                                }}
+                                loading={handoverMutation.isLoading}
+                                showSearch
+                                style={{ width: 82 }}
+                                options={agents.map((agent: any) => ({
+                                    value: agent._id,
+                                    label: `${agent.fullname} (${agent.open_conversations})`,
+                                    disabled: agent._id === conversation.assigned_to?._id,
+                                }))}
+                            />
+                            <Dropdown menu={moreMenu} trigger={["click"]} placement="bottomRight">
+                                <Button size="small" icon={<MoreOutlined />} style={{ width: 32, height: 32 }} />
+                            </Dropdown>
+                        </Space>
+                    ) : (
+                        <Space wrap size="middle">
+                            {conversation.channel === "whatsapp" && (
+                                <>
+                                    <Tooltip title="Voice calls — coming soon">
+                                        <Button
+                                            size="small"
+                                            icon={<PhoneOutlined />}
+                                            onClick={showCallComingSoon}
+                                        />
+                                    </Tooltip>
+                                    <Tooltip title="Video calls — coming soon">
+                                        <Button
+                                            size="small"
+                                            icon={<VideoCameraOutlined />}
+                                            onClick={showCallComingSoon}
+                                        />
+                                    </Tooltip>
+                                </>
+                            )}
+                            {conversation.assigned_to && (
+                                <Tooltip title={`Assigned to ${conversation.assigned_to.fullname}`}>
+                                    <Tag icon={<UserOutlined />}>
+                                        {conversation.assigned_to.fullname}
+                                    </Tag>
+                                </Tooltip>
+                            )}
+                            <Select
+                                size="small"
+                                placeholder="Handover to…"
+                                value={conversation.assigned_to?._id || undefined}
+                                onChange={(value: string) => {
+                                    if (value && value !== conversation.assigned_to?._id) {
+                                        handoverMutation.mutate(value);
+                                    }
+                                }}
+                                loading={handoverMutation.isLoading}
+                                showSearch
+                                style={{ minWidth: 150 }}
+                                options={agents.map((agent: any) => ({
+                                    value: agent._id,
+                                    label: `${agent.fullname} (${agent.open_conversations})`,
+                                    disabled: agent._id === conversation.assigned_to?._id,
+                                }))}
+                            />
+                            <Button size="small" onClick={() => setScriptsOpen(true)}>
+                                Scripts
                             </Button>
-                        </Dropdown>
-                        <Dropdown menu={statusMenu} trigger={["click"]}>
-                            <Button size="small" icon={<DownOutlined />}>
-                                {conversation.status.charAt(0).toUpperCase() +
-                                    conversation.status.slice(1)}
+                            <Dropdown menu={convertMenu} trigger={["click"]}>
+                                <Button size="small" icon={<UserAddOutlined />}>
+                                    Convert
+                                </Button>
+                            </Dropdown>
+                            <Dropdown menu={statusMenu} trigger={["click"]}>
+                                <Button size="small" icon={<DownOutlined />}>
+                                    {conversation.status.charAt(0).toUpperCase() +
+                                        conversation.status.slice(1)}
+                                </Button>
+                            </Dropdown>
+                            <Button
+                                size="small"
+                                danger
+                                icon={<DeleteOutlined />}
+                                onClick={handleDelete}
+                            >
+                                Delete
                             </Button>
-                        </Dropdown>
-                        <Button
-                            size="small"
-                            icon={<CloseOutlined />}
-                            disabled={conversation.status === "closed"}
-                            loading={statusMutation.isPending}
-                            onClick={() => statusMutation.mutate("closed")}
-                        >
-                            Close
-                        </Button>
-                    </Space>
+                            <Button
+                                size="small"
+                                icon={<CloseOutlined />}
+                                disabled={conversation.status === "closed"}
+                                loading={statusMutation.isLoading}
+                                onClick={() => statusMutation.mutate({ status: "closed" })}
+                            >
+                                Close
+                            </Button>
+                        </Space>
+                    )}
                 </div>
 
                 {/* Messages Container - with scroll handling */}
@@ -753,7 +1145,7 @@ const MessageThread: React.FC<Props> = ({
                     style={{
                         flex: 1,
                         overflowY: "auto",
-                        padding: "12px 16px",
+                        padding: isMobile ? "8px 10px" : "12px 16px",
                         background: "#fafafa",
                         display: "flex",
                         flexDirection: "column",
@@ -778,7 +1170,7 @@ const MessageThread: React.FC<Props> = ({
                         </div>
                     )}
 
-                    {isLoading && page === 1 ? (
+                    {isLoading && allMessages.length === 0 ? (
                         <div style={{ textAlign: "center", padding: 40 }}>
                             <Spin />
                         </div>
@@ -799,6 +1191,8 @@ const MessageThread: React.FC<Props> = ({
                                         key={msg._id}
                                         msg={msg}
                                         channelColor={cfg?.color || primaryColor}
+                                        onReply={setReplyingTo}
+                                        isReplying={replyingTo?._id === msg._id}
                                     />
                                 ))}
                             </div>
@@ -818,9 +1212,114 @@ const MessageThread: React.FC<Props> = ({
                         background: "#fff",
                     }}
                 >
-                    <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+                    {replyingTo && (
+                        <div
+                            style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                gap: 8,
+                                padding: "6px 10px",
+                                marginBottom: 8,
+                                background: "#f6f6f6",
+                                borderRadius: 8,
+                                borderLeft: `3px solid ${cfg?.color || primaryColor}`,
+                                fontSize: 12,
+                            }}
+                        >
+                            <div style={{ overflow: "hidden" }}>
+                                <Text type="secondary" style={{ fontSize: 11 }}>
+                                    Replying to {replyingTo.direction === "outbound" ? "yourself" : "customer"}
+                                </Text>
+                                <div style={{ color: "#595959", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                    {replyingTo.content || "[media]"}
+                                </div>
+                            </div>
+                            <Button
+                                type="text"
+                                size="small"
+                                icon={<CloseOutlined />}
+                                onClick={() => setReplyingTo(null)}
+                            />
+                        </div>
+                    )}
+                    {pendingProductImages.length > 0 && (
+                        <div
+                            style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 8,
+                                padding: "6px 10px",
+                                marginBottom: 8,
+                                background: "#f6f6f6",
+                                borderRadius: 8,
+                                overflowX: "auto",
+                                fontSize: 12,
+                            }}
+                        >
+                            <Text type="secondary" style={{ fontSize: 11, flexShrink: 0 }}>
+                                Product images will be sent with this reply:
+                            </Text>
+                            {pendingProductImages.map((p) => (
+                                    <Tooltip key={p._id} title={p.name}>
+                                        <div
+                                            style={{
+                                                position: "relative",
+                                                flexShrink: 0,
+                                                width: 44,
+                                                height: 44,
+                                            }}
+                                        >
+                                            <img
+                                                src={p.image_url}
+                                                alt={p.name}
+                                                style={{
+                                                    width: 44,
+                                                    height: 44,
+                                                    objectFit: "cover",
+                                                    borderRadius: 6,
+                                                    display: "block",
+                                                }}
+                                            />
+                                            <Button
+                                                type="text"
+                                                size="small"
+                                                icon={<CloseOutlined style={{ fontSize: 8, color: "#fff" }} />}
+                                                onClick={() =>
+                                                    setSuggestedProducts((prev) =>
+                                                        prev.filter((sp) => sp._id !== p._id)
+                                                    )
+                                                }
+                                                style={{
+                                                    position: "absolute",
+                                                    top: -5,
+                                                    right: -5,
+                                                    width: 16,
+                                                    height: 16,
+                                                    minWidth: 16,
+                                                    padding: 0,
+                                                    borderRadius: "50%",
+                                                    background: "rgba(0,0,0,0.6)",
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    justifyContent: "center",
+                                                }}
+                                            />
+                                        </div>
+                                    </Tooltip>
+                                ))}
+                        </div>
+                    )}
+                    <div
+                        style={{
+                            display: "flex",
+                            gap: 8,
+                            alignItems: "flex-end",
+                            flexWrap: isMobile ? "wrap" : "nowrap",
+                        }}
+                    >
                         <Upload
-                            accept="image/*,video/*"
+                            accept="image/*,video/*,.pdf,application/pdf"
                             showUploadList={false}
                             beforeUpload={(file) => {
                                 handleSendMedia(file as File);
@@ -829,67 +1328,75 @@ const MessageThread: React.FC<Props> = ({
                         >
                             <Button
                                 icon={<PaperClipOutlined />}
-                                size="large"
+                                size={isMobile ? "middle" : "large"}
                                 disabled={sendingMedia}
                                 loading={sendingMedia}
-                                style={{ height: 48, width: 48 }}
+                                style={{ height: isMobile ? 36 : 48, width: isMobile ? 36 : 48 }}
                             />
                         </Upload>
 
-                        <div style={{ position: "relative", flex: 1 }}>
+                        <Tooltip title="Suggest a document">
+                            <Button
+                                icon={<FileSearchOutlined />}
+                                onClick={() => {
+                                    setDocModalOpen(true);
+                                    handleSuggestDocuments();
+                                }}
+                                loading={docLoading}
+                                size={isMobile ? "middle" : "large"}
+                                style={{ height: isMobile ? 36 : 48, width: isMobile ? 36 : 48 }}
+                            />
+                        </Tooltip>
+
+                        <div style={{ position: "relative", flex: 1, minWidth: 0 }}>
                             <TextArea
                                 value={text}
                                 onChange={(e) => setText(e.target.value)}
                                 onKeyDown={handleKeyDown}
-                                placeholder=""
-                                autoSize={{ minRows: 2, maxRows: 4 }}
-                                style={{ 
-                                    flex: 1, 
-                                    borderRadius: 8, 
-                                    resize: "none"
+                                placeholder={isMobile ? "Type a message…" : "Type a message… (Enter to send, Shift+Enter for new line)"}
+                                autoSize={{ minRows: isMobile ? 1 : 2, maxRows: isMobile ? 3 : 4 }}
+                                style={{
+                                    flex: 1,
+                                    borderRadius: 8,
+                                    resize: "none",
                                 }}
                             />
-                            {!text && (
-                                <div style={{
-                                    position: "absolute",
-                                    top: "50%",
-                                    left: "50%",
-                                    transform: "translate(-50%, -50%)",
-                                    pointerEvents: "none",
-                                    color: "#bfbfbf",
-                                    fontSize: 14,
-                                    userSelect: "none",
-                                    width: "100%",
-                                    textAlign: "center"
-                                }}>
-                                    Type a message… (Enter to send, Shift+Enter for new line)
-                                </div>
-                            )}
                         </div>
+
+                        {text && (
+                            <Tooltip title="Clear message">
+                                <Button
+                                    icon={<CloseOutlined />}
+                                    onClick={() => setText("")}
+                                    size={isMobile ? "middle" : "large"}
+                                    style={{ height: isMobile ? 36 : 48, width: isMobile ? 36 : 48 }}
+                                />
+                            </Tooltip>
+                        )}
 
                         <Button
                             type="primary"
                             icon={<SendOutlined />}
                             onClick={handleSend}
-                            loading={sendMutation.isPending || sendingMedia}
+                            loading={sendMutation.isLoading || sendingMedia}
                             disabled={!text.trim()}
-                            size="large"
+                            size={isMobile ? "middle" : "large"}
                             style={{
                                 background: cfg?.color || primaryColor,
                                 borderColor: cfg?.color || primaryColor,
                                 borderRadius: 8,
-                                height: 48,
+                                height: isMobile ? 36 : 48,
                             }}
                         >
-                            Send
+                            {!isMobile && "Send"}
                         </Button>
                         <Tooltip title="AI suggestion">
                             <Button
                                 icon={<ThunderboltOutlined />}
                                 onClick={() => suggestMutation.mutate()}
-                                loading={suggestMutation.isPending}
-                                size="large"
-                                style={{ height: 48, width: 48 }}
+                                loading={suggestMutation.isLoading}
+                                size={isMobile ? "middle" : "large"}
+                                style={{ height: isMobile ? 36 : 48, width: isMobile ? 36 : 48 }}
                             />
                         </Tooltip>
                     </div>
@@ -911,6 +1418,78 @@ const MessageThread: React.FC<Props> = ({
                     onPressEnter={handleConvert}
                     style={{ marginTop: 8 }}
                 />
+                {convertType === "customer" && (
+                    <Input
+                        value={convertPhone}
+                        onChange={(e) => setConvertPhone(e.target.value)}
+                        placeholder="Enter phone number"
+                        onPressEnter={handleConvert}
+                        style={{ marginTop: 8 }}
+                    />
+                )}
+                <Checkbox
+                    checked={raiseTicket}
+                    onChange={(e) => setRaiseTicket(e.target.checked)}
+                    style={{ marginTop: 12 }}
+                >
+                    Also raise a support ticket for this conversation
+                </Checkbox>
+                {raiseTicket && (
+                    <Input
+                        value={ticketSubject}
+                        onChange={(e) => setTicketSubject(e.target.value)}
+                        placeholder="Ticket subject (optional)"
+                        style={{ marginTop: 8 }}
+                    />
+                )}
+            </Modal>
+
+            <Modal
+                title="Raise Ticket"
+                open={standaloneTicketOpen}
+                onCancel={() => setStandaloneTicketOpen(false)}
+                onOk={handleStandaloneRaiseTicket}
+                okText="Raise Ticket"
+                width={400}
+                destroyOnClose
+            >
+                <Text style={{ fontSize: 12, color: "#64748b", display: "block", marginBottom: 8 }}>
+                    This will log a ticket activity against{" "}
+                    {conversation.customer_id ? "the linked customer" : conversation.lead_id ? "the linked lead" : "this conversation"}.
+                </Text>
+                <Input
+                    value={standaloneTicketSubject}
+                    onChange={(e) => setStandaloneTicketSubject(e.target.value)}
+                    placeholder="Ticket subject (optional)"
+                    onPressEnter={handleStandaloneRaiseTicket}
+                />
+            </Modal>
+
+            <Modal
+                title="Move to Pending Dispatch"
+                open={dispatchModalOpen}
+                onCancel={() => setDispatchModalOpen(false)}
+                onOk={handleMarkDispatch}
+                okText="Assign & Mark"
+                okButtonProps={{ disabled: !dispatchAgent }}
+                confirmLoading={statusMutation.isLoading}
+                width={400}
+                destroyOnClose
+            >
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                    Select the agent who will handle dispatch for this conversation.
+                </Text>
+                <Select
+                    style={{ width: "100%", marginTop: 12 }}
+                    placeholder="Select dispatch agent"
+                    value={dispatchAgent || undefined}
+                    onChange={setDispatchAgent}
+                    showSearch
+                    options={agents.map((agent: any) => ({
+                        value: agent._id,
+                        label: `${agent.fullname} (${agent.open_conversations} open)`,
+                    }))}
+                />
             </Modal>
 
             <Modal
@@ -926,6 +1505,65 @@ const MessageThread: React.FC<Props> = ({
                     readOnly
                 />
             </Modal>
+
+            <Modal
+                title="Suggest a document to share"
+                open={docModalOpen}
+                onCancel={() => setDocModalOpen(false)}
+                footer={null}
+                width={isMobile ? "90vw" : 600}
+                destroyOnClose
+            >
+                <Input.Search
+                    value={docSearch}
+                    onChange={(e) => setDocSearch(e.target.value)}
+                    onSearch={handleSuggestDocuments}
+                    placeholder="Search documents by content…"
+                    allowClear
+                    loading={docLoading}
+                    style={{ marginBottom: 16 }}
+                />
+                {docResults.length === 0 ? (
+                    <Empty description={docLoading ? "Searching…" : "No documents found"} />
+                ) : (
+                    <List
+                        dataSource={docResults}
+                        loading={docLoading}
+                        renderItem={(doc: any) => {
+                            const att = doc.attachments?.[0];
+                            return (
+                                <List.Item
+                                    actions={[
+                                        <Button
+                                            key="send"
+                                            type="primary"
+                                            size="small"
+                                            icon={<SendOutlined />}
+                                            loading={sendingMedia}
+                                            onClick={() => handleSendDocument(doc)}
+                                        >
+                                            Send
+                                        </Button>,
+                                    ]}
+                                >
+                                    <List.Item.Meta
+                                        title={doc.name || "Untitled document"}
+                                        description={
+                                            <Space size={4} wrap>
+                                                                                                <FilePdfOutlined />
+                                                                                                <Text type="secondary" style={{ fontSize: 12 }}>
+                                                                                                    {att?.file_name || doc.document_type || "PDF"}
+                                                                                                </Text>
+                                                                                            </Space>
+                                        }
+                                    />
+                                </List.Item>
+                            );
+                        }}
+                    />
+                )}
+            </Modal>
+
         </>
     );
 };

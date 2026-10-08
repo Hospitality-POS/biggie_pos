@@ -27,7 +27,7 @@ import {
   Upload,
   message,
 } from 'antd';
-import moment from 'moment';
+import dayjs from 'dayjs';
 import { useEffect, useState } from 'react';
 import { payCommission } from '../../../services/dala';
 
@@ -154,7 +154,7 @@ const CommissionPaymentModal: React.FC<CommissionPaymentModalProps> = ({
       form.setFieldsValue({
         amount: defaultAmount,
         paymentMethod: 'bank transfer',
-        paymentDate: moment(),
+        paymentDate: dayjs(),
         reference: '',
         notes: '',
       });

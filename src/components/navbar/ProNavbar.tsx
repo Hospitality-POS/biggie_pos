@@ -14,6 +14,7 @@ import {
   Space,
   Drawer,
   App,
+  Tooltip,
 } from "antd";
 import {
   ArrowLeftOutlined,
@@ -26,6 +27,7 @@ import {
   MenuOutlined,
   CloseOutlined,
   RightOutlined,
+  SearchOutlined,
   PlusOutlined,
   TeamOutlined,
   ShopOutlined,
@@ -38,16 +40,12 @@ import {
   FileDoneOutlined,
   AppstoreOutlined,
   GlobalOutlined,
-  WalletOutlined,
-  SwapOutlined,
   // ── CRM ──────────────────────────────────────────────────────────────────
   NotificationOutlined,
   AimOutlined,
   CustomerServiceOutlined,
+  CalendarOutlined,
   // ── Dala ───────────────────────────────────────────────────────────────────
-  HomeOutlined,
-  AccountBookOutlined,
-  ReconciliationOutlined,
   BuildOutlined,
   ApartmentOutlined,
   FileProtectOutlined,
@@ -66,37 +64,25 @@ import {
   markNotificationAsRead,
   markAllNotificationsAsRead,
 } from "@services/notifications";
+import { clearBusinessHealthCache } from "@services/healthScore";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import useProLayoutNav from "./defaultprops";
+import EcosystemAppSwitcher from "./EcosystemAppSwitcher";
+import { useActiveProduct } from "@context/ProductContext";
 import React from "react";
 import { getCurrentTenantId } from "@services/tenants";
 
-import AddCustomerModal from "@pages/Customer/AddCustomerModal";
-import AddProSupplierModal from "@components/MODALS/pro/AddProSupplierModal";
-import AddProPaymentMethodSettingsModal from "@components/MODALS/pro/AddProPaymentSettingsModal";
-import AccountFormDrawer from "@pages/ChartOfAccounts/AccountFormDrawer";
-import JournalEntryFormDrawer from "@pages/JournalEntry/JournalEntryFormDrawer";
-import ManualInvoiceModal from "@pages/OrderManagement/Invoices/ManualInvoiceModal";
-import ManualIncomeModal from "@pages/OrderManagement/Orders/ManualIncomeModal";
+import { QuickLinks, useQuickLinks } from "@components/quicklinks";
+
+import { THEME_C } from "@utils/getPrimaryColor";
 
 dayjs.extend(relativeTime);
 
 const { Text, Title } = Typography;
 
-const C = {
-  primary: "#6c1c2c",
-  primaryLight: "#f9f0f2",
-  green: "#10b981",
-  red: "#ef4444",
-  blue: "#3b82f6",
-  orange: "#f59e0b",
-  subText: "#64748b",
-  darkText: "#0f172a",
-  border: "#e2e8f0",
-  bg: "#f8fafc",
-};
+const C = THEME_C;
 
 const useIsMobile = () => {
   const [isMobile, setIsMobile] = React.useState(window.innerWidth < 1025);
@@ -137,16 +123,6 @@ interface Tenant {
   tenant_logo?: { url?: string };
 }
 
-type QuickCreateModal =
-  | "customer"
-  | "supplier"
-  | "coa"
-  | "journal"
-  | "payment-method"
-  | "invoice"
-  | "income-expense"
-  | null;
-
 const ProNavbar = ({ children }: { children: React.ReactNode }) => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
@@ -156,15 +132,16 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAppSelector((state) => state.auth);
   const primaryColor = usePrimaryColor();
   const isMobile = useIsMobile();
+  const { switchProduct } = useActiveProduct();
+  const { toggleQuickLinks } = useQuickLinks();
 
-  const shopId = getCurrentTenantId();
+  const shopId = getCurrentTenantId() || "";
 
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [detailsModalVisible, setDetailsModalVisible] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState<any>(null);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [staffModalOpen, setStaffModalOpen] = useState(false);
-  const [quickCreateModal, setQuickCreateModal] = useState<QuickCreateModal>(null);
 
   const isAdmin = user?.role === "admin";
   const isAdminRoute = location.pathname.startsWith("/admin");
@@ -232,8 +209,9 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
     dispatch(logoutUser());
     localStorage.removeItem("shopId");
     dispatch(reset());
+    queryClient.clear();
+    clearBusinessHealthCache();
     navigate("/login");
-    queryClient.removeQueries(["userNotifications"]);
     setMobileDrawerOpen(false);
   };
 
@@ -245,7 +223,6 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
 
   const notificationsPath = isAdminRoute ? "/admin/notifications" : "/notifications";
 
-  const closeQuickCreate = () => setQuickCreateModal(null);
 
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: ["customers"] });
@@ -263,7 +240,6 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
     queryClient.invalidateQueries({ queryKey: ["crm-campaigns"] });
   };
 
-  const fakeActionRef = { current: { reload: invalidateAll, reset: invalidateAll } };
 
   // ── Calculate selected key for navigation ─────────────────────────────────
   // Routes can now be nested (module dropdowns), so flatten before matching.
@@ -286,257 +262,63 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
     return mostSpecific.path;
   })();
 
-  // ── Quick Create menu items ───────────────────────────────────────────────
-  const getQuickCreateItems = () => {
-    const items: any[] = [];
-
-    // ── People — always shown ─────────────────────────────────────────────
-    items.push({
-      type: "group" as const,
-      label: (
-        <Text type="secondary" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 600 }}>
-          People
-        </Text>
-      ),
-      children: [
-        {
-          key: "customer",
-          icon: <TeamOutlined style={{ color: "#3b82f6" }} />,
-          label: <span style={{ fontSize: 13 }}>Customer</span>,
-          onClick: () => setQuickCreateModal("customer"),
-        },
-        {
-          key: "vendor",
-          icon: <ShopOutlined style={{ color: "#8b5cf6" }} />,
-          label: <span style={{ fontSize: 13 }}>Vendor / Supplier</span>,
-          onClick: () => setQuickCreateModal("supplier"),
-        },
-      ],
-    });
-
-    // ── Accounting — only when hasAccounting ──────────────────────────────
-    if (hasAccounting) {
-      items.push({
-        type: "group" as const,
-        label: (
-          <Text type="secondary" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 600 }}>
-            Accounting
-          </Text>
-        ),
-        children: [
-          {
-            key: "coa",
-            icon: <BankOutlined style={{ color: "#0ea5e9" }} />,
-            label: <span style={{ fontSize: 13 }}>Chart of Account</span>,
-            onClick: () => setQuickCreateModal("coa"),
-          },
-          {
-            key: "journal",
-            icon: <AuditOutlined style={{ color: "#6366f1" }} />,
-            label: <span style={{ fontSize: 13 }}>Journal Entry</span>,
-            onClick: () => setQuickCreateModal("journal"),
-          },
-          {
-            key: "payment-method",
-            icon: <CreditCardOutlined style={{ color: "#f59e0b" }} />,
-            label: <span style={{ fontSize: 13 }}>Payment Method</span>,
-            onClick: () => setQuickCreateModal("payment-method"),
-          },
-          {
-            key: "bank-statement",
-            icon: <FileExcelOutlined style={{ color: "#16a34a" }} />,
-            label: <span style={{ fontSize: 13 }}>Bank Statement Import</span>,
-            onClick: () => navigate(isAdmin ? "/admin/accounting/bank-statements" : "/accounting/bank-statements"),
-          },
-          {
-            key: "currencies",
-            icon: <GlobalOutlined style={{ color: "#0d9488" }} />,
-            label: <span style={{ fontSize: 13 }}>Currency Settings</span>,
-            onClick: () => navigate("/accounting/currencies"),
-          },
-        ],
-      });
-    }
-
-    // ── Transactions — POS or Accounting ─────────────────────────────────
-    if (hasPOS || hasAccounting) {
-      const txChildren = [
-        ...(hasPOS ? [{
-          key: "invoice",
-          icon: <FileTextOutlined style={{ color: "#10b981" }} />,
-          label: <span style={{ fontSize: 13 }}>Invoice / Quote</span>,
-          onClick: () => setQuickCreateModal("invoice"),
-        }] : []),
-        ...(hasAccounting ? [{
-          key: "income-expense",
-          icon: <RiseOutlined style={{ color: "#22c55e" }} />,
-          label: <span style={{ fontSize: 13 }}>Expense / Bill</span>,
-          onClick: () => setQuickCreateModal("income-expense"),
-        }] : []),
-      ];
-      if (txChildren.length > 0) {
-        items.push({
-          type: "group" as const,
-          label: (
-            <Text type="secondary" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 600 }}>
-              Transactions
-            </Text>
-          ),
-          children: txChildren,
-        });
-      }
-    }
-
-    // ── Documents — always shown ───────────────────────────────────────────
-    items.push({
-      type: "group" as const,
-      label: (
-        <Text type="secondary" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 600 }}>
-          Documents
-        </Text>
-      ),
-      children: [
-        {
-          key: "document-center",
-          icon: <FileDoneOutlined style={{ color: "#2f54eb" }} />,
-          label: <span style={{ fontSize: 13 }}>Document Center</span>,
-          onClick: () => navigate(isAdmin ? "/admin/documents" : "/documents"),
-        },
-      ],
-    });
-
-    // ── CRM — ONLY when hasMteja === true ─────────────────────────────────
-    if (hasMteja) {
-      items.push({
-        type: "group" as const,
-        label: (
-          <Text type="secondary" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 600 }}>
-            CRM
-          </Text>
-        ),
-        children: [
-          {
-            key: "crm-customer",
-            icon: <TeamOutlined style={{ color: C.primary }} />,
-            label: <span style={{ fontSize: 13 }}>New Customer</span>,
-            onClick: () => setQuickCreateModal("customer"),
-          },
-          {
-            key: "crm-lead",
-            icon: <NotificationOutlined style={{ color: "#7c3aed" }} />,
-            label: <span style={{ fontSize: 13 }}>New Lead</span>,
-            onClick: () => navigate(isAdmin ? "/admin/crm/leads" : "/crm/leads"),
-          },
-          {
-            key: "crm-campaign",
-            icon: <NotificationOutlined style={{ color: "#0891b2" }} />,
-            label: <span style={{ fontSize: 13 }}>New Campaign</span>,
-            onClick: () => navigate(isAdmin ? "/admin/crm/campaigns" : "/crm/campaigns"),
-          },
-          {
-            key: "crm-target",
-            icon: <AimOutlined style={{ color: "#16a34a" }} />,
-            label: <span style={{ fontSize: 13 }}>New Sales Target</span>,
-            onClick: () => navigate(isAdmin ? "/admin/crm/sales-targets" : "/crm/sales-targets"),
-          },
-        ],
-      });
-    }
-
-    // ── Bandu HR — only when hasBandu ─────────────────────────────────────
-    if (hasBandu) {
-      items.push({
-        type: "group" as const,
-        label: (
-          <Text type="secondary" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 600 }}>
-            HR & Payroll
-          </Text>
-        ),
-        children: [
-          {
-            key: "employee",
-            icon: <TeamOutlined style={{ color: "#8b5cf6" }} />,
-            label: <span style={{ fontSize: 13 }}>Add Employee</span>,
-            onClick: () => navigate(isAdmin ? "/admin/bandu/employees" : "/bandu/employees"),
-          },
-          {
-            key: "payroll",
-            icon: <FileTextOutlined style={{ color: "#10b981" }} />,
-            label: <span style={{ fontSize: 13 }}>Process Payroll</span>,
-            onClick: () => navigate(isAdmin ? "/admin/bandu/payroll" : "/bandu/payroll"),
-          },
-        ],
-      });
-    }
-
-    // ── Dala Real Estate — only when hasDala ─────────────────────────────
-    if (hasDala) {
-      items.push({
-        type: "group" as const,
-        label: (
-          <Text type="secondary" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 600 }}>
-            Real Estate
-          </Text>
-        ),
-        children: [
-          {
-            key: "property",
-            icon: <BuildOutlined style={{ color: "#6c1c2c" }} />,
-            label: <span style={{ fontSize: 13 }}>New Property</span>,
-            onClick: () => navigate(isAdmin ? "/admin/dala/properties" : "/dala/properties"),
-          },
-          {
-            key: "unit",
-            icon: <ApartmentOutlined style={{ color: "#0891b2" }} />,
-            label: <span style={{ fontSize: 13 }}>Add Unit</span>,
-            onClick: () => navigate(isAdmin ? "/admin/dala/units" : "/dala/units"),
-          },
-          {
-            key: "sale",
-            icon: <MoneyCollectOutlined style={{ color: "#16a34a" }} />,
-            label: <span style={{ fontSize: 13 }}>Property Sale</span>,
-            onClick: () => navigate(isAdmin ? "/admin/dala/sales" : "/dala/sales"),
-          },
-          {
-            key: "lease",
-            icon: <FileProtectOutlined style={{ color: "#7c3aed" }} />,
-            label: <span style={{ fontSize: 13 }}>Create Lease</span>,
-            onClick: () => navigate(isAdmin ? "/admin/dala/leases" : "/dala/leases"),
-          },
-          {
-            key: "tenant",
-            icon: <UsergroupAddOutlined style={{ color: "#f59e0b" }} />,
-            label: <span style={{ fontSize: 13 }}>Add Tenant</span>,
-            onClick: () => navigate(isAdmin ? "/admin/dala/tenants" : "/dala/tenants"),
-          },
-        ],
-      });
-    }
-
-    return items;
-  };
-
-  const quickCreateItems = getQuickCreateItems();
-
-  const QuickCreateButton = (
-    <Dropdown
-      menu={{ items: quickCreateItems }}
-      trigger={["click"]}
-      placement="bottomRight"
-      overlayStyle={{ minWidth: 220, borderRadius: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.14)" }}
-    >
+  // ── Search & Quick Links Button (Triggers Ninja Keys Command Palette) ──────
+  const QuickCreateButton = isMobile ? (
+    <Tooltip title="Search & Quick Actions (⌘K / Ctrl+K)">
       <Button
-        icon={<PlusOutlined />}
+        icon={<SearchOutlined style={{ fontSize: 16 }} />}
         shape="circle"
         size="middle"
+        onClick={toggleQuickLinks}
         style={{
           background: "rgba(255,255,255,0.15)",
           border: "1px solid rgba(255,255,255,0.25)",
-          color: "white", width: 36, height: 36, fontSize: 16,
-          display: "flex", alignItems: "center", justifyContent: "center",
+          color: "white",
+          width: 36,
+          height: 36,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
         }}
       />
-    </Dropdown>
+    </Tooltip>
+  ) : (
+    <Tooltip title="Search & Quick Actions (⌘K / Ctrl+K)">
+      <Button
+        onClick={toggleQuickLinks}
+        style={{
+          background: "rgba(255,255,255,0.15)",
+          border: "1px solid rgba(255,255,255,0.25)",
+          color: "white",
+          height: 36,
+          borderRadius: 18,
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "0 12px 0 10px",
+          fontSize: 13,
+          cursor: "pointer",
+        }}
+      >
+        <SearchOutlined style={{ fontSize: 14, color: "rgba(255,255,255,0.85)" }} />
+        <span style={{ color: "rgba(255,255,255,0.85)", fontWeight: 400 }}>Search...</span>
+        <kbd
+          style={{
+            background: "rgba(255,255,255,0.2)",
+            border: "1px solid rgba(255,255,255,0.3)",
+            borderRadius: 4,
+            padding: "1px 5px",
+            fontSize: 11,
+            lineHeight: 1,
+            color: "white",
+            marginLeft: 4,
+            fontFamily: "inherit",
+          }}
+        >
+          ⌘K
+        </kbd>
+      </Button>
+    </Tooltip>
   );
 
   const notificationsContent = (
@@ -548,7 +330,7 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
       }}>
         <Text strong style={{ fontSize: 14 }}>Notifications</Text>
         {unreadNotificationsCount > 0 && (
-          <Button type="link" size="small" onClick={() => markAllAsReadMutation.mutate()}
+          <Button type="link" size="small" onClick={() => markAllAsReadMutation.mutate({})}
             style={{ padding: 0, fontSize: 12 }}>
             Mark all read
           </Button>
@@ -699,7 +481,8 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
       danger: true,
       style: {
         padding: "8px 12px", margin: "2px 4px", borderRadius: 6,
-        border: "1px solid rgba(255,77,79,0.1)",
+        border: "1px solid rgba(255,77,79,0.15)",
+        transition: "all 0.15s ease",
       },
     },
   ];
@@ -827,12 +610,13 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
           <CloseOutlined />
         </button>
 
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "center" }}>
           {tenant?.tenant_logo?.url ? (
             <img src={tenant.tenant_logo.url} alt="logo"
-              style={{ height: 38, maxWidth: 110, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
+              style={{ height: 48, maxWidth: 140, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
           ) : (
-            <img src="/relia.png" alt="logo" style={{ height: 34, width: 85, filter: "brightness(0) invert(1)" }} />
+            <img src="/relia.png" alt="logo"
+              style={{ height: 44, maxWidth: 140, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
           )}
         </div>
 
@@ -890,6 +674,7 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
           <RightOutlined style={{ fontSize: 11, color: C.primary }} />
         </div>
       )}
+
 
       <div style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
         {(() => {
@@ -994,10 +779,19 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         .ant-pro-global-header svg,
         .ant-pro-global-header .anticon { color: white !important; }
         .ant-pro-global-header-collapsed-button,
-        .ant-pro-sider-collapsed-button { color: white !important; }
-        .ant-dropdown-menu-item:hover { background: rgba(255, 255, 255, 0.15) !important; }
-        .ant-dropdown-menu-item-active { background: rgba(255, 255, 255, 0.1) !important; }
-        .nav-overflow-popup .ant-menu { background: ${primaryColor} !important; border-radius: 10px !important; padding: 4px !important; border: none !important; box-shadow: 0 8px 24px rgba(0,0,0,0.14) !important; }
+        .ant-dropdown-menu-item:not(.ant-dropdown-menu-item-danger):hover,
+        .ant-dropdown-menu-item:not(.ant-dropdown-menu-item-danger).ant-dropdown-menu-item-active {
+          background-color: #f1f5f9 !important;
+        }
+        .ant-dropdown-menu-item-danger:hover,
+        .ant-dropdown-menu-item-danger.ant-dropdown-menu-item-active {
+          background-color: #ff4d4f !important;
+          border-color: #ff4d4f !important;
+        }
+        .ant-dropdown-menu-item-danger:hover *,
+        .ant-dropdown-menu-item-danger.ant-dropdown-menu-item-active * {
+          color: #ffffff !important;
+        }
         .nav-overflow-popup .ant-menu-item { color: rgba(255,255,255,0.85) !important; border-radius: 6px !important; margin: 2px 0 !important; height: 38px !important; line-height: 38px !important; }
         .nav-overflow-popup .ant-menu-item:hover { background: rgba(255,255,255,0.15) !important; color: #fff !important; }
         .nav-overflow-popup .ant-menu-item-selected { background: rgba(255,255,255,0.2) !important; color: #fff !important; font-weight: 600; }
@@ -1007,7 +801,105 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         .ant-menu-overflow-item-rest { padding: 0 !important; }
         .ant-menu-overflow-item-rest > .ant-menu-submenu-title { padding: 0 !important; margin: 0 !important; background: transparent !important; }
         .ant-menu-overflow-item-rest > .ant-menu-submenu-title::after { display: none !important; }
-        @media (max-width: 767px) { .ant-pro-page-container { padding: 12px !important; } .ant-pro-global-header { padding: 0 12px !important; } }
+        .ant-pro-page-container-warp-page-header { display: none !important; }
+        @media (max-width: 992px) {
+          .ant-pro-page-container { padding: 0 !important; }
+          .ant-pro-page-container-children-container { padding: 8px 10px !important; }
+          .ant-pro-page-container-children-content { padding: 0 !important; }
+          .ant-pro-global-header { padding: 0 12px !important; }
+        }
+        @media (max-width: 768px) {
+          .ant-pro-page-container-children-container { padding: 6px 10px !important; }
+
+          /* ProLayout Native AppList Popover Mobile Responsiveness */
+          .ant-pro-layout-apps-popover {
+            width: calc(100vw - 16px) !important;
+            max-width: calc(100vw - 16px) !important;
+            left: 8px !important;
+            right: 8px !important;
+            top: 56px !important;
+          }
+          .ant-pro-layout-apps-popover .ant-popover-content {
+            width: 100% !important;
+            max-width: 100% !important;
+          }
+          .ant-pro-layout-apps-popover .ant-popover-inner {
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 12px 10px !important;
+            border-radius: 14px !important;
+            box-sizing: border-box !important;
+            max-height: calc(85vh - 60px) !important;
+            overflow-y: auto !important;
+          }
+          .ant-pro-layout-apps-default-content {
+            width: 100% !important;
+            max-width: 100% !important;
+            max-height: none !important;
+            overflow: visible !important;
+          }
+          .ant-pro-layout-apps-default-content-list {
+            width: 100% !important;
+            max-width: 100% !important;
+            display: flex !important;
+            flex-direction: column !important;
+            box-sizing: border-box !important;
+          }
+          .ant-pro-layout-apps-default-content-list-item-group {
+            width: 100% !important;
+            margin-bottom: 12px !important;
+          }
+          .ant-pro-layout-apps-default-content-list-item-group-title {
+            font-size: 13px !important;
+            font-weight: 700 !important;
+            margin: 8px 0 6px 4px !important;
+            color: #334155 !important;
+          }
+          .ant-pro-layout-apps-default-content-list-item {
+            width: 100% !important;
+            max-width: 100% !important;
+            height: auto !important;
+            min-height: 54px !important;
+            display: block !important;
+            padding: 8px 10px !important;
+            box-sizing: border-box !important;
+            border-radius: 8px !important;
+            margin-bottom: 4px !important;
+          }
+          .ant-pro-layout-apps-default-content-list-item a {
+            display: flex !important;
+            align-items: center !important;
+            width: 100% !important;
+          }
+          .ant-pro-layout-apps-default-content-list-item a > img,
+          .ant-pro-layout-apps-default-content-list-item a > div:first-child {
+            width: 38px !important;
+            height: 38px !important;
+            flex-shrink: 0 !important;
+            border-radius: 8px !important;
+          }
+          .ant-pro-layout-apps-default-content-list-item a > div:last-child {
+            margin-inline-start: 12px !important;
+            flex: 1 !important;
+            min-width: 0 !important;
+            overflow: hidden !important;
+          }
+          .ant-pro-layout-apps-default-content-list-item a > div:last-child > div {
+            font-size: 13px !important;
+            line-height: 18px !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+          }
+          .ant-pro-layout-apps-default-content-list-item a > div:last-child > span {
+            font-size: 11px !important;
+            line-height: 16px !important;
+            display: block !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+          }
+        }
         .notification-popover-overlay .ant-popover-inner { padding: 0 !important; }
         /* ── Module dropdown (Duka / Pesa / Mteja / Dala / Setup) submenus ── */
         /* Lay items out 3 per row in a grid so long menus (e.g. Pesa) stay compact. */
@@ -1018,8 +910,8 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
           grid-auto-rows: 42px !important;
           align-content: start !important;
           gap: 6px !important;
-          width: 684px !important;
-          max-width: 684px !important;
+          width: min(684px, 94vw) !important;
+          max-width: min(684px, 94vw) !important;
           height: auto !important;
           min-height: 0 !important;
           box-sizing: border-box !important;
@@ -1200,63 +1092,25 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
 
       {MobileDrawer}
 
-      {/* ── Quick-create modals ──────────────────────────────────────────── */}
-      <AddCustomerModal
-        visible={quickCreateModal === "customer"}
-        onClose={closeQuickCreate}
-        onSuccess={() => { invalidateAll(); closeQuickCreate(); }}
-        mode="add"
-      />
-      <AddProSupplierModal
-        actionRef={fakeActionRef}
-        edit={false}
-        externalOpen={quickCreateModal === "supplier"}
-        onExternalClose={closeQuickCreate}
-      />
-      <AccountFormDrawer
-        open={quickCreateModal === "coa"}
-        onClose={closeQuickCreate}
-        onSuccess={() => { invalidateAll(); closeQuickCreate(); }}
-        editingAccount={null}
-        accounts={[]}
-        shopId={shopId}
-      />
-      <JournalEntryFormDrawer
-        open={quickCreateModal === "journal"}
-        onClose={closeQuickCreate}
-        onSuccess={() => { invalidateAll(); closeQuickCreate(); }}
-        shopId={shopId}
-      />
-      <AddProPaymentMethodSettingsModal
-        actionRef={fakeActionRef}
-        edit={false}
-        externalOpen={quickCreateModal === "payment-method"}
-        onExternalClose={closeQuickCreate}
-      />
-      <ManualInvoiceModal
-        open={quickCreateModal === "invoice"}
-        onClose={closeQuickCreate}
-      />
-      <ManualIncomeModal
-        open={quickCreateModal === "income-expense"}
-        onClose={closeQuickCreate}
-      />
+      {/* ── Quick-create Command Palette & Modals ──────────────────────────── */}
+      <QuickLinks moduleFlags={{ hasPOS, hasAccounting, hasMteja, hasBandu, hasDala }} onSuccess={invalidateAll} />
 
       <ProLayout
         style={{ maxWidth: "1920px" }}
         logo={
           tenant?.tenant_logo?.url ? (
-            <Image src={tenant.tenant_logo.url} height={isMobile ? 44 : 60} preview={false} alt="tenant-logo"
-              style={{ padding: isMobile ? 3 : 5, objectFit: "contain", maxWidth: isMobile ? 90 : 120 }} />
+            <Image src={tenant.tenant_logo.url} height={isMobile ? 40 : 60} preview={false} alt="tenant-logo"
+              style={{ padding: isMobile ? 3 : 5, objectFit: "contain", maxWidth: isMobile ? 100 : 140 }} />
           ) : (
-            <Image src="/relia.png" height={isMobile ? 38 : 90} width={isMobile ? 90 : 120}
-              preview={false} alt="relia-logo" style={{ padding: isMobile ? 6 : 12 }} />
+            <Image src="/relia.png" height={isMobile ? 34 : 90} preview={false} alt="relia-logo"
+              style={{ padding: isMobile ? 4 : 12, objectFit: "contain", maxWidth: isMobile ? 100 : 140 }} />
           )
         }
         title=""
         menuHeaderRender={(logo: any, title: any) => (
-          <div id="customize_menu_header" style={{ height: 32, display: "flex", alignItems: "center", gap: 8 }}>
-            {logo}{title}
+          <div id="customize_menu_header" style={{ height: 48, display: "flex", alignItems: "center", gap: 8 }}>
+            {logo}
+            {title}
           </div>
         )}
         colorPrimary={primaryColor}
@@ -1266,6 +1120,7 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         layout="top"
         splitMenus={false}
         fixedHeader={true}
+        breadcrumbProps={{ items: [] }}
         menuRender={isMobile ? false : undefined}
         menuProps={{
           overflowedIndicatorPopupClassName: "nav-overflow-popup",
@@ -1280,18 +1135,21 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         headerRender={
           isMobile
             ? () => (
-              <div style={{ height: 52, background: primaryColor, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 2px 12px rgba(0,0,0,0.15)" }}>
-                <button
-                  onClick={() => setMobileDrawerOpen(true)}
-                  style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)", borderRadius: 8, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "white", fontSize: 16 }}
-                >
-                  <MenuOutlined style={{ color: "white" }} />
-                </button>
-                <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)" }}>
+              <div style={{ height: 52, background: primaryColor, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 12px", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 2px 12px rgba(0,0,0,0.15)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <button
+                    onClick={() => setMobileDrawerOpen(true)}
+                    style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)", borderRadius: 8, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "white", fontSize: 16 }}
+                  >
+                    <MenuOutlined style={{ color: "white" }} />
+                  </button>
+                  <EcosystemAppSwitcher triggerType="waffle" />
+                </div>
+                <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
                   {tenant?.tenant_logo?.url ? (
-                    <img src={tenant.tenant_logo.url} alt="logo" style={{ height: 34, maxWidth: 80, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
+                    <img src={tenant.tenant_logo.url} alt="logo" style={{ height: 28, maxWidth: 70, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
                   ) : (
-                    <img src="/relia.png" alt="logo" style={{ height: 28, width: 70, filter: "brightness(0) invert(1)" }} />
+                    <img src="/relia.png" alt="logo" style={{ height: 26, maxWidth: 70, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
                   )}
                 </div>
                 {user ? headerActions : (
@@ -1315,13 +1173,37 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
             }
             : undefined
         }
+        itemClick={(item: any, popoverRef?: any) => {
+          if (popoverRef?.current) {
+            popoverRef.current.click();
+          } else {
+            setTimeout(() => document.body.click(), 10);
+          }
+          if (item?.productKey) {
+            switchProduct(item.productKey, true);
+          } else if (item?.url) {
+            navigate(item.url);
+          }
+        }}
+        onItemClick={(item: any, popoverRef?: any) => {
+          if (popoverRef?.current) {
+            popoverRef.current.click();
+          } else {
+            setTimeout(() => document.body.click(), 10);
+          }
+          if (item?.productKey) {
+            switchProduct(item.productKey, true);
+          } else if (item?.url) {
+            navigate(item.url);
+          }
+        }}
         {...navRoutes}
         location={{
           pathname: location.pathname,
         }}
         selectedKeys={[selectedKey]}
         token={{
-          bgLayout: "#f6ffed",
+          bgLayout: "#f8fafc",
           colorPrimary: primaryColor,
           colorTextAppListIconHover: "black",
           colorTextAppListIcon: "white",

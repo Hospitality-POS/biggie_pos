@@ -12,7 +12,7 @@ function SupplierMainSettings() {
       bordered
       title={
         <Flex gap={4}>
-          <ShopOutlined style={{ color: "#6c1c2c" }} />
+          <ShopOutlined style={{ color: "var(--primary-color)" }} />
           <Title level={4} style={{ margin: 0 }}>
             Supplier Main Settings
           </Title>

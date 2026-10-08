@@ -30,8 +30,8 @@ const { Text } = Typography;
 const STATUS_CONFIG: Record<ImportStatus, { color: string; label: string }> = {
     Processing: { color: "processing", label: "Processing" },
     Review: { color: "warning", label: "Needs Review" },
-    "Partially Pushed": { color: "cyan", label: "Partial" },
-    "Fully Pushed": { color: "success", label: "Pushed" },
+    "Partially Pushed": { color: "cyan", label: "Partially Complete" },
+    "Fully Pushed": { color: "success", label: "Complete" },
     Voided: { color: "default", label: "Voided" },
 };
 
@@ -118,7 +118,7 @@ const BankStatementPage: React.FC = () => {
     const handleVoid = (record: BankStatementImport) => {
         modal.confirm({
             title: "Void this import?",
-            content: "This will mark the import as voided. Pushed transactions are not reversed.",
+            content: "This will mark the import as voided. Completed transactions are not reversed.",
             okText: "Void Import",
             okButtonProps: { danger: true },
             onOk: () => voidMutation.mutateAsync(record._id),
@@ -374,7 +374,7 @@ const BankStatementPage: React.FC = () => {
                 <Col span={6}>
                     <Card size="small" bordered>
                         <Statistic
-                            title="Fully Pushed"
+                            title="Completed"
                             value={summaryStats.pushed}
                             prefix={<CheckCircleOutlined />}
                             valueStyle={{ fontSize: 20, color: "#52c41a" }}

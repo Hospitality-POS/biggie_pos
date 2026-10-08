@@ -734,8 +734,13 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
   }, [form]);
 
   // ── Prefill on edit ────────────────────────────────────────────────────────
+  // Runs ONCE per open — the lookup queries (staleTime: 0, networkMode: always)
+  // refire this effect every time a loading flag flips or the window refocuses,
+  // which used to reset quantity/fields back to data.* and silently wipe input.
+  const prefilled = useRef(false);
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) { prefilled.current = false; return; }
+    if (prefilled.current) return;
 
     if (edit && data) {
       const categoryId = extractId(data?.category_id);
@@ -746,6 +751,7 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
       
       // Wait for categories and subcategories to be loaded before setting form values
       if (!categoriesLoading && !subCategoriesLoading && !unitsLoading) {
+        prefilled.current = true;
         // Set selectedCategory to the subcategory_id for proper filtering (since Category field now shows subcategories)
         if (subcategoryId) {
           setSelectedCategory(subcategoryId);
@@ -753,7 +759,7 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
         
         // Small delay to ensure state update is processed
         setTimeout(() => {
-          form.setFieldsValue({
+          const savedValues: Record<string, any> = {
             name: data?.name || "",
             usage_type: data?.usage_type || "internal",
             category: subcategoryId, // Category field now shows subcategories
@@ -776,7 +782,13 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
             reorder_level: data?.reorder_level || undefined,
             reorder_quantity: data?.reorder_quantity || undefined,
             code: data?.code || "",
+          };
+          // Don't clobber anything the user already typed while the lookup
+          // queries were still resolving — keep their value instead.
+          Object.keys(savedValues).forEach((k) => {
+            if (form.isFieldTouched(k)) savedValues[k] = form.getFieldValue(k);
           });
+          form.setFieldsValue(savedValues);
         }, 0);
 
         setUsageType(data?.usage_type || "internal");
@@ -788,7 +800,8 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
         }));
         setVariants(variantsWithId);
       }
-    } else {
+    } else if (!edit) {
+      prefilled.current = true;
       form.resetFields();
       form.setFieldsValue({
         usage_type: "internal",

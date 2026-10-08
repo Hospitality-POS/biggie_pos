@@ -1,15 +1,16 @@
 import { useRef } from "react";
 
 import { ActionType, ProTable } from "@ant-design/pro-components";
-import { Tooltip, Button, Space, Popconfirm, message } from "antd";
+import { Tooltip, Button, Space, Popconfirm, Switch, message } from "antd";
 import { DeleteOutlined } from "@ant-design/icons";
-import { deleteMainCategory, fetchMainCategories } from "@services/categories";
+import { deleteMainCategory, fetchMainCategories, editMainCategory } from "@services/categories";
 import MainCategoryModal from "@components/MODALS/pro/MainCategoryModal";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "src/store";
 
 const MainCategorySettings = () => {
   const actionRef = useRef<ActionType>();
+  const queryClient = useQueryClient();
 
   const DeleteMainCategoryMutation = useMutation(deleteMainCategory, {
     onSuccess: () => {
@@ -17,6 +18,14 @@ const MainCategorySettings = () => {
       message.success("Main-Category deleted successfully");
     },
     onError: () => message.error("Failed to delete main-category"),
+  });
+
+  const togglePosMutation = useMutation(editMainCategory, {
+    onSuccess: () => {
+      actionRef.current?.reload();
+      queryClient.invalidateQueries({ queryKey: ["Maincategories"] });
+    },
+    onError: () => message.error("Failed to update POS visibility"),
   });
 
   const { user } = useAppSelector((state) => state.auth);
@@ -65,6 +74,27 @@ const MainCategorySettings = () => {
             fieldProps: {
               placeholder: "Enter Main-Category name",
             },
+          },
+          {
+            title: "Show on POS",
+            key: "list_on_pos",
+            dataIndex: "list_on_pos",
+            hideInSearch: true,
+            render: (_, record: any) => (
+              <Tooltip title={record.list_on_pos === false ? "Hidden on POS — click to show" : "Listed on POS — click to hide"}>
+                <Switch
+                  size="small"
+                  checked={record.list_on_pos !== false}
+                  loading={togglePosMutation.isLoading && togglePosMutation.variables?._id === record._id}
+                  onChange={(checked) =>
+                    togglePosMutation.mutate({
+                      _id: record._id,
+                      values: { name: record.name, list_on_pos: checked },
+                    })
+                  }
+                />
+              </Tooltip>
+            ),
           },
           actionColumn,
         ]}

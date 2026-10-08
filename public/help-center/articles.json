@@ -1,0 +1,454 @@
+{
+  "duka": [
+    {
+      "id": 1,
+      "title": "Duka Quick Start Guide",
+      "description": "Get started with Duka POS in 10 minutes",
+      "type": "article",
+      "readTime": "10 min",
+      "views": 2500,
+      "helpful": 190,
+      "content": "\n# Duka Quick Start Guide\n\n## Overview\nDuka by Base is a comprehensive Point of Sale (POS) system for managing sales, inventory, customers, and daily operations.\n\n## Setup Flow\n\n```\n┌─────────────────┐\n│   Login to      │\n│   Base Point    │\n└────────┬────────┘\n         │\n         ▼\n┌─────────────────┐\n│   Admin         │\n│   Dashboard     │\n└────────┬────────┘\n         │\n         ▼\n┌─────────────────┐\n│   Create Shop   │\n│   (Shops Tab)   │\n└────────┬────────┘\n         │\n         ▼\n┌─────────────────┐\n│   Add Products  │\n│   (Products)    │\n└────────┬────────┘\n         │\n         ▼\n┌─────────────────┐\n│   Configure     │\n│   Categories    │\n└────────┬────────┘\n         │\n         ▼\n┌─────────────────┐\n│   Setup         │\n│   Payments      │\n└────────┬────────┘\n         │\n         ▼\n┌─────────────────┐\n│   Start         │\n│   Selling!      │\n└─────────────────┘\n```\n\n## First Steps\n\n### 1. Set Up Your Shop\n- Navigate to **Admin Dashboard > Shops**\n- Click **Create Shop** to add your first location\n- Configure shop details: name, address, phone, and POS mode (Restaurant or Retail)\n- Set up tables if using Restaurant mode\n\n### 2. Add Products\n- Go to **Products** in the sidebar\n- Click **Add Product** to create inventory items\n- Set product name, price, category, and tax settings\n- Upload product images for better recognition\n- Set stock levels for inventory tracking\n\n### 3. Configure Categories\n- Create product categories to organize your menu/catalog\n- Examples: Food, Beverages, Electronics, Clothing\n- Set up sub-categories for better organization\n\n### 4. Add Payment Methods\n- Configure cash, card, M-Pesa, and other payment options\n- Set up Pesapal integration for online payments\n- Configure receipt printing settings\n\n## Making a Sale - Retail Mode\n\n```\n┌──────────────┐\n│ Select/      │\n│ Search       │\n│ Products     │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Add to Cart │\n│ (Qty, Price)│\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Apply        │\n│ Discounts?   │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Select       │\n│ Payment      │\n│ Method       │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Complete     │\n│ Sale         │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Print        │\n│ Receipt      │\n└──────────────┘\n```\n\n### Retail Mode Steps\n1. Select or search for products\n2. Add to cart\n3. Apply discounts if needed\n4. Select payment method\n5. Complete sale and print receipt\n\n## Making a Sale - Restaurant Mode\n\n```\n┌──────────────┐\n│ Select Table │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Add Items    │\n│ to Order     │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Send to      │\n│ Kitchen      │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Track Order  │\n│ Status       │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Generate     │\n│ Bill         │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Process      │\n│ Payment      │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Clear Table  │\n└──────────────┘\n```\n\n### Restaurant Mode Steps\n1. Select table\n2. Add items to order\n3. Send to kitchen\n4. Track order status\n5. Generate bill\n6. Process payment\n\n## Daily Operations\n\n### Shift Management\n- Start and end shifts for staff\n- Track sales by shift\n- Handle shift handovers\n\n### Inventory Management\n- Monitor stock levels\n- Receive new stock\n- Track inventory movements\n- Generate inventory reports\n\n### Customer Management\n- Add customer details\n- Track customer purchases\n- Manage customer accounts\n- Apply customer discounts\n\n## Reports\n- View daily sales reports\n- Analyze best-selling items\n- Track revenue trends\n- Export sales data\n      "
+    },
+    {
+      "id": 2,
+      "title": "Managing Tables & Dining Areas",
+      "description": "Configure tables for restaurant operations",
+      "type": "article",
+      "readTime": "5 min",
+      "views": 1200,
+      "helpful": 85,
+      "content": "\n# Managing Tables & Dining Areas\n\n## Table Setup\n1. Go to **Tables** in the admin panel\n2. Create table locations (e.g., Main Hall, Outdoor, VIP)\n3. Add tables to each location\n4. Set table capacity and numbering\n\n## Table Operations\n- Assign orders to tables\n- Transfer orders between tables\n- Merge tables for large groups\n- Clear tables after payment\n\n## Auto Slots (Retail Mode)\n- Create auto slots for quick checkout\n- Useful for takeaway orders\n- Reduces wait time\n      "
+    },
+    {
+      "id": 3,
+      "title": "Inventory & Stock Management",
+      "description": "Track and manage your inventory",
+      "type": "article",
+      "readTime": "8 min",
+      "views": 1800,
+      "helpful": 120,
+      "content": "\n# Inventory & Stock Management\n\n## Adding Inventory\n- Manually add stock items\n- Import from Excel templates\n- Set minimum stock levels for alerts\n\n## Stock Movements\n- Track stock in (purchases)\n- Track stock out (sales, wastage)\n- Transfer stock between locations\n- Adjust stock for discrepancies\n\n## Low Stock Alerts\n- Receive notifications when stock is low\n- Set reorder points\n- Generate purchase orders\n\n## Inventory Reports\n- View stock valuation\n- Track fast-moving items\n- Identify slow-moving stock\n- Generate inventory usage reports\n      "
+    },
+    {
+      "id": 28,
+      "title": "Delivery Management",
+      "description": "Handle delivery orders and logistics",
+      "type": "article",
+      "readTime": "7 min",
+      "views": 1100,
+      "helpful": 90,
+      "content": "\n# Delivery Management\n\n## Delivery Order Flow\n\n```\n┌──────────────┐\n│ Customer     │\n│ Places Order │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Mark as      │\n│ Delivery     │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Assign to    │\n│ Driver       │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Driver       │\n│ Picks Up     │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ In Transit   │\n│ (Tracking)   │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Delivered    │\n│ (Confirm)    │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Payment      │\n│ Collected    │\n└──────────────┘\n```\n\n## Setting Up Delivery\n1. Go to **Settings > Delivery**\n2. Configure delivery zones\n3. Set delivery fees by zone\n4. Define delivery time slots\n5. Assign delivery staff\n\n## Processing Delivery Orders\n- Mark orders as delivery\n- Assign to delivery driver\n- Track delivery status\n- Update customer on progress\n\n## Delivery Zones\n- Define geographic zones\n- Set zone-specific fees\n- Configure delivery times\n- Manage zone availability\n\n## Delivery Staff\n- Add delivery personnel\n- Assign routes\n- Track performance\n- Calculate commissions\n\n## Customer Communication\n- SMS notifications\n- Order tracking\n- Delivery confirmations\n- Feedback collection\n      "
+    },
+    {
+      "id": 29,
+      "title": "Product Modifiers & Add-ons",
+      "description": "Configure product variations and extras",
+      "type": "article",
+      "readTime": "6 min",
+      "views": 950,
+      "helpful": 75,
+      "content": "\n# Product Modifiers & Add-ons\n\n## What are Modifiers?\nModifiers allow customers to customize their orders with extras, special requests, or variations.\n\n## Creating Modifiers\n1. Go to **Products > Modifiers**\n2. Click **Add Modifier Group**\n3. Name the group (e.g., \"Extra Toppings\")\n4. Add modifier options\n5. Set prices for each option\n\n## Modifier Types\n- **Required**: Customer must select an option\n- **Optional**: Customer can choose to add\n- **Multi-select**: Customer can select multiple options\n- **Single-select**: Customer can only choose one\n\n## Common Use Cases\n- Pizza toppings\n- Burger extras\n- Drink sizes\n- Side dishes\n- Cooking preferences\n\n## Pricing\n- Set base price for modifier group\n- Add individual prices for options\n- Configure free modifiers\n- Set quantity limits\n      "
+    },
+    {
+      "id": 30,
+      "title": "Supplier Management",
+      "description": "Manage vendors and purchase orders",
+      "type": "article",
+      "readTime": "8 min",
+      "views": 1050,
+      "helpful": 88,
+      "content": "\n# Supplier Management\n\n## Purchase Order Flow\n\n```\n┌──────────────┐\n│ Create PO    │\n│ (Select      │\n│  Supplier)   │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Add Items    │\n│ (Qty, Price) │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Review &     │\n│ Approve      │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Send to      │\n│ Supplier    │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Supplier     │\n│ Ships Items  │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Receive      │\n│ Goods        │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Update       │\n│ Inventory    │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Pay Supplier│\n└──────────────┘\n```\n\n## Adding Suppliers\n1. Go to **Inventory > Suppliers**\n2. Click **Add Supplier**\n3. Enter supplier details\n4. Add contact information\n5. Set payment terms\n\n## Supplier Information\n- Company name and address\n- Contact person\n- Phone and email\n- Payment terms\n- Tax information\n\n## Purchase Orders\n- Create purchase orders\n- Send to suppliers\n- Track order status\n- Receive goods\n- Update inventory\n\n## Supplier Performance\n- Track delivery times\n- Monitor quality\n- Compare pricing\n- Rate suppliers\n- Analyze reliability\n\n## Supplier Reports\n- Purchase history\n- Cost analysis\n- Delivery performance\n- Payment tracking\n      "
+    },
+    {
+      "id": 31,
+      "title": "Shift Management",
+      "description": "Manage staff shifts and handovers",
+      "type": "article",
+      "readTime": "6 min",
+      "views": 1300,
+      "helpful": 105,
+      "content": "\n# Shift Management\n\n## Shift Workflow\n\n```\n┌──────────────┐\n│ Start Shift  │\n│ (Opening     │\n│  Cash Count) │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Process      │\n│ Sales        │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Record Cash │\n│ Drops        │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Track Sales  │\n│ Throughout   │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ End Shift    │\n│ (Closing     │\n│  Cash Count) │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Reconcile    │\n│ Cash         │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Handover     │\n│ (Next Shift) │\n└──────────────┘\n```\n\n## Creating Shifts\n1. Go to **Staff > Shifts**\n2. Click **Add Shift**\n3. Set shift name and time\n4. Assign staff members\n5. Configure responsibilities\n\n## Shift Operations\n- Start shift with opening cash\n- Track sales during shift\n- Record cash drops\n- End shift with closing count\n- Handle discrepancies\n\n## Shift Handover\n- Document pending orders\n- Transfer cash\n- Note issues\n- Update inventory\n- Sign off\n\n## Shift Reports\n- Sales by shift\n- Cash reconciliation\n- Staff performance\n- Customer traffic\n- Incident reports\n\n## Best Practices\n- Regular cash counts\n- Clear documentation\n- Proper handovers\n- Timely reporting\n      "
+    }
+  ],
+  "pesa": [
+    {
+      "id": 4,
+      "title": "Pesa Accounting Overview",
+      "description": "Understanding Pesa accounting system",
+      "type": "article",
+      "readTime": "12 min",
+      "views": 3000,
+      "helpful": 220,
+      "content": "\n# Pesa Accounting Overview\n\n## What is Pesa?\nPesa by Base is a comprehensive accounting module that integrates seamlessly with Duka POS, Mteja CRM, and other Base Suite products.\n\n## Accounting Flow\n\n```\n┌──────────────┐\n│ Duka Sale    │\n│ (POS)        │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Auto-Create  │\n│ Journal Entry│\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Post to      │\n│ Accounts     │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Update       │\n│ Inventory    │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Generate     │\n│ Reports      │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Reconcile    │\n│ Bank         │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Tax Reports  │\n│ (Etims)      │\n└──────────────┘\n```\n\n## Key Features\n\n### 1. Chart of Accounts\n- Pre-configured account structure\n- Customizable to your business needs\n- Supports multiple account types: Assets, Liabilities, Equity, Revenue, Expenses\n\n### 2. Journal Entries\n- Automatic journal entries from POS sales\n- Manual journal entry creation\n- Draft, post, and void entries\n- Multi-currency support\n\n### 3. Financial Reports\n- Profit & Loss statements\n- Balance sheets\n- Trial balance\n- Cash flow statements\n- Custom report generation\n\n### 4. Tax Management\n- VAT tracking and reporting\n- Tax compliance features\n- Etims integration for KRA\n- Automated tax calculations\n\n### 5. Accounts Receivable & Payable\n- Track customer invoices\n- Manage supplier bills\n- Aging reports\n- Payment tracking\n\n## Getting Started\n\n### Setup\n1. Configure your fiscal year\n2. Set up Chart of Accounts\n3. Configure tax rates\n4. Connect bank accounts\n5. Import opening balances\n\n### Daily Operations\n- Review journal entries\n- Reconcile bank accounts\n- Post adjustments\n- Generate reports\n\n## Integration with Duka\n- Sales automatically create journal entries\n- Inventory updates affect cost of goods sold\n- Customer payments update accounts receivable\n      "
+    },
+    {
+      "id": 5,
+      "title": "Managing Journal Entries",
+      "description": "Create and manage journal entries",
+      "type": "article",
+      "readTime": "7 min",
+      "views": 1500,
+      "helpful": 95,
+      "content": "\n# Managing Journal Entries\n\n## Creating Manual Entries\n1. Go to **Journal Entries** in Pesa\n2. Click **New Entry**\n3. Select date and reference number\n4. Add debit and credit lines\n5. Ensure entries balance\n6. Save as draft or post\n\n## Entry Types\n- **Manual**: Created by users\n- **POS Sale**: Auto-generated from Duka\n- **Invoice**: From customer invoicing\n- **Bill**: From supplier bills\n- **Payment**: Payment transactions\n- **Reconciliation**: Bank reconciliation\n\n## Posting Entries\n- Draft entries can be edited\n- Posted entries are locked\n- Void posted entries if needed\n- Audit trail maintained\n\n## Reviewing Entries\n- View recent entries on dashboard\n- Filter by date, source, or account\n- Export to Excel or PDF\n      "
+    },
+    {
+      "id": 6,
+      "title": "Financial Reports Guide",
+      "description": "Generate and understand financial reports",
+      "type": "article",
+      "readTime": "10 min",
+      "views": 2000,
+      "helpful": 150,
+      "content": "\n# Financial Reports Guide\n\n## Available Reports\n\n### Profit & Loss Statement\n- Shows revenue and expenses\n- Calculates net profit/loss\n- Compare periods\n- View by month, quarter, or year\n\n### Balance Sheet\n- Assets, liabilities, and equity\n- Financial position snapshot\n- Track business health\n\n### Trial Balance\n- List of all account balances\n- Verify accounting accuracy\n- Debits must equal credits\n\n### Cash Flow Statement\n- Cash inflows and outflows\n- Operating, investing, financing activities\n- Cash position tracking\n\n### VAT Reports\n- VAT collected on sales\n- VAT paid on purchases\n- Net VAT payable/refundable\n- KRA submission ready\n\n## Generating Reports\n1. Go to **Reports** in Pesa\n2. Select report type\n3. Choose date range\n4. Apply filters if needed\n5. Generate and export\n\n## Custom Reports\n- Create custom report templates\n- Save frequently used reports\n- Schedule automatic generation\n      "
+    },
+    {
+      "id": 32,
+      "title": "Accounts Receivable Management",
+      "description": "Track and manage customer invoices",
+      "type": "article",
+      "readTime": "9 min",
+      "views": 1700,
+      "helpful": 135,
+      "content": "\n# Accounts Receivable Management\n\n## Invoice Workflow\n\n```\n┌──────────────┐\n│ Create       │\n│ Invoice      │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Send to      │\n│ Customer     │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Track Due    │\n│ Date         │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Send         │\n│ Reminders    │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Receive      │\n│ Payment      │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Apply to     │\n│ Invoice      │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Update       │\n│ Customer     │\n│ Balance      │\n└──────────────┘\n```\n\n## Creating Invoices\n1. Go to **Accounts Receivable > Invoices**\n2. Click **Create Invoice**\n3. Select customer\n4. Add line items\n5. Set payment terms\n6. Send invoice\n\n## Invoice Tracking\n- Track invoice status\n- Monitor due dates\n- Send payment reminders\n- Record payments\n\n## Aging Reports\n- View outstanding invoices\n- Categorize by age (30, 60, 90+ days)\n- Identify overdue accounts\n- Prioritize collection efforts\n\n## Customer Statements\n- Generate customer statements\n- Show transaction history\n- Include outstanding balance\n- Send to customers\n\n## Payment Processing\n- Record customer payments\n- Apply to specific invoices\n- Handle partial payments\n- Issue credit notes\n\n## Best Practices\n- Regular invoice reviews\n- Timely payment reminders\n- Clear payment terms\n- Accurate record keeping\n      "
+    },
+    {
+      "id": 33,
+      "title": "Accounts Payable Management",
+      "description": "Manage supplier bills and payments",
+      "type": "article",
+      "readTime": "8 min",
+      "views": 1450,
+      "helpful": 115,
+      "content": "\n# Accounts Payable Management\n\n## Recording Bills\n1. Go to **Accounts Payable > Bills**\n2. Click **Add Bill**\n3. Select supplier\n4. Add bill details\n5. Upload supporting documents\n6. Save for approval\n\n## Bill Approval Workflow\n- Submit for approval\n- Review and approve\n- Reject if needed\n- Track approval status\n\n## Payment Processing\n- Schedule payments\n- Select bills to pay\n- Record payment details\n- Update supplier accounts\n\n## Vendor Management\n- Maintain supplier details\n- Track payment terms\n- Monitor credit limits\n- Evaluate supplier performance\n\n## Aging Reports\n- View outstanding bills\n- Categorize by due date\n- Identify overdue payments\n- Plan cash flow\n\n## Expense Tracking\n- Categorize expenses\n- Track by department\n- Monitor budget compliance\n- Generate expense reports\n      "
+    },
+    {
+      "id": 34,
+      "title": "Bank Reconciliation",
+      "description": "Reconcile bank accounts with records",
+      "type": "article",
+      "readTime": "10 min",
+      "views": 1600,
+      "helpful": 125,
+      "content": "\n# Bank Reconciliation\n\n## Why Reconcile?\n- Ensure accuracy of records\n- Detect errors or fraud\n- Verify bank balances\n- Maintain financial integrity\n\n## Reconciliation Process\n1. Go to **Banking > Reconciliation**\n2. Select bank account\n3. Choose statement period\n4. Import bank statement\n5. Match transactions\n6. Resolve discrepancies\n\n## Matching Transactions\n- Auto-match by amount and date\n- Manual matching for complex cases\n- Add missing transactions\n- Remove duplicates\n\n## Handling Discrepancies\n- Identify missing items\n- Record bank fees\n- Adjust for errors\n- Document reasons\n\n## Reconciliation Reports\n- Generate reconciliation reports\n- Track unresolved items\n- Monitor reconciliation status\n- Export for audit\n\n## Best Practices\n- Reconcile monthly\n- Keep detailed records\n- Investigate discrepancies promptly\n- Maintain supporting documents\n      "
+    }
+  ],
+  "mteja": [
+    {
+      "id": 7,
+      "title": "Mteja CRM Introduction",
+      "description": "Customer relationship management basics",
+      "type": "article",
+      "readTime": "8 min",
+      "views": 2200,
+      "helpful": 175,
+      "content": "\n# Mteja CRM Introduction\n\n## What is Mteja?\nMteja by Base is a customer relationship management (CRM) system that helps you manage leads, customers, and marketing campaigns.\n\n## Key Features\n\n### 1. Lead Management\n- Capture leads from multiple sources\n- Visual pipeline tracking\n- Lead scoring and qualification\n- Convert leads to customers\n\n### 2. Customer Database\n- Centralized customer profiles\n- Purchase history tracking\n- Communication logs\n- Customer segmentation\n\n### 3. Marketing Campaigns\n- Email campaigns\n- SMS campaigns\n- WhatsApp integration\n- Campaign analytics\n\n### 4. Sales Tracking\n- Sales targets and budgets\n- Performance tracking\n- Team sales reports\n- Commission calculations\n\n### 5. Loyalty Programs\n- Customer rewards\n- Points system\n- Tiered membership\n- Special offers\n\n## Getting Started\n\n### Setup\n1. Configure lead stages\n2. Set up customer fields\n3. Create email/SMS templates\n4. Configure communication channels\n5. Set sales targets\n\n### Daily Use\n- Add new leads\n- Update lead status\n- Send communications\n- Track conversions\n- Monitor campaigns\n      "
+    },
+    {
+      "id": 8,
+      "title": "Lead Pipeline Management",
+      "description": "Track and convert leads effectively",
+      "type": "article",
+      "readTime": "6 min",
+      "views": 1400,
+      "helpful": 110,
+      "content": "\n# Lead Pipeline Management\n\n## Lead Conversion Flow\n\n```\n┌──────────────┐\n│ Capture Lead │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Qualify      │\n│ Lead         │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Contact      │\n│ Lead         │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Present      │\n│ Proposal     │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Negotiate    │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Close Deal   │\n│ (Won/Lost)   │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Convert to   │\n│ Customer     │\n└──────────────┘\n```\n\n## Pipeline Stages\nCommon stages include:\n- New\n- Contacted\n- Qualified\n- Proposal\n- Negotiation\n- Won/Lost\n\n## Managing Leads\n- Add leads manually or import\n- Assign to sales team\n- Schedule follow-ups\n- Track activities\n- Move through pipeline\n\n## Lead Scoring\n- Assign scores based on actions\n- Prioritize high-value leads\n- Automate follow-ups\n- Improve conversion rates\n\n## Conversion\n- Convert leads to customers\n- Create opportunities\n- Track conversion rates\n- Analyze pipeline health\n      "
+    },
+    {
+      "id": 35,
+      "title": "Marketing Campaigns",
+      "description": "Create and manage marketing campaigns",
+      "type": "article",
+      "readTime": "9 min",
+      "views": 1250,
+      "helpful": 100,
+      "content": "\n# Marketing Campaigns\n\n## Campaign Types\n- Email campaigns\n- SMS campaigns\n- WhatsApp broadcasts\n- Multi-channel campaigns\n\n## Creating Campaigns\n1. Go to **Marketing > Campaigns**\n2. Click **Create Campaign**\n3. Select campaign type\n4. Define target audience\n5. Create content\n6. Schedule send\n\n## Targeting\n- Segment by customer attributes\n- Filter by purchase history\n- Target by location\n- Custom audience lists\n\n## Content Creation\n- Use templates\n- Customize messages\n- Add personalization\n- Include calls-to-action\n\n## Scheduling\n- Set send date and time\n- Optimize for engagement\n- A/B testing\n- Automated triggers\n\n## Analytics\n- Open rates\n- Click rates\n- Conversion tracking\n- ROI measurement\n      "
+    },
+    {
+      "id": 36,
+      "title": "Loyalty Programs",
+      "description": "Set up and manage customer loyalty",
+      "type": "article",
+      "readTime": "7 min",
+      "views": 1100,
+      "helpful": 92,
+      "content": "\n# Loyalty Programs\n\n## Program Setup\n1. Go to **Customers > Loyalty**\n2. Click **Create Program**\n3. Set earning rules\n4. Configure redemption\n5. Define tiers\n6. Launch program\n\n## Points System\n- Points per purchase\n- Bonus points actions\n- Point expiration\n- Point multipliers\n\n## Tiers and Rewards\n- Bronze, Silver, Gold tiers\n- Tier benefits\n- Upgrade criteria\n- Exclusive offers\n\n## Customer Engagement\n- Points balance tracking\n- Reward notifications\n- Birthday bonuses\n- Referral rewards\n\n## Program Analytics\n- Enrollment rates\n- Redemption rates\n- Customer retention\n- Program ROI\n      "
+    }
+  ],
+  "dala": [
+    {
+      "id": 9,
+      "title": "Dala Property Management",
+      "description": "Real estate and property management",
+      "type": "article",
+      "readTime": "10 min",
+      "views": 1800,
+      "helpful": 140,
+      "content": "\n# Dala Property Management\n\n## What is Dala?\nDala by Base is a property and real estate management system for managing properties, tenants, leases, and maintenance.\n\n## Key Features\n\n### 1. Property Management\n- Property portfolio tracking\n- Unit management\n- Property details and amenities\n- Location mapping\n\n### 2. Tenant Management\n- Tenant database\n- Lease agreements\n- Rent tracking\n- Payment history\n\n### 3. Lease Management\n- Lease creation and renewal\n- Rent schedules\n- Deposit tracking\n- Lease termination\n\n### 4. Maintenance\n- Work order management\n- Vendor management\n- Maintenance tracking\n- Cost tracking\n\n### 5. Financials\n- Rent collection\n- Expense tracking\n- Property P&L\n- Tax reporting\n\n## Getting Started\n\n### Setup\n1. Add properties\n2. Configure units\n3. Set up lease templates\n4. Add vendors\n5. Configure rent schedules\n\n### Daily Operations\n- Process rent payments\n- Handle maintenance requests\n- Update tenant information\n- Generate reports\n      "
+    },
+    {
+      "id": 10,
+      "title": "Lease & Rent Management",
+      "description": "Manage leases and rent collection",
+      "type": "article",
+      "readTime": "7 min",
+      "views": 1300,
+      "helpful": 105,
+      "content": "\n# Lease & Rent Management\n\n## Lease Lifecycle\n\n```\n┌──────────────┐\n│ Create Lease │\n│ (Property,   │\n│  Unit, Tenant)│\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Collect      │\n│ Security     │\n│ Deposit      │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Generate     │\n│ Agreement    │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Schedule     │\n│ Rent Payments│\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Collect Rent │\n│ (Monthly)    │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Track        │\n│ Payments     │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Renewal/     │\n│ Termination  │\n└──────────────┘\n```\n\n## Creating Leases\n1. Select property and unit\n2. Add tenant details\n3. Set lease terms\n4. Configure rent schedule\n5. Collect security deposit\n6. Generate lease agreement\n\n## Rent Collection\n- Automatic rent reminders\n- Online payment processing\n- Receipt generation\n- Late fee calculation\n- Payment tracking\n\n## Lease Renewals\n- Renewal reminders\n- Rent increase options\n- Term modification\n- Agreement updates\n\n## Lease Termination\n- Notice period tracking\n- Deposit refund calculation\n- Final settlement\n- Unit availability update\n      "
+    },
+    {
+      "id": 37,
+      "title": "Maintenance Management",
+      "description": "Handle property maintenance requests",
+      "type": "article",
+      "readTime": "8 min",
+      "views": 1150,
+      "helpful": 95,
+      "content": "\n# Maintenance Management\n\n## Work Orders\n1. Go to **Maintenance > Work Orders**\n2. Click **Create Work Order**\n3. Select property and unit\n4. Describe the issue\n5. Set priority level\n6. Assign to vendor\n\n## Request Types\n- Repairs\n- Inspections\n- Upgrades\n- Emergency maintenance\n- Preventive maintenance\n\n## Vendor Management\n- Add maintenance vendors\n- Track vendor performance\n- Compare pricing\n- Manage contracts\n\n## Scheduling\n- Schedule appointments\n- Track completion\n- Update tenants\n- Document work\n\n## Cost Tracking\n- Labor costs\n- Material costs\n- Vendor invoices\n- Budget tracking\n\n## Reporting\n- Maintenance history\n- Cost analysis\n- Vendor performance\n- Property condition\n      "
+    },
+    {
+      "id": 38,
+      "title": "Property Analytics",
+      "description": "Analyze property performance",
+      "type": "article",
+      "readTime": "6 min",
+      "views": 950,
+      "helpful": 78,
+      "content": "\n# Property Analytics\n\n## Occupancy Rates\n- Track occupancy by property\n- Vacancy analysis\n- Lease expiration tracking\n- Renewal rates\n\n## Revenue Metrics\n- Rental income\n- Additional revenue\n- Revenue trends\n- Comparison by property\n\n## Expense Tracking\n- Maintenance costs\n- Operating expenses\n- Capital improvements\n- Cost per unit\n\n## Property Performance\n- Net operating income\n- Cap rate calculation\n- ROI analysis\n- Property valuation\n\n## Tenant Analytics\n- Tenant retention\n- Payment history\n- Lease terms analysis\n- Default rates\n\n## Reports\n- Property performance reports\n- Portfolio overview\n- Cash flow analysis\n- Investment returns\n      "
+    }
+  ],
+  "etims": [
+    {
+      "id": 11,
+      "title": "Etims Integration Guide",
+      "description": "KRA tax compliance and Etims setup",
+      "type": "article",
+      "readTime": "15 min",
+      "views": 3500,
+      "helpful": 280,
+      "content": "\n# Etims Integration Guide\n\n## What is Etims?\nEtims (Electronic Tax Invoice Management System) is KRA's system for electronic tax invoicing and compliance in Kenya.\n\n## Etims Integration Flow\n\n```\n┌──────────────┐\n│ Configure    │\n│ Etims        │\n│ (KRA PIN,    │\n│  Credentials)│\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Test         │\n│ Connection   │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Enable       │\n│ Integration  │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Sale Made    │\n│ (Duka POS)   │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Auto-Generate│\n│ Invoice      │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Validate     │\n│ with KRA     │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Submit to    │\n│ KRA          │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Track Status │\n│ & Reports    │\n└──────────────┘\n```\n\n## Integration Benefits\n- Automatic VAT invoice generation\n- Direct KRA submission\n- Compliance with tax regulations\n- Real-time validation\n- Digital receipt management\n\n## Setup Requirements\n\n### Prerequisites\n- Valid KRA PIN\n- Etims credentials from KRA\n- Active internet connection\n- Valid business license\n\n### Configuration Steps\n1. Go to **Settings > Etims**\n2. Enter KRA PIN\n3. Configure Etims credentials\n4. Set up communication details\n5. Test connection\n6. Enable integration\n\n## Using Etims\n\n### Invoice Generation\n- Invoices auto-generated on sales\n- Validated against KRA system\n- Unique serial numbers\n- QR code inclusion\n\n### Submission\n- Automatic or manual submission\n- Real-time status updates\n- Error handling\n- Retry mechanism\n\n### Reporting\n- VAT returns\n- Sales reports\n- Export to KRA format\n- Audit trail\n\n## Troubleshooting\n- Connection issues\n- Validation errors\n- Submission failures\n- Serial number conflicts\n\n## Compliance Notes\n- Ensure all sales are invoiced\n- Keep records for 7 years\n- Regular reconciliation\n- Stay updated on KRA changes\n      "
+    },
+    {
+      "id": 12,
+      "title": "VAT Compliance & Reporting",
+      "description": "Manage VAT and tax reporting",
+      "type": "article",
+      "readTime": "9 min",
+      "views": 2800,
+      "helpful": 210,
+      "content": "\n# VAT Compliance & Reporting\n\n## VAT Overview\n- Standard VAT rate: 16%\n- Zero-rated items: 0%\n- Exempt items: No VAT\n\n## VAT Configuration\n1. Set up tax rates in Pesa\n2. Mark products as taxable/exempt\n3. Configure VAT accounts\n4. Set reporting periods\n\n## VAT Tracking\n- VAT collected on sales\n- VAT paid on purchases\n- Input VAT credit\n- Net VAT calculation\n\n## VAT Returns\n- Monthly or quarterly filing\n- Automatic calculation\n- KRA submission ready\n- Export to required format\n\n## Best Practices\n- Regular reconciliation\n- Proper documentation\n- Timely filing\n- Audit preparation\n      "
+    }
+  ],
+  "bandu": [
+    {
+      "id": 19,
+      "title": "Bandu HR Overview",
+      "description": "Human resources and payroll management",
+      "type": "article",
+      "readTime": "10 min",
+      "views": 1600,
+      "helpful": 130,
+      "content": "\n# Bandu HR Overview\n\n## What is Bandu?\nBandu by Base is a comprehensive Human Resources and Payroll management system integrated with the Base Suite.\n\n## Key Features\n\n### 1. Employee Management\n- Employee profiles and records\n- Department and role assignments\n- Employment history tracking\n- Document management\n\n### 2. Payroll Processing\n- Automated payroll calculations\n- Salary structures and grades\n- Deductions and allowances\n- Payslip generation\n\n### 3. Attendance & Time Tracking\n- Clock in/out tracking\n- Leave management\n- Overtime calculation\n- Attendance reports\n\n### 4. Benefits & Compensation\n- Health insurance\n- Pension schemes\n- Bonus calculations\n- Tax compliance\n\n## Getting Started\n\n### Setup\n1. Configure company details\n2. Set up departments\n3. Create salary structures\n4. Add employee records\n5. Configure payroll schedules\n\n### Daily Operations\n- Record attendance\n- Process leave requests\n- Manage payroll runs\n- Generate reports\n\n## Integration with Other Modules\n- Syncs with Pesa for accounting\n- Integrates with Duka for staff sales tracking\n- Connects to Mteja for employee communication\n      "
+    },
+    {
+      "id": 20,
+      "title": "Managing Wages & Payroll",
+      "description": "Process payroll and manage employee wages",
+      "type": "article",
+      "readTime": "12 min",
+      "views": 1400,
+      "helpful": 115,
+      "content": "\n# Managing Wages & Payroll\n\n## Payroll Processing Flow\n\n```\n┌──────────────┐\n│ Record       │\n│ Attendance   │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Calculate    │\n│ Hours Worked │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Calculate    │\n│ Overtime     │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Apply Wage   │\n│ Structure    │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Calculate    │\n│ Deductions   │\n│ (PAYE, NSSF, │\n│  NHIF, etc.) │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Calculate    │\n│ Net Pay      │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Generate     │\n│ Payslips     │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Process      │\n│ Payments     │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Update       │\n│ Accounting   │\n└──────────────┘\n```\n\n## Setting Up Wages\n\n### 1. Create Wage Structure\n- Go to **Admin > Wages**\n- Click **Add Wage Structure**\n- Define basic salary\n- Add allowances and deductions\n- Set tax configurations\n\n### 2. Assign to Employees\n- Select employees\n- Assign wage structure\n- Set effective dates\n- Configure payment schedule\n\n## Processing Payroll\n\n### Monthly Payroll Run\n1. Navigate to **Wages > Process Payroll**\n2. Select pay period\n3. Review attendance data\n4. Calculate overtime\n5. Preview payroll\n6. Approve and process\n\n### Payslip Generation\n- Automatic payslip generation\n- Email to employees\n- PDF download\n- Archive for records\n\n## Managing Deductions\n\n### Common Deductions\n- PAYE (tax)\n- NSSF (social security)\n- NHIF (health insurance)\n- Pension contributions\n- Loan repayments\n\n### Configuring Deductions\n1. Go to **Wages > Deductions**\n2. Add deduction type\n3. Set calculation method\n4. Assign to employees\n\n## Reports\n- Payroll summary\n- Tax reports\n- Deduction reports\n- Cost analysis\n      "
+    }
+  ],
+  "admin": [
+    {
+      "id": 21,
+      "title": "Admin Dashboard Overview",
+      "description": "Navigate and use the admin dashboard",
+      "type": "article",
+      "readTime": "8 min",
+      "views": 3200,
+      "helpful": 245,
+      "content": "\n# Admin Dashboard Overview\n\n## Dashboard Navigation Flow\n\n```\n┌──────────────┐\n│ Login to     │\n│ Base Point   │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Admin        │\n│ Dashboard    │\n└──────┬───────┘\n       │\n       ├─────────────┬─────────────┬─────────────┐\n       ▼             ▼             ▼             ▼\n┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐\n│ Shops    │ │Customers │ │ Staff    │ │ Settings │\n└──────────┘ └──────────┘ └──────────┘ └──────────┘\n       │             │             │             │\n       ▼             ▼             ▼             ▼\n┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐\n│ Manage   │ │ Manage   │ │ Manage   │ │ Configure│\n│ Locations│ │ Database │ │ Users    │ │ System   │\n└──────────┘ └──────────┘ └──────────┘ └──────────┘\n```\n\n## Dashboard Navigation\nThe Admin Dashboard is your central hub for managing all aspects of your Base Point solution.\n\n## Main Sections\n\n### 1. Dashboard\n- Overview of key metrics\n- Quick access to recent activities\n- Performance indicators\n- Module status\n\n### 2. Shops & Branches\n- Manage multiple locations\n- Configure shop settings\n- Track branch performance\n- Transfer inventory\n\n### 3. Customers\n- Customer database\n- Customer profiles\n- Purchase history\n- Communication logs\n\n### 4. Staff & Users\n- User management\n- Role-based access control\n- Permissions configuration\n- Activity tracking\n\n### 5. Settings\n- Company configuration\n- Module settings\n- Integration setup\n- System preferences\n\n## Quick Actions\n- Add new shop\n- Create customer\n- Add staff member\n- Generate reports\n- Access help center\n\n## Customization\n- Configure dashboard widgets\n- Set up notifications\n- Customize views\n- Create shortcuts\n      "
+    },
+    {
+      "id": 22,
+      "title": "Managing Shops & Branches",
+      "description": "Configure and manage multiple shop locations",
+      "type": "article",
+      "readTime": "10 min",
+      "views": 1900,
+      "helpful": 155,
+      "content": "\n# Managing Shops & Branches\n\n## Shop Setup Flow\n\n```\n┌──────────────┐\n│ Go to Admin │\n│ > Shops      │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Click Add    │\n│ Shop         │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Enter Basic  │\n│ Info (Name,  │\n│  Address)    │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Select POS   │\n│ Mode         │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Configure    │\n│ Tax &        │\n│ Payments     │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Link         │\n│ Inventory    │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Setup Tables │\n│ (Restaurant) │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Save &       │\n│ Activate     │\n└──────────────┘\n```\n\n## Adding a New Shop\n\n### Step 1: Basic Information\n1. Go to **Admin > Shops**\n2. Click **Add Shop**\n3. Enter shop name\n4. Add address and contact details\n5. Set operating hours\n\n### Step 2: Configuration\n- Select POS mode (Restaurant/Retail)\n- Configure tax settings\n- Set up receipt templates\n- Configure payment methods\n\n### Step 3: Inventory Setup\n- Link to inventory\n- Set stock levels\n- Configure suppliers\n- Set reorder points\n\n## Managing Multiple Branches\n\n### Branch Operations\n- Transfer inventory between branches\n- Track branch performance\n- Compare sales data\n- Centralized reporting\n\n### Branch Settings\n- Individual branch configuration\n- Local pricing options\n- Branch-specific tax rates\n- Custom payment methods\n\n## Shop Services\n- Configure service types\n- Set up service pricing\n- Manage service availability\n- Track service usage\n\n## Reports\n- Branch performance reports\n- Inventory by location\n- Sales comparison\n- Staff performance by branch\n      "
+    },
+    {
+      "id": 23,
+      "title": "Customer Management",
+      "description": "Manage customer data and relationships",
+      "type": "article",
+      "readTime": "7 min",
+      "views": 2100,
+      "helpful": 170,
+      "content": "\n# Customer Management\n\n## Adding Customers\n\n### Manual Entry\n1. Go to **Admin > Customers**\n2. Click **Add Customer**\n3. Enter customer details\n4. Add contact information\n6. Save customer profile\n\n### Import from CSV\n1. Download customer template\n2. Fill in customer data\n3. Upload CSV file\n4. Map fields\n5. Import customers\n\n## Customer Profiles\n\n### Information Tracked\n- Personal details\n- Contact information\n- Purchase history\n- Payment methods\n- Loyalty points\n- Communication preferences\n\n### Customer Segmentation\n- Create customer groups\n- Segment by purchase behavior\n- Target specific segments\n- Custom pricing rules\n\n## Customer Engagement\n\n### Communication\n- Send email campaigns\n- SMS notifications\n- WhatsApp messages\n- Birthday greetings\n\n### Loyalty Programs\n- Points system\n- Reward tiers\n- Special offers\n- Referral bonuses\n\n## Customer Analytics\n- Purchase patterns\n- Lifetime value\n- Churn analysis\n- Satisfaction scores\n      "
+    },
+    {
+      "id": 24,
+      "title": "System Settings & Configuration",
+      "description": "Configure system-wide settings",
+      "type": "article",
+      "readTime": "12 min",
+      "views": 2500,
+      "helpful": 195,
+      "content": "\n# System Settings & Configuration\n\n## Company Settings\n\n### Basic Information\n- Company name and logo\n- Business address\n- Contact details\n- Tax registration numbers\n\n### Business Configuration\n- Fiscal year settings\n- Currency configuration\n- Time zone settings\n- Date format preferences\n\n## Module Configuration\n\n### Duka Settings\n- POS mode selection\n- Receipt customization\n- Payment method setup\n- Tax configuration\n\n### Pesa Settings\n- Chart of accounts\n- Tax rates\n- Fiscal periods\n- Bank accounts\n\n### Mteja Settings\n- Lead stages\n- Communication templates\n- Sales targets\n- Loyalty rules\n\n### Dala Settings\n- Property types\n- Lease templates\n- Rent schedules\n- Maintenance rules\n\n## Integration Settings\n\n### Payment Gateways\n- Pesapal configuration\n- M-Pesa integration\n- Card payment setup\n- Mobile money options\n\n### Tax Integration\n- Etims setup\n- KRA credentials\n- VAT configuration\n- Compliance settings\n\n### Third-Party Integrations\n- Email services\n- SMS providers\n- Accounting software\n- CRM systems\n\n## Security Settings\n- User authentication\n- Password policies\n- Two-factor authentication\n- Session management\n- Audit logging\n\n## Notification Settings\n- Email notifications\n- SMS alerts\n- In-app notifications\n- Notification preferences\n      "
+    }
+  ],
+  "reports": [
+    {
+      "id": 25,
+      "title": "Reports & Analytics Overview",
+      "description": "Understanding business intelligence features",
+      "type": "article",
+      "readTime": "10 min",
+      "views": 2800,
+      "helpful": 220,
+      "content": "\n# Reports & Analytics Overview\n\n## Report Generation Flow\n\n```\n┌──────────────┐\n│ Select       │\n│ Report Type  │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Choose       │\n│ Date Range   │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Apply        │\n│ Filters      │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Generate     │\n│ Report       │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ View         │\n│ Visualizations│\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Export       │\n│ (PDF/Excel)  │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Share/       │\n│ Schedule     │\n└──────────────┘\n```\n\n## Report Categories\n\n### 1. Sales Reports\n- Daily sales summary\n- Product performance\n- Category analysis\n- Staff performance\n- Time-based trends\n\n### 2. Inventory Reports\n- Stock levels\n- Movement reports\n- Valuation reports\n- Low stock alerts\n- Reorder recommendations\n\n### 3. Financial Reports\n- Revenue reports\n- Expense tracking\n- Profit analysis\n- Cash flow\n- Tax reports\n\n### 4. Customer Reports\n- Customer analysis\n- Purchase patterns\n- Loyalty metrics\n- Churn analysis\n- Lifetime value\n\n### 5. Operational Reports\n- Staff performance\n- Shift reports\n- Service metrics\n- Efficiency analysis\n- Capacity utilization\n\n## Dashboard Analytics\n\n### Key Performance Indicators\n- Revenue trends\n- Growth metrics\n- Conversion rates\n- Average order value\n- Customer satisfaction\n\n### Visualizations\n- Charts and graphs\n- Heat maps\n- Trend lines\n- Comparative analysis\n- Geographic distribution\n\n## Custom Reports\n\n### Creating Custom Reports\n1. Select data source\n2. Choose metrics\n3. Apply filters\n4. Set date ranges\n5. Configure visualization\n6. Save and schedule\n\n### Report Scheduling\n- Daily, weekly, monthly\n- Email delivery\n- PDF export\n- Dashboard embedding\n\n## Export Options\n- Excel spreadsheets\n- PDF reports\n- CSV data\n- API access\n- Real-time dashboards\n      "
+    },
+    {
+      "id": 26,
+      "title": "Sales Performance Reports",
+      "description": "Analyze sales data and trends",
+      "type": "article",
+      "readTime": "8 min",
+      "views": 2200,
+      "helpful": 175,
+      "content": "\n# Sales Performance Reports\n\n## Daily Sales Report\n- Total revenue\n- Transaction count\n- Average order value\n- Payment method breakdown\n- Hourly sales distribution\n\n## Product Performance\n- Top-selling products\n- Slow-moving items\n- Category analysis\n- Margin analysis\n- Stock turnover\n\n## Staff Performance\n- Sales by staff\n- Average transaction value\n- Customer satisfaction\n- Upsell success rate\n- Productivity metrics\n\n## Time-Based Analysis\n- Daily comparisons\n- Weekly trends\n- Monthly summaries\n- Year-over-year growth\n- Seasonal patterns\n\n## Customer Insights\n- New vs returning customers\n- Purchase frequency\n- Average spend\n- Basket analysis\n- Channel performance\n\n## Generating Reports\n1. Go to **Reports > Sales**\n2. Select report type\n3. Choose date range\n4. Apply filters\n5. Generate report\n6. Export or share\n      "
+    },
+    {
+      "id": 27,
+      "title": "Inventory Reports",
+      "description": "Track and analyze inventory data",
+      "type": "article",
+      "readTime": "7 min",
+      "views": 1800,
+      "helpful": 145,
+      "content": "\n# Inventory Reports\n\n## Stock Status Report\n- Current stock levels\n- Reorder points\n- Stock value\n- Location breakdown\n- Category summary\n\n## Movement Reports\n- Stock in (purchases)\n- Stock out (sales)\n- Transfers\n- Adjustments\n- Wastage\n\n## Valuation Reports\n- Total inventory value\n- Cost of goods sold\n- Inventory turnover\n- Aging analysis\n- Margin analysis\n\n## Low Stock Alerts\n- Items below reorder point\n- Out of stock items\n- Critical shortages\n- Recommended orders\n- Supplier information\n\n## Generating Inventory Reports\n1. Go to **Reports > Inventory**\n2. Select report type\n3. Choose date range\n4. Filter by location/category\n5. Generate report\n6. Export to Excel/PDF\n      "
+    }
+  ],
+  "onboarding": [
+    {
+      "id": 13,
+      "title": "Quick Start Guide",
+      "description": "Get up and running in 5 minutes",
+      "type": "video",
+      "readTime": "5 min",
+      "views": 1200,
+      "helpful": 89,
+      "content": "\n# Quick Start Guide\n\n## Welcome to Base Point\nThis guide will help you get started with Base Point in just 5 minutes.\n\n## Step 1: Account Setup\n1. Log in to your account\n2. Complete your profile\n3. Configure your business details\n4. Set up your first shop\n\n## Step 2: Module Activation\n- Activate Duka (POS) for sales\n- Activate Pesa (Accounting) for finances\n- Activate Mteja (CRM) for customers\n- Activate Dala (Property) if needed\n- Activate Bandu (HR) for payroll\n\n## Step 3: Basic Configuration\n- Add your first products\n- Set up payment methods\n- Configure tax settings\n- Add staff members\n\n## Step 4: First Sale\n- Open the POS interface\n- Add items to cart\n- Complete the sale\n- Print receipt\n\n## Step 5: Explore\n- Check the dashboard\n- View reports\n- Try the help center\n\n## Need Help?\n- Browse our help articles\n- Contact support\n- Watch video tutorials\n      "
+    },
+    {
+      "id": 14,
+      "title": "Account Setup",
+      "description": "Configure your account settings",
+      "type": "article",
+      "readTime": "3 min",
+      "views": 800,
+      "helpful": 65,
+      "content": "\n# Account Setup\n\n## Profile Configuration\n1. Go to **Settings > Profile**\n2. Upload your logo\n3. Add business address\n4. Set contact details\n5. Configure time zone\n\n## Business Information\n- Company name\n- Business type\n- Tax registration\n- Industry details\n\n## User Preferences\n- Language settings\n- Date format\n- Currency format\n- Notification preferences\n\n## Security Setup\n- Set strong password\n- Enable 2FA\n- Configure session timeout\n- Set up recovery options\n      "
+    },
+    {
+      "id": 39,
+      "title": "Module Activation Guide",
+      "description": "Activate and configure Base Suite modules",
+      "type": "article",
+      "readTime": "8 min",
+      "views": 1500,
+      "helpful": 120,
+      "content": "\n# Module Activation Guide\n\n## Module Activation Flow\n\n```\n┌──────────────┐\n│ Go to        │\n│ Discover     │\n│ Page         │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Select       │\n│ Module       │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Review       │\n│ Features     │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Click Enable │\n│ Module       │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Configure    │\n│ Settings     │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Complete     │\n│ Setup Wizard │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Start Using │\n│ Module       │\n└──────────────┘\n```\n\n## Available Modules\n\n### Duka (POS)\n- Point of Sale operations\n- Inventory management\n- Customer management\n- Sales reporting\n\n### Pesa (Accounting)\n- Financial management\n- Journal entries\n- Financial reports\n- Tax compliance\n\n### Mteja (CRM)\n- Lead management\n- Customer database\n- Marketing campaigns\n- Loyalty programs\n\n### Dala (Property)\n- Property management\n- Tenant management\n- Lease tracking\n- Maintenance\n\n### Bandu (HR)\n- Employee management\n- Payroll processing\n- Attendance tracking\n- Benefits management\n\n## Activation Steps\n1. Go to **Discover** page\n2. Select module to activate\n3. Review module features\n4. Click **Enable Module**\n5. Configure settings\n6. Start using\n\n## Module Integration\n- Modules work together seamlessly\n- Data syncs automatically\n- Unified dashboard\n- Cross-module reporting\n      "
+    },
+    {
+      "id": 40,
+      "title": "Data Import Guide",
+      "description": "Import your existing data into Base Point",
+      "type": "article",
+      "readTime": "10 min",
+      "views": 1100,
+      "helpful": 95,
+      "content": "\n# Data Import Guide\n\n## Supported Data Types\n- Products\n- Customers\n- Suppliers\n- Employees\n- Inventory\n\n## Import Process\n\n### 1. Download Template\n1. Go to **Settings > Import**\n2. Select data type\n3. Download CSV template\n4. Fill in your data\n\n### 2. Prepare Data\n- Follow template format\n- Use correct data types\n- Validate required fields\n- Check for duplicates\n\n### 3. Upload File\n1. Select prepared CSV\n2. Map fields\n3. Preview data\n4. Validate import\n\n### 4. Complete Import\n- Review summary\n- Handle errors\n- Confirm import\n- Verify data\n\n## Best Practices\n- Backup before import\n- Import in batches\n- Validate after import\n- Keep original files\n      "
+    }
+  ],
+  "billing": [
+    {
+      "id": 15,
+      "title": "Subscription Plans",
+      "description": "Compare plans and pricing",
+      "type": "article",
+      "readTime": "4 min",
+      "views": 950,
+      "helpful": 72,
+      "content": "\n# Subscription Plans\n\n## Plan Tiers\n\n### Starter\n- Basic POS features\n- Single location\n- Limited users\n- Essential reports\n\n### Professional\n- Full POS suite\n- Multiple locations\n- Advanced reports\n- Integration support\n\n### Enterprise\n- All modules included\n- Unlimited locations\n- Custom integrations\n- Priority support\n\n## Pricing\n- Monthly billing\n- Annual discounts\n- Per-location pricing\n- Add-on modules\n\n## Choosing a Plan\n- Assess your needs\n- Consider growth\n- Compare features\n- Calculate ROI\n\n## Upgrading\n- Easy upgrade process\n- Pro-rated billing\n- Data migration\n- No downtime\n      "
+    },
+    {
+      "id": 16,
+      "title": "Payment Methods",
+      "description": "Add and manage payment options",
+      "type": "article",
+      "readTime": "2 min",
+      "views": 650,
+      "helpful": 45,
+      "content": "\n# Payment Methods\n\n## Supported Methods\n- Credit/Debit Cards\n- M-Pesa\n- Bank Transfer\n- Mobile Money\n- Cash\n\n## Adding Payment Method\n1. Go to **Settings > Billing**\n2. Click **Add Payment Method**\n3. Enter card details\n4. Set as default\n5. Save\n\n## Managing Payments\n- View payment history\n- Update payment methods\n- Set auto-renewal\n- Manage invoices\n\n## Invoices\n- Automatic invoicing\n- PDF download\n- Email delivery\n- Payment tracking\n      "
+    },
+    {
+      "id": 41,
+      "title": "Understanding Your Bill",
+      "description": "Read and understand your billing statement",
+      "type": "article",
+      "readTime": "5 min",
+      "views": 750,
+      "helpful": 60,
+      "content": "\n# Understanding Your Bill\n\n## Bill Components\n\n### Base Subscription\n- Plan cost\n- Location fees\n- User licenses\n- Module add-ons\n\n### Usage Charges\n- Transaction fees\n- Storage costs\n- API calls\n- Overages\n\n### Taxes\n- VAT (if applicable)\n- Service taxes\n- Local taxes\n\n## Reading Your Bill\n- Review billing period\n- Check line items\n- Verify charges\n- Compare with previous\n\n## Payment Options\n- Auto-pay\n- Manual payment\n- Payment plans\n- Early payment discounts\n\n## Disputes\n- Contact support\n- Provide documentation\n- Timeline for resolution\n- Credit policies\n      "
+    }
+  ],
+  "faq": [
+    {
+      "id": 17,
+      "title": "Common Issues",
+      "description": "Troubleshoot frequent problems",
+      "type": "article",
+      "readTime": "6 min",
+      "views": 2100,
+      "helpful": 180,
+      "content": "\n# Common Issues\n\n## Login Problems\n- Forgot password: Use reset link\n- Account locked: Contact support\n- 2FA issues: Use backup codes\n- Session expired: Log in again\n\n## POS Issues\n- Products not showing: Check inventory\n- Payment failed: Try again or use different method\n- Receipt not printing: Check printer settings\n- Sync errors: Check internet connection\n\n## Performance\n- Slow loading: Clear cache\n- App crashes: Update browser\n- Data not syncing: Check connection\n- Timeout errors: Refresh page\n\n## Data Issues\n- Missing data: Check filters\n- Incorrect totals: Verify entries\n- Duplicate records: Merge or delete\n- Export errors: Check permissions\n\n## Getting Help\n- Search help center\n- Contact support\n- Join community\n- Schedule training\n      "
+    },
+    {
+      "id": 18,
+      "title": "Contact Support",
+      "description": "Get help from our team",
+      "type": "article",
+      "readTime": "1 min",
+      "views": 500,
+      "helpful": 30,
+      "content": "\n# Contact Support\n\n## Support Channels\n\n### Email Support\n- support@basepoint.com\n- Response within 24 hours\n- Include account details\n- Describe the issue\n\n### Phone Support\n- Available for Enterprise plans\n- Business hours only\n- Have account info ready\n- Describe issue clearly\n\n### Live Chat\n- Available in app\n- Instant responses\n- For quick questions\n- Business hours\n\n### Ticket System\n- Submit detailed tickets\n- Track progress\n- Attach screenshots\n- View history\n\n## Before Contacting\n- Check help center\n- Try troubleshooting\n- Gather error details\n- Note steps to reproduce\n\n## Response Times\n- Critical: 4 hours\n- High: 8 hours\n- Normal: 24 hours\n- Low: 48 hours\n      "
+    },
+    {
+      "id": 42,
+      "title": "Security Best Practices",
+      "description": "Keep your account and data secure",
+      "type": "article",
+      "readTime": "7 min",
+      "views": 1800,
+      "helpful": 150,
+      "content": "\n# Security Best Practices\n\n## Password Security\n- Use strong, unique passwords\n- Change passwords regularly\n- Never share passwords\n- Use password manager\n- Enable 2FA\n\n## Account Security\n- Enable two-factor authentication\n- Review login history\n- Revoke unknown sessions\n- Update recovery options\n- Monitor account activity\n\n## Data Protection\n- Regular backups\n- Encrypt sensitive data\n- Limit access permissions\n- Use secure connections\n- Keep software updated\n\n## User Management\n- Remove ex-employees promptly\n- Review access regularly\n- Use role-based permissions\n- Audit user activity\n- Train staff on security\n\n## Phishing Awareness\n- Verify sender identity\n- Don't click suspicious links\n- Report phishing attempts\n- Keep software updated\n- Use email filters\n\n## Compliance\n- Follow data protection laws\n- Maintain audit trails\n- Regular security reviews\n- Incident response plan\n- Staff security training\n      "
+    },
+    {
+      "id": 43,
+      "title": "Performance Optimization",
+      "description": "Improve system performance and speed",
+      "type": "article",
+      "readTime": "5 min",
+      "views": 1200,
+      "helpful": 98,
+      "content": "\n# Performance Optimization\n\n## Browser Optimization\n- Use latest browser version\n- Clear cache regularly\n- Disable unnecessary extensions\n- Enable hardware acceleration\n- Reduce open tabs\n\n## Network Optimization\n- Use stable internet connection\n- Prefer wired connection\n- Check bandwidth\n- Use CDN if available\n- Minimize network calls\n\n## Data Management\n- Archive old data\n- Clean up unused records\n- Optimize database\n- Regular maintenance\n- Monitor storage limits\n\n## System Configuration\n- Adjust cache settings\n- Optimize image sizes\n- Enable compression\n- Use lazy loading\n- Minimize API calls\n\n## Monitoring\n- Track performance metrics\n- Identify bottlenecks\n- Monitor error rates\n- Set up alerts\n- Regular reviews\n\n## When to Contact Support\n- Persistent slowness\n- Frequent errors\n- Timeout issues\n- Unusual behavior\n- Performance degradation\n      "
+    }
+  ]
+}

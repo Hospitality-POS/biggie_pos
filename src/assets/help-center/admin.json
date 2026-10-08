@@ -1,0 +1,42 @@
+[
+  {
+    "id": 21,
+    "title": "Admin Dashboard Overview",
+    "description": "Navigate and use the admin dashboard",
+    "type": "article",
+    "readTime": "8 min",
+    "views": 3200,
+    "helpful": 245,
+    "content": "\n# Admin Dashboard Overview\n\n## Dashboard Navigation Flow\n\n```\n┌──────────────┐\n│ Login to     │\n│ Base Point   │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Admin        │\n│ Dashboard    │\n└──────┬───────┘\n       │\n       ├─────────────┬─────────────┬─────────────┐\n       ▼             ▼             ▼             ▼\n┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐\n│ Shops    │ │Customers │ │ Staff    │ │ Settings │\n└──────────┘ └──────────┘ └──────────┘ └──────────┘\n       │             │             │             │\n       ▼             ▼             ▼             ▼\n┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐\n│ Manage   │ │ Manage   │ │ Manage   │ │ Configure│\n│ Locations│ │ Database │ │ Users    │ │ System   │\n└──────────┘ └──────────┘ └──────────┘ └──────────┘\n```\n\n## Dashboard Navigation\nThe Admin Dashboard is your central hub for managing all aspects of your Base Point solution.\n\n## Main Sections\n\n### 1. Dashboard\n- Overview of key metrics\n- Quick access to recent activities\n- Performance indicators\n- Module status\n\n### 2. Shops & Branches\n- Manage multiple locations\n- Configure shop settings\n- Track branch performance\n- Transfer inventory\n\n### 3. Customers\n- Customer database\n- Customer profiles\n- Purchase history\n- Communication logs\n\n### 4. Staff & Users\n- User management\n- Role-based access control\n- Permissions configuration\n- Activity tracking\n\n### 5. Settings\n- Company configuration\n- Module settings\n- Integration setup\n- System preferences\n\n## Quick Actions\n- Add new shop\n- Create customer\n- Add staff member\n- Generate reports\n- Access help center\n\n## Customization\n- Configure dashboard widgets\n- Set up notifications\n- Customize views\n- Create shortcuts\n      "
+  },
+  {
+    "id": 22,
+    "title": "Managing Shops & Branches",
+    "description": "Configure and manage multiple shop locations",
+    "type": "article",
+    "readTime": "10 min",
+    "views": 1900,
+    "helpful": 155,
+    "content": "\n# Managing Shops & Branches\n\n## Shop Setup Flow\n\n```\n┌──────────────┐\n│ Go to Admin │\n│ > Shops      │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Click Add    │\n│ Shop         │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Enter Basic  │\n│ Info (Name,  │\n│  Address)    │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Select POS   │\n│ Mode         │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Configure    │\n│ Tax &        │\n│ Payments     │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Link         │\n│ Inventory    │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Setup Tables │\n│ (Restaurant) │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Save &       │\n│ Activate     │\n└──────────────┘\n```\n\n## Adding a New Shop\n\n### Step 1: Basic Information\n1. Go to **Admin > Shops**\n2. Click **Add Shop**\n3. Enter shop name\n4. Add address and contact details\n5. Set operating hours\n\n### Step 2: Configuration\n- Select POS mode (Restaurant/Retail)\n- Configure tax settings\n- Set up receipt templates\n- Configure payment methods\n\n### Step 3: Inventory Setup\n- Link to inventory\n- Set stock levels\n- Configure suppliers\n- Set reorder points\n\n## Managing Multiple Branches\n\n### Branch Operations\n- Transfer inventory between branches\n- Track branch performance\n- Compare sales data\n- Centralized reporting\n\n### Branch Settings\n- Individual branch configuration\n- Local pricing options\n- Branch-specific tax rates\n- Custom payment methods\n\n## Shop Services\n- Configure service types\n- Set up service pricing\n- Manage service availability\n- Track service usage\n\n## Reports\n- Branch performance reports\n- Inventory by location\n- Sales comparison\n- Staff performance by branch\n      "
+  },
+  {
+    "id": 23,
+    "title": "Customer Management",
+    "description": "Manage customer data and relationships",
+    "type": "article",
+    "readTime": "7 min",
+    "views": 2100,
+    "helpful": 170,
+    "content": "\n# Customer Management\n\n## Adding Customers\n\n### Manual Entry\n1. Go to **Admin > Customers**\n2. Click **Add Customer**\n3. Enter customer details\n4. Add contact information\n6. Save customer profile\n\n### Import from CSV\n1. Download customer template\n2. Fill in customer data\n3. Upload CSV file\n4. Map fields\n5. Import customers\n\n## Customer Profiles\n\n### Information Tracked\n- Personal details\n- Contact information\n- Purchase history\n- Payment methods\n- Loyalty points\n- Communication preferences\n\n### Customer Segmentation\n- Create customer groups\n- Segment by purchase behavior\n- Target specific segments\n- Custom pricing rules\n\n## Customer Engagement\n\n### Communication\n- Send email campaigns\n- SMS notifications\n- WhatsApp messages\n- Birthday greetings\n\n### Loyalty Programs\n- Points system\n- Reward tiers\n- Special offers\n- Referral bonuses\n\n## Customer Analytics\n- Purchase patterns\n- Lifetime value\n- Churn analysis\n- Satisfaction scores\n      "
+  },
+  {
+    "id": 24,
+    "title": "System Settings & Configuration",
+    "description": "Configure system-wide settings",
+    "type": "article",
+    "readTime": "12 min",
+    "views": 2500,
+    "helpful": 195,
+    "content": "\n# System Settings & Configuration\n\n## Company Settings\n\n### Basic Information\n- Company name and logo\n- Business address\n- Contact details\n- Tax registration numbers\n\n### Business Configuration\n- Fiscal year settings\n- Currency configuration\n- Time zone settings\n- Date format preferences\n\n## Module Configuration\n\n### Duka Settings\n- POS mode selection\n- Receipt customization\n- Payment method setup\n- Tax configuration\n\n### Pesa Settings\n- Chart of accounts\n- Tax rates\n- Fiscal periods\n- Bank accounts\n\n### Mteja Settings\n- Lead stages\n- Communication templates\n- Sales targets\n- Loyalty rules\n\n### Dala Settings\n- Property types\n- Lease templates\n- Rent schedules\n- Maintenance rules\n\n## Integration Settings\n\n### Payment Gateways\n- Pesapal configuration\n- M-Pesa integration\n- Card payment setup\n- Mobile money options\n\n### Tax Integration\n- Etims setup\n- KRA credentials\n- VAT configuration\n- Compliance settings\n\n### Third-Party Integrations\n- Email services\n- SMS providers\n- Accounting software\n- CRM systems\n\n## Security Settings\n- User authentication\n- Password policies\n- Two-factor authentication\n- Session management\n- Audit logging\n\n## Notification Settings\n- Email notifications\n- SMS alerts\n- In-app notifications\n- Notification preferences\n      "
+  }
+]

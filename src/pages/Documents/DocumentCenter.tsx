@@ -12,7 +12,7 @@ import {
     Button, Space, Tag, Tooltip, Popconfirm, Typography, Badge, Card,
     Tabs, App, Drawer, Row, Col, Statistic, Input, Select, Upload,
     Modal, Divider, Empty, Spin, Grid, Dropdown, Breadcrumb, Form,
-    Segmented, Alert, Progress, Table,
+    Segmented, Alert, DatePicker,
 } from "antd";
 import {
     FolderOutlined, FileOutlined, PlusOutlined,
@@ -24,7 +24,7 @@ import {
     CheckCircleOutlined, ClockCircleOutlined, ExclamationCircleOutlined,
     FilePdfOutlined, FileImageOutlined, FileExcelOutlined, FileWordOutlined,
     FolderAddOutlined, CloudUploadOutlined, RobotOutlined, ThunderboltOutlined,
-    InfoCircleOutlined, WarningOutlined, HourglassOutlined, FilterOutlined,
+    InfoCircleOutlined, WarningOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
@@ -53,24 +53,6 @@ type AgingCategory =
     | "overdue_31_60"
     | "overdue_61_90"
     | "overdue_90_plus";
-
-interface AgingBucket {
-    category: AgingCategory;
-    label: string;
-    color: string;
-    icon: React.ReactNode;
-    minDays: number;
-    maxDays: number | null;
-}
-
-const AGING_BUCKETS: AgingBucket[] = [
-    { category: "current", label: "Current (1-30 days)", color: "#52c41a", icon: <CheckCircleOutlined />, minDays: -30, maxDays: -1 },
-    { category: "upcoming", label: "Upcoming (31+ days)", color: "#1890ff", icon: <ClockCircleOutlined />, minDays: -999, maxDays: -31 },
-    { category: "overdue_1_30", label: "1-30 Days Overdue", color: "#fa8c16", icon: <WarningOutlined />, minDays: 1, maxDays: 30 },
-    { category: "overdue_31_60", label: "31-60 Days Overdue", color: "#fa8c16", icon: <WarningOutlined />, minDays: 31, maxDays: 60 },
-    { category: "overdue_61_90", label: "61-90 Days Overdue", color: "#f5222d", icon: <ExclamationCircleOutlined />, minDays: 61, maxDays: 90 },
-    { category: "overdue_90_plus", label: "90+ Days Overdue", color: "#f5222d", icon: <ExclamationCircleOutlined />, minDays: 91, maxDays: null },
-];
 
 const DOC_TYPE_META: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
     folder: { label: "Folder", icon: <FolderOutlined />, color: "#f5a623" },
@@ -153,237 +135,6 @@ const formatFileSize = (bytes: number) => {
 const getShopId = () => localStorage.getItem("shopId") || "";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SUB-COMPONENT: Clickable Aging Summary Card
-// ─────────────────────────────────────────────────────────────────────────────
-
-const ClickableAgingSummaryCard: React.FC<{
-    documents: DocumentRecord[];
-    title: string;
-    onFilterClick: (category: AgingCategory | null) => void;
-    activeFilter: AgingCategory | null;
-}> = ({ documents, title, onFilterClick, activeFilter }) => {
-    const agingData: Record<AgingCategory, { count: number; amount: number }> = {
-        current: { count: 0, amount: 0 },
-        upcoming: { count: 0, amount: 0 },
-        overdue_1_30: { count: 0, amount: 0 },
-        overdue_31_60: { count: 0, amount: 0 },
-        overdue_61_90: { count: 0, amount: 0 },
-        overdue_90_plus: { count: 0, amount: 0 },
-    };
-
-    documents.forEach(doc => {
-        const dueDate = doc.meta?.due_date;
-        if (!dueDate) return;
-
-        const amount = doc.meta?.total_amount || doc.meta?.amount || 0;
-        const balance = doc.meta?.balance_due || amount;
-
-        const aging = getAgingCategory(dueDate);
-        agingData[aging.category].count++;
-        agingData[aging.category].amount += balance;
-    });
-
-    const totalOutstanding = Object.values(agingData).reduce((sum, bucket) => sum + bucket.amount, 0);
-
-    return (
-        <Card size="small" style={{ marginBottom: 16, borderRadius: 8 }}>
-            <div style={{ marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                    <Text strong style={{ fontSize: 14 }}>{title}</Text>
-                    <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>
-                        Total Outstanding: KES {totalOutstanding.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
-                    </Text>
-                </div>
-                {activeFilter && (
-                    <Button size="small" onClick={() => onFilterClick(null)} icon={<FilterOutlined />}>
-                        Clear Filter
-                    </Button>
-                )}
-            </div>
-            <Row gutter={[12, 12]}>
-                {AGING_BUCKETS.map((bucket) => {
-                    const data = agingData[bucket.category];
-                    const isActive = activeFilter === bucket.category;
-                    return (
-                        <Col xs={12} sm={8} md={4} key={bucket.category}>
-                            <div
-                                onClick={() => onFilterClick(isActive ? null : bucket.category)}
-                                style={{
-                                    background: isActive ? `${bucket.color}20` : "#fafafa",
-                                    padding: "8px 12px",
-                                    borderRadius: 6,
-                                    borderLeft: `3px solid ${bucket.color}`,
-                                    cursor: "pointer",
-                                    transition: "all 0.2s ease",
-                                    ...(isActive ? { boxShadow: `0 0 0 2px ${bucket.color}` } : {}),
-                                }}
-                            >
-                                <Space size={4}>
-                                    <span style={{ color: bucket.color, fontSize: 12 }}>{bucket.icon}</span>
-                                    <Text type="secondary" style={{ fontSize: 11 }}>{bucket.label}</Text>
-                                </Space>
-                                <div>
-                                    <Text strong style={{ fontSize: 16 }}>{data.count}</Text>
-                                    <Text type="secondary" style={{ fontSize: 11, marginLeft: 4 }}>docs</Text>
-                                </div>
-                                <Text style={{ fontSize: 11, color: bucket.color }}>
-                                    KES {data.amount.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
-                                </Text>
-                            </div>
-                        </Col>
-                    );
-                })}
-            </Row>
-        </Card>
-    );
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// SUB-COMPONENT: Aging Table (Filtered)
-// ─────────────────────────────────────────────────────────────────────────────
-
-const AgingTable: React.FC<{
-    documents: DocumentRecord[];
-    title: string;
-    filterCategory?: AgingCategory | null;
-}> = ({ documents, title, filterCategory }) => {
-    // Filter documents based on selected aging category
-    const filteredDocuments = filterCategory
-        ? documents.filter(doc => {
-            const dueDate = doc.meta?.due_date;
-            if (!dueDate) return false;
-            const aging = getAgingCategory(dueDate);
-            return aging.category === filterCategory;
-        })
-        : documents;
-
-    const agingColumns = [
-        {
-            title: "Document No.",
-            dataIndex: "code",
-            key: "code",
-            width: 120,
-            render: (text: string, record: DocumentRecord) => (
-                <Text code style={{ fontSize: 12 }}>{text || record._id.slice(-8)}</Text>
-            ),
-        },
-        {
-            title: "Name",
-            dataIndex: "name",
-            key: "name",
-            width: 200,
-            render: (text: string) => <Text style={{ fontSize: 12 }}>{text}</Text>,
-        },
-        {
-            title: "Counterparty",
-            dataIndex: ["counterparty", "name"],
-            key: "counterparty",
-            width: 150,
-            render: (name: string) => name || "—",
-        },
-        {
-            title: "Due Date",
-            dataIndex: ["meta", "due_date"],
-            key: "dueDate",
-            width: 110,
-            render: (date: string) => date ? dayjs(date).format("DD MMM YYYY") : "—",
-        },
-        {
-            title: "Amount",
-            dataIndex: ["meta", "total_amount"],
-            key: "amount",
-            width: 120,
-            align: "right" as const,
-            render: (amount: number, record: DocumentRecord) => {
-                const total = amount || record.meta?.amount || 0;
-                return <Text strong>KES {total.toLocaleString("en-KE", { minimumFractionDigits: 2 })}</Text>;
-            },
-        },
-        {
-            title: "Balance Due",
-            dataIndex: ["meta", "balance_due"],
-            key: "balance",
-            width: 120,
-            align: "right" as const,
-            render: (balance: number, record: DocumentRecord) => {
-                const bal = balance !== undefined ? balance : (record.meta?.total_amount || record.meta?.amount || 0);
-                return (
-                    <Text style={{ color: bal > 0 ? "#f5222d" : "#52c41a" }}>
-                        KES {bal.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
-                    </Text>
-                );
-            },
-        },
-        {
-            title: "Aging",
-            key: "aging",
-            width: 180,
-            render: (_: any, record: DocumentRecord) => {
-                const dueDate = record.meta?.due_date;
-                if (!dueDate) return <Tag>No due date</Tag>;
-
-                const aging = getAgingCategory(dueDate);
-                const percent = Math.min(100, (aging.days / 120) * 100);
-
-                return (
-                    <div>
-                        <Tag color={aging.color} icon={aging.icon} style={{ fontSize: 11 }}>
-                            {aging.label}
-                        </Tag>
-                        {aging.days > 0 && (
-                            <Progress
-                                percent={percent}
-                                size="small"
-                                showInfo={false}
-                                strokeColor={aging.color}
-                                style={{ marginTop: 4, width: 100 }}
-                            />
-                        )}
-                        <Text type="secondary" style={{ fontSize: 10, display: "block" }}>
-                            {aging.days > 0 ? `${aging.days} days overdue` : `${Math.abs(aging.days)} days remaining`}
-                        </Text>
-                    </div>
-                );
-            },
-        },
-        {
-            title: "Status",
-            dataIndex: "status",
-            key: "status",
-            width: 110,
-            render: (status: string) => {
-                const meta = STATUS_META[status];
-                return meta ? (
-                    <Badge status={meta.badgeStatus} text={meta.label} />
-                ) : status;
-            },
-        },
-    ];
-
-    if (filteredDocuments.length === 0) return null;
-
-    return (
-        <Card size="small" style={{ marginBottom: 16, borderRadius: 8 }}>
-            <div style={{ marginBottom: 12 }}>
-                <Text strong style={{ fontSize: 14 }}>{title}</Text>
-                <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>
-                    {filteredDocuments.length} document{filteredDocuments.length > 1 ? "s" : ""}
-                    {filterCategory && ` (filtered by ${AGING_BUCKETS.find(b => b.category === filterCategory)?.label})`}
-                </Text>
-            </div>
-            <Table
-                dataSource={filteredDocuments}
-                columns={agingColumns}
-                rowKey="_id"
-                size="small"
-                pagination={{ pageSize: 10, size: "small" }}
-                scroll={{ x: 1000 }}
-            />
-        </Card>
-    );
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
 // SUB-COMPONENT: Stat Card for Cheque Dashboard
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -439,7 +190,7 @@ const SearchModeToggle: React.FC<{
             ]}
         />
         {fallbackActive && (
-            <Tooltip title="AI search is unavailable (OPENAI_API_KEY not configured). Showing normal search results.">
+            <Tooltip title="AI search is unavailable (no AI provider configured). Showing normal search results.">
                 <InfoCircleOutlined style={{ color: "#fa8c16", fontSize: 13 }} />
             </Tooltip>
         )}
@@ -457,7 +208,8 @@ const DocumentCard: React.FC<{
     onDelete: (doc: DocumentRecord) => void;
     onStatusChange: (doc: DocumentRecord, status: DocumentStatus) => void;
     showSimilarity?: boolean;
-}> = ({ doc, onOpen, onEdit, onDelete, onStatusChange, showSimilarity }) => {
+    showContentSnippet?: boolean;
+}> = ({ doc, onOpen, onEdit, onDelete, onStatusChange, showSimilarity, showContentSnippet }) => {
     const meta = DOC_TYPE_META[doc.document_type] || DOC_TYPE_META.other;
     const statusMeta = STATUS_META[doc.status] || { label: doc.status, color: "default", badgeStatus: "default" };
     const isFolder = doc.document_type === "folder";
@@ -526,6 +278,16 @@ const DocumentCard: React.FC<{
                     {doc.name}
                 </Text>
                 <Text style={{ fontSize: 11, color: "#8c8c8c" }}>{meta.label}</Text>
+                {showContentSnippet && doc.extracted_text && (
+                    <Text
+                        type="secondary"
+                        style={{ display: "block", fontSize: 10, marginTop: 4 }}
+                        ellipsis={{ tooltip: doc.extracted_text, rows: 2 }}
+                    >
+                        {doc.extracted_text.slice(0, 160)}
+                        {doc.extracted_text.length > 160 ? "…" : ""}
+                    </Text>
+                )}
             </div>
 
             {/* Aging badge */}
@@ -722,6 +484,27 @@ const DocumentDetailDrawer: React.FC<{
                 <>
                     <Divider orientation="left" plain style={{ fontSize: 12 }}>Notes</Divider>
                     <Paragraph style={{ fontSize: 13, color: "#595959" }}>{doc.description}</Paragraph>
+                </>
+            )}
+
+            {/* Extracted attachment content */}
+            {doc.extracted_text && (
+                <>
+                    <Divider orientation="left" plain style={{ fontSize: 12 }}>Extracted Content</Divider>
+                    <div
+                        style={{
+                            padding: 12,
+                            background: "#f6ffed",
+                            border: "1px solid #b7eb8f",
+                            borderRadius: 6,
+                            maxHeight: 240,
+                            overflow: "auto",
+                        }}
+                    >
+                        <Text style={{ fontSize: 12, color: "#595959", whiteSpace: "pre-wrap" }}>
+                            {doc.extracted_text}
+                        </Text>
+                    </div>
                 </>
             )}
 
@@ -997,9 +780,6 @@ const DocumentCenterPage: React.FC = () => {
     const [breadcrumbs, setBreadcrumbs] = useState<Array<{ id: string | null; name: string }>>([
         { id: null, name: "All Documents" },
     ]);
-    const [showAgingSummary, setShowAgingSummary] = useState(true);
-    const [agingFilter, setAgingFilter] = useState<AgingCategory | null>(null);
-
     // ── Search & Filter ──────────────────────────────────────────────────────
     const [searchQuery, setSearchQuery] = useState("");
     const [searchMode, setSearchMode] = useState<SearchMode>("normal");
@@ -1009,7 +789,8 @@ const DocumentCenterPage: React.FC = () => {
     const [searchFacets, setSearchFacets] = useState<any>(null);
     const [searchModeUsed, setSearchModeUsed] = useState<string | null>(null);
     const [filterStatus, setFilterStatus] = useState<string | undefined>();
-    const [filterType, setFilterType] = useState<string | undefined>();
+    const [filterSearchTypes, setFilterSearchTypes] = useState<string[]>([]);
+    const [filterDateRange, setFilterDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
 
     // ── Drawer State ─────────────────────────────────────────────────────────
     const [formOpen, setFormOpen] = useState(false);
@@ -1051,25 +832,6 @@ const DocumentCenterPage: React.FC = () => {
         enabled: activeTab === "cheques",
     });
 
-    // Filter documents with due dates for aging
-    const agingDocuments = documents.filter(doc =>
-        (doc.document_type === "invoice" || doc.document_type === "cheque") &&
-        doc.meta?.due_date &&
-        doc.status !== "paid" &&
-        doc.status !== "cheque_processed"
-    );
-
-    // Apply aging filter to displayed documents
-    const getFilteredDocumentsByAging = () => {
-        if (!agingFilter) return documents;
-
-        return documents.filter(doc => {
-            if (!doc.meta?.due_date) return false;
-            const aging = getAgingCategory(doc.meta.due_date);
-            return aging.category === agingFilter;
-        });
-    };
-
     // ── Mutations ────────────────────────────────────────────────────────────
 
     const invalidate = () => {
@@ -1092,15 +854,39 @@ const DocumentCenterPage: React.FC = () => {
 
     // ── Search ───────────────────────────────────────────────────────────────
 
-    const runSearch = useCallback((q: string, mode: SearchMode, status?: string, type?: string) => {
+    const runSearch = useCallback((
+        q: string,
+        mode: SearchMode,
+        opts: {
+            status?: string;
+            types?: string[];
+            dateRange?: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null;
+        } = {}
+    ) => {
+        const { status, types = [], dateRange } = opts;
+        const effectiveType = types.length ? types.join(",") : undefined;
+        const dateFrom = dateRange?.[0]?.format("YYYY-MM-DD");
+        const dateTo = dateRange?.[1]?.format("YYYY-MM-DD");
+        const hasText = q.trim();
+        const hasFilters = status || effectiveType || dateFrom || dateTo;
+
         clearTimeout(searchTimeout.current);
-        if (!q.trim()) {
+        if (!hasText && !hasFilters) {
             setSearchActive(false);
             setSearchResults([]);
             setSearchFacets(null);
             setSearchModeUsed(null);
             return;
         }
+        if (mode === "ai" && !hasText) {
+            // AI search requires a text query, but keep active filters in place
+            setSearchActive(false);
+            setSearchResults([]);
+            setSearchFacets(null);
+            setSearchModeUsed(null);
+            return;
+        }
+
         setSearchActive(true);
         setSearchLoading(true);
         searchTimeout.current = setTimeout(async () => {
@@ -1109,10 +895,15 @@ const DocumentCenterPage: React.FC = () => {
                     q,
                     mode,
                     shop_id: shopId,
-                    document_type: type,
+                    document_type: effectiveType,
                     status,
                     pageSize: 50,
                 };
+                if (dateFrom || dateTo) {
+                    params.date_field = "createdAt";
+                    if (dateFrom) params.date_from = dateFrom;
+                    if (dateTo) params.date_to = dateTo;
+                }
                 const result = await searchDocuments(params);
                 setSearchResults(result.data);
                 setSearchFacets(result.facets);
@@ -1127,13 +918,23 @@ const DocumentCenterPage: React.FC = () => {
 
     const handleSearch = useCallback((q: string) => {
         setSearchQuery(q);
-        runSearch(q, searchMode, filterStatus, filterType);
-    }, [searchMode, filterStatus, filterType, runSearch]);
+        runSearch(q, searchMode, {
+            status: filterStatus,
+            types: filterSearchTypes,
+            dateRange: filterDateRange,
+        });
+    }, [searchMode, filterStatus, filterSearchTypes, filterDateRange, runSearch]);
 
     const handleModeChange = useCallback((mode: SearchMode) => {
         setSearchMode(mode);
-        if (searchQuery) runSearch(searchQuery, mode, filterStatus, filterType);
-    }, [searchQuery, filterStatus, filterType, runSearch]);
+        if (searchQuery) {
+            runSearch(searchQuery, mode, {
+                status: filterStatus,
+                types: filterSearchTypes,
+                dateRange: filterDateRange,
+            });
+        }
+    }, [searchQuery, filterStatus, filterSearchTypes, filterDateRange, runSearch]);
 
     // ── Navigation ───────────────────────────────────────────────────────────
 
@@ -1141,13 +942,11 @@ const DocumentCenterPage: React.FC = () => {
         setCurrentFolderId(folder._id);
         setBreadcrumbs(prev => [...prev, { id: folder._id, name: folder.name }]);
         setActiveTab("all");
-        setAgingFilter(null); // Clear aging filter when navigating
     };
 
     const navigateBreadcrumb = (crumb: { id: string | null; name: string }, idx: number) => {
         setCurrentFolderId(crumb.id);
         setBreadcrumbs(prev => prev.slice(0, idx + 1));
-        setAgingFilter(null); // Clear aging filter when navigating
     };
 
     // ── Document actions ─────────────────────────────────────────────────────
@@ -1187,13 +986,9 @@ const DocumentCenterPage: React.FC = () => {
         });
     };
 
-    const handleAgingFilterClick = (category: AgingCategory | null) => {
-        setAgingFilter(category);
-    };
-
     // ── Derived state ────────────────────────────────────────────────────────
 
-    const displayDocs = searchActive ? searchResults : getFilteredDocumentsByAging();
+    const displayDocs = searchActive ? searchResults : documents;
     const displayFolders = searchActive ? [] : folders;
     const isLoading = foldersLoading || docsLoading || searchLoading;
     const isFallback = searchModeUsed === "fallback_normal" && searchMode === "ai";
@@ -1206,10 +1001,6 @@ const DocumentCenterPage: React.FC = () => {
             .filter(([k]) => k !== "folder")
             .map(([key, { label, icon }]) => ({ key, label, icon })),
     ];
-
-    // Separate aging documents by type
-    const agingInvoices = agingDocuments.filter(doc => doc.document_type === "invoice");
-    const agingCheques = agingDocuments.filter(doc => doc.document_type === "cheque");
 
     // ─────────────────────────────────────────────────────────────────────────
     // RENDER
@@ -1238,15 +1029,6 @@ const DocumentCenterPage: React.FC = () => {
                     </Space>
 
                     <Space>
-                        <Tooltip title={showAgingSummary ? "Hide aging summary" : "Show aging summary"}>
-                            <Button
-                                icon={<HourglassOutlined />}
-                                type={showAgingSummary ? "primary" : "default"}
-                                onClick={() => setShowAgingSummary(!showAgingSummary)}
-                                size="small"
-                            />
-                        </Tooltip>
-
                         <Button.Group>
                             <Button
                                 icon={<AppstoreOutlined />}
@@ -1279,11 +1061,15 @@ const DocumentCenterPage: React.FC = () => {
                     activeKey={activeTab}
                     onChange={(k) => {
                         setActiveTab(k as any);
-                        setFilterType(k === "cheques" ? "cheque" : k === "invoices" ? "invoice" : undefined);
+                        setFilterSearchTypes(
+                            k === "folders" ? ["folder"] :
+                            k === "cheques" ? ["cheque"] :
+                            k === "invoices" ? ["invoice"] : []
+                        );
+                        setFilterDateRange(null);
                         setSearchActive(false);
                         setSearchQuery("");
                         setSearchModeUsed(null);
-                        setAgingFilter(null); // Clear aging filter when changing tabs
                     }}
                     size="small"
                     tabBarStyle={{ marginBottom: 0 }}
@@ -1295,28 +1081,6 @@ const DocumentCenterPage: React.FC = () => {
                     ]}
                 />
             </div>
-
-            {/* ── Clickable Aging Summary Section ─────────────────────────────── */}
-            {showAgingSummary && !searchActive && (activeTab === "invoices" || activeTab === "cheques" || activeTab === "all") && (
-                <div style={{ padding: "16px 24px 0", background: "#fafafa" }}>
-                    {activeTab === "invoices" || activeTab === "all" ? (
-                        <ClickableAgingSummaryCard
-                            documents={agingInvoices}
-                            title="Invoice Aging Summary"
-                            onFilterClick={handleAgingFilterClick}
-                            activeFilter={agingFilter}
-                        />
-                    ) : null}
-                    {activeTab === "cheques" || activeTab === "all" ? (
-                        <ClickableAgingSummaryCard
-                            documents={agingCheques}
-                            title="Cheque Aging Summary"
-                            onFilterClick={handleAgingFilterClick}
-                            activeFilter={agingFilter}
-                        />
-                    ) : null}
-                </div>
-            )}
 
             {/* ── Cheque Stats ─────────────────────────────────────────────── */}
             {activeTab === "cheques" && chequeStats && (
@@ -1363,14 +1127,14 @@ const DocumentCenterPage: React.FC = () => {
                     }
                     placeholder={
                         searchMode === "ai"
-                            ? "Ask anything — e.g. 'pending payments from Kamau last month'..."
-                            : "Search by name, reference, cheque number, counterparty..."
+                            ? "Ask anything — e.g. 'contract mentioning John, uploaded Jan 2024'..."
+                            : "Search by name, reference, content, counterparty..."
                     }
                     value={searchQuery}
                     onChange={(e) => handleSearch(e.target.value)}
                     allowClear
                     style={{
-                        maxWidth: 520, borderRadius: 8,
+                        maxWidth: 420, borderRadius: 8,
                         ...(searchMode === "ai" ? { borderColor: "#722ed1", boxShadow: "0 0 0 2px rgba(114,46,209,0.1)" } : {}),
                     }}
                     suffix={searchLoading ? <Spin size="small" /> : null}
@@ -1380,16 +1144,56 @@ const DocumentCenterPage: React.FC = () => {
                 <Select
                     placeholder="Status"
                     allowClear
-                    style={{ width: 140 }}
+                    style={{ width: 150 }}
                     value={filterStatus}
                     onChange={(v) => {
                         setFilterStatus(v);
-                        if (searchQuery) runSearch(searchQuery, searchMode, v, filterType);
+                        runSearch(searchQuery, searchMode, {
+                            status: v,
+                            types: filterSearchTypes,
+                            dateRange: filterDateRange,
+                        });
                     }}
                     options={Object.entries(STATUS_META)
                         .filter(([k]) => activeTab === "cheques" ? k.startsWith("cheque_") : !k.startsWith("cheque_"))
                         .map(([value, { label }]) => ({ value, label }))}
                     size="middle"
+                />
+
+                {/* Document type filter */}
+                <Select
+                    mode="multiple"
+                    placeholder="Type"
+                    allowClear
+                    maxTagCount="responsive"
+                    style={{ minWidth: 180, maxWidth: 260 }}
+                    value={filterSearchTypes}
+                    onChange={(v) => {
+                        setFilterSearchTypes(v as string[]);
+                        runSearch(searchQuery, searchMode, {
+                            status: filterStatus,
+                            types: v as string[],
+                            dateRange: filterDateRange,
+                        });
+                    }}
+                    options={Object.entries(DOC_TYPE_META).map(([value, { label }]) => ({ value, label }))}
+                    size="middle"
+                />
+
+                {/* Date uploaded filter */}
+                <DatePicker.RangePicker
+                    value={filterDateRange}
+                    onChange={(dates) => {
+                        setFilterDateRange(dates as any);
+                        runSearch(searchQuery, searchMode, {
+                            status: filterStatus,
+                            types: filterSearchTypes,
+                            dateRange: dates as any,
+                        });
+                    }}
+                    placeholder={["Uploaded from", "Uploaded to"]}
+                    size="middle"
+                    style={{ width: 240 }}
                 />
 
                 {!searchActive && (
@@ -1415,7 +1219,7 @@ const DocumentCenterPage: React.FC = () => {
                     showIcon
                     icon={<RobotOutlined />}
                     message="AI search unavailable"
-                    description="OPENAI_API_KEY is not configured on the server. Showing normal search results instead."
+                    description="No AI provider is configured on the server (set OPENROUTER_API_KEY or OPENAI_API_KEY). Showing normal search results instead."
                     closable
                     style={{ margin: "8px 24px 0", borderRadius: 8 }}
                 />
@@ -1428,7 +1232,7 @@ const DocumentCenterPage: React.FC = () => {
                     showIcon
                     icon={<RobotOutlined />}
                     message="AI Search active"
-                    description='Type a natural-language query — e.g. "overdue invoices from Kamau" or "bounced cheques above 50000".'
+                    description='Type a natural-language query. AI can search inside file content (OCR/Vision), upload date, document type, names and amounts — e.g. "blue KCB cheque uploaded last month" or "contract mentioning John Doe".'
                     style={{ margin: "8px 24px 0", borderRadius: 8 }}
                 />
             )}
@@ -1451,24 +1255,6 @@ const DocumentCenterPage: React.FC = () => {
                 </div>
             )}
 
-            {/* ── Filter Active Indicator ───────────────────────────────────── */}
-            {agingFilter && !searchActive && (
-                <div style={{ padding: "8px 24px", background: "#fff", borderBottom: "1px solid #f5f5f5" }}>
-                    <Space>
-                        <FilterOutlined style={{ color: "#1677ff" }} />
-                        <Text>Filtered by:</Text>
-                        <Tag
-                            color={AGING_BUCKETS.find(b => b.category === agingFilter)?.color}
-                            closable
-                            onClose={() => setAgingFilter(null)}
-                            icon={AGING_BUCKETS.find(b => b.category === agingFilter)?.icon}
-                        >
-                            {AGING_BUCKETS.find(b => b.category === agingFilter)?.label}
-                        </Tag>
-                    </Space>
-                </div>
-            )}
-
             {/* ── Content Area ──────────────────────────────────────────────── */}
             <div style={{ flex: 1, overflow: "auto", padding: "20px 24px" }}>
                 {isLoading ? (
@@ -1481,13 +1267,11 @@ const DocumentCenterPage: React.FC = () => {
                         description={
                             searchActive
                                 ? `No documents found for "${searchQuery}"`
-                                : agingFilter
-                                    ? `No ${AGING_BUCKETS.find(b => b.category === agingFilter)?.label} documents found`
-                                    : "No documents yet"
+                                : "No documents yet"
                         }
                         style={{ marginTop: 60 }}
                     >
-                        {!searchActive && !agingFilter && (
+                        {!searchActive && (
                             <Space>
                                 <Button icon={<FolderAddOutlined />} onClick={() => openCreate("folder" as any)}>
                                     New Folder
@@ -1496,9 +1280,6 @@ const DocumentCenterPage: React.FC = () => {
                                     New Document
                                 </Button>
                             </Space>
-                        )}
-                        {agingFilter && (
-                            <Button onClick={() => setAgingFilter(null)}>Clear Filter</Button>
                         )}
                     </Empty>
                 ) : viewMode === "grid" ? (
@@ -1554,6 +1335,7 @@ const DocumentCenterPage: React.FC = () => {
                                                 onEdit={openEdit}
                                                 onDelete={confirmDelete}
                                                 showSimilarity={isAiResults}
+                                                showContentSnippet={searchActive}
                                                 onStatusChange={(d, status) =>
                                                     statusMutation.mutate({ id: d._id, status })
                                                 }
@@ -1582,24 +1364,36 @@ const DocumentCenterPage: React.FC = () => {
                                     const m = DOC_TYPE_META[r.document_type] || DOC_TYPE_META.other;
                                     const aging = r.meta?.due_date ? getAgingCategory(r.meta.due_date) : null;
                                     return (
-                                        <Space style={{ cursor: "pointer" }} onClick={() => openDoc(r)}>
-                                            <span style={{ color: m.color, fontSize: 16 }}>{m.icon}</span>
-                                            <Text style={{ fontWeight: r.document_type === "folder" ? 600 : 400 }}>
-                                                {name}
-                                            </Text>
-                                            {aging && aging.days > 0 && (r.document_type === "invoice" || r.document_type === "cheque") && (
-                                                <Tag color={aging.color} style={{ fontSize: 10 }}>
-                                                    {aging.days}d overdue
-                                                </Tag>
-                                            )}
-                                            {isAiResults && r._similarity !== undefined && (
-                                                <Tooltip title={`AI relevance: ${(r._similarity * 100).toFixed(0)}%`}>
-                                                    <Tag color="geekblue" style={{ fontSize: 10 }}>
-                                                        <RobotOutlined /> {(r._similarity * 100).toFixed(0)}%
+                                        <div style={{ cursor: "pointer" }} onClick={() => openDoc(r)}>
+                                            <Space>
+                                                <span style={{ color: m.color, fontSize: 16 }}>{m.icon}</span>
+                                                <Text style={{ fontWeight: r.document_type === "folder" ? 600 : 400 }}>
+                                                    {name}
+                                                </Text>
+                                                {aging && aging.days > 0 && (r.document_type === "invoice" || r.document_type === "cheque") && (
+                                                    <Tag color={aging.color} style={{ fontSize: 10 }}>
+                                                        {aging.days}d overdue
                                                     </Tag>
-                                                </Tooltip>
+                                                )}
+                                                {isAiResults && r._similarity !== undefined && (
+                                                    <Tooltip title={`AI relevance: ${(r._similarity * 100).toFixed(0)}%`}>
+                                                        <Tag color="geekblue" style={{ fontSize: 10 }}>
+                                                            <RobotOutlined /> {(r._similarity * 100).toFixed(0)}%
+                                                        </Tag>
+                                                    </Tooltip>
+                                                )}
+                                            </Space>
+                                            {searchActive && r.extracted_text && (
+                                                <Text
+                                                    type="secondary"
+                                                    style={{ display: "block", fontSize: 11, marginTop: 4 }}
+                                                    ellipsis={{ tooltip: r.extracted_text }}
+                                                >
+                                                    {r.extracted_text.slice(0, 140)}
+                                                    {r.extracted_text.length > 140 ? "…" : ""}
+                                                </Text>
                                             )}
-                                        </Space>
+                                        </div>
                                     );
                                 },
                             },

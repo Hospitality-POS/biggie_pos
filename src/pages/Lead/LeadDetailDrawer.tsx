@@ -4,7 +4,7 @@ import {
 } from "antd";
 import {
     CalendarOutlined, CheckCircleOutlined, ClockCircleOutlined,
-    MailOutlined, PhoneOutlined, SwapOutlined, TeamOutlined,
+    MailOutlined, PhoneOutlined, ProjectOutlined, SwapOutlined, TeamOutlined,
     UserOutlined, UserAddOutlined, WalletOutlined, FileOutlined, UploadOutlined, DeleteOutlined,
     DownloadOutlined, EyeOutlined,
 } from "@ant-design/icons";
@@ -12,23 +12,13 @@ import { useAppDispatch } from "src/store";
 import { Lead, LeadStage, updateLeadStage, convertLead, getLeadById } from "@services/crm/leads";
 import { createLeadActivity } from "@services/crm/leadActivities";
 import { uploadLeadDocument, deleteLeadDocument, LeadDocument } from "@services/crm/leadDocuments";
+import { THEME_C } from "@utils/getPrimaryColor";
 
 const { Text } = Typography;
 const { Option } = Select;
 const { TextArea } = Input;
 
-const C = {
-    primary: "#6c1c2c",
-    primaryLight: "#f9f0f2",
-    green: "#10b981",
-    red: "#ef4444",
-    blue: "#3b82f6",
-    orange: "#f59e0b",
-    subText: "#64748b",
-    darkText: "#0f172a",
-    border: "#e2e8f0",
-    bg: "#f8fafc",
-};
+const C = THEME_C;
 
 const STAGE_COLORS: Record<LeadStage, string> = {
     new: C.blue, contacted: C.orange, qualified: "#8b5cf6",
@@ -151,7 +141,9 @@ const LeadDetailDrawer: React.FC<LeadDetailDrawerProps> = ({ open, onClose, lead
             stageForm.resetFields();
             onUpdated?.();
             message.success("Stage updated");
-        } catch { } finally {
+        } catch {
+            /* error handled by thunk */
+        } finally {
             setStageLoading(false);
         }
     };
@@ -163,7 +155,9 @@ const LeadDetailDrawer: React.FC<LeadDetailDrawerProps> = ({ open, onClose, lead
             await dispatch(convertLead({ id: lead._id, shop_id })).unwrap();
             onUpdated?.();
             onClose();
-        } catch { } finally {
+        } catch {
+            /* error handled by thunk */
+        } finally {
             setConvertLoading(false);
         }
     };
@@ -207,7 +201,9 @@ const LeadDetailDrawer: React.FC<LeadDetailDrawerProps> = ({ open, onClose, lead
             onUpdated?.();
             onRefreshLead?.();
             message.success("Activity logged");
-        } catch { } finally {
+        } catch {
+            /* error handled by thunk */
+        } finally {
             setActivityLoading(false);
         }
     };
@@ -297,6 +293,7 @@ const LeadDetailDrawer: React.FC<LeadDetailDrawerProps> = ({ open, onClose, lead
                 <InfoRow icon={<PhoneOutlined />} label="Phone" value={lead.phone} />
                 <InfoRow icon={<MailOutlined />} label="Email" value={lead.email} />
                 <InfoRow icon={<UserOutlined />} label="Assigned To" value={lead.assigned_to?.name} />
+                <InfoRow icon={<ProjectOutlined />} label="Project" value={lead.project} />
                 <InfoRow icon={<WalletOutlined />} label="Est. Value"
                     value={lead.estimated_value ? `KES ${lead.estimated_value.toLocaleString()} (${lead.probability ?? 0}%)` : undefined} />
                 <InfoRow icon={<CalendarOutlined />} label="Expected Close"

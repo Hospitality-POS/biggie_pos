@@ -110,7 +110,7 @@ const UnitsList: React.FC = () => {
       dataIndex: 'propertyId',
       key: 'property',
       render: (propertyId: string) => {
-        const property = properties.find(p => p._id === propertyId);
+        const property = (properties?.data || properties).find((p: any) => p._id === propertyId);
         return property ? <Text>{property.name}</Text> : <Text>-</Text>;
       },
     },

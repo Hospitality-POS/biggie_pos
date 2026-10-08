@@ -36,7 +36,7 @@ import {
 } from '@ant-design/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchProperty, fetchUnits, fetchBlocks, fetchFloors } from '@services/dala';
-import { useDalaSelectedProperty, useDalaUnitsByProperty, useDalaBlocksByProperty } from '../../../stores/dalaStore';
+import { useDalaSelectedProperty, useDalaUnitsByProperty, useDalaBlocksByProperty, useDalaActions } from '../../../stores/dalaStore';
 import {
   fetchPropertyDocuments,
   uploadPropertyDocument,
@@ -45,22 +45,14 @@ import {
   PROPERTY_DOCUMENT_TYPES,
 } from '@services/dala/propertyDocuments';
 
+import { THEME_C } from '@utils/getPrimaryColor';
+
 const { Title, Text, Paragraph } = Typography;
 const { TabPane } = Tabs;
 const { TextArea } = Input;
 const { Option } = Select;
 
-const C = {
-  primary: "#6c1c2c",
-  primaryLight: "#f9f0f2",
-  green: "#10b981",
-  red: "#ef4444",
-  blue: "#3b82f6",
-  subText: "#64748b",
-  darkText: "#0f172a",
-  border: "#e2e8f0",
-  bg: "#f8fafc",
-};
+const C = THEME_C;
 
 const PropertyDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -68,6 +60,7 @@ const PropertyDetail: React.FC = () => {
   const queryClient = useQueryClient();
   
   const [activeTab, setActiveTab] = useState('overview');
+  const { setSelectedProperty } = useDalaActions();
   const selectedProperty = useDalaSelectedProperty();
   const propertyUnits = useDalaUnitsByProperty(id || '');
   const propertyBlocks = useDalaBlocksByProperty(id || '');
@@ -164,7 +157,7 @@ const PropertyDetail: React.FC = () => {
     queryFn: () => fetchProperty(id!),
     enabled: !!id,
     onSuccess: (data) => {
-      selectedProperty.setSelectedProperty(data.data);
+      setSelectedProperty(data.data);
     },
   });
 
@@ -190,11 +183,11 @@ const PropertyDetail: React.FC = () => {
     return <div>Loading property details...</div>;
   }
 
-  if (error || !selectedProperty) {
+  if (error || (!selectedProperty && !data?.data)) {
     return <div>Error loading property details</div>;
   }
 
-  const property = selectedProperty;
+  const property = selectedProperty || data?.data;
 
   const unitColumns = [
     {
@@ -506,7 +499,7 @@ const PropertyDetail: React.FC = () => {
                 layout="vertical"
                 onFinish={handleDocumentUpload}
                 style={{ marginBottom: 20 }}
-                onFinishFailed={(errorInfo) => console.log('Form validation failed:', errorInfo)}
+                onFinishFailed={(errorInfo) => console.error('Form validation failed:', errorInfo)}
               >
                 <Form.Item
                   name="document_type"

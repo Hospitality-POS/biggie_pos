@@ -290,6 +290,10 @@ export const updateCartItem = async (
     desc?: string;
     quantity?: number;
     product_type?: "Product" | "Product_Inventory";
+    variant_id?: string | null;
+    variant_name?: string | null;
+    inventory_deduction_enabled?: boolean;
+    inventory_deductions?: CartItemDeduction[];
   }
 ) => {
   try {
@@ -431,6 +435,7 @@ export interface Cart {
   client_name?: string;
   order_no: string;
   status: "Open" | "Closed";
+  pending_print?: boolean;
   void: boolean;
   // NEW: Subscription fields
   customer_id?: {
@@ -444,6 +449,14 @@ export interface Cart {
   items?: CartItem[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface CartItemDeduction {
+  inventory_id: string;
+  variant_id?: string | null;
+  variant_name?: string | null;
+  quantity: number;
+  unit_id?: string | null;
 }
 
 export interface CartItem {
@@ -465,6 +478,10 @@ export interface CartItem {
   miscellaneous_name?: string;
   main_category?: any;
   duration?: number;
+  variant_id?: string | null;
+  variant_name?: string | null;
+  inventory_deduction_enabled?: boolean;
+  inventory_deductions?: CartItemDeduction[];
   createdAt: string;
   updatedAt: string;
 }

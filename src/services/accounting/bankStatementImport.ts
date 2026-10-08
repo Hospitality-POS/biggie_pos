@@ -126,6 +126,7 @@ export interface RawTransaction {
     categorized_at?: string;
     is_duplicate?: boolean;
     pushed_at?: string;
+    journal_entry_id?: string;
     pushed_to_reconciliation_id?: string;
     pushed_to_statement_line_id?: string;
 }
@@ -737,10 +738,14 @@ export const pushToJournalEntries = async (id: string, data: PushToJournalEntrie
             `${BASE_URL}/accounting/bank-reconciliations/bank-imports/${id}/push-to-journal-entries`,
             data
         );
-        message.success(`${response.data.pushed_count} journal entries created`);
+        message.success(
+            response.data.message ||
+                `${response.data.pushed_count} journal entries created`
+        );
         return response.data as {
             created_entries: string[];
             pushed_count: number;
+            already_posted?: number;
         };
     } catch (error: unknown) {
         const axiosError = error as { response?: { data?: { message?: string } } };

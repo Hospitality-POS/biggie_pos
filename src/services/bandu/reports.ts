@@ -1,7 +1,7 @@
 import axiosInstance from "../request";
 import { BASE_URL } from "@utils/config";
 
-const banduUrl = `${BASE_URL}/api/bandu/mteja-reports`;
+const banduUrl = `${BASE_URL}/bandu/reports`;
 
 // ── Report Types ────────────────────────────────────────────────────────────────
 
@@ -24,9 +24,11 @@ export interface ReportParams {
  * Employee Master List
  * Complete employee directory with contact, banking, and employment details
  */
+const unwrap = (response: any) => response.data?.data ?? response.data;
+
 export const fetchEmployeeMasterList = async (params: ReportParams = {}) => {
   const response = await axiosInstance.get(`${banduUrl}/employee-master-list`, { params });
-  return response.data;
+  return unwrap(response);
 };
 
 /**
@@ -35,7 +37,7 @@ export const fetchEmployeeMasterList = async (params: ReportParams = {}) => {
  */
 export const fetchPayrollRegister = async (params: ReportParams = {}) => {
   const response = await axiosInstance.get(`${banduUrl}/payroll-register`, { params });
-  return response.data;
+  return unwrap(response);
 };
 
 /**
@@ -44,7 +46,7 @@ export const fetchPayrollRegister = async (params: ReportParams = {}) => {
  */
 export const fetchLeaveBalanceReport = async (params: ReportParams = {}) => {
   const response = await axiosInstance.get(`${banduUrl}/leave-balance`, { params });
-  return response.data;
+  return unwrap(response);
 };
 
 /**
@@ -53,7 +55,7 @@ export const fetchLeaveBalanceReport = async (params: ReportParams = {}) => {
  */
 export const fetchLeaveHistoryReport = async (params: ReportParams = {}) => {
   const response = await axiosInstance.get(`${banduUrl}/leave-history`, { params });
-  return response.data;
+  return unwrap(response);
 };
 
 /**
@@ -62,7 +64,7 @@ export const fetchLeaveHistoryReport = async (params: ReportParams = {}) => {
  */
 export const fetchDepartmentStaffingReport = async (params: ReportParams = {}) => {
   const response = await axiosInstance.get(`${banduUrl}/department-staffing`, { params });
-  return response.data;
+  return unwrap(response);
 };
 
 /**
@@ -71,5 +73,5 @@ export const fetchDepartmentStaffingReport = async (params: ReportParams = {}) =
  */
 export const fetchContactDirectory = async (params: ReportParams = {}) => {
   const response = await axiosInstance.get(`${banduUrl}/contact-directory`, { params });
-  return response.data;
+  return unwrap(response);
 };

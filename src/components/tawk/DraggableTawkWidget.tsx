@@ -10,7 +10,7 @@ const EnhancedTawkWidget: React.FC = () => {
     const primaryColor = usePrimaryColor();
 
     // Helper function to darken color for gradient effect
-    const darkenColor = (color: string, percent: number = 20) => {
+    const darkenColor = (color: string, percent = 20) => {
         const hex = color.replace('#', '');
         const r = parseInt(hex.substr(0, 2), 16);
         const g = parseInt(hex.substr(2, 2), 16);
@@ -24,7 +24,7 @@ const EnhancedTawkWidget: React.FC = () => {
     };
 
     // Helper function to convert hex to rgba
-    const hexToRgba = (hex: string, alpha: number = 1) => {
+    const hexToRgba = (hex: string, alpha = 1) => {
         const r = parseInt(hex.slice(1, 3), 16);
         const g = parseInt(hex.slice(3, 5), 16);
         const b = parseInt(hex.slice(5, 7), 16);

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { Calendar, Badge, Card, Select, Space, Typography, Tag, Spin, Empty, Tooltip } from "antd";
-import { CalendarOutlined, UserOutlined, TeamOutlined } from "@ant-design/icons";
+import { Calendar, Badge, Select, Space, Typography, Tag, Spin, Empty, Tooltip } from "antd";
+import { CalendarOutlined, UserOutlined, TeamOutlined, ClockCircleOutlined } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import { fetchLeaves, Leave, LeaveStatus } from "@services/bandu";
 import dayjs, { Dayjs } from "dayjs";
@@ -8,8 +8,57 @@ import { usePrimaryColor } from "@context/PrimaryColorContext";
 
 const { Text, Title } = Typography;
 
+const cardStyle: React.CSSProperties = {
+  background: "#ffffff",
+  border: "1px solid #e2e8f0",
+  borderRadius: 12,
+  boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+};
+
+const StatCard: React.FC<{
+  title: string;
+  value: string | number;
+  icon: React.ReactNode;
+  color: string;
+}> = ({ title, value, icon, color }) => (
+  <div
+    style={{
+      ...cardStyle,
+      padding: "14px 16px",
+      display: "flex",
+      alignItems: "center",
+      gap: 12,
+      flex: 1,
+      minWidth: 150,
+    }}
+  >
+    <div
+      style={{
+        width: 40,
+        height: 40,
+        borderRadius: 10,
+        background: `${color}15`,
+        color,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 18,
+        flexShrink: 0,
+      }}
+    >
+      {icon}
+    </div>
+    <div style={{ minWidth: 0 }}>
+      <Text style={{ fontSize: 11, color: "#64748b", display: "block" }}>{title}</Text>
+      <Text strong style={{ fontSize: 18, color, lineHeight: 1.2 }}>
+        {value}
+      </Text>
+    </div>
+  </div>
+);
+
 // ── Status Colors ─────────────────────────────────────────────────────────────
-const STATUS_COLORS: Record<LeaveStatus, string> = {
+const STATUS_COLORS: Record<LeaveStatus | "Scheduled" | (string & {}), string> = {
   Pending: "#f59e0b",
   Approved: "#10b981",
   Rejected: "#ef4444",
@@ -160,45 +209,33 @@ const LeaveCalendar: React.FC = () => {
   }
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: 24, background: "#f8fafc", minHeight: "100%" }}>
       {/* ── Header ── */}
       <div
         style={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          marginBottom: 24,
+          marginBottom: 20,
           flexWrap: "wrap",
           gap: 16,
         }}
       >
-        <Space align="center">
-          <div
-            style={{
-              background: `${primaryColor}15`,
-              borderRadius: 10,
-              padding: "8px 10px",
-              color: primaryColor,
-              fontSize: 20,
-            }}
-          >
-            <CalendarOutlined />
-          </div>
-          <div>
-            <Title level={4} style={{ margin: 0 }}>
-              Leave Calendar
-            </Title>
-            <Text style={{ fontSize: 12, color: "#64748b" }}>
-              Track your leave and team schedules
-            </Text>
-          </div>
-        </Space>
+        <div>
+          <Title level={4} style={{ margin: 0 }}>
+            <CalendarOutlined style={{ marginRight: 8, color: primaryColor }} />
+            Leave Calendar
+          </Title>
+          <Text style={{ fontSize: 12, color: "#64748b" }}>
+            {selectedMonth.format("MMMM YYYY")} · track your leave and team schedules
+          </Text>
+        </div>
 
-        <Space>
+        <Space wrap>
           <Select
             value={viewMode}
             onChange={setViewMode}
-            style={{ width: 120 }}
+            style={{ width: 130 }}
             options={[
               { label: "All Leaves", value: "all" },
               { label: "My Leaves", value: "my" },
@@ -208,48 +245,26 @@ const LeaveCalendar: React.FC = () => {
       </div>
 
       {/* ── Summary Cards ── */}
-      <div style={{ display: "flex", gap: 16, marginBottom: 24, flexWrap: "wrap" }}>
-        <Card size="small" style={{ flex: 1, minWidth: 140 }}>
-          <Space>
-            <TeamOutlined style={{ color: primaryColor, fontSize: 18 }} />
-            <div>
-              <Text style={{ fontSize: 12, color: "#64748b", display: "block" }}>Total Leaves</Text>
-              <Text strong style={{ fontSize: 18 }}>{summaryStats.total}</Text>
-            </div>
-          </Space>
-        </Card>
-        <Card size="small" style={{ flex: 1, minWidth: 140 }}>
-          <Space>
-            <UserOutlined style={{ color: STATUS_COLORS.Pending, fontSize: 18 }} />
-            <div>
-              <Text style={{ fontSize: 12, color: "#64748b", display: "block" }}>Pending</Text>
-              <Text strong style={{ fontSize: 18 }}>{summaryStats.pending}</Text>
-            </div>
-          </Space>
-        </Card>
-        <Card size="small" style={{ flex: 1, minWidth: 140 }}>
-          <Space>
-            <UserOutlined style={{ color: STATUS_COLORS.Approved, fontSize: 18 }} />
-            <div>
-              <Text style={{ fontSize: 12, color: "#64748b", display: "block" }}>Approved</Text>
-              <Text strong style={{ fontSize: 18 }}>{summaryStats.approved}</Text>
-            </div>
-          </Space>
-        </Card>
-        <Card size="small" style={{ flex: 1, minWidth: 140 }}>
-          <Space>
-            <CalendarOutlined style={{ color: STATUS_COLORS.Approved, fontSize: 18 }} />
-            <div>
-              <Text style={{ fontSize: 12, color: "#64748b", display: "block" }}>On Leave Today</Text>
-              <Text strong style={{ fontSize: 18 }}>{summaryStats.onLeave}</Text>
-            </div>
-          </Space>
-        </Card>
+      <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
+        <StatCard title="Total Leaves" value={summaryStats.total} icon={<TeamOutlined />} color={primaryColor} />
+        <StatCard title="Pending" value={summaryStats.pending} icon={<ClockCircleOutlined />} color={STATUS_COLORS.Pending} />
+        <StatCard title="Approved" value={summaryStats.approved} icon={<UserOutlined />} color={STATUS_COLORS.Approved} />
+        <StatCard title="On Leave Today" value={summaryStats.onLeave} icon={<CalendarOutlined />} color="#8b5cf6" />
       </div>
 
       {/* ── Legend ── */}
-      <div style={{ display: "flex", gap: 16, marginBottom: 16, flexWrap: "wrap" }}>
-        <Text style={{ fontSize: 12, color: "#64748b" }}>Status:</Text>
+      <div
+        style={{
+          ...cardStyle,
+          display: "flex",
+          gap: 14,
+          marginBottom: 16,
+          padding: "8px 14px",
+          flexWrap: "wrap",
+          alignItems: "center",
+        }}
+      >
+        <Text style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>STATUS</Text>
         {Object.entries(STATUS_COLORS).map(([status, color]) => (
           <Tag key={status} color={color} style={{ fontSize: 11, margin: 0 }}>
             {status}
@@ -258,7 +273,7 @@ const LeaveCalendar: React.FC = () => {
       </div>
 
       {/* ── Calendar ── */}
-      <Card>
+      <div style={{ ...cardStyle, padding: 8 }}>
         <Calendar
           value={selectedMonth}
           onChange={setSelectedMonth}
@@ -266,7 +281,7 @@ const LeaveCalendar: React.FC = () => {
           monthCellRender={monthCellRender}
           fullscreen
         />
-      </Card>
+      </div>
 
       {/* ── Empty State ── */}
       {filteredLeaves.length === 0 && !isLoading && (

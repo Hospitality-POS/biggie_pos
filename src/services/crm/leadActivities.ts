@@ -18,6 +18,7 @@ export type ActivityType =
     | "task"
     | "whatsapp"
     | "site_visit"
+    | "ticket"
     | "other";
 
 export type ActivityOutcome =
@@ -30,18 +31,30 @@ export type ActivityOutcome =
     | "completed"
     | "cancelled";
 
+export type ActivityStatus = "open" | "done" | "cancelled";
+
+export type ActivityPriority = "low" | "medium" | "high" | "urgent";
+
+export type ActivityLocationType = "online" | "in_person" | "phone";
+
 export interface LeadActivity {
     _id: string;
-    lead_id: string;
-    customer_id?: string;
+    lead_id?: string | { _id: string; lead_name?: string; company_name?: string; entity_type?: string; stage?: string };
+    customer_id?: string | { _id: string; customer_name?: string; company_name?: string };
     type: ActivityType;
     subject?: string;
     description?: string;
     activity_date: string;
     duration_minutes?: number;
     outcome?: ActivityOutcome;
+    status?: ActivityStatus;
+    resolved_at?: string;
+    priority?: ActivityPriority;
     next_action?: string;
     next_action_date?: string;
+    location_type?: ActivityLocationType;
+    meeting_link?: string;
+    attendees?: Array<{ _id: string; name: string; username: string }> | string[];
     attachments?: Array<{ name: string; url: string; uploaded_at: string }>;
     shop_id?: string;
     tenant_id?: string;
@@ -84,6 +97,31 @@ export const fetchActivitiesByLead = async (
 };
 
 /* ============================================================
+   FETCH ALL — calendar feed across leads & customers
+============================================================ */
+
+export const fetchAllActivities = async (params: {
+    shop_id?: string;
+    lead_id?: string;
+    customer_id?: string;
+    type?: string; // csv of ActivityType
+    status?: string; // csv of ActivityStatus
+    start_date?: string;
+    end_date?: string;
+    page?: number;
+    limit?: number;
+} = {}): Promise<ActivityListResponse> => {
+    try {
+        const response = await axiosInstance.get(BASE, { params });
+        return response.data;
+    } catch (error: any) {
+        console.error("Error fetching activities:", error);
+        message.error(error?.response?.data?.message || "Failed to fetch activities");
+        return { total: 0, page: 1, pages: 0, activities: [] };
+    }
+};
+
+/* ============================================================
    ACTIVITY SUMMARY
 ============================================================ */
 
@@ -106,21 +144,29 @@ export const fetchActivitySummary = async (params: {
    CREATE
 ============================================================ */
 
+export interface CreateActivityPayload {
+    lead_id?: string;
+    customer_id?: string;
+    type: ActivityType;
+    shop_id?: string;
+    subject?: string;
+    description?: string;
+    activity_date?: string;
+    duration_minutes?: number;
+    outcome?: ActivityOutcome;
+    status?: ActivityStatus;
+    priority?: ActivityPriority;
+    next_action?: string;
+    next_action_date?: string;
+    location_type?: ActivityLocationType;
+    meeting_link?: string;
+    attendees?: string[];
+}
+
 export const createLeadActivity = createAsyncThunk(
     "leadActivities/create",
     async (
-        data: {
-            lead_id: string;
-            type: ActivityType;
-            shop_id?: string;
-            subject?: string;
-            description?: string;
-            activity_date?: string;
-            duration_minutes?: number;
-            outcome?: ActivityOutcome;
-            next_action?: string;
-            next_action_date?: string;
-        },
+        data: CreateActivityPayload,
         { rejectWithValue }
     ) => {
         try {
@@ -156,6 +202,45 @@ export const updateLeadActivity = createAsyncThunk(
         }
     }
 );
+
+/* ============================================================
+   RESOLVE / RESCHEDULE (plain promise — used from calendar quick-actions)
+============================================================ */
+
+export const resolveActivity = async (
+    id: string,
+    outcome: "done" | "cancelled"
+): Promise<LeadActivity | null> => {
+    try {
+        const response = await axiosInstance.put(`${BASE}/${id}`, {
+            status: outcome,
+            resolved_at: new Date().toISOString(),
+        });
+        message.success(outcome === "done" ? "Marked as done" : "Activity cancelled");
+        return response.data?.activity || null;
+    } catch (error: any) {
+        message.error(error?.response?.data?.message || "Failed to update activity");
+        return null;
+    }
+};
+
+export const rescheduleActivity = async (
+    id: string,
+    activity_date: string
+): Promise<LeadActivity | null> => {
+    try {
+        const response = await axiosInstance.put(`${BASE}/${id}`, {
+            activity_date,
+            status: "open",
+            resolved_at: null,
+        });
+        message.success("Activity rescheduled");
+        return response.data?.activity || null;
+    } catch (error: any) {
+        message.error(error?.response?.data?.message || "Failed to reschedule activity");
+        return null;
+    }
+};
 
 /* ============================================================
    DELETE

@@ -208,7 +208,7 @@ const CreateUnit: React.FC = () => {
                   onChange={handlePropertyChange}
                   value={selectedProperty}
                 >
-                  {properties.map((property) => (
+                  {(properties?.data || properties).map((property: any) => (
                     <Option key={property._id} value={property._id}>
                       {property.name} ({property.code})
                     </Option>

@@ -61,6 +61,54 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H 138.197.29.241 >> ~/.ssh/known_hosts
 
-      - name: Deploy to DigitalOcean droplet
+      - name: Deploy to DigitalOcean droplet (atomic release)
+        env:
+          APP_ROOT: /var/www/biggie_pos
+          RELEASE: ${{ github.sha }}
         run: |
-          scp -r dist root@138.197.29.241:/var/www/biggie_pos
+          RELEASE_DIR="$APP_ROOT/releases/$RELEASE"
+          SHARED_ASSETS="$APP_ROOT/shared_assets"
+
+          # Upload the new build into its own, isolated release directory.
+          # Nothing under $APP_ROOT/current is touched while this runs, so
+          # in-flight requests keep being served the old (fully intact) build.
+          ssh root@138.197.29.241 "mkdir -p '$RELEASE_DIR'"
+          scp -r dist/. root@138.197.29.241:"$RELEASE_DIR"/
+
+          # Flip the "current" symlink to the new release in a single atomic
+          # rename, then prune old releases. Nginx should serve from
+          # $APP_ROOT/current (a symlink), not from $APP_ROOT directly.
+          ssh root@138.197.29.241 bash -s <<EOF
+            set -euo pipefail
+
+            # Retain recent hashed assets in a shared pool with TTL pruning to avoid
+            # infinite snowball accumulation across releases, while ensuring open tabs
+            # and service-worker precaches still holding older chunk URLs keep resolving.
+            mkdir -p "$SHARED_ASSETS"
+
+            # 1. Seed shared pool with new release's assets
+            if [ -d "$RELEASE_DIR/assets" ]; then
+              cp -rn "$RELEASE_DIR/assets/." "$SHARED_ASSETS/" || true
+            fi
+
+            # 2. Backfill shared pool from current active release if present
+            if [ -d "$APP_ROOT/current/assets" ]; then
+              cp -rn "$APP_ROOT/current/assets/." "$SHARED_ASSETS/" || true
+            fi
+
+            # 3. Prune assets older than 14 days from the shared pool
+            find "$SHARED_ASSETS" -type f -mtime +14 -delete
+            find "$SHARED_ASSETS" -mindepth 1 -type d -empty -delete 2>/dev/null || true
+
+            # 4. Union active shared assets into the new release
+            mkdir -p "$RELEASE_DIR/assets"
+            cp -rn "$SHARED_ASSETS/." "$RELEASE_DIR/assets/" || true
+
+            # 5. Flip symlink atomically
+            ln -sfn "$RELEASE_DIR" "$APP_ROOT/current_tmp"
+            mv -Tf "$APP_ROOT/current_tmp" "$APP_ROOT/current"
+
+            # 6. Prune old releases (retain last 5)
+            cd "$APP_ROOT/releases"
+            ls -1dt */ | tail -n +6 | xargs -r rm -rf
+          EOF

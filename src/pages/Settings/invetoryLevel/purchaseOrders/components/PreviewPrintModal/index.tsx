@@ -13,22 +13,17 @@ import { useReactToPrint } from "react-to-print";
 import useSystemDetails from "@hooks/useSystemDetails";
 import { COOP_NAME } from "@utils/config";
 import { sendPurchaseOrderEmail, refToHtmlString } from "@services/emailReports";
+import { THEME_C } from "../../../../../../utils/getPrimaryColor";
 
 const { Text } = Typography;
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 const C = {
-    primary: "#6c1c2c",
-    primaryLight: "#f9f0f2",
+    ...THEME_C,
+    get primary() { return THEME_C.primary; },
+    get primaryLight() { return THEME_C.primaryLight; },
     tableHeader: "#f8fafc",
     tableBorder: "#e2e8f0",
-    darkText: "#0f172a",
-    subText: "#64748b",
-    green: "#10b981",
-    orange: "#f59e0b",
-    red: "#ef4444",
-    blue: "#3b82f6",
-    white: "#ffffff",
 };
 
 // ── Mobile detection ──────────────────────────────────────────────────────────

@@ -111,34 +111,26 @@ export interface StatementLineInput {
  * Statement lines are excluded from list view for performance — use getReconciliationById for full detail.
  */
 export const getAllReconciliations = async (params: GetReconciliationsParams) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/bank-reconciliations`,
-            { params }
-        );
-        return response.data as {
-            reconciliations: BankReconciliation[];
-            totalPages: number;
-            currentPage: number;
-            total: number;
-        };
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/bank-reconciliations`,
+        { params }
+    );
+    return response.data as {
+        reconciliations: BankReconciliation[];
+        totalPages: number;
+        currentPage: number;
+        total: number;
+    };
 };
 
 /**
  * Get a single reconciliation with full detail — all statement lines and unreconciled JE lines.
  */
 export const getReconciliationById = async (id: string) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/bank-reconciliations/${id}`
-        );
-        return response.data as { reconciliation: BankReconciliation };
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/bank-reconciliations/${id}`
+    );
+    return response.data as { reconciliation: BankReconciliation };
 };
 
 /**
@@ -151,15 +143,11 @@ export const getUnreconciledJELines = async (
     from?: string,
     to?: string
 ) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/bank-reconciliations/unreconciled`,
-            { params: { shop_id, account_id, from, to } }
-        );
-        return response.data as { count: number; lines: UnreconciledJELine[] };
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/bank-reconciliations/unreconciled`,
+        { params: { shop_id, account_id, from, to } }
+    );
+    return response.data as { count: number; lines: UnreconciledJELine[] };
 };
 
 /**

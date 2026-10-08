@@ -7,6 +7,7 @@ import { useLogin } from "./hook/useLogin";
 import { LoginOutlined } from "@ant-design/icons";
 import { useAppDispatch } from "src/store";
 import { verifyCompanyCode } from "@services/users";
+import { updateTenantInStorage } from "@utils/getPrimaryColor";
 import { useNavigate } from "react-router-dom";
 
 type StaffModalProps = {
@@ -58,7 +59,7 @@ const StaffModal: React.FC<StaffModalProps> = ({
 
       console.log('nice again', result);
 
-      localStorage.setItem("tenant", JSON.stringify(result.data));
+      updateTenantInStorage(result.data);
 
       dispatch({ type: 'VERIFY_COMPANY_CODE_SUCCESS', payload: result });
 

@@ -6,30 +6,36 @@ import {
   Navigate,
   Outlet,
 } from "react-router-dom";
-import { Suspense, lazy } from "react";
+import * as Sentry from "@sentry/react";
+import { Suspense } from "react";
+import { lazyWithReload } from "@utils/lazyWithReload";
 import Private, { AdminRoute } from "@components/layout/private/Private";
-import MainCategory from "@pages/main_category/Main_category";
 import NotFound from "@routes/NotFound";
-import { Spin } from "antd/lib";
-import { COOP_NAME } from "@utils/config";
-import MainOrders from "@pages/OrderManagement/MainOrders";
+import { Spin } from "antd";
 import NubaLoader from "@components/spinner/NubaLoader";
 import StaffLoginPage from "@pages/Login/login";
-import UnifiedShopDashboardPage from "src/pages/Report/UnifiedShopDashboardPage";
-import StaffClockTracker from "@pages/staff/ClockInTracker";
-import HelpCenter from "src/AdminDashboard/HelpCenter/HelpCenterPage";
-import DashboardAdminPage from "src/AdminDashboard/DashboardPage/DashboardPage";
-import UnifiedDashboardPage from "src/pages/Report/UnifiedDashboardPage";
-import ShopManagement from "src/AdminDashboard/Shops/MainShopPage";
-import Customer from "src/pages/Customer/CustomerList";
-import PaymentSubscriptionPage from "src/components/billing/Billing";
-import AdminCustomersList from "src/AdminDashboard/Customers/CustomerList";
-import TenantSettings from "src/AdminDashboard/Settings/TenantSettings";
-import DiscoverPage from "src/AdminDashboard/DiscoverPage";
 import PaymentCallback from "@components/payment/PaymentCallback";
 import PermissionRoute from "@components/PermissionRoute";
-import PrivacyPolicy from "@pages/Legal/PrivacyPolicy";
-import TermsAndConditions from "@pages/Legal/TermsAndConditions";
+
+// ─── Lazily Loaded Core & Admin Pages ─────────────────────────────────────────
+const MainCategory = lazyWithReload(() => import("@pages/main_category/Main_category"));
+const MainOrders = lazyWithReload(() => import("@pages/OrderManagement/MainOrders"));
+const StaffClockTracker = lazyWithReload(() => import("@pages/staff/ClockInTracker"));
+const HelpCenter = lazyWithReload(() => import("src/AdminDashboard/HelpCenter/HelpCenterPage"));
+const DashboardAdminPage = lazyWithReload(() => import("src/AdminDashboard/DashboardPage/DashboardPage"));
+const DukaDashboardPage = lazyWithReload(() => import("src/pages/Dashboard/DukaDashboardPage"));
+const AdminDukaDashboardPage = lazyWithReload(() => import("src/AdminDashboard/DashboardPage/AdminDukaDashboardPage"));
+const UnifiedDashboardPage = lazyWithReload(() => import("src/pages/Report/UnifiedDashboardPage"));
+const UnifiedShopDashboardPage = lazyWithReload(() => import("src/pages/Report/UnifiedShopDashboardPage"));
+const ShopManagement = lazyWithReload(() => import("src/AdminDashboard/Shops/MainShopPage"));
+const Customer = lazyWithReload(() => import("src/pages/Customer/CustomerList"));
+const PaymentSubscriptionPage = lazyWithReload(() => import("src/components/billing/Billing"));
+const AdminCustomersList = lazyWithReload(() => import("src/AdminDashboard/Customers/CustomerList"));
+const TenantSettings = lazyWithReload(() => import("src/AdminDashboard/Settings/TenantSettings"));
+const DiscoverPage = lazyWithReload(() => import("src/AdminDashboard/DiscoverPage"));
+const BusinessHealthScorePage = lazyWithReload(() => import("@pages/HealthScore/BusinessHealthScorePage"));
+const PrivacyPolicy = lazyWithReload(() => import("@pages/Legal/PrivacyPolicy"));
+const TermsAndConditions = lazyWithReload(() => import("@pages/Legal/TermsAndConditions"));
 
 // ─── Fallback spinners ────────────────────────────────────────────────────────
 const fullscreenSpin = <NubaLoader />;
@@ -64,103 +70,106 @@ const guardedAdminPage = (Component: React.ComponentType, permission: string | s
 );
 
 // ─── Wages Module ─────────────────────────────────────────────────────────────
-const WagesList = lazy(() => import("src/AdminDashboard/Wages/WageList"));
+const WagesList = lazyWithReload(() => import("src/AdminDashboard/Wages/WageList"));
 
 // ─── Core App ─────────────────────────────────────────────────────────────────
-const Layout = lazy(() => import("@components/layout/Layout"));
-const RestaurantPage = lazy(() => import("@pages/Restaurant/Restuarant"));
-const MainStore = lazy(() => import("@pages/store/MainStore"));
-const Table = lazy(() => import("@pages/Tables/TablePro"));
-const Faqs = lazy(() => import("@pages/Faqs/Faqs"));
-const Website = lazy(() => import("@pages/Website/website"));
+const Layout = lazyWithReload(() => import("@components/layout/Layout"));
+const RestaurantPage = lazyWithReload(() => import("@pages/Restaurant/Restuarant"));
+const MainStore = lazyWithReload(() => import("@pages/store/MainStore"));
+const Table = lazyWithReload(() => import("@pages/Tables/TablePro"));
+const Faqs = lazyWithReload(() => import("@pages/Faqs/Faqs"));
+const Website = lazyWithReload(() => import("@pages/Website/website"));
 
 // ─── Settings ─────────────────────────────────────────────────────────────────
-const PaymentMainSettings = lazy(() => import("@pages/Settings/paymentMethodLevel/payment_main_settings"));
-const UsersMainSettings = lazy(() => import("@pages/Settings/usersLevel/User_main_settings"));
-const InventoryMainSettings = lazy(() => import("@pages/Settings/invetoryLevel/Inventory_main_settings"));
-const SupplierMainSettings = lazy(() => import("@pages/Settings/supplierLevel/supplier_main_settings"));
-const TableMainSettings = lazy(() => import("@pages/Settings/TableLevel/Table_main_settings"));
-const SystemSetup = lazy(() => import("@pages/Settings/systemSetup/SystemSetup"));
-const CategoryMainSettings = lazy(() => import("@pages/Settings/categoryLevel/Category_main_settings"));
-const Profile = lazy(() => import("@pages/Profile/Profile"));
-const AdminProfile = lazy(() => import("src/AdminDashboard/Profile/AdminProfile"));
-const EmployeeShift = lazy(() => import("@pages/EmployeeShift/Employee"));
-const Notification = lazy(() => import("@pages/Notification/NotificationPage"));
+const PaymentMainSettings = lazyWithReload(() => import("@pages/Settings/paymentMethodLevel/payment_main_settings"));
+const UsersMainSettings = lazyWithReload(() => import("@pages/Settings/usersLevel/User_main_settings"));
+const InventoryMainSettings = lazyWithReload(() => import("@pages/Settings/invetoryLevel/Inventory_main_settings"));
+const SupplierMainSettings = lazyWithReload(() => import("@pages/Settings/supplierLevel/supplier_main_settings"));
+const TableMainSettings = lazyWithReload(() => import("@pages/Settings/TableLevel/Table_main_settings"));
+const SystemSetup = lazyWithReload(() => import("@pages/Settings/systemSetup/SystemSetup"));
+const CategoryMainSettings = lazyWithReload(() => import("@pages/Settings/categoryLevel/Category_main_settings"));
+const Profile = lazyWithReload(() => import("@pages/Profile/Profile"));
+const AdminProfile = lazyWithReload(() => import("src/AdminDashboard/Profile/AdminProfile"));
+const EmployeeShift = lazyWithReload(() => import("@pages/EmployeeShift/Employee"));
+const Notification = lazyWithReload(() => import("@pages/Notification/NotificationPage"));
 
 // ─── Document Center ──────────────────────────────────────────────────────────
-const DocumentCenter = lazy(() => import("@pages/Documents/DocumentCenter"));
+const DocumentCenter = lazyWithReload(() => import("@pages/Documents/DocumentCenter"));
 
 // ─── E-Signature ───────────────────────────────────────────────────────────────
-const ESignPage = lazy(() => import("@pages/ESign/ESignPage"));
+const ESignPage = lazyWithReload(() => import("@pages/ESign/ESignPage"));
+const PublicSignPage = lazyWithReload(() => import("@pages/ESign/PublicSignPage"));
 
 // ─── Omnichannel Inbox ────────────────────────────────────────────────────────
-const OmnichannelInboxPage = lazy(() => import("src/pages/OmniChannel/OmnichannelInboxPage"));
-const OAuthCallbackPage = lazy(() => import("src/pages/OmniChannel/OAuthCallbackPage"));
-
-// ─── Mteja Dashboard ──────────────────────────────────────────────────────────
-const MtejaDashboard = lazy(() => import("src/pages/Dashboard/MtejaDashboard"));
+const OmnichannelInboxPage = lazyWithReload(() => import("src/pages/OmniChannel/OmnichannelInboxPage"));
+const OAuthCallbackPage = lazyWithReload(() => import("src/pages/OmniChannel/OAuthCallbackPage"));
 
 // ─── Accounting Module ────────────────────────────────────────────────────────
-const AccountingDashboardPage = lazy(() => import("src/pages/AccountingDashboard/AccountingDashboardPage"));
-const ChartOfAccountsPage = lazy(() => import("src/pages/ChartOfAccounts/ChartOfAccountsPage"));
-const JournalEntriesPage = lazy(() => import("src/pages/JournalEntry/JournalEntriesPage"));
-const SalesReceiptsPage = lazy(() => import("src/pages/SalesReceipts/SalesReceiptsPage"));
-const NotesPage = lazy(() => import("src/pages/Notes/NotesPage"));
-const BankStatementPage = lazy(() => import("src/pages/Banking/BankStatementPage"));
-const BankReconciliationPage = lazy(() => import("src/pages/Reconciliation/BankReconciliationPage"));
-const UnifiedReportsPage = lazy(() => import("src/pages/Report/UnifiedReportsPage"));
+const ChartOfAccountsPage = lazyWithReload(() => import("src/pages/ChartOfAccounts/ChartOfAccountsPage"));
+const JournalEntriesPage = lazyWithReload(() => import("src/pages/JournalEntry/JournalEntriesPage"));
+const SalesReceiptsPage = lazyWithReload(() => import("src/pages/SalesReceipts/SalesReceiptsPage"));
+const NotesPage = lazyWithReload(() => import("src/pages/Notes/NotesPage"));
+const BankStatementPage = lazyWithReload(() => import("src/pages/Banking/BankStatementPage"));
+const BankReconciliationPage = lazyWithReload(() => import("src/pages/Reconciliation/BankReconciliationPage"));
+const UnifiedReportsPage = lazyWithReload(() => import("src/pages/Report/UnifiedReportsPage"));
 
 // Petty Cash & Refunds (Duka Only)
-const PettyCashListPage = lazy(() => import("src/pages/PettyCash/PettyCashListPage"));
-const RefundsListPage = lazy(() => import("src/pages/Refunds/RefundsListPage"));
+const PettyCashListPage = lazyWithReload(() => import("src/pages/PettyCash/PettyCashListPage"));
+const RefundsListPage = lazyWithReload(() => import("src/pages/Refunds/RefundsListPage"));
 
 // ─── Expenses / Bills / Income ────────────────────────────────────────────────
-const ExpensesPage = lazy(() => import("@pages/OrderManagement/ExpensesPage"));
-const BillsPage = lazy(() => import("@pages/OrderManagement/BillsPage"));
-const IncomePage = lazy(() => import("@pages/OrderManagement/IncomePage"));
+const ExpensesPage = lazyWithReload(() => import("@pages/OrderManagement/ExpensesPage"));
+const BillsPage = lazyWithReload(() => import("@pages/OrderManagement/BillsPage"));
+const IncomePage = lazyWithReload(() => import("@pages/OrderManagement/IncomePage"));
 
 // ─── Currency ─────────────────────────────────────────────────────────────────
-const CurrencyPage = lazy(() => import("src/pages/Currency/CurrencyPage"));
+const CurrencyPage = lazyWithReload(() => import("src/pages/Currency/CurrencyPage"));
 
 // ─── Asset Management ─────────────────────────────────────────────────────────
-const AssetRegisterPage = lazy(() => import("src/pages/AssetManagement/AssetRegisterPage"));
-const AssetRequestsPage = lazy(() => import("src/pages/AssetManagement/AssetRequestsPage"));
-const AssetMaintenancePage = lazy(() => import("src/pages/AssetManagement/AssetMaintenancePage"));
-const AssetReportsPage = lazy(() => import("src/pages/AssetManagement/AssetReportsPage"));
+const AssetRegisterPage = lazyWithReload(() => import("src/pages/AssetManagement/AssetRegisterPage"));
+const AssetRequestsPage = lazyWithReload(() => import("src/pages/AssetManagement/AssetRequestsPage"));
+const AssetMaintenancePage = lazyWithReload(() => import("src/pages/AssetManagement/AssetMaintenancePage"));
+const AssetReportsPage = lazyWithReload(() => import("src/pages/AssetManagement/AssetReportsPage"));
 
 // ─── CRM / Mteja Module ───────────────────────────────────────────────────────
 // All CRM pages are lazy-loaded and only reachable when hasMteja === true.
 // The MtejaRoute guard below enforces this at runtime.
-const LeadsPage = lazy(() => import("src/pages/Lead/Leads"));
-const CampaignsPage = lazy(() => import("src/pages/Campaign/Campaigns"));
-const SalesTargetsPage = lazy(() => import("src/pages/SalesTargets/SalesTargets"));
-const SalesBudgetsPage = lazy(() => import("src/pages/Salesbudgets/Salesbudgets"));
+const LeadsPage = lazyWithReload(() => import("src/pages/Lead/Leads"));
+const CampaignsPage = lazyWithReload(() => import("src/pages/Campaign/Campaigns"));
+const SalesTargetsPage = lazyWithReload(() => import("src/pages/SalesTargets/SalesTargets"));
+const SalesBudgetsPage = lazyWithReload(() => import("src/pages/Salesbudgets/Salesbudgets"));
+const QuotesPage = lazyWithReload(() => import("src/pages/Quotes/QuotesPage"));
+const ActivityCalendarPage = lazyWithReload(() => import("src/pages/ActivityCalendar/ActivityCalendarPage"));
+const MtejaDashboard = lazyWithReload(() => import("src/pages/Dashboard/MtejaDashboard"));
+const AccountingDashboardPage = lazyWithReload(() => import("src/pages/AccountingDashboard/AccountingDashboardPage"));
 
 // ─── Dala Real Estate Module ───────────────────────────────────────────────────
 // All Dala pages are lazy-loaded and only reachable when hasDala === true.
-const PropertiesList = lazy(() => import("src/pages/dala/properties/PropertiesList"));
-const PropertyDetail = lazy(() => import("src/pages/dala/properties/PropertyDetail"));
-const PropertyTypesList = lazy(() => import("src/pages/dala/property-types/PropertyTypesList"));
-const UnitsList = lazy(() => import("src/pages/dala/units/UnitsList"));
-const UnitDetail = lazy(() => import("src/pages/dala/units/UnitDetail"));
-const SalesManagement = lazy(() => import("src/pages/dala/sales/SalesManagement"));
-const SaleDetail = lazy(() => import("src/pages/dala/sales/SaleDetail"));
-const CommissionManagement = lazy(() => import("src/pages/dala/commissions/CommissionManagement"));
-const LeaseManagement = lazy(() => import("src/pages/dala/leases/LeaseManagement"));
-const LeaseDetail = lazy(() => import("src/pages/dala/leases/LeaseDetail"));
-const RentCollection = lazy(() => import("src/pages/dala/rent/RentCollection"));
-const MaintenanceManagement = lazy(() => import("src/pages/dala/maintenance/MaintenanceManagement"));
+const DalaDashboard = lazyWithReload(() => import("src/pages/dala/Dashboard"));
+const UnifiedDalaDashboard = lazyWithReload(() => import("src/pages/dala/UnifiedDalaDashboard"));
+const PropertiesList = lazyWithReload(() => import("src/pages/dala/properties/PropertiesList"));
+const PropertyDetail = lazyWithReload(() => import("src/pages/dala/properties/PropertyDetail"));
+const PropertyTypesList = lazyWithReload(() => import("src/pages/dala/property-types/PropertyTypesList"));
+const UnitsList = lazyWithReload(() => import("src/pages/dala/units/UnitsList"));
+const UnitDetail = lazyWithReload(() => import("src/pages/dala/units/UnitDetail"));
+const SalesManagement = lazyWithReload(() => import("src/pages/dala/sales/SalesManagement"));
+const SaleDetail = lazyWithReload(() => import("src/pages/dala/sales/SaleDetail"));
+const CommissionManagement = lazyWithReload(() => import("src/pages/dala/commissions/CommissionManagement"));
+const LeaseManagement = lazyWithReload(() => import("src/pages/dala/leases/LeaseManagement"));
+const LeaseDetail = lazyWithReload(() => import("src/pages/dala/leases/LeaseDetail"));
+const RentCollection = lazyWithReload(() => import("src/pages/dala/rent/RentCollection"));
+const MaintenanceManagement = lazyWithReload(() => import("src/pages/dala/maintenance/MaintenanceManagement"));
 
 // ─── Bandu HR Module ───────────────────────────────────────────────────────────
-const BanduHRDashboard = lazy(() => import("src/pages/BanduHR/BanduHRDashboard"));
-const EmployeeManagement = lazy(() => import("src/pages/BanduHR/EmployeeManagement"));
-const LeaveApplication = lazy(() => import("src/pages/BanduHR/LeaveApplication"));
-const LeavePolicies = lazy(() => import("src/pages/BanduHR/LeavePolicies"));
-const LeaveCalendar = lazy(() => import("src/pages/BanduHR/LeaveCalendar"));
-const PayrollManagement = lazy(() => import("src/pages/BanduHR/PayrollManagement"));
-const AttendanceTracking = lazy(() => import("src/pages/BanduHR/AttendanceTracking"));
-const PayslipView = lazy(() => import("src/pages/BanduHR/PayslipView"));
-const LeaveApprovals = lazy(() => import("src/pages/BanduHR/LeaveApprovals"));
+const BanduHRDashboard = lazyWithReload(() => import("src/pages/BanduHR/BanduHRDashboard"));
+const EmployeeManagement = lazyWithReload(() => import("src/pages/BanduHR/EmployeeManagement"));
+const LeaveApplication = lazyWithReload(() => import("src/pages/BanduHR/LeaveApplication"));
+const LeavePolicies = lazyWithReload(() => import("src/pages/BanduHR/LeavePolicies"));
+const LeaveCalendar = lazyWithReload(() => import("src/pages/BanduHR/LeaveCalendar"));
+const PayrollManagement = lazyWithReload(() => import("src/pages/BanduHR/PayrollManagement"));
+const AttendanceTracking = lazyWithReload(() => import("src/pages/BanduHR/AttendanceTracking"));
+const PayslipView = lazyWithReload(() => import("src/pages/BanduHR/PayslipView"));
+const LeaveApprovals = lazyWithReload(() => import("src/pages/BanduHR/LeaveApprovals"));
 
 // ─── Mteja guard ─────────────────────────────────────────────────────────────
 const getMtejaEnabled = (): boolean => {
@@ -288,8 +297,8 @@ const SmartShopRouter = () => {
   const hasDala = tenant?.modules?.dala === true;
 
   if (hasDala && !hasPOS && !hasAccounting && !hasMteja) return <Navigate to="/dala" replace />;
-  if (hasMteja && !hasPOS && !hasAccounting) return <Navigate to="/mteja" replace />;
-  if (hasAccounting && !hasPOS) return <Navigate to="/accounting" replace />;
+  if (hasMteja && !hasPOS && !hasAccounting) return <Navigate to="/home-dashboard?tab=mteja" replace />;
+  if (hasAccounting && !hasPOS) return <Navigate to="/home-dashboard?tab=accounting" replace />;
   return privatePage(Table);
 };
 
@@ -304,15 +313,14 @@ const SmartDashboardRouter = () => {
   const hasMteja = tenant?.modules?.crm === true;
   const hasDala = tenant?.modules?.dala === true;
 
-  if (hasMteja && !hasPOS && !hasAccounting && !hasDala) return <Navigate to="/admin/mteja" replace />;
-  if (hasAccounting && !hasPOS) return <Navigate to="/admin/dashboard" replace />;
+  if (hasMteja && !hasPOS && !hasAccounting && !hasDala) return <Navigate to="/admin/dashboard?tab=mteja" replace />;
+  if (hasAccounting && !hasPOS) return <Navigate to="/admin/dashboard?tab=accounting" replace />;
   return <Navigate to="/admin/dashboard" replace />;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ROUTER
-// ─────────────────────────────────────────────────────────────────────────────
-const routes = createBrowserRouter(
+const sentryCreateBrowserRouter = Sentry.wrapCreateBrowserRouterV6(createBrowserRouter);
+const routes = sentryCreateBrowserRouter(
   createRoutesFromElements(
     <>
       {/* Public — OAuth popup */}
@@ -332,6 +340,13 @@ const routes = createBrowserRouter(
         path="/terms-and-conditions"
         errorElement={<NotFound />}
         element={<Suspense fallback={fullscreenSpin}><TermsAndConditions /></Suspense>}
+      />
+
+      {/* Public — document signing via shareable link (unauthenticated) */}
+      <Route
+        path="/esign/sign/:token"
+        errorElement={<NotFound />}
+        element={<Suspense fallback={fullscreenSpin}><PublicSignPage /></Suspense>}
       />
 
       {/* ══════════════════════════════════════════════════════════════════
@@ -356,7 +371,7 @@ const routes = createBrowserRouter(
           element={guardedPage(RestaurantPage, "ORDERS_VIEW_DASHBOARD")} />
 
         <Route path="dashboard" errorElement={<NotFound />}
-          element={<Navigate to="/home-dashboard" replace />} />
+          element={<Navigate to="/pos/dashboard" replace />} />
 
         <Route path="cart/cart/:cartId" errorElement={<NotFound />}
           element={guardedPage(RestaurantPage, "ORDERS_VIEW_DASHBOARD")} />
@@ -462,9 +477,9 @@ const routes = createBrowserRouter(
         {/* ── Accounting — shop level (/accounting/...) ──────────────────── */}
         <Route path="accounting" element={<AccountingLayout />}>
           <Route index errorElement={<NotFound />}
-            element={<Navigate to="/home-dashboard" replace />} />
+            element={guardedPage(AccountingDashboardPage, "ACCOUNTING_COA_VIEW")} />
           <Route path="dashboard" errorElement={<NotFound />}
-            element={<Navigate to="/home-dashboard" replace />} />
+            element={guardedPage(AccountingDashboardPage, "ACCOUNTING_COA_VIEW")} />
           <Route path="accounts" errorElement={<NotFound />}
             element={guardedPage(ChartOfAccountsPage, "ACCOUNTING_COA_VIEW")} />
           <Route path="journals" errorElement={<NotFound />}
@@ -496,6 +511,19 @@ const routes = createBrowserRouter(
 
           </Route>
 
+        {/* ── Module direct aliases ────────────────────────────────────── */}
+        <Route path="pesa/dashboard" element={<Navigate to="/accounting/dashboard" replace />} />
+        <Route path="pesa" element={<Navigate to="/accounting/dashboard" replace />} />
+        <Route path="mteja/dashboard" element={<Navigate to="/crm/dashboard" replace />} />
+        <Route path="mteja" element={<Navigate to="/crm/dashboard" replace />} />
+        <Route path="bandu/dashboard" element={<Navigate to="/hr/dashboard" replace />} />
+        <Route path="bandu" element={<Navigate to="/hr/dashboard" replace />} />
+        <Route path="pos/dashboard" errorElement={<NotFound />}
+          element={guardedPage(DukaDashboardPage, "UNIFIED_DASHBOARD_VIEW")} />
+        <Route path="pos" element={<Navigate to="/pos/dashboard" replace />} />
+        <Route path="duka/dashboard" element={<Navigate to="/pos/dashboard" replace />} />
+        <Route path="duka" element={<Navigate to="/pos/dashboard" replace />} />
+
         {/* ── CRM / Mteja — shop level (/crm/...) ───────────────────────────
             ALL routes here require hasMteja === true (MtejaRoute guard).
             Permission: CUSTOMERS_VIEW gates all CRM pages for now —
@@ -503,7 +531,9 @@ const routes = createBrowserRouter(
         ─────────────────────────────────────────────────────────────────── */}
         <Route path="crm" element={<CrmLayout />}>
           <Route index errorElement={<NotFound />}
-            element={mtejaPage(LeadsPage, "CUSTOMERS_VIEW")} />
+            element={mtejaPage(MtejaDashboard, "CUSTOMERS_VIEW")} />
+          <Route path="dashboard" errorElement={<NotFound />}
+            element={mtejaPage(MtejaDashboard, "CUSTOMERS_VIEW")} />
           <Route path="leads" errorElement={<NotFound />}
             element={mtejaPage(LeadsPage, "CUSTOMERS_VIEW")} />
           <Route path="campaigns" errorElement={<NotFound />}
@@ -512,6 +542,10 @@ const routes = createBrowserRouter(
             element={mtejaPage(SalesTargetsPage, "CUSTOMERS_VIEW")} />
           <Route path="sales-budgets" errorElement={<NotFound />}
             element={mtejaPage(SalesBudgetsPage, "CUSTOMERS_VIEW")} />
+          <Route path="quotes" errorElement={<NotFound />}
+            element={mtejaPage(QuotesPage, "CUSTOMERS_VIEW")} />
+          <Route path="calendar" errorElement={<NotFound />}
+            element={mtejaPage(ActivityCalendarPage, "CUSTOMERS_VIEW")} />
         </Route>
 
         {/* ── Dala Real Estate — shop level (/dala/...) ───────────────────────
@@ -520,6 +554,10 @@ const routes = createBrowserRouter(
             add dedicated Dala permissions when roles are extended.
         ─────────────────────────────────────────────────────────────────── */}
         <Route path="dala" element={<Outlet />}>
+          <Route index errorElement={<NotFound />}
+            element={dalaPage(DalaDashboard, "DALA_PROPERTIES_VIEW")} />
+          <Route path="dashboard" errorElement={<NotFound />}
+            element={dalaPage(DalaDashboard, "DALA_PROPERTIES_VIEW")} />
           <Route path="properties" errorElement={<NotFound />}
             element={dalaPage(PropertiesList, "DALA_PROPERTIES_VIEW")} />
           <Route path="properties/:id" errorElement={<NotFound />}
@@ -631,6 +669,12 @@ const routes = createBrowserRouter(
           }
         />
 
+        <Route path="health-score" errorElement={<NotFound />}
+          element={adminPage(BusinessHealthScorePage)} />
+
+        <Route path="business-health" errorElement={<NotFound />}
+          element={adminPage(BusinessHealthScorePage)} />
+
         <Route path="wages" errorElement={<NotFound />}
           element={adminPage(WagesList)} />
 
@@ -726,15 +770,25 @@ const routes = createBrowserRouter(
             </Suspense>
           } />
 
-        <Route path="mteja" errorElement={<NotFound />}
-          element={<Navigate to="/admin/dashboard" replace />} />
+        {/* ── Module direct aliases ────────────────────────────────────── */}
+        <Route path="pesa/dashboard" element={<Navigate to="/admin/accounting/dashboard" replace />} />
+        <Route path="pesa" element={<Navigate to="/admin/accounting/dashboard" replace />} />
+        <Route path="mteja/dashboard" element={<Navigate to="/admin/crm/dashboard" replace />} />
+        <Route path="mteja" element={<Navigate to="/admin/crm/dashboard" replace />} />
+        <Route path="bandu/dashboard" element={<Navigate to="/admin/hr/dashboard" replace />} />
+        <Route path="bandu" element={<Navigate to="/admin/hr/dashboard" replace />} />
+        <Route path="pos/dashboard" errorElement={<NotFound />}
+          element={guardedAdminPage(AdminDukaDashboardPage, "UNIFIED_DASHBOARD_VIEW")} />
+        <Route path="pos" element={<Navigate to="/admin/pos/dashboard" replace />} />
+        <Route path="duka/dashboard" element={<Navigate to="/admin/pos/dashboard" replace />} />
+        <Route path="duka" element={<Navigate to="/admin/pos/dashboard" replace />} />
 
         {/* ── Accounting — admin level (/admin/accounting/...) ───────────── */}
         <Route path="accounting" element={<AccountingLayout />}>
           <Route index errorElement={<NotFound />}
-            element={<Navigate to="/admin/dashboard" replace />} />
+            element={guardedAdminPage(AccountingDashboardPage, "ACCOUNTING_COA_VIEW")} />
           <Route path="dashboard" errorElement={<NotFound />}
-            element={<Navigate to="/admin/dashboard" replace />} />
+            element={guardedAdminPage(AccountingDashboardPage, "ACCOUNTING_COA_VIEW")} />
           <Route path="accounts" errorElement={<NotFound />}
             element={guardedAdminPage(ChartOfAccountsPage, "ACCOUNTING_COA_VIEW")} />
           <Route path="journals" errorElement={<NotFound />}
@@ -763,7 +817,9 @@ const routes = createBrowserRouter(
         ─────────────────────────────────────────────────────────────────── */}
         <Route path="crm" element={<CrmLayout />}>
           <Route index errorElement={<NotFound />}
-            element={mtejaAdminPage(LeadsPage, "CUSTOMERS_VIEW")} />
+            element={mtejaAdminPage(MtejaDashboard, "CUSTOMERS_VIEW")} />
+          <Route path="dashboard" errorElement={<NotFound />}
+            element={mtejaAdminPage(MtejaDashboard, "CUSTOMERS_VIEW")} />
           <Route path="leads" errorElement={<NotFound />}
             element={mtejaAdminPage(LeadsPage, "CUSTOMERS_VIEW")} />
           <Route path="campaigns" errorElement={<NotFound />}
@@ -772,6 +828,10 @@ const routes = createBrowserRouter(
             element={mtejaAdminPage(SalesTargetsPage, "CUSTOMERS_VIEW")} />
           <Route path="sales-budgets" errorElement={<NotFound />}
             element={mtejaAdminPage(SalesBudgetsPage, "CUSTOMERS_VIEW")} />
+          <Route path="quotes" errorElement={<NotFound />}
+            element={mtejaAdminPage(QuotesPage, "CUSTOMERS_VIEW")} />
+          <Route path="calendar" errorElement={<NotFound />}
+            element={mtejaAdminPage(ActivityCalendarPage, "CUSTOMERS_VIEW")} />
         </Route>
 
         {/* ── Dala Real Estate — admin level (/admin/dala/...) ───────────────
@@ -779,6 +839,10 @@ const routes = createBrowserRouter(
             All gated behind AdminDalaRoute so non-Dala tenants can't access.
         ─────────────────────────────────────────────────────────────────── */}
         <Route path="dala" element={<Outlet />}>
+          <Route index errorElement={<NotFound />}
+            element={dalaAdminPage(UnifiedDalaDashboard, "DALA_PROPERTIES_VIEW")} />
+          <Route path="dashboard" errorElement={<NotFound />}
+            element={dalaAdminPage(UnifiedDalaDashboard, "DALA_PROPERTIES_VIEW")} />
           <Route path="properties" errorElement={<NotFound />}
             element={dalaAdminPage(PropertiesList, "DALA_PROPERTIES_VIEW")} />
           <Route path="properties/:id" errorElement={<NotFound />}
@@ -824,9 +888,28 @@ const routes = createBrowserRouter(
   )
 );
 
+const RootCenteredLoader = () => (
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      width: "100vw",
+      height: "100vh",
+      position: "fixed",
+      top: 0,
+      left: 0,
+      background: "#ffffff",
+      zIndex: 99999,
+    }}
+  >
+    <Spin size="large" />
+  </div>
+);
+
 function Routers() {
   return (
-    <Suspense fallback={<Spin size="large" />}>
+    <Suspense fallback={<RootCenteredLoader />}>
       <RouterProvider router={routes} />
     </Suspense>
   );

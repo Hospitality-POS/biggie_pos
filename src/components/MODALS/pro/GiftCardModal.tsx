@@ -30,7 +30,7 @@ import {
     MessageOutlined,
 } from "@ant-design/icons";
 import { createGiftCard, sendGiftCard } from "@services/customers";
-import moment from "moment";
+import dayjs from "dayjs";
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -136,7 +136,7 @@ const GiftCardModal = ({
             newRecipientForm.resetFields();
             newRecipientForm.setFieldsValue({
                 message: defaultMessage,
-                expiry_date: moment().add(3, 'months'),
+                expiry_date: dayjs().add(3, 'month'),
                 price_visible: true
             });
             setIsPriceVisible(true);
@@ -473,14 +473,14 @@ const GiftCardModal = ({
                             label="Expiry Date"
                             rules={[{ required: true, message: "Please select expiry date" }]}
                             style={{ flex: 1 }}
-                            initialValue={moment().add(3, 'months')}
+                            initialValue={dayjs().add(3, 'month')}
                         >
                             <DatePicker
                                 style={{ width: '100%' }}
                                 format="YYYY-MM-DD"
                                 disabledDate={(current) => {
                                     // Can not select days before today
-                                    return current && current < moment().endOf('day');
+                                    return current && current < dayjs().endOf('day');
                                 }}
                             />
                         </Form.Item>

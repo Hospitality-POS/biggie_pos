@@ -12,7 +12,6 @@ import {
   Button, DatePicker, Drawer, Form, message,
   Modal, Popconfirm, Tooltip, Typography, Select, Input,
 } from "antd";
-import { CSVLink } from "react-csv";
 import { useReactToPrint } from "react-to-print";
 import dayjs from "dayjs";
 import { ENTITY_NAME, COOP_NAME } from "@utils/config";
@@ -24,24 +23,14 @@ import {
   RiseOutlined, ShoppingCartOutlined, CheckCircleOutlined,
   WarningOutlined, CreditCardOutlined, FilePdfOutlined, PrinterFilled,
 } from "@ant-design/icons";
+import { THEME_C } from "@utils/getPrimaryColor";
+import { fmtKES } from "@utils/formatters";
 import { useAppSelector } from "src/store";
 
 const { Text } = Typography;
 const { RangePicker } = DatePicker;
 
-const C = {
-  primary: "#6c1c2c",
-  primaryLight: "#f9f0f2",
-  green: "#10b981",
-  red: "#ef4444",
-  blue: "#3b82f6",
-  orange: "#f59e0b",
-  purple: "#8b5cf6",
-  subText: "#64748b",
-  darkText: "#0f172a",
-  border: "#e2e8f0",
-  bg: "#f8fafc",
-};
+const C = THEME_C;
 
 const useIsMobile = () => {
   const [v, setV] = useState(window.innerWidth < 768);
@@ -195,12 +184,6 @@ const computeAnalytics = (orders: any[]): OrderAnalytics => {
     missingPayments: missing, avgOrderValue: orders.length > 0 ? revenue / orders.length : 0,
     regularOrders: regular, subscriptionOrders: subs, topClosedBy,
   };
-};
-
-const fmtKES = (v: number) => {
-  if (v >= 1_000_000) return `KES ${(v / 1_000_000).toFixed(1)}M`;
-  if (v >= 1_000) return `KES ${(v / 1_000).toFixed(1)}K`;
-  return `KES ${v.toFixed(0)}`;
 };
 
 const AnalyticsStrip: React.FC<{ orders: any[]; loading: boolean; isMobile: boolean }> = ({
@@ -517,7 +500,11 @@ const OrdersTable = () => {
       setDateModalVisible(false); setEditingOrderId(null); dateForm.resetFields();
       actionRef.current?.reload();
       if (isMobile) refreshMobile();
-    } catch { } finally { setLoading(false); }
+    } catch {
+      /* validation or update error */
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCancelEdit = () => { setDateModalVisible(false); setEditingOrderId(null); dateForm.resetFields(); };
@@ -608,6 +595,30 @@ const OrdersTable = () => {
 
   const handleExportPDF = () => {
     setPrintModalOpen(true);
+  };
+
+  const handleExportCSV = async () => {
+    if (!csvData || csvData.length === 0) {
+      message.warning("No orders to export.");
+      return;
+    }
+    try {
+      const XLSX = await import("xlsx");
+      const ws = XLSX.utils.json_to_sheet(csvData);
+      const csvContent = XLSX.utils.sheet_to_csv(ws);
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `${ENTITY_NAME}_Orders_${dayjs().format("YYYY-MM-DD")}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Failed to export CSV:", err);
+      message.error("Failed to export orders to CSV.");
+    }
   };
 
   // ── Print component ─────────────────────────────────────────────────────
@@ -944,11 +955,9 @@ const OrdersTable = () => {
             </div>
             <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
               <Button size="small" icon={<FilterOutlined />} onClick={() => setFilterOpen(true)} style={{ borderRadius: 8, borderColor: C.border, height: 30, fontSize: 12 }}>Filter</Button>
-              <CSVLink data={csvData} filename={`${ENTITY_NAME}_Orders_${dayjs().format("YYYY-MM-DD")}.csv`}>
-                <Button size="small" icon={<DownloadOutlined />} type="primary" style={{ background: C.primary, borderColor: C.primary, borderRadius: 8, height: 30, fontSize: 12 }}>
-                  CSV
-                </Button>
-              </CSVLink>
+              <Button size="small" icon={<DownloadOutlined />} type="primary" onClick={handleExportCSV} style={{ background: C.primary, borderColor: C.primary, borderRadius: 8, height: 30, fontSize: 12 }}>
+                CSV
+              </Button>
             </div>
           </div>
         </div>
@@ -1016,12 +1025,9 @@ const OrdersTable = () => {
             <Button key="pdf" icon={<FilePdfOutlined />} onClick={handleExportPDF} style={{ borderRadius: 8 }}>
               Export PDF
             </Button>,
-            <CSVLink key="csv" data={csvData}
-              filename={`${ENTITY_NAME}_Orders_${dayjs().format("YYYY-MM-DD")}.csv`}>
-              <Button type="primary" icon={<DownloadOutlined />} style={{ background: C.primary, borderColor: C.primary, borderRadius: 8 }}>
-                Export CSV
-              </Button>
-            </CSVLink>,
+            <Button key="csv" type="primary" icon={<DownloadOutlined />} onClick={handleExportCSV} style={{ background: C.primary, borderColor: C.primary, borderRadius: 8 }}>
+              Export CSV
+            </Button>,
           ],
         }}
         columns={[

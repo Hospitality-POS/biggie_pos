@@ -12,6 +12,7 @@ import PermissionSettings from "./PermissionSettings";
 import HRAnalytics from "./HRAnalytics";
 import Departments from "./Departments";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
+import { getPrimaryColor } from "../../../utils/getPrimaryColor";
 
 const makeC = (primary: string) => ({
   primary,
@@ -40,7 +41,7 @@ const useIsMobile = () => {
 function UsersMainSettings() {
   const isMobile = useIsMobile();
   const rawPrimary = usePrimaryColor();
-  const primary = (typeof rawPrimary === "string" && rawPrimary) ? rawPrimary : "#6c1c2c";
+  const primary = (typeof rawPrimary === "string" && rawPrimary) ? rawPrimary : getPrimaryColor();
   const C = makeC(primary);
 
   const NAV_TABS = [

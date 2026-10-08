@@ -1,3 +1,4 @@
+import "./sentry";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { store } from "src/store";
@@ -5,17 +6,25 @@ import { Provider } from "react-redux";
 import App from "./App.tsx";
 import "typeface-inter";
 import "./index.css";
-import { createTheme } from "@mui/material/styles";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ThemeProvider } from "@emotion/react";
-import { CssBaseline } from "@mui/material";
 import { ConfigProvider } from "antd";
 import enUS from "antd/locale/en_US";
-import DraggableTawkWidget from "./components/tawk/DraggableTawkWidget.tsx";
-import ErrorBoundary from "./components/tawk/ErrorBoundary.tsx";
 import { PrimaryColorProvider, usePrimaryColor } from "./context/PrimaryColorContext";
 import { POSModeProvider } from "./context/POSModeContext";
-import { RetailQueueProvider } from "./context/RetailQueueContext";  // ← ADD
+import { RetailQueueProvider } from "./context/RetailQueueContext";
+import GlobalErrorBoundary from "@components/GlobalErrorBoundary";
+import { reloadForNewVersion } from "@utils/lazyWithReload";
+
+// Recover from stale-asset failures right after a deploy: Vite fires
+// vite:preloadError when a modulepreload'd chunk 404s, before React even
+// mounts — which is the classic blank-white-page scenario.
+if (import.meta.env.PROD) {
+  window.addEventListener("vite:preloadError", (event) => {
+    if (reloadForNewVersion()) {
+      event.preventDefault();
+    }
+  });
+}
 
 // Force-unregister stale service workers and clear caches in dev
 if (import.meta.env.DEV && "serviceWorker" in navigator) {
@@ -27,54 +36,42 @@ if (import.meta.env.DEV && "serviceWorker" in navigator) {
   });
 }
 
-const theme = createTheme({
-  typography: {
-    fontFamily: "Inter, sans-serif",
-  },
-});
-
 export const queryClient = new QueryClient();
 
 const AppWithColor = () => {
   const primaryColor = usePrimaryColor();
   return (
     <ConfigProvider
-      key={primaryColor}
       locale={enUS}
       theme={{
         token: {
           colorPrimary: primaryColor,
-          colorBgContainer: "#f6ffed",
+          fontFamily: "Inter, sans-serif",
         },
         components: {
-          Button: { primaryShadow: "#f6ffed" },
           Card: { actionsBg: primaryColor },
         },
       }}
     >
       <App />
-      {/* <ErrorBoundary>
-        <DraggableTawkWidget />
-      </ErrorBoundary> */}
     </ConfigProvider>
   );
 };
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
+    <GlobalErrorBoundary>
       <Provider store={store}>
         <QueryClientProvider client={queryClient}>
           <PrimaryColorProvider>
             <POSModeProvider>
-              <RetailQueueProvider>      {/* ← ADD */}
+              <RetailQueueProvider>
                 <AppWithColor />
-              </RetailQueueProvider>     {/* ← ADD */}
+              </RetailQueueProvider>
             </POSModeProvider>
           </PrimaryColorProvider>
         </QueryClientProvider>
       </Provider>
-    </ThemeProvider>
+    </GlobalErrorBoundary>
   </React.StrictMode>
 );

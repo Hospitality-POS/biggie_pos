@@ -15,24 +15,12 @@ import {
     fetchAllPackages, createPackage, updatePackage,
     deletePackage, fetchPackageStatistics, Package,
 } from "@services/subscription";
+import { THEME_C } from "@utils/getPrimaryColor";
 
 const { Text } = Typography;
 
 // ── Palette ────────────────────────────────────────────────────────────────
-const C = {
-    primary: "#6c1c2c",
-    primaryLight: "#f9f0f2",
-    green: "#10b981",
-    red: "#ef4444",
-    blue: "#3b82f6",
-    orange: "#f59e0b",
-    purple: "#8b5cf6",
-    indigo: "#6366f1",
-    subText: "#64748b",
-    darkText: "#0f172a",
-    border: "#e2e8f0",
-    bg: "#f8fafc",
-};
+const C = THEME_C;
 
 const fmt = (v: number) =>
     (v || 0).toLocaleString("en-KE", { minimumFractionDigits: 0, maximumFractionDigits: 0 });

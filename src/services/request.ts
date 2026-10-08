@@ -40,6 +40,7 @@ const EXCLUDED_ROUTES = [
     '/business-types',
     '/suppliers',
     '/customers/other-branches',
+    '/business-health',
 ];
 
 const NON_CACHEABLE_ROUTES = [
@@ -61,13 +62,18 @@ const NON_AUTH_401_ROUTES = [
     '/users/register', // New Staff modal - don't logout on errors
 ];
 
-const isExcludedRoute = (url: string = ''): boolean =>
+const isExcludedRoute = (url = ''): boolean =>
     EXCLUDED_ROUTES.some(route => url.includes(route));
 
-const isNonCacheableRoute = (url: string = ''): boolean =>
-    NON_CACHEABLE_ROUTES.some(route => url.includes(route));
+const isNonCacheableRoute = (url = ''): boolean => {
+    // Explicitly allow POS catalog and payment methods to cache for offline resilience
+    if (url.includes('/payment-methods') || url.includes('/subscription/packages')) {
+        return false;
+    }
+    return NON_CACHEABLE_ROUTES.some(route => url.includes(route));
+};
 
-const isNonAuth401Route = (url: string = ''): boolean =>
+const isNonAuth401Route = (url = ''): boolean =>
     NON_AUTH_401_ROUTES.some(route => url.includes(route));
 
 const formDataHasKey = (formData: FormData, key: string): boolean => {
@@ -94,8 +100,8 @@ const METHOD_TO_ACTION: Record<string, string> = {
 };
 
 const resolvePermissionKey = (
-    url: string = '',
-    method: string = 'get',
+    url = '',
+    method = 'get',
     explicitKey?: string,
 ): string | null => {
     if (explicitKey) return explicitKey;
@@ -111,6 +117,17 @@ const resolvePermissionKey = (
 
     const urlTokens = cleanUrl.split(/[\s\-_/]+/).filter(Boolean);
 
+    // A short token (e.g. "in", "up") is a substring of many unrelated words
+    // (e.g. "in" -> "invoice", "create"), so only allow substring matches
+    // between tokens that are long enough to be meaningfully specific.
+    // Shorter tokens must match exactly to count.
+    const MIN_SUBSTRING_LEN = 4;
+    const tokensMatch = (a: string, b: string): boolean => {
+        if (a === b) return true;
+        if (a.length < MIN_SUBSTRING_LEN || b.length < MIN_SUBSTRING_LEN) return false;
+        return a.includes(b) || b.includes(a);
+    };
+
     let bestKey: string | null = null;
     let bestScore = 0;
 
@@ -119,7 +136,7 @@ const resolvePermissionKey = (
 
         const keyTokens = perm.key.toLowerCase().split('_');
 
-        const score = keyTokens.filter(kt => urlTokens.some(ut => ut.includes(kt) || kt.includes(ut))).length;
+        const score = keyTokens.filter(kt => urlTokens.some(ut => tokensMatch(ut, kt))).length;
 
         if (score > bestScore) {
             bestScore = score;
@@ -216,16 +233,63 @@ axiosInstance.interceptors.request.use(
 );
 
 axiosInstance.interceptors.response.use(
-    (response) => response,
-    (error) => {
+    (response) => {
+        // Automatically cache successful GET responses in IndexedDB for offline resilience
+        if (
+            response.config?.method?.toLowerCase() === "get" &&
+            !isNonCacheableRoute(response.config?.url)
+        ) {
+            const shopId = getValidShopId();
+            const cacheKey = buildCacheKey(
+                response.config.url || "",
+                (response.config.params as Record<string, unknown>) ?? {},
+                shopId
+            );
+            setCache(cacheKey, response.data).catch(() => {/* ignore cache write error */});
+        }
+        return response;
+    },
+    async (error) => {
         // Permission errors are already handled above — don't double-toast
         if (error?.isPermissionError) return Promise.reject(error);
         if (isLoggingOut || axios.isCancel(error)) return Promise.reject(error);
 
+        // ── Offline Fallback: If network failed or device offline, resolve from IndexedDB ──
+        const config = error.config;
+        if (
+            !error.response &&
+            config &&
+            config.method?.toLowerCase() === "get" &&
+            !isNonCacheableRoute(config.url)
+        ) {
+            const shopId = getValidShopId();
+            const cacheKey = buildCacheKey(
+                config.url || "",
+                (config.params as Record<string, unknown>) ?? {},
+                shopId
+            );
+            try {
+                const cached = await getCache<unknown>(cacheKey, true);
+                if (cached !== null) {
+                    console.warn(`[Offline Cache Fallback] Serving cached data for ${config.url}`);
+                    return Promise.resolve({
+                        data: cached,
+                        status: 200,
+                        statusText: "OK (Offline Cache)",
+                        headers: {},
+                        config,
+                        fromCache: true,
+                    });
+                }
+            } catch (cacheErr) {
+                console.warn("[Offline Cache Fallback] Failed to read cached data:", cacheErr);
+            }
+        }
+
         const { response } = error;
         if (response) {
             switch (response.status) {
-                case 401:
+                case 401: {
                     // Check if this is a Meta API endpoint (should NOT logout)
                     const url = response.config?.url || '';
                     if (isNonAuth401Route(url)) {
@@ -239,6 +303,7 @@ axiosInstance.interceptors.response.use(
                     handleError("Session expired. Logging out...");
                     logoutUser();
                     break;
+                }
                 case 403:
                     if (response.data?.message?.toLowerCase().includes("locked")) {
                         handleError(`Transaction Lock: ${response.data.message}`);
@@ -274,18 +339,13 @@ export const getRequest = async (
     config: Record<string, unknown> = {},
     ttlMs?: number,
 ) => {
-    if (!isNonCacheableRoute(url)) {
+    const response = await axiosInstance.get(url, config);
+    if (ttlMs !== undefined && !isNonCacheableRoute(url)) {
         const shopId = getValidShopId();
         const cacheKey = buildCacheKey(url, (config.params as Record<string, unknown>) ?? {}, shopId);
-        const cached = await getCache<unknown>(cacheKey);
-        if (cached !== null) {
-            return { data: cached, fromCache: true };
-        }
-        const response = await axiosInstance.get(url, config);
-        await setCache(cacheKey, response.data, ttlMs);
-        return response;
+        setCache(cacheKey, response.data, ttlMs).catch(() => {/* ignore cache write error */});
     }
-    return axiosInstance.get(url, config);
+    return response;
 };
 
 export const postRequest = (url: string, data: unknown, config = {}) =>

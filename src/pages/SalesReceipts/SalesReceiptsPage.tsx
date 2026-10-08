@@ -33,6 +33,7 @@ import {
     PaymentMethod,
 } from "@services/accounting/salesReceipts";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
+import { THEME_C } from "@utils/getPrimaryColor";
 import SalesReceiptFormDrawer from "./SalesReceiptFormDrawer";
 import SalesReceiptDetailDrawer from "./SalesReceiptDetailDrawer";
 import dayjs, { Dayjs } from "dayjs";
@@ -41,20 +42,7 @@ const { Text } = Typography;
 const { RangePicker } = DatePicker;
 
 // ── Color Palette ───────────────────────────────────────────────────────────────
-
-const C = {
-  primary: "#6c1c2c",
-  primaryLight: "#f9f0f2",
-  green: "#10b981",
-  red: "#ef4444",
-  blue: "#3b82f6",
-  orange: "#f59e0b",
-  purple: "#8b5cf6",
-  subText: "#64748b",
-  darkText: "#0f172a",
-  border: "#e2e8f0",
-  bg: "#f8fafc",
-};
+const C = THEME_C;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

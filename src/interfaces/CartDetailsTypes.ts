@@ -11,6 +11,7 @@ export interface CartDetailsInterface {
   items: string[];
   order_no: string;
   status: string;
+  pending_print?: boolean;
   discount: number;
   discount_type: string;
   clientPin: string;

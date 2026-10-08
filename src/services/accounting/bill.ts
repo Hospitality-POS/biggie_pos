@@ -180,20 +180,16 @@ export interface UpdateBillParams {
  * Get all supplier bills with filters and pagination.
  */
 export const getAllBills = async (params: GetBillsParams = {}) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/bills`,
-            { params }
-        );
-        return response.data as {
-            bills: Bill[];
-            total: number;
-            page: number;
-            totalPages: number;
-        };
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/bills`,
+        { params }
+    );
+    return response.data as {
+        bills: Bill[];
+        total: number;
+        page: number;
+        totalPages: number;
+    };
 };
 
 /**
@@ -204,32 +200,24 @@ export const getBillSummary = async (params?: {
     to?: string;
     supplier_id?: string;
 }) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/bills/summary`,
-            { params }
-        );
-        return response.data as {
-            summary: BillSummaryItem[];
-            overdue_count: number;
-        };
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/bills/summary`,
+        { params }
+    );
+    return response.data as {
+        summary: BillSummaryItem[];
+        overdue_count: number;
+    };
 };
 
 /**
  * Get a single bill by ID — includes populated lines and payment history.
  */
 export const getBillById = async (id: string) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/bills/${id}`
-        );
-        return response.data as { bill: Bill };
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/bills/${id}`
+    );
+    return response.data as { bill: Bill };
 };
 
 /**

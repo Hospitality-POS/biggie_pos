@@ -9,10 +9,10 @@ import TableSlice from "./features/Table/TableSlice";
 import CategorySlice from "./features/Category/CategorySlice";
 import PaymentMethodSlice from "./features/Payment/PaymentMethodSlice";
 import reportSlice from "./features/Report/ReportSlice";
+import dalaReducer from "./features/Dala/dalaSlice";
+import pendingPrintReducer from "./features/PendingPrint/PendingPrintSlice";
 import { TypedUseSelectorHook, useDispatch, useSelector } from "react-redux";
-
-
-
+import * as Sentry from "@sentry/react";
 
 const rootReducer = combineReducers({
   auth: authSlice.reducer,
@@ -24,11 +24,14 @@ const rootReducer = combineReducers({
   Tables: TableSlice,
   Categories: CategorySlice,
   PaymentMethods: PaymentMethodSlice,
-  Report: reportSlice
+  Report: reportSlice,
+  dala: dalaReducer,
+  pendingPrint: pendingPrintReducer,
 });
 
 export const store = configureStore({
   reducer: rootReducer,
+  enhancers: (defaultEnhancers) => [Sentry.createReduxEnhancer(), ...defaultEnhancers],
 });
 
 export type RootState = ReturnType<typeof store.getState> 

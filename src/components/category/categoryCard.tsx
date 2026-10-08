@@ -1,52 +1,78 @@
 import { CheckCard } from "@ant-design/pro-components";
-import { Image, Space, Typography } from "antd";
-
-import { usePrimaryColor } from "@context/PrimaryColorContext";
+import { Image, Typography } from "antd";
 
 function CategoryCard({
   icon,
   name,
   id,
+  selectedCard,
   handleSelectedCard,
+  style,
 }: any) {
-  
-  const primaryColor = usePrimaryColor();
+  const isSelected = selectedCard === id;
 
   return (
     <CheckCard
+      className="category-checkcard"
+      checked={isSelected}
       onClick={() => handleSelectedCard(id)}
-      title={
-        <Space style={{ justifyContent: "center", width: "100vw" }}>
-          <div style={{ position: "relative", display: "inline-block" }}>
+      description={
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            width: "100%",
+            textAlign: "center",
+            padding: "4px 0",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 46,
+              height: 46,
+              marginBottom: 8,
+            }}
+          >
             <Image
               preview={false}
               src={icon ? icon : "/categoryIcon.svg"}
-              width={50}
+              width={42}
+              height={42}
               style={{
-                filter: "brightness(0) saturate(100%) invert(0%) sepia(100%) saturate(7500%) hue-rotate(0deg) brightness(50%) contrast(100%)",
-              }}
-            />
-            {/* Color overlay to apply primary color to icon */}
-            <div
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                mixBlendMode: "multiply",
-                pointerEvents: "none",
+                objectFit: "contain",
+                filter:
+                  "brightness(0) saturate(100%) invert(0%) sepia(100%) saturate(7500%) hue-rotate(0deg) brightness(50%) contrast(100%)",
               }}
             />
           </div>
-        </Space>
+          <Typography.Title
+            level={5}
+            ellipsis={{ rows: 2 }}
+            style={{
+              textAlign: "center",
+              margin: 0,
+              fontSize: 13,
+              fontWeight: 600,
+              lineHeight: 1.35,
+              width: "100%",
+              wordBreak: "break-word",
+            }}
+          >
+            {name}
+          </Typography.Title>
+        </div>
       }
-      description={
-        <Typography.Title level={5} ellipsis={{ rows: 3 }} style={{ textAlign: "center" }}>
-          {name}
-        </Typography.Title>
-      }
-      style={{ width: 200, overflow: "hidden" }}
+      style={{
+        width: "100%",
+        margin: 0,
+        overflow: "hidden",
+        ...style,
+      }}
     />
   );
 }

@@ -5,7 +5,7 @@ import {
     PlusOutlined, TrophyOutlined,
 } from "@ant-design/icons";
 import {
-    App, Button, DatePicker, Drawer, Dropdown, Form,
+    App, Button, DatePicker, Drawer, Dropdown, Form, Grid,
     Input, InputNumber, Modal, Progress, Select, Typography,
 } from "antd";
 import { useAppDispatch } from "../../store";
@@ -19,23 +19,13 @@ import { fetchAllUsersList } from "@services/users";
 import { fetchUserRoles } from "@services/users";
 import { useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
+import { THEME_C } from "@utils/getPrimaryColor";
 
 const { Text } = Typography;
 const { Option } = Select;
 const { TextArea } = Input;
 
-const C = {
-    primary: "#6c1c2c",
-    primaryLight: "#f9f0f2",
-    green: "#10b981",
-    red: "#ef4444",
-    blue: "#3b82f6",
-    orange: "#f59e0b",
-    subText: "#64748b",
-    darkText: "#0f172a",
-    border: "#e2e8f0",
-    bg: "#f8fafc",
-};
+const C = THEME_C;
 
 const TYPES: TargetType[] = ["revenue", "units_sold", "leads_generated", "leads_converted", "gross_profit", "new_customers"];
 const PERIODS: TargetPeriod[] = ["daily", "weekly", "monthly", "quarterly", "annual", "custom"];
@@ -159,7 +149,7 @@ const SalesTargetTable = forwardRef<SalesTargetTableHandle, SalesTargetTableProp
                         </div>
                     }
                     options={{ reload: () => actionRef.current?.reload() }}
-                    scroll={{ x: "100%" }}
+                    scroll={{ x: 1000 }}
                     size="small"
                 />
             </App>
@@ -244,7 +234,11 @@ const SalesTargetFormModal: React.FC<SalesTargetFormModalProps> = ({
             form.resetFields();
             onClose();
             onSuccess?.();
-        } catch { } finally { setLoading(false); }
+        } catch {
+            /* error handled by thunk */
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -466,6 +460,8 @@ const SalesTargetDetailDrawer: React.FC<{ open: boolean; onClose: () => void; ta
 // ── Page ──────────────────────────────────────────────────────────────────────
 const SalesTargets = () => {
     const tableRef = useRef<SalesTargetTableHandle>(null);
+    const screens = Grid.useBreakpoint();
+    const isMobile = !screens.md;
     const [formOpen, setFormOpen] = useState(false);
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [selected, setSelected] = useState<SalesTarget | null>(null);
@@ -478,7 +474,7 @@ const SalesTargets = () => {
 
     return (
         <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, padding: "16px 20px 14px", borderBottom: `1px solid ${C.border}` }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, padding: isMobile ? "12px 12px 10px" : "16px 20px 14px", borderBottom: `1px solid ${C.border}` }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <div style={{ background: C.primaryLight, borderRadius: 7, padding: "5px 7px", color: C.primary, fontSize: 16, lineHeight: 1 }}><AimOutlined /></div>
                     <div>
@@ -491,7 +487,7 @@ const SalesTargets = () => {
                     New Target
                 </Button>
             </div>
-            <div style={{ padding: "16px 20px" }}>
+            <div style={{ padding: isMobile ? "12px" : "16px 20px" }}>
                 <SalesTargetTable ref={tableRef} onView={handleView} onEdit={handleEdit} />
             </div>
             <SalesTargetFormModal visible={formOpen} mode={mode} target={selected} onClose={() => setFormOpen(false)} onSuccess={handleSuccess} />

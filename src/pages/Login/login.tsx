@@ -203,10 +203,37 @@ const StaffLoginPage = () => {
         setLoginMethod("companyCode");
     };
 
-    // Helper function to determine redirect path based on enabled modules
-    const getRedirectPath = () => {
-        // All non-admin users should redirect to home-dashboard
-        return "/home-dashboard";
+    // Helper function to determine redirect path based on role and enabled modules
+    const getRedirectPath = (userPayload?: any) => {
+        if (userPayload?.role === "admin") {
+            return "/admin/dashboard";
+        }
+
+        // For cashiers, waitstaff, and non-admin operational crew:
+        // Direct them straight to "/tables" (POS register / slots)
+        // rather than the dashboard where access is restricted/denied.
+        try {
+            const storedTenant = localStorage.getItem("tenant");
+            const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+            const hasPOS = !!(tenant?.pos_integration?.enabled ?? true);
+            const hasAccounting = !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting);
+            const hasMteja = tenant?.modules?.crm === true;
+            const hasBandu = tenant?.modules?.bandu_hr === true || tenant?.modules?.payroll === true;
+            const hasDala = tenant?.modules?.dala === true;
+
+            if (hasPOS) {
+                return "/tables";
+            }
+
+            if (hasAccounting) return "/orders";
+            if (hasMteja) return "/crm/leads";
+            if (hasBandu) return "/hr/employees";
+            if (hasDala) return "/dala/properties";
+        } catch {
+            // fallback
+        }
+
+        return "/tables";
     };
 
     const handleLoginWithNavigation = async (enteredPin: string) => {
@@ -227,7 +254,7 @@ const StaffLoginPage = () => {
         if (success && userPayload?.role === "admin") {
             navigate("/admin/dashboard");
         } else if (success) {
-            navigate(getRedirectPath());
+            navigate(getRedirectPath(userPayload));
         } else {
             setError(loginError);
         }
@@ -316,7 +343,7 @@ const StaffLoginPage = () => {
                 if (success && userPayload?.role === "admin") {
                     navigate("/admin/dashboard");
                 } else if (success) {
-                    navigate(getRedirectPath());
+                    navigate(getRedirectPath(userPayload));
                 } else {
                     setError(loginError);
                 }
@@ -345,8 +372,8 @@ const StaffLoginPage = () => {
                         console.log('Navigating to admin dashboard');
                         navigate("/admin/dashboard");
                     } else {
-                        console.log('Navigating to appropriate dashboard based on modules');
-                        navigate(getRedirectPath());
+                        console.log('Navigating non-admin to destination path');
+                        navigate(getRedirectPath(user));
                     }
                 } catch (fetchError) {
                     console.error('OTP Login Error:', fetchError);
@@ -369,14 +396,12 @@ const StaffLoginPage = () => {
     };
 
     const getBackgroundGradient = () => {
-        if (tenant?.color_scheme?.primary) {
-            const secondary = tenant.color_scheme.secondary || "#c26d2e";
-            return `linear-gradient(135deg, ${tenant.color_scheme.primary} 0%, ${secondary} 100%)`;
+        const primary = tenant?.color_scheme?.primary || tenant?.primary_color || tenant?.theme?.primary;
+        if (primary) {
+            const secondary = tenant?.color_scheme?.secondary || "#14EF4A";
+            return `linear-gradient(135deg, ${primary} 0%, ${secondary} 100%)`;
         }
-        if (tenant?.primary_color) {
-            return `linear-gradient(135deg, ${tenant.color_scheme.primary} 0%, #c26d2e 100%)`;
-        }
-        return "linear-gradient(135deg, #2c3e50 0%, #6c1c2c 100%)";
+        return "linear-gradient(135deg, #1F2B5D 0%, #0E388A 55%, #14EF4A 100%)";
     };
 
     const RetailBackground = () => (
@@ -423,26 +448,30 @@ const StaffLoginPage = () => {
                 maxWidth: isMobile ? "100%" : "320px",
             }}
         >
-            <div style={{ marginBottom: "1.25rem", display: "inline-block" }}>
+            <div style={{ marginBottom: "0.75rem", display: "flex", justifyContent: "center", alignItems: "center" }}>
                 {tenant?.tenant_logo?.url ? (
                     <img
                         src={tenant.tenant_logo.url}
                         alt="tenant-logo"
                         style={{
-                            width: isMobile ? "120px" : "100%",
+                            maxWidth: isMobile ? "130px" : "170px",
+                            maxHeight: isMobile ? "60px" : "75px",
+                            width: "auto",
                             height: "auto",
-                            transition: "all 0.3s ease",
-                            maxHeight: isMobile ? "80px" : "120px",
                             objectFit: "contain",
+                            transition: "all 0.3s ease",
                         }}
                     />
                 ) : (
                     <img
                         src="/relia.png"
-                        alt="relia-logo"
+                        alt="base-logo"
                         style={{
-                            width: isMobile ? "140px" : "45%",
+                            maxWidth: isMobile ? "130px" : "160px",
+                            maxHeight: isMobile ? "48px" : "56px",
+                            width: "auto",
                             height: "auto",
+                            objectFit: "contain",
                             transition: "all 0.3s ease",
                         }}
                     />
@@ -453,7 +482,7 @@ const StaffLoginPage = () => {
                     style={{
                         color: "white",
                         fontSize: isMobile ? "18px" : "24px",
-                        marginBottom: "0.75rem",
+                        marginBottom: "0.5rem",
                         fontWeight: "600",
                         textShadow: "0 2px 4px rgba(0,0,0,0.2)",
                     }}
@@ -489,8 +518,7 @@ const StaffLoginPage = () => {
                         margin: "0 auto",
                     }}
                 >
-                    Basepoint Cloud — Duka (Store Front), Pesa (Accounting), Mteja (CRM), and Bandu (HR),
-                    all unified in one smarter platform built for your business.
+                    Run your sales with Duka, finances with Pesa, customers with Mteja, and team with Bandu.
                 </p>
             )}
         </div>
@@ -908,8 +936,8 @@ const StaffLoginPage = () => {
                                                     gap: "8px",
                                                     padding: "16px 12px",
                                                     borderRadius: "10px",
-                                                    border: "1px solid #1890ff",
-                                                    background: "#f0f9ff",
+                                                    border: "1px solid #f0f0f0",
+                                                    background: "#fafafa",
                                                     cursor: "pointer",
                                                     transition: "all 0.2s ease",
                                                     textAlign: "center",
@@ -966,8 +994,8 @@ const StaffLoginPage = () => {
                                                     gap: "8px",
                                                     padding: "16px 12px",
                                                     borderRadius: "10px",
-                                                    border: "1px solid #d9f7be",
-                                                    background: "#f6ffed",
+                                                    border: "1px solid #f0f0f0",
+                                                    background: "#fafafa",
                                                     cursor: "pointer",
                                                     transition: "all 0.2s ease",
                                                     textAlign: "center",
@@ -1024,8 +1052,8 @@ const StaffLoginPage = () => {
                                                     gap: "8px",
                                                     padding: "16px 12px",
                                                     borderRadius: "10px",
-                                                    border: "1px solid #f9f0ff",
-                                                    background: "#faf5ff",
+                                                    border: "1px solid #f0f0f0",
+                                                    background: "#fafafa",
                                                     cursor: "pointer",
                                                     transition: "all 0.2s ease",
                                                     textAlign: "center",
@@ -1082,8 +1110,8 @@ const StaffLoginPage = () => {
                                                     gap: "8px",
                                                     padding: "16px 12px",
                                                     borderRadius: "10px",
-                                                    border: "1px solid #ff7a45",
-                                                    background: "#fff2e8",
+                                                    border: "1px solid #f0f0f0",
+                                                    background: "#fafafa",
                                                     cursor: "pointer",
                                                     transition: "all 0.2s ease",
                                                     textAlign: "center",

@@ -26,24 +26,13 @@ import DeliveryReportModal from "@components/Reports/DeliveryReport";
 import InventoryUsageReportModal from "@components/Reports/InventoryUsageReport";
 import { useReport } from "../hooks/useReport";
 import { getPermissionChecker } from "@utils/getPermissionChecker";
+import { THEME_C } from "@utils/getPrimaryColor";
 
 const { RangePicker } = DatePicker;
 const { Text } = Typography;
 
 // ── Palette ───────────────────────────────────────────────────────────────────
-const C = {
-  primary: "#6c1c2c",
-  primaryLight: "#f9f0f2",
-  green: "#10b981",
-  orange: "#f59e0b",
-  red: "#ef4444",
-  blue: "#3b82f6",
-  purple: "#8b5cf6",
-  subText: "#64748b",
-  darkText: "#0f172a",
-  border: "#e2e8f0",
-  bg: "#f8fafc",
-};
+const C = THEME_C;
 
 // ── Tab config — each tab declares its required permission ────────────────────
 const TAB_CFG = [

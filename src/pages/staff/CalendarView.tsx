@@ -19,22 +19,14 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useDispatch } from "react-redux";
 import dayjs from "dayjs";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
+import { THEME_C } from "@utils/getPrimaryColor";
 
 const { Text } = Typography;
 const { RangePicker } = TimePicker;
 const { TextArea } = Input;
 
-// ── Palette ────────────────────────────────────────────────────────────────
-const C = {
-  primary: "#6c1c2c",
-  primaryLight: "#f9f0f2",
-  blue: "#3b82f6",
-  orange: "#f59e0b",
-  subText: "#64748b",
-  darkText: "#0f172a",
-  border: "#e2e8f0",
-  bg: "#f8fafc",
-};
+// ── Palette (Dynamic Getters) ────────────────────────────────────────────────
+const C = THEME_C;
 
 // ── Shared atoms ───────────────────────────────────────────────────────────
 const SectionLabel = ({ text }: { text: string }) => (
@@ -541,9 +533,8 @@ const CalendarView = ({ onRegisterEditHandler, onAppointmentUpdate }: CalendarVi
   const [isDragging, setIsDragging] = useState(false);
   const [heldAppointment, setHeldAppointment] = useState<any | null>(null); // Temporary holding state
   
-  // Use primary color context instead of hardcoded colors
-  const contextResult = usePrimaryColor();
-  const primaryColor = contextResult?.primaryColor || '#6c1c2c';
+  // Use primary color context directly
+  const primaryColor = usePrimaryColor();
   
   // Generate color palette based on primary color
   const generateColorPalette = (primary: string) => {

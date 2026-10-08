@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import dayjs from 'dayjs';
+import { getPrimaryColor } from './getPrimaryColor';
 
 // Helper function to convert number to words
 const numberToWords = (num: number): string => {
@@ -144,8 +145,8 @@ export const generateOfferLetterPDF = async (data: OfferLetterData, returnAsData
   const maxY = pageHeight - 55; // Reserve 55px for footer signature area
   let yPos = 30;
   
-  // Get brand primary color - default to Chestnut City color
-  const primaryColor = localStorage.getItem('primaryColor') || '#6c1c2c';
+  // Get brand primary color
+  const primaryColor = getPrimaryColor();
   
   // Convert hex to RGB for jsPDF
   const hexToRgb = (hex: string) => {

@@ -127,68 +127,52 @@ export interface UpdatePettyCashParams {
  * Get all petty cash transactions with filters and pagination.
  */
 export const getAllPettyCashTransactions = async (params: GetPettyCashParams = {}) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/petty-cash`,
-            { params }
-        );
-        return response.data as {
-            transactions: PettyCashTransaction[];
-            total: number;
-            page: number;
-            totalPages: number;
-        };
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/petty-cash`,
+        { params }
+    );
+    return response.data as {
+        transactions: PettyCashTransaction[];
+        total: number;
+        page: number;
+        totalPages: number;
+    };
 };
 
 /**
  * Get petty cash summary statistics.
  */
 export const getPettyCashSummary = async (params?: GetPettyCashSummaryParams) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/petty-cash/summary`,
-            { params }
-        );
-        return response.data as {
-            summary: PettyCashSummaryItem[];
-            by_transaction_type: PettyCashSummaryItem[];
-            by_category: PettyCashSummaryItem[];
-        };
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/petty-cash/summary`,
+        { params }
+    );
+    return response.data as {
+        summary: PettyCashSummaryItem[];
+        by_transaction_type: PettyCashSummaryItem[];
+        by_category: PettyCashSummaryItem[];
+    };
 };
 
 /**
  * Get petty cash balance information.
  */
 export const getPettyCashBalance = async (params?: GetPettyCashBalanceParams) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/petty-cash/balance`,
-            { params }
-        );
-        return response.data as PettyCashBalance;
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/petty-cash/balance`,
+        { params }
+    );
+    return response.data as PettyCashBalance;
 };
 
 /**
  * Get a single petty cash transaction by ID.
  */
 export const getPettyCashById = async (id: string) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/petty-cash/${id}`
-        );
-        return response.data as { transaction: PettyCashTransaction };
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/petty-cash/${id}`
+    );
+    return response.data as { transaction: PettyCashTransaction };
 };
 
 /**

@@ -42,7 +42,6 @@ import {
     SignatureOutlined,
 } from "@ant-design/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
 import {
     fetchTenantDetails,
     enableAccounting,
@@ -57,31 +56,17 @@ import {
     disableDala,
     enableEtims,
     disableEtims,
-    updateEtimsConfig,
     getCurrentTenantId,
     enableAsset,
     disableAsset,
 } from "@services/tenants";
 import pesapalApi from "@services/pesapalApi";
+import { THEME_C } from "@utils/getPrimaryColor";
 
 const { Text, Title } = Typography;
 
 // ── Palette ────────────────────────────────────────────────────────────────────
-const C = {
-    primary: "#6c1c2c",
-    primaryLight: "#f9f0f2",
-    green: "#10b981",
-    orange: "#f59e0b",
-    red: "#ef4444",
-    blue: "#3b82f6",
-    indigo: "#6366f1",
-    purple: "#8b5cf6",
-    teal: "#0d9488",
-    subText: "#64748b",
-    darkText: "#0f172a",
-    border: "#e2e8f0",
-    bg: "#f8fafc",
-};
+const C = THEME_C;
 
 // ── App refresh ────────────────────────────────────────────────────────────────
 const triggerAppRefresh = (queryClient: any, label = "Changes applied") => {
@@ -155,27 +140,37 @@ const INTEGRATIONS = [
         id: "relia_payroll",
         name: "Bandu HR by Base",
         category: "Human Resource & Payroll",
-        description: "Comprehensive HR management with employee records, leave, payroll, payslips, P9 forms, and statutory compliance.",
-        longDescription: "Bandu HR by Base is a complete human resource management system. Manage employee profiles and documents, handle leave applications and approvals, track attendance, process payroll with automatic statutory deductions (NHIF, NSSF, PAYE, Housing Levy), generate payslips and P9 tax forms, and access detailed HR reports — all seamlessly integrated with Pesa by Base for accounting.",
+        description: "Comprehensive HR management with employees & consultants, biometric attendance, preview-editable payroll, payslips, P9 forms, and statutory compliance.",
+        longDescription: "Bandu HR by Base is a complete human resource management system. Manage employee profiles and documents, handle leave applications and approvals, and clock attendance manually or via biometric terminals (ZKTeco, Suprema, Anviz, Hikvision). Generate payroll with a fully editable preview — adjust salaries, allowances, overtime, and custom deductions like loans with end dates — then let statutory deductions (SHA, NSSF, PAYE, Housing Levy) compute automatically, including employee/employer splits. Consultants are handled with withholding tax, foreign-currency salaries convert to KES automatically, and approval workflows cover reject, return-to-draft, and supplementary runs for late-joining staff. Produce official P9 tax forms and payslips in PDF or Excel with privacy controls, and post everything to Pesa by Base accounting.",
         features: [
-            "Employee Management & Database",
-            "Employee Document Management",
+            "Employee Management & Documents (Employee & Consultant types)",
+            "Draft-Saving Employee Onboarding Form",
             "Leave Application & Approval Workflow",
             "Department-based Leave Balances",
-            "Attendance Tracking & Clock In/Out",
-            "Payroll Generation & Processing",
-            "Payslip Generation & Distribution",
-            "P9 Forms (KRA Tax Forms)",
-            "Statutory Deductions (NHIF, NSSF, PAYE, Housing Levy)",
+            "Attendance Tracking — Manual & Biometric Devices",
+            "Payroll Preview Editing & Draft Line Editing",
+            "Approval Workflow — Reject & Return to Draft",
+            "Supplementary Payrolls for Late Joiners",
+            "Custom Deductions, Loans & Advances with End Dates",
+            "Withholding Tax for Consultants",
+            "Foreign Currency Salaries with Exchange-Rate Conversion",
+            "Employer Contributions Breakdown (NSSF, AHL, NITA)",
+            "Bulk Payroll Selection & Batch Actions",
+            "Payslips & P9 Forms — PDF, Excel & Email",
+            "Employer Privacy Toggle on P9 Forms",
+            "Payslip Email Composer — Recipients, CC & Attachments",
+            "Configurable Deduction Rates, Caps & First-Month Proration",
             "HR Reports & Analytics",
             "Integration with Pesa by Base Accounting",
         ],
         benefits: [
             "Complete employee lifecycle management",
             "Automated payroll with statutory compliance",
+            "Edit payroll before it runs — no re-generation needed",
+            "Consultants handled correctly with withholding tax",
+            "Attendance straight from biometric terminals",
             "Leave management with department controls",
-            "Real-time attendance tracking",
-            "Professional payslips and tax forms",
+            "Professional payslips and tax forms with privacy controls",
             "Integrated accounting posting",
             "Reduced manual HR work",
             "Data-driven HR decisions",
@@ -188,10 +183,10 @@ const INTEGRATIONS = [
     },
     {
         id: "mteja",
-        name: "WhatsApp by Base",
+        name: "Mteja by Base",
         category: "Customer Engagement",
         description: "WhatsApp Web integration for your business — manage conversations, convert chats to customers and leads, and track engagement in one inbox.",
-        longDescription: "WhatsApp by Base lets you chat with customers through WhatsApp Web, convert conversations into customers or leads, and view customer engagement stats directly from the omnichannel inbox.",
+        longDescription: "Mteja by Base lets you chat with customers through WhatsApp Web, convert conversations into customers or leads, and view customer engagement stats directly from the omnichannel inbox.",
         features: [
             "WhatsApp Web Conversations Inbox",
             "Convert Chats to Customers",
@@ -340,7 +335,7 @@ const INTEGRATIONS = [
         status: "available",
         icon: RobotOutlined,
         color: C.primary,
-        tags: ["AI", "Enabled", "Assistant"],
+        tags: ["AI", "Beta", "Assistant"],
     },
     {
         id: "pesapal",
@@ -424,12 +419,17 @@ const FormSection: React.FC<{ children: React.ReactNode; style?: React.CSSProper
     </div>
 );
 
-const ModalTitle: React.FC<{ icon: React.ReactNode; color: string; title: string }> = ({ icon, color, title }) => (
+const ModalTitle: React.FC<{ icon: React.ReactNode; color: string; title: string; tag?: string }> = ({ icon, color, title, tag }) => (
     <Space size={8}>
         <div style={{ width: 32, height: 32, borderRadius: 8, background: color + "18", color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>
             {icon}
         </div>
         <Text strong style={{ fontSize: 13, color: C.darkText }}>{title}</Text>
+        {tag && (
+            <span style={{ background: "#fffbeb", color: C.orange, borderRadius: 4, fontSize: 10, fontWeight: 700, padding: "1px 6px", textTransform: "uppercase", border: `1px solid ${C.orange}30` }}>
+                {tag}
+            </span>
+        )}
     </Space>
 );
 
@@ -501,6 +501,11 @@ const IntegrationCard: React.FC<{
                     <Icon />
                 </div>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                    {integration.tags?.includes("Beta") && (
+                        <span style={{ background: "#fffbeb", color: C.orange, borderRadius: 6, fontSize: 10, fontWeight: 700, padding: "3px 8px", textTransform: "uppercase", border: `1px solid ${C.orange}30` }}>
+                            Beta
+                        </span>
+                    )}
                     {isEnabled && (
                         <span style={{ background: "#f0fdf4", color: C.green, borderRadius: 6, fontSize: 10, fontWeight: 700, padding: "3px 8px", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 4 }}>
                             <CheckCircleOutlined style={{ fontSize: 10 }} /> Enabled
@@ -524,10 +529,10 @@ const IntegrationCard: React.FC<{
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
                 {integration.tags.map((tag, i) => (
                     <span key={i} style={{
-                        background: i === 0 ? integration.color + "14" : C.bg,
-                        color: i === 0 ? integration.color : C.subText,
+                        background: tag === "Beta" ? "#fffbeb" : (i === 0 ? integration.color + "14" : C.bg),
+                        color: tag === "Beta" ? C.orange : (i === 0 ? integration.color : C.subText),
                         borderRadius: 5, fontSize: 10, fontWeight: 600, padding: "2px 7px",
-                        border: `1px solid ${i === 0 ? integration.color + "30" : C.border}`,
+                        border: `1px solid ${tag === "Beta" ? C.orange + "40" : (i === 0 ? integration.color + "30" : C.border)}`,
                     }}>
                         {tag}
                     </span>
@@ -585,7 +590,7 @@ const LearnMoreModal: React.FC<{
 
     return (
         <Modal open={open} onCancel={onClose} footer={null} style={{ top: 20 }} width="min(660px, 96vw)" destroyOnClose
-            title={<ModalTitle icon={<Icon />} color={integration.color} title={integration.name} />}
+            title={<ModalTitle icon={<Icon />} color={integration.color} title={integration.name} tag={integration.tags?.includes("Beta") ? "Beta" : undefined} />}
         >
             <div style={{ display: "flex", flexDirection: "column", gap: 14, paddingTop: 4 }}>
                 {isComingSoon && <Alert message="Coming Soon" description="This integration is under development. Stay tuned for updates!" type="warning" showIcon />}
@@ -644,8 +649,7 @@ const DiscoverPage: React.FC = () => {
     const [assetForm] = Form.useForm();
 
     const queryClient = useQueryClient();
-    const navigate = useNavigate();
-    const tenantId = getCurrentTenantId();
+    const tenantId = getCurrentTenantId() as string;
 
     const { data: tenantDetails } = useQuery({
         queryKey: ["tenant", tenantId],
@@ -685,7 +689,7 @@ const DiscoverPage: React.FC = () => {
 
     // ── Mutations ──────────────────────────────────────────────────────────────
     const pesapalMutation = useMutation({
-        mutationFn: (values: any) => pesapalApi.configure(tenantId, values),
+        mutationFn: (values: any) => pesapalApi.configure(values),
         onSuccess: () => {
             setPesapalModalOpen(false);
             pesapalForm.resetFields();
@@ -697,7 +701,10 @@ const DiscoverPage: React.FC = () => {
     });
 
     const enableAccountingMutation = useMutation({
-        mutationFn: (values: any) => enableAccounting(tenantId, { terms_acceptance: values }),
+        mutationFn: (values: any) => {
+            if (!tenantId) throw new Error("Tenant not found");
+            return enableAccounting(tenantId, { terms_acceptance: values });
+        },
         onSuccess: () => {
             setAccountingModalOpen(false);
             accountingForm.resetFields();
@@ -707,13 +714,19 @@ const DiscoverPage: React.FC = () => {
     });
 
     const disableAccountingMutation = useMutation({
-        mutationFn: () => disableAccounting(tenantId),
+        mutationFn: () => {
+            if (!tenantId) throw new Error("Tenant not found");
+            return disableAccounting(tenantId);
+        },
         onSuccess: () => triggerAppRefresh(queryClient, "Pesa by Base disabled"),
         onError: (e: any) => notification.error({ message: "Failed to disable Pesa by Base", description: e.message, style: { borderRadius: 12 } }),
     });
 
     const enablePosMutation = useMutation({
-        mutationFn: (config: any) => enablePosIntegration(tenantId, config),
+        mutationFn: (config: any) => {
+            if (!tenantId) throw new Error("Tenant not found");
+            return enablePosIntegration(tenantId, config);
+        },
         onSuccess: () => {
             setPosModalOpen(false);
             posForm.resetFields();
@@ -729,7 +742,10 @@ const DiscoverPage: React.FC = () => {
     });
 
     const enableBanduMutation = useMutation({
-        mutationFn: (values: any) => enableBandu(tenantId, values),
+        mutationFn: (values: any) => {
+            if (!tenantId) throw new Error("Tenant not found");
+            return enableBandu(tenantId, values);
+        },
         onSuccess: () => {
             setBanduModalOpen(false);
             banduForm.resetFields();
@@ -746,23 +762,29 @@ const DiscoverPage: React.FC = () => {
 
     // Mteja always enables Conversations (omnichannel) at the same time
     const enableMtejaMutation = useMutation({
-        mutationFn: (values: any) => enableMteja(tenantId, { ...values, enable_omnichannel: true }),
+        mutationFn: (values: any) => {
+            if (!tenantId) throw new Error("Tenant not found");
+            return enableMteja(tenantId, { ...values, enable_omnichannel: true });
+        },
         onSuccess: () => {
             setMtejaModalOpen(false);
             mtejaForm.resetFields();
-            triggerAppRefresh(queryClient, "WhatsApp by Base enabled successfully");
+            triggerAppRefresh(queryClient, "Mteja by Base enabled successfully");
         },
-        onError: (e: any) => notification.error({ message: "Failed to enable WhatsApp by Base", description: e.message, style: { borderRadius: 12 } }),
+        onError: (e: any) => notification.error({ message: "Failed to enable Mteja by Base", description: e.message, style: { borderRadius: 12 } }),
     });
 
     const disableMtejaMutation = useMutation({
         mutationFn: () => disableMteja(tenantId),
-        onSuccess: () => triggerAppRefresh(queryClient, "WhatsApp by Base disabled"),
-        onError: (e: any) => notification.error({ message: "Failed to disable WhatsApp by Base", description: e.message, style: { borderRadius: 12 } }),
+        onSuccess: () => triggerAppRefresh(queryClient, "Mteja by Base disabled"),
+        onError: (e: any) => notification.error({ message: "Failed to disable Mteja by Base", description: e.message, style: { borderRadius: 12 } }),
     });
 
     const enableDalaMutation = useMutation({
-        mutationFn: (values: any) => enableDala(tenantId, values),
+        mutationFn: (values: any) => {
+            if (!tenantId) throw new Error("Tenant not found");
+            return enableDala(tenantId, values);
+        },
         onSuccess: () => {
             setDalaModalOpen(false);
             dalaForm.resetFields();
@@ -778,7 +800,10 @@ const DiscoverPage: React.FC = () => {
     });
 
     const enableEtimsMutation = useMutation({
-        mutationFn: (values: any) => enableEtims(tenantId, values),
+        mutationFn: (values: any) => {
+            if (!tenantId) throw new Error("Tenant not found");
+            return enableEtims(tenantId, values);
+        },
         onSuccess: () => {
             setEtimsModalOpen(false);
             etimsForm.resetFields();
@@ -794,7 +819,10 @@ const DiscoverPage: React.FC = () => {
     });
 
     const enableAssetMutation = useMutation({
-        mutationFn: (values: any) => enableAsset(tenantId, values),
+        mutationFn: (values: any) => {
+            if (!tenantId) throw new Error("Tenant not found");
+            return enableAsset(tenantId, values);
+        },
         onSuccess: () => {
             setAssetModalOpen(false);
             assetForm.resetFields();
@@ -843,7 +871,7 @@ const DiscoverPage: React.FC = () => {
                 onOk: () => disableBanduMutation.mutateAsync(),
             },
             mteja: {
-                title: "Disable WhatsApp by Base?",
+                title: "Disable Mteja by Base?",
                 content: "This will hide the CRM, leads, campaigns, sales targets, conversations, and loyalty features. Your customer and lead data will be preserved.",
                 onOk: () => disableMtejaMutation.mutateAsync(),
             },
@@ -1102,11 +1130,11 @@ const DiscoverPage: React.FC = () => {
                 </Form>
             </Modal>
 
-            {/* WhatsApp by Base Modal */}
+            {/* Mteja by Base Modal */}
             <Modal open={mtejaModalOpen}
                 onCancel={() => { setMtejaModalOpen(false); mtejaForm.resetFields(); }}
                 footer={null} style={{ top: 20 }} width="min(560px, 96vw)" destroyOnClose
-                title={<ModalTitle icon={<CustomerServiceOutlined />} color={C.primary} title="Enable WhatsApp by Base" />}
+                title={<ModalTitle icon={<CustomerServiceOutlined />} color={C.primary} title="Enable Mteja by Base" />}
             >
                 <Form form={mtejaForm} layout="vertical" onFinish={v => enableMtejaMutation.mutate(v)}
                     initialValues={{ accept_terms: false, accept_charges: false }} style={{ paddingTop: 4 }}>
@@ -1163,7 +1191,7 @@ const DiscoverPage: React.FC = () => {
                         </Form.Item>
                     </FormSection>
                     <ModalFooter onCancel={() => { setMtejaModalOpen(false); mtejaForm.resetFields(); }}
-                        submitLabel="Enable WhatsApp by Base" loading={enableMtejaMutation.isPending}
+                        submitLabel="Enable Mteja by Base" loading={enableMtejaMutation.isPending}
                         cancelDisabled={enableMtejaMutation.isPending} color={C.primary} icon={<CheckCircleOutlined />} />
                 </Form>
             </Modal>

@@ -62,7 +62,7 @@ const AddProPaymentMethodSettingsModal: React.FC<AddProPaymentMethodSettingsModa
             <Button
               key="button"
               size="small"
-              icon={<EditOutlined style={{ color: "#6c1c2c" }} onClick={() => form.setFieldsValue(data)} />}
+              icon={<EditOutlined style={{ color: "var(--primary-color)" }} onClick={() => form.setFieldsValue(data)} />}
             >
               Edit
             </Button>

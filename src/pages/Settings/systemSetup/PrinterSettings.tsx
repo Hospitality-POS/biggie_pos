@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
-import { Alert, Button, List, Select, Space, Spin, Tag, Typography, Divider, Switch, message } from "antd";
+import { Alert, Button, Grid, List, Select, Space, Spin, Tabs, Tag, Typography, Switch, message } from "antd";
 import { ProCard } from "@ant-design/pro-components";
 import {
-  ApiOutlined, CheckCircleOutlined, CloseCircleOutlined,
+  ApiOutlined, CheckCircleOutlined,
   PrinterOutlined, ReloadOutlined, SendOutlined, PlusOutlined, DeleteOutlined,
-  DownloadOutlined, AppleOutlined, WindowsOutlined, SettingOutlined,
+  DownloadOutlined, AppleOutlined, WindowsOutlined, SettingOutlined, LinuxOutlined,
+  StarFilled,
 } from "@ant-design/icons";
 import {
   getConnectedAgents, sendPrintJob,
@@ -12,13 +13,16 @@ import {
   type ConnectedAgent,
 } from "../../../services/printAgent";
 import { fetchMainCategories } from "../../../services/categories";
+import { fetchShop, updateShopPrintSettings } from "../../../services/shops";
+import { THEME_C } from "../../../utils/getPrimaryColor";
 
 const { Text } = Typography;
 
-const C = { primary: "#6c1c2c", subText: "#64748b" };
+const C = THEME_C;
 
 const PrinterSettings: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("agents");
+  const [driversSubTab, setDriversSubTab] = useState<string>("download-drivers");
   const [agents, setAgents] = useState<ConnectedAgent[]>([]);
   const [loading, setLoading] = useState(false);
   const [testLoading, setTestLoading] = useState<string | null>(null);
@@ -31,6 +35,9 @@ const PrinterSettings: React.FC = () => {
   const [mainCategories, setMainCategories] = useState<Array<{ _id: string; name: string }>>([]);
   const [captainOrderEnabled, setCaptainOrderEnabled] = useState(false);
   const [printByAgentEnabled, setPrintByAgentEnabled] = useState(false);
+
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
 
   const shopId = localStorage.getItem("shopId") ?? "";
   const companyCode = useMemo(() => {
@@ -60,13 +67,25 @@ const PrinterSettings: React.FC = () => {
     loadMainCategories();
   }, [loadMappings, loadMainCategories]);
 
-  // Load global printing behavior settings from localStorage
+  // Captain order is a shop-wide setting stored on the server — one toggle
+  // applies to every device. Print-by-agent stays per-machine (local printer).
   useEffect(() => {
-    const savedCaptainOrder = localStorage.getItem("captain_order_enabled");
     const savedPrintByAgent = localStorage.getItem("print_by_agent_enabled");
-    setCaptainOrderEnabled(savedCaptainOrder === "true");
     setPrintByAgentEnabled(savedPrintByAgent === "true");
-  }, []);
+
+    const savedCaptainOrder = localStorage.getItem("captain_order_enabled");
+    setCaptainOrderEnabled(savedCaptainOrder === "true"); // fallback while loading
+
+    if (shopId) {
+      fetchShop(shopId)
+        .then((shop: any) => {
+          const enabled = shop?.print_settings?.captain_order_enabled === true;
+          setCaptainOrderEnabled(enabled);
+          localStorage.setItem("captain_order_enabled", String(enabled));
+        })
+        .catch(() => { /* keep localStorage fallback */ });
+    }
+  }, [shopId]);
 
   const checkStatus = useCallback(async () => {
     if (!shopId || !companyCode) { setError("Shop ID or Company Code not found."); return; }
@@ -94,8 +113,16 @@ const PrinterSettings: React.FC = () => {
     setTestLoading(agentId);
     setTestResult((prev) => ({ ...prev, [agentId]: null }));
     try {
+      const agent = agents.find((a) => a.agent_id === agentId);
       const assignedCats = getCategoriesForAgent(agentId);
-      const categoryName = assignedCats.length > 0 ? assignedCats[0] : "test";
+      // Location-mode agents match jobs by their zone (the location name), so
+      // route the test print through it directly.
+      const categoryName =
+        agent?.routing_mode === "location" && agent.zone
+          ? agent.zone
+          : assignedCats.length > 0
+            ? assignedCats[0]
+            : "test";
       console.log(`[test print] Using category name: ${categoryName} for agent ${agentId}`);
       const result = await sendPrintJob({
         shop_id: shopId,
@@ -143,10 +170,15 @@ const PrinterSettings: React.FC = () => {
     return result;
   };
 
-  const handleToggleCaptainOrder = (checked: boolean) => {
+  const handleToggleCaptainOrder = async (checked: boolean) => {
     setCaptainOrderEnabled(checked);
-    localStorage.setItem("captain_order_enabled", checked.toString());
-    message.success(checked ? "Captain Order Mode enabled" : "Captain Order Mode disabled");
+    const ok = await updateShopPrintSettings(shopId, { captain_order_enabled: checked });
+    if (ok) {
+      localStorage.setItem("captain_order_enabled", checked.toString());
+    } else {
+      // Revert — server is the source of truth for this shop-wide setting.
+      setCaptainOrderEnabled(!checked);
+    }
   };
 
   const handleTogglePrintByAgent = (checked: boolean) => {
@@ -159,16 +191,117 @@ const PrinterSettings: React.FC = () => {
     message.success(checked ? "Agent-based printing enabled" : "Browser printing enabled");
   };
 
+  const renderSteps = (steps: React.ReactNode[], style?: React.CSSProperties) => (
+    <div
+      style={{
+        textAlign: "left",
+        background: "#f8fafc",
+        border: "1px solid #e2e8f0",
+        borderRadius: 10,
+        padding: isMobile ? "12px 14px" : "14px 18px",
+        ...style,
+      }}
+    >
+      {steps.map((step, i, arr) => (
+        <div
+          key={i}
+          style={{
+            display: "flex",
+            gap: 10,
+            alignItems: "flex-start",
+            marginBottom: i === arr.length - 1 ? 0 : 12,
+          }}
+        >
+          <div
+            style={{
+              width: 20,
+              height: 20,
+              borderRadius: "50%",
+              flexShrink: 0,
+              background: C.primaryLight,
+              color: C.primary,
+              fontSize: 11,
+              fontWeight: 700,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              marginTop: 1,
+            }}
+          >
+            {i + 1}
+          </div>
+          <Text style={{ fontSize: 12, color: "#475569", lineHeight: 1.6 }}>
+            {step}
+          </Text>
+        </div>
+      ))}
+    </div>
+  );
+
+  const idChip = (label: string, value: string) => (
+    <Text code copyable={value ? { text: value } : false} style={{ fontSize: 11 }}>
+      {label}: {value || "—"}
+    </Text>
+  );
+
+  const downloadCard = (
+    icon: React.ReactNode,
+    title: string,
+    version: string,
+    desc: string,
+    href: string,
+    btnLabel: string,
+    recommended = false
+  ) => (
+    <div
+      key={title}
+      style={{
+        background: recommended ? "#f5f3ff" : "#f8fafc",
+        border: recommended ? `1px solid ${C.primary}` : "1px solid #e2e8f0",
+        borderRadius: 8,
+        padding: isMobile ? 12 : 16,
+        position: "relative",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+        {icon}
+        <Text strong style={{ fontSize: 14 }}>{title}</Text>
+        <Tag color="blue" style={{ fontSize: 11 }}>{version}</Tag>
+        {recommended && (
+          <Tag icon={<StarFilled />} color="gold" style={{ fontSize: 11 }}>
+            Recommended
+          </Tag>
+        )}
+      </div>
+      <Text style={{ fontSize: 12, color: C.subText, display: "block", marginTop: 4 }}>
+        {desc}
+      </Text>
+      <div style={{ marginTop: 10 }}>
+        <Button
+          type="primary"
+          icon={<DownloadOutlined />}
+          href={href}
+          download
+          block
+          style={{ background: C.primary, borderColor: C.primary, borderRadius: 6 }}
+        >
+          {btnLabel}
+        </Button>
+      </div>
+    </div>
+  );
+
   return (
-    <div style={{ padding: "16px 0" }}>
+    <div style={{ padding: isMobile ? "8px 0" : "16px 0" }}>
       <ProCard
         bordered
         tabs={{
           type: "card",
           activeKey: activeTab,
-          size: "large",
+          size: isMobile ? "small" : "large",
           onChange: setActiveTab,
         }}
+        bodyStyle={{ padding: isMobile ? "12px 8px" : undefined }}
       >
         {/* ── Connected Agents Tab ───────────────────────────────────────────── */}
         <ProCard.TabPane
@@ -181,16 +314,17 @@ const PrinterSettings: React.FC = () => {
           }
         >
           <ProCard
-            bordered
+            bordered={!isMobile}
             title={
               <Space>
                 <PrinterOutlined style={{ color: C.primary }} />
-                <Text strong>Print Agent — Connected Printers</Text>
+                <Text strong>{isMobile ? "Connected Printers" : "Print Agent — Connected Printers"}</Text>
               </Space>
             }
+            headStyle={{ padding: isMobile ? "10px 12px" : undefined }}
             extra={
-              <Space>
-                {lastChecked && (
+              <Space size={8}>
+                {!isMobile && lastChecked && (
                   <Text style={{ fontSize: 11, color: C.subText }}>
                     Checked: {lastChecked.toLocaleTimeString("en-KE")}
                   </Text>
@@ -201,12 +335,12 @@ const PrinterSettings: React.FC = () => {
                   onClick={checkStatus}
                   loading={loading}
                 >
-                  Refresh
+                  {!isMobile && "Refresh"}
                 </Button>
               </Space>
             }
             style={{ marginBottom: 16 }}
-            bodyStyle={{ padding: "14px 16px" }}
+            bodyStyle={{ padding: isMobile ? "12px 10px" : "14px 16px" }}
           >
             {!shopId && (
               <Alert
@@ -233,69 +367,131 @@ const PrinterSettings: React.FC = () => {
                 </Text>
               </div>
             ) : agents.length === 0 ? (
-              <Alert
-                type="info"
-                showIcon
-                message="No agents connected"
-                description="Install the PrintAgent app and configure it with your shop_id."
-                style={{ borderRadius: 8 }}
-              />
+              error ? null : (
+                <div style={{ textAlign: "center", padding: isMobile ? "12px 2px" : "24px 16px" }}>
+                  <div
+                    style={{
+                      width: 52,
+                      height: 52,
+                      borderRadius: 14,
+                      margin: "0 auto 12px",
+                      background: C.primaryLight,
+                      color: C.primary,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 24,
+                    }}
+                  >
+                    <PrinterOutlined />
+                  </div>
+                  <Text strong style={{ display: "block", fontSize: 15, color: "#0f172a" }}>
+                    No printers connected
+                  </Text>
+                  <Text style={{ display: "block", fontSize: 13, color: C.subText, marginTop: 4 }}>
+                    Install the Print Agent on the computer connected to each printer.
+                  </Text>
+
+                  {renderSteps(
+                    [
+                      <>Download and install the Print Agent on each printer's computer.</>,
+                      <>
+                        Open it and enter your {idChip("Company Code", companyCode)} and{" "}
+                        {idChip("Shop ID", shopId)}, then click Connect.
+                      </>,
+                      <>
+                        The agent appears here automatically — use <strong>Assign Category</strong> to
+                        route print jobs (e.g. Kitchen, Bar, Cashier).
+                      </>,
+                    ],
+                    { maxWidth: 440, margin: "16px auto 0" }
+                  )}
+
+                  <Button
+                    type="primary"
+                    icon={<DownloadOutlined />}
+                    onClick={() => setActiveTab("download")}
+                    style={{ marginTop: 14, borderRadius: 6 }}
+                  >
+                    Download Print Agent
+                  </Button>
+                </div>
+              )
             ) : (
               <List
                 dataSource={agents}
                 rowKey="agent_id"
                 renderItem={(agent) => {
                   const key = agent.agent_id;
+                  const isLocationAgent = agent.routing_mode === "location";
                   const result = testResult[key];
                   const assignedCats = getCategoriesForAgent(key);
+                  const actionNodes = [
+                    result === true && (
+                      <Tag key="sent" color="success" style={{ fontSize: 11 }}>✓ Sent</Tag>
+                    ),
+                    result === false && (
+                      <Tag key="failed" color="error" style={{ fontSize: 11 }}>✗ Failed</Tag>
+                    ),
+                    <Button
+                      key="test-print"
+                      size="small"
+                      icon={<SendOutlined />}
+                      loading={testLoading === key}
+                      onClick={() => handleTestPrint(key)}
+                      style={{ borderColor: C.primary, color: C.primary, borderRadius: 6 }}
+                    >
+                      Test Print
+                    </Button>,
+                  ].filter(Boolean) as React.ReactNode[];
                   return (
                     <List.Item
                       style={{
                         background: "#f0fdf4",
                         border: "1px solid #bbf7d0",
                         borderRadius: 10,
-                        padding: "10px 14px",
+                        padding: isMobile ? "10px 10px" : "10px 14px",
                         marginBottom: 8,
+                        flexWrap: "wrap",
                       }}
-                      actions={[
-                        result === true && (
-                          <Tag color="success" style={{ fontSize: 11 }}>✓ Sent</Tag>
-                        ),
-                        result === false && (
-                          <Tag color="error" style={{ fontSize: 11 }}>✗ Failed</Tag>
-                        ),
-                        <Button
-                          size="small"
-                          icon={<SendOutlined />}
-                          loading={testLoading === key}
-                          onClick={() => handleTestPrint(key)}
-                          style={{ borderColor: C.primary, color: C.primary, borderRadius: 6 }}
-                        >
-                          Test Print
-                        </Button>,
-                      ].filter(Boolean)}
+                      actions={isMobile ? undefined : actionNodes}
                     >
                       <List.Item.Meta
                         avatar={
                           <CheckCircleOutlined style={{ color: "#16a34a", fontSize: 18, marginTop: 2 }} />
                         }
                         title={
-                          <Space>
+                          <Space wrap size={6}>
                             <PrinterOutlined style={{ color: C.primary }} />
-                            <Text strong style={{ fontSize: 13 }}>
+                            <Text strong style={{ fontSize: 13, wordBreak: "break-all" }}>
                               Agent: {agent.agent_id}
                             </Text>
                             <Tag color="blue" style={{ borderRadius: 4, fontSize: 11 }}>
                               Online
                             </Tag>
+                            <Tag
+                              color={isLocationAgent ? "purple" : "default"}
+                              style={{ borderRadius: 4, fontSize: 11 }}
+                            >
+                              {isLocationAgent
+                                ? `Location: ${(agent.zones?.length ? agent.zones : [agent.zone]).join(", ")}`
+                                : `Category: ${(agent.zones?.length ? agent.zones : [agent.zone]).join(", ")}`}
+                            </Tag>
                           </Space>
                         }
                         description={
                           <div>
-                            <Text style={{ fontSize: 12, color: C.subText }}>
+                            <Text style={{ fontSize: 12, color: C.subText, wordBreak: "break-all" }}>
                               Shop: {agent.shop_id}
                             </Text>
                             <div style={{ marginTop: 8 }}>
+                              {isLocationAgent ? (
+                                <Text style={{ fontSize: 11, color: C.subText }}>
+                                  Routes all jobs from location "{agent.zone}" — no category
+                                  assignment needed.
+                                </Text>
+                              ) : (
+                                <>
                               <Text style={{ fontSize: 11, color: C.subText, display: "block", marginBottom: 4 }}>
                                 Assigned Categories:
                               </Text>
@@ -320,13 +516,13 @@ const PrinterSettings: React.FC = () => {
                               </Space>
                               <div style={{ marginTop: 6 }}>
                                 {editingAgent === key ? (
-                                  <Space size={4}>
+                                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
                                     <Select
                                       size="small"
                                       placeholder="Select main category"
                                       value={newCategoryId || undefined}
                                       onChange={(value) => setNewCategoryId(value)}
-                                      style={{ width: 220, fontSize: 11 }}
+                                      style={{ flex: "1 1 180px", minWidth: 140, fontSize: 11 }}
                                       showSearch
                                       optionFilterProp="children"
                                     >
@@ -353,7 +549,7 @@ const PrinterSettings: React.FC = () => {
                                     >
                                       Cancel
                                     </Button>
-                                  </Space>
+                                  </div>
                                 ) : (
                                   <Button
                                     size="small"
@@ -365,7 +561,14 @@ const PrinterSettings: React.FC = () => {
                                   </Button>
                                 )}
                               </div>
+                                </>
+                              )}
                             </div>
+                            {isMobile && (
+                              <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
+                                {actionNodes}
+                              </div>
+                            )}
                           </div>
                         }
                       />
@@ -375,47 +578,6 @@ const PrinterSettings: React.FC = () => {
               />
             )}
           </ProCard>
-
-          {!loading && agents.length === 0 && !error && (
-            <ProCard
-              bordered
-              title={
-                <Space>
-                  <CloseCircleOutlined style={{ color: "#dc2626" }} />
-                  <Text strong>No Printers Online</Text>
-                </Space>
-              }
-              bodyStyle={{ padding: "14px 16px" }}
-            >
-              <Alert
-                type="info"
-                showIcon
-                message="How to connect a printer agent"
-                description={
-                  <ol style={{ margin: "8px 0 0", paddingLeft: 16, fontSize: 12 }}>
-                    <li>Install the PrintAgent app on the machine connected to each printer.</li>
-                    <li>
-                      Set the agent's <strong>shop_id</strong> to{" "}
-                      <code style={{ background: "#f1f5f9", padding: "1px 4px", borderRadius: 3 }}>
-                        {shopId || "<your shop id>"}
-                      </code>
-                      .
-                    </li>
-                    <li>
-                      Start the agent — it will appear here automatically.
-                    </li>
-                    <li>
-                      Use the <strong>"Assign Category"</strong> button to assign each connected agent
-                      to a main category (e.g. Kitchen, Bar, Cashier). Enter the main category ObjectId.
-                    </li>
-                    <li>
-                      When printing, items are routed to the agent assigned to their main category.
-                    </li>
-                  </ol>
-                }
-              />
-            </ProCard>
-          )}
         </ProCard.TabPane>
 
         {/* ── Download Agent Tab ─────────────────────────────────────────────── */}
@@ -429,98 +591,285 @@ const PrinterSettings: React.FC = () => {
           }
         >
           <ProCard
-            bordered
+            bordered={!isMobile}
             title={
               <Space>
                 <DownloadOutlined style={{ color: C.primary }} />
                 <Text strong>Download BASE Print Agent</Text>
               </Space>
             }
-            bodyStyle={{ padding: "14px 16px" }}
+            headStyle={{ padding: isMobile ? "10px 12px" : undefined }}
+            bodyStyle={{ padding: isMobile ? "12px 10px" : "14px 16px" }}
           >
-            <Alert
-              type="info"
-              showIcon
-              message="Install the Print Agent on your computer to connect printers"
-              description="Download and install the appropriate version for your operating system, then configure it with your shop ID."
-              style={{ marginBottom: 16, borderRadius: 8 }}
-            />
-            
-            <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-              {/* macOS Download */}
-              <div style={{
-                background: "#f8fafc",
-                border: "1px solid #e2e8f0",
-                borderRadius: 8,
-                padding: 16,
-              }}>
-                <Space direction="vertical" size="small" style={{ width: "100%" }}>
-                  <Space>
-                    <AppleOutlined style={{ fontSize: 20, color: "#6c1c2c" }} />
-                    <Text strong style={{ fontSize: 14 }}>macOS (Apple Silicon)</Text>
-                    <Tag color="blue" style={{ fontSize: 11 }}>v0.4.2</Tag>
-                  </Space>
-                  <Text style={{ fontSize: 12, color: C.subText }}>
-                    For Mac computers with Apple Silicon (M1, M2, M3 chips)
-                  </Text>
-                  <Button
-                    type="primary"
-                    icon={<DownloadOutlined />}
-                    href="https://reliatechdocs.nyc3.digitaloceanspaces.com/Print%20Agents/PrintAgent_0.4.2_aarch64.dmg"
-                    download
-                    style={{ background: C.primary, borderColor: C.primary, borderRadius: 6 }}
-                  >
-                    Download for macOS
-                  </Button>
-                </Space>
-              </div>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)",
+                gap: 12,
+              }}
+            >
+              {downloadCard(
+                <AppleOutlined style={{ fontSize: 20, color: C.primary }} />,
+                "macOS (Apple Silicon)",
+                "v0.4.2",
+                "For Mac computers with Apple Silicon (M1, M2, M3 chips)",
+                "https://reliatechdocs.nyc3.digitaloceanspaces.com/Print%20Agents/PrintAgent_0.4.2_aarch64.dmg",
+                "Download for macOS"
+              )}
+              {downloadCard(
+                <WindowsOutlined style={{ fontSize: 20, color: C.primary }} />,
+                "Windows (64-bit)",
+                "v0.6.2",
+                "For Windows 10/11 computers (64-bit)",
+                "https://reliatechdocs.nyc3.digitaloceanspaces.com/Print%20Agents/PrintAgent_0.6.2_x64-setup.exe",
+                "Download for Windows"
+              )}
+            </div>
 
-              {/* Windows Download */}
-              <div style={{
-                background: "#f8fafc",
-                border: "1px solid #e2e8f0",
-                borderRadius: 8,
-                padding: 16,
-              }}>
-                <Space direction="vertical" size="small" style={{ width: "100%" }}>
-                  <Space>
-                    <WindowsOutlined style={{ fontSize: 20, color: "#6c1c2c" }} />
-                    <Text strong style={{ fontSize: 14 }}>Windows (64-bit)</Text>
-                    <Tag color="blue" style={{ fontSize: 11 }}>v0.6.2</Tag>
-                  </Space>
-                  <Text style={{ fontSize: 12, color: C.subText }}>
-                    For Windows 10/11 computers (64-bit)
-                  </Text>
-                  <Button
-                    type="primary"
-                    icon={<DownloadOutlined />}
-                    href="https://reliatechdocs.nyc3.digitaloceanspaces.com/Print%20Agents/PrintAgent_0.6.2_x64-setup.exe"
-                    download
-                    style={{ background: C.primary, borderColor: C.primary, borderRadius: 6 }}
-                  >
-                    Download for Windows
-                  </Button>
-                </Space>
-              </div>
+            {renderSteps(
+              [
+                <>Download and run the installer for your operating system above.</>,
+                <>
+                  Launch the Print Agent, then enter your {idChip("Company Code", companyCode)} and{" "}
+                  {idChip("Shop ID", shopId)} and click Connect.
+                </>,
+                <>
+                  The agent will appear in the <strong>Connected Agents</strong> tab — assign
+                  categories to each printer agent to route print jobs.
+                </>,
+              ],
+              { marginTop: 16 }
+            )}
+          </ProCard>
+        </ProCard.TabPane>
 
-              <Divider style={{ margin: "8px 0" }} />
-
-              {/* Installation Instructions */}
-              <div>
-                <Text strong style={{ fontSize: 13, display: "block", marginBottom: 8 }}>
-                  Installation Instructions:
-                </Text>
-                <ol style={{ margin: 0, paddingLeft: 20, fontSize: 12, color: C.subText, lineHeight: 1.8 }}>
-                  <li>Download the appropriate installer for your operating system above</li>
-                  <li>Run the installer and follow the setup wizard</li>
-                  <li>Launch the Print Agent application after installation</li>
-                  <li>Enter your <strong>Company Code</strong>: <code style={{ background: "#f1f5f9", padding: "2px 6px", borderRadius: 3 }}>{companyCode || "<your company code>"}</code></li>
-                  <li>Enter your <strong>Shop ID</strong>: <code style={{ background: "#f1f5f9", padding: "2px 6px", borderRadius: 3 }}>{shopId || "<your shop id>"}</code></li>
-                  <li>Click "Connect" - the agent will appear in the Connected Agents tab</li>
-                  <li>Assign categories to each printer agent to route print jobs correctly</li>
-                </ol>
-              </div>
+        {/* ── Printer Drivers Tab (with internal sub-tabs) ─────────────────────── */}
+        <ProCard.TabPane
+          key="drivers"
+          tab={
+            <Space>
+              <PrinterOutlined style={{ color: C.primary }} />
+              <Text>Printer Drivers</Text>
             </Space>
+          }
+        >
+          <ProCard
+            bordered={!isMobile}
+            bodyStyle={{ padding: isMobile ? "12px 10px" : "14px 16px" }}
+          >
+            <Tabs
+              activeKey={driversSubTab}
+              onChange={setDriversSubTab}
+              size={isMobile ? "small" : "middle"}
+              items={[
+                {
+                  key: "download-drivers",
+                  label: (
+                    <Space size={6}>
+                      <DownloadOutlined style={{ color: C.primary }} />
+                      <span>Download Drivers</span>
+                    </Space>
+                  ),
+                  children: (
+                    <>
+                      <Alert
+                        type="info"
+                        showIcon
+                        message="Install this first"
+                        description={
+                          <>
+                            Install the OS driver below so your computer can see the thermal
+                            receipt printer at all. Once installed, see the{" "}
+                            <strong>Setup Guide</strong> tab for how to print with or without the
+                            Print Agent.
+                          </>
+                        }
+                        style={{ marginBottom: 16, borderRadius: 8 }}
+                      />
+
+                      <Text strong style={{ fontSize: 13, display: "block", marginBottom: 8 }}>
+                        Windows
+                      </Text>
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)",
+                          gap: 12,
+                        }}
+                      >
+                        {downloadCard(
+                          <WindowsOutlined style={{ fontSize: 20, color: C.primary }} />,
+                          "Xprinter 80MM Printer Driver",
+                          "Universal",
+                          "Recommended for most 80mm thermal receipt printers (Xprinter and most generic/compatible models) on Windows 10/11.",
+                          "https://reliatechdocs.nyc3.digitaloceanspaces.com/Drivers/Xprinter%2080MM%20Printer%20Driver.exe",
+                          "Download for Windows",
+                          true
+                        )}
+                        {downloadCard(
+                          <WindowsOutlined style={{ fontSize: 20, color: C.primary }} />,
+                          "POS Printer Driver Setup",
+                          "Generic",
+                          "Alternative generic POS printer driver — use only if the Xprinter driver above doesn't detect your printer.",
+                          "https://reliatechdocs.nyc3.digitaloceanspaces.com/Drivers/POS%20Printer%20Driver%20Setup%20.exe",
+                          "Download for Windows"
+                        )}
+                      </div>
+
+                      <Text strong style={{ fontSize: 13, display: "block", margin: "20px 0 8px" }}>
+                        macOS
+                      </Text>
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)",
+                          gap: 12,
+                        }}
+                      >
+                        {downloadCard(
+                          <AppleOutlined style={{ fontSize: 20, color: C.primary }} />,
+                          "macOS Printer Driver",
+                          "Universal",
+                          "Thermal receipt printer driver for macOS.",
+                          "https://reliatechdocs.nyc3.digitaloceanspaces.com/Drivers/macOSDriver.dmg",
+                          "Download for macOS"
+                        )}
+                      </div>
+
+                      <Text strong style={{ fontSize: 13, display: "block", margin: "20px 0 8px" }}>
+                        Linux
+                      </Text>
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)",
+                          gap: 12,
+                        }}
+                      >
+                        {downloadCard(
+                          <LinuxOutlined style={{ fontSize: 20, color: C.primary }} />,
+                          "Linux Driver Package",
+                          "ZIP — all versions",
+                          "Contains the 64-bit v8.0, 32-bit v8.0, and legacy 32-bit v5.8 installers — pick the one matching your distro after unzipping.",
+                          "https://reliatechdocs.nyc3.digitaloceanspaces.com/Drivers/Linux%20Driver.zip",
+                          "Download ZIP"
+                        )}
+                      </div>
+
+                      <Alert
+                        type="success"
+                        showIcon
+                        message="After installing the driver"
+                        description={
+                          <>
+                            Connect the printer via USB and power it on, then open the{" "}
+                            <strong>Setup Guide</strong> tab to finish configuring it — with or
+                            without the Print Agent.
+                          </>
+                        }
+                        style={{ marginTop: 16, borderRadius: 8 }}
+                      />
+                    </>
+                  ),
+                },
+                {
+                  key: "guide",
+                  label: (
+                    <Space size={6}>
+                      <SettingOutlined style={{ color: C.primary }} />
+                      <span>Setup Guide</span>
+                    </Space>
+                  ),
+                  children: (
+                    <>
+                      <Alert
+                        type="info"
+                        showIcon
+                        message="Haven't installed the driver yet?"
+                        description={
+                          <>
+                            Install the OS driver for your printer first in the{" "}
+                            <strong>Download Drivers</strong> tab, then come back here to finish
+                            setup.
+                          </>
+                        }
+                        style={{ marginBottom: 16, borderRadius: 8 }}
+                      />
+
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)",
+                          gap: 12,
+                        }}
+                      >
+                        <div
+                          style={{
+                            background: "#fff",
+                            border: "1px solid #e2e8f0",
+                            borderRadius: 8,
+                            padding: isMobile ? 12 : 16,
+                          }}
+                        >
+                          <Space size={6}>
+                            <PrinterOutlined style={{ color: C.primary }} />
+                            <Text strong style={{ fontSize: 14 }}>Without Agent — Browser Printing</Text>
+                            <Tag style={{ fontSize: 11 }}>Default</Tag>
+                          </Space>
+                          <Text style={{ fontSize: 12, color: C.subText, display: "block", margin: "6px 0 10px" }}>
+                            Works out of the box for a single printer connected to the same
+                            computer the cashier is using. No extra software beyond the OS driver.
+                          </Text>
+                          {renderSteps([
+                            <>Install the matching printer driver for your OS and plug in the printer.</>,
+                            <>Set it as the default printer in your OS print settings.</>,
+                            <>
+                              In the <strong>Printing Controls</strong> tab, keep{" "}
+                              <strong>Print Method</strong> set to <strong>Browser</strong> —
+                              receipts print straight from the browser's print dialog, no agent
+                              required.
+                            </>,
+                          ])}
+                        </div>
+
+                        <div
+                          style={{
+                            background: "#f5f3ff",
+                            border: `1px solid ${C.primary}`,
+                            borderRadius: 8,
+                            padding: isMobile ? 12 : 16,
+                          }}
+                        >
+                          <Space size={6}>
+                            <ApiOutlined style={{ color: C.primary }} />
+                            <Text strong style={{ fontSize: 14 }}>With Agent — API Printing</Text>
+                            <Tag color="blue" style={{ fontSize: 11 }}>Multiple printers</Tag>
+                          </Space>
+                          <Text style={{ fontSize: 12, color: C.subText, display: "block", margin: "6px 0 10px" }}>
+                            Needed for kitchen/bar/cashier routing, printing from other devices
+                            (tablets, other computers), or printing silently without the browser's
+                            print dialog.
+                          </Text>
+                          {renderSteps([
+                            <>Install the matching printer driver for your OS on the computer the printer is plugged into.</>,
+                            <>
+                              Install the <strong>Print Agent</strong> from the{" "}
+                              <strong>Download Agent</strong> tab on that same computer and connect
+                              it with your Company Code and Shop ID.
+                            </>,
+                            <>
+                              In the <strong>Printing Controls</strong> tab, switch{" "}
+                              <strong>Print Method</strong> to <strong>API</strong>, then assign
+                              categories to the agent in <strong>Connected Agents</strong>.
+                            </>,
+                          ])}
+                        </div>
+                      </div>
+                    </>
+                  ),
+                },
+              ]}
+            />
           </ProCard>
         </ProCard.TabPane>
 
@@ -535,26 +884,27 @@ const PrinterSettings: React.FC = () => {
           }
         >
           <ProCard
-            bordered
+            bordered={!isMobile}
             title={
               <Space>
                 <PrinterOutlined style={{ color: C.primary }} />
-                <Text strong>Global Printing Behavior Settings</Text>
+                <Text strong>{isMobile ? "Printing Behavior" : "Global Printing Behavior Settings"}</Text>
               </Space>
             }
-            bodyStyle={{ padding: "14px 16px" }}
+            headStyle={{ padding: isMobile ? "10px 12px" : undefined }}
+            bodyStyle={{ padding: isMobile ? "12px 10px" : "14px 16px" }}
           >
             {/* Global Settings */}
-            <Space direction="vertical" size="large" style={{ width: "100%" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               {/* Captain Order Mode */}
-              <div style={{ 
-                background: "#fff", 
-                border: "1px solid #e2e8f0", 
-                borderRadius: 8, 
-                padding: "16px 18px" 
+              <div style={{
+                background: "#fff",
+                border: "1px solid #e2e8f0",
+                borderRadius: 8,
+                padding: isMobile ? "12px" : "16px 18px"
               }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                  <div style={{ flex: "1 1 200px", minWidth: 0 }}>
                     <Text strong style={{ fontSize: 15, display: "block", marginBottom: 6 }}>
                       🧑‍✈️ Captain Order Mode
                     </Text>
@@ -565,7 +915,7 @@ const PrinterSettings: React.FC = () => {
                   <Switch
                     checked={captainOrderEnabled}
                     onChange={handleToggleCaptainOrder}
-                    style={{ minWidth: 48, marginLeft: 16 }}
+                    style={{ minWidth: 48 }}
                     checkedChildren="ON"
                     unCheckedChildren="OFF"
                   />
@@ -573,15 +923,15 @@ const PrinterSettings: React.FC = () => {
               </div>
 
               {/* Agent-Based Printing */}
-              <div style={{ 
-                background: "#fff", 
-                border: agents.length === 0 ? "1px dashed #f59e0b" : "1px solid #e2e8f0", 
-                borderRadius: 8, 
-                padding: "16px 18px",
+              <div style={{
+                background: "#fff",
+                border: agents.length === 0 ? "1px dashed #f59e0b" : "1px solid #e2e8f0",
+                borderRadius: 8,
+                padding: isMobile ? "12px" : "16px 18px",
                 opacity: agents.length === 0 ? 0.7 : 1
               }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                  <div style={{ flex: "1 1 200px", minWidth: 0 }}>
                     <Text strong style={{ fontSize: 15, display: "block", marginBottom: 6 }}>
                       🖨️ Print Method
                     </Text>
@@ -598,13 +948,13 @@ const PrinterSettings: React.FC = () => {
                     checked={printByAgentEnabled}
                     onChange={handleTogglePrintByAgent}
                     disabled={agents.length === 0}
-                    style={{ minWidth: 48, marginLeft: 16 }}
+                    style={{ minWidth: 48 }}
                     checkedChildren="API"
                     unCheckedChildren="Browser"
                   />
                 </div>
               </div>
-            </Space>
+            </div>
           </ProCard>
         </ProCard.TabPane>
       </ProCard>

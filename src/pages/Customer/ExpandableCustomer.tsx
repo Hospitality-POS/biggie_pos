@@ -4,20 +4,12 @@ import { FileExcelOutlined, FilePdfOutlined, StarFilled } from "@ant-design/icon
 import { utils as XLSXUtils, writeFile } from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { THEME_C } from "@utils/getPrimaryColor";
 
 const { Text } = Typography;
 
 // ── Palette ────────────────────────────────────────────────────────────────
-const C = {
-  primary: "#6c1c2c",
-  green: "#10b981",
-  orange: "#f59e0b",
-  red: "#ef4444",
-  subText: "#64748b",
-  darkText: "#0f172a",
-  border: "#e2e8f0",
-  bg: "#f8fafc",
-};
+const C = THEME_C;
 
 // ── Rating badge ───────────────────────────────────────────────────────────
 const RatingBadge = ({ rating }: { rating: number }) => {

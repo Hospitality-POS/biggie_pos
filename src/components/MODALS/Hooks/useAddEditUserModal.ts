@@ -33,27 +33,32 @@ const useAddEditUserModal = ({ onAddUser }: useAddEditUserModalProps) => {
     // handle change
   };
 
-  const handleConfirmAddUser = async (data: User) => {
+  const handleConfirmAddUser = async (
+    data: User
+  ): Promise<{ success: boolean; message?: string; field?: string }> => {
     try {
       dispatch(resetMessage());
       const result = await dispatch(createUser(data) as any);
-      
+
       if (createUser.fulfilled.match(result)) {
         onAddUser?.(data);
         handleClose();
-        message.success("User added successfully");
-        return true;
-      } else {
-        const errorMessage = result.payload || "Failed to add a new User";
-        message.error(errorMessage);
-        return false;
+        return { success: true };
       }
+
+      const payload = result.payload;
+      const errorMessage =
+        typeof payload === "string"
+          ? payload
+          : payload?.message || "Failed to add a new User";
+      const field = typeof payload === "object" ? payload?.field : undefined;
+      return { success: false, message: errorMessage, field };
     } catch (error: any) {
       setIsSubmitting(false);
       handleClose();
-      const errorMessage = error?.response?.data?.message || error?.message || "Failed to add a new User";
-      message.error(errorMessage);
-      return false;
+      const errorMessage =
+        error?.response?.data?.message || error?.message || "Failed to add a new User";
+      return { success: false, message: errorMessage, field: error?.response?.data?.field };
     }
   };
 

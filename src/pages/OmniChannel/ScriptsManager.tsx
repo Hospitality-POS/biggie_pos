@@ -1,27 +1,44 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-    Table,
     Button,
-    Input,
+    Card,
+    Flex,
     Form,
-    Space,
-    Popconfirm,
+    Grid,
+    Input,
     Modal,
+    Popconfirm,
+    Space,
+    Table,
+    Tag,
+    Tooltip,
     Typography,
+    Upload,
+    App,
 } from "antd";
-import { PlusOutlined, EditOutlined, DeleteOutlined, ThunderboltOutlined } from "@ant-design/icons";
+import {
+    PlusOutlined,
+    EditOutlined,
+    DeleteOutlined,
+    ThunderboltOutlined,
+    UploadOutlined,
+    SearchOutlined,
+    FileTextOutlined,
+} from "@ant-design/icons";
+import dayjs from "dayjs";
 import {
     fetchScripts,
     createScript,
     updateScript,
     deleteScript,
     refineText,
+    extractScriptFromFile,
     type Script,
 } from "@services/whatsappService";
+import TinyMCEInput from "@components/TinyMCEInput";
 
-const { TextArea } = Input;
-const { Paragraph } = Typography;
+const { Title, Text, Paragraph } = Typography;
 
 interface Props {
     shopId: string;
@@ -29,13 +46,20 @@ interface Props {
     onSelect?: (script: Script) => void;
 }
 
+const stripHtml = (html: string) => (html || "").replace(/<[^>]*>/g, "").trim();
+
 const ScriptsManager: React.FC<Props> = ({ shopId, readOnly = false, onSelect }) => {
+    const { message } = App.useApp();
+    const screens = Grid.useBreakpoint();
+    const isMobile = !screens.md;
     const queryClient = useQueryClient();
     const [form] = Form.useForm();
     const [editing, setEditing] = useState<Script | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [preview, setPreview] = useState<Script | null>(null);
     const [refineInstruction, setRefineInstruction] = useState("");
+    const [search, setSearch] = useState("");
+    const [extracting, setExtracting] = useState(false);
 
     const { data, isLoading } = useQuery({
         queryKey: ["omnichannel-scripts", shopId],
@@ -44,6 +68,17 @@ const ScriptsManager: React.FC<Props> = ({ shopId, readOnly = false, onSelect })
     });
 
     const scripts: Script[] = data?.scripts || [];
+
+    const filteredScripts = useMemo(() => {
+        const q = search.trim().toLowerCase();
+        if (!q) return scripts;
+        return scripts.filter(
+            (s) =>
+                s.title?.toLowerCase().includes(q) ||
+                s.category?.toLowerCase().includes(q) ||
+                stripHtml(s.content).toLowerCase().includes(q)
+        );
+    }, [scripts, search]);
 
     const createMutation = useMutation({
         mutationFn: createScript,
@@ -113,6 +148,21 @@ const ScriptsManager: React.FC<Props> = ({ shopId, readOnly = false, onSelect })
         setIsModalOpen(true);
     };
 
+    const handleFileUpload = async (file: File) => {
+        setExtracting(true);
+        try {
+            const res = await extractScriptFromFile(file);
+            if (res?.content) {
+                setEditing(null);
+                form.setFieldsValue({ title: res.title || "", content: res.content, category: undefined });
+                setIsModalOpen(true);
+                message.success("Text extracted — review and save the script");
+            }
+        } finally {
+            setExtracting(false);
+        }
+    };
+
     const handleRowClick = (script: Script) => {
         if (readOnly) {
             if (onSelect) {
@@ -123,36 +173,108 @@ const ScriptsManager: React.FC<Props> = ({ shopId, readOnly = false, onSelect })
         }
     };
 
+    const uploadButton = (
+        <Upload
+            accept=".pdf,.doc,.docx,.txt"
+            showUploadList={false}
+            beforeUpload={(file) => {
+                handleFileUpload(file as File);
+                return false;
+            }}
+        >
+            <Button icon={<UploadOutlined />} loading={extracting}>
+                Upload PDF / Doc
+            </Button>
+        </Upload>
+    );
+
     const columns = [
-        { title: "Title", dataIndex: "title", key: "title" },
-        { title: "Category", dataIndex: "category", key: "category" },
+        {
+            title: "Title",
+            dataIndex: "title",
+            key: "title",
+            width: 220,
+            ellipsis: true,
+            render: (title: string) => (
+                <Space size={8}>
+                    <FileTextOutlined style={{ color: "#8c8c8c" }} />
+                    <Text strong ellipsis style={{ maxWidth: 180 }}>
+                        {title}
+                    </Text>
+                </Space>
+            ),
+        },
+        {
+            title: "Category",
+            dataIndex: "category",
+            key: "category",
+            width: 130,
+            ellipsis: true,
+            render: (category: string) =>
+                category ? <Tag>{category}</Tag> : <Text type="secondary">—</Text>,
+        },
+        {
+            title: "Content Preview",
+            key: "content",
+            render: (_: any, script: Script) => (
+                <Paragraph
+                    type="secondary"
+                    ellipsis={{ rows: 2 }}
+                    style={{ marginBottom: 0, fontSize: 13 }}
+                >
+                    {stripHtml(script.content) || "—"}
+                </Paragraph>
+            ),
+        },
+        {
+            title: "Updated",
+            dataIndex: "updatedAt",
+            key: "updatedAt",
+            width: 110,
+            render: (value: string) => (
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                    {value ? dayjs(value).format("MMM D, YYYY") : "—"}
+                </Text>
+            ),
+        },
         ...(readOnly
             ? []
             : [
                 {
-                    title: "Actions",
+                    title: "",
                     key: "actions",
+                    width: 90,
+                    align: "right" as const,
                     render: (_: any, script: Script) => (
-                        <Space>
-                            <Button
-                                icon={<EditOutlined />}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleEdit(script);
-                                }}
-                            />
+                        <Space size={0}>
+                            <Tooltip title="Edit">
+                                <Button
+                                    type="text"
+                                    icon={<EditOutlined />}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleEdit(script);
+                                    }}
+                                />
+                            </Tooltip>
                             <Popconfirm
                                 title="Delete script?"
+                                description="This can't be undone."
+                                okText="Delete"
+                                okButtonProps={{ danger: true }}
                                 onConfirm={(e) => {
                                     e?.stopPropagation();
                                     deleteMutation.mutate(script._id);
                                 }}
                             >
-                                <Button
-                                    danger
-                                    icon={<DeleteOutlined />}
-                                    onClick={(e) => e.stopPropagation()}
-                                />
+                                <Tooltip title="Delete">
+                                    <Button
+                                        type="text"
+                                        danger
+                                        icon={<DeleteOutlined />}
+                                        onClick={(e) => e.stopPropagation()}
+                                    />
+                                </Tooltip>
                             </Popconfirm>
                         </Space>
                     ),
@@ -161,29 +283,75 @@ const ScriptsManager: React.FC<Props> = ({ shopId, readOnly = false, onSelect })
     ];
 
     return (
-        <div style={{ padding: 24, height: "100%", overflowY: "auto" }}>
+        <div style={{ padding: readOnly ? 16 : (isMobile ? 12 : 24), height: "100%", overflowY: "auto" }}>
             {!readOnly && (
-                <Button
-                    type="primary"
-                    icon={<PlusOutlined />}
-                    onClick={handleAdd}
+                <Flex
+                    justify="space-between"
+                    align="center"
+                    wrap="wrap"
+                    gap={12}
                     style={{ marginBottom: 16 }}
                 >
-                    Add Script
-                </Button>
+                    <Space align="center" size={10}>
+                        <div
+                            style={{
+                                background: "#eff6ff",
+                                borderRadius: 10,
+                                padding: "6px 8px",
+                                color: "#3b82f6",
+                                fontSize: 18,
+                                display: "flex",
+                            }}
+                        >
+                            <FileTextOutlined />
+                        </div>
+                        <div>
+                            <Title level={isMobile ? 5 : 4} style={{ margin: 0, color: "#0f172a", fontWeight: 600 }}>
+                                Reply Scripts
+                            </Title>
+                            <Text style={{ fontSize: 12, color: "#64748b" }}>
+                                Reusable replies your team can drop into conversations
+                            </Text>
+                        </div>
+                    </Space>
+                    <Space wrap>
+                        {uploadButton}
+                        <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
+                            New Script
+                        </Button>
+                    </Space>
+                </Flex>
             )}
 
-            <Table
-                dataSource={scripts}
-                columns={columns}
-                rowKey="_id"
-                loading={isLoading}
-                pagination={false}
-                onRow={(script) => ({
-                    onClick: () => handleRowClick(script),
-                    style: { cursor: readOnly ? "pointer" : "default" },
-                })}
+            <Input
+                allowClear
+                prefix={<SearchOutlined style={{ color: "#bfbfbf" }} />}
+                placeholder="Search scripts…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                style={{ maxWidth: isMobile ? "100%" : 320, marginBottom: 16 }}
             />
+
+            <Card
+                size="small"
+                styles={{ body: { padding: 0 } }}
+                style={{ borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", overflow: "hidden" }}
+            >
+                <Table
+                    dataSource={filteredScripts}
+                    columns={columns}
+                    rowKey="_id"
+                    loading={isLoading}
+                    pagination={false}
+                    size="middle"
+                    scroll={isMobile ? { x: 620 } : undefined}
+                    locale={{ emptyText: "No scripts yet — create one or upload a document" }}
+                    onRow={(script) => ({
+                        onClick: () => handleRowClick(script),
+                        style: { cursor: readOnly ? "pointer" : "default" },
+                    })}
+                />
+            </Card>
 
             <Modal
                 title={editing ? "Edit Script" : "Add Script"}
@@ -191,8 +359,15 @@ const ScriptsManager: React.FC<Props> = ({ shopId, readOnly = false, onSelect })
                 onCancel={() => setIsModalOpen(false)}
                 onOk={() => form.submit()}
                 confirmLoading={createMutation.isLoading || updateMutation.isLoading}
+                okText={editing ? "Save changes" : "Create script"}
+                width={isMobile ? "94%" : 700}
                 destroyOnClose
             >
+                {!editing && (
+                    <Flex justify="flex-end" style={{ marginBottom: 8 }}>
+                        {uploadButton}
+                    </Flex>
+                )}
                 <Form form={form} layout="vertical" onFinish={handleSubmit}>
                     <Form.Item
                         name="title"
@@ -212,8 +387,8 @@ const ScriptsManager: React.FC<Props> = ({ shopId, readOnly = false, onSelect })
                         label="Script Content"
                         rules={[{ required: true, message: "Content is required" }]}
                     >
-                        <TextArea
-                            rows={6}
+                        <TinyMCEInput
+                            height={220}
                             placeholder="Type the script an agent can reference..."
                         />
                     </Form.Item>
@@ -265,7 +440,11 @@ const ScriptsManager: React.FC<Props> = ({ shopId, readOnly = false, onSelect })
                     ) : null,
                 ]}
             >
-                <Paragraph style={{ whiteSpace: "pre-wrap" }}>{preview?.content}</Paragraph>
+                <div
+                    className="script-preview"
+                    dangerouslySetInnerHTML={{ __html: preview?.content || "" }}
+                    style={{ whiteSpace: "pre-wrap", minHeight: 60 }}
+                />
             </Modal>
         </div>
     );

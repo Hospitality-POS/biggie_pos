@@ -20,6 +20,7 @@ import {
     DisconnectOutlined,
     LinkOutlined,
     PlusCircleOutlined,
+    SyncOutlined,
 } from "@ant-design/icons";
 
 const WhatsAppIcon = () => (
@@ -49,6 +50,7 @@ import {
     getWhatsAppWebPairingCode,
     getWhatsAppWebStatus,
     disconnectWhatsAppWeb,
+    resyncWhatsAppWeb,
     connectWhatsappChannel,
 } from "@services/whatsappService";
 import { CHANNEL_CONFIG } from "./OmnichannelInboxPage";
@@ -72,6 +74,7 @@ interface Props {
 interface Channel {
     _id: string;
     channel: string;
+    shop_id?: string;
     phone_number_id?: string;
     page_id?: string;
     instagram_account_id?: string;
@@ -117,24 +120,114 @@ const ConnectedCard: React.FC<{
     channelType: string;
     onDisconnect: (id: string) => void;
     disconnecting: boolean;
-}> = ({ channel, channelType, onDisconnect, disconnecting }) => {
+    liveWhatsappReady?: boolean;
+    onReconnected?: () => void;
+}> = ({ channel, channelType, onDisconnect, disconnecting, liveWhatsappReady, onReconnected }) => {
     const { message: antMessage } = App.useApp();
     const cfg = CHANNEL_CONFIG[channelType];
     const [webDisconnecting, setWebDisconnecting] = useState(false);
+    const [resyncing, setResyncing] = useState(false);
+    const [reconnecting, setReconnecting] = useState(false);
+    const [reconnectQr, setReconnectQr] = useState<string | null>(null);
+
+    // The "Active" DB record only means this channel was connected at some
+    // point — the WhatsApp Web session itself is a live, separate thing that
+    // can silently drop (e.g. needs a fresh QR scan) without the DB record
+    // changing. Surface that distinction instead of always showing "Active".
+    const isLiveDisconnected = channelType === "whatsapp" && liveWhatsappReady === false;
 
     const handleDisconnect = async () => {
         setWebDisconnecting(true);
         try {
-            await disconnectWhatsAppWeb();
+            await disconnectWhatsAppWeb(channel.shop_id);
             onDisconnect(channel._id);
             antMessage.success("WhatsApp disconnected");
-        } catch {}
+        } catch {
+            /* ignore disconnect error */
+        }
         setWebDisconnecting(false);
+    };
+
+    const handleResync = async () => {
+        setResyncing(true);
+        try {
+            await resyncWhatsAppWeb(channel.shop_id);
+        } catch {
+            /* ignore resync error */
+        }
+        setResyncing(false);
+    };
+
+    useEffect(() => {
+        if (!reconnecting) return;
+        let stopped = false;
+        const poll = async () => {
+            try {
+                const [qrData, statusData] = await Promise.allSettled([
+                    getWhatsAppWebQR(channel.shop_id),
+                    getWhatsAppWebStatus(channel.shop_id),
+                ]);
+                if (stopped) return;
+                const qrValue = qrData.status === "fulfilled" ? qrData.value?.qr : null;
+                const ready = statusData.status === "fulfilled" ? statusData.value?.ready : false;
+                setReconnectQr(qrValue || null);
+                if (ready) {
+                    setReconnecting(false);
+                    setReconnectQr(null);
+                    antMessage.success("WhatsApp reconnected");
+                    onReconnected?.();
+                }
+            } catch {
+                /* ignore poll error */
+            }
+        };
+        poll();
+        const interval = setInterval(poll, 2000);
+        return () => {
+            stopped = true;
+            clearInterval(interval);
+        };
+    }, [reconnecting]);
+
+    const handleReconnect = async () => {
+        setReconnecting(true);
+        setReconnectQr(null);
+        try {
+            await startWhatsAppWeb({ method: "qr", shop_id: channel.shop_id });
+        } catch (err: any) {
+            setReconnecting(false);
+            antMessage.error(err?.message || "Could not start WhatsApp Web reconnection");
+        }
     };
 
     const actions: React.ReactNode[] =
         channelType === "whatsapp"
             ? [
+                isLiveDisconnected ? (
+                    <Button
+                        key="reconnect"
+                        type="text"
+                        size="large"
+                        icon={<SyncOutlined spin={reconnecting} />}
+                        loading={reconnecting}
+                        onClick={handleReconnect}
+                        style={{ borderRadius: 8, color: "#fa8c16" }}
+                    >
+                        Reconnect
+                    </Button>
+                ) : (
+                    <Button
+                        key="resync"
+                        type="text"
+                        size="large"
+                        icon={<SyncOutlined spin={resyncing} />}
+                        loading={resyncing}
+                        onClick={handleResync}
+                        style={{ borderRadius: 8 }}
+                    >
+                        Sync chats
+                    </Button>
+                ),
                 <Popconfirm
                     key="disconnect"
                     title="Disconnect this channel?"
@@ -213,18 +306,32 @@ const ConnectedCard: React.FC<{
                                 channel.instagram_account_id ||
                                 "Connected Account"}
                         </Text>
-                        <Tag
-                            icon={<CheckCircleFilled />}
-                            color="success"
-                            style={{ 
-                                fontSize: 11, 
-                                lineHeight: "20px",
-                                fontWeight: 500,
-                                borderRadius: 12
-                            }}
-                        >
-                            Active
-                        </Tag>
+                        {isLiveDisconnected ? (
+                            <Tag
+                                color="warning"
+                                style={{
+                                    fontSize: 11,
+                                    lineHeight: "20px",
+                                    fontWeight: 500,
+                                    borderRadius: 12
+                                }}
+                            >
+                                Needs reconnect
+                            </Tag>
+                        ) : (
+                            <Tag
+                                icon={<CheckCircleFilled />}
+                                color="success"
+                                style={{ 
+                                    fontSize: 11, 
+                                    lineHeight: "20px",
+                                    fontWeight: 500,
+                                    borderRadius: 12
+                                }}
+                            >
+                                Active
+                            </Tag>
+                        )}
                     </Space>
                     <Text type="secondary" style={{ fontSize: 13 }}>
                         {channel.display_phone_number || channel.waba_id
@@ -235,6 +342,25 @@ const ConnectedCard: React.FC<{
                                     ? `IG ID: ${channel.instagram_account_id}`
                                     : null}
                     </Text>
+                    {isLiveDisconnected && !reconnecting && (
+                        <Text type="warning" style={{ fontSize: 12, display: "block", marginTop: 4 }}>
+                            The WhatsApp session was logged out — click Reconnect and scan the QR code.
+                        </Text>
+                    )}
+                    {reconnecting && (
+                        <div style={{ textAlign: "center", marginTop: 16 }}>
+                            {reconnectQr ? (
+                                <>
+                                    <QRCodeSVG value={reconnectQr} size={200} style={{ marginBottom: 8 }} />
+                                    <Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 0 }}>
+                                        Scan with WhatsApp → Linked Devices before it refreshes.
+                                    </Paragraph>
+                                </>
+                            ) : (
+                                <Spin tip="Generating QR code…" />
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
         </ProCard>
@@ -421,7 +547,7 @@ const WhatsAppWebConnectButton: React.FC<{
         setShowPanel(true);
         setStatus("starting");
         try {
-            await startWhatsAppWeb(method === "phone" ? { method: "phone", phoneNumber } : { method: "qr" });
+            await startWhatsAppWeb(method === "phone" ? { method: "phone", phoneNumber, shop_id: shopId } : { method: "qr", shop_id: shopId });
         } catch (err: any) {
             setLoading(false);
             setShowPanel(false);
@@ -436,8 +562,10 @@ const WhatsAppWebConnectButton: React.FC<{
         setPairingCode(null);
         setStatus("idle");
         try {
-            await disconnectWhatsAppWeb();
-        } catch {}
+            await disconnectWhatsAppWeb(shopId);
+        } catch {
+            /* ignore stop disconnect error */
+        }
     };
 
     useEffect(() => {
@@ -446,9 +574,9 @@ const WhatsAppWebConnectButton: React.FC<{
         const poll = async () => {
             try {
                 const [qrData, codeData, statusData] = await Promise.allSettled([
-                    getWhatsAppWebQR(),
-                    getWhatsAppWebPairingCode(),
-                    getWhatsAppWebStatus(),
+                    getWhatsAppWebQR(shopId),
+                    getWhatsAppWebPairingCode(shopId),
+                    getWhatsAppWebStatus(shopId),
                 ]);
                 if (stopped) return;
 
@@ -649,6 +777,17 @@ const ConnectChannelDrawer: React.FC<Props> = ({
         instagram: channels.filter((c) => c.channel === "instagram"),
     };
 
+    // The DB "Active" flag only reflects that a WhatsApp channel was set up
+    // at some point — poll the live client status too, so a session that got
+    // logged out (needs a fresh QR scan) doesn't keep showing as "Active".
+    const { data: liveWaStatus } = useQuery({
+        queryKey: ["whatsapp-web-live-status", shopId],
+        queryFn: () => getWhatsAppWebStatus(shopId),
+        enabled: open && channelsByType.whatsapp.length > 0,
+        refetchInterval: 10000,
+    });
+    const liveWhatsappReady: boolean | undefined = liveWaStatus?.ready;
+
     const disconnectMutation = useMutation({
         mutationFn: (id: string) => {
             setDisconnectingId(id);
@@ -666,6 +805,7 @@ const ConnectChannelDrawer: React.FC<Props> = ({
     const handleConnectSuccess = () => {
         queryClient.invalidateQueries({ queryKey: ["omnichannel-channels-drawer"] });
         queryClient.invalidateQueries({ queryKey: ["omnichannel-channels"] });
+        queryClient.invalidateQueries({ queryKey: ["whatsapp-web-live-status"] });
         onSuccess();
     };
 
@@ -743,6 +883,8 @@ const ConnectChannelDrawer: React.FC<Props> = ({
                                             channelType={key}
                                             onDisconnect={(id) => disconnectMutation.mutate(id)}
                                             disconnecting={disconnectingId === ch._id}
+                                            liveWhatsappReady={key === "whatsapp" ? liveWhatsappReady : undefined}
+                                            onReconnected={handleConnectSuccess}
                                         />
                                     ))
                                 )}

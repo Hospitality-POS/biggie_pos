@@ -6,6 +6,7 @@ import AccountingDashboardPage from "src/pages/AccountingDashboard/AccountingDas
 import MtejaDashboard from "src/pages/Dashboard/MtejaDashboard";
 import BanduHRDashboard from "src/pages/BanduHR/BanduHRDashboard";
 import DalaDashboard from "src/pages/dala/Dashboard";
+import { useActiveDashboard } from "src/hooks/useActiveDashboard";
 
 // ── Module activation checks ─────────────────────────────────────────────────────
 const getModuleFlags = () => {
@@ -40,10 +41,23 @@ const BanduDashboardContent: React.FC = () => <BanduHRDashboard />;
 // ── Dala Dashboard Component ─────────────────────────────────────────────────────
 const DalaDashboardContent: React.FC = () => <DalaDashboard />;
 
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = React.useState(
+    typeof window !== "undefined" ? window.innerWidth < 768 : false
+  );
+  React.useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return isMobile;
+};
+
 // ── Main Unified Shop Dashboard Page ─────────────────────────────────────────────
 const UnifiedShopDashboardPage: React.FC = () => {
+  const isMobile = useIsMobile();
   const { hasDuka, hasPesa, hasMteja, hasBandu, hasDala } = getModuleFlags();
-  const [activeTab, setActiveTab] = useState("pos");
+  const { activeTab, setActiveDashboard } = useActiveDashboard();
 
   // Build tab items based on enabled modules
   const tabItems = [
@@ -84,15 +98,6 @@ const UnifiedShopDashboardPage: React.FC = () => {
       : []),
   ];
 
-  // Set default tab based on available modules
-  React.useEffect(() => {
-    if (hasDuka) setActiveTab("pos");
-    else if (hasPesa) setActiveTab("accounting");
-    else if (hasMteja) setActiveTab("mteja");
-    else if (hasDala) setActiveTab("dala");
-    else if (hasBandu) setActiveTab("bandu");
-  }, [hasDuka, hasPesa, hasMteja, hasDala, hasBandu]);
-
   // Fallback: if no tabs, show message instead of defaulting to Duka
   if (tabItems.length === 0) {
     return (
@@ -105,17 +110,19 @@ const UnifiedShopDashboardPage: React.FC = () => {
   }
 
   return (
-    <div style={{ padding: 24, background: "#f5f5f5", minHeight: "100%" }}>
-      <Typography.Title level={3} style={{ marginBottom: 24, fontWeight: 600 }}>
-        Home Dashboard
-      </Typography.Title>
-
+    <div
+      style={{
+        padding: isMobile ? "6px 4px" : "16px 24px",
+        background: "#f8fafc",
+        minHeight: "100%",
+      }}
+    >
       <Tabs
         activeKey={activeTab}
-        onChange={setActiveTab}
+        onChange={(key) => setActiveDashboard(key)}
         items={tabItems}
-        size="large"
-        tabBarStyle={{ marginBottom: 24 }}
+        size={isMobile ? "middle" : "large"}
+        tabBarStyle={{ marginBottom: isMobile ? 10 : 16 }}
       />
     </div>
   );

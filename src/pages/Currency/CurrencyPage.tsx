@@ -3,7 +3,7 @@ import {
     Card, Tabs, Table, Button, Space, Tag, Badge, Typography,
     Tooltip, Popconfirm, Drawer, Form, Input, InputNumber,
     Select, DatePicker, Switch, Row, Col, Statistic, App,
-    Dropdown, MenuProps, Alert, Divider,
+    Dropdown, MenuProps, Alert, Divider, Grid,
 } from "antd";
 import {
     PlusOutlined, EditOutlined, DeleteOutlined, ThunderboltOutlined,
@@ -37,6 +37,7 @@ interface CurrencyDrawerProps {
 const CurrencyDrawer: React.FC<CurrencyDrawerProps> = ({ open, onClose, onSuccess, editing }) => {
     const [form] = Form.useForm();
     const isEdit = !!editing;
+    const isMobile = !Grid.useBreakpoint().md;
 
     React.useEffect(() => {
         if (open && editing) {
@@ -62,7 +63,7 @@ const CurrencyDrawer: React.FC<CurrencyDrawerProps> = ({ open, onClose, onSucces
             title={isEdit ? `Edit Currency — ${editing?.code}` : "Add Currency"}
             open={open}
             onClose={onClose}
-            width={480}
+            width={isMobile ? "100%" : 480}
             destroyOnClose
             footer={
                 <Space style={{ justifyContent: "flex-end", width: "100%", display: "flex" }}>
@@ -151,6 +152,7 @@ const RateDrawer: React.FC<RateDrawerProps> = ({
     open, onClose, onSuccess, editing, currencies, functionalCode,
 }) => {
     const [form] = Form.useForm();
+    const isMobile = !Grid.useBreakpoint().md;
 
     React.useEffect(() => {
         if (open && editing) {
@@ -196,7 +198,7 @@ const RateDrawer: React.FC<RateDrawerProps> = ({
             title={editing ? "Edit Exchange Rate" : "Add Exchange Rate"}
             open={open}
             onClose={onClose}
-            width={440}
+            width={isMobile ? "100%" : 440}
             destroyOnClose
             footer={
                 <Space style={{ justifyContent: "flex-end", width: "100%", display: "flex" }}>
@@ -279,6 +281,7 @@ const RateDrawer: React.FC<RateDrawerProps> = ({
    CURRENCY CONVERTER WIDGET
 ───────────────────────────────────────────────────────────────────────────── */
 const CurrencyConverter: React.FC<{ currencies: Currency[] }> = ({ currencies }) => {
+    const isMobile = !Grid.useBreakpoint().md;
     const [amount, setAmount] = useState<number>(1000);
     const [from, setFrom] = useState("USD");
     const [to, setTo] = useState("KES");
@@ -303,8 +306,8 @@ const CurrencyConverter: React.FC<{ currencies: Currency[] }> = ({ currencies })
             title={<Space><SwapOutlined />Currency Converter</Space>}
             style={{ marginBottom: 16 }}
         >
-            <Row gutter={12} align="middle">
-                <Col span={6}>
+            <Row gutter={[12, 12]} align="middle">
+                <Col xs={24} md={6}>
                     <InputNumber
                         value={amount}
                         onChange={(v) => { setAmount(v || 0); setResult(null); }}
@@ -314,20 +317,20 @@ const CurrencyConverter: React.FC<{ currencies: Currency[] }> = ({ currencies })
                         min={0}
                     />
                 </Col>
-                <Col span={6}>
+                <Col xs={10} md={6}>
                     <Select value={from} onChange={(v) => { setFrom(v); setResult(null); }} style={{ width: "100%" }} showSearch>
                         {currencies.map((c) => <Option key={c.code} value={c.code}>{c.code} — {c.symbol}</Option>)}
                     </Select>
                 </Col>
-                <Col span={2} style={{ textAlign: "center" }}>
+                <Col xs={4} md={2} style={{ textAlign: "center" }}>
                     <Button icon={<SwapOutlined />} size="small" onClick={swap} />
                 </Col>
-                <Col span={6}>
+                <Col xs={10} md={6}>
                     <Select value={to} onChange={(v) => { setTo(v); setResult(null); }} style={{ width: "100%" }} showSearch>
                         {currencies.map((c) => <Option key={c.code} value={c.code}>{c.code} — {c.symbol}</Option>)}
                     </Select>
                 </Col>
-                <Col span={4}>
+                <Col xs={24} md={4}>
                     <Button type="primary" onClick={handleConvert} loading={loading} block>Convert</Button>
                 </Col>
             </Row>
@@ -366,6 +369,7 @@ const CurrencyConverter: React.FC<{ currencies: Currency[] }> = ({ currencies })
 const CurrencyPage: React.FC = () => {
     const queryClient = useQueryClient();
     const { modal } = App.useApp();
+    const isMobile = !Grid.useBreakpoint().md;
 
     const [currencyDrawer, setCurrencyDrawer] = useState(false);
     const [rateDrawer, setRateDrawer] = useState(false);
@@ -589,50 +593,51 @@ const CurrencyPage: React.FC = () => {
                 title={
                     <Space>
                         <DollarOutlined style={{ fontSize: 18, color: "#1890ff" }} />
-                        <Text strong style={{ fontSize: 16 }}>Multi-Currency Settings</Text>
+                        <Text strong style={{ fontSize: 16 }}>{isMobile ? "Currencies" : "Multi-Currency Settings"}</Text>
                     </Space>
                 }
+                headStyle={{ padding: isMobile ? "0 12px" : undefined }}
                 extra={
-                    <Space>
+                    <Space size={8}>
                         {activeTab === "currencies" && (
                             <>
                                 <Tooltip title="Refresh currencies data">
-                                    <Button 
-                                        icon={<ReloadOutlined />} 
+                                    <Button
+                                        icon={<ReloadOutlined />}
                                         onClick={() => refetchCurrencies()}
                                         loading={loadingCurrencies}
                                     />
                                 </Tooltip>
                                 <Tooltip title="Seed KES + 10 common currencies — safe to run multiple times">
                                     <Button icon={<ThunderboltOutlined />} onClick={handleSeed} loading={seeding}>
-                                        Seed Defaults
+                                        {!isMobile && "Seed Defaults"}
                                     </Button>
                                 </Tooltip>
                                 <Button
                                     type="primary" icon={<PlusOutlined />}
                                     onClick={() => { setEditingCurrency(null); setCurrencyDrawer(true); }}
                                 >
-                                    Add Currency
+                                    {!isMobile && "Add Currency"}
                                 </Button>
                             </>
                         )}
                         {activeTab === "rates" && (
                             <>
                                 <Tooltip title="Refresh exchange rates data">
-                                    <Button 
-                                        icon={<ReloadOutlined />} 
+                                    <Button
+                                        icon={<ReloadOutlined />}
                                         onClick={() => refetchRates()}
                                         loading={loadingRates}
                                     />
                                 </Tooltip>
                                 <Dropdown menu={{ items: exportMenuItems }} placement="bottomRight">
-                                    <Button icon={<DownloadOutlined />}>Export</Button>
+                                    <Button icon={<DownloadOutlined />}>{!isMobile && "Export"}</Button>
                                 </Dropdown>
                                 <Button
                                     type="primary" icon={<PlusOutlined />}
                                     onClick={() => { setEditingRate(null); setRateDrawer(true); }}
                                 >
-                                    Add Rate
+                                    {!isMobile && "Add Rate"}
                                 </Button>
                             </>
                         )}
@@ -641,8 +646,8 @@ const CurrencyPage: React.FC = () => {
             >
                 {/* ── Functional currency banner ── */}
                 {functional && (
-                    <div style={{ padding: "12px 24px", borderBottom: "1px solid #f0f0f0" }}>
-                        <Space>
+                    <div style={{ padding: isMobile ? "10px 12px" : "12px 24px", borderBottom: "1px solid #f0f0f0" }}>
+                        <Space wrap size={8}>
                             <CheckCircleOutlined style={{ color: "#52c41a" }} />
                             <Text type="secondary">Base (functional) currency:</Text>
                             <Text strong style={{ fontSize: 15 }}>
@@ -662,14 +667,14 @@ const CurrencyPage: React.FC = () => {
                         description='Click "Seed Defaults" to initialise currencies with KES as the base, or add a currency and mark it as functional.'
                         type="warning"
                         showIcon
-                        style={{ margin: "16px 24px" }}
+                        style={{ margin: isMobile ? 12 : "16px 24px" }}
                     />
                 )}
 
                 <Tabs
                     activeKey={activeTab}
                     onChange={setActiveTab}
-                    style={{ paddingLeft: 16, paddingRight: 16 }}
+                    style={{ paddingLeft: isMobile ? 8 : 16, paddingRight: isMobile ? 8 : 16 }}
                     items={[
                         {
                             key: "currencies",
@@ -682,21 +687,21 @@ const CurrencyPage: React.FC = () => {
                             children: (
                                 <>
                                     {/* Summary row */}
-                                    <Row gutter={16} style={{ padding: "16px 8px" }}>
-                                        <Col span={6}>
+                                    <Row gutter={[16, 8]} style={{ padding: isMobile ? "12px 8px" : "16px 8px" }}>
+                                        <Col xs={12} md={6}>
                                             <Statistic title="Total Currencies" value={currencies.length} />
                                         </Col>
-                                        <Col span={6}>
+                                        <Col xs={12} md={6}>
                                             <Statistic title="Active" value={activeCurrencies.length} valueStyle={{ color: "#52c41a" }} />
                                         </Col>
-                                        <Col span={6}>
+                                        <Col xs={12} md={6}>
                                             <Statistic
                                                 title="Base Currency"
                                                 value={functional?.code ?? "—"}
                                                 suffix={functional ? <Text type="secondary" style={{ fontSize: 13 }}>{functional.symbol}</Text> : null}
                                             />
                                         </Col>
-                                        <Col span={6}>
+                                        <Col xs={12} md={6}>
                                             <Statistic title="Exchange Rates" value={latestRates.length} />
                                         </Col>
                                     </Row>

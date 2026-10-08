@@ -34,9 +34,9 @@ export const PhoneInput = (props) => {
         rules={[
           {
             validator: async (_, value) => {
-              if (value && (value.phone || value.code) && 
-                !isValidPhoneNumber(`${value.code}${value.phone}`, value.short)
-              )
+              const phone = value?.phone;
+              if (!phone || !String(phone).trim()) return;
+              if (!isValidPhoneNumber(`${value?.code ?? ""}${phone}`, value?.short))
                 throw new Error("Invalid Phone Number");
             },
           },

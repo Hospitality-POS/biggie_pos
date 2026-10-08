@@ -25,6 +25,9 @@ import {
 import { getAllAccounts } from "@services/accounting/accounts";
 import { fetchAllSuppliers } from "@services/supplier";
 import dayjs from "dayjs";
+import quarterOfYear from "dayjs/plugin/quarterOfYear";
+
+dayjs.extend(quarterOfYear);
 
 const { Text, Title } = Typography;
 
@@ -486,7 +489,11 @@ const TransactionReviewDrawer: React.FC<Props> = ({
             dataIndex: "status",
             width: 120,
             render: (s: TransactionStatus) => (
-                <Badge status={STATUS_COLORS[s] as any} text={s} style={{ fontSize: 12 }} />
+                <Badge
+                    status={STATUS_COLORS[s] as any}
+                    text={s === "Pushed" ? "Completed" : s}
+                    style={{ fontSize: 12 }}
+                />
             ),
         },
         {
@@ -495,7 +502,7 @@ const TransactionReviewDrawer: React.FC<Props> = ({
             width: 150,
             fixed: "right" as const,
             render: (_: any, r: RawTransaction) => {
-                if (r.status === "Pushed") return null;
+                if (r.status === "Pushed" || r.journal_entry_id) return null;
                 return (
                     <Space size={4}>
                         <Tooltip title="Categorize">
@@ -567,7 +574,7 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                             disabled={!importDetail?.categorized_count}
                             size="large"
                         >
-                            Push to Journal
+                            Mark Complete
                         </Button>
                     </Space>
                 }
@@ -604,7 +611,7 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                     <Col span={4}>
                         <Card size="small" bordered>
                             <Statistic
-                                title="Pushed"
+                                title="Completed"
                                 value={importDetail?.pushed_count || 0}
                                 valueStyle={{ fontSize: 18, color: "#1890ff" }}
                             />
@@ -671,12 +678,22 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                     style={{ marginBottom: 16 }}
                     items={STATUS_TABS.map((s) => ({
                         key: s,
-                        label: s === "ALL" ? "All" : s,
+                        label: s === "ALL" ? "All" : s === "Pushed" ? "Completed" : s,
                     }))}
                     tabBarExtraContent={
                         <DatePicker.RangePicker
                             size="large"
                             style={{ width: 280 }}
+                            presets={[
+                                { label: "Today", value: [dayjs().startOf("day"), dayjs().endOf("day")] },
+                                { label: "This Week", value: [dayjs().startOf("week"), dayjs().endOf("week")] },
+                                { label: "This Month", value: [dayjs().startOf("month"), dayjs().endOf("month")] },
+                                { label: "Last Month", value: [dayjs().subtract(1, "month").startOf("month"), dayjs().subtract(1, "month").endOf("month")] },
+                                { label: "This Quarter", value: [dayjs().startOf("quarter"), dayjs().endOf("quarter")] },
+                                { label: "Last Quarter", value: [dayjs().subtract(1, "quarter").startOf("quarter"), dayjs().subtract(1, "quarter").endOf("quarter")] },
+                                { label: "This Year", value: [dayjs().startOf("year"), dayjs().endOf("year")] },
+                                { label: "Last Year", value: [dayjs().subtract(1, "year").startOf("year"), dayjs().subtract(1, "year").endOf("year")] },
+                            ]}
                             value={dateRange ? [dayjs(dateRange[0]), dayjs(dateRange[1])] : null}
                             onChange={(dates) => {
                                 if (dates && dates[0] && dates[1]) {
@@ -707,7 +724,7 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                         selectedRowKeys,
                         onChange: setSelectedRowKeys,
                         getCheckboxProps: (r: RawTransaction) => ({
-                            disabled: r.status === "Pushed",
+                            disabled: r.status === "Pushed" || !!r.journal_entry_id,
                         }),
                     }}
                     pagination={{
@@ -738,11 +755,13 @@ const TransactionReviewDrawer: React.FC<Props> = ({
             {/* ── Push Modal ── */}
             <Modal
                 open={pushModalOpen}
-                title="Push to Journal Entries"
+                title="Complete Transactions"
                 onCancel={() => setPushModalOpen(false)}
-                onOk={() => pushMutation.mutate()}
+                onOk={() => {
+                    if (!pushMutation.isLoading) pushMutation.mutate();
+                }}
                 confirmLoading={pushMutation.isLoading}
-                okText="Push"
+                okText="Complete"
                 okButtonProps={{ size: "large" }}
                 cancelButtonProps={{ size: "large" }}
                 width={500}
@@ -753,7 +772,7 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                         type="info"
                         showIcon
                         message={`${selectedRowKeys.length > 0 ? selectedRowKeys.length : importDetail?.categorized_count} transactions`}
-                        description={selectedRowKeys.length > 0 ? "Selected transactions only" : "All categorized transactions"}
+                        description={`${selectedRowKeys.length > 0 ? "Selected transactions only" : "All categorized transactions"}. Already completed transactions are skipped and cannot be posted twice.`}
                     />
                     <div>
                         <Text strong style={{ display: "block", marginBottom: 8 }}>Bank Account</Text>

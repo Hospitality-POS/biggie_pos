@@ -1,0 +1,22 @@
+[
+  {
+    "id": 11,
+    "title": "Etims Integration Guide",
+    "description": "KRA tax compliance and Etims setup",
+    "type": "article",
+    "readTime": "15 min",
+    "views": 3500,
+    "helpful": 280,
+    "content": "\n# Etims Integration Guide\n\n## What is Etims?\nEtims (Electronic Tax Invoice Management System) is KRA's system for electronic tax invoicing and compliance in Kenya.\n\n## Etims Integration Flow\n\n```\n┌──────────────┐\n│ Configure    │\n│ Etims        │\n│ (KRA PIN,    │\n│  Credentials)│\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Test         │\n│ Connection   │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Enable       │\n│ Integration  │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Sale Made    │\n│ (Duka POS)   │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Auto-Generate│\n│ Invoice      │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Validate     │\n│ with KRA     │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Submit to    │\n│ KRA          │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Track Status │\n│ & Reports    │\n└──────────────┘\n```\n\n## Integration Benefits\n- Automatic VAT invoice generation\n- Direct KRA submission\n- Compliance with tax regulations\n- Real-time validation\n- Digital receipt management\n\n## Setup Requirements\n\n### Prerequisites\n- Valid KRA PIN\n- Etims credentials from KRA\n- Active internet connection\n- Valid business license\n\n### Configuration Steps\n1. Go to **Settings > Etims**\n2. Enter KRA PIN\n3. Configure Etims credentials\n4. Set up communication details\n5. Test connection\n6. Enable integration\n\n## Using Etims\n\n### Invoice Generation\n- Invoices auto-generated on sales\n- Validated against KRA system\n- Unique serial numbers\n- QR code inclusion\n\n### Submission\n- Automatic or manual submission\n- Real-time status updates\n- Error handling\n- Retry mechanism\n\n### Reporting\n- VAT returns\n- Sales reports\n- Export to KRA format\n- Audit trail\n\n## Troubleshooting\n- Connection issues\n- Validation errors\n- Submission failures\n- Serial number conflicts\n\n## Compliance Notes\n- Ensure all sales are invoiced\n- Keep records for 7 years\n- Regular reconciliation\n- Stay updated on KRA changes\n      "
+  },
+  {
+    "id": 12,
+    "title": "VAT Compliance & Reporting",
+    "description": "Manage VAT and tax reporting",
+    "type": "article",
+    "readTime": "9 min",
+    "views": 2800,
+    "helpful": 210,
+    "content": "\n# VAT Compliance & Reporting\n\n## VAT Overview\n- Standard VAT rate: 16%\n- Zero-rated items: 0%\n- Exempt items: No VAT\n\n## VAT Configuration\n1. Set up tax rates in Pesa\n2. Mark products as taxable/exempt\n3. Configure VAT accounts\n4. Set reporting periods\n\n## VAT Tracking\n- VAT collected on sales\n- VAT paid on purchases\n- Input VAT credit\n- Net VAT calculation\n\n## VAT Returns\n- Monthly or quarterly filing\n- Automatic calculation\n- KRA submission ready\n- Export to required format\n\n## Best Practices\n- Regular reconciliation\n- Proper documentation\n- Timely filing\n- Audit preparation\n      "
+  }
+]

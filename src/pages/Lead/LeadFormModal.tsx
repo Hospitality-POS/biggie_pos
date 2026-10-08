@@ -1,28 +1,22 @@
 import { useEffect, useState } from "react";
 import {
-    Button, DatePicker, Form, Input, InputNumber, Modal, Select, Typography, message, Spin, Radio,
+    Button, DatePicker, Divider, Form, Input, InputNumber, Modal, Select, Typography, message, Spin, Radio,
 } from "antd";
 import {
-    EditOutlined, MailOutlined, PhoneOutlined, SaveOutlined,
+    EditOutlined, MailOutlined, PhoneOutlined, PlusOutlined, SaveOutlined,
     TeamOutlined, UserOutlined, UserSwitchOutlined, ShopOutlined,
 } from "@ant-design/icons";
 import { useAppDispatch } from "../../store";
-import { createLead, updateLead, Lead } from "@services/crm/leads";
+import { createLead, updateLead, fetchLeadSources, fetchProjectOptions, Lead } from "@services/crm/leads";
 import { fetchAllUsersList } from "@services/users";
 import dayjs from "dayjs";
+import { THEME_C } from "@utils/getPrimaryColor";
 
 const { Text } = Typography;
 const { Option } = Select;
 const { TextArea } = Input;
 
-const C = {
-    primary: "#6c1c2c",
-    primaryLight: "#f9f0f2",
-    blue: "#3b82f6",
-    subText: "#64748b",
-    darkText: "#0f172a",
-    border: "#e2e8f0",
-};
+const C = THEME_C;
 
 interface LeadFormModalProps {
     visible: boolean;
@@ -42,6 +36,11 @@ interface User {
 const STAGES = ["new", "contacted", "qualified", "proposal", "negotiation", "won", "lost", "disqualified"];
 const SOURCES = ["walk_in", "referral", "social_media", "website", "cold_call", "email_campaign", "exhibition", "partner", "other"];
 
+// Custom sources are stored in the same snake_case style as the defaults so
+// "TikTok Ads" and "tiktok_ads" don't end up as two different options.
+const slugifySource = (v: string) =>
+    v.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+
 const LeadFormModal: React.FC<LeadFormModalProps> = ({
     visible, onClose, onSuccess, lead, mode = "add",
 }) => {
@@ -49,6 +48,11 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
     const [loading, setLoading] = useState(false);
     const [usersLoading, setUsersLoading] = useState(false);
     const [users, setUsers] = useState<User[]>([]);
+    const [sourceOptions, setSourceOptions] = useState<string[]>(SOURCES);
+    const [newSource, setNewSource] = useState("");
+    const [projectOptions, setProjectOptions] = useState<string[]>([]);
+    const [newProject, setNewProject] = useState("");
+    const [projectsLoading, setProjectsLoading] = useState(false);
     const [entityType, setEntityType] = useState<'individual' | 'company'>('individual');
     const dispatch = useAppDispatch();
     const isEdit = mode === "edit";
@@ -82,6 +86,66 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
         fetchUsers();
     }, [visible]);
 
+    // Load source options: defaults + custom sources already saved on leads
+    // for this shop (custom sources are persisted on the lead itself, so they
+    // show up here on the next open).
+    useEffect(() => {
+        if (!visible) return;
+        const load = async () => {
+            const shopData = localStorage.getItem("shop");
+            const shop = shopData ? JSON.parse(shopData) : null;
+            const list = await fetchLeadSources(shop?._id || undefined);
+            setSourceOptions(() => {
+                const merged = [...new Set([...SOURCES, ...list])];
+                if (lead?.source && !merged.includes(lead.source)) merged.push(lead.source);
+                return merged;
+            });
+        };
+        load();
+    }, [visible, lead]);
+
+    const addCustomSource = () => {
+        const slug = slugifySource(newSource);
+        if (!slug) return;
+        if (!sourceOptions.includes(slug)) {
+            setSourceOptions(prev => [...prev, slug]);
+        }
+        form.setFieldsValue({ source: slug });
+        setNewSource("");
+    };
+
+    // Load project options: dala portfolio property names (when the shop has
+    // dala data) + project names already used on this shop's leads.
+    useEffect(() => {
+        if (!visible) return;
+        const load = async () => {
+            setProjectsLoading(true);
+            try {
+                const shopData = localStorage.getItem("shop");
+                const shop = shopData ? JSON.parse(shopData) : null;
+                const list = await fetchProjectOptions(shop?._id || undefined);
+                setProjectOptions(() => {
+                    const merged = [...new Set(list)];
+                    if (lead?.project && !merged.includes(lead.project)) merged.push(lead.project);
+                    return merged;
+                });
+            } finally {
+                setProjectsLoading(false);
+            }
+        };
+        load();
+    }, [visible, lead]);
+
+    const addCustomProject = () => {
+        const name = newProject.trim();
+        if (!name) return;
+        if (!projectOptions.includes(name)) {
+            setProjectOptions(prev => [...prev, name]);
+        }
+        form.setFieldsValue({ project: name });
+        setNewProject("");
+    };
+
     useEffect(() => {
         if (!visible) return;
         if (isEdit && lead) {
@@ -97,6 +161,7 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
                 website: lead.website,
                 stage: lead.stage,
                 source: lead.source,
+                project: lead.project,
                 assigned_to: lead.assigned_to?._id || lead.assigned_to,
                 estimated_value: lead.estimated_value,
                 probability: lead.probability,
@@ -137,6 +202,7 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
                 website: values.website,
                 stage: values.stage || "new",
                 source: values.source,
+                project: values.project,
                 assigned_to: values.assigned_to,
                 estimated_value: values.estimated_value,
                 probability: values.probability,
@@ -260,13 +326,88 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
                         </Select>
                     </Form.Item>
                     <Form.Item name="source" label="Source" style={{ flex: "1 1 180px" }}>
-                        <Select placeholder="Lead source" allowClear style={{ borderRadius: 8 }}>
-                            {SOURCES.map(s => (
+                        <Select
+                            placeholder="Select or add a source"
+                            allowClear
+                            showSearch
+                            optionFilterProp="children"
+                            style={{ borderRadius: 8 }}
+                            dropdownRender={(menu) => (
+                                <>
+                                    {menu}
+                                    <Divider style={{ margin: "8px 0" }} />
+                                    <div style={{ display: "flex", gap: 8, padding: "0 8px 8px" }}>
+                                        <Input
+                                            size="small"
+                                            placeholder="New source (e.g. TikTok)"
+                                            value={newSource}
+                                            onChange={(e) => setNewSource(e.target.value)}
+                                            onKeyDown={(e) => e.stopPropagation()}
+                                            onPressEnter={(e) => { e.preventDefault(); addCustomSource(); }}
+                                            style={{ borderRadius: 6 }}
+                                        />
+                                        <Button
+                                            type="text"
+                                            size="small"
+                                            icon={<PlusOutlined />}
+                                            onClick={addCustomSource}
+                                            disabled={!newSource.trim()}
+                                        >
+                                            Add
+                                        </Button>
+                                    </div>
+                                </>
+                            )}
+                        >
+                            {sourceOptions.map(s => (
                                 <Option key={s} value={s}>{s.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}</Option>
                             ))}
                         </Select>
                     </Form.Item>
                 </div>
+
+                {/* Project — select from the dala portfolio when available,
+                    otherwise type a project name (same pattern as Source) */}
+                <Form.Item name="project" label="Project">
+                    <Select
+                        placeholder={projectOptions.length ? "Select or add a project" : "Type a project name"}
+                        allowClear
+                        showSearch
+                        optionFilterProp="children"
+                        loading={projectsLoading}
+                        style={{ borderRadius: 8 }}
+                        dropdownRender={(menu) => (
+                            <>
+                                {menu}
+                                <Divider style={{ margin: "8px 0" }} />
+                                <div style={{ display: "flex", gap: 8, padding: "0 8px 8px" }}>
+                                    <Input
+                                        size="small"
+                                        placeholder="New project name"
+                                        value={newProject}
+                                        onChange={(e) => setNewProject(e.target.value)}
+                                        onKeyDown={(e) => e.stopPropagation()}
+                                        onPressEnter={(e) => { e.preventDefault(); addCustomProject(); }}
+                                        style={{ borderRadius: 6 }}
+                                    />
+                                    <Button
+                                        type="text"
+                                        size="small"
+                                        icon={<PlusOutlined />}
+                                        onClick={addCustomProject}
+                                        disabled={!newProject.trim()}
+                                    >
+                                        Add
+                                    </Button>
+                                </div>
+                            </>
+                        )}
+                    >
+                        {projectOptions.map(p => (
+                            <Option key={p} value={p}>{p}</Option>
+                        ))}
+                    </Select>
+                </Form.Item>
 
                 {/* Assigned To - New Section */}
                 <Form.Item name="assigned_to" label="Assigned To">

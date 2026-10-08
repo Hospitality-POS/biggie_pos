@@ -14,20 +14,12 @@ import {
     type Expense, type ExpenseStatus,
 } from "@services/accounting/expense";
 import { fetchAllCustomers } from "@services/customers";
+import { THEME_C } from "@utils/getPrimaryColor";
 
 const { RangePicker } = DatePicker;
 const { Text } = Typography;
 
-const C = {
-    primary: "#6c1c2c",
-    green: "#10b981",
-    red: "#ef4444",
-    orange: "#f59e0b",
-    subText: "#64748b",
-    darkText: "#0f172a",
-    border: "#e2e8f0",
-    bg: "#f8fafc",
-};
+const C = THEME_C;
 
 const fmt = (v: number) =>
     (v || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -137,8 +129,8 @@ function ExpensesPage() {
         queryKey: ["expenses", page, dateRange, selectedCustomerId],
         queryFn: () => getAllExpenses({
             page, limit: 10,
-            from: dateRange[0].toISOString(),
-            to: dateRange[1].toISOString(),
+            from: dateRange[0].format("YYYY-MM-DD"),
+            to: dateRange[1].format("YYYY-MM-DD"),
             customer_id: selectedCustomerId,
         }),
     });
@@ -146,8 +138,8 @@ function ExpensesPage() {
     const { data: summaryData } = useQuery({
         queryKey: ["expense-summary", dateRange],
         queryFn: () => getExpenseSummary({
-            from: dateRange[0].toISOString(),
-            to: dateRange[1].toISOString(),
+            from: dateRange[0].format("YYYY-MM-DD"),
+            to: dateRange[1].format("YYYY-MM-DD"),
         }),
     });
 

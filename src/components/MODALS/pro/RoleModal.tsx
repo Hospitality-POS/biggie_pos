@@ -35,24 +35,12 @@ import {
 } from "@utils/accessControl";
 import { useTenantModules } from "@hooks/useTenantModules";
 
+import { THEME_C } from "@utils/getPrimaryColor";
+
 const { Text } = Typography;
 
-// ── Palette ───────────────────────────────────────────────────────────────────
-const C = {
-  primary: "#6c1c2c",
-  primaryLight: "#f9f0f2",
-  green: "#10b981",
-  orange: "#f59e0b",
-  red: "#ef4444",
-  blue: "#3b82f6",
-  indigo: "#6366f1",
-  purple: "#8b5cf6",
-  teal: "#0d9488",
-  subText: "#64748b",
-  darkText: "#0f172a",
-  border: "#e2e8f0",
-  bg: "#f8fafc",
-};
+// ── Palette (Dynamic Getters) ─────────────────────────────────────────────────
+const C = THEME_C;
 
 // ── Action badge config ───────────────────────────────────────────────────────
 const ACTION_CFG: Record<ActionType, { color: string; bg: string; label: string }> = {
@@ -91,6 +79,14 @@ const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     {children}
   </Text>
 );
+
+// ── Panel card (dashboard-style: white, rounded, subtle shadow) ───────────────
+const panelCard: React.CSSProperties = {
+  background: "#ffffff",
+  border: `1px solid ${C.border}`,
+  borderRadius: 12,
+  boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+};
 
 // ── Active module tags ────────────────────────────────────────────────────────
 const ModuleTags: React.FC<{ hasHR: boolean; hasAccounting: boolean; hasMteja: boolean; hasDala: boolean; hasPOS: boolean; hasSignature: boolean; size?: "small" | "normal" }> = ({
@@ -238,7 +234,7 @@ const StepBasicInfo: React.FC<{
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       {/* Role type input */}
-      <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "16px 16px 12px" }}>
+      <div style={{ ...panelCard, padding: "16px 16px 12px" }}>
         <SectionLabel>Role Details</SectionLabel>
         <Text style={{ fontSize: 12, color: C.subText, display: "block", marginBottom: 6 }}>
           Role Type <span style={{ color: C.red }}>*</span>
@@ -258,7 +254,7 @@ const StepBasicInfo: React.FC<{
       </div>
 
       {/* Active modules indicator */}
-      <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 16px" }}>
+      <div style={{ ...panelCard, padding: "12px 16px" }}>
         <SectionLabel>Active Modules — Permissions Available</SectionLabel>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
           <Tag color="default" style={{ fontSize: 11 }}>✓ Core</Tag>
@@ -279,7 +275,7 @@ const StepBasicInfo: React.FC<{
       </div>
 
       {/* Preset selector */}
-      <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "16px 16px 12px" }}>
+      <div style={{ ...panelCard, padding: "16px 16px 12px" }}>
         <SectionLabel>Quick-load a Permission Preset</SectionLabel>
         <Text style={{ fontSize: 12, color: C.subText, display: "block", marginBottom: 10 }}>
           Click a preset to load its permissions — you will jump to Step 2 to review and customise.
@@ -289,7 +285,7 @@ const StepBasicInfo: React.FC<{
             <button
               key={p.value}
               type="button"
-              onClick={() => onApplyPreset(p.keys, () => { })}
+              onClick={() => onApplyPreset(p.keys, () => { /* no-op callback */ })}
               style={{
                 background: "#fff", border: `1.5px solid ${C.border}`,
                 borderRadius: 7, padding: "5px 12px", fontSize: 12,
@@ -397,6 +393,9 @@ const StepPermissions: React.FC<{
             onChange={(v) => setFilterScope(v as ModuleScope | "all")}
             style={{ width: 180, height: 34 }}
             options={scopeOptions}
+            // Render the dropdown outside the scrollable modal body — otherwise
+            // it realigns on every ancestor scroll and flickers/drops the click.
+            getPopupContainer={() => document.body}
           />
         )}
 
@@ -423,7 +422,8 @@ const StepPermissions: React.FC<{
       {Object.keys(filteredGroups).length === 0 ? (
         <Empty description="No permissions match your filter" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: "32px 0" }} />
       ) : (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+        // fixed-height scroll area — filtering must not resize the modal (avoids flicker)
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignContent: "flex-start", minHeight: 260 }}>
           {Object.entries(filteredGroups).map(([mod, perms]) => (
             <PermissionGroupCard
               key={mod}
@@ -463,7 +463,7 @@ const StepReview: React.FC<{ roleType: string; selected: string[] }> = ({ roleTy
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       {/* Role type */}
-      <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "14px 16px" }}>
+      <div style={{ ...panelCard, padding: "14px 16px" }}>
         <SectionLabel>Role Type</SectionLabel>
         {roleType ? (
           <span style={{ background: C.primaryLight, color: C.primary, borderRadius: 7, fontSize: 14, fontWeight: 700, padding: "4px 14px", display: "inline-block" }}>
@@ -476,7 +476,7 @@ const StepReview: React.FC<{ roleType: string; selected: string[] }> = ({ roleTy
 
       {/* Module coverage */}
       {selected.length > 0 && (
-        <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "14px 16px" }}>
+        <div style={{ ...panelCard, padding: "14px 16px" }}>
           <SectionLabel>Module Coverage</SectionLabel>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             {Object.entries(scopeCounts).map(([scope, count]) => {
@@ -493,7 +493,7 @@ const StepReview: React.FC<{ roleType: string; selected: string[] }> = ({ roleTy
       )}
 
       {/* Permissions by module */}
-      <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "14px 16px" }}>
+      <div style={{ ...panelCard, padding: "14px 16px" }}>
         <SectionLabel>Selected Permissions ({selected.length})</SectionLabel>
         {selected.length === 0 ? (
           <Text style={{ color: "#94a3b8", fontSize: 13 }}>No permissions selected.</Text>
@@ -541,7 +541,7 @@ const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({ 
   // hasCRM maps to hasMteja — the CRM scope is gated on tenant.modules.crm.
   const groupedPermissions = useMemo(
     () => getPermissionsGroupedByModuleForTenant({ hasHR, hasAccounting, hasCRM: hasMteja, hasDala, hasPOS, hasSignature }),
-    [hasHR, hasAccounting, hasMteja, hasDala, hasPOS]
+    [hasHR, hasAccounting, hasMteja, hasDala, hasPOS, hasSignature]
   );
 
   const [open, setOpen] = useState(false);
@@ -726,11 +726,22 @@ const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({ 
   return (
     <>
       {triggerButton}
-      <Modal open={open} onCancel={() => handleOpen(false)} destroyOnClose centered
+      <Modal
+        open={open}
+        onCancel={() => handleOpen(false)}
+        destroyOnClose
+        // Not `centered` — centered modals re-position on every content height
+        // change, which made the dialog jump/flicker when filtering modules.
+        style={{ top: 48 }}
+        getContainer={() => document.body}
         width="min(960px, 96vw)"
         title={modalTitle}
         footer={footer}
-        styles={{ body: { maxHeight: "72vh", overflowY: "auto", padding: "20px 20px 8px" } }}
+        styles={{
+          body: { maxHeight: "72vh", overflowY: "auto", padding: "18px 20px 8px" },
+          header: { paddingBottom: 14, borderBottom: `1px solid ${C.border}` },
+          footer: { padding: "12px 20px", borderTop: `1px solid ${C.border}` },
+        }}
       >
         {stepIndicator}
         {stepContent[currentStep]}

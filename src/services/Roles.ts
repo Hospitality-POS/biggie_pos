@@ -6,9 +6,12 @@ import axiosInstance from "./request";
 const roleUrl = `${BASE_URL}/users`;
 
 interface Role {
-  role_type: string;
-  permissions: string;
-  _id: string;
+  role_type?: string;
+  description?: string;
+  permissions?: string[];
+  _id?: string;
+  // updateRoleTypeById reads req.body.values on the backend
+  values?: { role_type?: string; description?: string; permissions?: string[] };
 }
 
 export const fetchAllRoles = async (params: ParamsType) => {
@@ -25,7 +28,7 @@ export const createRole = async (roleData: Role) => {
     const response = await axiosInstance.post(`${roleUrl}/new-role-type`, roleData);
     message.success("Role created successfully");
     return response.data;
-  } catch (error: unknown) {
+  } catch (error: any) {
     if (error?.response?.status != 403) {
       message.error("Failed to create role");
     }
@@ -39,7 +42,7 @@ export const updateRole = async (roleData: Role) => {
     const response = await axiosInstance.put(`${roleUrl}/update-role-type/${roleData._id}`, roleData);
     message.success("Role updated successfully");
     return response.data;
-  } catch (error: unknown) {
+  } catch (error: any) {
 
     if (error?.response?.status != 403) {
       message.error("Failed to update role");
@@ -53,7 +56,7 @@ export const deleteRole = async (id: string) => {
     const response = await axiosInstance.delete(`${roleUrl}/remove-role-type/${id}`);
     message.success("Role deleted successfully");
     return response.data;
-  } catch (error: unknown) {
+  } catch (error: any) {
     if (error?.response?.status != 403) {
       message.error("Failed to delete role");
     }

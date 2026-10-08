@@ -11,16 +11,11 @@ import {
 } from "@ant-design/icons";
 import { fetchAllShops, updateShopPrintSettings } from "@services/shops";
 import { useAppSelector } from "src/store";
+import { THEME_C } from "../../../utils/getPrimaryColor";
 
 const { Text, Title } = Typography;
 
-const C = {
-    primary: "#6c1c2c",
-    primaryLight: "#f9f0f2",
-    border: "#e2e8f0",
-    subText: "#64748b",
-    bg: "#f8fafc",
-};
+const C = THEME_C;
 
 interface PrintSettings {
     enabled: boolean;

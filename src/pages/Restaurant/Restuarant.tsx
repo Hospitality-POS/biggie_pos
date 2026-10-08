@@ -1,168 +1,98 @@
-import React, { useState, useEffect } from "react";
-import {
-  Alert,
-  AlertTitle,
-  AppBar,
-  Divider,
-  Grid,
-  IconButton,
-  Tab,
-  Tabs,
-  Typography,
-  useMediaQuery,
-  useTheme,
-  Paper,
-  TextField,
-  InputAdornment,
-  Skeleton,
-  Box,
-  Chip,
-  Drawer,
-  Fab,
-  ToggleButton,
-  ToggleButtonGroup,
-} from "@mui/material";
+import React, { useState, useEffect, useMemo } from "react";
+import { Alert, Badge, Button, Drawer, message } from "antd";
+import { ShoppingCartOutlined } from "@ant-design/icons";
+import { useParams, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+
 import ProductCard from "../../components/product/productCard";
 import PackageCard from "../../components/cart/PackageCard";
-import { useQuery } from "@tanstack/react-query";
 import SkeletonProductCard from "../../components/product/skeletonProductCard";
 import CategoryCard from "../../components/category/categoryCard";
 import CartDrawer from "../../components/cart/CartDrawer";
-import BackspaceIcon from "@mui/icons-material/Backspace";
-import SearchIcon from "@mui/icons-material/Search";
-import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
-import QrCodeScannerIcon from "@mui/icons-material/QrCodeScanner";
-import GridViewIcon from "@mui/icons-material/GridView";
-import { useParams } from "react-router-dom";
+import VerticalTabs from "./Sidetabs";
+import BarcodeScanPanel from "./Barcodescanner";
+import PurchasePackageModal from "../../components/MODALS/pro/PurchasePackageModal";
+
+import { useAppDispatch, useAppSelector } from "../../store";
 import { getCart } from "../../features/Cart/CartActions";
 import { fetchProductsByCategory } from "../../features/Product/ProductAction";
-import VerticalTabs from "./Sidetabs";
-import { useAppDispatch, useAppSelector } from "../../store";
 import { fetchMainCategories } from "@services/categories";
+import { fetchAllSellableItems } from "@services/products";
+import { fetchShop } from "@services/shops";
 import { fetchActivePackages, Package } from "@services/subscription";
-import PurchasePackageModal from "../../components/MODALS/pro/PurchasePackageModal";
-import { ShoppingCart, Build, CardGiftcard } from "@mui/icons-material";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { usePOSMode } from "@context/POSModeContext";
 import { useRetailQueue } from "@context/RetailQueueContext";
 import RetailSlotIndicator from "@components/retail/RetailSlotIndicator";
-import BarcodeScanPanel from "./BarcodeScanPanel";
-import { message } from "antd";
 
-function a11yProps(index) {
-  return {
-    id: `full-width-tab-${index}`,
-    "aria-controls": `full-width-tabpanel-${index}`,
-  };
-}
-
-// ── Skeletons ─────────────────────────────────────────────────────────────────
-
-const SkeletonTabs = () => (
-  <Box
-    sx={{
-      display: "flex",
-      width: "100%",
-      overflowX: "auto",
-      gap: 1,
-      "&::-webkit-scrollbar": { height: "4px" },
-      "&::-webkit-scrollbar-track": { backgroundColor: "rgba(255,255,255,0.1)" },
-      "&::-webkit-scrollbar-thumb": {
-        backgroundColor: "rgba(255,255,255,0.3)",
-        borderRadius: "2px",
-      },
-    }}
-  >
-    {[...Array(5)].map((_, i) => (
-      <Skeleton
-        key={i}
-        variant="rectangular"
-        width={120}
-        height={44}
-        sx={{ borderRadius: 1, flexShrink: 0 }}
-      />
-    ))}
-  </Box>
-);
-
-const SkeletonCategoryCards = ({
-  isMobile,
-  isTablet,
-}: {
-  isMobile: boolean;
-  isTablet: boolean;
-}) => (
-  <Box sx={{ display: "flex", flexWrap: "wrap", gap: "10px", mt: 2, width: "100%" }}>
-    {[...Array(6)].map((_, i) => (
-      <Skeleton
-        key={i}
-        variant="rectangular"
-        width={isMobile ? "100%" : isTablet ? "45%" : "30%"}
-        height={80}
-        sx={{ borderRadius: 2 }}
-      />
-    ))}
-  </Box>
-);
-
-const SkeletonVerticalTabs = () => (
-  <Box
-    sx={{
-      display: "flex",
-      flexDirection: "column",
-      gap: 1,
-      width: 130,
-      mr: 1,
-      flexShrink: 0,
-    }}
-  >
-    {[...Array(5)].map((_, i) => (
-      <Skeleton
-        key={i}
-        variant="rectangular"
-        width="100%"
-        height={44}
-        sx={{ borderRadius: 1 }}
-      />
-    ))}
-  </Box>
-);
-
-// ── Main Component ────────────────────────────────────────────────────────────
+import POSHeader from "@components/pos/POSHeader";
+import POSSearchHeader from "@components/pos/POSSearchHeader";
+import POSItemTypeFilters, { POSItemType } from "@components/pos/POSItemTypeFilters";
+import {
+  POSSkeletonCategoryCards,
+  POSSkeletonVerticalTabs,
+} from "@components/pos/POSSkeletons";
 
 const RestaurantPage: React.FC = () => {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-  const isTablet = useMediaQuery(theme.breakpoints.between("sm", "md"));
+  const [windowWidth, setWindowWidth] = useState(
+    typeof window !== "undefined" ? window.innerWidth : 1024
+  );
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const isMobile = windowWidth < 768;
+  const isTablet = windowWidth >= 768 && windowWidth < 1024;
 
   const { products, services, loading: productsLoading } = useAppSelector(
     (state) => state.product
   );
+  const { cartItems, cartDetails } = useAppSelector((state) => state.cart);
+  const { user } = useAppSelector((state) => state.auth);
   const dispatch = useAppDispatch();
   const { id } = useParams();
+  const navigate = useNavigate();
 
   const { isRetailMode } = usePOSMode();
   const { activeTable, refreshSlots } = useRetailQueue();
 
+  const shopId = localStorage.getItem("shopId");
+  const { data: shopData } = useQuery({
+    queryKey: ["shop", shopId],
+    queryFn: () => (shopId ? fetchShop(shopId) : null),
+    enabled: !!shopId,
+  });
+
+  const tenant = useMemo(() => {
+    try {
+      const stored = localStorage.getItem("tenant");
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const shopName = shopData?.name || tenant?.name || "";
+
   const [posMode, setPosMode] = useState<"browse" | "scan">("browse");
-  const [selectedCard, setSelectedCard] = useState(null);
+  const [selectedCard, setSelectedCard] = useState<any>(null);
   const [showCategories, setShowCategories] = useState(true);
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
   const [categoryChosen, setCategoryChosen] = useState(false);
-  const [tabValue, setTabValue] = useState(0);
-  const [subcategories, setSubcategories] = useState([]);
-  const [categories, setCategories] = useState([]);
+  const [selectedMainCategoryId, setSelectedMainCategoryId] = useState<string>("");
+  const [subcategories, setSubcategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filteredProducts, setFilteredProducts] = useState([]);
-  const [filteredServices, setFilteredServices] = useState([]);
-  const [activeItemType, setActiveItemType] = useState<"products" | "services" | "packages">(
-    "services"
-  );
+  const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
+  const [filteredServices, setFilteredServices] = useState<any[]>([]);
+  const [activeItemType, setActiveItemType] = useState<POSItemType>("services");
   const [purchaseModalVisible, setPurchaseModalVisible] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<Package | null>(null);
 
   const primaryColor = usePrimaryColor();
-
   const tableId = isRetailMode ? activeTable?._id : id && id !== "tables" ? id : null;
 
   const {
@@ -176,6 +106,28 @@ const RestaurantPage: React.FC = () => {
   });
   const availablePackages = packagesData?.packages || [];
 
+  const searching = searchTerm.trim().length > 0;
+
+  // Universal search — every sellable item across all categories, fetched
+  // lazily the first time the user types so browsing stays cheap
+  const { data: allSellableItems, isLoading: allItemsLoading } = useQuery({
+    queryKey: ["pos-all-sellable-items"],
+    queryFn: fetchAllSellableItems,
+    enabled: searching,
+    staleTime: 5 * 60_000,
+  });
+
+  const searchResults = useMemo(() => {
+    if (!searching) return [];
+    const term = searchTerm.trim().toLowerCase();
+    return (allSellableItems ?? []).filter(
+      (i: any) =>
+        !i?.is_disabled &&
+        (String(i?.name ?? "").toLowerCase().includes(term) ||
+          (i?.price != null && String(i.price).includes(term)))
+    );
+  }, [searching, searchTerm, allSellableItems]);
+
   const { data: Maincategories, isLoading: mainCategoriesLoading } = useQuery({
     queryKey: ["Maincategories"],
     queryFn: fetchMainCategories,
@@ -183,12 +135,16 @@ const RestaurantPage: React.FC = () => {
     networkMode: "always",
   });
 
-  // ── Effects ──────────────────────────────────────────────────────────────
+  // Only main categories marked "Show on POS" are browsable on this screen
+  const posMainCategories = useMemo(
+    () => (Maincategories || []).filter((c: any) => c?.list_on_pos !== false),
+    [Maincategories]
+  );
 
+  // Filter enabled products and services by search
   useEffect(() => {
-    // Always exclude disabled products/services from the POS sale view
-    const enabledProducts = (products || []).filter((p) => !p?.is_disabled);
-    const enabledServices = (services || []).filter((s) => !s?.is_disabled);
+    const enabledProducts = (products || []).filter((p: any) => !p?.is_disabled);
+    const enabledServices = (services || []).filter((s: any) => !s?.is_disabled);
 
     if (!searchTerm.trim()) {
       setFilteredProducts(enabledProducts);
@@ -197,16 +153,20 @@ const RestaurantPage: React.FC = () => {
     }
 
     const term = searchTerm.toLowerCase();
-    
-    // Search by name or price/amount
-    setFilteredProducts(enabledProducts.filter((p) => 
-      p.name.toLowerCase().includes(term) || 
-      (p.price && p.price.toString().includes(term))
-    ));
-    setFilteredServices(enabledServices.filter((s) => 
-      s.name.toLowerCase().includes(term) || 
-      (s.price && s.price.toString().includes(term))
-    ));
+    setFilteredProducts(
+      enabledProducts.filter(
+        (p: any) =>
+          p.name.toLowerCase().includes(term) ||
+          (p.price && p.price.toString().includes(term))
+      )
+    );
+    setFilteredServices(
+      enabledServices.filter(
+        (s: any) =>
+          s.name.toLowerCase().includes(term) ||
+          (s.price && s.price.toString().includes(term))
+      )
+    );
   }, [searchTerm, products, services]);
 
   useEffect(() => {
@@ -217,15 +177,16 @@ const RestaurantPage: React.FC = () => {
   }, [services, products]);
 
   useEffect(() => {
-    if (Maincategories?.length > 0) handleChangeMainCategory(Maincategories[0]._id);
-  }, [Maincategories]);
+    if (posMainCategories.length > 0) {
+      handleChangeMainCategory(posMainCategories[0]._id);
+    }
+  }, [posMainCategories]);
 
-  // ── Handlers ──────────────────────────────────────────────────────────────
-
-  const handleChangeMainCategory = (id: string) => {
-    if (!Maincategories) return;
-    const main = Maincategories.find((c) => c._id === id);
+  const handleChangeMainCategory = (idValue: string) => {
+    if (!posMainCategories.length) return;
+    const main = posMainCategories.find((c: any) => c._id === idValue);
     if (main) {
+      setSelectedMainCategoryId(idValue);
       setSubcategories(main.sub_categories || []);
       setCategories(main.sub_categories?.[0]?.categories || []);
     }
@@ -253,7 +214,7 @@ const RestaurantPage: React.FC = () => {
     setActiveItemType("services");
   };
 
-  const handleSelectCard = (card) => {
+  const handleSelectCard = (card: any) => {
     setSelectedCard(card);
     dispatch(fetchProductsByCategory(card));
     setCategoryChosen(true);
@@ -267,530 +228,482 @@ const RestaurantPage: React.FC = () => {
     message.success("Order queued! Ready for next customer.");
   };
 
-  // ── Derived state ──────────────────────────────────────────────────────────
-
-  const displayItems =
-    activeItemType === "products"
-      ? filteredProducts
-      : activeItemType === "services"
-        ? filteredServices
-        : availablePackages;
+  const displayItems = searching
+    ? searchResults
+    : activeItemType === "products"
+    ? filteredProducts
+    : activeItemType === "services"
+    ? filteredServices
+    : availablePackages;
 
   const sortedItems =
     activeItemType === "packages"
       ? displayItems
-      : [...displayItems].sort((a, b) => a.name.localeCompare(b.name));
+      : [...displayItems].sort((a: any, b: any) => a.name.localeCompare(b.name));
 
   const areItemsAvailable = sortedItems.length > 0;
   const isLoading = mainCategoriesLoading || productsLoading || packagesLoading;
 
-  // ── Item type filter chips ────────────────────────────────────────────────
-
-  const ItemTypeFilters = () => {
-    const hasServices = filteredServices.length > 0;
-    const hasProducts = filteredProducts.length > 0;
-    const hasPackages = availablePackages.length > 0;
-    if (!hasProducts && !hasServices && !hasPackages) return null;
-
-    const chips = [
-      {
-        type: "services" as const,
-        icon: <Build sx={{ fontSize: 14 }} />,
-        label: `Services (${filteredServices.length})`,
-        show: hasServices,
-      },
-      {
-        type: "products" as const,
-        icon: <ShoppingCart sx={{ fontSize: 14 }} />,
-        label: `Products (${filteredProducts.length})`,
-        show: hasProducts,
-      },
-      {
-        type: "packages" as const,
-        icon: <CardGiftcard sx={{ fontSize: 14 }} />,
-        label: `Packages (${availablePackages.length})`,
-        show: hasPackages,
-      },
-    ];
-
-    return (
-      <Box sx={{ display: "flex", gap: 1, mb: 1.5, flexWrap: "wrap" }}>
-        {chips
-          .filter((c) => c.show)
-          .map((c) => (
-            <Chip
-              key={c.type}
-              size="small"
-              icon={c.icon}
-              label={c.label}
-              variant={activeItemType === c.type ? "filled" : "outlined"}
-              onClick={() => setActiveItemType(c.type)}
-              sx={{
-                fontSize: 12,
-                height: 28,
-                backgroundColor: activeItemType === c.type ? primaryColor : "transparent",
-                color: activeItemType === c.type ? "white" : primaryColor,
-                borderColor: primaryColor,
-                "& .MuiChip-icon": { color: "inherit" },
-                "&:hover": {
-                  backgroundColor:
-                    activeItemType === c.type ? primaryColor : `${primaryColor}18`,
-                },
-                transition: "all 0.2s ease",
-              }}
-            />
-          ))}
-      </Box>
+  // Shop flag: hide a table actively served by another staff member (waiters
+  // only — admin/cashier always see every table). "Served" means the open cart
+  // holds real value — an empty/0-amount cart stays visible to everyone.
+  const userRole = (
+    typeof user?.role === "string" ? user.role : (user as any)?.roleData?.role_type
+  )?.toLowerCase();
+  const currentUserId = (user as any)?._id || user?.id;
+  const cartForThisTable =
+    String(cartDetails?.table_id?._id ?? cartDetails?.table_id ?? "") ===
+    String(tableId ?? "");
+  const activeCartServedBy: any[] =
+    Array.isArray(cartDetails?.served_by) && cartDetails.served_by.length > 0
+      ? cartDetails.served_by
+      : cartDetails?.created_by
+      ? [cartDetails.created_by]
+      : [];
+  const activeCartValue = (cartItems ?? []).reduce(
+    (sum: number, i: any) => sum + (i?.price ?? 0) * (i?.quantity ?? 0),
+    0
+  );
+  const hideServedTable =
+    Boolean((shopData as any)?.hide_tables_served_by_others) &&
+    userRole === "waiter" &&
+    cartForThisTable &&
+    activeCartServedBy.length > 0 &&
+    activeCartValue > 0 &&
+    !activeCartServedBy.some(
+      (s: any) => String(s?._id ?? s) === String(currentUserId)
     );
-  };
 
-  // ── Product grid ──────────────────────────────────────────────────────────
-
-  const ProductGrid = () => (
-    <Box
-      sx={{
-        display: "flex",
-        flexWrap: "wrap",
-        gap: "10px",
-        width: "100%",
-        maxHeight: isMobile ? "none" : "calc(100vh - 280px)",
-        overflowY: isMobile ? "visible" : "auto",
-        pb: 1,
-        "&::-webkit-scrollbar": { width: "4px" },
-        "&::-webkit-scrollbar-track": { background: "transparent" },
-        "&::-webkit-scrollbar-thumb": { background: "#cbd5e1", borderRadius: "2px" },
-      }}
-    >
-      {areItemsAvailable ? (
-        activeItemType === "packages" ? (
-          sortedItems.map((pkg: Package) => (
-            <PackageCard
-              key={pkg._id}
-              package={pkg}
-              onPurchase={(p) => {
-                setSelectedPackage(p);
-                setPurchaseModalVisible(true);
-              }}
-              style={{
-                flex: isMobile
-                  ? "0 0 100%"
-                  : isTablet
-                    ? "0 0 calc(50% - 5px)"
-                    : "0 0 calc(33% - 7px)",
-              }}
-            />
-          ))
-        ) : (
-          sortedItems.map((item) => (
-            <ProductCard
-              key={item._id}
-              menu={item}
-              handleCart={handleCartOpen}
-              style={{
-                flex: isMobile
-                  ? "0 0 100%"
-                  : isTablet
-                    ? "0 0 calc(50% - 5px)"
-                    : "0 0 calc(33% - 7px)",
-              }}
-            />
-          ))
-        )
-      ) : searchTerm ? (
+  if (hideServedTable) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: "60vh",
+          padding: 24,
+        }}
+      >
         <Alert
-          severity="info"
-          sx={{ width: "100%", bgcolor: "#DEAC80", color: "white", borderRadius: 2 }}
-        >
-          <AlertTitle>No Results</AlertTitle>
-          No items match "{searchTerm}"
-        </Alert>
-      ) : categoryChosen ? (
-        <Alert
-          severity="info"
-          sx={{ width: "100%", bgcolor: "#DEAC80", color: "white", borderRadius: 2 }}
-        >
-          <AlertTitle>Empty</AlertTitle>
-          This category has no items yet.
-        </Alert>
-      ) : (
-        <Box sx={{ width: "100%", textAlign: "center", py: 6, color: "text.secondary" }}>
-          <Typography variant="body2">Select a category to browse items</Typography>
-        </Box>
-      )}
-    </Box>
-  );
-
-  // ── Mode Toggle (shared AppBar widget) ────────────────────────────────────
-
-  const ModeToggle = () => (
-    <ToggleButtonGroup
-      value={posMode}
-      exclusive
-      onChange={(_, v) => v && setPosMode(v)}
-      size="small"
-      sx={{
-        "& .MuiToggleButton-root": {
-          color: "rgba(255,255,255,0.7)",
-          borderColor: "rgba(255,255,255,0.25)",
-          fontSize: 11,
-          fontWeight: 600,
-          textTransform: "none",
-          px: 1.5,
-          py: 0.5,
-          gap: 0.5,
-          minHeight: 30,
-        },
-        "& .MuiToggleButton-root.Mui-selected": {
-          color: "white",
-          bgcolor: "rgba(255,255,255,0.18)",
-          borderColor: "rgba(255,255,255,0.5)",
-          "&:hover": { bgcolor: "rgba(255,255,255,0.22)" },
-        },
-        "& .MuiToggleButton-root:hover": {
-          bgcolor: "rgba(255,255,255,0.08)",
-        },
-      }}
-    >
-      <ToggleButton value="browse">
-        <GridViewIcon sx={{ fontSize: 13 }} />
-        {!isMobile && <span style={{ marginLeft: 4 }}>Browse</span>}
-      </ToggleButton>
-      <ToggleButton value="scan">
-        <QrCodeScannerIcon sx={{ fontSize: 13 }} />
-        {!isMobile && <span style={{ marginLeft: 4 }}>Scan</span>}
-      </ToggleButton>
-    </ToggleButtonGroup>
-  );
-
-  // ── Render ────────────────────────────────────────────────────────────────
+          message="Table unavailable"
+          description="This table is being served by another staff member."
+          type="warning"
+          showIcon
+          action={
+            <Button size="small" onClick={() => navigate("/tables")}>
+              Back to Tables
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
 
   return (
-    <>
-      <Grid
-        container
-        spacing={isMobile ? 0 : 2}
-        sx={{ height: isMobile ? "auto" : "calc(100vh - 80px)" }}
+    <div
+      style={{
+        display: "flex",
+        flexDirection: isMobile ? "column" : "row",
+        gap: isMobile ? 0 : 16,
+        height: isMobile ? "auto" : "calc(100vh - 80px)",
+        width: "100%",
+        overflow: "hidden",
+      }}
+    >
+      {/* Left panel: browsing or scanning */}
+      <div
+        style={{
+          flex: isMobile ? "none" : 1,
+          minWidth: 0,
+          height: isMobile ? "auto" : "100%",
+          display: "flex",
+          flexDirection: "column",
+          backgroundColor: "#ffffff",
+          borderRadius: isMobile ? 0 : 8,
+          boxShadow: isMobile ? "none" : "0 2px 8px rgba(0,0,0,0.06)",
+          border: isMobile ? "none" : "1px solid #e2e8f0",
+          overflow: "hidden",
+        }}
       >
-        {/* ── Left panel: browsing or scanning ── */}
-        <Grid item xs={12} md={8} sx={{ height: isMobile ? "auto" : "100%" }}>
-          <Paper
-            elevation={isMobile ? 0 : 3}
-            sx={{
-              height: isMobile ? "auto" : "100%",
-              display: "flex",
-              flexDirection: "column",
-              borderRadius: isMobile ? 0 : 2,
-              overflow: "hidden",
-              border: isMobile ? "none" : undefined,
-            }}
-          >
-            {/* ── Top app bar ── */}
-            <AppBar position="static" elevation={0} sx={{ bgcolor: primaryColor, flexShrink: 0 }}>
-              {/* Row: retail slot indicator + mode toggle */}
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  px: 1.5,
-                  pt: 0.75,
-                  pb: isRetailMode ? 0.25 : 0.75,
-                }}
-              >
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  {isRetailMode && (
-                    <RetailSlotIndicator onQueueOrder={handleQueueOrder} />
-                  )}
-                </Box>
-                <ModeToggle />
-              </Box>
+        {/* Unified POS Header */}
+        <POSHeader
+          shopName={shopName}
+          primaryColor={primaryColor}
+          isMobile={isMobile}
+          posMode={posMode}
+          onModeChange={setPosMode}
+          categoriesLoading={mainCategoriesLoading}
+          categories={posMainCategories}
+          selectedCategoryId={selectedMainCategoryId}
+          onSelectCategory={handleChangeMainCategory}
+          slotIndicator={
+            isRetailMode ? <RetailSlotIndicator onQueueOrder={handleQueueOrder} /> : undefined
+          }
+        />
 
-              {/* Main category tabs — only shown in browse mode */}
-              {posMode === "browse" && (
-                <>
-                  {mainCategoriesLoading ? (
-                    <Box sx={{ p: 1.5 }}>
-                      <SkeletonTabs />
-                    </Box>
-                  ) : (
-                    <Tabs
-                      value={tabValue}
-                      onChange={(_, v) => setTabValue(v)}
-                      indicatorColor="secondary"
-                      textColor="inherit"
-                      variant="scrollable"
-                      scrollButtons="auto"
-                      allowScrollButtonsMobile
-                      sx={{
-                        minHeight: 44,
-                        "& .MuiTabs-scrollButtons": {
-                          color: "white",
-                          "&.Mui-disabled": { opacity: 0.3 },
-                        },
-                        "& .MuiTab-root": {
-                          minWidth: "auto",
-                          fontSize: isMobile ? "0.8rem" : "0.9rem",
-                          fontWeight: 500,
-                          textTransform: "none",
-                          padding: isMobile ? "8px 12px" : "10px 16px",
-                          minHeight: 44,
-                          color: "rgba(255,255,255,0.8)",
-                          "&.Mui-selected": { color: "white" },
-                        },
-                        "& .MuiTabs-indicator": {
-                          backgroundColor: "white",
-                          height: 3,
-                        },
-                      }}
-                    >
-                      {Maincategories?.map((categ, i) => (
-                        <Tab
-                          key={categ._id}
-                          label={categ.name}
-                          onClick={() => handleChangeMainCategory(categ._id)}
-                          {...a11yProps(i)}
-                        />
-                      ))}
-                    </Tabs>
-                  )}
-                </>
-              )}
-
-              {/* Scan mode header strip */}
-              {posMode === "scan" && (
-                <Box
-                  sx={{
-                    px: 2,
-                    pb: 1,
+        {/* Content area */}
+        <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+          {posMode === "scan" ? (
+            <BarcodeScanPanel tableId={tableId} onCartUpdate={handleCartOpen} />
+          ) : (
+            <>
+              {mainCategoriesLoading ? (
+                <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
+                  {!isMobile && <POSSkeletonVerticalTabs />}
+                  <div style={{ flex: 1, padding: isMobile ? 12 : 16, overflow: "auto" }}>
+                    <POSSkeletonCategoryCards isMobile={isMobile} isTablet={isTablet} />
+                  </div>
+                </div>
+              ) : subcategories.length ? (
+                <div
+                  style={{
                     display: "flex",
-                    alignItems: "center",
-                    gap: 1,
+                    flexDirection: "row",
+                    flex: 1,
+                    overflow: "hidden",
                   }}
                 >
-                  <QrCodeScannerIcon sx={{ color: "rgba(255,255,255,0.85)", fontSize: 16 }} />
-                  <Typography
-                    variant="caption"
-                    sx={{ color: "rgba(255,255,255,0.85)", fontWeight: 600, letterSpacing: 0.5 }}
+                  {/* Subcategory sidebar */}
+                  <div style={{ flexShrink: 0, overflow: "hidden" }}>
+                    <VerticalTabs
+                      subcategories={subcategories}
+                      handleSubCategoryChange={handleChangeSubCategory}
+                    />
+                  </div>
+
+                  {/* Main content */}
+                  <div
+                    style={{
+                      flex: 1,
+                      overflow: isMobile ? "visible" : "auto",
+                      padding: isMobile ? 12 : 16,
+                      scrollbarWidth: "thin",
+                      scrollbarColor: "#cbd5e1 transparent",
+                    }}
                   >
-                    Scanner mode — ready to scan
-                  </Typography>
-                </Box>
-              )}
-            </AppBar>
+                    {/* Universal search — searches across all categories */}
+                    <POSSearchHeader
+                      searchTerm={searchTerm}
+                      onSearchChange={setSearchTerm}
+                      onBack={handleBack}
+                      primaryColor={primaryColor}
+                      placeholder="Search all items…"
+                    />
 
-            {/* ── Content area ── */}
-            <Box sx={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-              {posMode === "scan" ? (
-                // ── Scan mode panel ──
-                <BarcodeScanPanel tableId={tableId} onCartUpdate={handleCartOpen} />
-              ) : (
-                // ── Browse mode (original UI, fully unchanged) ──
-                <>
-                  {mainCategoriesLoading ? (
-                    <Box sx={{ display: "flex", p: 2, height: "100%" }}>
-                      {!isMobile && <SkeletonVerticalTabs />}
-                      <SkeletonCategoryCards isMobile={isMobile} isTablet={isTablet} />
-                    </Box>
-                  ) : subcategories.length ? (
-                    <Box
-                      sx={{
-                        display: "flex",
-                        flexDirection: "row",
-                        flex: 1,
-                        overflow: "hidden",
-                      }}
-                    >
-                      {/* Subcategory sidebar */}
-                      <Box sx={{ flexShrink: 0, overflow: "hidden" }}>
-                        <VerticalTabs
-                          subcategories={subcategories}
-                          handleSubCategoryChange={handleChangeSubCategory}
-                        />
-                      </Box>
-
-                      {/* Main content */}
-                      <Box
-                        sx={{
-                          flex: 1,
-                          overflow: isMobile ? "visible" : "auto",
-                          p: isMobile ? 1.5 : 2,
-                          "&::-webkit-scrollbar": { width: "4px" },
-                          "&::-webkit-scrollbar-thumb": {
-                            background: "#cbd5e1",
-                            borderRadius: 2,
-                          },
-                        }}
-                      >
-                        {showCategories ? (
-                          <Box sx={{ display: "flex", flexWrap: "wrap", gap: "10px", pt: 1 }}>
-                            {isLoading ? (
-                              <SkeletonCategoryCards isMobile={isMobile} isTablet={isTablet} />
-                            ) : categories.length ? (
-                              categories.map((category) => (
-                                <CategoryCard
-                                  key={category._id}
-                                  handleSelectedCard={handleSelectCard}
-                                  selectedCard={selectedCard}
-                                  icon="/categoryIcon.svg"
-                                  name={category.name}
-                                  itemCount={1}
-                                  id={category._id}
-                                  style={{
-                                    flex: isMobile
-                                      ? "0 0 calc(50% - 5px)"
-                                      : isTablet
-                                        ? "0 0 calc(50% - 5px)"
-                                        : `0 0 calc(${100 / Math.min(categories.length, 3)
-                                        }% - 8px)`,
-                                    border: "1px solid #e2e8f0",
-                                    borderRadius: 8,
-                                  }}
-                                />
-                              ))
-                            ) : (
-                              <Alert
-                                severity="info"
-                                sx={{ width: "100%", bgcolor: "#DEAC80", borderRadius: 2 }}
-                              >
-                                <AlertTitle>Empty</AlertTitle>
-                                No categories here yet.
-                              </Alert>
-                            )}
-                          </Box>
-                        ) : (
-                          <Box>
-                            {/* Search + back row */}
-                            <Box
-                              sx={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 1,
-                                mb: 1.5,
+                    {searching ? (
+                      allItemsLoading ? (
+                        <div
+                          style={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: 10,
+                            width: "100%",
+                            paddingTop: 8,
+                            paddingLeft: 4,
+                            paddingRight: 4,
+                          }}
+                        >
+                          {Array.from({ length: 6 }).map((_, i) => (
+                            <SkeletonProductCard
+                              key={i}
+                              style={{
+                                flex: isMobile
+                                  ? "0 0 100%"
+                                  : isTablet
+                                  ? "0 0 calc(50% - 5px)"
+                                  : "0 0 calc(33% - 7px)",
                               }}
-                            >
-                              <TextField
-                                placeholder={
-                                  activeItemType === "packages"
-                                    ? "Search packages…"
-                                    : "Search items…"
-                                }
-                                variant="outlined"
-                                size="small"
-                                fullWidth
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                sx={{
-                                  "& .MuiOutlinedInput-root": {
-                                    borderRadius: 6,
-                                    fontSize: 13,
-                                    "&:hover .MuiOutlinedInput-notchedOutline": {
-                                      borderColor: primaryColor,
-                                    },
-                                    "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                                      borderColor: primaryColor,
-                                    },
-                                  },
-                                }}
-                                InputProps={{
-                                  startAdornment: (
-                                    <InputAdornment position="start">
-                                      <SearchIcon sx={{ color: primaryColor, fontSize: 18 }} />
-                                    </InputAdornment>
-                                  ),
+                            />
+                          ))}
+                        </div>
+                      ) : searchResults.length ? (
+                        <div
+                          style={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: 10,
+                            width: "100%",
+                            maxHeight: isMobile ? "none" : "calc(100vh - 280px)",
+                            overflowY: isMobile ? "visible" : "auto",
+                            paddingTop: 8,
+                            paddingLeft: 4,
+                            paddingRight: 4,
+                            paddingBottom: 16,
+                            scrollbarWidth: "thin",
+                            scrollbarColor: "#cbd5e1 transparent",
+                          }}
+                        >
+                          {searchResults.map((item: any) => (
+                            <ProductCard
+                              key={item._id}
+                              menu={item}
+                              handleCart={handleCartOpen}
+                              style={{
+                                flex: isMobile
+                                  ? "0 0 100%"
+                                  : isTablet
+                                  ? "0 0 calc(50% - 5px)"
+                                  : "0 0 calc(33% - 7px)",
+                              }}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <Alert
+                          message="No Results"
+                          description={`No items found matching "${searchTerm.trim()}"`}
+                          type="info"
+                          showIcon
+                          style={{ width: "100%", borderRadius: 8 }}
+                        />
+                      )
+                    ) : showCategories ? (
+                      isLoading ? (
+                        <POSSkeletonCategoryCards isMobile={isMobile} isTablet={isTablet} />
+                      ) : categories.length ? (
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: isMobile
+                              ? "repeat(auto-fit, minmax(130px, 1fr))"
+                              : isTablet
+                              ? "repeat(auto-fit, minmax(160px, 1fr))"
+                              : "repeat(auto-fit, minmax(190px, 1fr))",
+                            gap: 12,
+                            width: "100%",
+                            paddingTop: 8,
+                          }}
+                        >
+                          {categories.map((category) => (
+                            <CategoryCard
+                              key={category._id}
+                              handleSelectedCard={handleSelectCard}
+                              selectedCard={selectedCard}
+                              icon="/categoryIcon.svg"
+                              name={category.name}
+                              itemCount={1}
+                              id={category._id}
+                              style={{
+                                maxWidth: categories.length === 1 ? 280 : "none",
+                                border: "1px solid #e2e8f0",
+                                borderRadius: 8,
+                                width: "100%",
+                                margin: 0,
+                              }}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <Alert
+                          message="No Categories"
+                          description="No categories found."
+                          type="info"
+                          showIcon
+                          style={{ width: "100%", borderRadius: 8 }}
+                        />
+                      )
+                    ) : (
+                      <div>
+                        {/* Item type filter pills */}
+                        <POSItemTypeFilters
+                          activeType={activeItemType}
+                          onChange={setActiveItemType}
+                          servicesCount={filteredServices.length}
+                          productsCount={filteredProducts.length}
+                          packagesCount={availablePackages.length}
+                          primaryColor={primaryColor}
+                        />
+
+                        {/* Products / Services loading or grid */}
+                        {productsLoading || packagesLoading ? (
+                          <div
+                            style={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              gap: 10,
+                              width: "100%",
+                              paddingTop: 8,
+                              paddingLeft: 4,
+                              paddingRight: 4,
+                            }}
+                          >
+                            {Array.from({ length: 6 }).map((_, i) => (
+                              <SkeletonProductCard
+                                key={i}
+                                style={{
+                                  flex: isMobile
+                                    ? "0 0 100%"
+                                    : isTablet
+                                    ? "0 0 calc(50% - 5px)"
+                                    : "0 0 calc(33% - 7px)",
                                 }}
                               />
-                              <IconButton
-                                onClick={handleBack}
-                                size="small"
-                                sx={{
-                                  color: primaryColor,
-                                  border: `1px solid ${primaryColor}30`,
-                                  borderRadius: 2,
-                                  p: "6px",
-                                  "&:hover": { bgcolor: `${primaryColor}10` },
-                                }}
-                              >
-                                <BackspaceIcon fontSize="small" />
-                              </IconButton>
-                            </Box>
-
-                            <ItemTypeFilters />
-
-                            {productsLoading || packagesLoading ? (
-                              <Box sx={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
-                                {[...Array(6)].map((_, i) => (
-                                  <SkeletonProductCard key={i} />
+                            ))}
+                          </div>
+                        ) : areItemsAvailable ? (
+                          <div
+                            style={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              gap: 10,
+                              width: "100%",
+                              maxHeight: isMobile ? "none" : "calc(100vh - 280px)",
+                              overflowY: isMobile ? "visible" : "auto",
+                              paddingTop: 8,
+                              paddingLeft: 4,
+                              paddingRight: 4,
+                              paddingBottom: 16,
+                              scrollbarWidth: "thin",
+                              scrollbarColor: "#cbd5e1 transparent",
+                            }}
+                          >
+                            {activeItemType === "packages"
+                              ? sortedItems.map((pkg: Package) => (
+                                  <PackageCard
+                                    key={pkg._id}
+                                    package={pkg}
+                                    onPurchase={(p) => {
+                                      setSelectedPackage(p);
+                                      setPurchaseModalVisible(true);
+                                    }}
+                                    style={{
+                                      flex: isMobile
+                                        ? "0 0 100%"
+                                        : isTablet
+                                        ? "0 0 calc(50% - 5px)"
+                                        : "0 0 calc(33% - 7px)",
+                                    }}
+                                  />
+                                ))
+                              : sortedItems.map((item: any) => (
+                                  <ProductCard
+                                    key={item._id}
+                                    menu={item}
+                                    handleCart={handleCartOpen}
+                                    style={{
+                                      flex: isMobile
+                                        ? "0 0 100%"
+                                        : isTablet
+                                        ? "0 0 calc(50% - 5px)"
+                                        : "0 0 calc(33% - 7px)",
+                                    }}
+                                  />
                                 ))}
-                              </Box>
-                            ) : (
-                              <ProductGrid />
-                            )}
-                          </Box>
+                          </div>
+                        ) : categoryChosen ? (
+                          <Alert
+                            message="Empty"
+                            description="No items found in this category."
+                            type="info"
+                            showIcon
+                            style={{ width: "100%", borderRadius: 8 }}
+                          />
+                        ) : (
+                          <div
+                            style={{
+                              width: "100%",
+                              textAlign: "center",
+                              padding: "48px 0",
+                              color: "#64748b",
+                            }}
+                          >
+                            <p style={{ fontSize: 13, margin: 0 }}>Select a category to browse items</p>
+                          </div>
                         )}
-                      </Box>
-                    </Box>
-                  ) : (
-                    <Box sx={{ p: 2 }}>
-                      <Alert severity="info" sx={{ bgcolor: "#DEAC80", borderRadius: 2 }}>
-                        <AlertTitle>Empty</AlertTitle>
-                        This category has no subcategories yet.
-                      </Alert>
-                    </Box>
-                  )}
-                </>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div style={{ padding: 16 }}>
+                  <Alert
+                    message="No Subcategories"
+                    description="No subcategories found in this category."
+                    type="info"
+                    showIcon
+                    style={{ width: "100%", borderRadius: 8 }}
+                  />
+                </div>
               )}
-            </Box>
-          </Paper>
-        </Grid>
+            </>
+          )}
+        </div>
+      </div>
 
-        {/* ── Right panel: cart (desktop) ── */}
-        {!isMobile && (
-          <Grid item md={4} sx={{ height: "100%" }}>
-            <Paper elevation={3} sx={{ height: "100%", borderRadius: 2, overflow: "hidden" }}>
-              <CartDrawer />
-            </Paper>
-          </Grid>
-        )}
-      </Grid>
+      {/* Right panel: cart (desktop) */}
+      {!isMobile && (
+        <div
+          style={{
+            flex: "0 0 clamp(440px, 32vw, 520px)",
+            height: "100%",
+            backgroundColor: "#ffffff",
+            borderRadius: 8,
+            boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+            border: "1px solid #e2e8f0",
+            overflow: "hidden",
+          }}
+        >
+          <CartDrawer />
+        </div>
+      )}
 
-      {/* ── Mobile: cart FAB + bottom drawer ── */}
+      {/* Mobile: floating cart button + bottom drawer */}
       {isMobile && (
         <>
-          <Fab
-            onClick={handleCartOpen}
-            size="medium"
-            sx={{
+          <div
+            style={{
               position: "fixed",
               bottom: 20,
               right: 16,
-              bgcolor: primaryColor,
-              color: "white",
-              zIndex: 1100,
-              boxShadow: `0 4px 16px ${primaryColor}55`,
-              "&:hover": { bgcolor: primaryColor },
+              zIndex: 1000,
             }}
           >
-            <ShoppingCartIcon />
-          </Fab>
+            <Badge count={cartItems?.length || 0}>
+              <Button
+                type="primary"
+                shape="circle"
+                size="large"
+                icon={<ShoppingCartOutlined style={{ fontSize: 22 }} />}
+                onClick={handleCartOpen}
+                style={{
+                  width: 56,
+                  height: 56,
+                  backgroundColor: primaryColor,
+                  borderColor: primaryColor,
+                  boxShadow: `0 4px 16px ${primaryColor}55`,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              />
+            </Badge>
+          </div>
 
           <Drawer
-            anchor="bottom"
+            placement="bottom"
             open={cartDrawerOpen}
             onClose={() => setCartDrawerOpen(false)}
-            PaperProps={{
-              sx: {
-                borderRadius: "16px 16px 0 0",
-                maxHeight: "85dvh",
-                overflow: "hidden",
-              },
-            }}
+            height="85vh"
+            bodyStyle={{ padding: 0 }}
+            headerStyle={{ display: "none" }}
+            style={{ borderRadius: "16px 16px 0 0", overflow: "hidden" }}
           >
-            <Box sx={{ display: "flex", justifyContent: "center", pt: 1.5, pb: 0.5 }}>
-              <Box sx={{ width: 36, height: 4, borderRadius: 2, bgcolor: "#cbd5e1" }} />
-            </Box>
-            <Box sx={{ overflow: "auto", flex: 1 }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                paddingTop: 10,
+                paddingBottom: 6,
+              }}
+            >
+              <div
+                style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: "#cbd5e1" }}
+              />
+            </div>
+            <div style={{ flex: 1, overflow: "auto", height: "calc(100% - 20px)" }}>
               <CartDrawer />
-            </Box>
+            </div>
           </Drawer>
         </>
       )}
@@ -804,7 +717,7 @@ const RestaurantPage: React.FC = () => {
         }}
         onSuccess={refetchPackages}
       />
-    </>
+    </div>
   );
 };
 

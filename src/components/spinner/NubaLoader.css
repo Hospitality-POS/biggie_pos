@@ -35,41 +35,41 @@
   animation-delay: 400ms;
 }
 
-/* Updated color variations based on #6c1c2c */
+/* Updated color variations based on #0E388A */
 .cell:nth-child(1) {
-  --cell-color: #6c1c2c;
+  --cell-color: var(--primary-color, #0E388A);
 }
 
 .cell:nth-child(2) {
-  --cell-color: #7c2134;
+  --cell-color: #144498;
 }
 
 .cell:nth-child(3) {
-  --cell-color: #8c263c;
+  --cell-color: #1c51a8;
 }
 
 .cell:nth-child(4) {
-  --cell-color: #9c2b44;
+  --cell-color: #255ebd;
 }
 
 .cell:nth-child(5) {
-  --cell-color: #ac304c;
+  --cell-color: #306dd3;
 }
 
 .cell:nth-child(6) {
-  --cell-color: #bc3554;
+  --cell-color: #3d7deb;
 }
 
 .cell:nth-child(7) {
-  --cell-color: #cc3a5c;
+  --cell-color: #4e8dfa;
 }
 
 .cell:nth-child(8) {
-  --cell-color: #dc3f64;
+  --cell-color: #639eff;
 }
 
 .cell:nth-child(9) {
-  --cell-color: #ec446c;
+  --cell-color: #7bb0ff;
 }
 
 /*Animation*/

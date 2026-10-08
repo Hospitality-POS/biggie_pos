@@ -305,7 +305,10 @@ export const addNewInventory = async (params) => {
 
       const response = await fetch(inventoryUrl, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          ...(companyCode ? { 'companyCode': companyCode } : {}),
+        },
         body: formData
       });
 
@@ -389,7 +392,10 @@ export const editInventory = async (params) => {
 
       const response = await fetch(`${inventoryUrl}/${params._id}`, {
         method: 'PUT',
-        headers: { 'Authorization': `Bearer ${token}` },
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          ...(companyCode ? { 'companyCode': companyCode } : {}),
+        },
         body: formData
       });
 

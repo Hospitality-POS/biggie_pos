@@ -25,6 +25,7 @@ import { COOP_NAME } from "@utils/config";
 // ↓ Only two imports needed now — sendSalesReportEmail builds the full payload
 import { sendSalesReportEmail, refToHtmlString } from "@services/emailReports";
 import "@components/MODALS/bill.css";
+import { THEME_C } from "@utils/getPrimaryColor";
 
 dayjs.extend(isoWeek);
 
@@ -34,17 +35,7 @@ type PrintMode = "thermal" | "a4";
 type GroupBy = "none" | "day" | "week" | "month";
 
 // ── Palette ───────────────────────────────────────────────────────────────────
-const C = {
-  primary: "#6c1c2c",
-  primaryLight: "#f9f0f2",
-  green: "#10b981",
-  blue: "#3b82f6",
-  orange: "#f59e0b",
-  subText: "#64748b",
-  darkText: "#0f172a",
-  border: "#e2e8f0",
-  bg: "#f8fafc",
-};
+const C = THEME_C;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const fmt = (v: number) =>
