@@ -1,4 +1,3 @@
-# Step 1: Build the app using Node
 FROM node:23-alpine AS builder
 
 WORKDIR /app
@@ -14,7 +13,7 @@ FROM nginx:alpine
 COPY ./nginx.conf /etc/nginx/nginx.conf
 
 # Copy the built app from the builder stage
-COPY - from=builder /app/dist /var/www/html/
+COPY --from=builder /app/dist /var/www/html/
 
 # Copy the runtime injection script into the container
 COPY env.sh /docker-entrypoint.d/env.sh
