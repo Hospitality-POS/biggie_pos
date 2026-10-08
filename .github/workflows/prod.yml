@@ -1,15 +1,9 @@
-name: Build
+name: Build and deploy to production
 
 on:
   push:
     branches:
       - master
-      - develop
-      - 'feature/**'
-  pull_request:
-    branches:
-      - master
-      - develop
 
 jobs:
   build:

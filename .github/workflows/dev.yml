@@ -1,17 +1,15 @@
-name: Build and Push Docker Image
+name: Build and Push to Dev
 
 on:
   push:
     branches:
-      - prod
-      - main
-      - master
-    tags:
-      - 'v*.*.*'
-  workflow_dispatch:
+      - dev
+  pull_request:
+    branches:
+      - dev
 
 env:
-  IMAGE_NAME: basepoint-ui
+  IMAGE_NAME: basepoint-ui-dev
 
 jobs:
   build-and-push:
@@ -53,8 +51,3 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          build-args: |
-            VITE_BASE_URL=${{ secrets.VITE_BASE_URL }}
-            VITE_APP_URL=${{ secrets.VITE_APP_URL }}
-            VITE_POS_API_KEY=${{ secrets.VITE_POS_API_KEY }}
-            VITE_TENANT_BASE_URL=${{ secrets.VITE_TENANT_BASE_URL }}

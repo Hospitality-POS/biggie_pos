@@ -1,42 +1,27 @@
-# Stage 1: Build Vite React application with Yarn
-FROM node:20-alpine AS builder
+# Step 1: Build the app using Node
+FROM node:23-alpine AS builder
 
 WORKDIR /app
-
-# Copy dependency specifications
-COPY package.json yarn.lock* ./
-
-# Install dependencies using Yarn
-RUN yarn install --network-timeout 100000
-
-# Copy source code
+COPY package*.json ./
+RUN npm ci
 COPY . .
+RUN npm run build
 
-# Build arguments for Vite environment variables
-ARG VITE_BASE_URL
-ARG VITE_APP_URL
-ARG VITE_POS_API_KEY
-ARG VITE_TENANT_BASE_URL
-ARG VITE_APP_NAME="Relia"
-
-ENV VITE_BASE_URL=$VITE_BASE_URL
-ENV VITE_APP_URL=$VITE_APP_URL
-ENV VITE_POS_API_KEY=$VITE_POS_API_KEY
-ENV VITE_TENANT_BASE_URL=$VITE_TENANT_BASE_URL
-ENV VITE_APP_NAME=$VITE_APP_NAME
-
-# Build production bundle with increased memory limit for large builds
-RUN NODE_OPTIONS=--max-old-space-size=4096 yarn build
-
-# Stage 2: Serve with Nginx
+# Step 2: Use a lightweight Nginx container to serve the files
 FROM nginx:alpine
 
-# Copy custom Nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copy Nginx config if you have custom routing
+COPY ./nginx.conf /etc/nginx/nginx.conf
 
-# Copy build output from builder stage
-COPY --from=builder /app/dist /usr/share/nginx/html
+# Copy the built app from the builder stage
+COPY - from=builder /app/dist /var/www/html/
 
-EXPOSE 80
+# Copy the runtime injection script into the container
+COPY env.sh /docker-entrypoint.d/env.sh
+RUN dos2unix /docker-entrypoint.d/env.sh
+RUN chmod +x /docker-entrypoint.d/env.sh
+
+# Let Docker run your script before starting Nginx
+ENTRYPOINT ["/docker-entrypoint.sh"]
 
 CMD ["nginx", "-g", "daemon off;"]
