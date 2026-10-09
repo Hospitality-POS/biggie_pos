@@ -1,4 +1,4 @@
-FROM node:23-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 COPY package*.json yarn.lock ./
@@ -9,6 +9,10 @@ RUN yarn run build
 # Step 2: Use a lightweight Nginx container to serve the files
 FROM nginx:alpine
 
+# Used by env.sh at container start
+ENV APP_PREFIX=APP_PREFIX_ \
+    ASSET_DIR=/var/www/html
+
 # Copy Nginx config if you have custom routing
 COPY ./nginx.conf /etc/nginx/nginx.conf
 
@@ -17,10 +21,9 @@ COPY --from=builder /app/dist /var/www/html/
 
 # Copy the runtime injection script into the container
 COPY env.sh /docker-entrypoint.d/env.sh
-RUN dos2unix /docker-entrypoint.d/env.sh
-RUN chmod +x /docker-entrypoint.d/env.sh
+RUN sed -i 's/\r$//' /docker-entrypoint.d/env.sh \
+    && chmod +x /docker-entrypoint.d/env.sh
 
-# Let Docker run your script before starting Nginx
-ENTRYPOINT ["/docker-entrypoint.sh"]
-
+# The nginx image's default ENTRYPOINT already runs /docker-entrypoint.d/*.sh,
+# so no ENTRYPOINT line is needed.
 CMD ["nginx", "-g", "daemon off;"]
