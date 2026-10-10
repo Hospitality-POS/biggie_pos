@@ -13,6 +13,7 @@ import {
   RightOutlined,
   GlobalOutlined,
   ScanOutlined,
+  CloudSyncOutlined,
 } from "@ant-design/icons";
 import { Typography, Grid, Tabs } from "antd";
 import { useQuery } from "@tanstack/react-query";
@@ -29,6 +30,7 @@ import HotelSettings from "./HotelSettings";
 import TransactionLocking from "./TransactionLocking";
 import PayrollSettings from "./PayrollSettings";
 import AccessSettings from "./AccessSettings";
+import DataSyncSettings from "./DataSyncSettings";
 import ChartOfAccountsSettings from "./ChartOfAccountsSettings";
 import CurrencyPage from "@pages/Currency/CurrencyPage";
 import { fetchShop } from "@services/shops";
@@ -199,6 +201,16 @@ const SystemSetup: React.FC = () => {
         bg: "#fffbeb",
         group: "General",
         render: () => <NotificationSettings />,
+      },
+      {
+        key: "data-sync",
+        label: "Data Sync",
+        description: "Secondary database backup & schedule",
+        icon: <CloudSyncOutlined />,
+        color: "#0ea5e9",
+        bg: "#f0f9ff",
+        group: "General",
+        render: () => <DataSyncSettings />,
       },
     );
 
