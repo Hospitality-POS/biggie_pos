@@ -561,7 +561,11 @@ const CartDrawer: React.FC = () => {
                 okText="Clear"
                 okButtonProps={{ danger: true }}
                 cancelText="Cancel"
-                disabled={!activeTable || isOnlySlot}
+                disabled={
+                  !activeTable ||
+                  isOnlySlot ||
+                  !(user?.role === "admin" || user?.role === "cashier")
+                }
               >
                 <Tooltip title={isOnlySlot ? "Cannot remove the only slot" : "Clear slot"}>
                   <Button
@@ -569,7 +573,12 @@ const CartDrawer: React.FC = () => {
                     danger
                     type="text"
                     icon={<ClearOutlined />}
-                    disabled={!activeTable || isLoadingSlots || isOnlySlot}
+                    disabled={
+                      !activeTable ||
+                      isLoadingSlots ||
+                      isOnlySlot ||
+                      !(user?.role === "admin" || user?.role === "cashier")
+                    }
                   />
                 </Tooltip>
               </Popconfirm>
@@ -875,7 +884,7 @@ const CartDrawer: React.FC = () => {
                 )}
               </Flex>
             )}
-            {user?.role === "admin" && !isAwaitingPrintCart && (
+            {(user?.role === "admin" || user?.role === "cashier") && !isAwaitingPrintCart && (
               <Popconfirm
                 title="Clear all items?"
                 description="This will remove everything from the cart."

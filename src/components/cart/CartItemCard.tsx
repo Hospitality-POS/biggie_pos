@@ -772,7 +772,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem, cartDeductionEnab
                       onClick={handleEditMiscItem}
                     />
                   )}
-                  {user?.role === "admin" && !cartLocked && (
+                  {(user?.role === "admin" || user?.role === "cashier") && !cartLocked && (
                     <Button
                       danger
                       size="small"
@@ -798,7 +798,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem, cartDeductionEnab
                       onClick={handleEditMiscItem}
                     />
                   )}
-                  {!cartLocked && (
+                  {(user?.role === "admin" || user?.role === "cashier") && !cartLocked && (
                     <Button
                       danger
                       size="small"

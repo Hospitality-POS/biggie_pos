@@ -1,6 +1,7 @@
 import {
   AppstoreOutlined,
   AimOutlined,
+  BarChartOutlined,
   HolderOutlined,
   LoadingOutlined,
   PlusOutlined,
@@ -23,6 +24,7 @@ import {
   Space,
   Drawer,
   Empty,
+  Segmented,
 } from "antd";
 import Lottie from "lottie-react";
 import React, { useState, useEffect, useMemo, useCallback, Suspense, lazy } from "react";
@@ -33,6 +35,7 @@ import { useNavigate } from "react-router-dom";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { usePOSMode } from "@context/POSModeContext";
 import QuickAddTableModal from "@components/MODALS/pro/QuickAddTableModal";
+import TableStatsPanel from "./TableStats";
 
 const HospitalPage = lazy(() => import("@pages/Hospital/HospitalPage"));
 const HotelPage = lazy(() => import("@pages/Hotel/HotelPage"));
@@ -41,6 +44,9 @@ const { Text, Title } = Typography;
 
 // Key for the trailing "+ New Location" pseudo-tab in the locations tab bar
 const ADD_LOCATION_TAB = "__add_location__";
+
+// Page-level views: the slots/tables board vs the cross-location stats view
+type PageView = "tables" | "stats";
 
 // ── Mobile detection ──────────────────────────────────────────────────────────
 const useIsMobile = () => {
@@ -422,6 +428,7 @@ export default function TablePro() {
   // Keyed by user — the fetcher applies per-user privacy filtering, so the
   // cache entry must not be shared between logins.
   const currentUserKey = (user as any)?._id || user?.id || "anon";
+  const [pageView, setPageView] = useState<PageView>("tables");
   const queryKey = useMemo(
     () => ["tables", currentUserKey, activeTabId === DEFAULT_TAB ? "overview" : activeTabId],
     [activeTabId, currentUserKey]
@@ -781,18 +788,37 @@ export default function TablePro() {
             </Button>
           </div>
 
-          <MobileSlotSelector
-            tabs={generateTabItems}
-            activeKey={safeActiveTabId}
-            onChange={handleTabChange}
-            primaryColor={primaryColor}
-            loading={isLoading}
-            onAddLocation={canManageSlots ? () => setQuickAdd({ mode: "location" }) : undefined}
+          <Segmented
+            block
+            value={pageView}
+            onChange={(v) => setPageView(v as PageView)}
+            options={[
+              { label: "Tables", value: "tables", icon: <TableOutlined /> },
+              { label: "Table Stats", value: "stats", icon: <BarChartOutlined /> },
+            ]}
+            style={{ marginBottom: 12 }}
           />
 
-          <div style={{ minHeight: 200 }}>
-            {isLoading ? <LoadingTabContent isMobile={true} /> : activeTabContent}
-          </div>
+          {pageView === "stats" ? (
+            <div style={{ minHeight: 200 }}>
+              <TableStatsPanel isMobile={true} primaryColor={primaryColor} />
+            </div>
+          ) : (
+            <>
+              <MobileSlotSelector
+                tabs={generateTabItems}
+                activeKey={safeActiveTabId}
+                onChange={handleTabChange}
+                primaryColor={primaryColor}
+                loading={isLoading}
+                onAddLocation={canManageSlots ? () => setQuickAdd({ mode: "location" }) : undefined}
+              />
+
+              <div style={{ minHeight: 200 }}>
+                {isLoading ? <LoadingTabContent isMobile={true} /> : activeTabContent}
+              </div>
+            </>
+          )}
         </div>
 
         <QuickAddTableModal
@@ -814,16 +840,26 @@ export default function TablePro() {
 
   // ── Desktop layout ────────────────────────────────────────────────────────
   const cardTitle = (
-    <Space size={8} align="center">
-      <div
-        style={{
-          background: `${primaryColor}15`, borderRadius: 8,
-          padding: "6px 7px", color: primaryColor, fontSize: 16, lineHeight: 1,
-        }}
-      >
-        <AppstoreOutlined />
-      </div>
-      <Text strong style={{ fontSize: 15, color: "#0f172a" }}>Tables</Text>
+    <Space size={16} align="center">
+      <Space size={8} align="center">
+        <div
+          style={{
+            background: `${primaryColor}15`, borderRadius: 8,
+            padding: "6px 7px", color: primaryColor, fontSize: 16, lineHeight: 1,
+          }}
+        >
+          <AppstoreOutlined />
+        </div>
+        <Text strong style={{ fontSize: 15, color: "#0f172a" }}>Tables</Text>
+      </Space>
+      <Segmented
+        value={pageView}
+        onChange={(v) => setPageView(v as PageView)}
+        options={[
+          { label: "Tables", value: "tables", icon: <TableOutlined /> },
+          { label: "Table Stats", value: "stats", icon: <BarChartOutlined /> },
+        ]}
+      />
     </Space>
   );
 
@@ -846,6 +882,13 @@ export default function TablePro() {
           <ProCard title={cardTitle} style={{ borderRadius: 12, boxShadow: "none", border: "none" }}>
             <LoadingTabs />
             <LoadingTabContent isMobile={false} />
+          </ProCard>
+        ) : pageView === "stats" ? (
+          <ProCard
+            title={cardTitle}
+            style={{ borderRadius: 12, boxShadow: "none", border: "none" }}
+          >
+            <TableStatsPanel isMobile={false} primaryColor={primaryColor} />
           </ProCard>
         ) : (
           <ProCard

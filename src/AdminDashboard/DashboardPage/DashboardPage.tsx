@@ -14,11 +14,13 @@ import {
   Flex,
   Alert,
   Drawer,
+  Select,
 } from "antd";
 import {
   ReloadOutlined,
   CalendarOutlined,
   FilterOutlined,
+  ShopOutlined,
   DashboardOutlined,
   WarningOutlined,
   DollarOutlined,
@@ -31,6 +33,7 @@ import {
   getBestSellers,
   getSalesChartData,
 } from "@services/orders";
+import { fetchAllShops } from "@services/shops";
 import dayjs from "dayjs";
 import quarterOfYear from "dayjs/plugin/quarterOfYear";
 import {
@@ -90,6 +93,18 @@ const DashboardAdminPage: React.FC = () => {
   const [customDateRange, setCustomDateRange] = useState<any[]>([]);
   const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+  const [shopFilter, setShopFilter] = useState<string>("all");
+
+  const { data: shops } = useQuery({
+    queryKey: ["dashboard-branch-options"],
+    queryFn: () => fetchAllShops({}),
+    networkMode: "always",
+    staleTime: 60000,
+  });
+  const shopOptions = (shops ?? []).map((s: any) => ({ label: s.name, value: s._id }));
+  const selectedShopName = shopFilter === "all"
+    ? "All Branches & POS Terminals"
+    : shopOptions.find((o: any) => o.value === shopFilter)?.label || "Selected Branch";
 
   const getDateRange = useCallback(() => {
     const today = dayjs();
@@ -131,8 +146,8 @@ const DashboardAdminPage: React.FC = () => {
 
   // 1. Dashboard summary analysis
   const { data, isLoading, refetch, isRefetching } = useQuery({
-    queryKey: ["admindashBoardAnalysis", startDate.format(), endDate.format()],
-    queryFn: () => getAdminDashboardAnalysis(startDate.toISOString(), endDate.toISOString()),
+    queryKey: ["admindashBoardAnalysis", startDate.format(), endDate.format(), shopFilter],
+    queryFn: () => getAdminDashboardAnalysis(startDate.toISOString(), endDate.toISOString(), shopFilter),
     networkMode: "always",
     refetchOnWindowFocus: false,
     staleTime: 30000,
@@ -152,12 +167,13 @@ const DashboardAdminPage: React.FC = () => {
     : (periodFilter as "day" | "week" | "month" | "year");
 
   const { data: chartData, isLoading: chartLoading } = useQuery({
-    queryKey: ["adminSalesChartData", periodFilter, startDate.format(), endDate.format()],
+    queryKey: ["adminSalesChartData", periodFilter, startDate.format(), endDate.format(), shopFilter],
     queryFn: () =>
       getSalesChartData({
         period: chartPeriod,
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString(),
+        shop_id: shopFilter,
       }),
     networkMode: "always",
     refetchOnWindowFocus: false,
@@ -167,11 +183,12 @@ const DashboardAdminPage: React.FC = () => {
 
   // 3. Best Sellers data
   const { data: bestSellersData, isLoading: bestSellersLoading } = useQuery({
-    queryKey: ["adminBestSellers", startDate.format(), endDate.format()],
+    queryKey: ["adminBestSellers", startDate.format(), endDate.format(), shopFilter],
     queryFn: () =>
       getBestSellers({
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString(),
+        shop_id: shopFilter,
         limit: 15,
       }),
     networkMode: "always",
@@ -265,6 +282,15 @@ const DashboardAdminPage: React.FC = () => {
               style={{ width: "100%" }}
             />
           )}
+          <Select
+            value={shopFilter}
+            onChange={setShopFilter}
+            showSearch
+            options={[{ label: "All Branches", value: "all" }, ...shopOptions]}
+            filterOption={(input, opt) => String(opt?.label ?? "").toLowerCase().includes(input.toLowerCase())}
+            style={{ width: "100%" }}
+            placeholder="Branch"
+          />
         </Space>
       </Drawer>
 
@@ -289,7 +315,7 @@ const DashboardAdminPage: React.FC = () => {
                 {PERIOD_LABELS[periodFilter]} · Duka Overview
               </Title>
               <Text style={{ fontSize: 12, color: "#64748b" }}>
-                {getFormattedDateRange()} · All Branches & POS Terminals
+                {getFormattedDateRange()} · {selectedShopName}
               </Text>
             </div>
           </Space>
@@ -350,6 +376,17 @@ const DashboardAdminPage: React.FC = () => {
                     style={{ minWidth: 240 }}
                   />
                 )}
+
+                <Select
+                  value={shopFilter}
+                  onChange={setShopFilter}
+                  showSearch
+                  size="small"
+                  suffixIcon={<ShopOutlined style={{ color: primaryColor }} />}
+                  options={[{ label: "All Branches", value: "all" }, ...shopOptions]}
+                  filterOption={(input, opt) => String(opt?.label ?? "").toLowerCase().includes(input.toLowerCase())}
+                  style={{ minWidth: 160 }}
+                />
 
                 <Button
                   icon={<ReloadOutlined spin={isRefetching} />}

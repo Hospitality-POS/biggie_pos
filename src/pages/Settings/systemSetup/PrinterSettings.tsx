@@ -67,8 +67,8 @@ const PrinterSettings: React.FC = () => {
     loadMainCategories();
   }, [loadMappings, loadMainCategories]);
 
-  // Captain order is a shop-wide setting stored on the server — one toggle
-  // applies to every device. Print-by-agent stays per-machine (local printer).
+  // Both toggles are shop-wide settings stored on the server — one toggle
+  // applies to every device. localStorage is only a fallback while loading.
   useEffect(() => {
     const savedPrintByAgent = localStorage.getItem("print_by_agent_enabled");
     setPrintByAgentEnabled(savedPrintByAgent === "true");
@@ -82,6 +82,9 @@ const PrinterSettings: React.FC = () => {
           const enabled = shop?.print_settings?.captain_order_enabled === true;
           setCaptainOrderEnabled(enabled);
           localStorage.setItem("captain_order_enabled", String(enabled));
+          const agentEnabled = shop?.print_settings?.print_by_agent_enabled === true;
+          setPrintByAgentEnabled(agentEnabled);
+          localStorage.setItem("print_by_agent_enabled", String(agentEnabled));
         })
         .catch(() => { /* keep localStorage fallback */ });
     }
@@ -181,14 +184,20 @@ const PrinterSettings: React.FC = () => {
     }
   };
 
-  const handleTogglePrintByAgent = (checked: boolean) => {
+  const handleTogglePrintByAgent = async (checked: boolean) => {
     if (checked && agents.length === 0) {
       message.warning("Cannot enable agent printing: No print agents connected. Please install and configure the Print Agent app first.");
       return;
     }
     setPrintByAgentEnabled(checked);
-    localStorage.setItem("print_by_agent_enabled", checked.toString());
-    message.success(checked ? "Agent-based printing enabled" : "Browser printing enabled");
+    const ok = await updateShopPrintSettings(shopId, { print_by_agent_enabled: checked });
+    if (ok) {
+      localStorage.setItem("print_by_agent_enabled", checked.toString());
+      message.success(checked ? "Agent-based printing enabled" : "Browser printing enabled");
+    } else {
+      // Revert — server is the source of truth for this shop-wide setting.
+      setPrintByAgentEnabled(!checked);
+    }
   };
 
   const renderSteps = (steps: React.ReactNode[], style?: React.CSSProperties) => (

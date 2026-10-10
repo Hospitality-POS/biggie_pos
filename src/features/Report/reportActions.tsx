@@ -9,6 +9,9 @@ interface DateDetails {
   startDate: string;
   endDate: string;
   shop_id?: string;
+  servedBy?: string;
+  createdBy?: string;
+  locationId?: string;
 }
 
 export const generateSalesReport = createAsyncThunk(
@@ -92,6 +95,9 @@ export const generatePurchaseReport = createAsyncThunk(
             startDate: dated.startDate,
             endDate: dated.endDate,
             print: true,
+            shop_id: dated.shop_id,
+            createdBy: dated.createdBy,
+            locationId: dated.locationId,
           },
         }
       );

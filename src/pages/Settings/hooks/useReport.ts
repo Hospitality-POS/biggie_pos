@@ -70,7 +70,14 @@ export const useReport = (reportType: string) => {
     setOpenVATModal(false);
   };
 
-  const generateReportHandler = () => {
+  const generateReportHandler = (overrides?: {
+    commission?: number;
+    createdBy?: string;
+    servedBy?: string;
+    locationId?: string;
+    shop_id?: string;
+  }) => {
+    const effectiveParams = { ...params, ...overrides };
     let formattedPayload: {
       startDate: string;
       endDate: string;
@@ -82,7 +89,7 @@ export const useReport = (reportType: string) => {
     } = {
       startDate: "",
       endDate: "",
-      ...params,
+      ...effectiveParams,
     };
 
     if (
@@ -104,6 +111,7 @@ export const useReport = (reportType: string) => {
       formattedPayload = {
         startDate: purchaseDateTimeRange[0],
         endDate: purchaseDateTimeRange[1],
+        ...effectiveParams,
       };
       dispatch(generatePurchaseReport(formattedPayload));
       setOpenPurchaseModal(true);
@@ -148,7 +156,7 @@ export const useReport = (reportType: string) => {
       formattedPayload = {
         startDate: vatDateTimeRange[0],
         endDate: vatDateTimeRange[1],
-        ...params,
+        ...effectiveParams,
       };
       dispatch(generateVATReport(formattedPayload));
       setOpenVATModal(true);

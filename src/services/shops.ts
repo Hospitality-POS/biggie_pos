@@ -32,6 +32,7 @@ export interface ShopPrintSettings {
   reprint_requires_reason?: boolean;
   save_on_print?: boolean;
   captain_order_enabled?: boolean;
+  print_by_agent_enabled?: boolean;
 }
 
 export const locationFromGooglePlace = (place: google.maps.places.PlaceResult): ShopLocation => {

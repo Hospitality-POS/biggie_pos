@@ -52,6 +52,7 @@ import {
   getAgentForCategory, printFromCart,
 } from "@services/printAgent";
 import { fetchMainCategories } from "@services/categories";
+import { fetchShop } from "@services/shops";
 
 import {
   C,
@@ -181,10 +182,23 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
     loadCategories();
   }, [loadCategories]);
 
-  // Load global print_by_agent setting from localStorage
+  // Print method is a shop-wide setting stored on the server — the server
+  // value wins so a toggle on any device applies everywhere. localStorage
+  // is only a fallback while loading.
   useEffect(() => {
     const savedPrintByAgent = localStorage.getItem("print_by_agent_enabled");
     setUseIPPrinterMode(savedPrintByAgent === "true");
+
+    const shopIdValue = localStorage.getItem("shopId") ?? "";
+    if (shopIdValue) {
+      fetchShop(shopIdValue)
+        .then((shop: any) => {
+          const enabled = shop?.print_settings?.print_by_agent_enabled === true;
+          setUseIPPrinterMode(enabled);
+          localStorage.setItem("print_by_agent_enabled", String(enabled));
+        })
+        .catch(() => { /* keep localStorage fallback */ });
+    }
   }, []);
 
   const pendingPrintRef = useRef(false);

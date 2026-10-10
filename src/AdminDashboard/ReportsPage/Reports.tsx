@@ -282,14 +282,14 @@ const AdminReports: React.FC = () => {
   };
 
   const onFinish = async (values: any) => {
-    const { dateRange, servedBy, commission, locationId, shop_id } = values;
+    const { dateRange, servedBy, createdBy, commission, locationId, shop_id } = values;
     const [startDate, endDate] = dateRange || [];
 
     setSalesDateTimeRange([
       dateRange?.[0]?.format("YYYY-MM-DD HH:mm") || "",
       dateRange?.[1]?.format("YYYY-MM-DD HH:mm") || "",
     ]);
-    setParams({ shop_id });
+    setParams({ shop_id, servedBy, createdBy, locationId, commission });
 
     if (startDate) {
       setQueryKey({
@@ -466,7 +466,14 @@ const AdminReports: React.FC = () => {
 
       case "purchase":
         return (
-          <Form form={form} layout="vertical" onFinish={onFinish}>
+          <Form form={form} layout="vertical" onFinish={async (values) => {
+            await onFinish(values);
+            generateReportHandler({
+              shop_id: values.shop_id || localStorage.getItem("shopId") || undefined,
+              createdBy: values.createdBy,
+              locationId: values.locationId,
+            });
+          }}>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "0 16px" }}>
               <div style={{ flex: "1 1 300px", minWidth: 0 }}>
                 <DateRangeField rangePresets={rangePresets}
@@ -475,11 +482,33 @@ const AdminReports: React.FC = () => {
                     dates?.[1]?.format("YYYY-MM-DD HH:mm") || "",
                   ])} />
               </div>
+              {isAdminRoute && (
+                <div style={{ flex: "1 1 200px", minWidth: 0 }}>
+                  <ShopField />
+                </div>
+              )}
               <div style={{ flex: "1 1 200px", minWidth: 0 }}>
-                <ShopField />
+                <Form.Item
+                  name="createdBy"
+                  label={<span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.subText }}><UserOutlined /> Created By</span>}
+                  style={{ marginBottom: 14 }}
+                >
+                  <Select showSearch allowClear placeholder="All staff" options={userOptions} style={{ width: "100%", borderRadius: 8 }}
+                    filterOption={(i, o) => String(o?.label ?? "").toLowerCase().includes(i.toLowerCase())} />
+                </Form.Item>
+              </div>
+              <div style={{ flex: "1 1 200px", minWidth: 0 }}>
+                <Form.Item
+                  name="locationId"
+                  label={<span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.subText }}><EnvironmentOutlined /> Served By</span>}
+                  style={{ marginBottom: 14 }}
+                >
+                  <Select showSearch allowClear placeholder="All locations" options={locationOptions} style={{ width: "100%", borderRadius: 8 }}
+                    filterOption={(i, o) => String(o?.label ?? "").toLowerCase().includes(i.toLowerCase())} />
+                </Form.Item>
               </div>
             </div>
-            <GenerateButton label="Generate Sales Report" icon={<PrinterOutlined />} disabled={isGenerateButtonDisabled} onClick={generateReportHandler} />
+            <GenerateButton label="Generate Sales Report" icon={<PrinterOutlined />} disabled={isGenerateButtonDisabled} />
             <PurchaseReportModal openM={openPurchaseModal} onCloseM={onClosePurchaseModal} startDate={purchaseDateTimeRange[0]} endDate={purchaseDateTimeRange[1]} />
           </Form>
         );
@@ -499,7 +528,7 @@ const AdminReports: React.FC = () => {
                 <ShopField />
               </div>
             </div>
-            <GenerateButton label="Generate Voided Report" icon={<PrinterOutlined />} disabled={isGenerateButtonDisabled} onClick={generateReportHandler} />
+            <GenerateButton label="Generate Voided Report" icon={<PrinterOutlined />} disabled={isGenerateButtonDisabled} onClick={() => generateReportHandler()} />
             <VoidReportModal openM={openVoidedModal} onCloseM={onCloseVoidedModal} startDate={voidedDateTimeRange[0]} endDate={voidedDateTimeRange[1]} />
           </Form>
         );
@@ -519,7 +548,7 @@ const AdminReports: React.FC = () => {
                 <ShopField />
               </div>
             </div>
-            <GenerateButton label="Generate Delivery Report" icon={<CarOutlined />} disabled={isGenerateButtonDisabled} onClick={generateReportHandler} />
+            <GenerateButton label="Generate Delivery Report" icon={<CarOutlined />} disabled={isGenerateButtonDisabled} onClick={() => generateReportHandler()} />
             <DeliveryReportModal openM={openDeliveryModal} onCloseM={onCloseDeliveryModal} startDate={deliveryDateTimeRange[0]} endDate={deliveryDateTimeRange[1]} />
           </Form>
         );
@@ -542,7 +571,7 @@ const AdminReports: React.FC = () => {
                 <ShopField />
               </div>
             </div>
-            <GenerateButton label="Generate Inventory Usage Report" icon={<BarChartOutlined />} disabled={isGenerateButtonDisabled} onClick={generateReportHandler} />
+            <GenerateButton label="Generate Inventory Usage Report" icon={<BarChartOutlined />} disabled={isGenerateButtonDisabled} onClick={() => generateReportHandler()} />
             <InventoryUsageReportModal openM={openInventoryUsageModal} onCloseM={onCloseInventoryUsageModal} startDate={inventoryUsageDateTimeRange[0]} endDate={inventoryUsageDateTimeRange[1]} />
           </Form>
         );
@@ -562,7 +591,7 @@ const AdminReports: React.FC = () => {
                 <ShopField />
               </div>
             </div>
-            <GenerateButton label="Generate VAT Report" icon={<DollarOutlined />} disabled={isGenerateButtonDisabled} onClick={generateReportHandler} />
+            <GenerateButton label="Generate VAT Report" icon={<DollarOutlined />} disabled={isGenerateButtonDisabled} onClick={() => generateReportHandler()} />
             <VATReportModal openM={openVATModal} onCloseM={onCloseVATModal} startDate={vatDateTimeRange[0]} endDate={vatDateTimeRange[1]} />
           </Form>
         );

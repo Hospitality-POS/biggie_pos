@@ -198,7 +198,8 @@ axiosInstance.interceptors.request.use(
                 if (config.method === 'get' || config.method === 'delete') {
                     config.params = {
                         ...config.params,
-                        shop_id: shopId,
+                        // Respect an explicit shop_id from the caller (e.g. dashboard branch filter)
+                        ...(config.params?.shop_id == null ? { shop_id: shopId } : {}),
                         role: userObject?.role,
                     };
                 } else if (

@@ -19,6 +19,8 @@ import { useReactToPrint } from "react-to-print";
 import dayjs from "dayjs";
 import { useAppSelector } from "../../store";
 import useSystemDetails from "@hooks/useSystemDetails";
+import { useThermalAgentPrint } from "@hooks/useThermalAgentPrint";
+import ThermalPrintControls from "./ThermalPrintControls";
 import { COOP_NAME } from "@utils/config";
 import { sendPurchaseReportEmail, refToHtmlString } from "@services/emailReports";
 
@@ -454,9 +456,9 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({ openM, onCloseM, s
     tableData, totalCost, totalDiscount, totalInclusiveDiscount,
   };
 
-  const printThermal = useReactToPrint({ content: () => thermalRef.current });
   const printA4 = useReactToPrint({ content: () => a4Ref.current });
-  const handlePrint = () => printMode === "thermal" ? printThermal() : printA4();
+  const thermal = useThermalAgentPrint(thermalRef);
+  const handlePrint = () => printMode === "thermal" ? void thermal.print() : printA4();
 
   const handleSendEmail = async (values: SendEmailValues) => {
     setSending(true);
@@ -513,25 +515,40 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({ openM, onCloseM, s
           </div>
         }
         footer={
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Button
-              icon={<MailOutlined />}
-              disabled={loading || !hasData}
-              onClick={() => setEmailModalOpen(true)}
-              style={{ borderColor: C.primary, color: C.primary }}
-            >
-              Send via Email
-            </Button>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+            <Space wrap>
+              <Button
+                icon={<MailOutlined />}
+                disabled={loading || !hasData}
+                onClick={() => setEmailModalOpen(true)}
+                style={{ borderColor: C.primary, color: C.primary }}
+              >
+                Send via Email
+              </Button>
+              {printMode === "thermal" && (
+                <ThermalPrintControls
+                  target={thermal.target}
+                  onTargetChange={thermal.setTarget}
+                  zones={thermal.zoneOptions}
+                  zoneKey={thermal.zoneKey}
+                  onZoneChange={thermal.setZoneKey}
+                  loading={thermal.agentsLoading}
+                />
+              )}
+            </Space>
             <Space>
               <Button onClick={onCloseM} style={{ borderRadius: 8 }}>Cancel</Button>
               <Button
                 type="primary"
                 icon={<PrinterFilled />}
                 disabled={loading || !hasData}
+                loading={thermal.printing}
                 onClick={handlePrint}
                 style={{ background: C.primary, borderColor: C.primary, borderRadius: 8, fontWeight: 600 }}
               >
-                {printMode === "thermal" ? "Print Thermal" : "Print A4"}
+                {printMode === "thermal"
+                  ? thermal.target === "agent" ? "Send to Printer" : "Print Thermal"
+                  : "Print A4"}
               </Button>
             </Space>
           </div>
