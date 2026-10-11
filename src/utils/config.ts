@@ -1,6 +1,9 @@
-export const BASE_URL: string = import.meta.env.VITE_BASE_URL
-export const ACCOUNTING_BASE_URL: string = import.meta.env.VITE_ACCOUNTING_BASE_URL
-export const TENANT_BASE_URL: string = import.meta.env.VITE_TENANT_BASE_URL
+const withProtocol = (url: string): string =>
+    url && !/^https?:\/\//i.test(url) ? `http://${url}` : url;
+
+export const BASE_URL: string = withProtocol(import.meta.env.VITE_BASE_URL)
+export const ACCOUNTING_BASE_URL: string = withProtocol(import.meta.env.VITE_ACCOUNTING_BASE_URL)
+export const TENANT_BASE_URL: string = withProtocol(import.meta.env.VITE_TENANT_BASE_URL)
 export const POS_API_KEY: string = import.meta.env.VITE_POS_API_KEY
 export const QR_Code: string = import.meta.env.VITE_QRCODE;
 export const BRAND_NAME: string = import.meta.env.VITE_BRAND_NAME;

@@ -54,6 +54,7 @@ const TableStatsPanel: React.FC<TableStatsProps> = ({ isMobile, primaryColor }) 
   const { user } = useAppSelector((state) => state.auth);
   const queryClient = useQueryClient();
   const [servedByFilter, setServedByFilter] = useState<string | undefined>(undefined);
+  const [locationFilter, setLocationFilter] = useState<string | undefined>(undefined);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [withBalanceOnly, setWithBalanceOnly] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
@@ -99,6 +100,16 @@ const TableStatsPanel: React.FC<TableStatsProps> = ({ isMobile, primaryColor }) 
     return out;
   }, [data]);
 
+  const locationOptions = useMemo(() => {
+    const names = new Set<string>();
+    rows.forEach((r) => {
+      if (r?.locationName && String(r.locationName).trim() !== "") {
+        names.add(String(r.locationName));
+      }
+    });
+    return [...names].sort().map((n) => ({ value: n, label: n }));
+  }, [rows]);
+
   const servedByOptions = useMemo(() => {
     const names = new Set<string>();
     rows.forEach((r) => {
@@ -126,10 +137,11 @@ const TableStatsPanel: React.FC<TableStatsProps> = ({ isMobile, primaryColor }) 
           String(r.served_by) !== servedByFilter
         )
           return false;
+        if (locationFilter && r.locationName !== locationFilter) return false;
         if (withBalanceOnly && !(Number(r.cart_amount) > 0)) return false;
         return true;
       }),
-    [rows, statusFilter, servedByFilter, withBalanceOnly]
+    [rows, statusFilter, servedByFilter, locationFilter, withBalanceOnly]
   );
 
   const totals = useMemo(() => {
@@ -399,6 +411,16 @@ const TableStatsPanel: React.FC<TableStatsProps> = ({ isMobile, primaryColor }) 
         size={isMobile ? 8 : 12}
         style={{ marginBottom: 12, width: "100%", justifyContent: "space-between", display: "flex" }}
       >
+        <Select
+          allowClear
+          showSearch
+          placeholder="Location"
+          value={locationFilter}
+          onChange={(v) => setLocationFilter(v)}
+          options={locationOptions}
+          style={{ minWidth: isMobile ? 130 : 180 }}
+          optionFilterProp="label"
+        />
         <Select
           allowClear
           showSearch
