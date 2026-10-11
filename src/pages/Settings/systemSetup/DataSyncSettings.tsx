@@ -237,7 +237,7 @@ const DataSyncSettings: React.FC = () => {
                     />
                   </Form.Item>
                 </Col>
-                <Col xs={24} sm={12}>
+                <Col xs={12} sm={8}>
                   <Form.Item
                     name="sync_time"
                     label="Daily Sync Time"
@@ -247,13 +247,23 @@ const DataSyncSettings: React.FC = () => {
                     <TimePicker format="HH:mm" style={{ width: "100%" }} minuteStep={5} />
                   </Form.Item>
                 </Col>
-                <Col xs={24} sm={12}>
+                <Col xs={12} sm={8}>
                   <Form.Item name="timezone" label="Timezone" style={{ marginBottom: 12 }}>
                     <Select
                       showSearch
                       optionFilterProp="label"
                       options={TIMEZONES.map((tz) => ({ value: tz, label: tz }))}
                     />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} sm={8}>
+                  <Form.Item
+                    name="enabled"
+                    label="Enable Scheduled Sync"
+                    valuePropName="checked"
+                    style={{ marginBottom: 12 }}
+                  >
+                    <Switch />
                   </Form.Item>
                 </Col>
                 <Col xs={24}>
@@ -271,17 +281,7 @@ const DataSyncSettings: React.FC = () => {
                     />
                   </Form.Item>
                 </Col>
-                <Col xs={24} sm={12}>
-                  <Form.Item
-                    name="enabled"
-                    label="Enable Scheduled Sync"
-                    valuePropName="checked"
-                    style={{ marginBottom: 12 }}
-                  >
-                    <Switch />
-                  </Form.Item>
-                </Col>
-                <Col xs={24} sm={12}>
+                <Col xs={24} sm={8}>
                   <Form.Item
                     name="remove_missing"
                     label="Delete Removed Records"
