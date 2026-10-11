@@ -249,9 +249,11 @@ const PayrollManagement: React.FC = () => {
     // statutory fields keep their hardcoded defaults — see autoFillStatutoryRates)
     const helbCfg = deductionConfigs.find((c: any) => c.deduction_type === "HELB");
     const whtCfg = deductionConfigs.find((c: any) => c.deduction_type === "WITHHOLDING_TAX");
+    const payeCfg = deductionConfigs.find((c: any) => c.deduction_type === "PAYE");
     deductionForm.setFieldsValue({
       helb_enabled: helbCfg ? helbCfg.is_active !== false : true,
       helb_amount: helbCfg?.fixed_amount ?? 0,
+      paye_secondary_rate: (payeCfg?.secondary_rate ?? 0.35) * 100,
       ...(whtCfg && {
         withholding_tax_enabled: whtCfg.is_active !== false,
         withholding_tax_rate: (whtCfg.rate ?? 0.05) * 100,
@@ -402,6 +404,11 @@ const PayrollManagement: React.FC = () => {
         <Text strong style={{ fontSize: 10.5, color: "#94a3b8", letterSpacing: 0.6, textTransform: "uppercase", display: "block", marginBottom: 4 }}>
           Results{periodLabel ? ` · Payslip for ${periodLabel}` : ""}
         </Text>
+        {line.employee_id?.employee_type === "secondary" && (
+          <Tag color="orange" style={{ fontSize: 10, marginBottom: 4 }}>
+            Secondary Employee — PAYE at flat rate, no reliefs
+          </Tag>
+        )}
         <Row label="Basic Pay" value={line.gross_salary} />
         <Row label="NSSF" value={-(d.nssf || 0)} color="#64748b" />
         <Row label="S.H.I.F." value={-(d.nhif || 0)} color="#64748b" />
@@ -819,6 +826,7 @@ const PayrollManagement: React.FC = () => {
       paye_bracket4_rate: 32.5,
       paye_bracket5_rate: 35,
       paye_pwd_exemption_limit: 150000,
+      paye_secondary_rate: 35,
       // SHA — 2.75% of gross, no cap (replaced NHIF)
       sha_enabled: true,
       sha_employee_rate: 2.75,
@@ -3117,13 +3125,31 @@ const PayrollManagement: React.FC = () => {
                         />
                       </Form.Item>
                     </Col>
+                    <Col span={12}>
+                      <Form.Item
+                        name="paye_secondary_rate"
+                        label="Secondary Employment Rate (%)"
+                        initialValue={35}
+                        tooltip="Flat PAYE rate applied to taxable pay for employees marked as Secondary — KRA taxes secondary employment at the highest bracket with no personal or insurance relief."
+                        rules={[{ required: true, message: "Required" }]}
+                      >
+                        <InputNumber
+                          min={0}
+                          max={100}
+                          style={{ width: "100%" }}
+                          addonAfter="%"
+                        />
+                      </Form.Item>
+                    </Col>
                   </Row>
                   <Text type="secondary" style={{ fontSize: 12 }}>
                     Monthly KRA bands: 10% up to 24,000 · 25% on the next 8,333 · 30% on the next 467,667 ·
                     32.5% on the next 300,000 · 35% above 800,000. Personal relief is deducted from the
                     computed tax; taxable pay below the minimum taxable income is untaxed. Employees marked
                     as PWD (with a valid certificate) are exempt from PAYE on the first "PWD Exemption Limit"
-                    of taxable pay — tax is computed only on the amount above it.
+                    of taxable pay — tax is computed only on the amount above it. Secondary employees skip
+                    the bands entirely — their taxable pay is taxed at the flat Secondary Employment Rate
+                    with no personal or insurance relief.
                   </Text>
                 </Form>
               </Tabs.TabPane>
