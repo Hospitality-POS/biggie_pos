@@ -33,6 +33,34 @@ import {
   POSSkeletonVerticalTabs,
 } from "@components/pos/POSSkeletons";
 
+// Pseudo-category shown first in all-items mode — selecting it clears the
+// category filter so every sellable item is listed.
+const ALL_MAIN_ID = "__all__";
+
+// Ids nested inside a main category / subcategory record — the node's own id
+// plus its leaf category ids, so items tagged at either level match.
+const scopeIdsOf = (nodes: any[]): Set<string> => {
+  const ids = new Set<string>();
+  (nodes || []).forEach((n: any) => {
+    if (n?._id) ids.add(String(n._id));
+    (n?.categories || []).forEach((c: any) => {
+      const id = c?._id ?? c;
+      if (id) ids.add(String(id));
+    });
+  });
+  return ids;
+};
+
+// Sellable items carry their grouping refs either as raw ids or populated
+// objects (services → category, inventory → category_id / subcategory_id).
+const itemScopeIds = (i: any): string[] =>
+  [i?.category_id, i?.category, i?.subcategory_id, i?.sub_category]
+    .map((c: any) => {
+      const id = c?._id ?? c;
+      return id != null ? String(id) : null;
+    })
+    .filter((id): id is string => id !== null);
+
 const RestaurantPage: React.FC = () => {
   const [windowWidth, setWindowWidth] = useState(
     typeof window !== "undefined" ? window.innerWidth : 1024
@@ -80,6 +108,9 @@ const RestaurantPage: React.FC = () => {
   const [posMode, setPosMode] = useState<"browse" | "scan">("browse");
   const [selectedCard, setSelectedCard] = useState<any>(null);
   const [showCategories, setShowCategories] = useState(true);
+  // In all-items mode this narrows the flat list to a main category's or
+  // subcategory's leaf categories; null means show every item.
+  const [itemCategoryFilter, setItemCategoryFilter] = useState<Set<string> | null>(null);
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
   const [categoryChosen, setCategoryChosen] = useState(false);
   const [selectedMainCategoryId, setSelectedMainCategoryId] = useState<string>("");
@@ -108,12 +139,18 @@ const RestaurantPage: React.FC = () => {
 
   const searching = searchTerm.trim().length > 0;
 
-  // Universal search — every sellable item across all categories, fetched
-  // lazily the first time the user types so browsing stays cheap
+  // Shop flag: when on, the order screen always lists sellable items — the
+  // main-category tabs and subcategory sidebar filter the list instead of
+  // opening the category grid.
+  const showAllItemsEnabled = Boolean((shopData as any)?.pos_show_all_items);
+  const showAllItems = showAllItemsEnabled;
+
+  // Universal search — every sellable item across all categories. Also powers
+  // the flat "all items" browse mode, so it stays enabled in that mode too.
   const { data: allSellableItems, isLoading: allItemsLoading } = useQuery({
     queryKey: ["pos-all-sellable-items"],
     queryFn: fetchAllSellableItems,
-    enabled: searching,
+    enabled: searching || showAllItemsEnabled,
     staleTime: 5 * 60_000,
   });
 
@@ -139,6 +176,16 @@ const RestaurantPage: React.FC = () => {
   const posMainCategories = useMemo(
     () => (Maincategories || []).filter((c: any) => c?.list_on_pos !== false),
     [Maincategories]
+  );
+
+  // All-items mode prepends an "All" tab so staff can return to the
+  // unfiltered list after scoping to a main category.
+  const headerCategories = useMemo(
+    () =>
+      showAllItemsEnabled
+        ? [{ _id: ALL_MAIN_ID, name: "All" }, ...posMainCategories]
+        : posMainCategories,
+    [showAllItemsEnabled, posMainCategories]
   );
 
   // Filter enabled products and services by search
@@ -169,20 +216,65 @@ const RestaurantPage: React.FC = () => {
     );
   }, [searchTerm, products, services]);
 
-  useEffect(() => {
-    if (services && products) {
-      if (services.length === 0 && products.length > 0) setActiveItemType("products");
-      else if (services.length > 0) setActiveItemType("services");
-    }
-  }, [services, products]);
+  // In all-items mode the services/products lists come from the flat sellable
+  // items feed rather than the selected category's redux slice — narrowed by
+  // the active main-category/subcategory filter when one is selected.
+  const allModeItems = useMemo(() => {
+    const inFilter = (i: any) => {
+      if (!itemCategoryFilter) return true;
+      return itemScopeIds(i).some((id) => itemCategoryFilter.has(id));
+    };
+    const items = (allSellableItems ?? []).filter(
+      (i: any) => !i?.is_disabled && inFilter(i)
+    );
+    return {
+      services: items.filter((i: any) => i?.type === "service"),
+      products: items.filter((i: any) => i?.type === "product"),
+    };
+  }, [allSellableItems, itemCategoryFilter]);
 
   useEffect(() => {
+    const svc = showAllItems ? allModeItems.services : services;
+    const prd = showAllItems ? allModeItems.products : products;
+    if (svc && prd) {
+      if (svc.length === 0 && prd.length > 0) setActiveItemType("products");
+      else if (svc.length > 0) setActiveItemType("services");
+    }
+  }, [services, products, showAllItems, allModeItems]);
+
+  useEffect(() => {
+    if (showAllItemsEnabled) {
+      // Land on the "All" tab — every sellable item, no category filter
+      setSelectedMainCategoryId(ALL_MAIN_ID);
+      setSubcategories([]);
+      setCategories([]);
+      setItemCategoryFilter(null);
+      return;
+    }
     if (posMainCategories.length > 0) {
       handleChangeMainCategory(posMainCategories[0]._id);
     }
-  }, [posMainCategories]);
+  }, [posMainCategories, showAllItemsEnabled]);
 
   const handleChangeMainCategory = (idValue: string) => {
+    if (showAllItemsEnabled) {
+      // Filter the flat item list instead of opening the category grid
+      if (idValue === ALL_MAIN_ID) {
+        setSelectedMainCategoryId(ALL_MAIN_ID);
+        setSubcategories([]);
+        setCategories([]);
+        setItemCategoryFilter(null);
+      } else {
+        const main = posMainCategories.find((c: any) => c._id === idValue);
+        if (!main) return;
+        setSelectedMainCategoryId(idValue);
+        setSubcategories([{ _id: ALL_MAIN_ID, name: "All" }, ...(main.sub_categories || [])]);
+        setCategories(main.sub_categories?.[0]?.categories || []);
+        setItemCategoryFilter(scopeIdsOf(main.sub_categories || []));
+      }
+      setSearchTerm("");
+      return;
+    }
     if (!posMainCategories.length) return;
     const main = posMainCategories.find((c: any) => c._id === idValue);
     if (main) {
@@ -196,6 +288,17 @@ const RestaurantPage: React.FC = () => {
   };
 
   const handleChangeSubCategory = (subcategoryid: string) => {
+    if (showAllItemsEnabled) {
+      const main = posMainCategories.find((c) => c._id === selectedMainCategoryId);
+      if (subcategoryid === ALL_MAIN_ID) {
+        setItemCategoryFilter(main ? scopeIdsOf(main.sub_categories || []) : null);
+      } else {
+        const sub = (main?.sub_categories || []).find((s) => s._id === subcategoryid);
+        setItemCategoryFilter(sub ? scopeIdsOf([sub]) : null);
+      }
+      setSearchTerm("");
+      return;
+    }
     const sub = subcategories.find((s) => s._id === subcategoryid);
     if (sub) setCategories(sub.categories || []);
     setSearchTerm("");
@@ -209,6 +312,13 @@ const RestaurantPage: React.FC = () => {
   };
 
   const handleBack = () => {
+    // In all-items mode back means "clear the category filter"
+    if (showAllItemsEnabled) {
+      setSelectedMainCategoryId(ALL_MAIN_ID);
+      setSubcategories([]);
+      setCategories([]);
+      setItemCategoryFilter(null);
+    }
     setShowCategories(true);
     setSearchTerm("");
     setActiveItemType("services");
@@ -231,9 +341,13 @@ const RestaurantPage: React.FC = () => {
   const displayItems = searching
     ? searchResults
     : activeItemType === "products"
-    ? filteredProducts
+    ? showAllItems
+      ? allModeItems.products
+      : filteredProducts
     : activeItemType === "services"
-    ? filteredServices
+    ? showAllItems
+      ? allModeItems.services
+      : filteredServices
     : availablePackages;
 
   const sortedItems =
@@ -334,7 +448,7 @@ const RestaurantPage: React.FC = () => {
           posMode={posMode}
           onModeChange={setPosMode}
           categoriesLoading={mainCategoriesLoading}
-          categories={posMainCategories}
+          categories={headerCategories}
           selectedCategoryId={selectedMainCategoryId}
           onSelectCategory={handleChangeMainCategory}
           slotIndicator={
@@ -355,7 +469,7 @@ const RestaurantPage: React.FC = () => {
                     <POSSkeletonCategoryCards isMobile={isMobile} isTablet={isTablet} />
                   </div>
                 </div>
-              ) : subcategories.length ? (
+              ) : subcategories.length || showAllItems ? (
                 <div
                   style={{
                     display: "flex",
@@ -458,7 +572,7 @@ const RestaurantPage: React.FC = () => {
                           style={{ width: "100%", borderRadius: 8 }}
                         />
                       )
-                    ) : showCategories ? (
+                    ) : showCategories && !showAllItems ? (
                       isLoading ? (
                         <POSSkeletonCategoryCards isMobile={isMobile} isTablet={isTablet} />
                       ) : categories.length ? (
@@ -509,14 +623,18 @@ const RestaurantPage: React.FC = () => {
                         <POSItemTypeFilters
                           activeType={activeItemType}
                           onChange={setActiveItemType}
-                          servicesCount={filteredServices.length}
-                          productsCount={filteredProducts.length}
+                          servicesCount={
+                            showAllItems ? allModeItems.services.length : filteredServices.length
+                          }
+                          productsCount={
+                            showAllItems ? allModeItems.products.length : filteredProducts.length
+                          }
                           packagesCount={availablePackages.length}
                           primaryColor={primaryColor}
                         />
 
                         {/* Products / Services loading or grid */}
-                        {productsLoading || packagesLoading ? (
+                        {(showAllItems ? allItemsLoading : productsLoading || packagesLoading) ? (
                           <div
                             style={{
                               display: "flex",
@@ -591,10 +709,14 @@ const RestaurantPage: React.FC = () => {
                                   />
                                 ))}
                           </div>
-                        ) : categoryChosen ? (
+                        ) : categoryChosen || showAllItems ? (
                           <Alert
                             message="Empty"
-                            description="No items found in this category."
+                            description={
+                              showAllItems && !categoryChosen
+                                ? "No sellable items found."
+                                : "No items found in this category."
+                            }
                             type="info"
                             showIcon
                             style={{ width: "100%", borderRadius: 8 }}

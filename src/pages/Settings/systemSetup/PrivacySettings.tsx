@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Switch, Space, Typography, Alert, Spin, Input, Button } from "antd";
 import { ProCard } from "@ant-design/pro-components";
-import { LockOutlined, UnlockOutlined, DollarOutlined, PrinterOutlined, InboxOutlined, SafetyCertificateOutlined, EyeInvisibleOutlined } from "@ant-design/icons";
+import { LockOutlined, UnlockOutlined, DollarOutlined, PrinterOutlined, InboxOutlined, SafetyCertificateOutlined, EyeInvisibleOutlined, AppstoreOutlined } from "@ant-design/icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { fetchSystemSetupDetailsById, updateSystemSetup } from "../../../services/systemsetup";
 import { fetchShop, updateShop } from "../../../services/shops";
@@ -19,6 +19,7 @@ const PrivacySettings: React.FC = () => {
   const [requirePaymentBeforePrint, setRequirePaymentBeforePrint] = useState(false);
   const [cartDeductionEnabled, setCartDeductionEnabled] = useState(false);
   const [hideServedByOthers, setHideServedByOthers] = useState(false);
+  const [showAllItemsOnPos, setShowAllItemsOnPos] = useState(false);
   const [warrantyEnabled, setWarrantyEnabled] = useState(false);
   const [warrantyDuration, setWarrantyDuration] = useState("6 MONTHS");
   const [warrantyLine1, setWarrantyLine1] = useState("This receipt is your warranty certificate");
@@ -29,6 +30,7 @@ const PrivacySettings: React.FC = () => {
   const [updatingPaymentBeforePrint, setUpdatingPaymentBeforePrint] = useState(false);
   const [updatingCartDeduction, setUpdatingCartDeduction] = useState(false);
   const [updatingHideTables, setUpdatingHideTables] = useState(false);
+  const [updatingShowAllItems, setUpdatingShowAllItems] = useState(false);
   const [updatingWarranty, setUpdatingWarranty] = useState(false);
   const [systemSettingsId, setSystemSettingsId] = useState<string | null>(null);
   const [shopId, setShopId] = useState<string | null>(null);
@@ -49,6 +51,7 @@ const PrivacySettings: React.FC = () => {
         setRequirePaymentBeforePrint(shopData?.require_payment_before_print || false);
         setCartDeductionEnabled(shopData?.cart_inventory_deduction_enabled || false);
         setHideServedByOthers(shopData?.hide_tables_served_by_others || false);
+        setShowAllItemsOnPos(shopData?.pos_show_all_items || false);
         const ws = shopData?.warranty_settings;
         setWarrantyEnabled(ws?.enabled || false);
         if (ws?.duration) setWarrantyDuration(ws.duration);
@@ -214,6 +217,33 @@ const PrivacySettings: React.FC = () => {
       message.error("Failed to save warranty details");
     } finally {
       setUpdatingWarranty(false);
+    }
+  };
+
+  const handleToggleShowAllItems = async (checked: boolean) => {
+    if (!shopId) {
+      message.error("Shop not found");
+      return;
+    }
+
+    setUpdatingShowAllItems(true);
+    try {
+      await updateShop({
+        _id: shopId,
+        pos_show_all_items: checked,
+      });
+      setShowAllItemsOnPos(checked);
+      queryClient.invalidateQueries({ queryKey: ["shop", shopId] });
+      message.success(
+        checked
+          ? "Order screen now shows all items"
+          : "Order screen now shows categories"
+      );
+    } catch (error) {
+      console.error("Failed to update POS item display setting:", error);
+      message.error("Failed to update POS item display setting");
+    } finally {
+      setUpdatingShowAllItems(false);
     }
   };
 
@@ -560,6 +590,46 @@ const PrivacySettings: React.FC = () => {
               checked={cartDeductionEnabled}
               onChange={handleToggleCartDeduction}
               loading={updatingCartDeduction}
+              style={{ minWidth: 48, marginLeft: 16 }}
+              checkedChildren="ON"
+              unCheckedChildren="OFF"
+            />
+          </div>
+        </div>
+
+        {/* Show All Items on POS Toggle */}
+        <div
+          style={{
+            background: "#fff",
+            border: "1px solid #e2e8f0",
+            borderRadius: 8,
+            padding: "16px 18px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <div style={{ flex: 1 }}>
+              <Text strong style={{ fontSize: 15, display: "block", marginBottom: 6 }}>
+                <Space>
+                  <AppstoreOutlined />
+                  {showAllItemsOnPos
+                    ? "Order Screen Shows All Items"
+                    : "Order Screen Shows Categories"}
+                </Space>
+              </Text>
+              <Text style={{ fontSize: 13, color: C.subText, display: "block" }}>
+                When enabled, the POS order screen (/dashboard) lists every sellable item in a single grid instead of category cards. Staff can still tap a main category or subcategory to browse by category.
+              </Text>
+            </div>
+            <Switch
+              checked={showAllItemsOnPos}
+              onChange={handleToggleShowAllItems}
+              loading={updatingShowAllItems}
               style={{ minWidth: 48, marginLeft: 16 }}
               checkedChildren="ON"
               unCheckedChildren="OFF"

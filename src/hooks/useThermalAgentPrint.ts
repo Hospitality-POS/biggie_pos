@@ -13,6 +13,7 @@ export interface AgentZoneOption {
   zone: string;
   agentId: string;
   deviceName: string;
+  connected: boolean;
 }
 
 const LINE_WIDTH = 42;
@@ -124,10 +125,10 @@ export const useThermalAgentPrint = (
     retry: 1,
   });
 
-  const agents = useMemo(
-    () => (agentData?.agents ?? []).filter((a) => a.connected),
-    [agentData],
-  );
+  // Show every paired agent like Printer Settings does — not only those with
+  // a live socket right now. Jobs sent to an offline agent are stored as
+  // pending on the backend and print when the agent reconnects.
+  const agents = useMemo(() => agentData?.agents ?? [], [agentData]);
 
   // One option per zone served by a connected agent — an agent that listens
   // on several zones ("Bar", "Kitchen", a location name) yields one entry
@@ -142,6 +143,7 @@ export const useThermalAgentPrint = (
           zone: z,
           agentId: a.agent_id,
           deviceName: a.device_name || a.agent_id,
+          connected: a.connected === true,
         });
       }
     }
