@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Switch, Space, Typography, Alert, Spin, Input, Button } from "antd";
 import { ProCard } from "@ant-design/pro-components";
-import { LockOutlined, UnlockOutlined, DollarOutlined, PrinterOutlined, InboxOutlined, SafetyCertificateOutlined, EyeInvisibleOutlined } from "@ant-design/icons";
+import { LockOutlined, UnlockOutlined, DollarOutlined, PrinterOutlined, InboxOutlined, SafetyCertificateOutlined, EyeInvisibleOutlined, EnvironmentOutlined } from "@ant-design/icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { fetchSystemSetupDetailsById, updateSystemSetup } from "../../../services/systemsetup";
 import { fetchShop, updateShop } from "../../../services/shops";
@@ -12,6 +12,84 @@ const { Text } = Typography;
 
 const C = THEME_C;
 
+// Small uppercase heading used to group related toggles together.
+const SectionLabel: React.FC<{ text: string }> = ({ text }) => (
+  <Text
+    style={{
+      fontSize: 11,
+      fontWeight: 700,
+      letterSpacing: 0.6,
+      textTransform: "uppercase",
+      color: "#94a3b8",
+      display: "block",
+      marginBottom: 10,
+    }}
+  >
+    {text}
+  </Text>
+);
+
+// One on/off setting: a colored icon, a plain-language title + description,
+// and the switch itself. `children` can render extra fields that only show
+// up while the setting is turned on (e.g. the warranty text boxes).
+const ToggleRow: React.FC<{
+  icon: React.ReactNode;
+  color: string;
+  bg: string;
+  title: string;
+  description: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  loading?: boolean;
+  children?: React.ReactNode;
+}> = ({ icon, color, bg, title, description, checked, onChange, loading, children }) => (
+  <div
+    style={{
+      background: "#fff",
+      border: `1px solid ${checked ? `${color}33` : "#e2e8f0"}`,
+      borderRadius: 10,
+      padding: "14px 16px",
+      transition: "border-color 0.15s ease",
+    }}
+  >
+    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <div
+        style={{
+          width: 38,
+          height: 38,
+          borderRadius: 10,
+          background: bg,
+          color,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 17,
+          flexShrink: 0,
+        }}
+      >
+        {icon}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <Text strong style={{ fontSize: 14, display: "block", color: "#0f172a" }}>
+          {title}
+        </Text>
+        <Text style={{ fontSize: 12.5, color: C.subText, display: "block", marginTop: 2, lineHeight: 1.5 }}>
+          {description}
+        </Text>
+      </div>
+      <Switch
+        checked={checked}
+        onChange={onChange}
+        loading={loading}
+        style={{ flexShrink: 0 }}
+        checkedChildren="ON"
+        unCheckedChildren="OFF"
+      />
+    </div>
+    {children}
+  </div>
+);
+
 const PrivacySettings: React.FC = () => {
   const queryClient = useQueryClient();
   const [enablePrivacy, setEnablePrivacy] = useState(false);
@@ -19,6 +97,7 @@ const PrivacySettings: React.FC = () => {
   const [requirePaymentBeforePrint, setRequirePaymentBeforePrint] = useState(false);
   const [cartDeductionEnabled, setCartDeductionEnabled] = useState(false);
   const [hideServedByOthers, setHideServedByOthers] = useState(false);
+  const [zoneInventoryEnabled, setZoneInventoryEnabled] = useState(false);
   const [warrantyEnabled, setWarrantyEnabled] = useState(false);
   const [warrantyDuration, setWarrantyDuration] = useState("6 MONTHS");
   const [warrantyLine1, setWarrantyLine1] = useState("This receipt is your warranty certificate");
@@ -29,6 +108,7 @@ const PrivacySettings: React.FC = () => {
   const [updatingPaymentBeforePrint, setUpdatingPaymentBeforePrint] = useState(false);
   const [updatingCartDeduction, setUpdatingCartDeduction] = useState(false);
   const [updatingHideTables, setUpdatingHideTables] = useState(false);
+  const [updatingZoneInventory, setUpdatingZoneInventory] = useState(false);
   const [updatingWarranty, setUpdatingWarranty] = useState(false);
   const [systemSettingsId, setSystemSettingsId] = useState<string | null>(null);
   const [shopId, setShopId] = useState<string | null>(null);
@@ -49,6 +129,7 @@ const PrivacySettings: React.FC = () => {
         setRequirePaymentBeforePrint(shopData?.require_payment_before_print || false);
         setCartDeductionEnabled(shopData?.cart_inventory_deduction_enabled || false);
         setHideServedByOthers(shopData?.hide_tables_served_by_others || false);
+        setZoneInventoryEnabled(shopData?.zone_inventory_enabled || false);
         const ws = shopData?.warranty_settings;
         setWarrantyEnabled(ws?.enabled || false);
         if (ws?.duration) setWarrantyDuration(ws.duration);
@@ -244,6 +325,33 @@ const PrivacySettings: React.FC = () => {
     }
   };
 
+  const handleToggleZoneInventory = async (checked: boolean) => {
+    if (!shopId) {
+      message.error("Shop not found");
+      return;
+    }
+
+    setUpdatingZoneInventory(true);
+    try {
+      await updateShop({
+        _id: shopId,
+        zone_inventory_enabled: checked,
+      });
+      setZoneInventoryEnabled(checked);
+      queryClient.invalidateQueries({ queryKey: ["shop", shopId] });
+      message.success(
+        checked
+          ? "Zone-based inventory enabled"
+          : "Zone-based inventory disabled"
+      );
+    } catch (error) {
+      console.error("Failed to update zone inventory setting:", error);
+      message.error("Failed to update zone inventory setting");
+    } finally {
+      setUpdatingZoneInventory(false);
+    }
+  };
+
   if (loading) {
     return (
       <div style={{ display: "flex", justifyContent: "center", padding: 40 }}>
@@ -263,320 +371,164 @@ const PrivacySettings: React.FC = () => {
       }
       bodyStyle={{ padding: "14px 16px" }}
     >
-      <Space direction="vertical" size="large" style={{ width: "100%" }}>
-        {/* Privacy Toggle */}
-        <div
-          style={{
-            background: "#fff",
-            border: "1px solid #e2e8f0",
-            borderRadius: 8,
-            padding: "16px 18px",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <div style={{ flex: 1 }}>
-              <Text strong style={{ fontSize: 15, display: "block", marginBottom: 6 }}>
-                {enablePrivacy ? (
-                  <Space>
-                    <LockOutlined />
-                    Privacy Mode Enabled
-                  </Space>
-                ) : (
-                  <Space>
-                    <UnlockOutlined />
-                    Privacy Mode Disabled
-                  </Space>
-                )}
-              </Text>
-              <Text style={{ fontSize: 13, color: C.subText, display: "block" }}>
-                When enabled, users only see carts and tables they have opened or have items in.
-              </Text>
-            </div>
-            <Switch
+      <Space direction="vertical" size={24} style={{ width: "100%" }}>
+        {/* ── Order & Table Visibility ─────────────────────────────────── */}
+        <div>
+          <SectionLabel text="Order & Table Visibility" />
+          <Space direction="vertical" size={10} style={{ width: "100%" }}>
+            <ToggleRow
+              icon={enablePrivacy ? <LockOutlined /> : <UnlockOutlined />}
+              color="#8b5cf6"
+              bg="#f5f3ff"
+              title={enablePrivacy ? "Staff Only See Their Own Orders" : "Everyone Sees All Orders"}
+              description="Turn this on so each staff member only sees the carts and tables they personally started. Good for busy shops with many staff working at once."
               checked={enablePrivacy}
               onChange={handleTogglePrivacy}
               loading={updating}
-              style={{ minWidth: 48, marginLeft: 16 }}
-              checkedChildren="ON"
-              unCheckedChildren="OFF"
             />
-          </div>
-        </div>
 
-        {/* Hide Tables Served by Other Staff Toggle */}
-        <div
-          style={{
-            background: "#fff",
-            border: "1px solid #e2e8f0",
-            borderRadius: 8,
-            padding: "16px 18px",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <div style={{ flex: 1 }}>
-              <Text strong style={{ fontSize: 15, display: "block", marginBottom: 6 }}>
-                <Space>
-                  <EyeInvisibleOutlined />
-                  {hideServedByOthers
-                    ? "Tables Served by Other Staff Hidden"
-                    : "All Tables Visible to Staff"}
-                </Space>
-              </Text>
-              <Text style={{ fontSize: 13, color: C.subText, display: "block" }}>
-                When enabled, waiters only see tables they are serving — tables assigned to other staff are hidden from the tables view and the order screen. Admin and cashiers still see all tables.
-              </Text>
-            </div>
-            <Switch
+            <ToggleRow
+              icon={<EyeInvisibleOutlined />}
+              color="#f59e0b"
+              bg="#fffbeb"
+              title={hideServedByOthers ? "Waiters Only See Their Own Tables" : "Waiters See All Tables"}
+              description="Turn this on so a waiter only sees the tables they are serving. Admins and cashiers can still see every table."
               checked={hideServedByOthers}
               onChange={handleToggleHideTables}
               loading={updatingHideTables}
-              style={{ minWidth: 48, marginLeft: 16 }}
-              checkedChildren="ON"
-              unCheckedChildren="OFF"
             />
-          </div>
+          </Space>
         </div>
 
-        {/* Staff Earning Toggle */}
-        <div
-          style={{
-            background: "#fff",
-            border: "1px solid #e2e8f0",
-            borderRadius: 8,
-            padding: "16px 18px",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <div style={{ flex: 1 }}>
-              <Text strong style={{ fontSize: 15, display: "block", marginBottom: 6 }}>
-                {staffEarningEnabled ? (
-                  <Space>
-                    <DollarOutlined />
-                    Staff Earning Tracking Enabled
-                  </Space>
-                ) : (
-                  <Space>
-                    <DollarOutlined />
-                    Staff Earning Tracking Disabled
-                  </Space>
-                )}
-              </Text>
-              <Text style={{ fontSize: 13, color: C.subText, display: "block" }}>
-                When enabled, orders will calculate and store earnings per staff member. Configure earnings in the cart drawer.
-              </Text>
-            </div>
-            <Switch
-              checked={staffEarningEnabled}
-              onChange={handleToggleStaffEarning}
-              loading={updatingStaffEarning}
-              style={{ minWidth: 48, marginLeft: 16 }}
-              checkedChildren="ON"
-              unCheckedChildren="OFF"
-            />
-          </div>
-        </div>
-
-        {/* Require Payment Before Print Toggle */}
-        <div
-          style={{
-            background: "#fff",
-            border: "1px solid #e2e8f0",
-            borderRadius: 8,
-            padding: "16px 18px",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <div style={{ flex: 1 }}>
-              <Text strong style={{ fontSize: 15, display: "block", marginBottom: 6 }}>
-                <Space>
-                  <PrinterOutlined />
-                  {requirePaymentBeforePrint
-                    ? "Payment Required Before Printing Bill"
-                    : "Payment Not Required Before Printing Bill"}
-                </Space>
-              </Text>
-              <Text style={{ fontSize: 13, color: C.subText, display: "block" }}>
-                When enabled, cashiers cannot print the bill until payment has been completed for the cart. The cart shows "Pending Print" while payment is outstanding, and printing unlocks as soon as payment is recorded.
-              </Text>
-            </div>
-            <Switch
+        {/* ── Billing ──────────────────────────────────────────────────── */}
+        <div>
+          <SectionLabel text="Billing" />
+          <Space direction="vertical" size={10} style={{ width: "100%" }}>
+            <ToggleRow
+              icon={<PrinterOutlined />}
+              color="#3b82f6"
+              bg="#eff6ff"
+              title={requirePaymentBeforePrint ? "Must Pay Before Printing the Bill" : "Can Print Bill Before Payment"}
+              description="Turn this on so cashiers cannot print a customer's bill until the order has been paid for."
               checked={requirePaymentBeforePrint}
               onChange={handleToggleRequirePaymentBeforePrint}
               loading={updatingPaymentBeforePrint}
-              style={{ minWidth: 48, marginLeft: 16 }}
-              checkedChildren="ON"
-              unCheckedChildren="OFF"
             />
-          </div>
-        </div>
 
-        {/* Warranty Details Toggle */}
-        <div
-          style={{
-            background: "#fff",
-            border: "1px solid #e2e8f0",
-            borderRadius: 8,
-            padding: "16px 18px",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <div style={{ flex: 1 }}>
-              <Text strong style={{ fontSize: 15, display: "block", marginBottom: 6 }}>
-                <Space>
-                  <SafetyCertificateOutlined />
-                  {warrantyEnabled
-                    ? "Warranty Details Enabled"
-                    : "Warranty Details Disabled"}
-                </Space>
-              </Text>
-              <Text style={{ fontSize: 13, color: C.subText, display: "block" }}>
-                When enabled, a warranty block is printed on bills and receipts. Cashiers can also hide it per print from the bill modal.
-              </Text>
-            </div>
-            <Switch
+            <ToggleRow
+              icon={<SafetyCertificateOutlined />}
+              color="#0d9488"
+              bg="#f0fdfa"
+              title={warrantyEnabled ? "Showing Warranty on Receipts" : "Not Showing Warranty on Receipts"}
+              description="Turn this on to print a short warranty note at the bottom of bills and receipts."
               checked={warrantyEnabled}
               onChange={handleToggleWarranty}
               loading={updatingWarranty}
-              style={{ minWidth: 48, marginLeft: 16 }}
-              checkedChildren="ON"
-              unCheckedChildren="OFF"
-            />
-          </div>
-
-          {/* Warranty details form — only when enabled */}
-          {warrantyEnabled && (
-            <div
-              style={{
-                marginTop: 16,
-                paddingTop: 16,
-                borderTop: "1px dashed #e2e8f0",
-              }}
             >
-              <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-                <div>
-                  <Text style={{ fontSize: 13, display: "block", marginBottom: 4 }}>
-                    Warranty Duration
-                  </Text>
-                  <Input
-                    value={warrantyDuration}
-                    onChange={(e) => setWarrantyDuration(e.target.value)}
-                    placeholder="e.g. 6 MONTHS"
-                    style={{ maxWidth: 320 }}
-                  />
-                </div>
-                <div>
-                  <Text style={{ fontSize: 13, display: "block", marginBottom: 4 }}>
-                    Footer Line 1
-                  </Text>
-                  <Input
-                    value={warrantyLine1}
-                    onChange={(e) => setWarrantyLine1(e.target.value)}
-                    placeholder="e.g. This receipt is your warranty certificate"
-                  />
-                </div>
-                <div>
-                  <Text style={{ fontSize: 13, display: "block", marginBottom: 4 }}>
-                    Footer Line 2
-                  </Text>
-                  <Input
-                    value={warrantyLine2}
-                    onChange={(e) => setWarrantyLine2(e.target.value)}
-                    placeholder="e.g. Please retain for warranty claims"
-                  />
-                </div>
-                <Button
-                  type="primary"
-                  onClick={handleSaveWarrantyDetails}
-                  loading={updatingWarranty}
-                  style={{ background: C.primary }}
+              {warrantyEnabled && (
+                <div
+                  style={{
+                    marginTop: 14,
+                    paddingTop: 14,
+                    borderTop: "1px dashed #e2e8f0",
+                  }}
                 >
-                  Save Warranty Details
-                </Button>
-              </Space>
-            </div>
-          )}
+                  <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+                    <div>
+                      <Text style={{ fontSize: 12.5, color: C.subText, display: "block", marginBottom: 4 }}>
+                        How long the warranty lasts
+                      </Text>
+                      <Input
+                        value={warrantyDuration}
+                        onChange={(e) => setWarrantyDuration(e.target.value)}
+                        placeholder="e.g. 6 MONTHS"
+                        style={{ maxWidth: 320 }}
+                      />
+                    </div>
+                    <div>
+                      <Text style={{ fontSize: 12.5, color: C.subText, display: "block", marginBottom: 4 }}>
+                        First line of text on the receipt
+                      </Text>
+                      <Input
+                        value={warrantyLine1}
+                        onChange={(e) => setWarrantyLine1(e.target.value)}
+                        placeholder="e.g. This receipt is your warranty certificate"
+                      />
+                    </div>
+                    <div>
+                      <Text style={{ fontSize: 12.5, color: C.subText, display: "block", marginBottom: 4 }}>
+                        Second line of text on the receipt
+                      </Text>
+                      <Input
+                        value={warrantyLine2}
+                        onChange={(e) => setWarrantyLine2(e.target.value)}
+                        placeholder="e.g. Please retain for warranty claims"
+                      />
+                    </div>
+                    <Button
+                      type="primary"
+                      onClick={handleSaveWarrantyDetails}
+                      loading={updatingWarranty}
+                      style={{ background: C.primary }}
+                    >
+                      Save Warranty Text
+                    </Button>
+                  </Space>
+                </div>
+              )}
+            </ToggleRow>
+          </Space>
         </div>
 
-        {/* Cart-Level Inventory Deduction Toggle */}
-        <div
-          style={{
-            background: "#fff",
-            border: "1px solid #e2e8f0",
-            borderRadius: 8,
-            padding: "16px 18px",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <div style={{ flex: 1 }}>
-              <Text strong style={{ fontSize: 15, display: "block", marginBottom: 6 }}>
-                <Space>
-                  <InboxOutlined />
-                  {cartDeductionEnabled
-                    ? "Cart-Level Inventory Deduction Enabled"
-                    : "Cart-Level Inventory Deduction Disabled"}
-                </Space>
-              </Text>
-              <Text style={{ fontSize: 13, color: C.subText, display: "block" }}>
-                When enabled, each cart item shows a "Deduct" option in the cart drawer. Cashiers can attach one or more inventory items (including specific variants) to be deducted from stock when the order is placed.
-              </Text>
-            </div>
-            <Switch
+        {/* ── Inventory ────────────────────────────────────────────────── */}
+        <div>
+          <SectionLabel text="Inventory" />
+          <Space direction="vertical" size={10} style={{ width: "100%" }}>
+            <ToggleRow
+              icon={<InboxOutlined />}
+              color="#6366f1"
+              bg="#eef2ff"
+              title={cartDeductionEnabled ? "Manual Stock Deduction Allowed" : "Manual Stock Deduction Off"}
+              description="Turn this on to let cashiers attach stock items to a cart item (e.g. ingredients for a dish) so they're used up automatically when the order is placed."
               checked={cartDeductionEnabled}
               onChange={handleToggleCartDeduction}
               loading={updatingCartDeduction}
-              style={{ minWidth: 48, marginLeft: 16 }}
-              checkedChildren="ON"
-              unCheckedChildren="OFF"
             />
-          </div>
+
+            <ToggleRow
+              icon={<EnvironmentOutlined />}
+              color="#f97316"
+              bg="#fff7ed"
+              title={zoneInventoryEnabled ? "Stock Divided by Zone" : "Stock Not Divided by Zone"}
+              description="Turn this on to track stock separately for each area, like Bar, Patio or Store Room. Add a zone to a product's variants in Inventory, then sales and transfers will target that specific zone."
+              checked={zoneInventoryEnabled}
+              onChange={handleToggleZoneInventory}
+              loading={updatingZoneInventory}
+            />
+
+            <ToggleRow
+              icon={<DollarOutlined />}
+              color="#10b981"
+              bg="#f0fdf4"
+              title={staffEarningEnabled ? "Tracking Staff Earnings" : "Not Tracking Staff Earnings"}
+              description="Turn this on to record how much each staff member earns per order. Set each staff member's cut in the cart screen."
+              checked={staffEarningEnabled}
+              onChange={handleToggleStaffEarning}
+              loading={updatingStaffEarning}
+            />
+          </Space>
         </div>
 
         {/* Info Alert */}
         <Alert
-          message="How Privacy Mode Works"
+          message="A quick note on Privacy Mode"
           description={
             <div style={{ fontSize: 13, lineHeight: 1.6 }}>
               <div style={{ marginBottom: 8 }}>
-                <strong>When Privacy Mode is OFF:</strong> All users can see all carts and tables in the system.
+                <strong>Switched OFF:</strong> everyone can see every order and table.
               </div>
               <div>
-                <strong>When Privacy Mode is ON:</strong> Users only see carts and tables they have created or have items in. This helps prevent accidental interference with other users' orders.
+                <strong>Switched ON:</strong> each staff member only sees the orders and tables they started — so people don't accidentally edit each other's work.
               </div>
             </div>
           }

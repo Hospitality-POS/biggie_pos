@@ -48,6 +48,10 @@ export const generateInventoryUsageReport = createAsyncThunk(
             startDate: dated.startDate,
             endDate: dated.endDate,
             print: true,
+            shop_id: dated.shop_id,
+            // Zone/table-location filter — matches usage records whose
+            // variant belongs to this zone (see zone-based inventory).
+            locationId: dated.locationId,
           },
         }
       );

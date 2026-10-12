@@ -31,7 +31,7 @@ import { ProFormSelect, ProFormTextArea } from "@ant-design/pro-components";
 import type { ActionType } from "@ant-design/pro-components";
 import { createTransfer } from "@services/inventory";
 import { fetchAllInventory } from "@services/inventory";
-import { fetchAllShops } from "@services/shops";
+import { fetchAllShops, fetchShop } from "@services/shops";
 import dayjs from "dayjs";
 
 const { Title, Text } = Typography;
@@ -49,6 +49,11 @@ interface TransferItem {
     unit_name?: string;
     available_quantity?: number;
     notes?: string;
+    // Destination zone/table location — when the destination shop tracks
+    // zone-based inventory, the received quantity is credited to this
+    // specific variant on the destination product instead of its overall stock.
+    to_variant_id?: string;
+    to_variant_name?: string;
 }
 
 interface AddEditTransferModalProps {
@@ -70,6 +75,7 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
     const [toShopId, setToShopId] = useState<string>("");
     const [availableFromProducts, setAvailableFromProducts] = useState<any[]>([]);
     const [availableToProducts, setAvailableToProducts] = useState<any[]>([]);
+    const [toShopZoneEnabled, setToShopZoneEnabled] = useState(false);
 
     useEffect(() => {
         if (visible && edit && data) {
@@ -112,6 +118,11 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
     useEffect(() => {
         if (toShopId) {
             loadAvailableProducts(toShopId, "to");
+            fetchShop(toShopId)
+                .then((shop) => setToShopZoneEnabled(!!shop?.zone_inventory_enabled))
+                .catch(() => setToShopZoneEnabled(false));
+        } else {
+            setToShopZoneEnabled(false);
         }
     }, [toShopId]);
 
@@ -205,6 +216,17 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
                             to_product_id: value,
                             to_product_name: product?.name,
                             to_product_code: product?.code,
+                            // Destination product changed — the previously selected zone no longer applies
+                            to_variant_id: undefined,
+                            to_variant_name: undefined,
+                        };
+                    } else if (field === "to_variant_id") {
+                        const product = availableToProducts.find((p) => p._id === item.to_product_id);
+                        const variant = product?.variants?.find((v: any) => (v._id || v.id) === value);
+                        return {
+                            ...item,
+                            to_variant_id: value || undefined,
+                            to_variant_name: variant?.name,
                         };
                     }
                     return { ...item, [field]: value };
@@ -264,6 +286,8 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
                     quantity: item.quantity,
                     unit_id: item.unit_id,
                     notes: item.notes,
+                    to_variant_id: item.to_variant_id || undefined,
+                    to_variant_name: item.to_variant_name || undefined,
                 })),
             };
 
@@ -358,6 +382,34 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
                 />
             ),
         },
+        ...(toShopZoneEnabled
+            ? [
+                  {
+                      title: "Destination Zone",
+                      dataIndex: "to_variant_id",
+                      key: "to_variant_id",
+                      width: 180,
+                      render: (_: any, record: TransferItem) => {
+                          const product = availableToProducts.find((p) => p._id === record.to_product_id);
+                          const zoneVariants = (product?.variants || []).filter((v: any) => v.location_id);
+                          return (
+                              <Select
+                                  allowClear
+                                  placeholder={zoneVariants.length ? "Select zone" : "No zones on this item"}
+                                  style={{ width: "100%" }}
+                                  value={record.to_variant_id || undefined}
+                                  disabled={!record.to_product_id || zoneVariants.length === 0}
+                                  onChange={(value) => updateTransferItem(record.key, "to_variant_id", value)}
+                                  options={zoneVariants.map((v: any) => ({
+                                      label: v.name,
+                                      value: v._id || v.id,
+                                  }))}
+                              />
+                          );
+                      },
+                  },
+              ]
+            : []),
         {
             title: "Available",
             dataIndex: "available_quantity",

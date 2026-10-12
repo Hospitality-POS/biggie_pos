@@ -524,9 +524,11 @@ const AdminReports: React.FC = () => {
                     dates?.[1]?.format("YYYY-MM-DD HH:mm") || "",
                   ])} />
               </div>
-              <div style={{ flex: "1 1 200px", minWidth: 0 }}>
-                <ShopField />
-              </div>
+              {isAdminRoute && (
+                <div style={{ flex: "1 1 200px", minWidth: 0 }}>
+                  <ShopField />
+                </div>
+              )}
             </div>
             <GenerateButton label="Generate Voided Report" icon={<PrinterOutlined />} disabled={isGenerateButtonDisabled} onClick={() => generateReportHandler()} />
             <VoidReportModal openM={openVoidedModal} onCloseM={onCloseVoidedModal} startDate={voidedDateTimeRange[0]} endDate={voidedDateTimeRange[1]} />
@@ -544,9 +546,11 @@ const AdminReports: React.FC = () => {
                     dates?.[1]?.format("YYYY-MM-DD HH:mm") || "",
                   ])} />
               </div>
-              <div style={{ flex: "1 1 200px", minWidth: 0 }}>
-                <ShopField />
-              </div>
+              {isAdminRoute && (
+                <div style={{ flex: "1 1 200px", minWidth: 0 }}>
+                  <ShopField />
+                </div>
+              )}
             </div>
             <GenerateButton label="Generate Delivery Report" icon={<CarOutlined />} disabled={isGenerateButtonDisabled} onClick={() => generateReportHandler()} />
             <DeliveryReportModal openM={openDeliveryModal} onCloseM={onCloseDeliveryModal} startDate={deliveryDateTimeRange[0]} endDate={deliveryDateTimeRange[1]} />
@@ -557,7 +561,10 @@ const AdminReports: React.FC = () => {
         return (
           <Form form={form} layout="vertical" onFinish={async (values) => {
             await onFinish(values);
-            setOpenInventoryUsageModal(true);
+            generateReportHandler({
+              shop_id: values.shop_id || localStorage.getItem("shopId") || undefined,
+              locationId: values.locationId,
+            });
           }}>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "0 16px" }}>
               <div style={{ flex: "1 1 300px", minWidth: 0 }}>
@@ -567,18 +574,35 @@ const AdminReports: React.FC = () => {
                     dates?.[1]?.format("YYYY-MM-DD HH:mm") || "",
                   ])} />
               </div>
+              {isAdminRoute && (
+                <div style={{ flex: "1 1 200px", minWidth: 0 }}>
+                  <ShopField />
+                </div>
+              )}
               <div style={{ flex: "1 1 200px", minWidth: 0 }}>
-                <ShopField />
+                <Form.Item
+                  name="locationId"
+                  label={<span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.subText }}><EnvironmentOutlined /> Zone</span>}
+                  style={{ marginBottom: 14 }}
+                >
+                  <Select showSearch allowClear placeholder="All zones" options={locationOptions} style={{ width: "100%", borderRadius: 8 }}
+                    filterOption={(i, o) => String(o?.label ?? "").toLowerCase().includes(i.toLowerCase())} />
+                </Form.Item>
               </div>
             </div>
-            <GenerateButton label="Generate Inventory Usage Report" icon={<BarChartOutlined />} disabled={isGenerateButtonDisabled} onClick={() => generateReportHandler()} />
+            <GenerateButton label="Generate Inventory Usage Report" icon={<BarChartOutlined />} disabled={isGenerateButtonDisabled} />
             <InventoryUsageReportModal openM={openInventoryUsageModal} onCloseM={onCloseInventoryUsageModal} startDate={inventoryUsageDateTimeRange[0]} endDate={inventoryUsageDateTimeRange[1]} />
           </Form>
         );
 
       case "vat":
         return (
-          <Form form={form} layout="vertical" onFinish={onFinish}>
+          <Form form={form} layout="vertical" onFinish={async (values) => {
+            await onFinish(values);
+            generateReportHandler({
+              shop_id: values.shop_id || localStorage.getItem("shopId") || undefined,
+            });
+          }}>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "0 16px" }}>
               <div style={{ flex: "1 1 300px", minWidth: 0 }}>
                 <DateRangeField rangePresets={rangePresets}
@@ -587,11 +611,13 @@ const AdminReports: React.FC = () => {
                     dates?.[1]?.format("YYYY-MM-DD HH:mm") || "",
                   ])} />
               </div>
-              <div style={{ flex: "1 1 200px", minWidth: 0 }}>
-                <ShopField />
-              </div>
+              {isAdminRoute && (
+                <div style={{ flex: "1 1 200px", minWidth: 0 }}>
+                  <ShopField />
+                </div>
+              )}
             </div>
-            <GenerateButton label="Generate VAT Report" icon={<DollarOutlined />} disabled={isGenerateButtonDisabled} onClick={() => generateReportHandler()} />
+            <GenerateButton label="Generate VAT Report" icon={<DollarOutlined />} disabled={isGenerateButtonDisabled} />
             <VATReportModal openM={openVATModal} onCloseM={onCloseVATModal} startDate={vatDateTimeRange[0]} endDate={vatDateTimeRange[1]} />
           </Form>
         );
