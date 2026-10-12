@@ -11,7 +11,7 @@ const tableUrl = `${BASE_URL}/tables`;
 // set and none of its entries match the current user. List endpoints return
 // served_by as a username string ("mike" / "mike (+2)") while the single-table
 // endpoint returns raw user ObjectIds — handle both shapes.
-const isServedByOtherStaff = (
+export const isServedByOtherStaff = (
   table: any,
   currentUserId: string,
   userName: string
@@ -40,7 +40,7 @@ const isServedByOtherStaff = (
 
 // "Being served" requires the open cart to hold real value — an empty cart or
 // a stale served_by on an unoccupied table must stay visible to everyone.
-const isHiddenServedTable = (
+export const isHiddenServedTable = (
   table: any,
   currentUserId: string,
   userName: string

@@ -249,6 +249,38 @@ export interface PushToJournalEntriesInput {
     txn_ids?: string[];
 }
 
+export type UnpostedReason =
+    | "not_categorized"
+    | "not_posted"
+    | "missing_journal_entry"
+    | "journal_entry_deleted"
+    | "journal_entry_voided";
+
+export interface UnpostedTransaction {
+    _id: string;
+    description: string;
+    reference?: string;
+    transaction_date: string;
+    debit: number;
+    credit: number;
+    status: TransactionStatus;
+    account_id?: string;
+    account_code?: string;
+    account_name?: string;
+    journal_entry_id?: string | null;
+    reason: UnpostedReason;
+}
+
+export interface VerifyPostingResult {
+    import_id: string;
+    import_no: string;
+    total_checked: number;
+    posted_count: number;
+    unposted_count: number;
+    all_posted: boolean;
+    unposted: UnpostedTransaction[];
+}
+
 export interface ReApplyRulesInput {
     reset_categorized?: boolean;
 }
@@ -732,16 +764,18 @@ export const uncategorizeTransaction = async (id: string, txn_id: string) => {
     }
 };
 
-export const pushToJournalEntries = async (id: string, data: PushToJournalEntriesInput) => {
+export const pushToJournalEntries = async (id: string, data: PushToJournalEntriesInput, silent = false) => {
     try {
         const response = await axiosInstance.patch(
             `${BASE_URL}/accounting/bank-reconciliations/bank-imports/${id}/push-to-journal-entries`,
             data
         );
-        message.success(
-            response.data.message ||
-                `${response.data.pushed_count} journal entries created`
-        );
+        if (!silent) {
+            message.success(
+                response.data.message ||
+                    `${response.data.pushed_count} journal entries created`
+            );
+        }
         return response.data as {
             created_entries: string[];
             pushed_count: number;
@@ -753,6 +787,23 @@ export const pushToJournalEntries = async (id: string, data: PushToJournalEntrie
             message.error(axiosError.response.data.message);
         } else {
             message.error("Error pushing to journal entries");
+        }
+        throw error;
+    }
+};
+
+export const verifyPosting = async (id: string) => {
+    try {
+        const response = await axiosInstance.get(
+            `${BASE_URL}/accounting/bank-reconciliations/bank-imports/${id}/verify-posting`
+        );
+        return response.data as VerifyPostingResult;
+    } catch (error: unknown) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        if (axiosError?.response?.data?.message) {
+            message.error(axiosError.response.data.message);
+        } else {
+            message.error("Error verifying posting status");
         }
         throw error;
     }

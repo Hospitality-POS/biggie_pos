@@ -220,7 +220,16 @@ axiosInstance.interceptors.request.use(
             }
         }
 
-        const storedCode = localStorage.getItem("companyCode");
+        // companyCode is the primary source; fall back to the verified
+        // tenant record's tenant_code when it was never persisted.
+        let storedCode = localStorage.getItem("companyCode");
+        if (!storedCode) {
+            try {
+                storedCode = JSON.parse(localStorage.getItem("tenant") || "null")?.tenant_code ?? null;
+            } catch {
+                storedCode = null;
+            }
+        }
         if (storedCode || config.data?.companyCode) {
             config.headers['companycode'] = storedCode || config.data?.companyCode;
         }

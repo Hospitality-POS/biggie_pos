@@ -440,6 +440,8 @@ interface TopEarner {
   staff_id: string;
   staff_name: string;
   total_earnings: number;
+  /** Order revenue attributed to this staff member (equal split across servers). */
+  total_revenue?: number;
   order_count: number;
   average_per_order: number;
 }

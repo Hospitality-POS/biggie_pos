@@ -13,7 +13,7 @@ import {
   bulkVoidTables,
 } from "@services/cart";
 import { fetchAllPaymentMethods } from "@services/paymentMethod";
-import { getAllTables } from "@services/tables";
+import { getAllTables, isServedByOtherStaff } from "@services/tables";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Button,
@@ -63,6 +63,12 @@ const TableStatsPanel: React.FC<TableStatsProps> = ({ isMobile, primaryColor }) 
   const [payMethod, setPayMethod] = useState<string>();
 
   const canManageTables = user?.role === "admin" || user?.role === "cashier";
+  const userRole = (
+    typeof user?.role === "string" ? user.role : (user as any)?.roleData?.role_type
+  )?.toLowerCase();
+  const isWaiter = userRole === "waiter";
+  const currentUserId = (user as any)?._id || user?.id || "";
+  const currentUserName = (user as any)?.name || (user as any)?.username || "";
 
   // GET /tables returns every table across all locations in one shot —
   // the unique-locatedAt endpoint only fills tables for a single location.
@@ -100,19 +106,38 @@ const TableStatsPanel: React.FC<TableStatsProps> = ({ isMobile, primaryColor }) 
     return out;
   }, [data]);
 
+  // Waiters only see their own data in stats — the view is filtered to
+  // tables they serve, so other staff, empty and unassigned tables are
+  // all excluded. Admin/cashier see everything.
+  const visibleRows = useMemo(
+    () =>
+      isWaiter
+        ? rows.filter((r) => {
+            const sb = r?.served_by;
+            const hasMarker =
+              sb !== null &&
+              sb !== undefined &&
+              sb !== "" &&
+              (!Array.isArray(sb) || sb.length > 0);
+            return hasMarker && !isServedByOtherStaff(r, currentUserId, currentUserName);
+          })
+        : rows,
+    [rows, isWaiter, currentUserId, currentUserName]
+  );
+
   const locationOptions = useMemo(() => {
     const names = new Set<string>();
-    rows.forEach((r) => {
+    visibleRows.forEach((r) => {
       if (r?.locationName && String(r.locationName).trim() !== "") {
         names.add(String(r.locationName));
       }
     });
     return [...names].sort().map((n) => ({ value: n, label: n }));
-  }, [rows]);
+  }, [visibleRows]);
 
   const servedByOptions = useMemo(() => {
     const names = new Set<string>();
-    rows.forEach((r) => {
+    visibleRows.forEach((r) => {
       if (r?.served_by && String(r.served_by).trim() !== "") {
         names.add(String(r.served_by));
       }
@@ -121,11 +146,11 @@ const TableStatsPanel: React.FC<TableStatsProps> = ({ isMobile, primaryColor }) 
       { value: UNASSIGNED, label: "Unassigned" },
       ...[...names].sort().map((n) => ({ value: n, label: n })),
     ];
-  }, [rows]);
+  }, [visibleRows]);
 
   const filtered = useMemo(
     () =>
-      rows.filter((r) => {
+      visibleRows.filter((r) => {
         const occupied = isOccupiedTable(r);
         if (statusFilter === "occupied" && !occupied) return false;
         if (statusFilter === "available" && (occupied || r.isLocked)) return false;
@@ -141,7 +166,7 @@ const TableStatsPanel: React.FC<TableStatsProps> = ({ isMobile, primaryColor }) 
         if (withBalanceOnly && !(Number(r.cart_amount) > 0)) return false;
         return true;
       }),
-    [rows, statusFilter, servedByFilter, locationFilter, withBalanceOnly]
+    [visibleRows, statusFilter, servedByFilter, locationFilter, withBalanceOnly]
   );
 
   const totals = useMemo(() => {
@@ -421,16 +446,20 @@ const TableStatsPanel: React.FC<TableStatsProps> = ({ isMobile, primaryColor }) 
           style={{ minWidth: isMobile ? 130 : 180 }}
           optionFilterProp="label"
         />
-        <Select
-          allowClear
-          showSearch
-          placeholder="Served by"
-          value={servedByFilter}
-          onChange={(v) => setServedByFilter(v)}
-          options={servedByOptions}
-          style={{ minWidth: isMobile ? 140 : 200 }}
-          optionFilterProp="label"
-        />
+        {/* Served-by filter is only meaningful for admin/cashier — waiters
+            are already scoped to their own tables */}
+        {!isWaiter && (
+          <Select
+            allowClear
+            showSearch
+            placeholder="Served by"
+            value={servedByFilter}
+            onChange={(v) => setServedByFilter(v)}
+            options={servedByOptions}
+            style={{ minWidth: isMobile ? 140 : 200 }}
+            optionFilterProp="label"
+          />
+        )}
         <Segmented
           value={statusFilter}
           onChange={(v) => setStatusFilter(v as StatusFilter)}
