@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Switch, Space, Typography, Alert, Spin, Input, Button } from "antd";
 import { ProCard } from "@ant-design/pro-components";
-import { LockOutlined, UnlockOutlined, DollarOutlined, PrinterOutlined, InboxOutlined, SafetyCertificateOutlined, EyeInvisibleOutlined } from "@ant-design/icons";
+import { LockOutlined, UnlockOutlined, DollarOutlined, PrinterOutlined, InboxOutlined, SafetyCertificateOutlined, EyeInvisibleOutlined, AppstoreOutlined, TeamOutlined, BarChartOutlined } from "@ant-design/icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { fetchSystemSetupDetailsById, updateSystemSetup } from "../../../services/systemsetup";
 import { fetchShop, updateShop } from "../../../services/shops";
@@ -19,6 +19,9 @@ const PrivacySettings: React.FC = () => {
   const [requirePaymentBeforePrint, setRequirePaymentBeforePrint] = useState(false);
   const [cartDeductionEnabled, setCartDeductionEnabled] = useState(false);
   const [hideServedByOthers, setHideServedByOthers] = useState(false);
+  const [showAllItemsOnPos, setShowAllItemsOnPos] = useState(false);
+  const [allowCashierAddToOthersTables, setAllowCashierAddToOthersTables] = useState(true);
+  const [reportPercentageEnabled, setReportPercentageEnabled] = useState(true);
   const [warrantyEnabled, setWarrantyEnabled] = useState(false);
   const [warrantyDuration, setWarrantyDuration] = useState("6 MONTHS");
   const [warrantyLine1, setWarrantyLine1] = useState("This receipt is your warranty certificate");
@@ -29,6 +32,9 @@ const PrivacySettings: React.FC = () => {
   const [updatingPaymentBeforePrint, setUpdatingPaymentBeforePrint] = useState(false);
   const [updatingCartDeduction, setUpdatingCartDeduction] = useState(false);
   const [updatingHideTables, setUpdatingHideTables] = useState(false);
+  const [updatingShowAllItems, setUpdatingShowAllItems] = useState(false);
+  const [updatingCashierAddToOthers, setUpdatingCashierAddToOthers] = useState(false);
+  const [updatingReportPercentage, setUpdatingReportPercentage] = useState(false);
   const [updatingWarranty, setUpdatingWarranty] = useState(false);
   const [systemSettingsId, setSystemSettingsId] = useState<string | null>(null);
   const [shopId, setShopId] = useState<string | null>(null);
@@ -49,6 +55,9 @@ const PrivacySettings: React.FC = () => {
         setRequirePaymentBeforePrint(shopData?.require_payment_before_print || false);
         setCartDeductionEnabled(shopData?.cart_inventory_deduction_enabled || false);
         setHideServedByOthers(shopData?.hide_tables_served_by_others || false);
+        setShowAllItemsOnPos(shopData?.pos_show_all_items || false);
+        setAllowCashierAddToOthersTables(shopData?.allow_cashier_add_to_others_tables !== false);
+        setReportPercentageEnabled(shopData?.report_percentage_enabled !== false);
         const ws = shopData?.warranty_settings;
         setWarrantyEnabled(ws?.enabled || false);
         if (ws?.duration) setWarrantyDuration(ws.duration);
@@ -217,6 +226,87 @@ const PrivacySettings: React.FC = () => {
     }
   };
 
+  const handleToggleShowAllItems = async (checked: boolean) => {
+    if (!shopId) {
+      message.error("Shop not found");
+      return;
+    }
+
+    setUpdatingShowAllItems(true);
+    try {
+      await updateShop({
+        _id: shopId,
+        pos_show_all_items: checked,
+      });
+      setShowAllItemsOnPos(checked);
+      queryClient.invalidateQueries({ queryKey: ["shop", shopId] });
+      message.success(
+        checked
+          ? "Order screen now shows all items"
+          : "Order screen now shows categories"
+      );
+    } catch (error) {
+      console.error("Failed to update POS item display setting:", error);
+      message.error("Failed to update POS item display setting");
+    } finally {
+      setUpdatingShowAllItems(false);
+    }
+  };
+
+  const handleToggleCashierAddToOthers = async (checked: boolean) => {
+    if (!shopId) {
+      message.error("Shop not found");
+      return;
+    }
+
+    setUpdatingCashierAddToOthers(true);
+    try {
+      await updateShop({
+        _id: shopId,
+        allow_cashier_add_to_others_tables: checked,
+      });
+      setAllowCashierAddToOthersTables(checked);
+      queryClient.invalidateQueries({ queryKey: ["shop", shopId] });
+      message.success(
+        checked
+          ? "Cashiers can add items to any table"
+          : "Cashiers can only add items to tables they are serving"
+      );
+    } catch (error) {
+      console.error("Failed to update cashier table access setting:", error);
+      message.error("Failed to update cashier table access setting");
+    } finally {
+      setUpdatingCashierAddToOthers(false);
+    }
+  };
+
+  const handleToggleReportPercentage = async (checked: boolean) => {
+    if (!shopId) {
+      message.error("Shop not found");
+      return;
+    }
+
+    setUpdatingReportPercentage(true);
+    try {
+      await updateShop({
+        _id: shopId,
+        report_percentage_enabled: checked,
+      });
+      setReportPercentageEnabled(checked);
+      queryClient.invalidateQueries({ queryKey: ["shop", shopId] });
+      message.success(
+        checked
+          ? "Top Earners will use percentage-based earnings"
+          : "Top Earners will show total revenue per staff"
+      );
+    } catch (error) {
+      console.error("Failed to update report settings:", error);
+      message.error("Failed to update report settings");
+    } finally {
+      setUpdatingReportPercentage(false);
+    }
+  };
+
   const handleToggleCartDeduction = async (checked: boolean) => {
     if (!shopId) {
       message.error("Shop not found");
@@ -342,6 +432,86 @@ const PrivacySettings: React.FC = () => {
               checked={hideServedByOthers}
               onChange={handleToggleHideTables}
               loading={updatingHideTables}
+              style={{ minWidth: 48, marginLeft: 16 }}
+              checkedChildren="ON"
+              unCheckedChildren="OFF"
+            />
+          </div>
+        </div>
+
+        {/* Cashier Add To Other Staff's Tables Toggle */}
+        <div
+          style={{
+            background: "#fff",
+            border: "1px solid #e2e8f0",
+            borderRadius: 8,
+            padding: "16px 18px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <div style={{ flex: 1 }}>
+              <Text strong style={{ fontSize: 15, display: "block", marginBottom: 6 }}>
+                <Space>
+                  <TeamOutlined />
+                  {allowCashierAddToOthersTables
+                    ? "Cashiers Can Add Items to Any Table"
+                    : "Cashiers Restricted to Their Own Tables"}
+                </Space>
+              </Text>
+              <Text style={{ fontSize: 13, color: C.subText, display: "block" }}>
+                When disabled, cashiers cannot add items to a table that is already being served by another waiter or cashier on the order screen. Admins are unaffected.
+              </Text>
+            </div>
+            <Switch
+              checked={allowCashierAddToOthersTables}
+              onChange={handleToggleCashierAddToOthers}
+              loading={updatingCashierAddToOthers}
+              style={{ minWidth: 48, marginLeft: 16 }}
+              checkedChildren="ON"
+              unCheckedChildren="OFF"
+            />
+          </div>
+        </div>
+
+        {/* Report Settings Toggle */}
+        <div
+          style={{
+            background: "#fff",
+            border: "1px solid #e2e8f0",
+            borderRadius: 8,
+            padding: "16px 18px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <div style={{ flex: 1 }}>
+              <Text strong style={{ fontSize: 15, display: "block", marginBottom: 6 }}>
+                <Space>
+                  <BarChartOutlined />
+                  {reportPercentageEnabled
+                    ? "Report Settings: Percentage Earnings Enabled"
+                    : "Report Settings: Revenue Per Staff"}
+                </Space>
+              </Text>
+              <Text style={{ fontSize: 13, color: C.subText, display: "block" }}>
+                When enabled, the Top Earners report splits order totals using the staff/platform percentages. When disabled, it shows each staff member's total revenue instead — staff figures add up to total revenue.
+              </Text>
+            </div>
+            <Switch
+              checked={reportPercentageEnabled}
+              onChange={handleToggleReportPercentage}
+              loading={updatingReportPercentage}
               style={{ minWidth: 48, marginLeft: 16 }}
               checkedChildren="ON"
               unCheckedChildren="OFF"
@@ -560,6 +730,46 @@ const PrivacySettings: React.FC = () => {
               checked={cartDeductionEnabled}
               onChange={handleToggleCartDeduction}
               loading={updatingCartDeduction}
+              style={{ minWidth: 48, marginLeft: 16 }}
+              checkedChildren="ON"
+              unCheckedChildren="OFF"
+            />
+          </div>
+        </div>
+
+        {/* Show All Items on POS Toggle */}
+        <div
+          style={{
+            background: "#fff",
+            border: "1px solid #e2e8f0",
+            borderRadius: 8,
+            padding: "16px 18px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <div style={{ flex: 1 }}>
+              <Text strong style={{ fontSize: 15, display: "block", marginBottom: 6 }}>
+                <Space>
+                  <AppstoreOutlined />
+                  {showAllItemsOnPos
+                    ? "Order Screen Shows All Items"
+                    : "Order Screen Shows Categories"}
+                </Space>
+              </Text>
+              <Text style={{ fontSize: 13, color: C.subText, display: "block" }}>
+                When enabled, the POS order screen (/dashboard) lists every sellable item in a single grid instead of category cards. Staff can still tap a main category or subcategory to browse by category.
+              </Text>
+            </div>
+            <Switch
+              checked={showAllItemsOnPos}
+              onChange={handleToggleShowAllItems}
+              loading={updatingShowAllItems}
               style={{ minWidth: 48, marginLeft: 16 }}
               checkedChildren="ON"
               unCheckedChildren="OFF"

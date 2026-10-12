@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { Button, DatePicker, Form, InputNumber, Select, Spin, Typography } from "antd";
 import {
+  AppstoreOutlined,
   BarChartOutlined,
   CalendarOutlined,
   CarOutlined,
@@ -37,8 +38,9 @@ import { fetchAllShops } from "@services/shops";
 import { getTopEarners } from "@services/orders";
 import { getAllProducts } from "@services/products";
 import { fetchAllInventory } from "@services/inventory";
-import { fetchAllCategories } from "@services/categories";
+import { fetchAllCategories, fetchMainCategories } from "@services/categories";
 import useSystemDetails from "@hooks/useSystemDetails";
+import { useAppSelector } from "src/store";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { THEME_C } from "@utils/getPrimaryColor";
 import dayjs from "dayjs";
@@ -236,6 +238,7 @@ const AdminReports: React.FC = () => {
   const [productTypeSalesDateRange, setProductTypeSalesDateRange] = useState<[string, string]>(["", ""]);
   const [selectedProductType, setSelectedProductType] = useState<string>("");
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
+  const [selectedMainCategory, setSelectedMainCategory] = useState<string | undefined>(undefined);
 
   const [staffHoursQueryKey, setStaffHoursQueryKey] = useState<any>(null);
   const [staffHoursModalOpen, setStaffHoursModalOpen] = useState(false);
@@ -244,7 +247,20 @@ const AdminReports: React.FC = () => {
   const shopOptions = useShopOptions();
   const userOptions = useUserOptions();
   const locationOptions = useLocationOptions();
-  const { staff_earning_enabled } = useSystemDetails();
+  const { user } = useAppSelector((state) => state.auth);
+  const { staff_earning_enabled, report_percentage_enabled } = useSystemDetails();
+
+  // Waiters can only report on sales they served — the "Served By" filter is
+  // locked to their own account so the report can't be widened to other staff.
+  const userRole = (
+    typeof user?.role === "string" ? user.role : (user as any)?.roleData?.role_type
+  )?.toLowerCase();
+  const isWaiter = userRole === "waiter";
+  const currentUserId = (user as any)?._id || user?.id;
+  const servedByOptions =
+    isWaiter && currentUserId
+      ? [{ label: (user as any)?.username || (user as any)?.name || "Me", value: currentUserId }]
+      : userOptions;
   const primaryColor = usePrimaryColor();
 
   const {
@@ -276,13 +292,15 @@ const AdminReports: React.FC = () => {
     setProductTypeSalesQueryKey(null);
     setSelectedProductType("");
     setSelectedCategory(undefined);
+    setSelectedMainCategory(undefined);
     setStaffHoursQueryKey(null);
     setStaffHoursModalOpen(false);
     form.resetFields();
   };
 
   const onFinish = async (values: any) => {
-    const { dateRange, servedBy, createdBy, commission, locationId, shop_id } = values;
+    const { dateRange, servedBy, createdBy, commission, locationId, shop_id, mainCategory } = values;
+    setSelectedMainCategory(mainCategory);
     const [startDate, endDate] = dateRange || [];
 
     setSalesDateTimeRange([
@@ -338,6 +356,69 @@ const AdminReports: React.FC = () => {
     () => fetchAllCategories({}),
     { enabled: activeTab === "product_type", networkMode: "always" }
   );
+
+  const { data: mainCategoryList, isLoading: mainCategoryListLoading } = useQuery(
+    ["main-categories-for-report"],
+    () => fetchMainCategories(),
+    { enabled: activeTab === "sale", networkMode: "always" }
+  );
+
+  const mainCategoryOptions = useMemo(() => {
+    const arr = Array.isArray(mainCategoryList) ? mainCategoryList : mainCategoryList?.data || [];
+    return (arr || []).map((c: any) => ({ label: c.name, value: c._id }));
+  }, [mainCategoryList]);
+
+  // Leaf category ids nested under the selected main category — the item
+  // sales report groups rows by leaf category, so these ids drive the filter.
+  const selectedLeafCategoryIds = useMemo(() => {
+    if (!selectedMainCategory) return null;
+    const arr = Array.isArray(mainCategoryList) ? mainCategoryList : mainCategoryList?.data || [];
+    const main = (arr || []).find((m: any) => String(m?._id) === String(selectedMainCategory));
+    if (!main) return null;
+    const ids = new Set<string>();
+    (main.sub_categories || []).forEach((sub: any) =>
+      (sub?.categories || []).forEach((c: any) => {
+        const id = c?._id ?? c;
+        if (id) ids.add(String(id));
+      })
+    );
+    return ids;
+  }, [selectedMainCategory, mainCategoryList]);
+
+  // Restrict the report to the selected main category. Handles both the flat
+  // category-group shape and the backend groupBy (period) shape, recomputing
+  // period totals so the modal's client-side totals stay correct.
+  const filteredSalesData = useMemo(() => {
+    if (!selectedLeafCategoryIds) return salesData;
+    const matches = (g: any) => selectedLeafCategoryIds.has(String(g?.id ?? g?._id ?? ""));
+    const groupTotal = (g: any) =>
+      (g?.orderItems || []).reduce((s: number, i: any) => s + (Number(i?.total_amount) || 0), 0);
+    const groupSupplier = (g: any) =>
+      (g?.orderItems || []).reduce((s: number, i: any) => s + (Number(i?.supplier_price) || 0) * (Number(i?.quantity) || 0), 0);
+    const filterArr = (arr: any[]) =>
+      arr
+        .map((entry: any) => {
+          if (entry && "label" in entry && Array.isArray(entry.data)) {
+            const data = entry.data.filter(matches);
+            return {
+              ...entry,
+              data,
+              total: data.reduce((s: number, g: any) => s + groupTotal(g), 0),
+              supplierTotal: data.reduce((s: number, g: any) => s + groupSupplier(g), 0),
+              commission: data.reduce((s: number, g: any) => s + (Number(g?.commissionAmt) || 0), 0),
+            };
+          }
+          return entry;
+        })
+        .filter((entry: any) =>
+          "label" in entry && Array.isArray(entry.data) ? entry.data.length > 0 : matches(entry)
+        );
+    if (Array.isArray(salesData)) return filterArr(salesData);
+    if (salesData && Array.isArray((salesData as any).data)) {
+      return { ...(salesData as any), data: filterArr((salesData as any).data) };
+    }
+    return salesData;
+  }, [salesData, selectedLeafCategoryIds]);
 
   const categoryOptions = useMemo(() => {
     const raw = categoryList;
@@ -397,21 +478,34 @@ const AdminReports: React.FC = () => {
               )}
               <div style={{ flex: "1 1 200px", minWidth: 0 }}>
                 <Form.Item
-                  name="servedBy"
-                  label={<span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.subText }}><UserOutlined /> Created By</span>}
+                  name="mainCategory"
+                  label={<span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.subText }}><AppstoreOutlined /> Main Category</span>}
                   style={{ marginBottom: 14 }}
                 >
-                  <Select showSearch allowClear placeholder="All users" options={userOptions} style={{ width: "100%", borderRadius: 8 }}
+                  <Select showSearch allowClear placeholder="All categories" options={mainCategoryOptions}
+                    loading={mainCategoryListLoading} disabled={mainCategoryListLoading}
+                    style={{ width: "100%", borderRadius: 8 }}
+                    filterOption={(i, o) => String(o?.label ?? "").toLowerCase().includes(i.toLowerCase())} />
+                </Form.Item>
+              </div>
+              <div style={{ flex: "1 1 200px", minWidth: 0 }}>
+                <Form.Item
+                  name="servedBy"
+                  initialValue={isWaiter ? currentUserId : undefined}
+                  label={<span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.subText }}><UserOutlined /> Served By</span>}
+                  style={{ marginBottom: 14 }}
+                >
+                  <Select showSearch allowClear={!isWaiter} disabled={isWaiter} placeholder="All staff" options={servedByOptions} style={{ width: "100%", borderRadius: 8 }}
                     filterOption={(i, o) => String(o?.label ?? "").toLowerCase().includes(i.toLowerCase())} />
                 </Form.Item>
               </div>
               <div style={{ flex: "1 1 200px", minWidth: 0 }}>
                 <Form.Item
                   name="locationId"
-                  label={<span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.subText }}><EnvironmentOutlined /> Served By</span>}
+                  label={<span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.subText }}><EnvironmentOutlined /> Zone</span>}
                   style={{ marginBottom: 14 }}
                 >
-                  <Select showSearch allowClear placeholder="All locations" options={locationOptions} style={{ width: "100%", borderRadius: 8 }}
+                  <Select showSearch allowClear placeholder="All zones" options={locationOptions} style={{ width: "100%", borderRadius: 8 }}
                     filterOption={(i, o) => String(o?.label ?? "").toLowerCase().includes(i.toLowerCase())} />
                 </Form.Item>
               </div>
@@ -444,7 +538,7 @@ const AdminReports: React.FC = () => {
             <ItemSalesModal
               open={modalOpen}
               onClose={() => setModalOpen(false)}
-              data={salesData}
+              data={filteredSalesData}
               loading={salesLoading && !!queryKey}
               startDate={salesDateTimeRange[0]}
               endDate={salesDateTimeRange[1]}
@@ -490,20 +584,21 @@ const AdminReports: React.FC = () => {
               <div style={{ flex: "1 1 200px", minWidth: 0 }}>
                 <Form.Item
                   name="createdBy"
-                  label={<span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.subText }}><UserOutlined /> Created By</span>}
+                  initialValue={isWaiter ? currentUserId : undefined}
+                  label={<span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.subText }}><UserOutlined /> Served By</span>}
                   style={{ marginBottom: 14 }}
                 >
-                  <Select showSearch allowClear placeholder="All staff" options={userOptions} style={{ width: "100%", borderRadius: 8 }}
+                  <Select showSearch allowClear={!isWaiter} disabled={isWaiter} placeholder="All staff" options={servedByOptions} style={{ width: "100%", borderRadius: 8 }}
                     filterOption={(i, o) => String(o?.label ?? "").toLowerCase().includes(i.toLowerCase())} />
                 </Form.Item>
               </div>
               <div style={{ flex: "1 1 200px", minWidth: 0 }}>
                 <Form.Item
                   name="locationId"
-                  label={<span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.subText }}><EnvironmentOutlined /> Served By</span>}
+                  label={<span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.subText }}><EnvironmentOutlined /> Zone</span>}
                   style={{ marginBottom: 14 }}
                 >
-                  <Select showSearch allowClear placeholder="All locations" options={locationOptions} style={{ width: "100%", borderRadius: 8 }}
+                  <Select showSearch allowClear placeholder="All zones" options={locationOptions} style={{ width: "100%", borderRadius: 8 }}
                     filterOption={(i, o) => String(o?.label ?? "").toLowerCase().includes(i.toLowerCase())} />
                 </Form.Item>
               </div>
@@ -791,7 +886,9 @@ const AdminReports: React.FC = () => {
                 const rows = response.top_earners.map((earner: any) => ({
                   id: earner.staff_id,
                   name: earner.staff_details?.fullname || earner.staff_details?.username || "Staff",
-                  totalSales: earner.total_earnings,
+                  totalSales: report_percentage_enabled
+                    ? earner.total_earnings
+                    : (earner.total_revenue ?? earner.total_earnings),
                 }));
                 setEarnerResults(rows);
                 setEarnerSummary(response.summary || {
@@ -817,6 +914,7 @@ const AdminReports: React.FC = () => {
                   <ShopField />
                 </div>
               )}
+              {report_percentage_enabled && (
               <div style={{ flex: "1 1 140px", minWidth: 0 }}>
                 <Form.Item
                   name="staffPct"
@@ -842,6 +940,8 @@ const AdminReports: React.FC = () => {
                   />
                 </Form.Item>
               </div>
+              )}
+              {report_percentage_enabled && (
               <div style={{ flex: "1 1 140px", minWidth: 0 }}>
                 <Form.Item
                   name="platformPct"
@@ -867,6 +967,7 @@ const AdminReports: React.FC = () => {
                   />
                 </Form.Item>
               </div>
+              )}
             </div>
 
             <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 20 }}>
@@ -1012,6 +1113,7 @@ const AdminReports: React.FC = () => {
         platformPct={earnerPcts.platform}
         summary={earnerSummary}
         staffEarningEnabled={staff_earning_enabled}
+        percentageEnabled={report_percentage_enabled}
       />
     </div>
   );

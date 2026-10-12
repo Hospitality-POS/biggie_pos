@@ -49,6 +49,7 @@ import { usePOSMode } from "@context/POSModeContext";
 import { useRetailQueue } from "@context/RetailQueueContext";
 import { usePrintDocument, DocumentType } from "../MODALS/Hooks/usePrintDocument";
 import useSystemDetails from "@hooks/useSystemDetails";
+import { usePermissions } from "@hooks/usePermissions";
 import { sendPrintFromCart } from "@services/printAgent";
 import dayjs from "dayjs";
 
@@ -107,6 +108,7 @@ const CartDrawer: React.FC = () => {
     loading,
   } = useAppSelector((s) => s.cart);
   const { user } = useAppSelector((s) => s.auth);
+  const { can } = usePermissions();
   const { tableData: td } = useAppSelector((s) => s.Tables);
   const pendingPrintSnapshot = useAppSelector((s) => s.pendingPrint.snapshot);
 
@@ -884,7 +886,7 @@ const CartDrawer: React.FC = () => {
                 )}
               </Flex>
             )}
-            {(user?.role === "admin" || user?.role === "cashier") && !isAwaitingPrintCart && (
+            {can("CART_DELETE_ALL_ITEMS") && !isAwaitingPrintCart && (
               <Popconfirm
                 title="Clear all items?"
                 description="This will remove everything from the cart."

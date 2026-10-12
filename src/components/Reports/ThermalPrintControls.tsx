@@ -50,7 +50,7 @@ const ThermalPrintControls: React.FC<ThermalPrintControlsProps> = ({
         notFoundContent="No print agents connected"
         options={zones.map((z) => ({
           value: z.key,
-          label: `${z.zone} · ${z.deviceName}`,
+          label: `${z.zone} · ${z.deviceName}${z.connected ? "" : " (offline)"}`,
         }))}
       />
     )}

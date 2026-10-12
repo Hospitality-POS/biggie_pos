@@ -8,6 +8,7 @@ import {
     PlusOutlined, FileExcelOutlined, SettingOutlined,
     EyeOutlined, StopOutlined, BankOutlined,
     ThunderboltOutlined, CheckCircleOutlined, ClockCircleOutlined,
+    SafetyCertificateOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -18,12 +19,12 @@ import {
     ImportStatus,
 } from "@services/accounting/bankStatementImport";
 import { getBankAccounts } from "@services/accounting/accounts";
-import { getCurrentTenantId } from "@services/tenants";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import dayjs from "dayjs";
 import ImportStatementDrawer from "./ImportStatementDrawer";
 import TransactionReviewDrawer from "./TransactionReviewDrawer";
 import CategorizationRulesDrawer from "./CategorizationRulesDrawer";
+import VerifyPostingModal from "./VerifyPostingModal";
 
 const { Text } = Typography;
 
@@ -50,10 +51,15 @@ const BankStatementPage: React.FC = () => {
     const [importOpen, setImportOpen] = useState(false);
     const [reviewOpen, setReviewOpen] = useState(false);
     const [rulesOpen, setRulesOpen] = useState(false);
+    const [verifyOpen, setVerifyOpen] = useState(false);
     const [selectedImport, setSelectedImport] = useState<BankStatementImport | null>(null);
     const [selectedAccountId, setSelectedAccountId] = useState<string | undefined>(undefined);
 
-    const shopId = getCurrentTenantId() || "";
+    // Chart of Accounts / bank imports are scoped to the POS Shop record
+    // (localStorage.shopId, set at login), not the SaaS tenant record
+    // (getCurrentTenantId) — using the tenant id here made every import
+    // invisible since they're saved with the real shop_id.
+    const shopId = localStorage.getItem("shopId") || "";
 
     const { data, isLoading, refetch } = useQuery({
         queryKey: ["bank-imports", shopId, activeStatus, page, selectedAccountId],
@@ -128,6 +134,11 @@ const BankStatementPage: React.FC = () => {
     const openReview = (record: BankStatementImport) => {
         setSelectedImport(record);
         setReviewOpen(true);
+    };
+
+    const openVerify = (record: BankStatementImport) => {
+        setSelectedImport(record);
+        setVerifyOpen(true);
     };
 
     const imports = data?.imports || [];
@@ -258,6 +269,11 @@ const BankStatementPage: React.FC = () => {
                     <Tooltip title="Review Transactions">
                         <Button icon={<EyeOutlined />} size="small" onClick={() => openReview(r)} />
                     </Tooltip>
+                    {(r.status === "Fully Pushed" || r.status === "Partially Pushed") && (
+                        <Tooltip title="Verify Posting">
+                            <Button icon={<SafetyCertificateOutlined />} size="small" onClick={() => openVerify(r)} />
+                        </Tooltip>
+                    )}
                     {r.status !== "Voided" && r.status !== "Fully Pushed" && (
                         <Tooltip title="Void Import">
                             <Popconfirm
@@ -438,6 +454,14 @@ const BankStatementPage: React.FC = () => {
             <CategorizationRulesDrawer
                 open={rulesOpen}
                 onClose={() => setRulesOpen(false)}
+                shopId={shopId}
+            />
+
+            <VerifyPostingModal
+                open={verifyOpen}
+                onClose={() => { setVerifyOpen(false); setSelectedImport(null); }}
+                onSuccess={onSuccess}
+                importRecord={selectedImport}
                 shopId={shopId}
             />
         </App>

@@ -228,7 +228,10 @@ export const fetchAllSellableItems = async () => {
     const products = (inventoryRes?.data ?? [])
       .filter(
         (p: any) =>
-          isRetail || p.usage_type === "selling" || p.usage_type === "both"
+          isRetail ||
+          p.usage_type === "selling" ||
+          p.usage_type === "both" ||
+          !p.usage_type
       )
       .map((p: any) => ({ ...p, type: "product" }));
     return [...services, ...products];

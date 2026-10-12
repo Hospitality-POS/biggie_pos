@@ -14,6 +14,7 @@ import {
   InboxOutlined,
 } from "@ant-design/icons";
 import useCartItemsData from "@hooks/cartItemsData";
+import { usePermissions } from "@hooks/usePermissions";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import axiosInstance from "../../services/request";
 import { BASE_URL } from "@utils/config";
@@ -72,6 +73,15 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem, cartDeductionEnab
       !!cartDetails?._id &&
       pendingPrintSnapshot.cartDetails?._id === cartDetails._id);
   const canEditQty = (user?.role === "admin" || user?.role === "cashier" || user?.role === "waiter") && !cartLocked;
+  const { can } = usePermissions();
+  // Unsent items can be removed by waiters the same as admin/cashier (plus
+  // any other role granted CART_DELETE_ITEM). Once an item is sent, only
+  // admin/cashier may delete it.
+  const canDeleteItem =
+    !cartLocked &&
+    (cartItem?.sent
+      ? user?.role === "admin" || user?.role === "cashier"
+      : user?.role === "waiter" || can("CART_DELETE_ITEM"));
 
   // Sync display when cart updates externally
   useEffect(() => {
@@ -772,7 +782,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem, cartDeductionEnab
                       onClick={handleEditMiscItem}
                     />
                   )}
-                  {(user?.role === "admin" || user?.role === "cashier") && !cartLocked && (
+                  {canDeleteItem && (
                     <Button
                       danger
                       size="small"
@@ -798,7 +808,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem, cartDeductionEnab
                       onClick={handleEditMiscItem}
                     />
                   )}
-                  {(user?.role === "admin" || user?.role === "cashier") && !cartLocked && (
+                  {canDeleteItem && (
                     <Button
                       danger
                       size="small"
