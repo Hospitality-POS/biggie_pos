@@ -145,6 +145,7 @@ export const useReport = (reportType: string) => {
       formattedPayload = {
         startDate: inventoryUsageDateTimeRange[0],
         endDate: inventoryUsageDateTimeRange[1],
+        ...effectiveParams,
       };
       dispatch(generateInventoryUsageReport(formattedPayload));
       setOpenInventoryUsageModal(true);
@@ -171,10 +172,10 @@ export const useReport = (reportType: string) => {
     (reportType === "voided" &&
       (!voidedDateTimeRange[0] || !voidedDateTimeRange[1])) ||
     (reportType === "delivery" &&
-      (!deliveryDateTimeRange[0] || !deliveryDateTimeRange[1]));
-  reportType === "inventory_usage" &&
-    (!inventoryUsageDateTimeRange[0] || !inventoryUsageDateTimeRange[1]);
-  reportType === "vat" && (!vatDateTimeRange[0] || !vatDateTimeRange[1]);
+      (!deliveryDateTimeRange[0] || !deliveryDateTimeRange[1])) ||
+    (reportType === "inventory_usage" &&
+      (!inventoryUsageDateTimeRange[0] || !inventoryUsageDateTimeRange[1])) ||
+    (reportType === "vat" && (!vatDateTimeRange[0] || !vatDateTimeRange[1]));
 
   const onCloseSalesModal = () => {
     setOpenSalesModal(false);
