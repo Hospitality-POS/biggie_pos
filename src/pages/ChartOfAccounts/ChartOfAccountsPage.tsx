@@ -14,7 +14,6 @@ import {
     getAllAccounts, deleteAccount, toggleAccountActive,
     seedDefaultAccounts, ChartOfAccount, AccountType,
 } from "@services/accounting/accounts";
-import { getCurrentTenantId } from "@services/tenants";
 import { fetchSystemSetupDetailsById } from "@services/systemsetup";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import AccountFormDrawer from "./AccountFormDrawer";
@@ -112,7 +111,9 @@ const ChartOfAccountsPage: React.FC = () => {
     const actionRef = useRef<ActionType>();
     const { modal } = App.useApp();
 
-    const shopId = getCurrentTenantId();
+    // Chart of Accounts is scoped to the POS Shop record (localStorage.shopId,
+    // set at login), not the SaaS tenant record (getCurrentTenantId).
+    const shopId = localStorage.getItem("shopId") || "";
 
     const [activeType, setActiveType] = useState<AccountType | "ALL">("ALL");
     const [formOpen, setFormOpen] = useState(false);

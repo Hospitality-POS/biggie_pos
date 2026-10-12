@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { message } from "antd";
 import { useQuery } from "@tanstack/react-query";
 import { useReactToPrint } from "react-to-print";
@@ -35,9 +35,14 @@ const rowLine = (texts: string[]): string => {
  * print lines understood by the print agents ({ type, text }).
  *
  * - dashed/solid top|bottom borders  → divider lines
- * - flex rows                        → left/right-aligned single line
- * - centered bold text               → "header" lines
- * - everything else                  → "footer" (plain) lines
+ * - bold flex rows                   → "bold" lines (normal size, bold)
+ * - other flex rows                  → "text" lines (left/right-aligned)
+ * - centered bold text               → "subheader" (normal size, bold)
+ * - centered plain text              → "footer" lines
+ * - everything else                  → "text" (plain left-aligned) lines
+ *
+ * Note: the agent renders "header"/"total" at double height — too big for
+ * report rows, so reports deliberately use the normal-size bold types.
  */
 export const receiptDomToLines = (root: HTMLElement): PrintLine[] => {
   const lines: PrintLine[] = [];
@@ -66,17 +71,46 @@ export const receiptDomToLines = (root: HTMLElement): PrintLine[] => {
     if (isRow) {
       const texts = children.map(textOf).filter(Boolean);
       if (texts.length > 1) {
-        lines.push({ type: "footer", text: rowLine(texts) });
+        // Bold rows (e.g. category headers, totals) print bold at normal
+        // size; plain rows print left-aligned. A bottom border still emits
+        // a divider underneath.
+        const bold = parseInt(style.fontWeight || "400", 10) >= 600;
+        lines.push({ type: bold ? "bold" : "text", text: rowLine(texts) });
+        if (
+          style.borderBottomStyle !== "none" &&
+          style.borderBottomWidth !== "0px"
+        ) {
+          emitDivider();
+        }
         return;
       }
     }
 
-    if (children.length === 0) {
+    // Elements whose children are all inline (<strong>, <span>, …) render as
+    // a single text run — emit the full textContent so trailing text nodes
+    // (e.g. the date after "<strong>From:</strong>") aren't dropped.
+    const hasBlockChild = children.some((c) => {
+      const d = window.getComputedStyle(c).display;
+      return !d.startsWith("inline") && d !== "contents";
+    });
+    if (!hasBlockChild) {
       const t = textOf(el);
       if (!t) return;
       const centered = style.textAlign === "center";
-      const bold = parseInt(style.fontWeight || "400", 10) >= 600;
-      lines.push({ type: centered && bold ? "header" : "footer", text: t });
+      // Fully bold when ~all the text lives inside <strong>/<b> — a stray
+      // bold fragment ("Powered by: <strong>BRAND</strong>") must not bold
+      // the whole line.
+      const boldDescLen = Array.from(el.querySelectorAll("strong,b")).reduce(
+        (n, s) => n + (s.textContent || "").trim().length,
+        0,
+      );
+      const bold =
+        parseInt(style.fontWeight || "400", 10) >= 600 ||
+        boldDescLen / t.length >= 0.9;
+      lines.push({
+        type: bold ? (centered ? "subheader" : "bold") : centered ? "footer" : "text",
+        text: t,
+      });
       return;
     }
 
@@ -106,6 +140,9 @@ export const useThermalAgentPrint = (
   const [target, setTarget] = useState<ThermalPrintTarget>("browser");
   const [zoneKey, setZoneKey] = useState<string>();
   const [printing, setPrinting] = useState(false);
+  // Tracks a manual Browser/IP choice so the auto-default below doesn't
+  // override it once agents finish loading.
+  const [targetOverridden, setTargetOverridden] = useState(false);
 
   const shopId = localStorage.getItem("shopId") ?? "";
   const companyCode = useMemo(() => {
@@ -117,10 +154,11 @@ export const useThermalAgentPrint = (
     }
   }, []);
 
+  // Fetch agents up front — if any exist the default target flips to IP
+  // printing with the first zone preselected.
   const { data: agentData, isLoading: agentsLoading } = useQuery({
     queryKey: ["connectedAgents", shopId],
     queryFn: () => getConnectedAgents(shopId, companyCode),
-    enabled: target === "agent",
     staleTime: 30_000,
     retry: 1,
   });
@@ -149,6 +187,19 @@ export const useThermalAgentPrint = (
     }
     return out;
   }, [agents]);
+
+  // Default to IP printing on the first agent/zone when agents are paired —
+  // unless the user already chose a target themselves.
+  useEffect(() => {
+    if (targetOverridden || target !== "browser" || zoneOptions.length === 0) return;
+    setTarget("agent");
+    setZoneKey((k) => k ?? zoneOptions[0].key);
+  }, [zoneOptions, target, targetOverridden]);
+
+  const handleSetTarget = (t: ThermalPrintTarget) => {
+    setTargetOverridden(true);
+    setTarget(t);
+  };
 
   const printBrowser = useReactToPrint({
     content: () => contentRef.current,
@@ -209,7 +260,7 @@ export const useThermalAgentPrint = (
 
   return {
     target,
-    setTarget,
+    setTarget: handleSetTarget,
     agents,
     zoneOptions,
     zoneKey,

@@ -248,7 +248,7 @@ const AdminReports: React.FC = () => {
   const userOptions = useUserOptions();
   const locationOptions = useLocationOptions();
   const { user } = useAppSelector((state) => state.auth);
-  const { staff_earning_enabled } = useSystemDetails();
+  const { staff_earning_enabled, report_percentage_enabled } = useSystemDetails();
 
   // Waiters can only report on sales they served — the "Served By" filter is
   // locked to their own account so the report can't be widened to other staff.
@@ -886,7 +886,9 @@ const AdminReports: React.FC = () => {
                 const rows = response.top_earners.map((earner: any) => ({
                   id: earner.staff_id,
                   name: earner.staff_details?.fullname || earner.staff_details?.username || "Staff",
-                  totalSales: earner.total_earnings,
+                  totalSales: report_percentage_enabled
+                    ? earner.total_earnings
+                    : (earner.total_revenue ?? earner.total_earnings),
                 }));
                 setEarnerResults(rows);
                 setEarnerSummary(response.summary || {
@@ -912,6 +914,7 @@ const AdminReports: React.FC = () => {
                   <ShopField />
                 </div>
               )}
+              {report_percentage_enabled && (
               <div style={{ flex: "1 1 140px", minWidth: 0 }}>
                 <Form.Item
                   name="staffPct"
@@ -937,6 +940,8 @@ const AdminReports: React.FC = () => {
                   />
                 </Form.Item>
               </div>
+              )}
+              {report_percentage_enabled && (
               <div style={{ flex: "1 1 140px", minWidth: 0 }}>
                 <Form.Item
                   name="platformPct"
@@ -962,6 +967,7 @@ const AdminReports: React.FC = () => {
                   />
                 </Form.Item>
               </div>
+              )}
             </div>
 
             <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 20 }}>
@@ -1107,6 +1113,7 @@ const AdminReports: React.FC = () => {
         platformPct={earnerPcts.platform}
         summary={earnerSummary}
         staffEarningEnabled={staff_earning_enabled}
+        percentageEnabled={report_percentage_enabled}
       />
     </div>
   );

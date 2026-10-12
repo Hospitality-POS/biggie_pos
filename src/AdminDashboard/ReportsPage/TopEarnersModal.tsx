@@ -52,13 +52,15 @@ interface ReportProps {
   platformPct: number;
   summary?: { total_revenue: number; total_staff_earnings: number; platform_earnings: number } | null;
   staffEarningEnabled?: boolean;
+  /** Shop flag — when false, staff figures are revenue (no % split shown). */
+  percentageEnabled?: boolean;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
 // THERMAL RECEIPT
 // ══════════════════════════════════════════════════════════════════════════════
 const ThermalReceipt = forwardRef<HTMLDivElement, ReportProps>(
-  ({ data, startDate, endDate, brandName, staffPct, platformPct, summary, staffEarningEnabled }, ref) => {
+  ({ data, startDate, endDate, brandName, staffPct, platformPct, summary, staffEarningEnabled, percentageEnabled = true }, ref) => {
     const grandTotal = data.reduce((s, r) => s + r.totalSales, 0);
     // Use summary values only if staff earning is enabled, otherwise use percentage calculation
     const totalStaffEarnings = staffEarningEnabled && summary?.total_staff_earnings 
@@ -91,19 +93,23 @@ const ThermalReceipt = forwardRef<HTMLDivElement, ReportProps>(
           ))}
 
           <div style={{ borderTop: "1px dashed #999", marginTop: 10, paddingTop: 8 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, fontWeight: 700, padding: "2px 0", borderBottom: "1px dotted #ddd" }}>
-              <span>Total Revenue:</span><span>KSh. {fmt(summary?.total_revenue || grandTotal)}</span>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, fontWeight: 700, padding: "2px 0", borderBottom: percentageEnabled ? "1px dotted #ddd" : "none" }}>
+              <span>Total Revenue:</span><span>KSh. {fmt(percentageEnabled ? (summary?.total_revenue || grandTotal) : grandTotal)}</span>
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, fontWeight: 700, padding: "2px 0", borderBottom: "1px dotted #ddd" }}>
-              <span>Total Staff Earnings:</span><span>KSh. {fmt(totalStaffEarnings)}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, fontWeight: 700, padding: "2px 0" }}>
-              <span>Platform Cut:</span><span>KSh. {fmt(platformCut)}</span>
-            </div>
+            {percentageEnabled && (
+              <>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, fontWeight: 700, padding: "2px 0", borderBottom: "1px dotted #ddd" }}>
+                  <span>Total Staff Earnings:</span><span>KSh. {fmt(totalStaffEarnings)}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, fontWeight: 700, padding: "2px 0" }}>
+                  <span>Platform Cut:</span><span>KSh. {fmt(platformCut)}</span>
+                </div>
+              </>
+            )}
           </div>
 
           <div style={{ textAlign: "center", marginTop: 12, fontSize: 9, color: "#aaa" }}>
-            <div>Split: {staffPct}% staff · {platformPct}% platform</div>
+            {percentageEnabled && <div>Split: {staffPct}% staff · {platformPct}% platform</div>}
             <div>Powered by: <strong>{COOP_NAME}</strong></div>
             <div>{dayjs().format("MMM DD, YYYY [at] h:mm A")}</div>
           </div>
@@ -117,7 +123,7 @@ const ThermalReceipt = forwardRef<HTMLDivElement, ReportProps>(
 // A4 REPORT
 // ══════════════════════════════════════════════════════════════════════════════
 const A4Report = forwardRef<HTMLDivElement, ReportProps>(
-  ({ data, startDate, endDate, brandName, staffPct, platformPct, summary, staffEarningEnabled }, ref) => {
+  ({ data, startDate, endDate, brandName, staffPct, platformPct, summary, staffEarningEnabled, percentageEnabled = true }, ref) => {
     const grandTotal = data.reduce((s, r) => s + r.totalSales, 0);
     // Use summary values only if staff earning is enabled, otherwise use percentage calculation
     const totalStaffEarnings = staffEarningEnabled && summary?.total_staff_earnings 
@@ -147,9 +153,11 @@ const A4Report = forwardRef<HTMLDivElement, ReportProps>(
 
           <div style={{ display: "flex", borderBottom: `2px solid ${C.border}`, background: C.bg }}>
             {[
-              { label: "Grand Total Sales", value: `KES ${fmt(grandTotal)}`, color: C.primary },
-              { label: `Total Staff Earnings (${staffPct}%)`, value: `KES ${fmt(totalStaffEarnings)}`, color: C.green },
-              { label: `Platform Cut (${platformPct}%)`, value: `KES ${fmt(platformCut)}`, color: C.blue },
+              { label: percentageEnabled ? "Grand Total Sales" : "Total Revenue", value: `KES ${fmt(grandTotal)}`, color: C.primary },
+              ...(percentageEnabled ? [
+                { label: `Total Staff Earnings (${staffPct}%)`, value: `KES ${fmt(totalStaffEarnings)}`, color: C.green },
+                { label: `Platform Cut (${platformPct}%)`, value: `KES ${fmt(platformCut)}`, color: C.blue },
+              ] : []),
               { label: "Top Earner", value: data[0]?.name || "—", color: C.orange },
             ].map(({ label, value, color }) => (
               <div key={label} style={{ flex: 1, padding: "14px 16px", borderLeft: `3px solid ${color}`, background: "#fff", margin: "8px 0 8px 8px", borderRadius: 6 }}>
@@ -165,7 +173,7 @@ const A4Report = forwardRef<HTMLDivElement, ReportProps>(
                 <tr style={{ background: C.primary, color: "#fff" }}>
                   <th style={{ padding: "9px 12px", textAlign: "left", fontWeight: 700 }}>#</th>
                   <th style={{ padding: "9px 12px", textAlign: "left", fontWeight: 700 }}>Staff Member</th>
-                  <th style={{ padding: "9px 12px", textAlign: "right", fontWeight: 700 }}>Total Earnings</th>
+                  <th style={{ padding: "9px 12px", textAlign: "right", fontWeight: 700 }}>{percentageEnabled ? "Total Earnings" : "Total Revenue"}</th>
                 </tr>
               </thead>
               <tbody>
@@ -190,22 +198,26 @@ const A4Report = forwardRef<HTMLDivElement, ReportProps>(
                 <tbody>
                   <tr style={{ background: C.primaryLight }}>
                     <td style={{ padding: "7px 12px", borderBottom: `1px solid ${C.border}`, fontWeight: 700, color: C.primary }}>Total Revenue</td>
-                    <td style={{ padding: "7px 12px", borderBottom: `1px solid ${C.border}`, textAlign: "right", fontWeight: 700, color: C.primary }}>KES {fmt(summary?.total_revenue || grandTotal)}</td>
+                    <td style={{ padding: "7px 12px", borderBottom: `1px solid ${C.border}`, textAlign: "right", fontWeight: 700, color: C.primary }}>KES {fmt(percentageEnabled ? (summary?.total_revenue || grandTotal) : grandTotal)}</td>
                   </tr>
-                  <tr>
-                    <td style={{ padding: "7px 12px", borderBottom: `1px solid ${C.border}`, fontWeight: 500, color: C.darkText }}>Total Staff Earnings</td>
-                    <td style={{ padding: "7px 12px", borderBottom: `1px solid ${C.border}`, textAlign: "right", fontWeight: 700, color: C.green }}>KES {fmt(totalStaffEarnings)}</td>
-                  </tr>
-                  <tr>
-                    <td style={{ padding: "7px 12px", fontWeight: 500, color: C.darkText }}>Platform Cut</td>
-                    <td style={{ padding: "7px 12px", textAlign: "right", fontWeight: 700, color: C.blue }}>KES {fmt(platformCut)}</td>
-                  </tr>
+                  {percentageEnabled && (
+                    <>
+                      <tr>
+                        <td style={{ padding: "7px 12px", borderBottom: `1px solid ${C.border}`, fontWeight: 500, color: C.darkText }}>Total Staff Earnings</td>
+                        <td style={{ padding: "7px 12px", borderBottom: `1px solid ${C.border}`, textAlign: "right", fontWeight: 700, color: C.green }}>KES {fmt(totalStaffEarnings)}</td>
+                      </tr>
+                      <tr>
+                        <td style={{ padding: "7px 12px", fontWeight: 500, color: C.darkText }}>Platform Cut</td>
+                        <td style={{ padding: "7px 12px", textAlign: "right", fontWeight: 700, color: C.blue }}>KES {fmt(platformCut)}</td>
+                      </tr>
+                    </>
+                  )}
                 </tbody>
               </table>
             </div>
 
             <div style={{ marginTop: 32, paddingTop: 12, borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", fontSize: 10, color: C.subText }}>
-              <span>Split ratio: {staffPct}% staff · {platformPct}% platform</span>
+              <span>{percentageEnabled ? `Split ratio: ${staffPct}% staff · ${platformPct}% platform` : "Revenue per staff member"}</span>
               <span>Powered by <strong>{COOP_NAME}</strong></span>
               <span>Generated on {dayjs().format("MMM DD, YYYY [at] h:mm A")}</span>
             </div>
@@ -297,6 +309,7 @@ function TopEarnersModal({
   onClose,
   summary,
   staffEarningEnabled,
+  percentageEnabled = true,
 }: {
   data: { id: string; name: string; totalSales: number }[];
   startDate: string;
@@ -307,6 +320,8 @@ function TopEarnersModal({
   onClose: () => void;
   summary?: { total_revenue: number; total_staff_earnings: number; platform_earnings: number } | null;
   staffEarningEnabled?: boolean;
+  /** Shop flag — when false, staff figures are revenue (no % split shown). */
+  percentageEnabled?: boolean;
 }) {
   const { BRAND_NAME1 } = useSystemDetails();
   const [printMode, setPrintMode] = useState<PrintMode>("thermal");
@@ -357,7 +372,7 @@ function TopEarnersModal({
   };
 
   const sharedProps: ReportProps = {
-    data, startDate, endDate, brandName: BRAND_NAME1, staffPct, platformPct, summary, staffEarningEnabled,
+    data, startDate, endDate, brandName: BRAND_NAME1, staffPct, platformPct, summary, staffEarningEnabled, percentageEnabled,
   };
 
   return (
@@ -433,9 +448,13 @@ function TopEarnersModal({
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {data.length > 0 && (
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                  <SummaryCard label="Grand Total Sales" value={`KES ${fmt(grandTotal)}`} color={C.primary} bg={C.primaryLight} icon={<DollarOutlined />} />
-                  <SummaryCard label={`Staff Earnings (${staffPct}%)`} value={`KES ${fmt(totalStaffEarnings)}`} color={C.green} bg="#f0fdf4" icon={<TrophyOutlined />} />
-                  <SummaryCard label={`Platform Cut (${platformPct}%)`} value={`KES ${fmt(platformCut)}`} color={C.blue} bg="#eff6ff" icon={<SendOutlined />} />
+                  <SummaryCard label={percentageEnabled ? "Grand Total Sales" : "Total Revenue"} value={`KES ${fmt(grandTotal)}`} color={C.primary} bg={C.primaryLight} icon={<DollarOutlined />} />
+                  {percentageEnabled && (
+                    <>
+                      <SummaryCard label={`Staff Earnings (${staffPct}%)`} value={`KES ${fmt(totalStaffEarnings)}`} color={C.green} bg="#f0fdf4" icon={<TrophyOutlined />} />
+                      <SummaryCard label={`Platform Cut (${platformPct}%)`} value={`KES ${fmt(platformCut)}`} color={C.blue} bg="#eff6ff" icon={<SendOutlined />} />
+                    </>
+                  )}
                   <SummaryCard label="Top Earners" value={`${data.length}`} color={C.orange} bg="#fffbeb" icon={<TrophyOutlined />} />
                 </div>
               )}

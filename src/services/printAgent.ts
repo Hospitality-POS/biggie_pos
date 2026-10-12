@@ -82,7 +82,19 @@ export function getAgentForCategory(mainCategoryName: string): string | null {
 }
 
 export interface PrintLine {
-  type: "header" | "item" | "total" | "divider" | "footer";
+  // "header"/"total" render double-height + bold on the agent — meant for
+  // receipt titles. "subheader"/"bold" are bold at normal text size (used
+  // by report printouts); "text" is a plain left-aligned line. Older agents
+  // fall back to plain text for unknown types.
+  type:
+    | "header"
+    | "subheader"
+    | "item"
+    | "total"
+    | "divider"
+    | "footer"
+    | "bold"
+    | "text";
   text: string;
   qty?: number;
   price?: string;

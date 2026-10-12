@@ -171,6 +171,9 @@ const AccountFormDrawer: React.FC<Props> = ({
             ...rest,
             shop_id: shopId,
             level,
+            // Let the server pick a guaranteed-free code if the suggestion
+            // (or an empty code) would collide.
+            ...(!isEdit && autoCode ? { auto_generate_code: true } : {}),
             bank_details:
                 bank_name || account_number || branch
                     ? { bank_name, account_number, branch }

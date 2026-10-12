@@ -388,6 +388,19 @@ const RestaurantPage: React.FC = () => {
       (s: any) => String(s?._id ?? s) === String(currentUserId)
     );
 
+  // Shop flag: when off, a cashier cannot add items to a table whose open
+  // cart is already being served by another staff member (waiter/cashier).
+  // They can still open it to view/pay/print — only adding is blocked.
+  const blockAddToOtherStaffTable =
+    (shopData as any)?.allow_cashier_add_to_others_tables === false &&
+    userRole === "cashier" &&
+    cartForThisTable &&
+    activeCartServedBy.length > 0 &&
+    activeCartValue > 0 &&
+    !activeCartServedBy.some(
+      (s: any) => String(s?._id ?? s) === String(currentUserId)
+    );
+
   if (hideServedTable) {
     return (
       <div
@@ -553,6 +566,7 @@ const RestaurantPage: React.FC = () => {
                               key={item._id}
                               menu={item}
                               handleCart={handleCartOpen}
+                              blockAdd={blockAddToOtherStaffTable}
                               style={{
                                 flex: isMobile
                                   ? "0 0 100%"
@@ -699,6 +713,7 @@ const RestaurantPage: React.FC = () => {
                                     key={item._id}
                                     menu={item}
                                     handleCart={handleCartOpen}
+                                    blockAdd={blockAddToOtherStaffTable}
                                     style={{
                                       flex: isMobile
                                         ? "0 0 100%"
