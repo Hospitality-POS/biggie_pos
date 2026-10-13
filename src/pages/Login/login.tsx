@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, Input, Space, Row, Col, Typography, Segmented } from "antd";
+import { Button, Input, Space, Row, Col, Typography, Segmented, Tooltip } from "antd";
 import {
     KeyOutlined,
     DeleteOutlined,
@@ -9,7 +9,9 @@ import {
     EyeOutlined,
     MailOutlined,
     SafetyCertificateOutlined,
+    SettingOutlined,
 } from "@ant-design/icons";
+import ServerSettingsModal from "@components/ServerSettingsModal";
 import { sendOtp, loginWithMethod } from "../../services/authentication";
 import { useAppDispatch, useAppSelector } from "src/store";
 import { verifyCompanyCode, verifyBusinessEmail } from "@services/users";
@@ -54,6 +56,7 @@ const StaffLoginPage = () => {
     const [showPasswordOptions, setShowPasswordOptions] = useState<boolean>(false);
     const [currentAuthMethod, setCurrentAuthMethod] = useState<'pin' | 'password' | '2fa' | 'otp'>('pin');
     const [authMethodLoading, setAuthMethodLoading] = useState(false);
+    const [serverSettingsOpen, setServerSettingsOpen] = useState<boolean>(false);
 
     useEffect(() => {
         const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -536,8 +539,23 @@ const StaffLoginPage = () => {
                 backgroundPosition: "center",
                 backgroundRepeat: "no-repeat",
                 padding: isMobile ? "1rem" : "1.5rem",
+                position: "relative",
             }}
         >
+            {/* API server settings — desktop (Tauri) shell only */}
+            {typeof window !== "undefined" && "__TAURI_INTERNALS__" in window && (
+                <Tooltip title="Desktop settings">
+                    <Button
+                        icon={<SettingOutlined />}
+                        onClick={() => setServerSettingsOpen(true)}
+                        style={{ position: "absolute", top: 16, right: 16, zIndex: 10 }}
+                    />
+                </Tooltip>
+            )}
+            <ServerSettingsModal
+                open={serverSettingsOpen}
+                onClose={() => setServerSettingsOpen(false)}
+            />
             <ProCard
                 boxShadow
                 style={{

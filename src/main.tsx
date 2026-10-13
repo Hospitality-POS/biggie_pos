@@ -14,6 +14,11 @@ import { POSModeProvider } from "./context/POSModeContext";
 import { RetailQueueProvider } from "./context/RetailQueueContext";
 import GlobalErrorBoundary from "@components/GlobalErrorBoundary";
 import { reloadForNewVersion } from "@utils/lazyWithReload";
+import { initDesktopZoom } from "@utils/desktopZoom";
+import { initDesktopUpdater } from "@utils/desktopUpdater";
+
+initDesktopZoom();
+initDesktopUpdater();
 
 // Recover from stale-asset failures right after a deploy: Vite fires
 // vite:preloadError when a modulepreload'd chunk 404s, before React even
