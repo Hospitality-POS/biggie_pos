@@ -21,28 +21,27 @@ export const getAllOrders = async (data: ParamsType) => {
 };
 
 export const getDashboardAnalysis = async (startDate: string, endDate: string, shopId?: string) => {
-  const params = new URLSearchParams();
-  if (startDate) params.append('startDate', startDate);
-  if (endDate) params.append('endDate', endDate);
-  if (shopId) params.append('shop_id', shopId);
-
-  const queryString = params.toString();
-  const url = `${BASE_URL}/orders/dashboard/summary${queryString ? `?${queryString}` : ''}`;
-
-  const response = await axiosInstance.get(url);
+  const response = await axiosInstance.get(`${BASE_URL}/orders/dashboard/summary`, {
+    params: {
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+      shop_id: shopId || undefined,
+    },
+  });
   return response.data;
 };
 
 export const getAdminDashboardAnalysis = async (startDate: string, endDate: string, shopId?: string) => {
-  const params = new URLSearchParams();
-  if (startDate) params.append('startDate', startDate);
-  if (endDate) params.append('endDate', endDate);
-  if (shopId) params.append('shop_id', shopId);
-
-  const queryString = params.toString();
-  const url = `${BASE_URL}/orders/admin-dashboard/summary${queryString ? `?${queryString}` : ''}`;
-
-  const response = await axiosInstance.get(url);
+  const response = await axiosInstance.get(`${BASE_URL}/orders/admin-dashboard/summary`, {
+    params: {
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+      // Explicitly pass shop_id (even "all") so the request interceptor
+      // doesn't think it's unset and inject the logged-in user's own shop,
+      // which would combine it with the dashboard's selected branch filter.
+      shop_id: shopId || "all",
+    },
+  });
   return response.data;
 };
 
