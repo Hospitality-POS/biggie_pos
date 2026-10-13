@@ -27,7 +27,7 @@ const { Text } = Typography;
 
 const IS_TAURI = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 const DESKTOP_RELEASES_URL = "https://github.com/Hospitality-POS/base_desktop/releases/latest";
-const DESKTOP_APP_SCHEME = "base://";
+const DESKTOP_APP_SCHEME = "base://open";
 const DESKTOP_RELEASE_API = "https://api.github.com/repos/Hospitality-POS/base_desktop/releases/latest";
 
 type LoginMethod = "companyCode" | "businessEmail";
