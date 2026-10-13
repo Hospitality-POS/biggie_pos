@@ -36,6 +36,7 @@ const DiscoverPage = lazyWithReload(() => import("src/AdminDashboard/DiscoverPag
 const BusinessHealthScorePage = lazyWithReload(() => import("@pages/HealthScore/BusinessHealthScorePage"));
 const PrivacyPolicy = lazyWithReload(() => import("@pages/Legal/PrivacyPolicy"));
 const TermsAndConditions = lazyWithReload(() => import("@pages/Legal/TermsAndConditions"));
+const DownloadPage = lazyWithReload(() => import("@pages/Download/DownloadPage"));
 
 // ─── Fallback spinners ────────────────────────────────────────────────────────
 const fullscreenSpin = <NubaLoader />;
@@ -340,6 +341,13 @@ const routes = sentryCreateBrowserRouter(
         path="/terms-and-conditions"
         errorElement={<NotFound />}
         element={<Suspense fallback={fullscreenSpin}><TermsAndConditions /></Suspense>}
+      />
+
+      {/* Public — desktop app download (unauthenticated) */}
+      <Route
+        path="/download"
+        errorElement={<NotFound />}
+        element={<Suspense fallback={fullscreenSpin}><DownloadPage /></Suspense>}
       />
 
       {/* Public — document signing via shareable link (unauthenticated) */}

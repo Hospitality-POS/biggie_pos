@@ -26,9 +26,7 @@ import { useRefreshPrimaryColor } from "@context/PrimaryColorContext";
 const { Text } = Typography;
 
 const IS_TAURI = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
-const DESKTOP_RELEASES_URL = "https://github.com/Hospitality-POS/base_desktop/releases/latest";
 const DESKTOP_APP_SCHEME = "base://open";
-const DESKTOP_RELEASE_API = "https://api.github.com/repos/Hospitality-POS/base_desktop/releases/latest";
 
 type LoginMethod = "companyCode" | "businessEmail";
 
@@ -65,7 +63,6 @@ const StaffLoginPage = () => {
     const [currentAuthMethod, setCurrentAuthMethod] = useState<'pin' | 'password' | '2fa' | 'otp'>('pin');
     const [authMethodLoading, setAuthMethodLoading] = useState(false);
     const [serverSettingsOpen, setServerSettingsOpen] = useState<boolean>(false);
-    const [downloadingApp, setDownloadingApp] = useState<boolean>(false);
 
     useEffect(() => {
         const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -399,29 +396,6 @@ const StaffLoginPage = () => {
         }
     };
 
-    const handleDownloadApp = async () => {
-        setDownloadingApp(true);
-        try {
-            // Resolve the latest release to get a direct link to the Windows installer
-            const res = await fetch(DESKTOP_RELEASE_API);
-            if (res.ok) {
-                const release = await res.json();
-                const asset = (release.assets || []).find((a: any) =>
-                    a.name?.endsWith("_x64-setup.exe")
-                );
-                if (asset?.browser_download_url) {
-                    window.location.href = asset.browser_download_url;
-                    return;
-                }
-            }
-        } catch {
-            // fall through to releases page
-        } finally {
-            setDownloadingApp(false);
-        }
-        window.open(DESKTOP_RELEASES_URL, "_blank", "noopener,noreferrer");
-    };
-
     const handleVerifySubmit = () => {
         if (loginMethod === "companyCode" && companyCode) {
             handleCompanyCodeSubmit(companyCode);
@@ -606,7 +580,7 @@ const StaffLoginPage = () => {
                                 // the browser shows an "Open Base?" prompt if present.
                                 window.location.href = DESKTOP_APP_SCHEME;
                             } else {
-                                handleDownloadApp();
+                                navigate("/download");
                             }
                         },
                     }}
@@ -614,7 +588,6 @@ const StaffLoginPage = () => {
                 >
                     <Button
                         icon={<WindowsOutlined />}
-                        loading={downloadingApp}
                         style={{ position: "absolute", top: 16, right: 16, zIndex: 10 }}
                     >
                         Get the app
