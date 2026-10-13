@@ -8,7 +8,7 @@ import {
     PlusOutlined, FileExcelOutlined, SettingOutlined,
     EyeOutlined, StopOutlined, BankOutlined,
     ThunderboltOutlined, CheckCircleOutlined, ClockCircleOutlined,
-    SafetyCertificateOutlined, DiffOutlined,
+    SafetyCertificateOutlined, DiffOutlined, ReloadOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -94,7 +94,7 @@ const BankStatementPage: React.FC = () => {
         setPage(1);
     };
 
-    const { data, isLoading, refetch } = useQuery({
+    const { data, isLoading, isFetching, refetch } = useQuery({
         queryKey: ["bank-imports", shopId, activeStatus, page, selectedAccountId],
         queryFn: () =>
             getAllImports({
@@ -112,13 +112,13 @@ const BankStatementPage: React.FC = () => {
         },
     });
 
-    const { data: bankAccountsData } = useQuery({
+    const { data: bankAccountsData, refetch: refetchBankAccounts } = useQuery({
         queryKey: ["bank-accounts", shopId],
         queryFn: () => getBankAccounts(shopId),
         enabled: !!shopId,
     });
 
-    const { data: summaryData } = useQuery({
+    const { data: summaryData, refetch: refetchSummary } = useQuery({
         queryKey: ["bank-imports-summary", shopId],
         queryFn: () => getImportSummary(shopId),
         enabled: !!shopId,
@@ -149,6 +149,12 @@ const BankStatementPage: React.FC = () => {
         queryClient.invalidateQueries({ queryKey: ["bank-imports", shopId] });
         queryClient.invalidateQueries({ queryKey: ["bank-imports-summary", shopId] });
     }, [queryClient, shopId]);
+
+    const handleRefresh = useCallback(() => {
+        refetch();
+        refetchSummary();
+        refetchBankAccounts();
+    }, [refetch, refetchSummary, refetchBankAccounts]);
 
     if (!shopId) {
         return <div>Shop not selected. Please select a shop to view bank statements.</div>;
@@ -387,6 +393,14 @@ const BankStatementPage: React.FC = () => {
                             optionFilterProp="label"
                             size="large"
                         />
+                        <Tooltip title="Refresh">
+                            <Button
+                                icon={<ReloadOutlined />}
+                                onClick={handleRefresh}
+                                loading={isFetching}
+                                size="large"
+                            />
+                        </Tooltip>
                         <Button
                             icon={<SettingOutlined />}
                             onClick={() => setRulesOpen(true)}
