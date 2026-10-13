@@ -904,6 +904,10 @@ export const BalanceSheetTable: React.FC<{ data: BalanceSheetResponse }> = ({ da
 // ── 4. General Ledger ─────────────────────────────────────────────────────────
 export const GeneralLedgerTable: React.FC<{ data: GeneralLedgerResponse; period?: { from: string; to: string } }> = ({ data, period }) => {
     const [exporting, setExporting] = useState(false);
+    const grandTotalDebit = data.accounts.reduce((s, acc) => s + (acc.total_debit || 0), 0);
+    const grandTotalCredit = data.accounts.reduce((s, acc) => s + (acc.total_credit || 0), 0);
+    const grandDiff = parseFloat((grandTotalDebit - grandTotalCredit).toFixed(2));
+    const isGlBalanced = Math.abs(grandDiff) < 0.01;
     const lineColumns = [
         { title: "Date", dataIndex: "entry_date", width: 100, render: (d: string) => dayjs(d).format("DD MMM YYYY") },
         { title: "Entry No.", dataIndex: "entry_no", width: 120, render: (v: string) => <Text code style={{ fontSize: 11 }}>{v}</Text> },
@@ -956,7 +960,17 @@ export const GeneralLedgerTable: React.FC<{ data: GeneralLedgerResponse; period?
     };
     return (
         <>
-            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                <Space size={6} wrap>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                        Total DR: <Text strong style={{ color: "#cf1322" }}>KES {fmt(grandTotalDebit)}</Text>
+                        {" · "}Total CR: <Text strong style={{ color: "#389e0d" }}>KES {fmt(grandTotalCredit)}</Text>
+                        {" · "}Diff: <Text strong>KES {fmt(grandDiff)}</Text>
+                    </Text>
+                    <Tag color={isGlBalanced ? "success" : "error"} style={{ fontSize: 12, padding: "2px 10px" }}>
+                        {isGlBalanced ? "✓ Balanced" : "✗ Unbalanced"}
+                    </Tag>
+                </Space>
                 <ExportDropdown onExcel={handleExcel} onPdf={handlePdf} disabled={exporting || !data.accounts.length} />
             </div>
             {data.accounts.map((acc: GeneralLedgerAccount) => (
