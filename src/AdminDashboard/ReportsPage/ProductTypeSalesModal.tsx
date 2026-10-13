@@ -66,7 +66,19 @@ const ProductTypeSalesModal: React.FC<ProductTypeSalesModalProps> = ({
 }) => {
   const { BRAND_NAME1 } = useSystemDetails();
   const printRef = useRef<HTMLDivElement>(null);
-  const handlePrint = useReactToPrint({ content: () => printRef.current });
+  // Table is paginated on screen; for print we temporarily expand the page
+  // size so the captured DOM includes every row, not just the visible page.
+  const [tablePageSize, setTablePageSize] = useState(20);
+  const lastPageSizeRef = useRef(20);
+  const handlePrint = useReactToPrint({
+    content: () => printRef.current,
+    onBeforeGetContent: () => {
+      lastPageSizeRef.current = tablePageSize;
+      setTablePageSize(9999);
+      return new Promise((resolve) => setTimeout(resolve, 0));
+    },
+    onAfterPrint: () => setTablePageSize(lastPageSizeRef.current),
+  });
 
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
   const [emailModalOpen, setEmailModalOpen] = useState(false);
@@ -467,7 +479,13 @@ const ProductTypeSalesModal: React.FC<ProductTypeSalesModalProps> = ({
                   rowKey={(record: ProductTypeSalesItem, index: number) =>
                     `${record.category}-${record.name}-${index}`
                   }
-                  pagination={false}
+                  pagination={{
+                    pageSize: tablePageSize,
+                    showSizeChanger: true,
+                    pageSizeOptions: [10, 20, 50, 100],
+                    onShowSizeChange: (_, size) => setTablePageSize(size),
+                    showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
+                  }}
                   bordered
                 />
                 <div

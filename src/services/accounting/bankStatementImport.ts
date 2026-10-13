@@ -582,6 +582,76 @@ export const importStatement = async (data: ImportStatementInput) => {
     }
 };
 
+// ── Compare / Reconcile ──────────────────────────────────────────────────────
+
+export interface CompareStatementInput {
+    shop_id: string;
+    account_id: string;
+    transactions: {
+        transaction_date: string;
+        description?: string;
+        reference?: string;
+        debit: number;
+        credit: number;
+    }[];
+}
+
+export interface CompareStatementRow {
+    row_index?: number;
+    transaction_date: string;
+    description: string;
+    reference?: string;
+    debit: number;
+    credit: number;
+    matched_import_no?: string;
+    import_no?: string;
+}
+
+export interface CompareStatementResult {
+    account_id: string;
+    uploaded_count: number;
+    system_count: number;
+    matched_count: number;
+    missing_in_system: CompareStatementRow[];
+    missing_in_system_count: number;
+    missing_in_upload: CompareStatementRow[];
+    missing_in_upload_count: number;
+    totals: {
+        uploaded_debits: number;
+        uploaded_credits: number;
+        system_debits: number;
+        system_credits: number;
+        missing_in_system_debits: number;
+        missing_in_system_credits: number;
+        missing_in_upload_debits: number;
+        missing_in_upload_credits: number;
+    };
+}
+
+/**
+ * Re-upload a statement and diff it against everything already imported for
+ * this account, to find transactions that are missing from the system
+ * (not yet imported) or missing from the upload (already imported but not
+ * present in this file).
+ */
+export const compareStatement = async (data: CompareStatementInput) => {
+    try {
+        const response = await axiosInstance.post(
+            `${BASE_URL}/accounting/bank-reconciliations/bank-imports/compare`,
+            data
+        );
+        return response.data as CompareStatementResult;
+    } catch (error: unknown) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        if (axiosError?.response?.data?.message) {
+            message.error(axiosError.response.data.message);
+        } else {
+            message.error("Error comparing statement");
+        }
+        throw error;
+    }
+};
+
 // ============================================
 // NEW: PDF UPLOAD & PARSE SERVICE
 // ============================================
