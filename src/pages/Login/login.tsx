@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, Input, Space, Row, Col, Typography, Segmented, Tooltip } from "antd";
+import { Button, Dropdown, Input, Space, Row, Col, Typography, Segmented, Tooltip } from "antd";
 import {
     KeyOutlined,
     DeleteOutlined,
@@ -10,6 +10,9 @@ import {
     MailOutlined,
     SafetyCertificateOutlined,
     SettingOutlined,
+    WindowsOutlined,
+    DesktopOutlined,
+    DownloadOutlined,
 } from "@ant-design/icons";
 import ServerSettingsModal from "@components/ServerSettingsModal";
 import { sendOtp, loginWithMethod } from "../../services/authentication";
@@ -21,6 +24,11 @@ import { ProCard } from "@ant-design/pro-components";
 import { useRefreshPrimaryColor } from "@context/PrimaryColorContext";
 
 const { Text } = Typography;
+
+const IS_TAURI = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+const DESKTOP_RELEASES_URL = "https://github.com/Hospitality-POS/base_desktop/releases/latest";
+const DESKTOP_APP_SCHEME = "base://";
+const DESKTOP_RELEASE_API = "https://api.github.com/repos/Hospitality-POS/base_desktop/releases/latest";
 
 type LoginMethod = "companyCode" | "businessEmail";
 
@@ -57,6 +65,7 @@ const StaffLoginPage = () => {
     const [currentAuthMethod, setCurrentAuthMethod] = useState<'pin' | 'password' | '2fa' | 'otp'>('pin');
     const [authMethodLoading, setAuthMethodLoading] = useState(false);
     const [serverSettingsOpen, setServerSettingsOpen] = useState<boolean>(false);
+    const [downloadingApp, setDownloadingApp] = useState<boolean>(false);
 
     useEffect(() => {
         const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -390,6 +399,29 @@ const StaffLoginPage = () => {
         }
     };
 
+    const handleDownloadApp = async () => {
+        setDownloadingApp(true);
+        try {
+            // Resolve the latest release to get a direct link to the Windows installer
+            const res = await fetch(DESKTOP_RELEASE_API);
+            if (res.ok) {
+                const release = await res.json();
+                const asset = (release.assets || []).find((a: any) =>
+                    a.name?.endsWith("_x64-setup.exe")
+                );
+                if (asset?.browser_download_url) {
+                    window.location.href = asset.browser_download_url;
+                    return;
+                }
+            }
+        } catch {
+            // fall through to releases page
+        } finally {
+            setDownloadingApp(false);
+        }
+        window.open(DESKTOP_RELEASES_URL, "_blank", "noopener,noreferrer");
+    };
+
     const handleVerifySubmit = () => {
         if (loginMethod === "companyCode" && companyCode) {
             handleCompanyCodeSubmit(companyCode);
@@ -543,7 +575,7 @@ const StaffLoginPage = () => {
             }}
         >
             {/* API server settings — desktop (Tauri) shell only */}
-            {typeof window !== "undefined" && "__TAURI_INTERNALS__" in window && (
+            {IS_TAURI && (
                 <Tooltip title="Desktop settings">
                     <Button
                         icon={<SettingOutlined />}
@@ -551,6 +583,43 @@ const StaffLoginPage = () => {
                         style={{ position: "absolute", top: 16, right: 16, zIndex: 10 }}
                     />
                 </Tooltip>
+            )}
+            {/* Desktop app — web only: open installed app or download it */}
+            {!IS_TAURI && (
+                <Dropdown
+                    menu={{
+                        items: [
+                            {
+                                key: "open",
+                                icon: <DesktopOutlined />,
+                                label: "Open in app",
+                            },
+                            {
+                                key: "download",
+                                icon: <DownloadOutlined />,
+                                label: "Download for Windows",
+                            },
+                        ],
+                        onClick: ({ key }) => {
+                            if (key === "open") {
+                                // base:// scheme is registered by the installed app;
+                                // the browser shows an "Open Base?" prompt if present.
+                                window.location.href = DESKTOP_APP_SCHEME;
+                            } else {
+                                handleDownloadApp();
+                            }
+                        },
+                    }}
+                    trigger={["click"]}
+                >
+                    <Button
+                        icon={<WindowsOutlined />}
+                        loading={downloadingApp}
+                        style={{ position: "absolute", top: 16, right: 16, zIndex: 10 }}
+                    >
+                        Get the app
+                    </Button>
+                </Dropdown>
             )}
             <ServerSettingsModal
                 open={serverSettingsOpen}
