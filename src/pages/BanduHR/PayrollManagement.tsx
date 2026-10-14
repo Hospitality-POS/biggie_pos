@@ -229,6 +229,12 @@ const PayrollManagement: React.FC = () => {
   const [isPreviewLineModalOpen, setIsPreviewLineModalOpen] = useState(false);
   const [editingPreviewLine, setEditingPreviewLine] = useState<any>(null);
   const [previewOverrides, setPreviewOverrides] = useState<Record<string, any>>({});
+  // Employees exempted on the review step — their lines are dropped from the
+  // preview and they are never sent to generate (this run only; nothing is
+  // written to their employee record)
+  const [exemptedEmployeeIds, setExemptedEmployeeIds] = useState<string[]>([]);
+  // Checkbox selection across the review tables — feeds the bulk "exempt" action
+  const [selectedPreviewIds, setSelectedPreviewIds] = useState<string[]>([]);
 
   // Quick employee-record edit — lets a draft payroll's department/job title
   // be fixed without leaving the payroll screen (payroll figures stay on the
@@ -656,7 +662,38 @@ const PayrollManagement: React.FC = () => {
   const [previewProgress, setPreviewProgress] = useState<{ done: number; total: number } | null>(null);
   const PREVIEW_EMPLOYEE_BATCH = 10;
 
-  const runPreview = async (params: GeneratePayrollParams) => {
+  // Drop exempted employees from a preview result — filters their lines and
+  // recomputes each group's totals/count, dropping groups left empty.
+  const applyPreviewExclusions = (
+    data: PayrollPreviewResult,
+    excluded: Set<string>
+  ): PayrollPreviewResult => {
+    if (!excluded.size) return data;
+    const fields = [
+      "total_gross", "total_deductions", "total_net", "total_paye",
+      "total_nssf", "total_nhif", "total_housing_levy", "total_nita", "total_withholding_tax",
+    ];
+    const lineField = (l: any, f: string): number =>
+      f === "total_gross" ? l.gross_salary
+      : f === "total_deductions" ? l.deductions?.total
+      : f === "total_net" ? l.net_pay
+      : l.deductions?.[f.replace("total_", "")];
+    const previews = data.previews
+      .map((g) => {
+        const lines = (g.lines || []).filter(
+          (l: any) => !excluded.has(String(l.employee_id?._id || l.employee_id))
+        );
+        const ng: any = { ...g, lines, employee_count: lines.length };
+        for (const f of fields) {
+          ng[f] = lines.reduce((s: number, l: any) => s + (lineField(l, f) || 0), 0);
+        }
+        return ng;
+      })
+      .filter((g) => g.lines.length > 0);
+    return { ...data, previews };
+  };
+
+  const runPreview = async (params: GeneratePayrollParams, excluded?: Set<string>) => {
     const { department_ids, employee_ids, ...rest } = params;
     const chunks: GeneratePayrollParams[] = department_ids?.length
       ? department_ids.map((id) => ({ ...rest, department_ids: [id] }))
@@ -699,7 +736,7 @@ const PayrollManagement: React.FC = () => {
         merged.conflicts.push(...(res?.conflicts || []));
         setPreviewProgress((p) => (p ? { ...p, done: p.done + 1 } : p));
       }
-      setPreviewData(merged);
+      setPreviewData(applyPreviewExclusions(merged, excluded ?? new Set(exemptedEmployeeIds)));
       setGenerateStep(1);
     } catch (error) {
       console.error("Payroll preview failed:", error);
@@ -1113,11 +1150,31 @@ const PayrollManagement: React.FC = () => {
     try {
       const params = await buildGenerateParams();
       setPendingGenerateParams(params);
-      runPreview(params);
+      setExemptedEmployeeIds([]);
+      setSelectedPreviewIds([]);
+      runPreview(params, new Set());
     } catch (error) {
       console.error("Validation failed:", error);
     }
   };
+
+  // Exempt employees on the review step — removes their lines from the
+  // preview and keeps their ids out of the generate calls for this run
+  const exemptPreviewEmployees = (ids: string[]) => {
+    if (!ids.length) return;
+    const set = new Set(ids);
+    setExemptedEmployeeIds((prev) => [...new Set([...prev, ...set])]);
+    setPreviewData((prev) => (prev ? applyPreviewExclusions(prev, set) : prev));
+    setPreviewOverrides((prev) => {
+      const next = { ...prev };
+      set.forEach((id) => delete next[id]);
+      return next;
+    });
+    setSelectedPreviewIds((prev) => prev.filter((id) => !set.has(id)));
+  };
+
+  const exemptPreviewEmployee = (line: any) =>
+    exemptPreviewEmployees([String(line.employee_id?._id || line.employee_id)]);
 
   // Step 2 → generate. submit=false saves a plain draft; submit=true runs the
   // real submit step — for admin that skips pending_approval and lands on
@@ -1127,9 +1184,19 @@ const PayrollManagement: React.FC = () => {
 
     const { department_ids, employee_ids, ...rest } = pendingGenerateParams;
     const saveAsDraft = !submit && isAdminUser;
-    const chunks: GeneratePayrollParams[] = department_ids?.length
-      ? department_ids.map((id) => ({ ...rest, department_ids: [id], overrides: previewOverrides, save_as_draft: saveAsDraft }))
-      : [{ ...rest, employee_ids, overrides: previewOverrides, save_as_draft: saveAsDraft }];
+    const shared = { ...rest, overrides: previewOverrides, save_as_draft: saveAsDraft };
+    // When employees were exempted on review, generate from the remaining
+    // preview lines (one chunk per department group) instead of the original
+    // department/employee selection — exempted ids are never sent.
+    const chunks: GeneratePayrollParams[] =
+      exemptedEmployeeIds.length && previewData
+        ? previewData.previews.map((g) => ({
+            ...shared,
+            employee_ids: g.lines.map((l: any) => String(l.employee_id?._id || l.employee_id)),
+          }))
+        : department_ids?.length
+          ? department_ids.map((id) => ({ ...shared, department_ids: [id] }))
+          : [{ ...shared, employee_ids }];
 
     setIsGenerating(true);
     setGenerateProgress({ done: 0, total: chunks.length });
@@ -1183,6 +1250,8 @@ const PayrollManagement: React.FC = () => {
     setPreviewData(null);
     setPendingGenerateParams(null);
     setPreviewOverrides({});
+    setExemptedEmployeeIds([]);
+    setSelectedPreviewIds([]);
     form.resetFields();
     setPayrollMode("department");
   };
@@ -2637,6 +2706,10 @@ const PayrollManagement: React.FC = () => {
                 scroll={{ x: payrollView === "branches" ? 1350 : 1600 }}
                 summary={() => {
                   const cellStyle: React.CSSProperties = { fontSize: 12, fontWeight: 700 };
+                  // No rows → no totals row (avoids a "TOTALS 0 0 0…" line on
+                  // an empty table).
+                  const rows = payrollView === "branches" ? filteredPayrolls : employeeRows;
+                  if (!rows.length) return null;
                   // Note: the row-selection checkbox occupies the first column
                   // in the summary row too, so leading colSpans include it.
                   if (payrollView === "branches") {
@@ -3755,6 +3828,45 @@ const PayrollManagement: React.FC = () => {
               />
             )}
 
+            {exemptedEmployeeIds.length > 0 && (
+              <Alert
+                type="info"
+                showIcon
+                message={`${exemptedEmployeeIds.length} employee(s) exempted from this run`}
+                action={
+                  <Button
+                    size="small"
+                    onClick={() => {
+                      setExemptedEmployeeIds([]);
+                      setSelectedPreviewIds([]);
+                      if (pendingGenerateParams) {
+                        runPreview({ ...pendingGenerateParams, overrides: previewOverrides }, new Set());
+                      }
+                    }}
+                  >
+                    Restore
+                  </Button>
+                }
+                style={{ borderRadius: 8 }}
+              />
+            )}
+
+            {selectedPreviewIds.length > 0 && (
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <Popconfirm
+                  title={`Exempt ${selectedPreviewIds.length} selected employee(s)?`}
+                  description="They will be removed from this payroll run."
+                  okText="Exempt"
+                  okButtonProps={{ danger: true }}
+                  onConfirm={() => exemptPreviewEmployees(selectedPreviewIds)}
+                >
+                  <Button danger icon={<DeleteOutlined />}>
+                    Exempt selected ({selectedPreviewIds.length})
+                  </Button>
+                </Popconfirm>
+              </div>
+            )}
+
             {previewData.previews.length === 0 ? (
               <Empty
                 description="Nothing to generate — review your selections"
@@ -3798,10 +3910,24 @@ const PayrollManagement: React.FC = () => {
 
                   <Table
                     dataSource={group.lines}
-                    rowKey="employee_id"
+                    rowKey={(l: any) => String(l.employee_id?._id || l.employee_id)}
                     size="small"
                     pagination={false}
                     scroll={{ x: 1520, y: 300 }}
+                    rowSelection={{
+                      selectedRowKeys: group.lines
+                        .map((l: any) => String(l.employee_id?._id || l.employee_id))
+                        .filter((id: string) => selectedPreviewIds.includes(id)),
+                      onChange: (keys: React.Key[]) => {
+                        const groupIds = new Set(
+                          group.lines.map((l: any) => String(l.employee_id?._id || l.employee_id))
+                        );
+                        setSelectedPreviewIds((prev) => [
+                          ...prev.filter((id) => !groupIds.has(id)),
+                          ...keys.map(String),
+                        ]);
+                      },
+                    }}
                     expandable={{
                       expandedRowRender: (line: any) =>
                         renderLineResults(line, previewData?.period_label || pendingGenerateParams?.period_label),
@@ -3811,20 +3937,39 @@ const PayrollManagement: React.FC = () => {
                       ...payrollLineColumns(true, group.lines),
                       {
                         title: "",
-                        key: "preview-edit",
-                        width: 60,
+                        key: "preview-actions",
+                        width: 84,
                         render: (_: any, line: any) => (
-                          <Tooltip title="Edit this line">
-                            <Button
-                              type="text"
-                              size="small"
-                              icon={<EditOutlined />}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openPreviewLineModal(line);
-                              }}
-                            />
-                          </Tooltip>
+                          <Space size={0}>
+                            <Tooltip title="Edit this line">
+                              <Button
+                                type="text"
+                                size="small"
+                                icon={<EditOutlined />}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openPreviewLineModal(line);
+                                }}
+                              />
+                            </Tooltip>
+                            <Popconfirm
+                              title="Exempt this employee?"
+                              description="They will be removed from this payroll run."
+                              okText="Exempt"
+                              okButtonProps={{ danger: true }}
+                              onConfirm={() => exemptPreviewEmployee(line)}
+                            >
+                              <Tooltip title="Exempt from this run">
+                                <Button
+                                  type="text"
+                                  size="small"
+                                  danger
+                                  icon={<DeleteOutlined />}
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              </Tooltip>
+                            </Popconfirm>
+                          </Space>
                         ),
                       },
                     ]}
