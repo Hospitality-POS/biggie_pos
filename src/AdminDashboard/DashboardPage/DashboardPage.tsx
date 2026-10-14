@@ -27,6 +27,7 @@ import {
   ShoppingCartOutlined,
   RiseOutlined,
   TeamOutlined,
+  AndroidOutlined,
 } from "@ant-design/icons";
 import {
   getAdminDashboardAnalysis,
@@ -44,6 +45,7 @@ import {
 } from "src/components/dashboard";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { fmtK } from "@utils/formatters";
+import URLShareModal from "src/components/URLShareModal";
 
 dayjs.extend(quarterOfYear);
 
@@ -73,6 +75,9 @@ const PERIOD_LABELS: Record<string, string> = {
   custom: "Custom Period",
 };
 
+// Direct owner-app APK download link (DigitalOcean) — scanning the QR opens this URL and downloads the app
+const OWNER_APP_DOWNLOAD_URL = "https://reliatechdocs.nyc3.digitaloceanspaces.com/APKS/basepoint-owner.apk";
+
 const useIsMobile = () => {
   const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);
   React.useEffect(() => {
@@ -94,6 +99,7 @@ const DashboardAdminPage: React.FC = () => {
   const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
   const [shopFilter, setShopFilter] = useState<string>("all");
+  const [ownerAppModalOpen, setOwnerAppModalOpen] = useState(false);
 
   const { data: shops } = useQuery({
     queryKey: ["dashboard-branch-options"],
@@ -246,6 +252,15 @@ const DashboardAdminPage: React.FC = () => {
     <div style={{ paddingBottom: 24 }}>
       {contextHolder}
 
+      {/* ── Owner App Download QR ── */}
+      <URLShareModal
+        open={ownerAppModalOpen}
+        onClose={() => setOwnerAppModalOpen(false)}
+        url={OWNER_APP_DOWNLOAD_URL}
+        title="Scan to Download Owner App"
+        showCopy={false}
+      />
+
       {/* ── Mobile Filter Drawer ── */}
       <Drawer
         title="Filter Period"
@@ -331,6 +346,11 @@ const DashboardAdminPage: React.FC = () => {
                   {PERIOD_LABELS[periodFilter]}
                 </Button>
                 <Button
+                  icon={<AndroidOutlined />}
+                  onClick={() => setOwnerAppModalOpen(true)}
+                  size="middle"
+                />
+                <Button
                   type="primary"
                   icon={<ReloadOutlined spin={isRefetching} />}
                   onClick={handleRefresh}
@@ -387,6 +407,15 @@ const DashboardAdminPage: React.FC = () => {
                   filterOption={(input, opt) => String(opt?.label ?? "").toLowerCase().includes(input.toLowerCase())}
                   style={{ minWidth: 160 }}
                 />
+
+                <Button
+                  icon={<AndroidOutlined />}
+                  onClick={() => setOwnerAppModalOpen(true)}
+                  size="small"
+                  style={{ fontWeight: 500 }}
+                >
+                  Owner App
+                </Button>
 
                 <Button
                   icon={<ReloadOutlined spin={isRefetching} />}

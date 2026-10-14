@@ -162,15 +162,15 @@ export const sendPurchaseReportEmail = async (opts: {
 
     return sendEmail({
         to, recipientName, dateRange, htmlTable, intro, cc, attachments,
-        subject: "Purchase Report",
-        bannerLabel: "📊 Purchase Report",
+        subject: "Sales Report",
+        bannerLabel: "📊 Sales Report",
         bannerType: "Purchase",
         summary: [
             { label: "Total Sales", value: `KES ${f(totals.overallTotal)}`, color: getPrimaryColor() },
             { label: "Total Discount", value: `KES ${f(totals.totalDiscount)}`, color: "#f59e0b" },
             { label: "Inclusive Discount", value: `KES ${f(totals.totalInclusiveDiscount)}`, color: "#ef4444" },
         ],
-    }, "Purchase report email sent successfully");
+    }, "Sales report email sent successfully");
 };
 
 // ── Purchase Order ─────────────────────────────────────────────────────────────

@@ -25,11 +25,17 @@ interface TransferItem {
   quantity: number;
   unit_id: string;
   notes?: string;
+  from_variant_id?: string;
+  from_variant_name?: string;
+  to_variant_id?: string;
+  to_variant_name?: string;
 }
 
 interface CreateTransferParams {
   from_shop_id: string;
   to_shop_id: string;
+  // Derived server-side from the shop ids — same shop means zone_to_zone.
+  transfer_type?: "shop_to_shop" | "zone_to_zone";
   items: TransferItem[];
   expected_delivery_date?: string;
   notes?: string;

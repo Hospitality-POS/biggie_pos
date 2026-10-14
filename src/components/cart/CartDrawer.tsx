@@ -5,6 +5,7 @@ import {
   closeCartAfterPrint,
   createCart,
   deleteAllCartItems,
+  deleteCartItem,
   getCart,
   fetchCartItems,
   updateCart,
@@ -316,6 +317,15 @@ const CartDrawer: React.FC = () => {
     try {
       await sendPrintFromCart(cartId, shopIdValue, companyCode);
       message.success("Printing jobs have been initiated");
+      // The backend marks the items as sent — refetch so their status
+      // updates here without a manual refresh.
+      const refetchTableId =
+        tableId || cartDetails?.table_id?._id || cartDetails?.table_id;
+      if (window.location.pathname.includes("/cart/cart/")) {
+        await dispatch(fetchCartItems(cartId));
+      } else if (refetchTableId) {
+        await dispatch(getCart(refetchTableId));
+      }
     } catch (error: any) {
       console.error("Error sending to printer:", error);
       message.error(error.message || "Failed to send order to printer");
@@ -429,6 +439,42 @@ const CartDrawer: React.FC = () => {
     (user?.role === "admin" || user?.role === "cashier") &&
     (data?.length ?? 0) > 0 &&
     !isAwaitingPrintCart;
+
+  // Clear Cart mirrors the per-item delete rule: waiters may only remove
+  // items that haven't been sent, so for them the button clears just the
+  // unsent items and is disabled only once everything has been sent.
+  // Admin/cashier can always clear the whole cart.
+  const hasSentItems = useMemo(
+    () => (data ?? []).some((item: any) => item?.sent),
+    [data]
+  );
+  const hasUnsentItems = useMemo(
+    () => (data ?? []).some((item: any) => !item?.sent),
+    [data]
+  );
+  const isPrivilegedRole = user?.role === "admin" || user?.role === "cashier";
+  const clearCartDisabledForRole = !hasUnsentItems && !isPrivilegedRole;
+  const clearCartUnsentOnly = hasSentItems && !isPrivilegedRole;
+
+  const handleClearCart = async () => {
+    const cartId = cartDetails?._id;
+    if (!cartId) return;
+
+    if (!clearCartUnsentOnly) {
+      dispatch(deleteAllCartItems(cartId));
+      return;
+    }
+
+    // Non-privileged roles may only remove items that haven't been sent.
+    const unsentItems = (data ?? []).filter((item: any) => !item?.sent);
+    try {
+      await Promise.all(
+        unsentItems.map((item: any) => dispatch(deleteCartItem(item._id)).unwrap())
+      );
+    } catch (e: any) {
+      message.error(typeof e === "string" ? e : e?.message || "Failed to remove some items");
+    }
+  };
 
   const handleServedByChange = async (newUserIds: string[]) => {
     const cartId = cartDetails?._id ?? cartDetails?.id;
@@ -888,22 +934,36 @@ const CartDrawer: React.FC = () => {
             )}
             {can("CART_DELETE_ALL_ITEMS") && !isAwaitingPrintCart && (
               <Popconfirm
-                title="Clear all items?"
-                description="This will remove everything from the cart."
-                onConfirm={() => dispatch(deleteAllCartItems(cartDetails?._id))}
+                title={clearCartUnsentOnly ? "Clear unsent items?" : "Clear all items?"}
+                description={
+                  clearCartUnsentOnly
+                    ? "Only items that haven't been sent yet will be removed."
+                    : "This will remove everything from the cart."
+                }
+                onConfirm={handleClearCart}
                 okText="Clear"
                 okButtonProps={{ danger: true }}
                 cancelText="Cancel"
+                disabled={clearCartDisabledForRole}
               >
-                <Button
-                  danger
-                  block
-                  size="middle"
-                  icon={<CloseCircleOutlined />}
-                  style={{ borderRadius: 6 }}
+                <Tooltip
+                  title={
+                    clearCartDisabledForRole
+                      ? "All items have been sent — only a cashier or admin can clear them"
+                      : undefined
+                  }
                 >
-                  Clear Cart
-                </Button>
+                  <Button
+                    danger
+                    block
+                    size="middle"
+                    icon={<CloseCircleOutlined />}
+                    disabled={clearCartDisabledForRole}
+                    style={{ borderRadius: 6 }}
+                  >
+                    Clear Cart
+                  </Button>
+                </Tooltip>
               </Popconfirm>
             )}
           </Space>

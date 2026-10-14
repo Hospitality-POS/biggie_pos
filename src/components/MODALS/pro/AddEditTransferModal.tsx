@@ -17,6 +17,8 @@ import {
     Col,
     Card,
     Select,
+    Segmented,
+    Alert,
 } from "antd";
 import {
     PlusOutlined,
@@ -49,6 +51,10 @@ interface TransferItem {
     unit_name?: string;
     available_quantity?: number;
     notes?: string;
+    // Source zone/table location — for zone-to-zone transfers the quantity
+    // is deducted from this specific variant instead of overall stock.
+    from_variant_id?: string;
+    from_variant_name?: string;
     // Destination zone/table location — when the destination shop tracks
     // zone-based inventory, the received quantity is credited to this
     // specific variant on the destination product instead of its overall stock.
@@ -75,7 +81,9 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
     const [toShopId, setToShopId] = useState<string>("");
     const [availableFromProducts, setAvailableFromProducts] = useState<any[]>([]);
     const [availableToProducts, setAvailableToProducts] = useState<any[]>([]);
+    const [fromShopZoneEnabled, setFromShopZoneEnabled] = useState(false);
     const [toShopZoneEnabled, setToShopZoneEnabled] = useState(false);
+    const [transferMode, setTransferMode] = useState<"shop" | "zone">("shop");
 
     useEffect(() => {
         if (visible && edit && data) {
@@ -90,6 +98,12 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
 
             setFromShopId(data.from_shop_id?._id || "");
             setToShopId(data.to_shop_id?._id || "");
+            setTransferMode(
+                data.transfer_type === "zone_to_zone" ||
+                (data.from_shop_id?._id && data.from_shop_id._id === data.to_shop_id?._id)
+                    ? "zone"
+                    : "shop"
+            );
 
             const items = data.items?.map((item: any, index: number) => ({
                 key: `item-${index}`,
@@ -103,6 +117,10 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
                 unit_id: item.unit_id?._id,
                 unit_name: item.unit_id?.name,
                 notes: item.notes,
+                from_variant_id: item.from_variant_id?._id || item.from_variant_id,
+                from_variant_name: item.from_variant_id?.name || item.from_variant_name,
+                to_variant_id: item.to_variant_id?._id || item.to_variant_id,
+                to_variant_name: item.to_variant_id?.name || item.to_variant_name,
             })) || [];
 
             setTransferItems(items);
@@ -112,6 +130,11 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
     useEffect(() => {
         if (fromShopId) {
             loadAvailableProducts(fromShopId, "from");
+            fetchShop(fromShopId)
+                .then((shop) => setFromShopZoneEnabled(!!shop?.zone_inventory_enabled))
+                .catch(() => setFromShopZoneEnabled(false));
+        } else {
+            setFromShopZoneEnabled(false);
         }
     }, [fromShopId]);
 
@@ -149,6 +172,7 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
             setTransferItems([]);
             setFromShopId("");
             setToShopId("");
+            setTransferMode("shop");
         }
     };
 
@@ -160,11 +184,32 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
         setToShopId("");
         setAvailableFromProducts([]);
         setAvailableToProducts([]);
+        setFromShopZoneEnabled(false);
+        setToShopZoneEnabled(false);
+        setTransferMode("shop");
     };
 
     const handleFromShopChange = (value: string) => {
         setFromShopId(value);
         setTransferItems([]);
+        // Zone transfers stay inside one branch — keep the destination in sync
+        if (transferMode === "zone") {
+            setToShopId(value);
+            form.setFieldsValue({ to_shop_id: value });
+        }
+    };
+
+    const handleModeChange = (mode: "shop" | "zone") => {
+        setTransferMode(mode);
+        setTransferItems([]);
+        if (mode === "zone") {
+            // Same branch on both ends — stock moves between its zones
+            setToShopId(fromShopId);
+            form.setFieldsValue({ to_shop_id: fromShopId || undefined });
+        } else {
+            setToShopId("");
+            form.setFieldsValue({ to_shop_id: undefined });
+        }
     };
 
     const handleToShopChange = (value: string) => {
@@ -174,7 +219,9 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
             ...item,
             to_product_id: "",
             to_product_name: "",
-            to_product_code: ""
+            to_product_code: "",
+            to_variant_id: undefined,
+            to_variant_name: undefined,
         })));
     };
 
@@ -194,12 +241,25 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
         setTransferItems(transferItems.filter((item) => item.key !== key));
     };
 
+    // Zone-to-zone transfer: same shop on both ends, stock moves between
+    // table-location variants rather than between shops.
+    const isSameShopTransfer = !!fromShopId && fromShopId === toShopId;
+
+    // Zone variants that actually hold stock — only these can send quantity.
+    const zoneVariantsWithStock = (product: any) =>
+        (product?.variants || []).filter(
+            (v: any) => v.location_id && Number(v.quantity) > 0
+        );
+
     const updateTransferItem = (key: string, field: string, value: any) => {
         setTransferItems(
             transferItems.map((item) => {
                 if (item.key === key) {
                     if (field === "from_product_id") {
                         const product = availableFromProducts.find((p) => p._id === value);
+                        const toProduct = isSameShopTransfer
+                            ? availableToProducts.find((p) => p._id === value)
+                            : undefined;
                         return {
                             ...item,
                             from_product_id: value,
@@ -208,6 +268,32 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
                             unit_id: product?.unit_id?._id || "",
                             unit_name: product?.unit_id?.name || "",
                             available_quantity: product?.quantity || 0,
+                            // Product changed — previously picked zones no longer apply
+                            from_variant_id: undefined,
+                            from_variant_name: undefined,
+                            // Zone transfers normally move the same product between
+                            // zones — pre-fill the destination (still editable).
+                            ...(isSameShopTransfer
+                                ? {
+                                      to_product_id: value,
+                                      to_product_name: toProduct?.name,
+                                      to_product_code: toProduct?.code,
+                                      to_variant_id: undefined,
+                                      to_variant_name: undefined,
+                                  }
+                                : {}),
+                        };
+                    } else if (field === "from_variant_id") {
+                        const product = availableFromProducts.find((p) => p._id === item.from_product_id);
+                        const variant = product?.variants?.find((v: any) => (v._id || v.id) === value);
+                        return {
+                            ...item,
+                            from_variant_id: value || undefined,
+                            from_variant_name: variant?.name,
+                            // Stock is capped at the zone's quantity when one is picked
+                            available_quantity: value
+                                ? Number(variant?.quantity ?? 0)
+                                : product?.quantity || 0,
                         };
                     } else if (field === "to_product_id") {
                         const product = availableToProducts.find((p) => p._id === value);
@@ -258,6 +344,25 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
                 return;
             }
 
+            if (isSameShopTransfer) {
+                const missingZone = transferItems.filter(
+                    (item) => !item.from_variant_id || !item.to_variant_id
+                );
+                if (missingZone.length > 0) {
+                    message.error("Zone-to-zone transfers require a From Zone and a Destination Zone for every item");
+                    return;
+                }
+                const sameZone = transferItems.filter(
+                    (item) =>
+                        item.from_product_id === item.to_product_id &&
+                        item.from_variant_id === item.to_variant_id
+                );
+                if (sameZone.length > 0) {
+                    message.error("Source and destination zones must be different for the same product");
+                    return;
+                }
+            }
+
             const insufficientItems = transferItems.filter(
                 (item) => item.quantity > (item.available_quantity || 0)
             );
@@ -275,7 +380,9 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
             const formValues = form.getFieldsValue();
             const transferData = {
                 from_shop_id: formValues.from_shop_id,
-                to_shop_id: formValues.to_shop_id,
+                // The To Shop field is unmounted in zone mode, so its value is
+                // dropped from getFieldsValue() — take it from state instead.
+                to_shop_id: transferMode === "zone" ? fromShopId : formValues.to_shop_id,
                 expected_delivery_date: formValues.expected_delivery_date
                     ? formValues.expected_delivery_date.toISOString()
                     : null,
@@ -286,6 +393,8 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
                     quantity: item.quantity,
                     unit_id: item.unit_id,
                     notes: item.notes,
+                    from_variant_id: item.from_variant_id || undefined,
+                    from_variant_name: item.from_variant_name || undefined,
                     to_variant_id: item.to_variant_id || undefined,
                     to_variant_name: item.to_variant_name || undefined,
                 })),
@@ -345,13 +454,44 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
                     filterOption={(input, option) =>
                         (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
                     }
-                    options={availableFromProducts.map((product) => ({
+                    options={(isSameShopTransfer
+                        ? availableFromProducts.filter((p) => zoneVariantsWithStock(p).length > 0)
+                        : availableFromProducts
+                    ).map((product) => ({
                         label: `${product.name} ${product.code ? `(${product.code})` : ""} - Stock: ${product.quantity || 0}`,
                         value: product._id,
                     }))}
                 />
             ),
         },
+        ...(fromShopZoneEnabled
+            ? [
+                  {
+                      title: "From Zone",
+                      dataIndex: "from_variant_id",
+                      key: "from_variant_id",
+                      width: 180,
+                      render: (_: any, record: TransferItem) => {
+                          const product = availableFromProducts.find((p) => p._id === record.from_product_id);
+                          const zoneVariants = zoneVariantsWithStock(product);
+                          return (
+                              <Select
+                                  allowClear={!isSameShopTransfer}
+                                  placeholder={zoneVariants.length ? "Select zone" : "No zone stock"}
+                                  style={{ width: "100%" }}
+                                  value={record.from_variant_id || undefined}
+                                  disabled={!record.from_product_id || zoneVariants.length === 0}
+                                  onChange={(value) => updateTransferItem(record.key, "from_variant_id", value)}
+                                  options={zoneVariants.map((v: any) => ({
+                                      label: `${v.name} (Stock: ${v.quantity ?? 0})`,
+                                      value: v._id || v.id,
+                                  }))}
+                              />
+                          );
+                      },
+                  },
+              ]
+            : []),
         {
             title: "",
             key: "arrow",
@@ -375,7 +515,10 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
                         (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
                     }
                     disabled={!toShopId}
-                    options={availableToProducts.map((product) => ({
+                    options={(isSameShopTransfer
+                        ? availableToProducts.filter((p) => (p?.variants || []).some((v: any) => v.location_id))
+                        : availableToProducts
+                    ).map((product) => ({
                         label: `${product.name} ${product.code ? `(${product.code})` : ""}`,
                         value: product._id,
                     }))}
@@ -527,12 +670,23 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
             >
                 <Form form={form} layout="vertical">
                     <Card size="small" style={{ marginBottom: 16, background: "#f0f5ff" }}>
+                        <Form.Item label="Transfer Type" style={{ marginBottom: 16 }}>
+                            <Segmented
+                                value={transferMode}
+                                onChange={(v) => handleModeChange(v as "shop" | "zone")}
+                                disabled={edit}
+                                options={[
+                                    { label: "Shop → Shop", value: "shop" },
+                                    { label: "Zone → Zone (same branch)", value: "zone" },
+                                ]}
+                            />
+                        </Form.Item>
                         <Row gutter={16}>
-                            <Col span={12}>
+                            <Col span={transferMode === "zone" ? 24 : 12}>
                                 <ProFormSelect
                                     name="from_shop_id"
-                                    label="From Shop (Source)"
-                                    placeholder="Select source shop"
+                                    label={transferMode === "zone" ? "Branch" : "From Shop (Source)"}
+                                    placeholder={transferMode === "zone" ? "Select branch" : "Select source shop"}
                                     showSearch
                                     rules={[{ required: true, message: "Please select source shop" }]}
                                     request={async () => {
@@ -554,6 +708,7 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
                                     }}
                                 />
                             </Col>
+                            {transferMode === "shop" && (
                             <Col span={12}>
                                 <ProFormSelect
                                     name="to_shop_id"
@@ -564,7 +719,7 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
                                         { required: true, message: "Please select destination shop" },
                                         ({ getFieldValue }) => ({
                                             validator(_, value) {
-                                                if (value && value === getFieldValue("from_shop_id")) {
+                                                if (value && value === getFieldValue("from_shop_id") && transferMode === "shop") {
                                                     return Promise.reject(
                                                         new Error("Source and destination shops must be different")
                                                     );
@@ -592,7 +747,18 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
                                     }}
                                 />
                             </Col>
+                            )}
                         </Row>
+
+                        {transferMode === "zone" && fromShopId && !fromShopZoneEnabled && (
+                            <Alert
+                                type="warning"
+                                showIcon
+                                style={{ marginBottom: 16 }}
+                                message="Zone inventory is not enabled for this branch"
+                                description="Enable it under Settings → System Setup → Privacy (Zone Inventory), then add zone variants to the product's variants in Inventory."
+                            />
+                        )}
 
                         <Row gutter={16}>
                             <Col span={12}>
@@ -629,6 +795,13 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
                             <Badge count={transferItems.length} showZero color="blue" />
                         </Space>
                     </Divider>
+
+                    {isSameShopTransfer && fromShopZoneEnabled && (
+                        <Text type="secondary" style={{ display: "block", marginBottom: 12, fontSize: 12 }}>
+                            Zone-to-zone transfer — pick a From Zone and Destination Zone for each item.
+                            Only products with stock in zones are listed.
+                        </Text>
+                    )}
 
                     {!fromShopId || !toShopId ? (
                         <Card>
