@@ -8,6 +8,9 @@ export interface EmployeeStats {
   total_employees: number;
   active_employees: number;
   on_leave: number;
+  suspended: number;
+  terminated: number;
+  resigned: number;
   new_hires_this_month: number;
 }
 
@@ -161,14 +164,22 @@ export const fetchHRDashboard = async (params: HRDashboardParams): Promise<HRDas
     console.log("HR dashboard response:", response.data);
     const apiData = response.data.data;
 
-    // Fetch employees to build department breakdown
+    // Fetch employees to build department breakdown and per-status counts
     let employeesByDepartment: EmployeeByDepartment[] = [];
+    let statusCounts: Record<string, number> | null = null;
     try {
       const employeesResponse = await fetchEmployees({ shop_id: params.shop_id });
       const employees = Array.isArray(employeesResponse) ? employeesResponse : employeesResponse?.data || [];
 
       // Group employees by department
       const deptMap: Record<string, { count: number; active: number; on_leave: number }> = {};
+      const counts: Record<string, number> = {
+        active: 0,
+        on_leave: 0,
+        suspended: 0,
+        terminated: 0,
+        resigned: 0,
+      };
       employees.forEach((emp: any) => {
         const deptName = emp.department_id?.name || "Unassigned";
         if (!deptMap[deptName]) {
@@ -178,7 +189,10 @@ export const fetchHRDashboard = async (params: HRDashboardParams): Promise<HRDas
         if (emp.employment_status === "active") {
           deptMap[deptName].active++;
         }
+        const status = String(emp.employment_status || "");
+        if (status in counts) counts[status]++;
       });
+      statusCounts = counts;
 
       employeesByDepartment = Object.entries(deptMap).map(([department, stats]) => ({
         department,
@@ -203,8 +217,11 @@ export const fetchHRDashboard = async (params: HRDashboardParams): Promise<HRDas
     const mappedData = {
       employee_stats: {
         total_employees: apiData.employees.total,
-        active_employees: apiData.employees.active,
-        on_leave: 0, // Not provided by API
+        active_employees: statusCounts ? statusCounts.active : apiData.employees.active,
+        on_leave: statusCounts?.on_leave || 0,
+        suspended: statusCounts?.suspended || 0,
+        terminated: statusCounts?.terminated || 0,
+        resigned: statusCounts?.resigned || 0,
         new_hires_this_month: 0, // Not provided by API
       },
       leave_stats: {
