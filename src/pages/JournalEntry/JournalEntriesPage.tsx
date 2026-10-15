@@ -705,7 +705,7 @@ const JournalEntriesPage: React.FC = () => {
                             onClick={() => openDetail(record._id)}
                         />
                     </Tooltip>
-                    {record.source === "manual" && !record.period_locked && record.status !== "Voided" && (
+                    {!record.period_locked && record.status !== "Voided" && (
                         <Tooltip title="Edit">
                             <Button
                                 icon={<EditOutlined />}

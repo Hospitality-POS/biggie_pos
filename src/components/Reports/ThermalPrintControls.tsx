@@ -12,6 +12,8 @@ interface ThermalPrintControlsProps {
   zoneKey?: string;
   onZoneChange: (key: string) => void;
   loading?: boolean;
+  /** Select size — match the height of adjacent buttons. */
+  size?: "small" | "middle" | "large";
 }
 
 /**
@@ -27,10 +29,11 @@ const ThermalPrintControls: React.FC<ThermalPrintControlsProps> = ({
   zoneKey,
   onZoneChange,
   loading,
+  size = "small",
 }) => (
-  <Space size={8} wrap>
+  <Space size={8} wrap align="center">
     <Select
-      size="small"
+      size={size}
       value={target}
       onChange={onTargetChange}
       style={{ width: 118 }}
@@ -41,7 +44,7 @@ const ThermalPrintControls: React.FC<ThermalPrintControlsProps> = ({
     />
     {target === "agent" && (
       <Select
-        size="small"
+        size={size}
         style={{ minWidth: 200 }}
         placeholder={loading ? "Checking printers…" : "Select zone / printer"}
         value={zoneKey ?? zones[0]?.key}

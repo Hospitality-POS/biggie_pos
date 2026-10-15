@@ -225,7 +225,7 @@ const AdminReports: React.FC = () => {
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith("/admin");
 
-  const [earnerResults, setEarnerResults] = useState<{ id: string; name: string; totalSales: number }[]>([]);
+  const [earnerResults, setEarnerResults] = useState<{ id: string; name: string; totalSales: number; revenue?: number; isAdmin?: boolean }[]>([]);
   const [earnerLoading, setEarnerLoading] = useState(false);
   const [earnerPcts, setEarnerPcts] = useState({ staff: 77, platform: 23 });
   const [earnerSummary, setEarnerSummary] = useState<{ total_revenue: number; total_staff_earnings: number; platform_earnings: number } | null>(null);
@@ -915,6 +915,9 @@ const AdminReports: React.FC = () => {
                   totalSales: report_percentage_enabled
                     ? earner.total_earnings
                     : (earner.total_revenue ?? earner.total_earnings),
+                  revenue: earner.total_revenue ?? earner.total_earnings,
+                  isAdmin: Boolean(earner.staff_details?.isAdmin)
+                    || earner.staff_details?.username?.toLowerCase() === "admin",
                 }));
                 setEarnerResults(rows);
                 setEarnerSummary(response.summary || {
