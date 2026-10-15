@@ -38,10 +38,14 @@ const { Text } = Typography;
 
 interface LineItem {
     key: string;
+    /** Set for lines loaded from an existing entry so the server can keep their metadata. */
+    _id?: string;
     account_id: string;
     debit: number;
     credit: number;
     description: string;
+    customer_id?: string;
+    supplier_id?: string;
 }
 
 interface Props {
@@ -133,10 +137,13 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
             setLines(
                 editingEntry.lines.map((l) => ({
                     key: l._id || crypto.randomUUID(),
+                    _id: l._id,
                     account_id: typeof l.account_id === "object" ? l.account_id._id : l.account_id,
                     debit: l.debit || 0,
                     credit: l.credit || 0,
                     description: l.description || "",
+                    customer_id: l.customer_id,
+                    supplier_id: l.supplier_id,
                 }))
             );
         } else if (!entryId) {
@@ -193,10 +200,13 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
         setSubmitting(true);
         try {
             const mappedLines = validLines.map((l) => ({
+                _id: l._id,
                 account_id: l.account_id,
                 debit: l.debit || 0,
                 credit: l.credit || 0,
                 description: l.description || undefined,
+                customer_id: l.customer_id,
+                supplier_id: l.supplier_id,
             }));
 
             if (entryId) {
@@ -406,6 +416,15 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
                             type="error"
                             showIcon
                             message="This entry's period is locked and cannot be updated."
+                            style={{ marginBottom: 16 }}
+                        />
+                    )}
+                    {editingEntry && editingEntry.source !== "manual" && !editingEntry.period_locked && (
+                        <Alert
+                            type="warning"
+                            showIcon
+                            message={`System-generated entry (${editingEntry.source.replace(/_/g, " ")})`}
+                            description="Changes here only adjust the ledger. The source document (sale, invoice, bill, etc.) is not updated."
                             style={{ marginBottom: 16 }}
                         />
                     )}
