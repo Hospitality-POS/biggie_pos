@@ -167,6 +167,31 @@ export const sendCheckinInfo = async (data: {
   }
 };
 
+export interface ShopWhatsappMarketplace {
+  enabled?: boolean;
+  sell_inventory?: boolean;
+  sell_services?: boolean;
+  sell_gift_cards?: boolean;
+  require_confirmation?: boolean;
+  confirmation_message?: string;
+  self_serve_enabled?: boolean;
+}
+
+export const updateShopWhatsappMarketplace = async (
+  shopId: string,
+  settings: ShopWhatsappMarketplace
+) => {
+  try {
+    const response = await axiosInstance.patch(`${url}/${shopId}`, {
+      whatsapp_marketplace: settings,
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error('Error updating shop WhatsApp marketplace settings:', error);
+    throw error;
+  }
+};
+
 export const updateShopHotelSettings = async (shopId: string, hotelSettings: any) => {
   try {
     const response = await axiosInstance.patch(`${url}/${shopId}`, { hotel_settings: hotelSettings });

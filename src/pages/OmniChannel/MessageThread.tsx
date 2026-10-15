@@ -43,6 +43,7 @@ import {
     PhoneOutlined,
     VideoCameraOutlined,
     FileExclamationOutlined,
+    ShoppingCartOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
@@ -62,6 +63,7 @@ import {
 import { useAppDispatch } from "src/store";
 import { createLeadActivity } from "@services/crm/leadActivities";
 import { searchDocuments } from "@services/documents";
+import { fetchShop, ShopWhatsappMarketplace } from "@services/shops";
 import { formatCurrency } from "@utils/formatters";
 import {
     Conversation,
@@ -70,6 +72,7 @@ import {
     STATUS_CONFIG,
 } from "./OmnichannelInboxPage";
 import ScriptsManager from "./ScriptsManager";
+import ChatOrderDrawer from "./ChatOrderDrawer";
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -441,6 +444,17 @@ const MessageThread: React.FC<Props> = ({
         staleTime: 30_000,
     });
 
+    // Shop-level flag — the "Sell" button only appears for WhatsApp chats when
+    // the marketplace integration is enabled in System Setup → Integrations.
+    const { data: shopData } = useQuery({
+        queryKey: ["shop", shopId],
+        queryFn: () => fetchShop(shopId),
+        enabled: !!shopId,
+        staleTime: 60_000,
+    });
+    const marketplace = shopData?.whatsapp_marketplace as ShopWhatsappMarketplace | undefined;
+    const canSellInChat = conversation.channel === "whatsapp" && !!marketplace?.enabled;
+
     const handoverMutation = useMutation({
         mutationFn: (agentId: string) => handoverConversation(conversation._id, agentId),
         onSuccess: () => {
@@ -484,6 +498,7 @@ const MessageThread: React.FC<Props> = ({
     const [docSearch, setDocSearch] = useState("");
     const [docResults, setDocResults] = useState<any[]>([]);
     const [docLoading, setDocLoading] = useState(false);
+    const [orderDrawerOpen, setOrderDrawerOpen] = useState(false);
     // Products the AI suggestion referenced that have an image — their photos
     // are attached to the reply so the customer sees what they are buying.
     const [suggestedProducts, setSuggestedProducts] = useState<SuggestedProduct[]>([]);
@@ -907,6 +922,16 @@ const MessageThread: React.FC<Props> = ({
 
     const moreMenu: MenuProps = {
         items: [
+            ...(canSellInChat
+                ? [
+                      {
+                          key: "sell",
+                          label: "Sell in chat",
+                          icon: <ShoppingCartOutlined />,
+                          onClick: () => setOrderDrawerOpen(true),
+                      },
+                  ]
+                : []),
             ...(conversation.channel === "whatsapp"
                 ? [
                       {
@@ -1103,6 +1128,18 @@ const MessageThread: React.FC<Props> = ({
                                     disabled: agent._id === conversation.assigned_to?._id,
                                 }))}
                             />
+                            {canSellInChat && (
+                                <Tooltip title="Sell to this customer — inventory, services or gift cards">
+                                    <Button
+                                        size="small"
+                                        icon={<ShoppingCartOutlined />}
+                                        onClick={() => setOrderDrawerOpen(true)}
+                                        style={{ color: "#25D366", borderColor: "#25D366" }}
+                                    >
+                                        Sell
+                                    </Button>
+                                </Tooltip>
+                            )}
                             <Button size="small" onClick={() => setScriptsOpen(true)}>
                                 Scripts
                             </Button>
@@ -1505,6 +1542,21 @@ const MessageThread: React.FC<Props> = ({
                     readOnly
                 />
             </Modal>
+
+            {canSellInChat && (
+                <ChatOrderDrawer
+                    open={orderDrawerOpen}
+                    onClose={() => setOrderDrawerOpen(false)}
+                    conversation={conversation}
+                    shopId={shopId}
+                    marketplace={marketplace}
+                    onOrderPlaced={() => {
+                        refetch();
+                        onMessageSent();
+                        onConversationUpdate();
+                    }}
+                />
+            )}
 
             <Modal
                 title="Suggest a document to share"
