@@ -25,11 +25,14 @@ interface Props {
     onSuccess: () => void;
     shopId: string;
     channel: MessagingChannel;
+    // Pre-fills the message (and email subject) — e.g. the WhatsApp shop promo.
+    initialMessage?: string;
+    initialSubject?: string;
 }
 
 interface ParsedContact { name?: string; phone?: string; email?: string; source: string }
 
-const CampaignFormModal: React.FC<Props> = ({ open, onClose, onSuccess, shopId, channel }) => {
+const CampaignFormModal: React.FC<Props> = ({ open, onClose, onSuccess, shopId, channel, initialMessage, initialSubject }) => {
     const { message: toast } = App.useApp();
     const [form] = Form.useForm();
     const [saving, setSaving] = useState(false);
@@ -51,6 +54,12 @@ const CampaignFormModal: React.FC<Props> = ({ open, onClose, onSuccess, shopId, 
         enabled: !!shopId && open,
     });
     const senders = sendersData?.senders || [];
+
+    useEffect(() => {
+        if (!open) return;
+        if (initialMessage) form.setFieldsValue({ message: initialMessage });
+        if (initialSubject) form.setFieldsValue({ subject: initialSubject });
+    }, [open, initialMessage, initialSubject, form]);
 
     // Default the template to the selected sender's preferred template.
     useEffect(() => {

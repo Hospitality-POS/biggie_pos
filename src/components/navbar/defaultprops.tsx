@@ -41,6 +41,8 @@ import { makePermissionChecker } from "@utils/accessControl";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { useActiveProduct, ProductKey, PRODUCT_CONFIGS } from "@context/ProductContext";
 import { PRODUCT_TO_DASHBOARD_TAB } from "src/hooks/useActiveDashboard";
+import { useQuery } from "@tanstack/react-query";
+import { fetchShop } from "@services/shops";
 
 // ─── SVG tile helper ──────────────────────────────────────────────────────────
 export const makeTile = (color: string, pathD: string): string => {
@@ -196,6 +198,7 @@ const CRM_ROUTE_PERMISSIONS: Record<string, string> = {
   "/crm/sales-budgets": "CRM_BUDGETS_VIEW",
   "/crm/quotes": "CUSTOMERS_VIEW",
   "/crm/calendar": "CUSTOMERS_VIEW",
+  "/crm/stock": "INVENTORY_VIEW",
   "/customers": "CUSTOMERS_VIEW",
   "/reports": "REPORTS_ITEM_SALES",
   "/documents": "DOCUMENTS_VIEW",
@@ -299,6 +302,20 @@ export const useProLayoutNav = () => {
   const rolePermissions: string[] =
     (user as any)?.rolePermissions ?? (user as any)?.permissions ?? [];
   const can = makePermissionChecker(rolePermissions, isAdmin);
+
+  // Shop settings (cached under the same key the inbox and settings use) —
+  // the Mteja nav shows Stock when the WhatsApp Marketplace is on.
+  const navShopId = (() => {
+    const v = localStorage.getItem("shopId");
+    return v && v !== "{}" && v !== "null" ? v : "";
+  })();
+  const { data: navShop } = useQuery({
+    queryKey: ["shop", navShopId],
+    queryFn: () => fetchShop(navShopId),
+    enabled: !!navShopId && activeProduct === "mteja",
+    staleTime: 60_000,
+  });
+  const whatsappMarketplaceOn = !!(navShop as any)?.whatsapp_marketplace?.enabled;
 
   const isAdminLayout = window.location.pathname.startsWith("/admin");
   const prefix = isAdminLayout ? "/admin" : "";
@@ -426,6 +443,12 @@ export const useProLayoutNav = () => {
   const mtejaRoutesBase = [
     { path: p("/crm/dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/crm/dashboard" },
     { path: p("/omnichannel"), name: "Conversations", icon: <MessageOutlined />, _bare: "/omnichannel" },
+    // Selling in WhatsApp needs stock at hand — shown once the shop turns
+    // the WhatsApp Marketplace on. /crm/stock keeps the Mteja workspace
+    // active (plain /inventory would switch the sidebar to Duka).
+    ...(whatsappMarketplaceOn
+      ? [{ path: p("/crm/stock"), name: "Stock", icon: <AppstoreOutlined />, _bare: "/crm/stock" }]
+      : []),
     { path: p("/crm/leads"), name: "Leads", icon: <TeamOutlined />, _bare: "/crm/leads" },
     { path: p("/crm/calendar"), name: "Activity Calendar", icon: <CalendarOutlined />, _bare: "/crm/calendar" },
     { path: p("/crm/quotes"), name: "Quotes", icon: <FileTextOutlined />, _bare: "/crm/quotes" },

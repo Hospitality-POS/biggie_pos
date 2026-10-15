@@ -175,6 +175,18 @@ export interface ShopWhatsappMarketplace {
   require_confirmation?: boolean;
   confirmation_message?: string;
   self_serve_enabled?: boolean;
+  gift_card_presets?: number[];
+  booking_enabled?: boolean;
+  booking_open_time?: string;
+  booking_close_time?: string;
+  booking_slot_minutes?: number;
+  booking_capacity?: number;
+  booking_max_days_ahead?: number;
+  booking_require_payment?: boolean;
+  pickup_enabled?: boolean;
+  delivery_enabled?: boolean;
+  delivery_fee?: number;
+  delivery_note?: string;
 }
 
 export const updateShopWhatsappMarketplace = async (

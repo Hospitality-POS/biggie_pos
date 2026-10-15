@@ -6,17 +6,24 @@ import {
   Checkbox,
   Form,
   Input,
+  InputNumber,
+  Select,
   Space,
   Switch,
+  TimePicker,
   Typography,
   message,
 } from "antd";
 import {
+  CalendarOutlined,
+  CarOutlined,
   CheckCircleOutlined,
+  GiftOutlined,
   SaveOutlined,
   ShopOutlined,
   ShoppingCartOutlined,
 } from "@ant-design/icons";
+import dayjs from "dayjs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   fetchShop,
@@ -31,6 +38,7 @@ const C = THEME_C;
 
 const DEFAULT_CONFIRMATION_MESSAGE =
   "Reply YES to confirm your order.";
+const DEFAULT_GIFT_PRESETS = [1000, 2500, 5000];
 
 const MarketplaceSettings: React.FC = () => {
   const [form] = Form.useForm();
@@ -57,6 +65,21 @@ const MarketplaceSettings: React.FC = () => {
       self_serve_enabled: marketplace?.self_serve_enabled ?? true,
       confirmation_message:
         marketplace?.confirmation_message || DEFAULT_CONFIRMATION_MESSAGE,
+      gift_card_presets: (marketplace?.gift_card_presets?.length
+        ? marketplace.gift_card_presets
+        : DEFAULT_GIFT_PRESETS
+      ).map(String),
+      booking_enabled: marketplace?.booking_enabled ?? true,
+      booking_open_time: dayjs(marketplace?.booking_open_time || "08:00", "HH:mm"),
+      booking_close_time: dayjs(marketplace?.booking_close_time || "18:00", "HH:mm"),
+      booking_slot_minutes: marketplace?.booking_slot_minutes ?? 30,
+      booking_capacity: marketplace?.booking_capacity ?? 1,
+      booking_max_days_ahead: marketplace?.booking_max_days_ahead ?? 60,
+      booking_require_payment: marketplace?.booking_require_payment ?? false,
+      pickup_enabled: marketplace?.pickup_enabled ?? true,
+      delivery_enabled: marketplace?.delivery_enabled ?? true,
+      delivery_fee: marketplace?.delivery_fee ?? 0,
+      delivery_note: marketplace?.delivery_note || "",
     });
   }, [marketplace, form]);
 
@@ -70,6 +93,20 @@ const MarketplaceSettings: React.FC = () => {
         require_confirmation: !!values.require_confirmation,
         self_serve_enabled: !!values.self_serve_enabled,
         confirmation_message: values.confirmation_message,
+        gift_card_presets: (values.gift_card_presets || [])
+          .map((v: string | number) => Number(String(v).replace(/,/g, "")))
+          .filter((n: number) => n > 0),
+        booking_enabled: !!values.booking_enabled,
+        booking_open_time: values.booking_open_time?.format?.("HH:mm") || "08:00",
+        booking_close_time: values.booking_close_time?.format?.("HH:mm") || "18:00",
+        booking_slot_minutes: Number(values.booking_slot_minutes) || 30,
+        booking_capacity: Number(values.booking_capacity) || 1,
+        booking_max_days_ahead: Number(values.booking_max_days_ahead) || 60,
+        booking_require_payment: !!values.booking_require_payment,
+        pickup_enabled: !!values.pickup_enabled,
+        delivery_enabled: !!values.delivery_enabled,
+        delivery_fee: Math.max(0, Number(values.delivery_fee) || 0),
+        delivery_note: values.delivery_note || "",
       }),
     onSuccess: () => {
       message.success("WhatsApp marketplace settings saved");
@@ -81,6 +118,12 @@ const MarketplaceSettings: React.FC = () => {
   });
 
   const enabled = Form.useWatch("enabled", form);
+  const sellServices = Form.useWatch("sell_services", form);
+  const sellGiftCards = Form.useWatch("sell_gift_cards", form);
+  const bookingOn = Form.useWatch("booking_enabled", form);
+  const sellInventory = Form.useWatch("sell_inventory", form);
+  const pickupOn = Form.useWatch("pickup_enabled", form);
+  const deliveryOn = Form.useWatch("delivery_enabled", form);
 
   if (!shopId) {
     return (
@@ -179,17 +222,166 @@ const MarketplaceSettings: React.FC = () => {
             </Space>
           </Card>
 
+          <Card
+            size="small"
+            title={
+              <Space>
+                <CarOutlined style={{ color: "#ea580c" }} />
+                <Text strong style={{ fontSize: 13 }}>
+                  Collect or delivery
+                </Text>
+              </Space>
+            }
+            style={{
+              borderRadius: 8,
+              marginBottom: 16,
+              opacity: enabled && sellInventory ? 1 : 0.5,
+            }}
+          >
+            <Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 12 }}>
+              Before paying for physical items, customers choose how they get their
+              order. With several shops they also pick which shop to collect from —
+              each shop's stock is shown, and if their pick is out of stock the next
+              shop that has everything is suggested. Delivery asks for an address or a
+              shared location pin, and the fee is added as its own line on the order.
+            </Text>
+            <Space direction="vertical" size={8} style={{ width: "100%" }}>
+              <Form.Item name="pickup_enabled" valuePropName="checked" style={{ marginBottom: 0 }}>
+                <Checkbox disabled={!enabled || !sellInventory || (pickupOn && !deliveryOn)}>
+                  Collect at the shop{" "}
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    (also lists this shop as a pickup point for orders from your other shops)
+                  </Text>
+                </Checkbox>
+              </Form.Item>
+              <Form.Item name="delivery_enabled" valuePropName="checked" style={{ marginBottom: 0 }}>
+                <Checkbox disabled={!enabled || !sellInventory || (deliveryOn && !pickupOn)}>
+                  Delivery
+                </Checkbox>
+              </Form.Item>
+              <Space wrap size={12} style={{ opacity: deliveryOn ? 1 : 0.5 }}>
+                <Form.Item name="delivery_fee" label="Delivery fee (Ksh)" style={{ marginBottom: 0 }}>
+                  <InputNumber min={0} step={50} disabled={!enabled || !deliveryOn} style={{ width: 140 }} />
+                </Form.Item>
+                <Form.Item name="delivery_note" label="Note shown to customers" style={{ marginBottom: 0 }}>
+                  <Input
+                    maxLength={80}
+                    disabled={!enabled || !deliveryOn}
+                    placeholder="e.g. Within Nairobi, 1–2 hours"
+                    style={{ width: 260 }}
+                  />
+                </Form.Item>
+              </Space>
+            </Space>
+          </Card>
+
+          <Card
+            size="small"
+            title={
+              <Space>
+                <GiftOutlined style={{ color: "#c026d3" }} />
+                <Text strong style={{ fontSize: 13 }}>
+                  Gift card amounts
+                </Text>
+              </Space>
+            }
+            style={{
+              borderRadius: 8,
+              marginBottom: 16,
+              opacity: enabled && sellGiftCards ? 1 : 0.5,
+            }}
+          >
+            <Form.Item
+              name="gift_card_presets"
+              extra="Quick-pick amounts offered in chat — customers can still type any amount."
+              style={{ marginBottom: 0 }}
+            >
+              <Select
+                mode="tags"
+                tokenSeparators={[" "]}
+                disabled={!enabled || !sellGiftCards}
+                placeholder="e.g. 1000 2500 5000"
+                style={{ width: "100%" }}
+              />
+            </Form.Item>
+          </Card>
+
+          <Card
+            size="small"
+            title={
+              <Space>
+                <CalendarOutlined style={{ color: "#7c3aed" }} />
+                <Text strong style={{ fontSize: 13 }}>
+                  Appointment booking in chat
+                </Text>
+              </Space>
+            }
+            extra={
+              <Form.Item name="booking_enabled" valuePropName="checked" noStyle>
+                <Switch size="small" disabled={!enabled || !sellServices} />
+              </Form.Item>
+            }
+            style={{
+              borderRadius: 8,
+              marginBottom: 16,
+              opacity: enabled && sellServices && bookingOn ? 1 : 0.5,
+            }}
+          >
+            <Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 12 }}>
+              Customers pick a service, a day and one of the open time slots. Slots
+              come from these hours, skip times that are already booked, and are also
+              offered after any paid order that includes a service.
+            </Text>
+            <Space wrap size={12}>
+              <Form.Item name="booking_open_time" label="Opens" style={{ marginBottom: 8 }}>
+                <TimePicker format="HH:mm" minuteStep={15} disabled={!enabled || !bookingOn} />
+              </Form.Item>
+              <Form.Item name="booking_close_time" label="Closes" style={{ marginBottom: 8 }}>
+                <TimePicker format="HH:mm" minuteStep={15} disabled={!enabled || !bookingOn} />
+              </Form.Item>
+              <Form.Item name="booking_slot_minutes" label="Slot every" style={{ marginBottom: 8 }}>
+                <Select
+                  disabled={!enabled || !bookingOn}
+                  style={{ width: 110 }}
+                  options={[15, 30, 45, 60].map((m) => ({ value: m, label: `${m} min` }))}
+                />
+              </Form.Item>
+              <Form.Item
+                name="booking_capacity"
+                label="Bookings at once"
+                tooltip="How many customers one service can take in the same slot (e.g. number of stylists)"
+                style={{ marginBottom: 8 }}
+              >
+                <InputNumber min={1} max={50} disabled={!enabled || !bookingOn} />
+              </Form.Item>
+              <Form.Item name="booking_max_days_ahead" label="Days ahead" style={{ marginBottom: 8 }}>
+                <InputNumber min={1} max={365} disabled={!enabled || !bookingOn} />
+              </Form.Item>
+            </Space>
+            <Form.Item
+              name="booking_require_payment"
+              valuePropName="checked"
+              style={{ marginBottom: 0 }}
+            >
+              <Checkbox disabled={!enabled || !bookingOn}>
+                Require payment in chat to confirm a booking (hides “pay at the shop”)
+              </Checkbox>
+            </Form.Item>
+          </Card>
+
           <Form.Item
             name="self_serve_enabled"
             label="Let customers order by chatting"
-            tooltip="Customers text MENU or ORDER to browse the catalogue, build a cart and check out — M-Pesa payment details from the System Profile are shared automatically (no payment is triggered)"
+            tooltip="Customers text MENU, ORDER, GIFT CARD or BOOK and the assistant walks them step by step to a finished order, gift card or booking — M-Pesa payment details from the System Profile are shared automatically (no payment is triggered)"
             valuePropName="checked"
             style={{ marginBottom: 16 }}
             extra={
               <Text type="secondary" style={{ fontSize: 12 }}>
-                Trigger keywords: <Text code>MENU</Text>, <Text code>ORDER</Text>,{" "}
-                <Text code>BUY</Text>, <Text code>SHOP</Text>,{" "}
-                <Text code>CATALOG</Text>, <Text code>PRICE LIST</Text>
+                Keywords: <Text code>MENU</Text> (all options),{" "}
+                <Text code>ORDER</Text> / <Text code>SHOP</Text> (catalogue),{" "}
+                <Text code>GIFT CARD</Text>, <Text code>BOOK</Text> and{" "}
+                <Text code>AGENT</Text> (back to your team). Short requests such as
+                “can I book a massage on Friday?” are understood too.
               </Text>
             }
           >

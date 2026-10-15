@@ -16,10 +16,21 @@ const TinyMCEInput: React.FC<TinyMCEInputProps> = ({
     height = 200,
     plainText = false,
 }) => {
+    // Plain-text values carry "\n" line breaks; the editor renders HTML, so
+    // without converting them every line would collapse into one.
+    const editorValue =
+        plainText && value && !/<[a-z][\s\S]*>/i.test(value)
+            ? value
+                  .replace(/&/g, "&amp;")
+                  .replace(/</g, "&lt;")
+                  .replace(/>/g, "&gt;")
+                  .replace(/\n/g, "<br>")
+            : value;
+
     return (
         <Editor
             tinymceScriptSrc="https://cdn.jsdelivr.net/npm/tinymce@6/tinymce.min.js"
-            value={value}
+            value={editorValue}
             onEditorChange={(content, editor) => {
                 onChange?.(plainText ? editor.getContent({ format: "text" }) : content);
             }}
