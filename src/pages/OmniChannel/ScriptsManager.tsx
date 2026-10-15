@@ -3,14 +3,17 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
     Button,
     Card,
+    Col,
+    Empty,
     Flex,
     Form,
     Grid,
     Input,
     Modal,
     Popconfirm,
+    Row,
     Space,
-    Table,
+    Spin,
     Tag,
     Tooltip,
     Typography,
@@ -25,7 +28,11 @@ import {
     UploadOutlined,
     SearchOutlined,
     FileTextOutlined,
+    CopyOutlined,
+    ShopOutlined,
 } from "@ant-design/icons";
+import { ShopWhatsappMarketplace } from "@services/shops";
+import { cardChrome, PageHeader, TONES, tintStyle, useMarketplace } from "./shared/ui";
 import dayjs from "dayjs";
 import {
     fetchScripts,
@@ -38,7 +45,7 @@ import {
 } from "@services/whatsappService";
 import TinyMCEInput from "@components/TinyMCEInput";
 
-const { Title, Text, Paragraph } = Typography;
+const { Text, Paragraph } = Typography;
 
 interface Props {
     shopId: string;
@@ -46,7 +53,77 @@ interface Props {
     onSelect?: (script: Script) => void;
 }
 
-const stripHtml = (html: string) => (html || "").replace(/<[^>]*>/g, "").trim();
+const stripHtml = (html: string) =>
+    (html || "")
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/<\/p>/gi, "\n")
+        .replace(/<[^>]*>/g, "")
+        .replace(/&nbsp;/g, " ")
+        .replace(/&amp;/g, "&")
+        .trim();
+
+const MARKETPLACE_CATEGORY = "Marketplace";
+
+// Ready-to-use replies for chat selling, built from the shop's marketplace
+// settings so fees, amounts and options are accurate.
+const marketplaceStarterScripts = (mp?: ShopWhatsappMarketplace) => {
+    const list: { title: string; content: string }[] = [
+        {
+            title: "How to order on WhatsApp",
+            content:
+                "<p>You can order right here in WhatsApp 🛍️</p>" +
+                "<p>• Reply <b>ORDER</b> to see our catalogue<br>• Reply with an item number to add it (e.g. <b>2</b> or <b>2 x3</b>)<br>• Reply <b>DONE</b> to check out and pay</p>" +
+                "<p>Reply <b>MENU</b> anytime to see everything we can help with.</p>",
+        },
+        {
+            title: "Paying with M-Pesa",
+            content:
+                "<p>At checkout you'll get our M-Pesa details 💳</p>" +
+                "<p>Once you've paid, just paste the full M-Pesa confirmation SMS in this chat — your order is confirmed automatically with an order code.</p>",
+        },
+    ];
+    const pickup = mp?.pickup_enabled !== false;
+    const delivery = mp?.delivery_enabled !== false;
+    if (pickup || delivery) {
+        const fee = Number(mp?.delivery_fee) || 0;
+        list.push({
+            title: "Collection & delivery",
+            content:
+                "<p>Before you pay, you choose how to get your order:</p><p>" +
+                (pickup ? "🏪 <b>Collect</b> at any of our shops — show your order code when you pick up<br>" : "") +
+                (delivery
+                    ? `🛵 <b>Delivery</b>${fee > 0 ? ` for Ksh ${fee}` : " (free)"}${mp?.delivery_note ? ` — ${mp.delivery_note}` : ""}. Share your location pin or type your address.`
+                    : "") +
+                "</p>",
+        });
+    }
+    if (mp?.sell_gift_cards !== false) {
+        const presets = mp?.gift_card_presets?.length ? mp.gift_card_presets : [1000, 2500, 5000];
+        list.push({
+            title: "Gift cards",
+            content:
+                "<p>Looking for a gift? 🎁 Reply <b>GIFT CARD</b>.</p>" +
+                `<p>Pick an amount (${presets.map((p) => `Ksh ${p.toLocaleString()}`).join(", ")} or any amount), add the recipient's name and a message, pay — and you'll get a gift card you can forward straight to them.</p>`,
+        });
+    }
+    if (mp?.sell_services !== false && mp?.booking_enabled !== false) {
+        list.push({
+            title: "Booking an appointment",
+            content:
+                "<p>Reply <b>BOOK</b> to book an appointment 📅</p>" +
+                "<p>Choose the service and a day, then pick from the open time slots. You can confirm and pay at the shop" +
+                (mp?.booking_require_payment ? "" : " or pay now to secure your slot") +
+                ".</p>",
+        });
+    }
+    list.push({
+        title: "Order status & collection",
+        content:
+            "<p>Thanks for your order! 🙏 Please keep your <b>order code</b> — you'll need it when you collect or receive your order.</p>" +
+            "<p>If anything changes we'll update you right here.</p>",
+    });
+    return list.map((s) => ({ ...s, category: MARKETPLACE_CATEGORY }));
+};
 
 const ScriptsManager: React.FC<Props> = ({ shopId, readOnly = false, onSelect }) => {
     const { message } = App.useApp();
@@ -60,6 +137,9 @@ const ScriptsManager: React.FC<Props> = ({ shopId, readOnly = false, onSelect })
     const [refineInstruction, setRefineInstruction] = useState("");
     const [search, setSearch] = useState("");
     const [extracting, setExtracting] = useState(false);
+    const [category, setCategory] = useState<string | null>(null);
+    const [addingStarters, setAddingStarters] = useState(false);
+    const { enabled: marketplaceOn, config: mp } = useMarketplace(shopId);
 
     const { data, isLoading } = useQuery({
         queryKey: ["omnichannel-scripts", shopId],
@@ -188,170 +268,202 @@ const ScriptsManager: React.FC<Props> = ({ shopId, readOnly = false, onSelect })
         </Upload>
     );
 
-    const columns = [
-        {
-            title: "Title",
-            dataIndex: "title",
-            key: "title",
-            width: 220,
-            ellipsis: true,
-            render: (title: string) => (
-                <Space size={8}>
-                    <FileTextOutlined style={{ color: "#8c8c8c" }} />
-                    <Text strong ellipsis style={{ maxWidth: 180 }}>
-                        {title}
-                    </Text>
-                </Space>
-            ),
-        },
-        {
-            title: "Category",
-            dataIndex: "category",
-            key: "category",
-            width: 130,
-            ellipsis: true,
-            render: (category: string) =>
-                category ? <Tag>{category}</Tag> : <Text type="secondary">—</Text>,
-        },
-        {
-            title: "Content Preview",
-            key: "content",
-            render: (_: any, script: Script) => (
-                <Paragraph
-                    type="secondary"
-                    ellipsis={{ rows: 2 }}
-                    style={{ marginBottom: 0, fontSize: 13 }}
-                >
+    const copyScript = async (script: Script) => {
+        try {
+            await navigator.clipboard.writeText(stripHtml(script.content));
+            message.success("Copied — paste it into the chat");
+        } catch {
+            message.error("Couldn't copy to the clipboard");
+        }
+    };
+
+    const categories = useMemo(
+        () => [...new Set(scripts.map((s) => s.category).filter(Boolean) as string[])].sort(),
+        [scripts]
+    );
+    const visibleScripts = category ? filteredScripts.filter((s) => s.category === category) : filteredScripts;
+
+    // Starter scripts not yet added (matched by title).
+    const existingTitles = new Set(scripts.map((s) => (s.title || "").trim().toLowerCase()));
+    const starters = marketplaceOn
+        ? marketplaceStarterScripts(mp).filter((s) => !existingTitles.has(s.title.toLowerCase()))
+        : [];
+    const addStarters = async (list: typeof starters) => {
+        setAddingStarters(true);
+        try {
+            for (const s of list) {
+                await createScript({ shop_id: shopId, title: s.title, content: s.content, category: s.category });
+            }
+            queryClient.invalidateQueries({ queryKey: ["omnichannel-scripts"] });
+            message.success(`${list.length} script${list.length > 1 ? "s" : ""} added`);
+        } finally {
+            setAddingStarters(false);
+        }
+    };
+
+    const renderCard = (script: Script) => (
+        <Col xs={24} sm={12} xl={8} key={script._id}>
+            <Card
+                size="small"
+                hoverable={readOnly}
+                onClick={() => handleRowClick(script)}
+                style={{ ...cardChrome, height: "100%", cursor: readOnly ? "pointer" : "default" }}
+                styles={{ body: { display: "flex", flexDirection: "column", height: "100%", gap: 8, padding: 14 } }}
+            >
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start" }}>
+                    <Space size={6} style={{ minWidth: 0 }}>
+                        <FileTextOutlined style={{ color: script.category === MARKETPLACE_CATEGORY ? "#16a34a" : "#3b82f6" }} />
+                        <Text strong ellipsis style={{ maxWidth: 220 }}>
+                            {script.title}
+                        </Text>
+                    </Space>
+                    {script.category && (
+                        <Tag
+                            color={script.category === MARKETPLACE_CATEGORY ? "green" : undefined}
+                            style={{ marginInlineEnd: 0, flexShrink: 0 }}
+                        >
+                            {script.category}
+                        </Tag>
+                    )}
+                </div>
+                <Paragraph type="secondary" ellipsis={{ rows: 3 }} style={{ marginBottom: 0, fontSize: 12.5, flex: 1, whiteSpace: "pre-line" }}>
                     {stripHtml(script.content) || "—"}
                 </Paragraph>
-            ),
-        },
-        {
-            title: "Updated",
-            dataIndex: "updatedAt",
-            key: "updatedAt",
-            width: 110,
-            render: (value: string) => (
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                    {value ? dayjs(value).format("MMM D, YYYY") : "—"}
-                </Text>
-            ),
-        },
-        ...(readOnly
-            ? []
-            : [
-                {
-                    title: "",
-                    key: "actions",
-                    width: 90,
-                    align: "right" as const,
-                    render: (_: any, script: Script) => (
-                        <Space size={0}>
-                            <Tooltip title="Edit">
-                                <Button
-                                    type="text"
-                                    icon={<EditOutlined />}
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleEdit(script);
-                                    }}
-                                />
-                            </Tooltip>
-                            <Popconfirm
-                                title="Delete script?"
-                                description="This can't be undone."
-                                okText="Delete"
-                                okButtonProps={{ danger: true }}
-                                onConfirm={(e) => {
-                                    e?.stopPropagation();
-                                    deleteMutation.mutate(script._id);
-                                }}
-                            >
-                                <Tooltip title="Delete">
-                                    <Button
-                                        type="text"
-                                        danger
-                                        icon={<DeleteOutlined />}
-                                        onClick={(e) => e.stopPropagation()}
-                                    />
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <Text type="secondary" style={{ fontSize: 11 }}>
+                        {script.updatedAt ? `Updated ${dayjs(script.updatedAt).format("MMM D, YYYY")}` : ""}
+                    </Text>
+                    <Space size={0} onClick={(e) => e.stopPropagation()}>
+                        <Tooltip title="Copy text">
+                            <Button type="text" size="small" icon={<CopyOutlined />} onClick={() => copyScript(script)} />
+                        </Tooltip>
+                        {readOnly && onSelect ? (
+                            <Button type="link" size="small" onClick={() => onSelect(script)}>
+                                Use
+                            </Button>
+                        ) : !readOnly ? (
+                            <>
+                                <Tooltip title="Edit">
+                                    <Button type="text" size="small" icon={<EditOutlined />} onClick={() => handleEdit(script)} />
                                 </Tooltip>
-                            </Popconfirm>
-                        </Space>
-                    ),
-                },
-            ]),
-    ];
+                                <Popconfirm
+                                    title="Delete script?"
+                                    description="This can't be undone."
+                                    okText="Delete"
+                                    okButtonProps={{ danger: true }}
+                                    onConfirm={() => deleteMutation.mutate(script._id)}
+                                >
+                                    <Tooltip title="Delete">
+                                        <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+                                    </Tooltip>
+                                </Popconfirm>
+                            </>
+                        ) : null}
+                    </Space>
+                </div>
+            </Card>
+        </Col>
+    );
 
     return (
         <div style={{ padding: readOnly ? 16 : (isMobile ? 12 : 24), height: "100%", overflowY: "auto" }}>
             {!readOnly && (
-                <Flex
-                    justify="space-between"
-                    align="center"
-                    wrap="wrap"
-                    gap={12}
-                    style={{ marginBottom: 16 }}
-                >
-                    <Space align="center" size={10}>
-                        <div
-                            style={{
-                                background: "#eff6ff",
-                                borderRadius: 10,
-                                padding: "6px 8px",
-                                color: "#3b82f6",
-                                fontSize: 18,
-                                display: "flex",
-                            }}
-                        >
-                            <FileTextOutlined />
-                        </div>
-                        <div>
-                            <Title level={isMobile ? 5 : 4} style={{ margin: 0, color: "#0f172a", fontWeight: 600 }}>
-                                Reply Scripts
-                            </Title>
-                            <Text style={{ fontSize: 12, color: "#64748b" }}>
-                                Reusable replies your team can drop into conversations
-                            </Text>
-                        </div>
-                    </Space>
-                    <Space wrap>
-                        {uploadButton}
-                        <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
-                            New Script
-                        </Button>
-                    </Space>
-                </Flex>
+                <PageHeader
+                    icon={<FileTextOutlined />}
+                    {...TONES.blue}
+                    title="Reply Scripts"
+                    marketplace={marketplaceOn}
+                    subtitle={`Reusable replies your team can drop into conversations · ${scripts.length} saved`}
+                    extra={
+                        <>
+                            {uploadButton}
+                            <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
+                                New Script
+                            </Button>
+                        </>
+                    }
+                />
             )}
 
-            <Input
-                allowClear
-                prefix={<SearchOutlined style={{ color: "#bfbfbf" }} />}
-                placeholder="Search scripts…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                style={{ maxWidth: isMobile ? "100%" : 320, marginBottom: 16 }}
-            />
+            {!readOnly && starters.length > 0 && (
+                <Card
+                    size="small"
+                    style={{ ...cardChrome, marginBottom: 16, background: "linear-gradient(135deg,#f0fdf4 0%,#ffffff 70%)", borderColor: "#bbf7d0" }}
+                    styles={{ body: { padding: 14 } }}
+                >
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+                        <Space align="start" size={10}>
+                            <ShopOutlined style={{ color: "#16a34a", fontSize: 18, marginTop: 2 }} />
+                            <div>
+                                <Text strong style={{ display: "block" }}>Marketplace starter scripts</Text>
+                                <Text type="secondary" style={{ fontSize: 12 }}>
+                                    Ready replies for ordering, M-Pesa, collection & delivery, gift cards and bookings — written
+                                    from your marketplace settings.
+                                </Text>
+                            </div>
+                        </Space>
+                        <Button type="primary" icon={<PlusOutlined />} loading={addingStarters} onClick={() => addStarters(starters)}
+                            className="omni-btn-tint" style={{ ...tintStyle("#16a34a"), background: "#16a34a", borderColor: "#16a34a" }}>
+                            Add all {starters.length}
+                        </Button>
+                    </div>
+                    <Space size={6} wrap style={{ marginTop: 10 }}>
+                        {starters.map((s) => (
+                            <Button key={s.title} size="small" icon={<PlusOutlined />} disabled={addingStarters} onClick={() => addStarters([s])}>
+                                {s.title}
+                            </Button>
+                        ))}
+                    </Space>
+                </Card>
+            )}
 
-            <Card
-                size="small"
-                styles={{ body: { padding: 0 } }}
-                style={{ borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", overflow: "hidden" }}
-            >
-                <Table
-                    dataSource={filteredScripts}
-                    columns={columns}
-                    rowKey="_id"
-                    loading={isLoading}
-                    pagination={false}
-                    size="middle"
-                    scroll={isMobile ? { x: 620 } : undefined}
-                    locale={{ emptyText: "No scripts yet — create one or upload a document" }}
-                    onRow={(script) => ({
-                        onClick: () => handleRowClick(script),
-                        style: { cursor: readOnly ? "pointer" : "default" },
-                    })}
+            <Flex gap={10} wrap="wrap" align="center" style={{ marginBottom: 14 }}>
+                <Input
+                    allowClear
+                    prefix={<SearchOutlined style={{ color: "#bfbfbf" }} />}
+                    placeholder="Search scripts…"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    style={{ maxWidth: isMobile ? "100%" : 300 }}
                 />
-            </Card>
+                {categories.length > 0 && (
+                    <Space size={4} wrap>
+                        <Tag.CheckableTag checked={!category} onChange={() => setCategory(null)}>
+                            All ({scripts.length})
+                        </Tag.CheckableTag>
+                        {categories.map((c) => (
+                            <Tag.CheckableTag key={c} checked={category === c} onChange={() => setCategory(category === c ? null : c)}>
+                                {c} ({scripts.filter((s) => s.category === c).length})
+                            </Tag.CheckableTag>
+                        ))}
+                    </Space>
+                )}
+            </Flex>
+
+            {isLoading ? (
+                <div style={{ textAlign: "center", padding: 48 }}>
+                    <Spin />
+                </div>
+            ) : visibleScripts.length === 0 ? (
+                <Card size="small" style={cardChrome}>
+                    <Empty
+                        image={Empty.PRESENTED_IMAGE_SIMPLE}
+                        description={
+                            scripts.length
+                                ? "No scripts match your search"
+                                : "No scripts yet — create one, upload a document" + (starters.length ? " or add the marketplace starters above" : "")
+                        }
+                    >
+                        {!readOnly && !scripts.length && (
+                            <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
+                                New Script
+                            </Button>
+                        )}
+                    </Empty>
+                </Card>
+            ) : (
+                <Row gutter={[12, 12]}>{visibleScripts.map(renderCard)}</Row>
+            )}
 
             <Modal
                 title={editing ? "Edit Script" : "Add Script"}

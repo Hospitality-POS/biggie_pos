@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Card, Row, Col, Select, Spin, Typography, Grid, Space } from "antd";
+import { Button, Card, Row, Col, Select, Spin, Typography, Grid, Space, Segmented } from "antd";
 import {
     MessageOutlined,
     CheckCircleOutlined,
@@ -15,7 +15,12 @@ import {
     BarChartOutlined,
     PieChartOutlined,
     ThunderboltOutlined,
+    InboxOutlined,
+    ShopOutlined,
 } from "@ant-design/icons";
+import { KpiTile, PageHeader, TONES, useMarketplace } from "./shared/ui";
+import MarketplaceAnalytics from "./MarketplaceAnalytics";
+import InsightsDrawer from "./InsightsDrawer";
 import {
     ResponsiveContainer,
     PieChart,
@@ -33,7 +38,7 @@ import {
 } from "recharts";
 import { fetchAnalytics, type AnalyticsData } from "@services/whatsappService";
 
-const { Title, Paragraph, Text } = Typography;
+const { Text } = Typography;
 const { Option } = Select;
 
 interface Props {
@@ -45,8 +50,13 @@ const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#6366f1", "#0d9488"
 const AnalyticsPage: React.FC<Props> = ({ shopId }) => {
     const [days, setDays] = useState(30);
     const isMobile = !Grid.useBreakpoint().md;
+    const { enabled: marketplaceOn, shopName } = useMarketplace(shopId);
+    // AI Insights stay out of the way until asked for — opened as a drawer.
+    const [insightsOpen, setInsightsOpen] = useState(false);
+    const [view, setView] = useState<"inbox" | "marketplace">("inbox");
+    const activeView = marketplaceOn ? view : "inbox";
 
-    const { data, isLoading } = useQuery({
+    const { data, isLoading, isFetching, refetch } = useQuery({
         queryKey: ["omnichannel-analytics", shopId, days],
         queryFn: () =>
             fetchAnalytics({ shop_id: shopId, days }) as Promise<AnalyticsData>,
@@ -114,121 +124,105 @@ const AnalyticsPage: React.FC<Props> = ({ shopId }) => {
 
     return (
         <div style={{ padding: isMobile ? 12 : 20, height: "100%", overflowY: "auto" }}>
-            <div
-                style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: 12,
-                    flexWrap: "wrap",
-                    marginBottom: isMobile ? 12 : 16,
-                }}
-            >
-                <Space align="center" size={10}>
-                    <div
-                        style={{
-                            background: "#eff6ff",
-                            borderRadius: 10,
-                            padding: "6px 8px",
-                            color: "#3b82f6",
-                            fontSize: 18,
-                            display: "flex",
-                        }}
-                    >
-                        <BarChartOutlined />
-                    </div>
-                    <div>
-                        <Title level={isMobile ? 5 : 4} style={{ margin: 0, color: "#0f172a", fontWeight: 600 }}>
-                            Analytics
-                        </Title>
-                        <Text style={{ fontSize: 12, color: "#64748b" }}>
-                            Omnichannel performance overview
-                        </Text>
-                    </div>
-                </Space>
-                <Select value={days} onChange={setDays} size="small" style={{ width: 130 }}>
-                    <Option value={7}>Last 7 days</Option>
-                    <Option value={30}>Last 30 days</Option>
-                    <Option value={90}>Last 90 days</Option>
-                </Select>
-            </div>
+            <PageHeader
+                icon={<BarChartOutlined />}
+                {...TONES.blue}
+                title="Analytics"
+                marketplace={marketplaceOn}
+                subtitle={
+                    activeView === "marketplace"
+                        ? "Sales, gift cards and bookings closed in WhatsApp"
+                        : "Conversations, response times and team performance"
+                }
+                extra={
+                    <>
+                        <Button
+                            size="small"
+                            icon={<ThunderboltOutlined />}
+                            onClick={() => setInsightsOpen(true)}
+                            style={{
+                                borderRadius: 14,
+                                fontWeight: 600,
+                                color: "#4f46e5",
+                                background: "linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(236,72,153,0.12) 100%)",
+                                border: "1px solid rgba(99,102,241,0.35)",
+                            }}
+                        >
+                            AI Insights
+                        </Button>
+                        {marketplaceOn && (
+                            <Segmented
+                                size="small"
+                                value={activeView}
+                                onChange={(v) => setView(v as "inbox" | "marketplace")}
+                                options={[
+                                    { value: "inbox", icon: <InboxOutlined />, label: "Inbox" },
+                                    { value: "marketplace", icon: <ShopOutlined />, label: "Marketplace" },
+                                ]}
+                            />
+                        )}
+                        <Select value={days} onChange={setDays} size="small" style={{ width: 130 }}>
+                            <Option value={7}>Last 7 days</Option>
+                            <Option value={30}>Last 30 days</Option>
+                            <Option value={90}>Last 90 days</Option>
+                        </Select>
+                    </>
+                }
+            />
 
-            {isLoading ? (
+            {activeView === "marketplace" ? (
+                <MarketplaceAnalytics shopId={shopId} days={days} />
+            ) : isLoading ? (
                 <div style={{ textAlign: "center", padding: 80 }}>
                     <Spin size="large" />
                 </div>
             ) : stats ? (
                 <>
-                    <Row gutter={isMobile ? [8, 8] : [12, 12]}>
-                        {[
-                            { title: "Conversations", value: stats.totalConversations, icon: <MessageOutlined />, color: "#3b82f6", bg: "#eff6ff", border: "#bfdbfe" },
-                            { title: "Messages", value: stats.totalMessages, icon: <MessageOutlined />, color: "#0d9488", bg: "#f0fdfa", border: "#99f6e4" },
-                            { title: "Resolution Rate", value: `${stats.resolutionRate || 0}%`, icon: <CheckCircleOutlined />, color: "#10b981", bg: "#f0fdf4", border: "#bbf7d0" },
-                            { title: "Avg First Response", value: formatMinutes(stats.averageFirstResponseMinutes), icon: <ClockCircleOutlined />, color: "#f59e0b", bg: "#fffbeb", border: "#fde68a" },
-                            { title: "Median First Response", value: formatMinutes(stats.medianFirstResponseMinutes), icon: <FieldTimeOutlined />, color: "#f97316", bg: "#fff7ed", border: "#fed7aa" },
-                            { title: "Upsell Messages", value: stats.upsellMessages, icon: <RiseOutlined />, color: "#8b5cf6", bg: "#f5f3ff", border: "#ddd6fe" },
-                            { title: "Customer Conversion", value: `${stats.conversionRate || 0}%`, icon: <ShoppingCartOutlined />, color: "#10b981", bg: "#f0fdf4", border: "#bbf7d0" },
-                            { title: "Avg Msgs / Conv.", value: stats.averageMessagesPerConversation, icon: <MessageOutlined />, color: "#6366f1", bg: "#eef2ff", border: "#c7d2fe" },
-                            { title: "Active Agents", value: stats.totalAgents, icon: <TeamOutlined />, color: "#3b82f6", bg: "#eff6ff", border: "#bfdbfe" },
-                            { title: "Customers", value: stats.totalCustomers, icon: <UserOutlined />, color: "#0d9488", bg: "#f0fdfa", border: "#99f6e4" },
-                            { title: "Pending Dispatch", value: stats.pendingDispatch || 0, icon: <RocketOutlined />, color: "#f59e0b", bg: "#fffbeb", border: "#fde68a" },
-                            { title: "Avg Dispatch Wait", value: formatMinutes(stats.avgDispatchWaitMinutes), icon: <HourglassOutlined />, color: "#8b5cf6", bg: "#f5f3ff", border: "#ddd6fe" },
-                        ].map((k, i) => (
-                            <Col xs={12} sm={8} lg={6} key={i}>
-                                <div
-                                    style={{
-                                        background: k.bg,
-                                        border: `1px solid ${k.border}`,
-                                        borderRadius: isMobile ? 10 : 12,
-                                        padding: isMobile ? "10px 12px" : "14px 16px",
-                                        height: "100%",
-                                    }}
-                                >
-                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
-                                        <Text
-                                            style={{
-                                                fontSize: isMobile ? 11 : 12,
-                                                color: "#475569",
-                                                fontWeight: 500,
-                                                whiteSpace: "nowrap",
-                                                overflow: "hidden",
-                                                textOverflow: "ellipsis",
-                                            }}
-                                        >
-                                            {k.title}
-                                        </Text>
-                                        <div
-                                            style={{
-                                                background: "#fff",
-                                                borderRadius: 7,
-                                                padding: "3px 6px",
-                                                color: k.color,
-                                                fontSize: 13,
-                                                lineHeight: 1,
-                                                flexShrink: 0,
-                                            }}
-                                        >
-                                            {k.icon}
-                                        </div>
-                                    </div>
-                                    <div
-                                        style={{
-                                            fontSize: isMobile ? 17 : 22,
-                                            fontWeight: 700,
-                                            color: "#0f172a",
-                                            marginTop: 2,
-                                            lineHeight: 1.2,
-                                            whiteSpace: "nowrap",
-                                            overflow: "hidden",
-                                            textOverflow: "ellipsis",
-                                        }}
-                                    >
-                                        {k.value}
-                                    </div>
-                                </div>
-                            </Col>
-                        ))}
-                    </Row>
+                    {[
+                        {
+                            label: "Conversations",
+                            tiles: [
+                                { title: "Conversations", value: stats.totalConversations, icon: <MessageOutlined />, ...TONES.blue },
+                                { title: "Messages", value: stats.totalMessages, icon: <MessageOutlined />, ...TONES.teal },
+                                { title: "Avg msgs / conversation", value: stats.averageMessagesPerConversation, icon: <MessageOutlined />, ...TONES.indigo },
+                                { title: "Customers", value: stats.totalCustomers, icon: <UserOutlined />, ...TONES.teal },
+                            ],
+                        },
+                        {
+                            label: "Service quality",
+                            tiles: [
+                                { title: "Resolution rate", value: `${stats.resolutionRate || 0}%`, icon: <CheckCircleOutlined />, ...TONES.green },
+                                { title: "Avg first response", value: formatMinutes(stats.averageFirstResponseMinutes), icon: <ClockCircleOutlined />, ...TONES.amber },
+                                { title: "Median first response", value: formatMinutes(stats.medianFirstResponseMinutes), icon: <FieldTimeOutlined />, ...TONES.orange },
+                                { title: "Active agents", value: stats.totalAgents, icon: <TeamOutlined />, ...TONES.blue },
+                            ],
+                        },
+                        {
+                            label: "Sales & dispatch",
+                            tiles: [
+                                { title: "Customer conversion", value: `${stats.conversionRate || 0}%`, icon: <ShoppingCartOutlined />, ...TONES.green },
+                                { title: "Upsell messages", value: stats.upsellMessages, icon: <RiseOutlined />, ...TONES.violet },
+                                { title: "Pending dispatch", value: stats.pendingDispatch || 0, icon: <RocketOutlined />, ...TONES.amber },
+                                { title: "Avg dispatch wait", value: formatMinutes(stats.avgDispatchWaitMinutes), icon: <HourglassOutlined />, ...TONES.violet },
+                            ],
+                        },
+                    ].map((group) => (
+                        <div key={group.label} style={{ marginBottom: isMobile ? 8 : 12 }}>
+                            <Text
+                                type="secondary"
+                                style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", display: "block", marginBottom: 6 }}
+                            >
+                                {group.label}
+                            </Text>
+                            <Row gutter={isMobile ? [8, 8] : [12, 12]}>
+                                {group.tiles.map((k) => (
+                                    <Col xs={12} sm={12} lg={6} key={k.title}>
+                                        <KpiTile {...k} />
+                                    </Col>
+                                ))}
+                            </Row>
+                        </div>
+                    ))}
 
                     <Row gutter={isMobile ? [8, 8] : [12, 12]} style={{ marginTop: isMobile ? 10 : 14 }}>
                         <Col xs={24} lg={12}>
@@ -376,24 +370,6 @@ const AnalyticsPage: React.FC<Props> = ({ shopId }) => {
                             )}
                         </Col>
                     </Row>
-
-                    <Card
-                        size="small"
-                        style={{ ...chartCardStyle, marginTop: isMobile ? 10 : 14 }}
-                        title={chartTitle(<ThunderboltOutlined />, "#6366f1", "#eef2ff", "AI Insights")}
-                    >
-                        <Paragraph
-                            style={{
-                                whiteSpace: "pre-wrap",
-                                fontSize: 13,
-                                lineHeight: 1.7,
-                                color: "#475569",
-                                marginBottom: 0,
-                            }}
-                        >
-                            {stats.insights || "No insights available."}
-                        </Paragraph>
-                    </Card>
                 </>
             ) : (
                 <div
@@ -408,6 +384,19 @@ const AnalyticsPage: React.FC<Props> = ({ shopId }) => {
                     <Text style={{ color: "#64748b" }}>No analytics data available.</Text>
                 </div>
             )}
+
+            <InsightsDrawer
+                open={insightsOpen}
+                onClose={() => setInsightsOpen(false)}
+                shopId={shopId}
+                shopName={shopName}
+                days={days}
+                stats={stats}
+                loading={isLoading}
+                refreshing={isFetching && !isLoading}
+                onRefresh={() => refetch()}
+                marketplaceOn={marketplaceOn}
+            />
         </div>
     );
 };

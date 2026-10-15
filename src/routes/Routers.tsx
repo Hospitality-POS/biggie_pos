@@ -554,6 +554,11 @@ const routes = sentryCreateBrowserRouter(
             element={mtejaPage(QuotesPage, "CUSTOMERS_VIEW")} />
           <Route path="calendar" errorElement={<NotFound />}
             element={mtejaPage(ActivityCalendarPage, "CUSTOMERS_VIEW")} />
+          {/* Stock — the inventory page under a Mteja path so the CRM
+              workspace stays active (/inventory belongs to Duka). Shown in
+              the nav only when the WhatsApp Marketplace is on. */}
+          <Route path="stock" errorElement={<NotFound />}
+            element={mtejaPage(InventoryMainSettings, "INVENTORY_VIEW")} />
         </Route>
 
         {/* ── Dala Real Estate — shop level (/dala/...) ───────────────────────
@@ -840,6 +845,8 @@ const routes = sentryCreateBrowserRouter(
             element={mtejaAdminPage(QuotesPage, "CUSTOMERS_VIEW")} />
           <Route path="calendar" errorElement={<NotFound />}
             element={mtejaAdminPage(ActivityCalendarPage, "CUSTOMERS_VIEW")} />
+          <Route path="stock" errorElement={<NotFound />}
+            element={mtejaAdminPage(InventoryMainSettings, "INVENTORY_VIEW")} />
         </Route>
 
         {/* ── Dala Real Estate — admin level (/admin/dala/...) ───────────────

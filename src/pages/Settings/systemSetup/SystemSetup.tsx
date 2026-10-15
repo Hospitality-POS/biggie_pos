@@ -14,6 +14,7 @@ import {
   GlobalOutlined,
   ScanOutlined,
   CloudSyncOutlined,
+  WhatsAppOutlined,
 } from "@ant-design/icons";
 import { Typography, Grid, Tabs } from "antd";
 import { useQuery } from "@tanstack/react-query";
@@ -33,9 +34,11 @@ import AccessSettings from "./AccessSettings";
 import DataSyncSettings from "./DataSyncSettings";
 import ChartOfAccountsSettings from "./ChartOfAccountsSettings";
 import CurrencyPage from "@pages/Currency/CurrencyPage";
+import WhatsAppIntegrationSettings from "./WhatsAppIntegrationSettings";
 import { fetchShop } from "@services/shops";
 import { THEME_C } from "@utils/getPrimaryColor";
 import { makePermissionChecker } from "@utils/accessControl";
+import { useTenantModules } from "@hooks/useTenantModules";
 import { useAppSelector } from "src/store";
 
 const { Text, Title } = Typography;
@@ -98,6 +101,8 @@ const SystemSetup: React.FC = () => {
   );
   // Bandu HR module — shown unless explicitly disabled
   const hasBandu = tenant?.modules?.bandu_hr !== false;
+  // WhatsApp integrations (incl. chat marketplace) require the Mteja module
+  const { hasMteja } = useTenantModules();
 
   const { user } = useAppSelector((state) => state.auth);
   const rolePermissions: string[] =
@@ -277,6 +282,19 @@ const SystemSetup: React.FC = () => {
       });
     }
 
+    if (hasMteja) {
+      list.push({
+        key: "integrations-whatsapp",
+        label: "WhatsApp",
+        description: "Chat marketplace & sender registration",
+        icon: <WhatsAppOutlined />,
+        color: "#25D366",
+        bg: "#f0fdf4",
+        group: "Integrations",
+        render: () => <WhatsAppIntegrationSettings />,
+      });
+    }
+
     if (isHotelMode) {
       list.push({
         key: "hotel-settings",
@@ -291,7 +309,7 @@ const SystemSetup: React.FC = () => {
     }
 
     return list;
-  }, [hasPOS, hasAccounting, isHotelMode, canSeeCurrencies]);
+  }, [hasPOS, hasAccounting, isHotelMode, canSeeCurrencies, hasMteja]);
 
   const activeSection =
     sections.find((s) => s.key === activeTab) ?? sections[0];
