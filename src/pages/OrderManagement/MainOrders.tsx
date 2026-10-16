@@ -8,6 +8,7 @@ import ManualInvoiceModal from "./Invoices/ManualInvoiceModal";
 import { getPermissionChecker } from "@utils/getPermissionChecker";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { THEME_C } from "@utils/getPrimaryColor";
+import { useMarketplace } from "@pages/OmniChannel/shared/ui";
 
 const { Text } = Typography;
 
@@ -109,7 +110,16 @@ const AccountingInvoicesTab: React.FC = () => (
 
 function MainOrders() {
   const primaryColor = usePrimaryColor();
-  const { hasPOS, hasAccounting } = getModules();
+  const { hasPOS: hasDuka, hasAccounting } = getModules();
+
+  // Chat orders from the WhatsApp Marketplace are real orders, so a Mteja
+  // shop selling in chat gets the Orders tabs even without Duka (POS).
+  const shopId = (() => {
+    const v = localStorage.getItem("shopId");
+    return v && v !== "{}" && v !== "null" ? v : "";
+  })();
+  const { enabled: sellsInChat } = useMarketplace(shopId);
+  const hasPOS = hasDuka || sellsInChat;
 
   // Admin users get can() === true for every key via makePermissionChecker
   const can = useMemo(() => getPermissionChecker(), []);
@@ -118,7 +128,7 @@ function MainOrders() {
     () =>
       TAB_CFG
         .filter((t) => {
-          // Orders list and Order Analysis are Duka (POS) features only.
+          // Orders list and Order Analysis need Duka (POS) or chat selling.
           if (t.key === "orders" || t.key === "done") return hasPOS;
           return true;
         })
@@ -134,7 +144,11 @@ function MainOrders() {
     return "orders";
   };
 
-  const [activeTab, setActiveTab] = useState(getDefaultTab);
+  // The shop settings load after first paint, so the default tab is derived
+  // until the user picks one — otherwise Orders would never become the default.
+  const [pickedTab, setActiveTab] = useState<string | null>(null);
+  const activeTab =
+    pickedTab && visibleTabs.some((t) => t.key === pickedTab) ? pickedTab : getDefaultTab();
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
 
   const activeTabCfg = visibleTabs.find((t) => t.key === activeTab);
