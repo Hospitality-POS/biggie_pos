@@ -559,6 +559,10 @@ const routes = sentryCreateBrowserRouter(
               the nav only when the WhatsApp Marketplace is on. */}
           <Route path="stock" errorElement={<NotFound />}
             element={mtejaPage(InventoryMainSettings, "INVENTORY_VIEW")} />
+          {/* Orders — same as /orders, kept under /crm for Mteja-only
+              tenants selling through the WhatsApp Marketplace. */}
+          <Route path="orders" errorElement={<NotFound />}
+            element={mtejaPage(MainOrders, "ORDERS_VIEW")} />
         </Route>
 
         {/* ── Dala Real Estate — shop level (/dala/...) ───────────────────────
@@ -847,6 +851,8 @@ const routes = sentryCreateBrowserRouter(
             element={mtejaAdminPage(ActivityCalendarPage, "CUSTOMERS_VIEW")} />
           <Route path="stock" errorElement={<NotFound />}
             element={mtejaAdminPage(InventoryMainSettings, "INVENTORY_VIEW")} />
+          <Route path="orders" errorElement={<NotFound />}
+            element={mtejaAdminPage(MainOrders, "ORDERS_VIEW")} />
         </Route>
 
         {/* ── Dala Real Estate — admin level (/admin/dala/...) ───────────────

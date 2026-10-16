@@ -61,7 +61,7 @@ const buildWhatsappPromo = (isSms: boolean, shopName: string, phone: string | nu
         };
     }
     return {
-        subject: `Shop ${shopName || "with us"} on WhatsApp 🛍️`,
+        subject: `Shop ${shopName || "with us"} on WhatsApp`,
         message:
             `Hi there,\n\nYou can now ${what} with ${shopName || "us"} right inside WhatsApp — no app or website needed.\n\n` +
             `• Browse our catalogue and order in a few messages\n` +
