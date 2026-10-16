@@ -21,6 +21,7 @@ import {
   AppstoreOutlined,
   BellOutlined,
   CompassOutlined,
+  AuditOutlined,
   CreditCardOutlined,
   CloseOutlined,
   DownOutlined,
@@ -616,6 +617,12 @@ const AdminDashboard: React.FC = () => {
             path: "/admin/discover",
             color: "#3b82f6",
           },
+          {
+            icon: <AuditOutlined />,
+            label: "Audit Trail",
+            path: "/admin/audit-trail",
+            color: "#4f46e5",
+          },
         ].map((item) => (
           <div
             key={item.path}
@@ -816,6 +823,14 @@ const AdminDashboard: React.FC = () => {
                 ),
                 label: "Help Center",
                 onClick: () => navigate("/admin/help-center"),
+              },
+              {
+                key: "audit-trail",
+                icon: (
+                  <AuditOutlined style={{ fontSize: 15, color: "#4f46e5" }} />
+                ),
+                label: "Audit Trail",
+                onClick: () => navigate("/admin/audit-trail"),
               },
               {
                 key: "discover",

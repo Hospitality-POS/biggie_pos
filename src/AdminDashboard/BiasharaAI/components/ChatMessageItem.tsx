@@ -25,6 +25,8 @@ export interface ChatMessageItemProps {
   onCopyMessage: (text: string, id: number) => void;
   onExportToPdf: (id: number) => void;
   onRetry: (prompt: string, errorId?: number) => void;
+  /** Name shown above AI replies */
+  assistantName?: string;
 }
 
 export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
@@ -36,6 +38,7 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
   onCopyMessage,
   onExportToPdf,
   onRetry,
+  assistantName = "Biashara AI",
 }) => {
   const isSpeaking = speakingMessageId === m.id;
 
@@ -72,7 +75,7 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
             />
           </div>
           <Text strong style={{ fontSize: 12, color: "#334155" }}>
-            Biashara AI
+            {assistantName}
           </Text>
           {isSpeaking && (
             <span
