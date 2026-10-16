@@ -10,6 +10,7 @@ import {
 } from "@features/Report/reportActions";
 import { useAppDispatch } from "../../../store";
 import { TimeRangePickerProps } from "antd/lib";
+import sharedRangePresets from "@utils/DateRangeUtils";
 import { clearReports } from "@features/Report/ReportSlice";
 
 export const useReport = (reportType: string) => {
@@ -202,16 +203,7 @@ export const useReport = (reportType: string) => {
     dispatch(clearReports);
   };
 
-  const rangePresets: TimeRangePickerProps["presets"] = [
-    { label: "Today", value: [dayjs().startOf("day"), dayjs().endOf("day")] },
-    { label: "Yesterday", value: [dayjs().add(-1, "d"), dayjs()] },
-    { label: "Last 7 Days", value: [dayjs().add(-7, "d"), dayjs()] },
-    { label: "Last 14 Days", value: [dayjs().add(-14, "d"), dayjs()] },
-    { label: "Last 30 Days", value: [dayjs().add(-30, "d"), dayjs()] },
-    { label: "Last 90 Days", value: [dayjs().add(-90, "d"), dayjs()] },
-    { label: "Last 6 Months", value: [dayjs().add(-6, "M"), dayjs()] },
-    { label: "Last 12 Months", value: [dayjs().add(-12, "M"), dayjs()] },
-  ];
+  const rangePresets = sharedRangePresets() as TimeRangePickerProps["presets"];
 
   return {
     openSalesModal,

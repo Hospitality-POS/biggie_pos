@@ -34,6 +34,7 @@ import { fetchAllCustomers } from "@services/customers";
 import { formatCurrency } from "@utils/formatters";
 import { exportToExcel, exportToPDF } from "@utils/exportUtils";
 import dayjs, { Dayjs } from "dayjs";
+import sharedRangePresets from "@utils/DateRangeUtils";
 import weekOfYear from "dayjs/plugin/weekOfYear";
 import quarterOfYear from "dayjs/plugin/quarterOfYear";
 import { THEME_C } from "@utils/getPrimaryColor";
@@ -416,17 +417,7 @@ const MtejaReports: React.FC<MtejaReportsProps> = ({ onReportGenerated }) => {
   }, [customersData]);
 
   // ── Date range presets ───────────────────────────────────────────────────
-  const rangePresets: {
-    label: string;
-    value: [Dayjs, Dayjs];
-  }[] = [
-    { label: "Today", value: [dayjs().startOf("day"), dayjs().endOf("day")] },
-    { label: "This Week", value: [dayjs().startOf("week"), dayjs().endOf("week")] },
-    { label: "This Month", value: [dayjs().startOf("month"), dayjs().endOf("month")] },
-    { label: "This Quarter", value: [dayjs().startOf("quarter"), dayjs().endOf("quarter")] },
-    { label: "This Year", value: [dayjs().startOf("year"), dayjs().endOf("year")] },
-    { label: "Last Year", value: [dayjs().subtract(1, "year").startOf("year"), dayjs().subtract(1, "year").endOf("year")] },
-  ];
+  const rangePresets = sharedRangePresets() as { label: string; value: [Dayjs, Dayjs] }[];
 
   // ── Active tab config (with allowed flag) ─────────────────────────────────
   const activeTabCfg = tabsWithAccess.find((t) => t.key === activeTab);
@@ -1098,7 +1089,7 @@ const MtejaReports: React.FC<MtejaReportsProps> = ({ onReportGenerated }) => {
             }}
           >
             <SectionLabel>Stock used in the period</SectionLabel>
-            <DateRangeField />
+            <DateRangeField presets={rangePresets} />
             <GenerateButton label="Generate Inventory Usage Report" icon={<BarChartOutlined />} disabled={false} />
             <InventoryUsageReportModal
               openM={usageOpen}
