@@ -20,7 +20,26 @@ const { Text } = Typography;
 
 const C = THEME_C;
 
+const AGENT_RELEASES_URL = "https://github.com/Hospitality-POS/base-printing-agent/releases/latest";
+const AGENT_RELEASE_API = "https://api.github.com/repos/Hospitality-POS/base-printing-agent/releases/latest";
+
+interface AgentReleaseAsset {
+  name: string;
+  browser_download_url: string;
+  size: number;
+}
+
+interface AgentRelease {
+  tag_name: string;
+  published_at: string;
+  assets: AgentReleaseAsset[];
+}
+
+const formatAssetSize = (bytes: number) => `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+
 const PrinterSettings: React.FC = () => {
+  const [agentRelease, setAgentRelease] = useState<AgentRelease | null>(null);
+  const [agentReleaseFailed, setAgentReleaseFailed] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("agents");
   const [driversSubTab, setDriversSubTab] = useState<string>("download-drivers");
   const [agents, setAgents] = useState<ConnectedAgent[]>([]);
@@ -66,6 +85,21 @@ const PrinterSettings: React.FC = () => {
     loadMappings();
     loadMainCategories();
   }, [loadMappings, loadMainCategories]);
+
+  // Always show the newest published agent build from the public GitHub repo.
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch(AGENT_RELEASE_API, { signal: controller.signal })
+      .then((res) => (res.ok ? res.json() : Promise.reject(res.status)))
+      .then(setAgentRelease)
+      .catch((e) => {
+        if (e?.name !== "AbortError") setAgentReleaseFailed(true);
+      });
+    return () => controller.abort();
+  }, []);
+
+  const findAgentAsset = (test: (name: string) => boolean) =>
+    agentRelease?.assets.find((a) => test(a.name));
 
   // Both toggles are shop-wide settings stored on the server — one toggle
   // applies to every device. localStorage is only a fallback while loading.
@@ -617,22 +651,39 @@ const PrinterSettings: React.FC = () => {
                 gap: 12,
               }}
             >
-              {downloadCard(
-                <AppleOutlined style={{ fontSize: 20, color: C.primary }} />,
-                "macOS (Apple Silicon)",
-                "v0.4.2",
-                "For Mac computers with Apple Silicon (M1, M2, M3 chips)",
-                "https://reliatechdocs.nyc3.digitaloceanspaces.com/Print%20Agents/PrintAgent_0.4.2_aarch64.dmg",
-                "Download for macOS"
-              )}
-              {downloadCard(
-                <WindowsOutlined style={{ fontSize: 20, color: C.primary }} />,
-                "Windows (64-bit)",
-                "v0.6.2",
-                "For Windows 10/11 computers (64-bit)",
-                "https://reliatechdocs.nyc3.digitaloceanspaces.com/Print%20Agents/PrintAgent_0.6.2_x64-setup.exe",
-                "Download for Windows"
-              )}
+              {[
+                {
+                  title: "Windows 10/11 (64-bit)",
+                  desc: "Desktop app that runs in the system tray. Best choice for modern computers.",
+                  asset: findAgentAsset((n) => /^PrintAgent_.*_x64-setup\.exe$/i.test(n)),
+                  recommended: true,
+                },
+                {
+                  title: "Windows 7/8/8.1 (64-bit)",
+                  desc: "Lightweight helper that runs the agent from your browser at localhost:14200.",
+                  asset: findAgentAsset((n) => /^PrintAgentHelper-Setup-x64\.exe$/i.test(n)),
+                  recommended: false,
+                },
+                {
+                  title: "Windows 7/8 (32-bit)",
+                  desc: "Helper build for older 32-bit Windows computers.",
+                  asset: findAgentAsset((n) => /^PrintAgentHelper-Setup-x86\.exe$/i.test(n)),
+                  recommended: false,
+                },
+              ]
+                // Once the release has loaded, hide builds it doesn't ship.
+                .filter((c) => c.asset || !agentRelease)
+                .map((c) =>
+                  downloadCard(
+                    <WindowsOutlined style={{ fontSize: 20, color: C.primary }} />,
+                    c.title,
+                    agentRelease ? agentRelease.tag_name : agentReleaseFailed ? "latest" : "…",
+                    c.asset ? `${c.desc} (${formatAssetSize(c.asset.size)})` : c.desc,
+                    c.asset?.browser_download_url ?? AGENT_RELEASES_URL,
+                    "Download for Windows",
+                    c.recommended
+                  )
+                )}
             </div>
 
             {renderSteps(
