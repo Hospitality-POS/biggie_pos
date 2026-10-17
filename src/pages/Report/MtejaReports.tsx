@@ -39,6 +39,7 @@ import weekOfYear from "dayjs/plugin/weekOfYear";
 import quarterOfYear from "dayjs/plugin/quarterOfYear";
 import { THEME_C } from "@utils/getPrimaryColor";
 import { fetchShop } from "@services/shops";
+import { useTenantModules } from "@hooks/useTenantModules";
 import { useAppDispatch } from "src/store";
 import { generateInventoryUsageReport } from "src/features/Report/reportActions";
 import InventoryUsageReportModal from "@components/Reports/InventoryUsageReport";
@@ -317,13 +318,7 @@ const MtejaReports: React.FC<MtejaReportsProps> = ({ onReportGenerated }) => {
     enabled: !!shopId,
     staleTime: 60_000,
   });
-  const hasDuka = useMemo(() => {
-    try {
-      return JSON.parse(localStorage.getItem("tenant") || "null")?.pos_integration?.enabled === true;
-    } catch {
-      return false;
-    }
-  }, []);
+  const { hasPOS: hasDuka } = useTenantModules();
   const showInventoryUsage = !!(shopData as any)?.whatsapp_marketplace?.enabled && !hasDuka;
 
   const dispatch = useAppDispatch();

@@ -9,6 +9,7 @@ import { getPermissionChecker } from "@utils/getPermissionChecker";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { THEME_C } from "@utils/getPrimaryColor";
 import { useMarketplace } from "@pages/OmniChannel/shared/ui";
+import { useTenantModules } from "@hooks/useTenantModules";
 
 const { Text } = Typography;
 
@@ -90,18 +91,6 @@ const LockedTab = ({ label }: { label: string }) => (
   </div>
 );
 
-const getModules = () => {
-  try {
-    const tenant = JSON.parse(localStorage.getItem("tenant") || "{}");
-    return {
-      hasPOS: tenant?.pos_integration?.enabled === true,
-      hasAccounting: tenant?.modules?.accounting === true,
-    };
-  } catch {
-    return { hasPOS: false, hasAccounting: false };
-  }
-};
-
 const AccountingInvoicesTab: React.FC = () => (
   <div>
     <InvoiceTable />
@@ -110,7 +99,7 @@ const AccountingInvoicesTab: React.FC = () => (
 
 function MainOrders() {
   const primaryColor = usePrimaryColor();
-  const { hasPOS: hasDuka, hasAccounting } = getModules();
+  const { hasPOS: hasDuka, hasAccounting } = useTenantModules();
 
   // Chat orders from the WhatsApp Marketplace are real orders, so a Mteja
   // shop selling in chat gets the Orders tabs even without Duka (POS).
