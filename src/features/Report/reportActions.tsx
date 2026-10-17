@@ -105,10 +105,10 @@ export const generatePurchaseReport = createAsyncThunk(
           },
         }
       );
-      message.success("Purchase report generated successfully");
+      message.success("Sales report generated successfully");
       return response.data;
     } catch (error: any) {
-      message.error("Failed to generate purchase report");
+      message.error("Failed to generate sales report");
       return rejectWithValue(error.response.data.error || error.toString());
     }
   }

@@ -11,20 +11,13 @@
  * This:
  *  - checks for a new version whenever the app returns to the foreground,
  *    and every 30 minutes while it stays open;
- *  - reloads once when a new version takes control — immediately if the user
- *    has just opened/returned to the app or isn't typing, otherwise on their
- *    next return, so a half-typed message is never lost.
+ *  - reloads once when a new version takes control, but only while nobody is
+ *    using the page: when it's in the background, or it has just come back
+ *    to the foreground and hasn't been touched yet. Otherwise the reload waits
+ *    for the next return, so a cashier is never reloaded mid-sale.
  */
 
 const CHECK_EVERY_MS = 30 * 60 * 1000;
-const JUST_RETURNED_MS = 15 * 1000;
-
-const isTyping = () => {
-    const el = document.activeElement as HTMLElement | null;
-    if (!el) return false;
-    const tag = el.tagName;
-    return tag === "INPUT" || tag === "TEXTAREA" || el.isContentEditable;
-};
 
 export const initPwaFreshness = () => {
     if (!import.meta.env.PROD || typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
@@ -32,7 +25,9 @@ export const initPwaFreshness = () => {
     // The very first install also fires controllerchange (clientsClaim);
     // only an update that replaces an existing worker should reload.
     const hadController = !!navigator.serviceWorker.controller;
-    let lastVisibleAt = Date.now();
+    // True from the moment the page is shown until the user clicks, taps or
+    // types — any interaction means someone may be mid-task.
+    let untouchedSinceShown = true;
     let pendingReload = false;
     let reloading = false;
 
@@ -51,16 +46,22 @@ export const initPwaFreshness = () => {
             });
     };
 
+    const markInteraction = () => {
+        untouchedSinceShown = false;
+    };
+    ["pointerdown", "keydown"].forEach((type) =>
+        window.addEventListener(type, markInteraction, { capture: true, passive: true })
+    );
+
     navigator.serviceWorker.addEventListener("controllerchange", () => {
         if (!hadController) return;
-        const justReturned = Date.now() - lastVisibleAt < JUST_RETURNED_MS;
-        if (document.visibilityState === "hidden" || justReturned || !isTyping()) reload();
+        if (document.visibilityState === "hidden" || untouchedSinceShown) reload();
         else pendingReload = true;
     });
 
     document.addEventListener("visibilitychange", () => {
         if (document.visibilityState !== "visible") return;
-        lastVisibleAt = Date.now();
+        untouchedSinceShown = true;
         if (pendingReload) reload();
         else checkForUpdate();
     });

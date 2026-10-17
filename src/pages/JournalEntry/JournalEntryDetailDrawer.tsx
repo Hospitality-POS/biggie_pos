@@ -223,7 +223,7 @@ const JournalEntryDetailDrawer: React.FC<Props> = ({ open, onClose, entryId, onS
                 extra={
                     entry && (
                         <Space>
-                            {onEdit && entry.source === "manual" && !entry.period_locked && status !== "Voided" && (
+                            {onEdit && !entry.period_locked && status !== "Voided" && (
                                 <Button
                                     icon={<EditOutlined />}
                                     onClick={() => onEdit?.(entry._id)}

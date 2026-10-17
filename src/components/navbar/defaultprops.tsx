@@ -44,6 +44,7 @@ import { useActiveProduct, ProductKey, PRODUCT_CONFIGS } from "@context/ProductC
 import { PRODUCT_TO_DASHBOARD_TAB } from "src/hooks/useActiveDashboard";
 import { useQuery } from "@tanstack/react-query";
 import { fetchShop } from "@services/shops";
+import { useTenantModules } from "@hooks/useTenantModules";
 
 // ─── SVG tile helper ──────────────────────────────────────────────────────────
 export const makeTile = (color: string, pathD: string): string => {
@@ -318,8 +319,8 @@ export const useProLayoutNav = () => {
     staleTime: 60_000,
   });
   const whatsappMarketplaceOn = !!(navShop as any)?.whatsapp_marketplace?.enabled;
-  const hasDukaWorkspace = availableProducts.some((prod) => prod.key === "duka");
-  const mtejaSellsInChat = whatsappMarketplaceOn && !hasDukaWorkspace;
+  const { hasPOS: hasDuka } = useTenantModules();
+  const mtejaSellsInChat = whatsappMarketplaceOn && !hasDuka;
 
   const isAdminLayout = window.location.pathname.startsWith("/admin");
   const prefix = isAdminLayout ? "/admin" : "";

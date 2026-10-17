@@ -53,19 +53,31 @@ const AddEditVariantModal: React.FC<AddEditVariantModalProps> = ({
   useEffect(() => {
     if (open) {
       if (editingVariant) {
+        // Variants loaded from the API carry an `attributes` map (e.g.
+        // { zone: "Bar Area" }) rather than flat attributeType/attributeValue
+        // fields — derive them so the form pre-fills correctly.
+        const attrs: Record<string, any> =
+          editingVariant.attributes instanceof Map
+            ? Object.fromEntries(editingVariant.attributes)
+            : editingVariant.attributes && typeof editingVariant.attributes === 'object'
+              ? editingVariant.attributes
+              : {};
+        const attributeType = editingVariant.attributeType || Object.keys(attrs)[0] || '';
+        const attributeValue = editingVariant.attributeValue ?? attrs[attributeType] ?? '';
+
         // Edit mode - populate form with existing variant data
         form.setFieldsValue({
           name: editingVariant.name,
-          attributeType: editingVariant.attributeType,
-          attributeValue: editingVariant.attributeValue,
+          attributeType,
+          attributeValue,
           quantity: editingVariant.quantity,
           price: editingVariant.price,
           vat_type: editingVariant.vat_type
         });
         setVariantData({
           name: editingVariant.name,
-          attributeType: editingVariant.attributeType,
-          attributeValue: editingVariant.attributeValue,
+          attributeType,
+          attributeValue,
           location_id: editingVariant.location_id || '',
           quantity: editingVariant.quantity,
           sku: editingVariant.sku,

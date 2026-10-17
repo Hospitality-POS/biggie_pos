@@ -17,6 +17,17 @@ const { Title, Text } = Typography;
  * and marketplace awareness.
  */
 
+// Current shop id, or "" when none is picked — at admin level localStorage
+// can hold "{}" or "null", which must not be sent to the API as an id.
+export const getStoredShopId = (): string => {
+    try {
+        const v = localStorage.getItem("shopId");
+        return v && v !== "{}" && v !== "null" ? v : "";
+    } catch {
+        return "";
+    }
+};
+
 // Shop's WhatsApp Marketplace config — tabs add marketplace extras when on.
 export const useMarketplace = (shopId: string) => {
     const { data } = useQuery({

@@ -171,8 +171,10 @@ const HotelPage: React.FC = () => {
   const storedCode = localStorage.getItem("companyCode");
 
   const { data, isLoading, isFetching, isError, refetch } = useQuery({
-    queryKey: ["hotel-floors", activeFloorId],
-    queryFn: () => (storedCode ? fetchTableUsequery({ id: activeFloorId }) : []),
+    // Always load every floor; picking a floor only filters on the client, so
+    // switching floors is instant instead of a full-page reload.
+    queryKey: ["hotel-floors"],
+    queryFn: () => (storedCode ? fetchTableUsequery({ id: ALL_FLOORS }) : []),
     networkMode: "always",
     enabled: !!storedCode,
     retry: 2,

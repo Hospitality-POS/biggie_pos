@@ -49,6 +49,9 @@ export interface Employee {
   employment_status: 'active' | 'on_leave' | 'suspended' | 'terminated' | 'resigned';
   termination_date?: string;
   termination_reason?: string;
+  suspension_start_date?: string;
+  suspension_end_date?: string;
+  suspension_reason?: string;
   basic_salary: number;
   /** "gross" = entered salary is gross pay; "net" = take-home (payroll grosses it up) */
   salary_type?: 'gross' | 'net';
@@ -229,6 +232,27 @@ export const updateEmployee = async (employeeId: string, params: Partial<CreateE
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.message || error?.message || "Failed to update employee";
+    message.error(errorMessage);
+    throw new Error(errorMessage);
+  }
+};
+
+// Update Employment Status (suspend / terminate / reinstate)
+export const updateEmployeeStatus = async (
+  employeeId: string,
+  params: {
+    employment_status: 'active' | 'on_leave' | 'suspended' | 'terminated' | 'resigned';
+    reason?: string;
+    suspension_start_date?: string;
+    suspension_end_date?: string;
+  }
+) => {
+  try {
+    const response = await axiosInstance.patch(`${bandu_url}/employees/${employeeId}/status`, params);
+    message.success("Employment status updated successfully");
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.message || error?.message || "Failed to update employment status";
     message.error(errorMessage);
     throw new Error(errorMessage);
   }

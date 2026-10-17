@@ -1,8 +1,9 @@
 import React, { forwardRef, useRef, useState } from "react";
-import { Button, Empty, Form, Input, Modal, Segmented, Space, Spin, Typography } from "antd";
+import { Button, Empty, Form, Input, Modal, Segmented, Space, Spin, Switch, Typography } from "antd";
 import {
   CalendarOutlined,
   DollarOutlined,
+  DownloadOutlined,
   FilePdfOutlined,
   FileTextOutlined,
   MailOutlined,
@@ -12,13 +13,15 @@ import {
   TrophyOutlined,
 } from "@ant-design/icons";
 import { useReactToPrint } from "react-to-print";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 import dayjs from "dayjs";
 import useSystemDetails from "@hooks/useSystemDetails";
 import { useThermalAgentPrint } from "@hooks/useThermalAgentPrint";
 import ThermalPrintControls from "@components/Reports/ThermalPrintControls";
 import { COOP_NAME } from "@utils/config";
 import { sendSalesReportEmail, refToHtmlString } from "@services/emailReports";
-import { THEME_C } from "@utils/getPrimaryColor";
+import { THEME_C, hexToRgb } from "@utils/getPrimaryColor";
 
 const { Text } = Typography;
 
@@ -30,6 +33,26 @@ const C = THEME_C;
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const fmt = (v: number) =>
   (v || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+type Summary = { total_revenue: number; total_staff_earnings: number; platform_earnings: number } | null | undefined;
+
+/**
+ * Report totals. When the % split is on, each row's `totalSales` is that
+ * person's earnings (the split is already applied server-side), so staff
+ * earnings are the summed rows — never re-apply the percentage here.
+ * `excluded` rows (e.g. admins) are taken out of revenue and earnings.
+ */
+const computeTotals = (data: EarnerRow[], summary: Summary, percentageEnabled: boolean, excluded: EarnerRow[] = []) => {
+  const sum = (rows: EarnerRow[], pick: (r: EarnerRow) => number) => rows.reduce((s, r) => s + (pick(r) || 0), 0);
+  const excludedSales = sum(excluded, (r) => r.totalSales);
+  if (!percentageEnabled) {
+    const revenue = sum(data, (r) => r.totalSales) - excludedSales;
+    return { revenue, staffEarnings: revenue, platformCut: 0 };
+  }
+  const revenue = (summary?.total_revenue || sum(data, (r) => r.revenue ?? 0)) - sum(excluded, (r) => r.revenue ?? 0);
+  const staffEarnings = (summary?.total_staff_earnings ?? sum(data, (r) => r.totalSales)) - excludedSales;
+  return { revenue, staffEarnings, platformCut: revenue - staffEarnings };
+};
 
 // ── Summary card ──────────────────────────────────────────────────────────────
 const SummaryCard: React.FC<{ label: string; value: string; color: string; bg: string; icon: React.ReactNode }> = ({ label, value, color, bg, icon }) => (
@@ -43,8 +66,17 @@ const SummaryCard: React.FC<{ label: string; value: string; color: string; bg: s
 );
 
 // ── Shared props ──────────────────────────────────────────────────────────────
+interface EarnerRow {
+  id: string;
+  name: string;
+  totalSales: number;
+  /** Gross revenue attributed to this staff member. */
+  revenue?: number;
+  isAdmin?: boolean;
+}
+
 interface ReportProps {
-  data: { id: string; name: string; totalSales: number }[];
+  data: EarnerRow[];
   startDate: string;
   endDate: string;
   brandName: string;
@@ -60,15 +92,8 @@ interface ReportProps {
 // THERMAL RECEIPT
 // ══════════════════════════════════════════════════════════════════════════════
 const ThermalReceipt = forwardRef<HTMLDivElement, ReportProps>(
-  ({ data, startDate, endDate, brandName, staffPct, platformPct, summary, staffEarningEnabled, percentageEnabled = true }, ref) => {
-    const grandTotal = data.reduce((s, r) => s + r.totalSales, 0);
-    // Use summary values only if staff earning is enabled, otherwise use percentage calculation
-    const totalStaffEarnings = staffEarningEnabled && summary?.total_staff_earnings 
-      ? summary.total_staff_earnings 
-      : grandTotal * staffPct / 100;
-    const platformCut = staffEarningEnabled && summary?.platform_earnings 
-      ? summary.platform_earnings 
-      : grandTotal * platformPct / 100;
+  ({ data, startDate, endDate, brandName, staffPct, platformPct, summary, percentageEnabled = true }, ref) => {
+    const { revenue, staffEarnings: totalStaffEarnings, platformCut } = computeTotals(data, summary, percentageEnabled);
 
     return (
       <>
@@ -94,7 +119,7 @@ const ThermalReceipt = forwardRef<HTMLDivElement, ReportProps>(
 
           <div style={{ borderTop: "1px dashed #999", marginTop: 10, paddingTop: 8 }}>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, fontWeight: 700, padding: "2px 0", borderBottom: percentageEnabled ? "1px dotted #ddd" : "none" }}>
-              <span>Total Revenue:</span><span>KSh. {fmt(percentageEnabled ? (summary?.total_revenue || grandTotal) : grandTotal)}</span>
+              <span>Total Revenue:</span><span>KSh. {fmt(revenue)}</span>
             </div>
             {percentageEnabled && (
               <>
@@ -123,15 +148,8 @@ const ThermalReceipt = forwardRef<HTMLDivElement, ReportProps>(
 // A4 REPORT
 // ══════════════════════════════════════════════════════════════════════════════
 const A4Report = forwardRef<HTMLDivElement, ReportProps>(
-  ({ data, startDate, endDate, brandName, staffPct, platformPct, summary, staffEarningEnabled, percentageEnabled = true }, ref) => {
-    const grandTotal = data.reduce((s, r) => s + r.totalSales, 0);
-    // Use summary values only if staff earning is enabled, otherwise use percentage calculation
-    const totalStaffEarnings = staffEarningEnabled && summary?.total_staff_earnings 
-      ? summary.total_staff_earnings 
-      : grandTotal * staffPct / 100;
-    const platformCut = staffEarningEnabled && summary?.platform_earnings 
-      ? summary.platform_earnings 
-      : grandTotal * platformPct / 100;
+  ({ data, startDate, endDate, brandName, staffPct, platformPct, summary, percentageEnabled = true }, ref) => {
+    const { revenue, staffEarnings: totalStaffEarnings, platformCut } = computeTotals(data, summary, percentageEnabled);
 
     return (
       <>
@@ -153,7 +171,7 @@ const A4Report = forwardRef<HTMLDivElement, ReportProps>(
 
           <div style={{ display: "flex", borderBottom: `2px solid ${C.border}`, background: C.bg }}>
             {[
-              { label: percentageEnabled ? "Grand Total Sales" : "Total Revenue", value: `KES ${fmt(grandTotal)}`, color: C.primary },
+              { label: "Total Revenue", value: `KES ${fmt(revenue)}`, color: C.primary },
               ...(percentageEnabled ? [
                 { label: `Total Staff Earnings (${staffPct}%)`, value: `KES ${fmt(totalStaffEarnings)}`, color: C.green },
                 { label: `Platform Cut (${platformPct}%)`, value: `KES ${fmt(platformCut)}`, color: C.blue },
@@ -198,7 +216,7 @@ const A4Report = forwardRef<HTMLDivElement, ReportProps>(
                 <tbody>
                   <tr style={{ background: C.primaryLight }}>
                     <td style={{ padding: "7px 12px", borderBottom: `1px solid ${C.border}`, fontWeight: 700, color: C.primary }}>Total Revenue</td>
-                    <td style={{ padding: "7px 12px", borderBottom: `1px solid ${C.border}`, textAlign: "right", fontWeight: 700, color: C.primary }}>KES {fmt(percentageEnabled ? (summary?.total_revenue || grandTotal) : grandTotal)}</td>
+                    <td style={{ padding: "7px 12px", borderBottom: `1px solid ${C.border}`, textAlign: "right", fontWeight: 700, color: C.primary }}>KES {fmt(revenue)}</td>
                   </tr>
                   {percentageEnabled && (
                     <>
@@ -311,7 +329,7 @@ function TopEarnersModal({
   staffEarningEnabled,
   percentageEnabled = true,
 }: {
-  data: { id: string; name: string; totalSales: number }[];
+  data: EarnerRow[];
   startDate: string;
   endDate: string;
   staffPct: number;
@@ -327,22 +345,87 @@ function TopEarnersModal({
   const [printMode, setPrintMode] = useState<PrintMode>("thermal");
   const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [sending, setSending] = useState(false);
+  const [excludeAdmin, setExcludeAdmin] = useState(false);
+  const hasAdmin = data.some((r) => r.isAdmin);
 
   const thermalRef = useRef<HTMLDivElement>(null);
   const a4Ref = useRef<HTMLDivElement>(null);
 
-  const grandTotal = data.reduce((s, r) => s + r.totalSales, 0);
-  // Use summary values only if staff earning is enabled, otherwise use percentage calculation
-  const totalStaffEarnings = staffEarningEnabled && summary?.total_staff_earnings 
-    ? summary.total_staff_earnings 
-    : grandTotal * staffPct / 100;
-  const platformCut = staffEarningEnabled && summary?.platform_earnings 
-    ? summary.platform_earnings 
-    : grandTotal * platformPct / 100;
+  const { revenue, staffEarnings: totalStaffEarnings, platformCut } = computeTotals(data, summary, percentageEnabled);
 
   const printA4 = useReactToPrint({ content: () => a4Ref.current });
   const thermal = useThermalAgentPrint(thermalRef);
   const handlePrint = () => printMode === "thermal" ? void thermal.print() : printA4();
+
+  const handleDownloadPdf = () => {
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const primaryRgb = hexToRgb(C.primary);
+
+    // Optionally drop admin accounts: their revenue and earnings come off the totals.
+    const rows = excludeAdmin ? data.filter((r) => !r.isAdmin) : data;
+    const excluded = excludeAdmin ? data.filter((r) => r.isAdmin) : [];
+    const totals = computeTotals(data, summary, percentageEnabled, excluded);
+
+    // Header band
+    doc.setFillColor(...primaryRgb);
+    doc.rect(0, 0, pageWidth, 28, "F");
+    doc.setTextColor(255);
+    const hasBrand = BRAND_NAME1 && BRAND_NAME1 !== "undefined undefined";
+    if (hasBrand) {
+      doc.setFontSize(15);
+      doc.setFont("helvetica", "bold");
+      doc.text(BRAND_NAME1, 14, 12);
+    }
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text("TOP EARNERS REPORT", 14, hasBrand ? 20 : 15);
+    doc.setFontSize(8);
+    doc.text(`From: ${dayjs(startDate).format("MMM DD, YYYY h:mm A")}`, pageWidth - 14, 11, { align: "right" });
+    doc.text(`To: ${dayjs(endDate).format("MMM DD, YYYY h:mm A")}`, pageWidth - 14, 16, { align: "right" });
+    doc.text(`Generated ${dayjs().format("MMM DD, YYYY h:mm A")}`, pageWidth - 14, 21, { align: "right" });
+    doc.setTextColor(0);
+
+    autoTable(doc, {
+      startY: 36,
+      head: [["#", "Staff Member", percentageEnabled ? "Total Earnings (KES)" : "Total Revenue (KES)"]],
+      body: rows.map((r, i) => [i + 1, r.name, fmt(r.totalSales)]),
+      theme: "grid",
+      styles: { fontSize: 9 },
+      columnStyles: { 0: { halign: "center", cellWidth: 14 }, 2: { halign: "right" } },
+      headStyles: { fillColor: primaryRgb, textColor: 255 },
+      didParseCell: (cell) => {
+        if (cell.section === "body" && cell.row.index === 0) cell.cell.styles.fontStyle = "bold";
+      },
+    });
+
+    const summaryRows: string[][] = [["Total Revenue", `KES ${fmt(totals.revenue)}`]];
+    if (percentageEnabled) {
+      summaryRows.push(
+        [`Total Staff Earnings (${staffPct}%)`, `KES ${fmt(totals.staffEarnings)}`],
+        [`Platform Cut (${platformPct}%)`, `KES ${fmt(totals.platformCut)}`],
+      );
+    }
+    autoTable(doc, {
+      startY: ((doc as any).lastAutoTable?.finalY || 60) + 8,
+      body: summaryRows,
+      theme: "plain",
+      tableWidth: 90,
+      margin: { left: pageWidth - 14 - 90 },
+      styles: { fontSize: 9 },
+      columnStyles: { 0: { fontStyle: "bold" }, 1: { halign: "right", fontStyle: "bold" } },
+    });
+
+    const footerY = doc.internal.pageSize.getHeight() - 10;
+    doc.setFontSize(8);
+    doc.setTextColor(100);
+    doc.text(`Powered by ${COOP_NAME}`, 14, footerY);
+    if (percentageEnabled) {
+      doc.text(`Split: ${staffPct}% staff · ${platformPct}% platform`, pageWidth - 14, footerY, { align: "right" });
+    }
+
+    doc.save(`top-earners-report-${dayjs().format("YYYYMMDD-HHmm")}.pdf`);
+  };
 
   const handleSendEmail = async (values: SendEmailValues) => {
     setSending(true);
@@ -356,9 +439,9 @@ function TopEarnersModal({
         intro: values.intro,
         cc: values.cc,
         totals: {
-          overallTotal: grandTotal,
+          overallTotal: revenue,
           stockCost: 0,
-          grossProfit: grandTotal,
+          grossProfit: revenue,
           commission: totalStaffEarnings,
         },
         dateRange: { from: startDate, to: endDate },
@@ -381,9 +464,10 @@ function TopEarnersModal({
         open={open}
         onCancel={onClose}
         destroyOnClose
-        width={printMode === "a4" ? 960 : 760}
+        width={printMode === "a4" ? 960 : 840}
         style={{ top: 20 }}
-        styles={{ body: { padding: "16px 20px" } }}
+        // Footer gets the same inset as the body so buttons line up with the content edges.
+        styles={{ body: { padding: "16px 20px" }, footer: { padding: "4px 20px 0", marginTop: 4 } }}
         title={
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingRight: 32 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -405,16 +489,27 @@ function TopEarnersModal({
         }
         footer={
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-            <Space wrap>
+            <Space wrap align="center" size={8}>
               <Button
                 icon={<MailOutlined />}
                 onClick={() => setEmailModalOpen(true)}
-                style={{ borderColor: C.primary, color: C.primary }}
+                style={{ borderColor: C.primary, color: C.primary, borderRadius: 8 }}
               >
                 Send via Email
               </Button>
+              <Button
+                icon={<DownloadOutlined />}
+                onClick={handleDownloadPdf}
+                disabled={data.length === 0}
+                style={{ borderColor: C.primary, color: C.primary, borderRadius: 8 }}
+              >
+                Download PDF
+              </Button>
+            </Space>
+            <Space wrap align="center" size={8} style={{ marginLeft: "auto", justifyContent: "flex-end" }}>
               {printMode === "thermal" && (
                 <ThermalPrintControls
+                  size="middle"
                   target={thermal.target}
                   onTargetChange={thermal.setTarget}
                   zones={thermal.zoneOptions}
@@ -423,8 +518,6 @@ function TopEarnersModal({
                   loading={thermal.agentsLoading}
                 />
               )}
-            </Space>
-            <Space>
               <Button onClick={onClose} style={{ borderRadius: 8 }}>Cancel</Button>
               <Button
                 type="primary"
@@ -448,7 +541,7 @@ function TopEarnersModal({
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {data.length > 0 && (
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                  <SummaryCard label={percentageEnabled ? "Grand Total Sales" : "Total Revenue"} value={`KES ${fmt(grandTotal)}`} color={C.primary} bg={C.primaryLight} icon={<DollarOutlined />} />
+                  <SummaryCard label="Total Revenue" value={`KES ${fmt(revenue)}`} color={C.primary} bg={C.primaryLight} icon={<DollarOutlined />} />
                   {percentageEnabled && (
                     <>
                       <SummaryCard label={`Staff Earnings (${staffPct}%)`} value={`KES ${fmt(totalStaffEarnings)}`} color={C.green} bg="#f0fdf4" icon={<TrophyOutlined />} />
@@ -464,6 +557,12 @@ function TopEarnersModal({
                 <Text style={{ fontSize: 12, color: C.subText, flex: 1 }}>
                   {dayjs(startDate).format("MMM DD, YYYY HH:mm")} → {dayjs(endDate).format("MMM DD, YYYY HH:mm")}
                 </Text>
+                {hasAdmin && (
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+                    <Switch size="small" checked={excludeAdmin} onChange={setExcludeAdmin} />
+                    <Text style={{ fontSize: 12, color: C.subText }}>Exclude admin from PDF</Text>
+                  </label>
+                )}
               </div>
 
               <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, background: "#fff", overflow: "hidden" }}>
