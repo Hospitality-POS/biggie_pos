@@ -13,7 +13,8 @@ export const ENTITY_LABELS: Record<string, string> = {
   Refund: "Refund",
   SalesReceipt: "Sales receipt",
   invoice: "Invoice",
-  Invoice: "Invoice",
+  // A different model: Base's subscription billing for the business
+  Invoice: "Subscription invoice",
   Bill: "Bill",
   Expense: "Expense",
   PettyCashTransaction: "Petty cash",
@@ -58,7 +59,6 @@ export const entityLabel = (entity?: string) =>
   entity ? ENTITY_LABELS[entity] ?? humanize(entity) : "Record";
 
 export const ENTITY_OPTIONS = Object.entries(ENTITY_LABELS)
-  .filter(([key]) => key !== "Invoice") // same label as "invoice"
   .map(([value, label]) => ({ value, label }))
   .sort((a, b) => a.label.localeCompare(b.label));
 
