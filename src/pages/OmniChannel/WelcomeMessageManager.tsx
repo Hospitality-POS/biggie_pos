@@ -32,27 +32,27 @@ const TEMPLATES: { key: string; label: string; text: string }[] = [
     {
         key: "friendly",
         label: "Friendly",
-        text: "Hi 👋 Welcome to {shop}! Thanks for reaching out — how can we help you today?",
+        text: "Hi, welcome to {shop}! Thanks for reaching out. How can we help you today?",
     },
     {
         key: "hours",
         label: "With hours",
-        text: "Hello and welcome to {shop}! 😊\nWe reply Mon–Sat, 8am–6pm. Leave your question here and we'll get back to you shortly.",
+        text: "Hello and welcome to {shop}!\nWe reply Mon–Sat, 8am–6pm. Leave your question here and we'll get back to you shortly.",
     },
     {
         key: "busy",
         label: "Busy period",
-        text: "Hi there! Thanks for messaging {shop}. We're attending to other customers right now and will reply as soon as possible 🙏",
+        text: "Hi there! Thanks for messaging {shop}. We're attending to other customers right now and will reply as soon as possible",
     },
 ];
 
 // Lines that tell customers the chat can sell/book for them — each maps to
 // a keyword the WhatsApp assistant understands.
 const MARKETPLACE_LINES = [
-    { key: "menu", icon: <RobotOutlined />, label: "MENU", line: "📋 Reply *MENU* to see everything we can do for you" },
-    { key: "order", icon: <ShoppingCartOutlined />, label: "ORDER", line: "🛍️ Reply *ORDER* to shop and pay right here in WhatsApp" },
-    { key: "gift", icon: <GiftOutlined />, label: "GIFT CARD", line: "🎁 Reply *GIFT CARD* to send someone a gift card" },
-    { key: "book", icon: <CalendarOutlined />, label: "BOOK", line: "📅 Reply *BOOK* to book an appointment" },
+    { key: "menu", icon: <RobotOutlined />, label: "MENU", line: "Reply *MENU* to see everything we can do for you" },
+    { key: "order", icon: <ShoppingCartOutlined />, label: "ORDER", line: "Reply *ORDER* to shop and pay right here in WhatsApp" },
+    { key: "gift", icon: <GiftOutlined />, label: "GIFT CARD", line: "Reply *GIFT CARD* to send someone a gift card" },
+    { key: "book", icon: <CalendarOutlined />, label: "BOOK", line: "Reply *BOOK* to book an appointment" },
 ];
 
 const toPlain = (s: string) =>

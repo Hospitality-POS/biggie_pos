@@ -17,6 +17,7 @@ import {
     ShopOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
+import sharedRangePresets from "@utils/DateRangeUtils";
 import { fetchBusinessImpact, fetchBusinessInsights, type BusinessImpactData } from "@services/whatsappService";
 
 const { Paragraph, Text, Title } = Typography;
@@ -465,6 +466,7 @@ const BusinessImpact: React.FC<Props> = ({
                                         )
                                     }
                                     allowClear
+                                    presets={sharedRangePresets()}
                                     style={{ minWidth: 260 }}
                                 />
                             )}

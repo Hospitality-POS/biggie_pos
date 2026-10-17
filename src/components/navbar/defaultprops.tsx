@@ -1,6 +1,7 @@
 import {
   ApiFilled,
   AppstoreOutlined,
+  ShoppingCartOutlined,
   ApartmentOutlined,
   CalculatorFilled,
   DashboardOutlined,
@@ -43,6 +44,7 @@ import { useActiveProduct, ProductKey, PRODUCT_CONFIGS } from "@context/ProductC
 import { PRODUCT_TO_DASHBOARD_TAB } from "src/hooks/useActiveDashboard";
 import { useQuery } from "@tanstack/react-query";
 import { fetchShop } from "@services/shops";
+import { useTenantModules } from "@hooks/useTenantModules";
 
 // ─── SVG tile helper ──────────────────────────────────────────────────────────
 export const makeTile = (color: string, pathD: string): string => {
@@ -199,6 +201,7 @@ const CRM_ROUTE_PERMISSIONS: Record<string, string> = {
   "/crm/quotes": "CUSTOMERS_VIEW",
   "/crm/calendar": "CUSTOMERS_VIEW",
   "/crm/stock": "INVENTORY_VIEW",
+  "/crm/orders": "ORDERS_VIEW",
   "/customers": "CUSTOMERS_VIEW",
   "/reports": "REPORTS_ITEM_SALES",
   "/documents": "DOCUMENTS_VIEW",
@@ -316,6 +319,8 @@ export const useProLayoutNav = () => {
     staleTime: 60_000,
   });
   const whatsappMarketplaceOn = !!(navShop as any)?.whatsapp_marketplace?.enabled;
+  const { hasPOS: hasDuka } = useTenantModules();
+  const mtejaSellsInChat = whatsappMarketplaceOn && !hasDuka;
 
   const isAdminLayout = window.location.pathname.startsWith("/admin");
   const prefix = isAdminLayout ? "/admin" : "";
@@ -443,11 +448,15 @@ export const useProLayoutNav = () => {
   const mtejaRoutesBase = [
     { path: p("/crm/dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/crm/dashboard" },
     { path: p("/omnichannel"), name: "Conversations", icon: <MessageOutlined />, _bare: "/omnichannel" },
-    // Selling in WhatsApp needs stock at hand — shown once the shop turns
-    // the WhatsApp Marketplace on. /crm/stock keeps the Mteja workspace
-    // active (plain /inventory would switch the sidebar to Duka).
-    ...(whatsappMarketplaceOn
-      ? [{ path: p("/crm/stock"), name: "Stock", icon: <AppstoreOutlined />, _bare: "/crm/stock" }]
+    // Selling in WhatsApp needs stock and orders at hand — shown once the
+    // shop turns the WhatsApp Marketplace on, but only for tenants without
+    // Duka (Duka's own nav already has Inventory and Orders). The /crm/...
+    // paths keep the Mteja workspace active.
+    ...(mtejaSellsInChat
+      ? [
+          { path: p("/crm/stock"), name: "Stock", icon: <AppstoreOutlined />, _bare: "/crm/stock" },
+          { path: p("/crm/orders"), name: "Orders", icon: <ShoppingCartOutlined />, _bare: "/crm/orders" },
+        ]
       : []),
     { path: p("/crm/leads"), name: "Leads", icon: <TeamOutlined />, _bare: "/crm/leads" },
     { path: p("/crm/calendar"), name: "Activity Calendar", icon: <CalendarOutlined />, _bare: "/crm/calendar" },
