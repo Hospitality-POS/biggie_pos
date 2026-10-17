@@ -28,7 +28,9 @@ type TabKey = "insights" | "activity";
 
 const defaultRange = (): Range => [dayjs().subtract(6, "day").startOf("day"), dayjs().endOf("day")];
 
-const RANGE_PRESETS: { label: string; value: Range }[] = [
+// Built on each render so "Today" stays correct when the app is left open
+// past midnight. Kept short: the audit trail only holds ~90 days.
+const rangePresets = (): { label: string; value: Range }[] => [
   { label: "Today", value: [dayjs().startOf("day"), dayjs().endOf("day")] },
   { label: "Yesterday", value: [dayjs().subtract(1, "day").startOf("day"), dayjs().subtract(1, "day").endOf("day")] },
   { label: "Last 7 days", value: defaultRange() },
@@ -119,7 +121,7 @@ const AuditTrailPage: React.FC = () => {
           <RangePicker
             value={range}
             onChange={(value) => value?.[0] && value?.[1] && setRange([value[0], value[1]])}
-            presets={RANGE_PRESETS}
+            presets={rangePresets()}
             allowClear={false}
             disabledDate={(d) =>
               d.isAfter(dayjs().endOf("day")) || d.isBefore(dayjs().subtract(retentionDays, "day").startOf("day"))
