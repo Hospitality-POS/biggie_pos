@@ -6,7 +6,7 @@ import { ApiOutlined, CloseOutlined, EditOutlined, UnorderedListOutlined, UserOu
 import { fetchAuditLogs, AuditLog, AuditLogFilters } from "@services/audit";
 import { fetchAllUsersFlat } from "@services/users";
 import ActivityRow from "./ActivityRow";
-import { ENTITY_OPTIONS, dayHeading, entityLabel } from "./auditFormat";
+import { AUDIT_OFF_DESCRIPTION, AUDIT_OFF_MESSAGE, ENTITY_OPTIONS, dayHeading, entityLabel } from "./auditFormat";
 
 const { Text } = Typography;
 
@@ -99,8 +99,12 @@ const AuditActivityTab: React.FC<Props> = ({
   };
   const errorStatus = (query.error as any)?.response?.status;
 
+  const auditOff = query.data?.pages[0]?.audit_enabled === false;
+
   return (
     <div style={{ display: "grid", gap: 12 }}>
+      {auditOff && <Alert type="info" showIcon message={AUDIT_OFF_MESSAGE} description={AUDIT_OFF_DESCRIPTION} />}
+
       {/* Feed filters */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
         <Segmented

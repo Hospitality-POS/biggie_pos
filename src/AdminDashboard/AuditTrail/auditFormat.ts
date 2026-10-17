@@ -46,6 +46,10 @@ export const ENTITY_LABELS: Record<string, string> = {
   "system-setting": "System setting",
 };
 
+export const AUDIT_OFF_MESSAGE = "The audit trail isn't switched on for this business yet";
+export const AUDIT_OFF_DESCRIPTION =
+  "Nothing new is being recorded. Ask your Base administrator to enable it; anything recorded earlier still shows here.";
+
 export const humanize = (value: string) =>
   value
     .replace(/\.\$\./g, ".")

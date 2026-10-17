@@ -45,6 +45,8 @@ export interface AuditLogPage {
   data: AuditLog[];
   next_cursor: string | null;
   retention_days: number;
+  /** false while this business is not in the audit rollout */
+  audit_enabled?: boolean;
 }
 
 export const fetchAuditLogs = async (filters: AuditLogFilters = {}): Promise<AuditLogPage> => {
@@ -107,6 +109,8 @@ export interface AuditAnalytics {
   recentSensitive: AuditLog[];
   generatedAt: string;
   cached?: boolean;
+  /** false while this business is not in the audit rollout */
+  audit_enabled?: boolean;
 }
 
 export type AuditInsightType = "risk" | "productivity" | "pattern" | "recommendation";

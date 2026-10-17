@@ -20,7 +20,7 @@ import {
   AuditLog,
   AuditUserStats,
 } from "@services/audit";
-import { avatarColor, entityLabel, humanize, initials } from "./auditFormat";
+import { AUDIT_OFF_DESCRIPTION, AUDIT_OFF_MESSAGE, avatarColor, entityLabel, humanize, initials } from "./auditFormat";
 
 dayjs.extend(relativeTime);
 
@@ -409,6 +409,10 @@ const AuditInsightsTab: React.FC<Props> = ({ from, to, refreshKey, shopId, shopN
 
   return (
     <div style={{ display: "grid", gap: 12 }}>
+      {data.audit_enabled === false && (
+        <Alert type="info" showIcon message={AUDIT_OFF_MESSAGE} description={AUDIT_OFF_DESCRIPTION} />
+      )}
+
       {/* Headline numbers */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12 }}>
         <StatTile
