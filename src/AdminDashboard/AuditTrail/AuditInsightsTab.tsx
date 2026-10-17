@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { useQuery } from "@tanstack/react-query";
@@ -232,9 +232,16 @@ const AuditInsightsTab: React.FC<Props> = ({ from, to, refreshKey, shopId, shopN
   const [metric, setMetric] = useState<"events" | "changes">("changes");
   const params = useMemo(() => ({ from, to, ...(shopId ? { shop_id: shopId } : {}) }), [from, to, shopId]);
 
+  // Only the first fetch after a Refresh click skips the server cache; later
+  // date or branch changes use the cache again.
+  const usedRefreshKey = useRef(0);
   const query = useQuery({
     queryKey: ["audit-analytics", params, refreshKey],
-    queryFn: () => fetchAuditAnalytics({ ...params, fresh: refreshKey > 0 }),
+    queryFn: () => {
+      const fresh = refreshKey !== usedRefreshKey.current;
+      usedRefreshKey.current = refreshKey;
+      return fetchAuditAnalytics({ ...params, fresh });
+    },
     staleTime: 30000,
     keepPreviousData: true,
     retry: false,

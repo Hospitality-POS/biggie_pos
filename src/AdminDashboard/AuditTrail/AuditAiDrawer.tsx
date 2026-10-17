@@ -111,11 +111,17 @@ const InsightsBlock: React.FC<{
   open: boolean;
   onAsk: (question: string) => void;
 }> = ({ params, open, onAsk }) => {
-  const [fresh, setFresh] = useState(false);
+  // Set by "Generate again" so only that one request skips the server cache
+  // (each fresh request is a new AI call).
+  const forceFresh = useRef(false);
   // Only generated when the drawer is opened
   const query = useQuery({
-    queryKey: ["audit-insights", params, fresh],
-    queryFn: () => fetchAuditInsights({ ...params, fresh }),
+    queryKey: ["audit-insights", params],
+    queryFn: () => {
+      const fresh = forceFresh.current;
+      forceFresh.current = false;
+      return fetchAuditInsights({ ...params, fresh });
+    },
     enabled: open,
     staleTime: 60 * 60 * 1000,
     retry: false,
@@ -146,7 +152,10 @@ const InsightsBlock: React.FC<{
             size="small"
             icon={<ReloadOutlined />}
             loading={query.isFetching}
-            onClick={() => (fresh ? query.refetch() : setFresh(true))}
+            onClick={() => {
+              forceFresh.current = true;
+              query.refetch();
+            }}
             aria-label="Generate again"
           />
         </Tooltip>
