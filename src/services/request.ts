@@ -41,6 +41,7 @@ const EXCLUDED_ROUTES = [
     '/suppliers',
     '/customers/other-branches',
     '/business-health',
+    '/audit-logs', // admins see every branch; the page passes shop_id itself
 ];
 
 const NON_CACHEABLE_ROUTES = [
@@ -50,6 +51,7 @@ const NON_CACHEABLE_ROUTES = [
     '/payments',
     '/subscriptions',
     '/invoices',
+    '/audit-logs',
 ];
 
 // Routes that should NOT trigger logout on 401 (Meta/Webhook APIs)

@@ -22,6 +22,7 @@ const MainCategory = lazyWithReload(() => import("@pages/main_category/Main_cate
 const MainOrders = lazyWithReload(() => import("@pages/OrderManagement/MainOrders"));
 const StaffClockTracker = lazyWithReload(() => import("@pages/staff/ClockInTracker"));
 const HelpCenter = lazyWithReload(() => import("src/AdminDashboard/HelpCenter/HelpCenterPage"));
+const AuditTrailPage = lazyWithReload(() => import("src/AdminDashboard/AuditTrail/AuditTrailPage"));
 const DashboardAdminPage = lazyWithReload(() => import("src/AdminDashboard/DashboardPage/DashboardPage"));
 const DukaDashboardPage = lazyWithReload(() => import("src/pages/Dashboard/DukaDashboardPage"));
 const AdminDukaDashboardPage = lazyWithReload(() => import("src/AdminDashboard/DashboardPage/AdminDukaDashboardPage"));
@@ -740,6 +741,9 @@ const routes = sentryCreateBrowserRouter(
 
         <Route path="help-center" errorElement={<NotFound />}
           element={<Suspense fallback={fullscreenSpin}><AdminRoute><HelpCenter /></AdminRoute></Suspense>} />
+
+        <Route path="audit-trail" errorElement={<NotFound />}
+          element={<Suspense fallback={fullscreenSpin}><AdminRoute><AuditTrailPage /></AdminRoute></Suspense>} />
 
         <Route path="esign" errorElement={<NotFound />}
           element={
