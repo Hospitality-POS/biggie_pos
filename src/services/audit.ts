@@ -152,3 +152,21 @@ export const askAuditAssistant = async (
   const response = await axiosInstance.post(`${BASE_URL}/audit-logs/ask`, params);
   return response.data;
 };
+
+export interface AuditSettings {
+  /** Audit trail switched on for this business */
+  enabled: boolean;
+  /** false when the server has auditing off for everyone */
+  available: boolean;
+  retention_days: number;
+}
+
+export const fetchAuditSettings = async (): Promise<AuditSettings> => {
+  const response = await axiosInstance.get(`${BASE_URL}/audit-logs/settings`);
+  return response.data;
+};
+
+export const updateAuditSettings = async (enabled: boolean): Promise<AuditSettings> => {
+  const response = await axiosInstance.put(`${BASE_URL}/audit-logs/settings`, { enabled });
+  return response.data;
+};

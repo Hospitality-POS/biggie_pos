@@ -15,7 +15,7 @@ import AuditDetailDrawer from "./AuditDetailDrawer";
 import AuditActivityTab, { Kind, RecordFilter } from "./AuditActivityTab";
 import AuditInsightsTab from "./AuditInsightsTab";
 import AuditAiDrawer from "./AuditAiDrawer";
-import { AuditSetupButton } from "./AuditSetupGuide";
+import { AuditOffNotice, AuditSwitch } from "./AuditSwitch";
 import { shortId } from "./auditFormat";
 
 const { Title, Text } = Typography;
@@ -44,7 +44,6 @@ const AuditTrailPage: React.FC = () => {
   const [retentionDays, setRetentionDays] = useState(90);
   const [refreshKey, setRefreshKey] = useState(0);
   const [aiOpen, setAiOpen] = useState(false);
-  const [auditEnabled, setAuditEnabled] = useState<boolean>();
 
   // Activity-log filters live here so the Insights tab can drill into them
   const [kind, setKind] = useState<Kind>("data");
@@ -145,12 +144,14 @@ const AuditTrailPage: React.FC = () => {
           >
             AI insights
           </Button>
-          <AuditSetupButton enabled={auditEnabled} />
+          <AuditSwitch />
           <Tooltip title="Refresh">
             <Button icon={<ReloadOutlined />} onClick={refresh} aria-label="Refresh" />
           </Tooltip>
         </div>
       </div>
+
+      <AuditOffNotice />
 
       <Tabs
         className="audit-tabs"
@@ -173,7 +174,6 @@ const AuditTrailPage: React.FC = () => {
                 shopName={shopName}
                 onSelectUser={showUserActivity}
                 onOpenLog={setSelected}
-                onAuditStatus={setAuditEnabled}
               />
             ),
           },
@@ -200,7 +200,6 @@ const AuditTrailPage: React.FC = () => {
                 shopName={shopName}
                 onOpenLog={setSelected}
                 onRetention={setRetentionDays}
-                onAuditStatus={setAuditEnabled}
               />
             ),
           },
