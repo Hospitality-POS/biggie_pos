@@ -8,7 +8,7 @@ import ManualInvoiceModal from "./Invoices/ManualInvoiceModal";
 import { getPermissionChecker } from "@utils/getPermissionChecker";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { THEME_C } from "@utils/getPrimaryColor";
-import { useMarketplace } from "@pages/OmniChannel/shared/ui";
+import { getStoredShopId, useMarketplace } from "@pages/OmniChannel/shared/ui";
 import { useTenantModules } from "@hooks/useTenantModules";
 
 const { Text } = Typography;
@@ -103,10 +103,7 @@ function MainOrders() {
 
   // Chat orders from the WhatsApp Marketplace are real orders, so a Mteja
   // shop selling in chat gets the Orders tabs even without Duka (POS).
-  const shopId = (() => {
-    const v = localStorage.getItem("shopId");
-    return v && v !== "{}" && v !== "null" ? v : "";
-  })();
+  const shopId = getStoredShopId();
   const { enabled: sellsInChat } = useMarketplace(shopId);
   const hasPOS = hasDuka || sellsInChat;
 
