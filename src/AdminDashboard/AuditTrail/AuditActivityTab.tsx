@@ -6,7 +6,8 @@ import { ApiOutlined, CloseOutlined, EditOutlined, UnorderedListOutlined, UserOu
 import { fetchAuditLogs, AuditLog, AuditLogFilters } from "@services/audit";
 import { fetchAllUsersFlat } from "@services/users";
 import ActivityRow from "./ActivityRow";
-import { AUDIT_OFF_DESCRIPTION, AUDIT_OFF_MESSAGE, ENTITY_OPTIONS, dayHeading, entityLabel } from "./auditFormat";
+import { ENTITY_OPTIONS, dayHeading, entityLabel } from "./auditFormat";
+import { AuditOffNotice } from "./AuditSetupGuide";
 
 const { Text } = Typography;
 
@@ -30,6 +31,8 @@ interface Props {
   shopName: (id?: string) => string | undefined;
   onOpenLog: (log: AuditLog) => void;
   onRetention: (days: number) => void;
+  /** Reports whether auditing is switched on for this business */
+  onAuditStatus?: (enabled: boolean) => void;
 }
 
 const AuditActivityTab: React.FC<Props> = ({
@@ -47,6 +50,7 @@ const AuditActivityTab: React.FC<Props> = ({
   shopName,
   onOpenLog,
   onRetention,
+  onAuditStatus,
 }) => {
   const { data: users = [] } = useQuery<any[]>({
     queryKey: ["audit-users-flat"],
@@ -72,6 +76,8 @@ const AuditActivityTab: React.FC<Props> = ({
     onSuccess: (data) => {
       const days = data.pages[0]?.retention_days;
       if (days) onRetention(days);
+      const enabled = data.pages[0]?.audit_enabled;
+      if (enabled !== undefined) onAuditStatus?.(enabled);
     },
     staleTime: 15000,
     retry: false,
@@ -103,7 +109,7 @@ const AuditActivityTab: React.FC<Props> = ({
 
   return (
     <div style={{ display: "grid", gap: 12 }}>
-      {auditOff && <Alert type="info" showIcon message={AUDIT_OFF_MESSAGE} description={AUDIT_OFF_DESCRIPTION} />}
+      {auditOff && <AuditOffNotice />}
 
       {/* Feed filters */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>

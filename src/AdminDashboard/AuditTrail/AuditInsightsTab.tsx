@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { useQuery } from "@tanstack/react-query";
@@ -20,7 +20,8 @@ import {
   AuditLog,
   AuditUserStats,
 } from "@services/audit";
-import { AUDIT_OFF_DESCRIPTION, AUDIT_OFF_MESSAGE, avatarColor, entityLabel, humanize, initials } from "./auditFormat";
+import { avatarColor, entityLabel, humanize, initials } from "./auditFormat";
+import { AuditOffNotice } from "./AuditSetupGuide";
 
 dayjs.extend(relativeTime);
 
@@ -226,9 +227,11 @@ interface Props {
   shopName: (id?: string) => string | undefined;
   onSelectUser: (userId: string) => void;
   onOpenLog: (log: AuditLog) => void;
+  /** Reports whether auditing is switched on for this business */
+  onAuditStatus?: (enabled: boolean) => void;
 }
 
-const AuditInsightsTab: React.FC<Props> = ({ from, to, refreshKey, shopId, shopName, onSelectUser, onOpenLog }) => {
+const AuditInsightsTab: React.FC<Props> = ({ from, to, refreshKey, shopId, shopName, onSelectUser, onOpenLog, onAuditStatus }) => {
   const [metric, setMetric] = useState<"events" | "changes">("changes");
   const params = useMemo(() => ({ from, to, ...(shopId ? { shop_id: shopId } : {}) }), [from, to, shopId]);
 
@@ -239,6 +242,11 @@ const AuditInsightsTab: React.FC<Props> = ({ from, to, refreshKey, shopId, shopN
     keepPreviousData: true,
     retry: false,
   });
+
+  const auditEnabled = query.data?.audit_enabled;
+  useEffect(() => {
+    if (auditEnabled !== undefined) onAuditStatus?.(auditEnabled);
+  }, [auditEnabled, onAuditStatus]);
 
   if (query.isLoading) {
     return (
@@ -409,9 +417,7 @@ const AuditInsightsTab: React.FC<Props> = ({ from, to, refreshKey, shopId, shopN
 
   return (
     <div style={{ display: "grid", gap: 12 }}>
-      {data.audit_enabled === false && (
-        <Alert type="info" showIcon message={AUDIT_OFF_MESSAGE} description={AUDIT_OFF_DESCRIPTION} />
-      )}
+      {data.audit_enabled === false && <AuditOffNotice />}
 
       {/* Headline numbers */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12 }}>
