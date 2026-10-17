@@ -260,9 +260,15 @@ const AuditAiDrawer: React.FC<Props> = ({ open, onClose, params, periodLabel, br
   const nextId = useRef(1);
   const { elapsed, phase } = useAuditThinkingPhase(loading);
 
-  // A new period/branch starts a new conversation
+  // A new period/branch starts a new conversation. The counter lets an
+  // answer still loading for the old period be dropped instead of landing
+  // in the new one.
+  const conversation = useRef(0);
   const paramsKey = JSON.stringify(params);
-  useEffect(() => setMessages([]), [paramsKey]);
+  useEffect(() => {
+    conversation.current += 1;
+    setMessages([]);
+  }, [paramsKey]);
 
   useEffect(() => {
     if (messages.length || loading) {
@@ -282,7 +288,11 @@ const AuditAiDrawer: React.FC<Props> = ({ open, onClose, params, periodLabel, br
     const question = raw.trim();
     if (!question || loading) return;
 
-    const history = messages.filter((m) => !m.isError).map((m) => ({ role: m.role, text: m.text }));
+    let history = messages.filter((m) => !m.isError).map((m) => ({ role: m.role, text: m.text }));
+    // On retry the question is already the last turn — don't send it twice
+    const last = history[history.length - 1];
+    if (retryOfId && last?.role === "user" && last.text === question) history = history.slice(0, -1);
+    const asked = conversation.current;
 
     setMessages((prev) => [
       ...prev.filter((m) => m.id !== retryOfId),
@@ -292,8 +302,10 @@ const AuditAiDrawer: React.FC<Props> = ({ open, onClose, params, periodLabel, br
     setLoading(true);
     try {
       const { answer } = await askAuditAssistant({ ...params, question, history });
+      if (asked !== conversation.current) return;
       setMessages((prev) => [...prev, { id: nextId.current++, role: "ai", text: answer, timestamp: new Date().toISOString() }]);
     } catch (error: any) {
+      if (asked !== conversation.current) return;
       const status = error?.response?.status;
       setMessages((prev) => [
         ...prev,
