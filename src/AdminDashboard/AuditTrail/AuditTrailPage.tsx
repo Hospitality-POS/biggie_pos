@@ -15,7 +15,7 @@ import AuditDetailDrawer from "./AuditDetailDrawer";
 import AuditActivityTab, { Kind, RecordFilter } from "./AuditActivityTab";
 import AuditInsightsTab from "./AuditInsightsTab";
 import AuditAiDrawer from "./AuditAiDrawer";
-import { AuditOffNotice, AuditSwitch } from "./AuditSwitch";
+import { AuditOffNotice, AuditSwitch, useAuditSettings } from "./AuditSwitch";
 import { shortId } from "./auditFormat";
 
 const { Title, Text } = Typography;
@@ -38,12 +38,20 @@ const rangePresets = (): { label: string; value: Range }[] => [
   { label: "Last 3 months", value: [dayjs().subtract(3, "month").startOf("day"), dayjs().endOf("day")] },
 ];
 
+// "14 days", "2 months" — short periods would otherwise round to "0 months"
+const retentionLabel = (days: number) =>
+  days < 60 ? `${days} days` : `${Math.round(days / 30)} months`;
+
 const AuditTrailPage: React.FC = () => {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<TabKey>("insights");
   const [range, setRange] = useState<Range>(defaultRange);
   const [shopId, setShopId] = useState<string>();
-  const [retentionDays, setRetentionDays] = useState(90);
+  // Settings know the retention up front; the activity log reports it too,
+  // which covers the case where settings fail to load.
+  const { settings } = useAuditSettings();
+  const [logRetentionDays, setRetentionDays] = useState<number>();
+  const retentionDays = settings?.retention_days || logRetentionDays || 90;
   const [refreshKey, setRefreshKey] = useState(0);
   const [aiOpen, setAiOpen] = useState(false);
 
@@ -114,7 +122,7 @@ const AuditTrailPage: React.FC = () => {
             Audit Trail
           </Title>
           <Text style={{ fontSize: 12, color: C.sub }}>
-            Who did what, where and when · kept for the last {Math.round(retentionDays / 30)} months
+            Who did what, where and when · kept for the last {retentionLabel(retentionDays)}
           </Text>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
