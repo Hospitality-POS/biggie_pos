@@ -2,31 +2,31 @@
   {
     "id": 15,
     "title": "Subscription Plans",
-    "description": "Compare plans and pricing",
+    "description": "How access, modules and pricing work today",
     "type": "article",
-    "readTime": "4 min",
+    "readTime": "2 min",
     "views": 950,
     "helpful": 72,
-    "content": "\n# Subscription Plans\n\n## Plan Tiers\n\n### Starter\n- Basic POS features\n- Single location\n- Limited users\n- Essential reports\n\n### Professional\n- Full POS suite\n- Multiple locations\n- Advanced reports\n- Integration support\n\n### Enterprise\n- All modules included\n- Unlimited locations\n- Custom integrations\n- Priority support\n\n## Pricing\n- Monthly billing\n- Annual discounts\n- Per-location pricing\n- Add-on modules\n\n## Choosing a Plan\n- Assess your needs\n- Consider growth\n- Compare features\n- Calculate ROI\n\n## Upgrading\n- Easy upgrade process\n- Pro-rated billing\n- Data migration\n- No downtime\n      "
+    "content": "\n# Subscription Plans\n\n## How pricing works\nBase Point is sold as a set of modules (Duka, Pesa, Mteja, Bandu, Dala) plus add-ons (eTIMS, Asset Manager, Pesapal). Pricing depends on the modules and locations you use, so it is quoted for your business.\n\n- Open **Discover** and choose **Contact support for pricing** on any module to get a quote.\n- Some add-ons (for example eTIMS) tell you that **billing will apply** before you turn them on.\n\n## Your plan details\nYour business record shows its status (Active, Pending Approval, Suspended or Terminated), the business type and size, and the **next billing** date. Admins can see this under **Settings**.\n\n## Changing what you pay for\n- To add a module, enable it from **Discover**.\n- To remove one, disable it from **Discover**.\n- For plan questions, contact support through the in-app chat.\n\n## The Billing page\nThe **Billing** page in the admin menu is being built. It is set to cover unified billing across all your locations, plan changes, and payment history. Until it is released, use the in-app chat for billing questions. You can ask to be notified when it is ready.\n"
   },
   {
     "id": 16,
     "title": "Payment Methods",
-    "description": "Add and manage payment options",
+    "description": "Set up how your customers pay you: cash, M-Pesa, bank, Pesapal",
     "type": "article",
     "readTime": "2 min",
     "views": 650,
     "helpful": 45,
-    "content": "\n# Payment Methods\n\n## Supported Methods\n- Credit/Debit Cards\n- M-Pesa\n- Bank Transfer\n- Mobile Money\n- Cash\n\n## Adding Payment Method\n1. Go to **Settings > Billing**\n2. Click **Add Payment Method**\n3. Enter card details\n4. Set as default\n5. Save\n\n## Managing Payments\n- View payment history\n- Update payment methods\n- Set auto-renewal\n- Manage invoices\n\n## Invoices\n- Automatic invoicing\n- PDF download\n- Email delivery\n- Payment tracking\n      "
+    "content": "\n# Payment Methods\n\nThis article is about the ways **your customers pay you**. (For your own Base subscription, see *Subscription Plans*.)\n\n## Where to configure\nOpen **Payment Methods** (Duka menu or admin menu). It has two parts:\n- **Payment Methods**: the options cashiers see at checkout, for example Cash, M-Pesa, Card, Bank Transfer and Cheque.\n- **Payment Details**: the account information printed on invoices, such as **Paybill / Business No.**, **Account No.** and bank details.\n\n## Add a payment method\n1. Open **Payment Methods** and choose to add a new method.\n2. Enter the name, for example *M-Pesa*.\n3. Save. It now appears on the payment screen at the POS.\n\nEdit or delete a method from the **Actions** column. Deleting asks you to confirm.\n\n## Add M-Pesa or bank details\nUnder **System Setup > Payment Methods** you can add:\n- **M-Pesa payment details**: select the payment method, then enter the **Business No.** and **Account No.**.\n- **Bank details**: pick a bank to auto-fill its name and paybill number, then add the account details.\n\nThese details print on invoices so customers know where to pay.\n\n## Online payments with Pesapal\nEnable **Pesapal** in **Discover** and enter your merchant **Consumer Key**, **Consumer Secret** and environment. Customers can then pay online by card or mobile money.\n\n## M-Pesa STK Push at the POS\nAt checkout choose M-Pesa, enter the customer's Kenyan number (for example 0712345678) and send an **STK Push**. The customer enters their PIN on their phone and the sale completes once payment is confirmed.\n"
   },
   {
     "id": 41,
     "title": "Understanding Your Bill",
-    "description": "Read and understand your billing statement",
+    "description": "What can affect what you pay and how to get a clear answer",
     "type": "article",
-    "readTime": "5 min",
+    "readTime": "2 min",
     "views": 750,
     "helpful": 60,
-    "content": "\n# Understanding Your Bill\n\n## Bill Components\n\n### Base Subscription\n- Plan cost\n- Location fees\n- User licenses\n- Module add-ons\n\n### Usage Charges\n- Transaction fees\n- Storage costs\n- API calls\n- Overages\n\n### Taxes\n- VAT (if applicable)\n- Service taxes\n- Local taxes\n\n## Reading Your Bill\n- Review billing period\n- Check line items\n- Verify charges\n- Compare with previous\n\n## Payment Options\n- Auto-pay\n- Manual payment\n- Payment plans\n- Early payment discounts\n\n## Disputes\n- Contact support\n- Provide documentation\n- Timeline for resolution\n- Credit policies\n      "
+    "content": "\n# Understanding Your Bill\n\n## What drives your charges\nYour charges are based on what is enabled for your business:\n- The **modules** you turned on in **Discover**.\n- **Add-ons** such as eTIMS and Asset Manager, which show a billing notice when you enable them.\n- The size of your setup (for example number of branches), as agreed with Base.\n\n## Checking what is active\n1. Open **Discover**. Modules marked **Enabled** are the ones in use.\n2. Open **Branch Management** to see how many branches you have.\n3. Under **Settings**, check your business status and **Next Billing** date.\n\n## Taxes\nPricing for your own customers (VAT on invoices and receipts) is separate. VAT is configured under **Settings > VAT Config**. See *VAT Compliance & Reporting*.\n\n## Questions or corrections\n- Use the in-app chat and describe what you expected versus what you were charged.\n- Include the module or branch name so it can be checked quickly.\n\n## Coming soon\nA full **Billing** page with payment history and plan management is planned. Until then, billing support is handled through support.\n"
   }
 ]

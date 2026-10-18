@@ -2,41 +2,131 @@
   {
     "id": 7,
     "title": "Mteja CRM Introduction",
-    "description": "Customer relationship management basics",
+    "description": "Customers, leads, conversations, campaigns and targets in one workspace",
     "type": "article",
-    "readTime": "8 min",
+    "readTime": "2 min",
     "views": 2200,
     "helpful": 175,
-    "content": "\n# Mteja CRM Introduction\n\n## What is Mteja?\nMteja by Base is a customer relationship management (CRM) system that helps you manage leads, customers, and marketing campaigns.\n\n## Key Features\n\n### 1. Lead Management\n- Capture leads from multiple sources\n- Visual pipeline tracking\n- Lead scoring and qualification\n- Convert leads to customers\n\n### 2. Customer Database\n- Centralized customer profiles\n- Purchase history tracking\n- Communication logs\n- Customer segmentation\n\n### 3. Marketing Campaigns\n- Email campaigns\n- SMS campaigns\n- WhatsApp integration\n- Campaign analytics\n\n### 4. Sales Tracking\n- Sales targets and budgets\n- Performance tracking\n- Team sales reports\n- Commission calculations\n\n### 5. Loyalty Programs\n- Customer rewards\n- Points system\n- Tiered membership\n- Special offers\n\n## Getting Started\n\n### Setup\n1. Configure lead stages\n2. Set up customer fields\n3. Create email/SMS templates\n4. Configure communication channels\n5. Set sales targets\n\n### Daily Use\n- Add new leads\n- Update lead status\n- Send communications\n- Track conversions\n- Monitor campaigns\n      "
+    "content": "\n# Mteja CRM Introduction\n\nMteja by Base is the customer relationship module. It keeps every conversation, lead and campaign in one place so nothing falls through.\n\n## The Mteja menu\n| Page | What it does |\n|---|---|\n| **Dashboard** | Conversations, pipeline value, conversion and messaging at a glance |\n| **Conversations** | The omnichannel inbox (WhatsApp, Messenger, Instagram) |\n| **Stock** | Stock view for selling in WhatsApp (shown when the WhatsApp Marketplace is on) |\n| **Leads** | Your sales pipeline |\n| **Activity Calendar** | Calls, meetings, tasks and follow-ups |\n| **Quotes** | Customer quotations |\n| **Campaigns** | Marketing campaigns and budgets |\n| **Sales Targets / Sales Budgets** | Goals and planned numbers |\n| **Customers** | Your customer list |\n| **Reports** | CRM reports |\n| **Documents / E-Signature** | Contracts and signatures |\n\n## The Mteja dashboard\nThe header has a **period filter** (Day, Week, Month, Year, Custom) and, for admins, a branch selector. It shows:\n- **KPI cards**: Conversations (with open and pending counts), Pipeline Value (and won value), Lead Conversion, and Engagement Health (average resolution time and resolution rate).\n- **Lead Pipeline Progression**: a chart of leads by stage, switchable between count and deal value.\n- **Engagement Mix**: conversations by status or by channel.\n- **SMS & Email Messaging**: campaigns, quick sends, recipients, sent, failed and success rate.\n- **CRM Operations Hub**: recent conversations, leads and customers, plus channel connection status.\n\n## A typical flow\n1. A customer messages you on WhatsApp.\n2. An agent replies from the inbox and converts the chat to a **lead** or **customer**.\n3. The lead moves through the pipeline, with activities logged and a **quote** sent.\n4. Won leads convert into customers and orders.\n5. Campaigns bring more people in. Targets and budgets track the results.\n\n## Getting started\n1. Enable Mteja in **Discover**.\n2. Connect WhatsApp (see *The Omnichannel Inbox*).\n3. Import or add your leads and customers.\n4. Set up a **welcome message** and **reply scripts**.\n5. Create a sales target for the team.\n"
   },
   {
     "id": 8,
     "title": "Lead Pipeline Management",
-    "description": "Track and convert leads effectively",
+    "description": "Capture leads, move them through stages and convert them to customers",
     "type": "article",
-    "readTime": "6 min",
+    "readTime": "2 min",
     "views": 1400,
     "helpful": 110,
-    "content": "\n# Lead Pipeline Management\n\n## Lead Conversion Flow\n\n```\n┌──────────────┐\n│ Capture Lead │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Qualify      │\n│ Lead         │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Contact      │\n│ Lead         │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Present      │\n│ Proposal     │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Negotiate    │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Close Deal   │\n│ (Won/Lost)   │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Convert to   │\n│ Customer     │\n└──────────────┘\n```\n\n## Pipeline Stages\nCommon stages include:\n- New\n- Contacted\n- Qualified\n- Proposal\n- Negotiation\n- Won/Lost\n\n## Managing Leads\n- Add leads manually or import\n- Assign to sales team\n- Schedule follow-ups\n- Track activities\n- Move through pipeline\n\n## Lead Scoring\n- Assign scores based on actions\n- Prioritize high-value leads\n- Automate follow-ups\n- Improve conversion rates\n\n## Conversion\n- Convert leads to customers\n- Create opportunities\n- Track conversion rates\n- Analyze pipeline health\n      "
+    "content": "\n# Lead Pipeline Management\n\n**Leads** is your sales pipeline. Each lead tracks a prospect from first contact to a won or lost deal.\n\n## Add a lead\nClick **Add Lead** and fill in:\n- **Entity Type**: Individual or Company (name or company name and contact person).\n- **Phone** (required), **Email**, **Address** (street, city, county), **Source** (pick or add a new source) and **Project**.\n- **Stage**, **Estimated Value (KES)**, **Win Probability (%)** and **Expected Close Date**.\n- **Assign to** a team member, add **Tags** and notes.\n\n## Import leads\nUse **Import Leads** to upload an Excel file. Map the columns, preview the data and assign all leads to a staff member if you like. The summary shows created, updated and skipped rows.\n\n## Stages\nNew, Contacted, Qualified, Proposal, Negotiation, Won and Lost (plus Disqualified). Use **Update Stage**, choose the new stage and add a note. **Stage History** records every change with who and when.\n\n## Work a lead\nOpen a lead to see **Details**, **Contact Info**, **Activity History**, **Stage History** and **Documents**.\n- **Log Activity**: choose the type (call, meeting, email and so on), add a subject, description and **outcome**, and set a **Next Follow-Up**.\n- **Upload Document**: upload KRA certificates, IDs, proposals, quotations, contracts and more.\n\n## Convert\nWhen the lead is ready, use **Convert** (or **Quick Convert**) to create a customer from the lead. The lead is marked **Won** and linked to the new customer.\n\n## Find and filter\nSearch by name or company, filter by stage, project and owner, and look for **Unassigned** or **Follow Up** leads.\n\n## Pipeline view\nThe Mteja dashboard shows the pipeline by stage with counts and values, plus total value, won value and conversion rate. Switch the period filter to see trends.\n"
   },
   {
     "id": 35,
     "title": "Marketing Campaigns",
-    "description": "Create and manage marketing campaigns",
+    "description": "Plan campaigns, set budgets and targets, and measure leads and revenue",
     "type": "article",
-    "readTime": "9 min",
+    "readTime": "2 min",
     "views": 1250,
     "helpful": 100,
-    "content": "\n# Marketing Campaigns\n\n## Campaign Types\n- Email campaigns\n- SMS campaigns\n- WhatsApp broadcasts\n- Multi-channel campaigns\n\n## Creating Campaigns\n1. Go to **Marketing > Campaigns**\n2. Click **Create Campaign**\n3. Select campaign type\n4. Define target audience\n5. Create content\n6. Schedule send\n\n## Targeting\n- Segment by customer attributes\n- Filter by purchase history\n- Target by location\n- Custom audience lists\n\n## Content Creation\n- Use templates\n- Customize messages\n- Add personalization\n- Include calls-to-action\n\n## Scheduling\n- Set send date and time\n- Optimize for engagement\n- A/B testing\n- Automated triggers\n\n## Analytics\n- Open rates\n- Click rates\n- Conversion tracking\n- ROI measurement\n      "
+    "content": "\n# Marketing Campaigns\n\n**Campaigns** (Campaign Management) tracks your marketing activities and what they produce. (For sending SMS and email messages see *SMS & Email Campaigns*.)\n\n## Create a campaign\nClick **New Campaign** and enter:\n- **Campaign Name**, **Type** and **Status**\n- **Start Date** and **End Date**\n- **Budget (KES)**\n- **Target Leads** and **Target Revenue (KES)**\n- **Target Audience** and **Description**\n- Optional **Department** to scope the campaign\n- **Tags**\n\n## Track results\nThe campaign list and detail drawer show **Budget**, **Spend**, **Leads**, **Conversions** and **Revenue**, plus a **Lead Pipeline Breakdown** for leads that came from that campaign.\n\n## Link leads to campaigns\nWhen you add or import a lead, choose its campaign. Targets, budgets and reports then connect back to it.\n\n## Reports\nThe **Campaign Performance** report in Mteja Reports shows budget versus actual spend, leads generated, conversions and ROI for each campaign.\n\n## Tips\n- Give each campaign a clear goal and a budget before starting.\n- Compare cost per lead across campaigns before you spend more.\n- Close campaigns when they end so reports stay tidy.\n"
   },
   {
     "id": 36,
-    "title": "Loyalty Programs",
-    "description": "Set up and manage customer loyalty",
+    "title": "Loyalty, Gift Cards & Subscriptions",
+    "description": "Reward repeat customers with packages, gift cards and visit tracking",
     "type": "article",
-    "readTime": "7 min",
+    "readTime": "2 min",
     "views": 1100,
     "helpful": 92,
-    "content": "\n# Loyalty Programs\n\n## Program Setup\n1. Go to **Customers > Loyalty**\n2. Click **Create Program**\n3. Set earning rules\n4. Configure redemption\n5. Define tiers\n6. Launch program\n\n## Points System\n- Points per purchase\n- Bonus points actions\n- Point expiration\n- Point multipliers\n\n## Tiers and Rewards\n- Bronze, Silver, Gold tiers\n- Tier benefits\n- Upgrade criteria\n- Exclusive offers\n\n## Customer Engagement\n- Points balance tracking\n- Reward notifications\n- Birthday bonuses\n- Referral rewards\n\n## Program Analytics\n- Enrollment rates\n- Redemption rates\n- Customer retention\n- Program ROI\n      "
+    "content": "\n# Loyalty, Gift Cards & Subscriptions\n\nKeep customers coming back with prepaid packages, gift cards and recognition.\n\n## Packages and subscriptions\n- Create **Subscription Packages** (a set number of visits for a price).\n- Sell them to a customer. The **Subscriptions** tab shows each customer's package, **visits used and remaining**, expiry date and revenue.\n- Filter to see active subscriptions **expiring within X days** and follow up.\n- At the POS, a customer with an active package can **Use Subscription Visit** instead of paying. One visit is deducted and the screen warns when the package is **running low**.\n\n## Gift cards\n- **Issue Gift Card** to a customer, or **Create Gift Card for Non-Customer**.\n- Enter the amount, recipient, email and expiry date.\n- **Preview** and **Send Email** to deliver it.\n- Customers can also buy gift cards on WhatsApp (see *Selling on WhatsApp*).\n\n## Recognise your best customers\n- **Top Customers by Spend** lists your highest spenders.\n- **Award Candidates** highlights loyal customers worth rewarding.\n- Visit history with ratings and reviews shows who is happy.\n\n## Win back customers\nUse the customer list and the activity calendar to follow up customers who haven't visited recently, and send them an SMS or email campaign.\n"
+  },
+  {
+    "id": 62,
+    "title": "The Omnichannel Inbox",
+    "description": "Connect WhatsApp, Messenger and Instagram and manage conversations as a team",
+    "type": "article",
+    "readTime": "2 min",
+    "views": 0,
+    "helpful": 0,
+    "content": "\n# The Omnichannel Inbox\n\n**Conversations** brings your customer chats from several channels into one inbox.\n\n## Connect a channel\nOpen **Conversations** and click **Connect Channel**.\n- **WhatsApp**: link a device by scanning the **QR code** with the phone, or choose **Link with phone number instead** and enter your code. When connected the status shows **Connected**; use **Sync chats** to pull in recent chats from the phone, **Reconnect** if it drops, and **Disconnect** to log the device out.\n- **Facebook Messenger**: chat with people who message your Facebook Page.\n- **Instagram DMs**: reply to Instagram direct messages from the same inbox.\n\nSome channels may show **Coming soon**.\n\n## Find conversations\n- Tabs and filters: **Open**, **Pending**, **Resolved**, **Closed**, **Needs reply**, and **Queue** for chats waiting on an agent.\n- Filter by **All agents** or **Assigned to me**.\n- **Search or start a new chat** from the search box.\n- Badges show if a customer is in a **guided checkout**, **booking** or **pending dispatch**.\n\n## Reply\n- Type your message and send. Attach a **photo, video or PDF**.\n- **Scripts**: insert a saved reply (see *Reply Scripts & Welcome Messages*).\n- **Documents**: search your document centre by content and share a suggested file.\n- **AI**: draft a reply with AI and edit it before sending.\n- Use the message actions to send the **menu**, **catalogue**, **gift card** or **book** options (see *Selling on WhatsApp*).\n\n## Work the conversation\nFrom the conversation menu you can:\n- **Assign** it to an agent.\n- **Change status**: Pending, **Mark as resolved**, **Close conversation**.\n- **Convert to Customer** or **Convert to Lead**.\n- **Raise Ticket** for support follow-up.\n- **Delete conversation** (with confirmation).\n\n## Let the assistant help, then take over\nFor shops that use the WhatsApp assistant, the thread shows when the assistant is handling a customer. Choose **Take over** to stop the assistant and reply yourself.\n\n## Broadcast and new messages\n- **New Message**: send to a phone number with an optional contact name.\n- **Broadcast**: send one message to **All Chats** (or a selection) and preview the recipients before it is queued.\n\n## Tips\n- Resolve conversations when they're done to keep the inbox clean.\n- Assign owners so no chat is missed.\n- Check **Needs reply** at the start of every shift.\n"
+  },
+  {
+    "id": 63,
+    "title": "Selling on WhatsApp (Marketplace)",
+    "description": "Let customers shop, buy gift cards and book appointments inside WhatsApp",
+    "type": "article",
+    "readTime": "2 min",
+    "views": 0,
+    "helpful": 0,
+    "content": "\n# Selling on WhatsApp (Marketplace)\n\nWith the **WhatsApp Marketplace** turned on, customers can order straight from a chat. A **Stock** page also appears in the Mteja menu so you can keep your stock ready.\n\n## What customers can do\nThey message keywords such as **MENU**, **ORDER** or **BOOK** and the assistant guides them:\n- **Shop the catalogue**: a numbered catalogue, then the cart, then payment, then an **order code**.\n- **Buy a gift card**: choose the amount, recipient and message, pay, and receive a **card code** to forward.\n- **Book an appointment**: choose a service and day, then an open time slot, then confirm. They pay now or at the shop.\n- **Talk to you**: ask for an agent at any time.\n\n## Collect or deliver\nThe customer chooses **collect** or **delivery**. For delivery they give an address and a **delivery fee** is added.\n\n## Payment\nThe customer picks how to pay, from numbered options. For M-Pesa, **the payment SMS is checked automatically** and the order is confirmed.\n\n## What you see in the inbox\n- Chats in a guided flow are marked **Checkout** or **Booking**.\n- Orders move to **Pending Dispatch** so an agent can be assigned to deliver them.\n- Use **Sell in chat** to build an order for the customer yourself: add products, services or a gift card, set the delivery fee, choose collect or delivery and **Place order**.\n- The **Chat Orders** drawer shows orders created from conversations.\n\n## Analytics\nOpen **Marketplace** in Conversations analytics to see **Chat sales**, **Orders**, **Average order value**, **Chat conversion**, **Gift cards sold**, **Bookings in chat**, and customers **in checkout now**.\n\n## Getting started\n1. Connect WhatsApp.\n2. Make sure your inventory and services have prices.\n3. Turn on the marketplace for the shop.\n4. Add a welcome message that tells customers they can type **MENU** (see *Reply Scripts & Welcome Messages*).\n5. Test the whole flow with your own phone before telling customers.\n"
+  },
+  {
+    "id": 64,
+    "title": "Reply Scripts & Welcome Messages",
+    "description": "Save canned replies and greet new customers automatically",
+    "type": "article",
+    "readTime": "2 min",
+    "views": 0,
+    "helpful": 0,
+    "content": "\n# Reply Scripts & Welcome Messages\n\n## Welcome message\nThe **Automated Welcome Message** is sent automatically the first time a customer messages you on WhatsApp.\n1. Open the welcome message settings.\n2. Pick **Start from a template** or write your own, for example *Hi! Welcome to our shop. How can we help you today?*\n3. Optionally add a line telling customers they can shop in chat (each line adds a keyword the assistant answers).\n4. Use the AI helper to improve the text if you like (you can say how it should change it).\n5. Check the **Customer preview** and **Save welcome message**.\n\nIf none is saved the card shows **Not set up**.\n\n## Reply scripts\n**Scripts** are saved replies agents can insert with one click.\n- **New Script**: add a **Title**, **Category** and **Script Content**.\n- **Improve with AI**: refine the text with optional instructions.\n- **Search scripts** by title or content, then **Use Script** in a conversation.\n- Edit, copy the text, or delete scripts you no longer need.\n- Start from **Marketplace starter scripts** such as MENU, ORDER and BOOK replies, paying with M-Pesa, collection and delivery, gift cards, and order status.\n- You can also upload a PDF or document to build scripts from it.\n\n## Tips\n- Keep scripts short and friendly, and use the customer's name.\n- Create variants such as **Friendly**, **With hours** and **Busy period**.\n- Review scripts quarterly so prices and hours stay correct.\n"
+  },
+  {
+    "id": 65,
+    "title": "Agents & Chat Analytics",
+    "description": "Assign team members to chats and measure response and sales",
+    "type": "article",
+    "readTime": "2 min",
+    "views": 0,
+    "helpful": 0,
+    "content": "\n# Agents & Chat Analytics\n\n## Add agents\n1. Open **Agents** in Conversations.\n2. Click **Add an agent**.\n3. **Select a user** from your team and choose **Make Agent**.\n4. Remove an agent with **Remove from agents** (with confirmation).\n\nEach agent has a status (**Online**, **Busy**) and a count of open conversations.\n\n## Agent performance\nPick **Last 7, 30 or 90 days** to see per agent:\n- Conversations handled and messages sent\n- Upsell messages and **conversion**\n- **Resolution** rate\n- **Average and median first response time**\n- Chat sales over the last 30 days from offers the agent sent\n\n## Inbox analytics\nThe **Analytics** page has an **Inbox** view with:\n- **Total conversations**, **resolved/closed**, **messages**, and **average messages per conversation**\n- **Customers**, **active agents**, and **service quality** (resolution rate and response times)\n- For marketplace shops: **Sales & dispatch** (pending dispatch, average dispatch wait) and **customer conversion**\n\n## AI insights\nOpen **AI Insights** for a short summary of what is **going well**, what to **watch**, and what to **try**. You can **Regenerate** it or **Copy insights**. It needs some conversation history first.\n\n## Tips\n- Review first-response time weekly; fast replies win sales.\n- Use the dashboards in the Mteja home for a quick daily check.\n"
+  },
+  {
+    "id": 66,
+    "title": "SMS & Email Campaigns",
+    "description": "Connect a sender, send to customers or leads and track delivery",
+    "type": "article",
+    "readTime": "2 min",
+    "views": 0,
+    "helpful": 0,
+    "content": "\n# SMS & Email Campaigns\n\nSend bulk or one-off SMS and email from **Campaigns** in Conversations. The flow is: **connect a sender, pick an audience, write and send**.\n\n## 1. Connect a sender\nClick **Sender settings** > **Connect a sender** and pick a provider.\n\n**SMS providers:** Onfon Media, Twilio, Africa's Talking, or **Other (custom HTTP gateway)**.\n**Email providers:** Brevo (Sendinblue), Mailchimp Transactional, SendGrid, **SMTP (any mail server)**, or **Other (custom HTTP API)**.\n\nEnter the credentials the provider needs (for example username and API key, account SID and auth token, or SMTP host, port and password). Set a sender ID or from-email, and a label.\n- **Send a test message** to check it works. The sender shows **Verified** or **Test failed**.\n- Mark one sender as **Default** for the channel.\n- **Disconnect** a sender at any time.\n\n## 2. Quick Send\n**Quick send** is for one-off messages: choose the sender, enter the recipient (name optional) and write your message.\n\n## 3. New campaign\n1. Click **New campaign** and give it a **Campaign Name**. You can link it to a marketing campaign.\n2. Choose **Send From** (the sender).\n3. For email, enter a **Subject** and choose an **Email Template**; use **Preview template**.\n4. Write the message. Use placeholders like {{name}} to personalise.\n5. Choose **Send To**: **Customers**, **Leads**, **Both**, **Import Excel** (upload a file or download the template), or **Paste List**.\n6. **Create Campaign** to save a draft, or **Send now**.\n\n## Track delivery\nThe campaign list shows **Recipients**, **Sent**, **Delivered**, **Failed** and **Delivery rate**, with statuses such as **Drafts**, **Sending** and **Completed**. Open **View details** to see each recipient and any error, and **Refresh status**.\n\n## Results on the dashboard\nThe Mteja dashboard shows SMS and email totals for the selected period: campaigns, quick sends, recipients, sent, failed and success rate.\n\n## Tips\n- Always send a test first.\n- Keep SMS short and include your business name.\n- Only message customers who have agreed to hear from you.\n"
+  },
+  {
+    "id": 67,
+    "title": "Activity Calendar",
+    "description": "Schedule calls, meetings, tasks and follow-ups against leads and customers",
+    "type": "article",
+    "readTime": "2 min",
+    "views": 0,
+    "helpful": 0,
+    "content": "\n# Activity Calendar\n\nThe **Activity Calendar** tracks lead and customer engagement. Open it from the Mteja menu.\n\n## Views\n- **Month** and **Week** views.\n- Filter by **activity type** and **status** (**Open**, **Done**, **Cancelled**).\n\n## Add an activity\nClick **New Activity** and choose:\n- **Link To**: a lead or a customer.\n- **Activity Type**: Call, Email, Meeting, Demo, Note, Task, WhatsApp, Site Visit, Ticket or Other.\n- **Subject**, **Description** and **Priority** (Medium, High, Urgent).\n- **Date & Time**.\n- For meetings: the **location** (Online, In Person or Phone), a **Meeting Link** or physical place, and **Invite Team Members**.\n- An optional **Follow-up Date**.\n\n## Manage activities\nClick an activity to **Mark Done**, **Mark Cancelled**, **Reschedule**, **Edit** or **Delete**. For online meetings use **Join meeting**.\n\n## Tips\n- Log an activity after every customer contact so the history is complete.\n- Check the calendar each morning, and filter to **Open** to see what's due.\n- Use priorities to flag urgent follow-ups.\n"
+  },
+  {
+    "id": 68,
+    "title": "Sales Targets & Budgets",
+    "description": "Set goals for people and teams, and plan revenue, COGS and expenses",
+    "type": "article",
+    "readTime": "2 min",
+    "views": 0,
+    "helpful": 0,
+    "content": "\n# Sales Targets & Budgets\n\n## Sales Targets\nOpen **Sales Targets** to set and track team performance goals.\n\n### Create a target\nClick **New Target** and set:\n- **Target Name**, **Metric Type** (what you are measuring) and **Target Value**\n- **Period Start** and **Period End**\n- **Assign To**: a **Specific User**, a **Role** (everyone with that role), a **Department**, or a **free-text team label**\n- Optional **Link to Campaign** to count only results from that campaign\n- Notes\n\nThe list shows **Actual**, **Achievement** percentage and the period. When the goal is reached you see **Target Achieved!**.\n\n## Sales Budgets\nOpen **Sales Budgets** to plan your numbers.\n\n### Create a budget\nClick **New Budget** and enter a name, period and the planned **Revenue**, **COGS** and **Expenses** (KES). The system calculates **Gross Profit**. Optionally link a campaign or department.\n\n### Approval\nSubmit the budget with **Submit for Approval**. An approver can **Approve** or **Reject** it (a rejection reason is recorded). Details show who submitted and approved it.\n\n### Budget vs actual\nEach budget shows **Budgeted**, **Actual** and **Variance** so you can see how you are doing.\n\n## Reports\nThe **Sales Target vs Actual** report shows target and actual revenue and customers with an achievement rate, by period.\n\n## Tips\n- Set targets that a person can influence.\n- Review progress mid-period, not only at the end.\n"
+  },
+  {
+    "id": 69,
+    "title": "Quotes",
+    "description": "Create customer quotations and turn them into invoices",
+    "type": "article",
+    "readTime": "2 min",
+    "views": 0,
+    "helpful": 0,
+    "content": "\n# Quotes\n\n**Quotes** lets you create and manage customer quotations.\n\n## Create a quote\n1. Open **Quotes** in the Mteja menu.\n2. Create a new quote for the customer, add the items, quantities, prices and VAT.\n3. Save it. Quotes have their own numbers and show a note that the document is *a quotation only and does not constitute a tax invoice*.\n\n## Share it\nUse **Print Quote** to print or save a PDF with your logo and business details.\n\n## When the customer accepts\nUse **Convert to Invoice**. The quote becomes an invoice you can post to accounting, record payments against and, if eTIMS is on, submit to KRA.\n\n## Find quotes\nSearch by number, customer or date, using the same filters as invoices.\n\n## Tip\nLink the quote to a lead and log an activity so your sales pipeline reflects the proposal. Upload the signed version using *E-Signature*.\n"
+  },
+  {
+    "id": 70,
+    "title": "Mteja Reports",
+    "description": "Customer, lead, campaign, target, visit and activity reports",
+    "type": "article",
+    "readTime": "2 min",
+    "views": 0,
+    "helpful": 0,
+    "content": "\n# Mteja Reports\n\nOpen **Reports** and choose the **Mteja CRM Reports** tab. Each report has its own filters and a **Generate** button, and can be exported.\n\n## Reports\n| Report | Shows |\n|---|---|\n| **Customer Master List** | Every customer with lifecycle stage, source, tags, city and created date |\n| **Lead Pipeline** | Leads by stage, estimated value, probability and activity count |\n| **Campaign Performance** | Budget, actual spend, leads generated and conversions |\n| **Sales Target vs Actual** | Target and actual revenue and customers, achievement rate |\n| **Customer Visit** | Visit type, purpose, outcome and follow-up date |\n| **Lead Activity** | Every logged activity for leads |\n\n## Filters\nDepending on the report: lifecycle stage, source, assigned user, customer type (Individual or Business), stage, period (Monthly, Quarterly, Yearly), year and date range.\n\n## AI overview\nUse **Analyze** to get an **AI overview** with **what the numbers mean** in plain language. You can hide it again.\n\n## Export\nExport to Excel, PDF or CSV where available.\n\n## Tips\n- Generate the **Lead Pipeline** report weekly in your sales meeting.\n- Use **Campaign Performance** before approving next month's marketing budget.\n"
   }
 ]
