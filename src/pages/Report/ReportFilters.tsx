@@ -30,6 +30,10 @@ export interface GLPeriodValue {
 }
 
 export const PERIOD_PRESETS = [
+    { label: "Today", value: () => [dayjs().startOf("day"), dayjs().endOf("day")] as [Dayjs, Dayjs] },
+    { label: "Yesterday", value: () => [dayjs().subtract(1, "day").startOf("day"), dayjs().subtract(1, "day").endOf("day")] as [Dayjs, Dayjs] },
+    { label: "This Week", value: () => [dayjs().startOf("week"), dayjs().endOf("week")] as [Dayjs, Dayjs] },
+    { label: "Last Week", value: () => [dayjs().subtract(1, "week").startOf("week"), dayjs().subtract(1, "week").endOf("week")] as [Dayjs, Dayjs] },
     { label: "This Month", value: () => [dayjs().startOf("month"), dayjs().endOf("month")] as [Dayjs, Dayjs] },
     { label: "Last Month", value: () => [dayjs().subtract(1, "month").startOf("month"), dayjs().subtract(1, "month").endOf("month")] as [Dayjs, Dayjs] },
     { label: "This Quarter", value: () => [dayjs().startOf("quarter"), dayjs().endOf("quarter")] as [Dayjs, Dayjs] },
@@ -221,6 +225,9 @@ export const AsOfFilter: React.FC<AsOfFilterProps> = ({
 }) => {
     const asOfPresets = [
         { label: "Today", value: dayjs() },
+        { label: "Yesterday", value: dayjs().subtract(1, "day") },
+        { label: "End of Last Week", value: dayjs().subtract(1, "week").endOf("week") },
+        { label: "End of This Month", value: dayjs().endOf("month") },
         { label: "End of Last Month", value: dayjs().subtract(1, "month").endOf("month") },
         { label: "End of Last Quarter", value: dayjs().subtract(1, "quarter").endOf("quarter") },
         { label: "End of Last Year", value: dayjs().subtract(1, "year").endOf("year") },

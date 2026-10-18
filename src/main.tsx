@@ -16,9 +16,12 @@ import GlobalErrorBoundary from "@components/GlobalErrorBoundary";
 import { reloadForNewVersion } from "@utils/lazyWithReload";
 import { initDesktopZoom } from "@utils/desktopZoom";
 import { initDesktopUpdater } from "@utils/desktopUpdater";
+import { initPwaFreshness } from "@utils/pwaFreshness";
 
 initDesktopZoom();
 initDesktopUpdater();
+// Open tabs / installed PWAs pick up new deploys without a manual refresh.
+initPwaFreshness();
 
 // Recover from stale-asset failures right after a deploy: Vite fires
 // vite:preloadError when a modulepreload'd chunk 404s, before React even

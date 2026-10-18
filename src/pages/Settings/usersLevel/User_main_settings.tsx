@@ -3,9 +3,10 @@ import {
   ApartmentOutlined,
   LockOutlined,
   SafetyCertificateOutlined,
+  TeamOutlined,
   UserOutlined,
 } from "@ant-design/icons";
-import { Card } from "antd";
+import { Typography } from "antd";
 import UsersTable from "./UsersTable";
 import RoleSettings from "./RoleSettings";
 import PermissionSettings from "./PermissionSettings";
@@ -13,20 +14,9 @@ import HRAnalytics from "./HRAnalytics";
 import Departments from "./Departments";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { getPrimaryColor } from "../../../utils/getPrimaryColor";
+import { HScroll } from "@pages/OmniChannel/shared/ui";
 
-const makeC = (primary: string) => ({
-  primary,
-  primaryLight: primary + "20",
-  green: "#10b981",
-  orange: "#f59e0b",
-  red: "#ef4444",
-  blue: "#3b82f6",
-  indigo: "#6366f1",
-  purple: "#8b5cf6",
-  subText: "#64748b",
-  darkText: "#0f172a",
-  border: "#e2e8f0",
-});
+const { Text } = Typography;
 
 const useIsMobile = () => {
   const [v, setV] = useState(window.innerWidth < 768);
@@ -38,89 +28,110 @@ const useIsMobile = () => {
   return v;
 };
 
+type TabKey = "users" | "roles" | "permissions" | "departments";
+
 function UsersMainSettings() {
   const isMobile = useIsMobile();
   const rawPrimary = usePrimaryColor();
-  const primary = (typeof rawPrimary === "string" && rawPrimary) ? rawPrimary : getPrimaryColor();
-  const C = makeC(primary);
+  const primary = typeof rawPrimary === "string" && rawPrimary ? rawPrimary : getPrimaryColor();
+  const [activeTab, setActiveTab] = useState<TabKey>("users");
 
-  const NAV_TABS = [
-    { key: "users",       label: "Manage Users",      icon: <UserOutlined />,              color: C.primary },
-    { key: "roles",       label: "Roles",              icon: <SafetyCertificateOutlined />, color: C.blue    },
-    { key: "permissions", label: "Permission Matrix",  icon: <LockOutlined />,              color: C.indigo  },
-    { key: "departments", label: "Departments",        icon: <ApartmentOutlined />,         color: C.purple  },
+  const NAV_TABS: { key: TabKey; label: string; hint: string; icon: React.ReactNode }[] = [
+    { key: "users", label: "Staff", hint: "Add people, set their role, branch and status", icon: <UserOutlined /> },
+    { key: "roles", label: "Roles", hint: "Create roles such as cashier, waiter or manager", icon: <SafetyCertificateOutlined /> },
+    { key: "permissions", label: "Permissions", hint: "Choose exactly what each role can see and do", icon: <LockOutlined /> },
+    { key: "departments", label: "Departments", hint: "Group staff into teams", icon: <ApartmentOutlined /> },
   ];
-
-  const [activeTab, setActiveTab] = useState("users");
+  const active = NAV_TABS.find((t) => t.key === activeTab)!;
 
   return (
     <div style={{ padding: isMobile ? "0 0 80px" : 0 }}>
-
-      {/* ── Attendance KPI strip (Bandu / payroll module only) ─────────────── */}
-      <HRAnalytics />
-
-      {/* ── Single navigation row (chips) ─────────────────────────────────────── */}
-      <div style={{
-        display: "flex", gap: 6, marginBottom: 0,
-        flexWrap: isMobile ? "wrap" : "nowrap",
-        background: "#fff",
-        border: `1px solid ${C.border}`,
-        borderBottom: "none",
-        borderRadius: "10px 10px 0 0",
-        padding: "10px 14px 0",
-      }}>
-        {NAV_TABS.map((tab) => {
-          const isActive = activeTab === tab.key;
-          return (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              style={{
-                display: "flex", alignItems: "center", gap: 6,
-                background: isActive ? `${tab.color}15` : "transparent",
-                border: "none",
-                borderBottom: isActive ? `2.5px solid ${tab.color}` : "2.5px solid transparent",
-                borderRadius: "6px 6px 0 0",
-                padding: "8px 14px",
-                cursor: "pointer",
-                color: isActive ? tab.color : C.subText,
-                fontWeight: isActive ? 600 : 400,
-                fontSize: 13,
-                transition: "all 0.15s",
-                marginBottom: -1,
-                whiteSpace: "nowrap",
-              }}
-            >
-              <span style={{ fontSize: 13, display: "flex" }}>{tab.icon}</span>
-              {tab.label}
-            </button>
-          );
-        })}
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: isMobile ? 12 : 16 }}>
+        <div
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 10,
+            background: `${primary}14`,
+            color: primary,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 18,
+            flexShrink: 0,
+          }}
+        >
+          <TeamOutlined />
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <Text strong style={{ fontSize: isMobile ? 17 : 19, color: "#0f172a", display: "block", lineHeight: 1.2 }}>
+            Staff management
+          </Text>
+          <Text style={{ fontSize: 12.5, color: "#64748b" }}>
+            Your team, what they can access, and how they're organised
+          </Text>
+        </div>
       </div>
 
-      {/* ── Tab content area ──────────────────────────────────────────────────── */}
-      <Card
-        bordered
-        style={{ borderRadius: "0 0 12px 12px", minHeight: 420 }}
-        bodyStyle={{ padding: 0 }}
+      {/* Attendance KPI strip (Bandu / payroll module only) */}
+      <HRAnalytics />
+
+      <div
+        style={{
+          background: "#fff",
+          border: "1px solid #e2e8f0",
+          borderRadius: 12,
+          overflow: "hidden",
+        }}
       >
-        {activeTab === "users" && <UsersTable />}
-        {activeTab === "roles" && (
-          <div style={{ background: "#fafafa", borderRadius: "0 0 12px 12px", minHeight: 420 }}>
-            <RoleSettings />
-          </div>
-        )}
-        {activeTab === "permissions" && (
-          <div style={{ background: "#fafafa", borderRadius: "0 0 12px 12px", minHeight: 420 }}>
-            <PermissionSettings />
-          </div>
-        )}
-        {activeTab === "departments" && (
-          <div style={{ background: "#fafafa", borderRadius: "0 0 12px 12px", minHeight: 420 }}>
-            <Departments />
-          </div>
-        )}
-      </Card>
+        {/* Section switcher */}
+        <div style={{ padding: isMobile ? "10px 10px 0" : "12px 16px 0", borderBottom: "1px solid #f1f5f9" }}>
+          <HScroll gap={6} padding="0 0 10px">
+            {NAV_TABS.map((tab) => {
+              const isActive = activeTab === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setActiveTab(tab.key)}
+                  style={{
+                    flexShrink: 0,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "7px 14px",
+                    borderRadius: 999,
+                    border: `1px solid ${isActive ? primary : "#e2e8f0"}`,
+                    background: isActive ? `${primary}12` : "#fff",
+                    color: isActive ? primary : "#475569",
+                    fontWeight: isActive ? 600 : 500,
+                    fontSize: 13,
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  <span style={{ display: "flex", fontSize: 13 }}>{tab.icon}</span>
+                  {tab.label}
+                </button>
+              );
+            })}
+          </HScroll>
+          {!isMobile && (
+            <Text style={{ fontSize: 12, color: "#94a3b8", display: "block", paddingBottom: 10, marginTop: -2 }}>
+              {active.hint}
+            </Text>
+          )}
+        </div>
+
+        {/* Section content */}
+        <div style={{ minHeight: 420, background: activeTab === "users" ? "#fff" : "#fafafa" }}>
+          {activeTab === "users" && <UsersTable />}
+          {activeTab === "roles" && <RoleSettings />}
+          {activeTab === "permissions" && <PermissionSettings />}
+          {activeTab === "departments" && <Departments />}
+        </div>
+      </div>
     </div>
   );
 }

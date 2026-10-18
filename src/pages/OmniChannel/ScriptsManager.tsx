@@ -71,14 +71,14 @@ const marketplaceStarterScripts = (mp?: ShopWhatsappMarketplace) => {
         {
             title: "How to order on WhatsApp",
             content:
-                "<p>You can order right here in WhatsApp 🛍️</p>" +
+                "<p>You can order right here in WhatsApp</p>" +
                 "<p>• Reply <b>ORDER</b> to see our catalogue<br>• Reply with an item number to add it (e.g. <b>2</b> or <b>2 x3</b>)<br>• Reply <b>DONE</b> to check out and pay</p>" +
                 "<p>Reply <b>MENU</b> anytime to see everything we can help with.</p>",
         },
         {
             title: "Paying with M-Pesa",
             content:
-                "<p>At checkout you'll get our M-Pesa details 💳</p>" +
+                "<p>At checkout you'll get our M-Pesa details</p>" +
                 "<p>Once you've paid, just paste the full M-Pesa confirmation SMS in this chat — your order is confirmed automatically with an order code.</p>",
         },
     ];
@@ -90,9 +90,9 @@ const marketplaceStarterScripts = (mp?: ShopWhatsappMarketplace) => {
             title: "Collection & delivery",
             content:
                 "<p>Before you pay, you choose how to get your order:</p><p>" +
-                (pickup ? "🏪 <b>Collect</b> at any of our shops — show your order code when you pick up<br>" : "") +
+                (pickup ? "<b>Collect</b> at any of our shops — show your order code when you pick up<br>" : "") +
                 (delivery
-                    ? `🛵 <b>Delivery</b>${fee > 0 ? ` for Ksh ${fee}` : " (free)"}${mp?.delivery_note ? ` — ${mp.delivery_note}` : ""}. Share your location pin or type your address.`
+                    ? `<b>Delivery</b>${fee > 0 ? ` for Ksh ${fee}` : " (free)"}${mp?.delivery_note ? ` — ${mp.delivery_note}` : ""}. Share your location pin or type your address.`
                     : "") +
                 "</p>",
         });
@@ -102,7 +102,7 @@ const marketplaceStarterScripts = (mp?: ShopWhatsappMarketplace) => {
         list.push({
             title: "Gift cards",
             content:
-                "<p>Looking for a gift? 🎁 Reply <b>GIFT CARD</b>.</p>" +
+                "<p>Looking for a gift? Reply <b>GIFT CARD</b>.</p>" +
                 `<p>Pick an amount (${presets.map((p) => `Ksh ${p.toLocaleString()}`).join(", ")} or any amount), add the recipient's name and a message, pay — and you'll get a gift card you can forward straight to them.</p>`,
         });
     }
@@ -110,7 +110,7 @@ const marketplaceStarterScripts = (mp?: ShopWhatsappMarketplace) => {
         list.push({
             title: "Booking an appointment",
             content:
-                "<p>Reply <b>BOOK</b> to book an appointment 📅</p>" +
+                "<p>Reply <b>BOOK</b> to book an appointment</p>" +
                 "<p>Choose the service and a day, then pick from the open time slots. You can confirm and pay at the shop" +
                 (mp?.booking_require_payment ? "" : " or pay now to secure your slot") +
                 ".</p>",
@@ -119,7 +119,7 @@ const marketplaceStarterScripts = (mp?: ShopWhatsappMarketplace) => {
     list.push({
         title: "Order status & collection",
         content:
-            "<p>Thanks for your order! 🙏 Please keep your <b>order code</b> — you'll need it when you collect or receive your order.</p>" +
+            "<p>Thanks for your order! Please keep your <b>order code</b> — you'll need it when you collect or receive your order.</p>" +
             "<p>If anything changes we'll update you right here.</p>",
     });
     return list.map((s) => ({ ...s, category: MARKETPLACE_CATEGORY }));
