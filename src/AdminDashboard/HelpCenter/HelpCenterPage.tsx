@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Input,
   Card,
@@ -8,7 +8,11 @@ import {
   Button,
   Empty,
   Space,
+  Spin,
 } from "antd";
+import { useQuery } from "@tanstack/react-query";
+import { fetchTenantDetails, getCurrentTenantId } from "@services/tenants";
+import { isTenantModuleEnabled, TenantModuleId } from "@utils/tenantModules";
 import {
   QuestionCircleOutlined,
   CreditCardOutlined,
@@ -114,13 +118,43 @@ const categories: Category[] = [
   },
 ];
 
+// Categories that belong to a Discover module — shown only once that module is
+// activated. Categories not listed here (admin, reports, billing…) always show.
+const CATEGORY_MODULE: Record<string, TenantModuleId> = {
+  duka: "relia_pos",
+  pesa: "relia_accounting",
+  mteja: "mteja",
+  dala: "dala",
+  bandu: "relia_payroll",
+  etims: "etims",
+};
+
 const HelpCenter: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
 
+  // Same query as the Discover page, so the tenant record is shared from cache
+  const tenantId = getCurrentTenantId() as string;
+  const { data: tenantDetails, isLoading: tenantLoading } = useQuery({
+    queryKey: ["tenant", tenantId],
+    queryFn: () => fetchTenantDetails(tenantId),
+    enabled: !!tenantId,
+    refetchOnWindowFocus: false,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const availableCategories = useMemo(
+    () =>
+      categories.filter((category) => {
+        const moduleId = CATEGORY_MODULE[category.key];
+        return !moduleId || isTenantModuleEnabled(tenantDetails?.data, moduleId);
+      }),
+    [tenantDetails]
+  );
+
   const filteredCategories = searchQuery.trim()
-    ? categories.filter(
+    ? availableCategories.filter(
         (category) =>
           category.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
           category.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -130,7 +164,11 @@ const HelpCenter: React.FC = () => {
               article.description.toLowerCase().includes(searchQuery.toLowerCase())
           )
       )
-    : categories;
+    : availableCategories;
+
+  const moduleNames = availableCategories
+    .filter((c) => CATEGORY_MODULE[c.key])
+    .map((c) => c.title.split(" (")[0]);
 
   const filteredArticles = selectedCategory
     ? (helpCenterArticles[selectedCategory] || []).filter(
@@ -174,7 +212,9 @@ const HelpCenter: React.FC = () => {
               Help Center
             </Title>
             <Text style={{ fontSize: 12, color: C.sub, lineHeight: 1.3 }}>
-              Comprehensive guides for Duka, Pesa, Mteja, Dala, and Etims
+              {moduleNames.length
+                ? `Guides for your activated modules: ${moduleNames.join(", ")}`
+                : "Guides for getting started and managing your account"}
             </Text>
           </div>
         </div>
@@ -190,7 +230,11 @@ const HelpCenter: React.FC = () => {
       </div>
 
       {/* Categories or Articles */}
-      {!selectedCategory ? (
+      {tenantLoading ? (
+        <div style={{ display: "grid", placeContent: "center", padding: 60 }}>
+          <Spin />
+        </div>
+      ) : !selectedCategory ? (
         filteredCategories.length > 0 ? (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
             {filteredCategories.map((category) => (
