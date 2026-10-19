@@ -70,7 +70,7 @@ export const BarcodeScanPanel: React.FC<BarcodeScanPanelProps> = ({ tableId, onC
                     addToCartByBarcode({ barcode: clean, tableId })
                 );
                 const payload = result.payload as
-                    | { success?: boolean; productName?: string; notFound?: boolean }
+                    | { success?: boolean; productName?: string; notFound?: boolean; message?: string; error?: string }
                     | undefined;
 
                 if (payload?.success) {
@@ -85,7 +85,12 @@ export const BarcodeScanPanel: React.FC<BarcodeScanPanelProps> = ({ tableId, onC
                 } else if (payload?.notFound) {
                     setLastResult({ status: "not_found", barcode: clean, message: "Product not found" });
                 } else {
-                    setLastResult({ status: "error", barcode: clean, message: "Could not add item" });
+                    // e.g. "Item is out of stock" from the server's stock check
+                    setLastResult({
+                        status: "error",
+                        barcode: clean,
+                        message: payload?.message || payload?.error || "Could not add item",
+                    });
                 }
             } catch {
                 setLastResult({ status: "error", barcode: clean, message: "Server error" });

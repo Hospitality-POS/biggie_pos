@@ -29,6 +29,7 @@ import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { useRetailQueue } from "@context/RetailQueueContext";
 
 import POSHeader from "@components/pos/POSHeader";
+import LabelPrintButton from "@components/retail/LabelPrintButton";
 import POSSearchHeader from "@components/pos/POSSearchHeader";
 import POSItemTypeFilters, { POSItemType } from "@components/pos/POSItemTypeFilters";
 import {
@@ -255,6 +256,12 @@ const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
           categories={categoriesWithIcons}
           selectedCategoryId={selectedMainCategoryId}
           onSelectCategory={handleChangeMainCategory}
+          extraActions={
+            // Retail only — turned on in System Setup → Privacy → Labels.
+            mode === "retail" && shopData?.label_printing_enabled ? (
+              <LabelPrintButton isMobile={isMobile} shopName={shopName} />
+            ) : undefined
+          }
         />
 
         {/* Content area */}

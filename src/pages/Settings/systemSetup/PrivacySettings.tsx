@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Switch, Space, Typography, Alert, Spin, Input, Button } from "antd";
 import { ProCard } from "@ant-design/pro-components";
-import { LockOutlined, UnlockOutlined, DollarOutlined, PrinterOutlined, InboxOutlined, SafetyCertificateOutlined, EyeInvisibleOutlined, EnvironmentOutlined, AppstoreOutlined, TeamOutlined, BarChartOutlined } from "@ant-design/icons";
+import { LockOutlined, UnlockOutlined, DollarOutlined, PrinterOutlined, InboxOutlined, SafetyCertificateOutlined, EyeInvisibleOutlined, EnvironmentOutlined, AppstoreOutlined, TeamOutlined, BarChartOutlined, TagOutlined } from "@ant-design/icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { fetchSystemSetupDetailsById, updateSystemSetup } from "../../../services/systemsetup";
 import { fetchShop, updateShop } from "../../../services/shops";
@@ -101,6 +101,8 @@ const PrivacySettings: React.FC = () => {
   const [showAllItemsOnPos, setShowAllItemsOnPos] = useState(false);
   const [allowCashierAddToOthersTables, setAllowCashierAddToOthersTables] = useState(true);
   const [reportPercentageEnabled, setReportPercentageEnabled] = useState(true);
+  const [labelPrintingEnabled, setLabelPrintingEnabled] = useState(false);
+  const [updatingLabelPrinting, setUpdatingLabelPrinting] = useState(false);
   const [warrantyEnabled, setWarrantyEnabled] = useState(false);
   const [warrantyDuration, setWarrantyDuration] = useState("6 MONTHS");
   const [warrantyLine1, setWarrantyLine1] = useState("This receipt is your warranty certificate");
@@ -139,6 +141,7 @@ const PrivacySettings: React.FC = () => {
         setShowAllItemsOnPos(shopData?.pos_show_all_items || false);
         setAllowCashierAddToOthersTables(shopData?.allow_cashier_add_to_others_tables !== false);
         setReportPercentageEnabled(shopData?.report_percentage_enabled !== false);
+        setLabelPrintingEnabled(shopData?.label_printing_enabled || false);
         const ws = shopData?.warranty_settings;
         setWarrantyEnabled(ws?.enabled || false);
         if (ws?.duration) setWarrantyDuration(ws.duration);
@@ -388,6 +391,33 @@ const PrivacySettings: React.FC = () => {
     }
   };
 
+  const handleToggleLabelPrinting = async (checked: boolean) => {
+    if (!shopId) {
+      message.error("Shop not found");
+      return;
+    }
+
+    setUpdatingLabelPrinting(true);
+    try {
+      await updateShop({
+        _id: shopId,
+        label_printing_enabled: checked,
+      });
+      setLabelPrintingEnabled(checked);
+      queryClient.invalidateQueries({ queryKey: ["shop", shopId] });
+      message.success(
+        checked
+          ? "Label printing enabled — retail POS shows a Labels button next to Scan"
+          : "Label printing disabled"
+      );
+    } catch (error) {
+      console.error("Failed to update label printing setting:", error);
+      message.error("Failed to update label printing setting");
+    } finally {
+      setUpdatingLabelPrinting(false);
+    }
+  };
+
   const handleToggleCartDeduction = async (checked: boolean) => {
     if (!shopId) {
       message.error("Shop not found");
@@ -595,6 +625,23 @@ const PrivacySettings: React.FC = () => {
                 </div>
               )}
             </ToggleRow>
+          </Space>
+        </div>
+
+        {/* ── Labels ───────────────────────────────────────────────────── */}
+        <div>
+          <SectionLabel text="Labels" />
+          <Space direction="vertical" size={10} style={{ width: "100%" }}>
+            <ToggleRow
+              icon={<TagOutlined />}
+              color="#0ea5e9"
+              bg="#f0f9ff"
+              title={labelPrintingEnabled ? "Label Printing On" : "Label Printing Off"}
+              description="Turn this on to add a Labels button next to Scan on the retail order screen, for printing price and barcode labels on a ZPL (Zebra) or TSPL (TSC, Xprinter) label printer connected through PrintAgent."
+              checked={labelPrintingEnabled}
+              onChange={handleToggleLabelPrinting}
+              loading={updatingLabelPrinting}
+            />
           </Space>
         </div>
 

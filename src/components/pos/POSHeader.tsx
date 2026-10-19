@@ -27,6 +27,8 @@ interface POSHeaderProps {
   selectedCategoryId?: string;
   onSelectCategory: (categoryId: string) => void;
   slotIndicator?: React.ReactNode;
+  /** Extra buttons shown just before the Browse / Scan toggle (e.g. Labels). */
+  extraActions?: React.ReactNode;
 }
 
 export const POSHeader: React.FC<POSHeaderProps> = ({
@@ -40,6 +42,7 @@ export const POSHeader: React.FC<POSHeaderProps> = ({
   selectedCategoryId,
   onSelectCategory,
   slotIndicator,
+  extraActions,
 }) => {
   const { isOnline, pendingCount, isSyncing, triggerSync } = useNetworkStatus();
   const tabsRef = useRef<HTMLDivElement>(null);
@@ -214,7 +217,9 @@ export const POSHeader: React.FC<POSHeaderProps> = ({
           ) : null}
         </div>
 
-        {/* Mode Toggle */}
+        {/* Extra actions + Mode Toggle */}
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+        {extraActions}
         <div
           style={{
             display: "inline-flex",
@@ -266,6 +271,7 @@ export const POSHeader: React.FC<POSHeaderProps> = ({
             <ScanOutlined style={{ fontSize: 12 }} />
             {!isMobile && <span>Scan</span>}
           </button>
+        </div>
         </div>
       </div>
 

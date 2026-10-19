@@ -24,6 +24,7 @@ import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { usePOSMode } from "@context/POSModeContext";
 import { useRetailQueue } from "@context/RetailQueueContext";
 import RetailSlotIndicator from "@components/retail/RetailSlotIndicator";
+import LabelPrintButton from "@components/retail/LabelPrintButton";
 
 import POSHeader from "@components/pos/POSHeader";
 import POSSearchHeader from "@components/pos/POSSearchHeader";
@@ -104,6 +105,8 @@ const RestaurantPage: React.FC = () => {
   }, []);
 
   const shopName = shopData?.name || tenant?.name || "";
+  // Labels button (retail only) — turned on in System Setup → Privacy → Labels.
+  const showLabelPrinting = isRetailMode && !!shopData?.label_printing_enabled;
 
   const [posMode, setPosMode] = useState<"browse" | "scan">("browse");
   const [selectedCard, setSelectedCard] = useState<any>(null);
@@ -466,6 +469,9 @@ const RestaurantPage: React.FC = () => {
           onSelectCategory={handleChangeMainCategory}
           slotIndicator={
             isRetailMode ? <RetailSlotIndicator onQueueOrder={handleQueueOrder} /> : undefined
+          }
+          extraActions={
+            showLabelPrinting ? <LabelPrintButton isMobile={isMobile} shopName={shopName} /> : undefined
           }
         />
 
