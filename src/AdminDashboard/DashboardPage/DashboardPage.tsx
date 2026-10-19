@@ -31,6 +31,7 @@ import {
 } from "@ant-design/icons";
 import {
   getAdminDashboardAnalysis,
+  getBranchComparison,
   getBestSellers,
   getSalesChartData,
 } from "@services/orders";
@@ -42,6 +43,7 @@ import {
   DashboardSalesTrendChart,
   DashboardTopSellersChart,
   DashboardOperationalHub,
+  DashboardBranchComparison,
 } from "src/components/dashboard";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { fmtK } from "@utils/formatters";
@@ -203,14 +205,26 @@ const DashboardAdminPage: React.FC = () => {
     retry: 1,
   });
 
+  // 4. Per-branch comparison (only meaningful across all branches)
+  const showBranchComparison = shopFilter === "all" && (shops?.length ?? 0) > 1;
+  const { data: branchData, isLoading: branchLoading, refetch: refetchBranches } = useQuery({
+    queryKey: ["adminBranchComparison", startDate.format(), endDate.format()],
+    queryFn: () => getBranchComparison(startDate.toISOString(), endDate.toISOString()),
+    enabled: showBranchComparison,
+    networkMode: "always",
+    refetchOnWindowFocus: false,
+    staleTime: 30000,
+    retry: 1,
+  });
+
   const handleRefresh = useCallback(async () => {
     try {
-      await refetch();
+      await Promise.all([refetch(), showBranchComparison ? refetchBranches() : null]);
       messageApi.success({ content: "Dashboard refreshed!", duration: 2 });
     } catch {
       messageApi.error({ content: "Refresh failed.", duration: 3 });
     }
-  }, [refetch, messageApi]);
+  }, [refetch, refetchBranches, showBranchComparison, messageApi]);
 
   const handlePeriodChange = useCallback(
     (value: string) => {
@@ -497,6 +511,18 @@ const DashboardAdminPage: React.FC = () => {
         onShopsClick={() => navigate("/shops")}
       />
 
+      {/* ── Tier 2b: Multi-branch comparison ── */}
+      {showBranchComparison && (
+        <DashboardBranchComparison
+          branches={branchData?.data?.branches || []}
+          loading={branchLoading}
+          dateRange={getFormattedDateRange()}
+          primaryColor={primaryColor}
+          isMobile={isMobile}
+          onBranchClick={setShopFilter}
+        />
+      )}
+
       {/* ── Tier 3: Visual Analytics & Charts Hub ── */}
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         {/* Left 60%: Sales & Volume Trend (Area Chart) */}
@@ -531,6 +557,7 @@ const DashboardAdminPage: React.FC = () => {
             purchaseOrderStats={data?.purchaseOrderStats}
             loading={isDataLoading}
             isMobile={isMobile}
+            showBranch={shopFilter === "all"}
           />
         </Col>
       </Row>
