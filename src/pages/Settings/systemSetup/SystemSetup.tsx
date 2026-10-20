@@ -15,6 +15,7 @@ import {
   ScanOutlined,
   CloudSyncOutlined,
   WhatsAppOutlined,
+  ApiOutlined,
 } from "@ant-design/icons";
 import { Typography, Grid, Tabs } from "antd";
 import { useQuery } from "@tanstack/react-query";
@@ -22,6 +23,7 @@ import Profile from "./Profile";
 import PaymentDetailsSettings from "../paymentMethodLevel/PaymentDetailsSettings";
 import PaymentsMethodSettings from "../paymentMethodLevel/PaymentSettings";
 import PrinterSettings from "./PrinterSettings";
+import HardwareSettings from "./HardwareSettings";
 import PrivacySettings from "./PrivacySettings";
 import ReceiptAppearanceSettings from "./ReceiptAppearanceSettings";
 import BankDetailsSettings from "./BankDetailsSettings";
@@ -162,6 +164,16 @@ const SystemSetup: React.FC = () => {
           bg: "#f5f3ff",
           group: "POS & Receipts",
           render: () => <PrinterSettings />,
+        },
+        {
+          key: "hardware",
+          label: "Hardware",
+          description: "Cash drawer, scales, label printers & status",
+          icon: <ApiOutlined />,
+          color: "#0ea5e9",
+          bg: "#f0f9ff",
+          group: "POS & Receipts",
+          render: () => <HardwareSettings />,
         },
         {
           key: "receipt-appearance",

@@ -68,6 +68,8 @@ function useSystemDetails() {
     // When off, Top Earners shows attributed revenue per staff instead of the
     // staff/platform percentage earnings split. Defaults on.
     report_percentage_enabled: (shopData?.report_percentage_enabled !== false) as boolean,
+    // Retail POS shows a Labels button next to Scan for ZPL/TSPL label printing.
+    label_printing_enabled: (shopData?.label_printing_enabled ?? false) as boolean,
     warranty_settings: shopData?.warranty_settings as
       | { enabled?: boolean; duration?: string; line_1?: string; line_2?: string }
       | undefined,
