@@ -24,10 +24,6 @@ Sentry.init({
       createRoutesFromChildren,
       matchRoutes,
     }),
-    Sentry.replayIntegration({
-      maskAllText: true,
-      blockAllMedia: true,
-    }),
   ],
 
   // Performance / Distributed Tracing
@@ -38,10 +34,6 @@ Sentry.init({
     /^https:\/\/api\.account\.reliatech\.co\.ke/,
     /^https:\/\/api\.admin\.reliatech\.co\.ke/,
   ],
-
-  // Session Replay
-  replaysSessionSampleRate: 0.1,
-  replaysOnErrorSampleRate: 1.0,
 });
 
 export * from "@sentry/react";

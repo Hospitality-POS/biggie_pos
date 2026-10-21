@@ -95,12 +95,14 @@ const PrivacySettings: React.FC = () => {
   const [enablePrivacy, setEnablePrivacy] = useState(false);
   const [staffEarningEnabled, setStaffEarningEnabled] = useState(false);
   const [requirePaymentBeforePrint, setRequirePaymentBeforePrint] = useState(false);
+  const [printOnlySentItems, setPrintOnlySentItems] = useState(false);
   const [cartDeductionEnabled, setCartDeductionEnabled] = useState(false);
   const [hideServedByOthers, setHideServedByOthers] = useState(false);
   const [zoneInventoryEnabled, setZoneInventoryEnabled] = useState(false);
   const [showAllItemsOnPos, setShowAllItemsOnPos] = useState(false);
   const [allowCashierAddToOthersTables, setAllowCashierAddToOthersTables] = useState(true);
   const [reportPercentageEnabled, setReportPercentageEnabled] = useState(true);
+  const [categoryZoneRestrictionEnabled, setCategoryZoneRestrictionEnabled] = useState(false);
   const [warrantyEnabled, setWarrantyEnabled] = useState(false);
   const [warrantyDuration, setWarrantyDuration] = useState("6 MONTHS");
   const [warrantyLine1, setWarrantyLine1] = useState("This receipt is your warranty certificate");
@@ -109,12 +111,14 @@ const PrivacySettings: React.FC = () => {
   const [updating, setUpdating] = useState(false);
   const [updatingStaffEarning, setUpdatingStaffEarning] = useState(false);
   const [updatingPaymentBeforePrint, setUpdatingPaymentBeforePrint] = useState(false);
+  const [updatingPrintOnlySent, setUpdatingPrintOnlySent] = useState(false);
   const [updatingCartDeduction, setUpdatingCartDeduction] = useState(false);
   const [updatingHideTables, setUpdatingHideTables] = useState(false);
   const [updatingZoneInventory, setUpdatingZoneInventory] = useState(false);
   const [updatingShowAllItems, setUpdatingShowAllItems] = useState(false);
   const [updatingCashierAddToOthers, setUpdatingCashierAddToOthers] = useState(false);
   const [updatingReportPercentage, setUpdatingReportPercentage] = useState(false);
+  const [updatingCategoryZone, setUpdatingCategoryZone] = useState(false);
   const [updatingWarranty, setUpdatingWarranty] = useState(false);
   const [systemSettingsId, setSystemSettingsId] = useState<string | null>(null);
   const [shopId, setShopId] = useState<string | null>(null);
@@ -133,12 +137,14 @@ const PrivacySettings: React.FC = () => {
         const shopData = await fetchShop(currentShopId);
         setStaffEarningEnabled(shopData?.staff_earning_enabled || false);
         setRequirePaymentBeforePrint(shopData?.require_payment_before_print || false);
+        setPrintOnlySentItems(shopData?.print_only_sent_items || false);
         setCartDeductionEnabled(shopData?.cart_inventory_deduction_enabled || false);
         setHideServedByOthers(shopData?.hide_tables_served_by_others || false);
         setZoneInventoryEnabled(shopData?.zone_inventory_enabled || false);
         setShowAllItemsOnPos(shopData?.pos_show_all_items || false);
         setAllowCashierAddToOthersTables(shopData?.allow_cashier_add_to_others_tables !== false);
         setReportPercentageEnabled(shopData?.report_percentage_enabled !== false);
+        setCategoryZoneRestrictionEnabled(shopData?.category_zone_restriction_enabled || false);
         const ws = shopData?.warranty_settings;
         setWarrantyEnabled(ws?.enabled || false);
         if (ws?.duration) setWarrantyDuration(ws.duration);
@@ -207,6 +213,33 @@ const PrivacySettings: React.FC = () => {
     }
   };
 
+  const handleToggleCategoryZone = async (checked: boolean) => {
+    if (!shopId) {
+      message.error("Shop not found");
+      return;
+    }
+
+    setUpdatingCategoryZone(true);
+    try {
+      await updateShop({
+        _id: shopId,
+        category_zone_restriction_enabled: checked,
+      });
+      setCategoryZoneRestrictionEnabled(checked);
+      queryClient.invalidateQueries({ queryKey: ["shop", shopId] });
+      message.success(
+        checked
+          ? "Category zone restrictions enabled — set zones per main category in Category settings"
+          : "Category zone restrictions disabled — all items can be sold in every zone"
+      );
+    } catch (error) {
+      console.error("Failed to update category zone restriction setting:", error);
+      message.error("Failed to update category zone restriction setting");
+    } finally {
+      setUpdatingCategoryZone(false);
+    }
+  };
+
   const handleToggleStaffEarning = async (checked: boolean) => {
     if (!shopId) {
       message.error("Shop not found");
@@ -254,6 +287,33 @@ const PrivacySettings: React.FC = () => {
       message.error("Failed to update payment-before-print setting");
     } finally {
       setUpdatingPaymentBeforePrint(false);
+    }
+  };
+
+  const handleTogglePrintOnlySentItems = async (checked: boolean) => {
+    if (!shopId) {
+      message.error("Shop not found");
+      return;
+    }
+
+    setUpdatingPrintOnlySent(true);
+    try {
+      await updateShop({
+        _id: shopId,
+        print_only_sent_items: checked,
+      });
+      setPrintOnlySentItems(checked);
+      queryClient.invalidateQueries({ queryKey: ["shop", shopId] });
+      message.success(
+        checked
+          ? "The bill can now only be printed for items already sent"
+          : "The bill now prints every item in the cart, sent or not"
+      );
+    } catch (error) {
+      console.error("Failed to update print-only-sent-items setting:", error);
+      message.error("Failed to update print-only-sent-items setting");
+    } finally {
+      setUpdatingPrintOnlySent(false);
     }
   };
 
@@ -534,6 +594,17 @@ const PrivacySettings: React.FC = () => {
             />
 
             <ToggleRow
+              icon={<PrinterOutlined />}
+              color="#f97316"
+              bg="#fff7ed"
+              title={printOnlySentItems ? "Bill Prints Only Sent Items" : "Bill Prints All Items"}
+              description="Turn this on so Print Bill stays disabled until items have been sent to the kitchen, and the bill only lists what has been sent."
+              checked={printOnlySentItems}
+              onChange={handleTogglePrintOnlySentItems}
+              loading={updatingPrintOnlySent}
+            />
+
+            <ToggleRow
               icon={<SafetyCertificateOutlined />}
               color="#0d9488"
               bg="#f0fdfa"
@@ -622,6 +693,17 @@ const PrivacySettings: React.FC = () => {
               checked={zoneInventoryEnabled}
               onChange={handleToggleZoneInventory}
               loading={updatingZoneInventory}
+            />
+
+            <ToggleRow
+              icon={<EnvironmentOutlined />}
+              color="#0ea5e9"
+              bg="#f0f9ff"
+              title={categoryZoneRestrictionEnabled ? "Category Zone Restrictions On" : "Category Zone Restrictions Off"}
+              description={`Turn this on to link main categories to zones — from Category settings → Main Categories ("Sell only in zones") or from each location's form in Table settings. A linked category can only be sold in its zones, and a zone with linked categories only sells those categories. Applies to both products and services.`}
+              checked={categoryZoneRestrictionEnabled}
+              onChange={handleToggleCategoryZone}
+              loading={updatingCategoryZone}
             />
           </Space>
         </div>

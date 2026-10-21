@@ -17,6 +17,7 @@ interface Transfer {
   from_shop_id: { _id: string; name: string; location: string };
   to_shop_id: { _id: string; name: string; location: string };
   status: "pending" | "in_transit" | "completed" | "cancelled" | "rejected";
+  transfer_type?: "shop_to_shop" | "zone_to_zone";
   initiated_by: { _id: string; name: string; email?: string };
   approved_by?: { _id: string; name: string; email?: string };
   received_by?: { _id: string; name: string; email?: string };

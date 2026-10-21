@@ -869,29 +869,30 @@ const AdminDashboard: React.FC = () => {
           <Button
             type="text"
             style={{
-              padding: "4px 8px",
+              padding: "0 10px 0 3px",
               background: "rgba(255,255,255,0.12)",
               border: "1px solid rgba(255,255,255,0.2)",
               borderRadius: 50,
-              height: "auto",
-              minHeight: 36,
+              height: 36,
+              display: "flex",
+              alignItems: "center",
             }}
           >
             <Space align="center" size={8} style={{ cursor: "pointer" }}>
-              <Badge dot status="success" offset={[-4, 26]}>
+              <Badge dot status="success" offset={[-4, 24]}>
                 <Avatar
                   src={authUser?.avatar || authUser?.thumbnail}
                   icon={<UserOutlined />}
-                  size={30}
+                  size={28}
                   style={{ border: "2px solid rgba(255,255,255,0.3)" }}
                 />
               </Badge>
-              <div style={{ textAlign: "left", lineHeight: 1.2 }}>
+              <div style={{ textAlign: "left", lineHeight: 1.15 }}>
                 <Text
                   strong
                   style={{
                     color: "white",
-                    fontSize: 13,
+                    fontSize: 12,
                     display: "block",
                     maxWidth: 90,
                     overflow: "hidden",
@@ -904,7 +905,7 @@ const AdminDashboard: React.FC = () => {
                 <Text
                   style={{
                     color: "rgba(255,255,255,0.75)",
-                    fontSize: 11,
+                    fontSize: 10,
                     display: "block",
                     maxWidth: 90,
                     overflow: "hidden",

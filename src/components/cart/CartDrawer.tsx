@@ -11,6 +11,7 @@ import {
   updateCart,
 } from "../../features/Cart/CartActions";
 import { clearPendingPrint, setPendingPrint } from "../../features/PendingPrint/PendingPrintSlice";
+import { computeCartTotals } from "../../features/Cart/CartSlice";
 import { updateCart as updateCartService } from "../../services/cart";
 import PaymentDrawer from "../payment/PaymentDrawer";
 import SkeletonCartItemCard from "./SkeletonCartItemCard";
@@ -385,6 +386,40 @@ const CartDrawer: React.FC = () => {
     !!cartDetails?.pending_print;
   const printLocked =
     requirePaymentBeforePrint && (data?.length ?? 0) > 0 && !isAwaitingPrintCart;
+
+  // ── Print only items already sent to the kitchen (shop setting) ──
+  // A sent line can grow afterwards, so only its sent_quantity is billed;
+  // items marked sent without a count are billed in full.
+  const printOnlySentItems = !!shopData?.print_only_sent_items;
+  const sentItems = useMemo(() => {
+    if (!printOnlySentItems) return null;
+    return (data ?? [])
+      .map((item: any) => {
+        const sentQty =
+          item.sent_quantity > 0
+            ? Math.min(item.sent_quantity, item.quantity)
+            : item.sent
+              ? item.quantity
+              : 0;
+        return { ...item, quantity: sentQty };
+      })
+      .filter((item: any) => item.quantity > 0);
+  }, [printOnlySentItems, data]);
+  const sentTotals = useMemo(
+    () => (sentItems && cartDetails ? computeCartTotals(sentItems, cartDetails) : null),
+    [sentItems, cartDetails]
+  );
+  const billProps = sentItems
+    ? {
+        data: sentItems,
+        subtotal: sentTotals?.subtotal,
+        totalVatAmount: sentTotals?.totalVatAmount,
+        grandTotal: sentTotals?.grandTotal,
+        disabledReason: sentItems.length
+          ? undefined
+          : "Send the order first — the bill only prints items already sent",
+      }
+    : { data };
 
   // If the page was refreshed (or the cart opened elsewhere) while a paid cart
   // is still awaiting its bill print, rebuild the pending-print snapshot from
@@ -866,7 +901,7 @@ const CartDrawer: React.FC = () => {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <PrintBillModal
                       cartDetails={cartDetails}
-                      data={data}
+                      {...billProps}
                       isSpa={isSpa}
                       printLocked={false}
                       triggerBlock
@@ -922,7 +957,7 @@ const CartDrawer: React.FC = () => {
                 )}
                 <PrintBillModal
                   cartDetails={cartDetails}
-                  data={data}
+                  {...billProps}
                   isSpa={isSpa}
                   printLocked={printLocked}
                   {...printProps}
