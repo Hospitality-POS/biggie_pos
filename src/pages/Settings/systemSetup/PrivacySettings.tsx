@@ -95,6 +95,7 @@ const PrivacySettings: React.FC = () => {
   const [enablePrivacy, setEnablePrivacy] = useState(false);
   const [staffEarningEnabled, setStaffEarningEnabled] = useState(false);
   const [requirePaymentBeforePrint, setRequirePaymentBeforePrint] = useState(false);
+  const [printOnlySentItems, setPrintOnlySentItems] = useState(false);
   const [cartDeductionEnabled, setCartDeductionEnabled] = useState(false);
   const [hideServedByOthers, setHideServedByOthers] = useState(false);
   const [zoneInventoryEnabled, setZoneInventoryEnabled] = useState(false);
@@ -110,6 +111,7 @@ const PrivacySettings: React.FC = () => {
   const [updating, setUpdating] = useState(false);
   const [updatingStaffEarning, setUpdatingStaffEarning] = useState(false);
   const [updatingPaymentBeforePrint, setUpdatingPaymentBeforePrint] = useState(false);
+  const [updatingPrintOnlySent, setUpdatingPrintOnlySent] = useState(false);
   const [updatingCartDeduction, setUpdatingCartDeduction] = useState(false);
   const [updatingHideTables, setUpdatingHideTables] = useState(false);
   const [updatingZoneInventory, setUpdatingZoneInventory] = useState(false);
@@ -135,6 +137,7 @@ const PrivacySettings: React.FC = () => {
         const shopData = await fetchShop(currentShopId);
         setStaffEarningEnabled(shopData?.staff_earning_enabled || false);
         setRequirePaymentBeforePrint(shopData?.require_payment_before_print || false);
+        setPrintOnlySentItems(shopData?.print_only_sent_items || false);
         setCartDeductionEnabled(shopData?.cart_inventory_deduction_enabled || false);
         setHideServedByOthers(shopData?.hide_tables_served_by_others || false);
         setZoneInventoryEnabled(shopData?.zone_inventory_enabled || false);
@@ -284,6 +287,33 @@ const PrivacySettings: React.FC = () => {
       message.error("Failed to update payment-before-print setting");
     } finally {
       setUpdatingPaymentBeforePrint(false);
+    }
+  };
+
+  const handleTogglePrintOnlySentItems = async (checked: boolean) => {
+    if (!shopId) {
+      message.error("Shop not found");
+      return;
+    }
+
+    setUpdatingPrintOnlySent(true);
+    try {
+      await updateShop({
+        _id: shopId,
+        print_only_sent_items: checked,
+      });
+      setPrintOnlySentItems(checked);
+      queryClient.invalidateQueries({ queryKey: ["shop", shopId] });
+      message.success(
+        checked
+          ? "The bill can now only be printed for items already sent"
+          : "The bill now prints every item in the cart, sent or not"
+      );
+    } catch (error) {
+      console.error("Failed to update print-only-sent-items setting:", error);
+      message.error("Failed to update print-only-sent-items setting");
+    } finally {
+      setUpdatingPrintOnlySent(false);
     }
   };
 
@@ -561,6 +591,17 @@ const PrivacySettings: React.FC = () => {
               checked={requirePaymentBeforePrint}
               onChange={handleToggleRequirePaymentBeforePrint}
               loading={updatingPaymentBeforePrint}
+            />
+
+            <ToggleRow
+              icon={<PrinterOutlined />}
+              color="#f97316"
+              bg="#fff7ed"
+              title={printOnlySentItems ? "Bill Prints Only Sent Items" : "Bill Prints All Items"}
+              description="Turn this on so Print Bill stays disabled until items have been sent to the kitchen, and the bill only lists what has been sent."
+              checked={printOnlySentItems}
+              onChange={handleTogglePrintOnlySentItems}
+              loading={updatingPrintOnlySent}
             />
 
             <ToggleRow
