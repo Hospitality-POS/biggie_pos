@@ -80,6 +80,7 @@ interface Transfer {
     transfer_code: string;
     from_shop_id: Shop;
     to_shop_id: Shop;
+    transfer_type?: "shop_to_shop" | "zone_to_zone";
     status: "pending" | "in_transit" | "completed" | "cancelled" | "rejected";
     initiated_by: { _id: string; name: string; email?: string };
     approved_by?: { _id: string; name: string; email?: string };
@@ -102,7 +103,16 @@ interface TransferItem {
     quantity: number;
     unit_id: { _id: string; name: string };
     notes?: string;
+    // Zone variants the quantity was deducted from / credited to — the API
+    // may return the variant as a populated object or only its name.
+    from_variant_id?: { _id: string; name?: string } | string;
+    from_variant_name?: string;
+    to_variant_id?: { _id: string; name?: string } | string;
+    to_variant_name?: string;
 }
+
+const zoneName = (variant: TransferItem["from_variant_id"], fallback?: string): string | undefined =>
+    (typeof variant === "object" ? variant?.name : undefined) || fallback;
 
 interface MaterialTransferTableProps {
     onDeleteTransfer: (id: string) => Promise<{ success: boolean }>;
@@ -135,6 +145,27 @@ const STATUS_CONFIG: Record<string, { icon: React.ReactNode; color: string; text
     completed: { icon: <CheckCircleOutlined />, color: C.green, text: "Completed", bg: "#f0fdf4" },
     cancelled: { icon: <StopOutlined />, color: C.subText, text: "Cancelled", bg: "#f1f5f9" },
     rejected: { icon: <CloseCircleOutlined />, color: C.red, text: "Rejected", bg: "#fef2f2" },
+};
+
+// ── Transfer type ─────────────────────────────────────────────────────────────
+// Older records predate transfer_type — derive it from the route instead.
+const transferType = (record: Transfer): "shop_to_shop" | "zone_to_zone" =>
+    record.transfer_type ??
+    (record.from_shop_id?._id && record.from_shop_id._id === record.to_shop_id?._id
+        ? "zone_to_zone"
+        : "shop_to_shop");
+
+const renderType = (record: Transfer) => {
+    const zone = transferType(record) === "zone_to_zone";
+    return (
+        <Tag style={{
+            background: zone ? "#fff7ed" : "#eff6ff",
+            color: zone ? C.orange : C.blue,
+            border: "none", borderRadius: 6, fontSize: 11, fontWeight: 600, padding: "2px 8px",
+        }}>
+            {zone ? "Zone → Zone" : "Shop → Shop"}
+        </Tag>
+    );
 };
 
 const renderStatus = (status: string) => {
@@ -202,7 +233,11 @@ const RouteDisplay: React.FC<{ from: Shop; to: Shop; compact?: boolean }> = ({ f
 };
 
 // ── Product mapping item ──────────────────────────────────────────────────────
-const TransferItemCard: React.FC<{ item: TransferItem; index: number }> = ({ item, index }) => (
+const TransferItemCard: React.FC<{ item: TransferItem; index: number }> = ({ item, index }) => {
+    const fromZone = zoneName(item.from_variant_id, item.from_variant_name);
+    const toZone = zoneName(item.to_variant_id, item.to_variant_name);
+
+    return (
     <div
         style={{
             background: index % 2 === 0 ? "#fff" : "#fafafa",
@@ -243,6 +278,7 @@ const TransferItemCard: React.FC<{ item: TransferItem; index: number }> = ({ ite
                 <div>
                     <Text strong style={{ fontSize: 12, color: C.blue, display: "block" }}>{item.from_product_id?.name || "N/A"}</Text>
                     <Text style={{ fontSize: 10, color: C.subText }}>Code: {item.from_product_id?.code || "—"}</Text>
+                    {fromZone && <Text style={{ fontSize: 10, color: C.blue, display: "block" }}>Zone: {fromZone}</Text>}
                 </div>
             </div>
         </div>
@@ -261,6 +297,7 @@ const TransferItemCard: React.FC<{ item: TransferItem; index: number }> = ({ ite
                 <div>
                     <Text strong style={{ fontSize: 12, color: C.green, display: "block" }}>{item.to_product_id?.name || "N/A"}</Text>
                     <Text style={{ fontSize: 10, color: C.subText }}>Code: {item.to_product_id?.code || "—"}</Text>
+                    {toZone && <Text style={{ fontSize: 10, color: C.green, display: "block" }}>Zone: {toZone}</Text>}
                 </div>
             </div>
         </div>
@@ -275,7 +312,8 @@ const TransferItemCard: React.FC<{ item: TransferItem; index: number }> = ({ ite
             )}
         </div>
     </div>
-);
+    );
+};
 
 // ── Expanded row ──────────────────────────────────────────────────────────────
 const ExpandedRow: React.FC<{ record: Transfer; isMobile?: boolean }> = ({ record, isMobile }) => (
@@ -299,6 +337,7 @@ const ExpandedRow: React.FC<{ record: Transfer; isMobile?: boolean }> = ({ recor
             gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(auto-fill, minmax(160px, 1fr))",
             gap: 8, marginBottom: 14,
         }}>
+            <InfoPill label="Transfer Type" value={transferType(record) === "zone_to_zone" ? "Zone → Zone" : "Shop → Shop"} />
             <InfoPill label="Transfer Date" value={new Date(record.transfer_date).toLocaleDateString("en-KE", { dateStyle: "medium" })} />
             <InfoPill
                 label="Expected Delivery"
@@ -437,6 +476,7 @@ const TransferCard: React.FC<{
                         <Tag style={{ background: "#eef2ff", color: "#4f46e5", border: "none", borderRadius: 5, fontSize: 11, fontWeight: 700 }}>
                             {record.transfer_code}
                         </Tag>
+                        {renderType(record)}
                         {renderStatus(record.status)}
                     </Space>
                     <RouteDisplay from={record.from_shop_id} to={record.to_shop_id} compact />
@@ -789,6 +829,14 @@ export const MaterialTransferTable: React.FC<MaterialTransferTableProps> = ({
                                 {text}
                             </Tag>
                         ),
+                    },
+                    {
+                        title: "Type",
+                        key: "transfer_type",
+                        width: 110,
+                        align: "center" as const,
+                        search: false,
+                        render: (_: any, record: Transfer) => renderType(record),
                     },
                     {
                         title: "Route",

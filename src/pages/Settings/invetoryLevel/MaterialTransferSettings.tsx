@@ -17,6 +17,7 @@ interface Transfer {
   from_shop_id: { _id: string; name: string; location: string };
   to_shop_id: { _id: string; name: string; location: string };
   status: "pending" | "in_transit" | "completed" | "cancelled" | "rejected";
+  transfer_type?: "shop_to_shop" | "zone_to_zone";
   initiated_by: { _id: string; name: string; email?: string };
   approved_by?: { _id: string; name: string; email?: string };
   received_by?: { _id: string; name: string; email?: string };
@@ -171,6 +172,10 @@ const generatePrintContent = (transfer: Transfer): string => {
 
   <div class="meta-grid">
     <div class="meta-item">
+      <span class="meta-label">Transfer Type</span>
+      <span class="meta-value">${(transfer.transfer_type || "shop_to_shop") === "zone_to_zone" ? "ZONE → ZONE" : "SHOP → SHOP"}</span>
+    </div>
+    <div class="meta-item">
       <span class="meta-label">Status</span>
       <span class="meta-value">${transfer.status.replace(/_/g, " ").toUpperCase()}</span>
     </div>
@@ -229,8 +234,8 @@ const generatePrintContent = (transfer: Transfer): string => {
       ${transfer.items?.map((item: any, i: number) => `
       <tr>
         <td>${i + 1}</td>
-        <td>${item.product_id?.name || "N/A"}</td>
-        <td>${item.product_id?.code || "—"}</td>
+        <td>${item.product_id?.name || item.from_product_id?.name || "N/A"}${item.from_variant_name || item.to_variant_name ? `<div style="font-size:10px;color:#64748b">${[item.from_variant_name, item.to_variant_name].filter(Boolean).join(" → ")}</div>` : ""}</td>
+        <td>${item.product_id?.code || item.from_product_id?.code || "—"}</td>
         <td><strong>${item.quantity}</strong></td>
         <td>${item.unit_id?.name || "—"}</td>
       </tr>`).join("") || "<tr><td colspan='5' style='text-align:center;color:#94a3b8'>No items</td></tr>"}

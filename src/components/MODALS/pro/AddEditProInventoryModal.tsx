@@ -42,6 +42,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchAllUnits } from "@services/products";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { addNewInventory, editInventory } from "@services/inventory";
+import { fetchShop } from "@services/shops";
 import { UploadFile } from "antd/lib/upload";
 import { ProCard } from "@ant-design/pro-components";
 import AddEditVariantModal from "./AddEditVariantModal";
@@ -584,6 +585,19 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
 
   // Derived: is the modal actually visible (handles both controlled & uncontrolled)
   const isOpen = externalOpen !== undefined ? externalOpen : open;
+
+  const shopId = localStorage.getItem("shopId");
+  const { data: shopData } = useQuery({
+    queryKey: ["shop", shopId],
+    queryFn: () => fetchShop(shopId!),
+    enabled: !!shopId,
+    staleTime: 60 * 1000,
+  });
+  const zoneInventoryEnabled = !!shopData?.zone_inventory_enabled;
+
+  // Tracks the product's current selling price so a new variant can be
+  // pre-filled with it (still editable in the variant modal).
+  const watchedPrice = Form.useWatch("price", form);
 
   // ── Sync external open prop ───────────────────────────────────────────────
   useEffect(() => {
@@ -1352,6 +1366,11 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
                             {variant.name || `Variant ${index + 1}`}
                           </div>
                           <div style={{ marginBottom: 4 }}>
+                            {variant.location_id && (
+                              <Tag color="blue" style={{ fontSize: 11 }}>
+                                Zone: {variant.name}
+                              </Tag>
+                            )}
                             {variant.attributes &&
                               Object.entries(variant.attributes).map(
                                 ([key, value]) => (
@@ -1747,6 +1766,8 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
         onSubmit={handleVariantSubmit}
         editingVariant={editingVariant}
         productName={form.getFieldValue("name")}
+        zoneInventoryEnabled={zoneInventoryEnabled}
+        productPrice={watchedPrice}
       />
 
       {/* ── Category add modal ── */}
