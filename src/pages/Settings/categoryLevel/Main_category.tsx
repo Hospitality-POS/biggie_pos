@@ -1,16 +1,52 @@
 import { useRef } from "react";
 
 import { ActionType, ProTable } from "@ant-design/pro-components";
-import { Tooltip, Button, Space, Popconfirm, Switch, message } from "antd";
+import { Tooltip, Button, Space, Popconfirm, Switch, Select, message } from "antd";
 import { DeleteOutlined } from "@ant-design/icons";
 import { deleteMainCategory, fetchMainCategories, editMainCategory } from "@services/categories";
+import { fetchShop, updateShop } from "@services/shops";
+import { getTableLocation } from "@services/tables";
 import MainCategoryModal from "@components/MODALS/pro/MainCategoryModal";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAppSelector } from "src/store";
+
+type ZoneRestriction = { main_category: string; locations: string[] };
 
 const MainCategorySettings = () => {
   const actionRef = useRef<ActionType>();
   const queryClient = useQueryClient();
+  const shopId = localStorage.getItem("shopId");
+
+  const { data: shopData } = useQuery({
+    queryKey: ["shop", shopId],
+    queryFn: () => fetchShop(shopId!),
+    enabled: !!shopId,
+  });
+
+  const { data: zones = [] } = useQuery({
+    queryKey: ["table-locations"],
+    queryFn: () => getTableLocation({}),
+  });
+  const zoneOptions = (zones as { name: string; _id: string }[]).map((z) => ({ label: z.name, value: z._id }));
+
+  const restrictions: ZoneRestriction[] = (shopData?.category_zone_restrictions ?? []).map((r: any) => ({
+    main_category: String(r.main_category),
+    locations: (r.locations ?? []).map(String),
+  }));
+
+  const zoneRestrictionMutation = useMutation(
+    ({ mainCategoryId, locations }: { mainCategoryId: string; locations: string[] }) =>
+      updateShop({
+        _id: shopId,
+        category_zone_restrictions: [
+          ...restrictions.filter((r) => r.main_category !== mainCategoryId),
+          ...(locations.length ? [{ main_category: mainCategoryId, locations }] : []),
+        ],
+      }),
+    {
+      onSuccess: () => queryClient.invalidateQueries({ queryKey: ["shop", shopId] }),
+    }
+  );
 
   const DeleteMainCategoryMutation = useMutation(deleteMainCategory, {
     onSuccess: () => {
@@ -96,6 +132,31 @@ const MainCategorySettings = () => {
               </Tooltip>
             ),
           },
+          ...(shopData?.category_zone_restriction_enabled ? [{
+            title: "Sell only in zones",
+            key: "zone_restriction",
+            dataIndex: "zone_restriction",
+            hideInSearch: true,
+            render: (_: unknown, record: any) => (
+              <Select
+                mode="multiple"
+                allowClear
+                size="small"
+                style={{ minWidth: 220 }}
+                placeholder="All zones"
+                options={zoneOptions}
+                disabled={!isAdminOrCashier || !shopId}
+                loading={
+                  zoneRestrictionMutation.isLoading &&
+                  zoneRestrictionMutation.variables?.mainCategoryId === record._id
+                }
+                value={restrictions.find((r) => r.main_category === record._id)?.locations ?? []}
+                onChange={(locations: string[]) =>
+                  zoneRestrictionMutation.mutate({ mainCategoryId: record._id, locations })
+                }
+              />
+            ),
+          }] : []),
           actionColumn,
         ]}
         request={async () => {

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Switch, Space, Typography, Alert, Spin, Input, Button } from "antd";
 import { ProCard } from "@ant-design/pro-components";
-import { LockOutlined, UnlockOutlined, DollarOutlined, PrinterOutlined, InboxOutlined, SafetyCertificateOutlined, EyeInvisibleOutlined } from "@ant-design/icons";
+import { LockOutlined, UnlockOutlined, DollarOutlined, PrinterOutlined, InboxOutlined, SafetyCertificateOutlined, EyeInvisibleOutlined, EnvironmentOutlined } from "@ant-design/icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { fetchSystemSetupDetailsById, updateSystemSetup } from "../../../services/systemsetup";
 import { fetchShop, updateShop } from "../../../services/shops";
@@ -19,6 +19,7 @@ const PrivacySettings: React.FC = () => {
   const [requirePaymentBeforePrint, setRequirePaymentBeforePrint] = useState(false);
   const [cartDeductionEnabled, setCartDeductionEnabled] = useState(false);
   const [hideServedByOthers, setHideServedByOthers] = useState(false);
+  const [categoryZoneRestrictionEnabled, setCategoryZoneRestrictionEnabled] = useState(false);
   const [warrantyEnabled, setWarrantyEnabled] = useState(false);
   const [warrantyDuration, setWarrantyDuration] = useState("6 MONTHS");
   const [warrantyLine1, setWarrantyLine1] = useState("This receipt is your warranty certificate");
@@ -29,6 +30,7 @@ const PrivacySettings: React.FC = () => {
   const [updatingPaymentBeforePrint, setUpdatingPaymentBeforePrint] = useState(false);
   const [updatingCartDeduction, setUpdatingCartDeduction] = useState(false);
   const [updatingHideTables, setUpdatingHideTables] = useState(false);
+  const [updatingCategoryZone, setUpdatingCategoryZone] = useState(false);
   const [updatingWarranty, setUpdatingWarranty] = useState(false);
   const [systemSettingsId, setSystemSettingsId] = useState<string | null>(null);
   const [shopId, setShopId] = useState<string | null>(null);
@@ -49,6 +51,7 @@ const PrivacySettings: React.FC = () => {
         setRequirePaymentBeforePrint(shopData?.require_payment_before_print || false);
         setCartDeductionEnabled(shopData?.cart_inventory_deduction_enabled || false);
         setHideServedByOthers(shopData?.hide_tables_served_by_others || false);
+        setCategoryZoneRestrictionEnabled(shopData?.category_zone_restriction_enabled || false);
         const ws = shopData?.warranty_settings;
         setWarrantyEnabled(ws?.enabled || false);
         if (ws?.duration) setWarrantyDuration(ws.duration);
@@ -114,6 +117,33 @@ const PrivacySettings: React.FC = () => {
       message.error("Failed to update hide-tables setting");
     } finally {
       setUpdatingHideTables(false);
+    }
+  };
+
+  const handleToggleCategoryZone = async (checked: boolean) => {
+    if (!shopId) {
+      message.error("Shop not found");
+      return;
+    }
+
+    setUpdatingCategoryZone(true);
+    try {
+      await updateShop({
+        _id: shopId,
+        category_zone_restriction_enabled: checked,
+      });
+      setCategoryZoneRestrictionEnabled(checked);
+      queryClient.invalidateQueries({ queryKey: ["shop", shopId] });
+      message.success(
+        checked
+          ? "Category zone restrictions enabled — set zones per main category in Category settings"
+          : "Category zone restrictions disabled — all items can be sold in every zone"
+      );
+    } catch (error) {
+      console.error("Failed to update category zone restriction setting:", error);
+      message.error("Failed to update category zone restriction setting");
+    } finally {
+      setUpdatingCategoryZone(false);
     }
   };
 
@@ -342,6 +372,46 @@ const PrivacySettings: React.FC = () => {
               checked={hideServedByOthers}
               onChange={handleToggleHideTables}
               loading={updatingHideTables}
+              style={{ minWidth: 48, marginLeft: 16 }}
+              checkedChildren="ON"
+              unCheckedChildren="OFF"
+            />
+          </div>
+        </div>
+
+        {/* Category Zone Restriction Toggle */}
+        <div
+          style={{
+            background: "#fff",
+            border: "1px solid #e2e8f0",
+            borderRadius: 8,
+            padding: "16px 18px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <div style={{ flex: 1 }}>
+              <Text strong style={{ fontSize: 15, display: "block", marginBottom: 6 }}>
+                <Space>
+                  <EnvironmentOutlined />
+                  {categoryZoneRestrictionEnabled
+                    ? "Category Zone Restrictions Enabled"
+                    : "Category Zone Restrictions Disabled"}
+                </Space>
+              </Text>
+              <Text style={{ fontSize: 13, color: C.subText, display: "block" }}>
+                When enabled, main categories can be linked to zones — from Category settings → Main Categories ("Sell only in zones") or from each location's form in Table settings. A linked category can only be sold in its zones, and a zone with linked categories only sells those categories. Applies to both products and services.
+              </Text>
+            </div>
+            <Switch
+              checked={categoryZoneRestrictionEnabled}
+              onChange={handleToggleCategoryZone}
+              loading={updatingCategoryZone}
               style={{ minWidth: 48, marginLeft: 16 }}
               checkedChildren="ON"
               unCheckedChildren="OFF"
