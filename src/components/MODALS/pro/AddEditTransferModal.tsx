@@ -537,12 +537,21 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
                 }
             }
 
+            // Rows drawing on the same stock (product + zone/variant) share it,
+            // so check their combined quantity rather than each row alone.
+            const sourceKey = (item: TransferItem) =>
+                `${item.from_product_id}|${isZoneMode ? rowFromLocation(item) : item.from_variant_id || ""}`;
+            const requested = new Map<string, number>();
+            for (const item of transferItems) {
+                const key = sourceKey(item);
+                requested.set(key, (requested.get(key) || 0) + (Number(item.quantity) || 0));
+            }
             const insufficientItems = transferItems.filter(
-                (item) => item.quantity > (item.available_quantity || 0)
+                (item) => (requested.get(sourceKey(item)) || 0) > (item.available_quantity || 0)
             );
 
             if (insufficientItems.length > 0) {
-                const itemNames = insufficientItems.map((i) => i.from_product_name).join(", ");
+                const itemNames = [...new Set(insufficientItems.map((i) => i.from_product_name))].join(", ");
                 message.error(
                     `Insufficient stock for: ${itemNames}. Please adjust quantities.`
                 );
