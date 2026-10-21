@@ -556,34 +556,35 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
           menu={{ items: userMenuItems }}
           arrow={{ pointAtCenter: true }}
           trigger={["hover", "click"]}
-          placement="bottomCenter"
+          placement="bottomRight"
           overlayStyle={{ minWidth: 280, borderRadius: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.12)" }}
         >
           <Button
             type="text"
             style={{
-              padding: "4px 8px",
+              padding: "0 10px 0 3px",
               background: "rgba(255,255,255,0.12)",
               border: "1px solid rgba(255,255,255,0.2)",
-              borderRadius: 50, height: "auto", minHeight: 36,
+              borderRadius: 50, height: 36,
+              display: "flex", alignItems: "center",
             }}
           >
             <Space align="center" size={8} style={{ cursor: "pointer" }}>
-              <Badge dot status="success" offset={[-4, 26]}>
+              <Badge dot status="success" offset={[-4, 24]}>
                 <Avatar
-                  src={user?.thumbnail} icon={<UserOutlined />} size={30}
+                  src={user?.thumbnail} icon={<UserOutlined />} size={28}
                   style={{ border: "2px solid rgba(255,255,255,0.3)" }}
                 />
               </Badge>
-              <div style={{ textAlign: "left", lineHeight: 1.2 }}>
+              <div style={{ textAlign: "left", lineHeight: 1.15 }}>
                 <Text strong style={{
-                  color: "white", fontSize: 13, display: "block",
+                  color: "white", fontSize: 12, display: "block",
                   maxWidth: 90, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                 }}>
                   {user?.name || "User"}
                 </Text>
                 <Text style={{
-                  color: "rgba(255,255,255,0.75)", fontSize: 11, display: "block",
+                  color: "rgba(255,255,255,0.75)", fontSize: 10, display: "block",
                   maxWidth: 90, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                 }}>
                   {user?.role || "Role"}
