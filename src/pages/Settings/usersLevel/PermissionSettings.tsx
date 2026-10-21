@@ -12,10 +12,11 @@ import {
     SearchOutlined,
 } from "@ant-design/icons";
 import {
-    PERMISSIONS,
     Permission,
     ActionType,
     ModuleScope,
+    getPermissionsForTenant,
+    getPermissionScopes,
 } from "@utils/accessControl";
 import { useTenantModules } from "@hooks/useTenantModules";
 import { THEME_C } from "@utils/getPrimaryColor";
@@ -136,7 +137,7 @@ const ModulePanelHeader: React.FC<{
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 function PermissionSettings() {
-    const { hasHR, hasAccounting } = useTenantModules();
+    const { hasHR, hasAccounting, hasMteja, hasDala, hasPOS, hasSignature } = useTenantModules();
 
     const [search, setSearch] = useState("");
     const [filterAction, setFilterAction] = useState<ActionType | "all">("all");
@@ -144,14 +145,25 @@ function PermissionSettings() {
 
     // All permissions scoped to this tenant's enabled modules
     const tenantPerms = useMemo(
-        () => Object.values(PERMISSIONS).filter((p) => {
-            if (p.moduleScope === "core") return true;
-            if (p.moduleScope === "hr") return hasHR;
-            if (p.moduleScope === "accounting") return hasAccounting;
-            return false;
-        }),
-        [hasHR, hasAccounting]
+        () => getPermissionsForTenant({ hasHR, hasAccounting, hasCRM: hasMteja, hasDala, hasPOS, hasSignature }),
+        [hasHR, hasAccounting, hasMteja, hasDala, hasPOS, hasSignature]
     );
+
+    // A shared permission is badged with the first of its scopes this tenant
+    // has on — Suppliers reads "Accounting" for a Pesa-only tenant, not "POS".
+    const enabledScopes = useMemo(() => {
+        const on = new Set<ModuleScope>(["core"]);
+        if (hasPOS) on.add("pos");
+        if (hasHR) on.add("hr");
+        if (hasAccounting) on.add("accounting");
+        if (hasMteja) on.add("crm");
+        if (hasDala) on.add("dala");
+        if (hasSignature) on.add("signature");
+        return on;
+    }, [hasHR, hasAccounting, hasMteja, hasDala, hasPOS, hasSignature]);
+
+    const displayScope = (p: Permission): ModuleScope =>
+        getPermissionScopes(p).find((s) => enabledScopes.has(s)) ?? p.moduleScope;
 
     // Filtered list
     const filtered = useMemo(() =>
@@ -159,7 +171,7 @@ function PermissionSettings() {
             const q = search.toLowerCase();
             const matchSearch = !q || p.label.toLowerCase().includes(q) || p.key.toLowerCase().includes(q) || p.module.toLowerCase().includes(q);
             const matchAction = filterAction === "all" || p.action === filterAction;
-            const matchScope  = filterScope  === "all" || p.moduleScope === filterScope;
+            const matchScope  = filterScope  === "all" || getPermissionScopes(p).includes(filterScope);
             return matchSearch && matchAction && matchScope;
         }),
         [tenantPerms, search, filterAction, filterScope]
@@ -181,12 +193,16 @@ function PermissionSettings() {
     const scopeOptions = useMemo(() => {
         const opts: { label: string; value: string }[] = [
             { label: "All Scopes", value: "all" },
-            { label: "Core (POS)", value: "core" },
+            { label: "Core",       value: "core" },
         ];
-        if (hasHR)         opts.push({ label: "HR",         value: "hr"         });
+        if (hasPOS)        opts.push({ label: "POS",         value: "pos"        });
+        if (hasHR)         opts.push({ label: "HR",          value: "hr"         });
         if (hasAccounting) opts.push({ label: "Accounting",  value: "accounting" });
+        if (hasMteja)      opts.push({ label: "CRM",         value: "crm"        });
+        if (hasDala)       opts.push({ label: "Dala",        value: "dala"       });
+        if (hasSignature)  opts.push({ label: "Signature",   value: "signature"  });
         return opts;
-    }, [hasHR, hasAccounting]);
+    }, [hasHR, hasAccounting, hasMteja, hasDala, hasPOS, hasSignature]);
 
     const totalModules  = new Set(tenantPerms.map((p) => p.module)).size;
 
@@ -212,8 +228,12 @@ function PermissionSettings() {
                     </Text>
                     <Text style={{ fontSize: 11, color: C.subText }}>
                         {tenantPerms.length} permissions · {totalModules} modules
+                        {hasPOS && " · POS"}
                         {hasHR && " · HR"}
                         {hasAccounting && " · Accounting"}
+                        {hasMteja && " · CRM"}
+                        {hasDala && " · Dala"}
+                        {hasSignature && " · Signature"}
                     </Text>
                 </div>
 
@@ -276,7 +296,7 @@ function PermissionSettings() {
                     style={{ background: "transparent" }}
                     items={moduleKeys.map((mod) => {
                         const perms = grouped[mod];
-                        const scope = perms[0].moduleScope;
+                        const scope = displayScope(perms[0]);
                         return {
                             key: mod,
                             style: {

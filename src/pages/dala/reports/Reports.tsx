@@ -64,7 +64,7 @@ const TAB_CFG = [
     icon: <HomeOutlined />,
     iconColor: C.blue,
     label: "Rent Collection",
-    permissionKey: "DALA_RENTALS_VIEW",
+    permissionKey: "DALA_RENT_COLLECTION_VIEW",
   },
   {
     key: "maintenance",
@@ -78,7 +78,7 @@ const TAB_CFG = [
     icon: <FileTextOutlined />,
     iconColor: C.purple,
     label: "Portfolio",
-    permissionKey: "DALA_PORTFOLIO_VIEW",
+    permissionKey: "DALA_PROPERTIES_VIEW",
   },
 ];
 
