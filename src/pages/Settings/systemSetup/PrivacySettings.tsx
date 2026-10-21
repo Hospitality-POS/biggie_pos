@@ -101,6 +101,7 @@ const PrivacySettings: React.FC = () => {
   const [showAllItemsOnPos, setShowAllItemsOnPos] = useState(false);
   const [allowCashierAddToOthersTables, setAllowCashierAddToOthersTables] = useState(true);
   const [reportPercentageEnabled, setReportPercentageEnabled] = useState(true);
+  const [categoryZoneRestrictionEnabled, setCategoryZoneRestrictionEnabled] = useState(false);
   const [warrantyEnabled, setWarrantyEnabled] = useState(false);
   const [warrantyDuration, setWarrantyDuration] = useState("6 MONTHS");
   const [warrantyLine1, setWarrantyLine1] = useState("This receipt is your warranty certificate");
@@ -115,6 +116,7 @@ const PrivacySettings: React.FC = () => {
   const [updatingShowAllItems, setUpdatingShowAllItems] = useState(false);
   const [updatingCashierAddToOthers, setUpdatingCashierAddToOthers] = useState(false);
   const [updatingReportPercentage, setUpdatingReportPercentage] = useState(false);
+  const [updatingCategoryZone, setUpdatingCategoryZone] = useState(false);
   const [updatingWarranty, setUpdatingWarranty] = useState(false);
   const [systemSettingsId, setSystemSettingsId] = useState<string | null>(null);
   const [shopId, setShopId] = useState<string | null>(null);
@@ -139,6 +141,7 @@ const PrivacySettings: React.FC = () => {
         setShowAllItemsOnPos(shopData?.pos_show_all_items || false);
         setAllowCashierAddToOthersTables(shopData?.allow_cashier_add_to_others_tables !== false);
         setReportPercentageEnabled(shopData?.report_percentage_enabled !== false);
+        setCategoryZoneRestrictionEnabled(shopData?.category_zone_restriction_enabled || false);
         const ws = shopData?.warranty_settings;
         setWarrantyEnabled(ws?.enabled || false);
         if (ws?.duration) setWarrantyDuration(ws.duration);
@@ -204,6 +207,33 @@ const PrivacySettings: React.FC = () => {
       message.error("Failed to update hide-tables setting");
     } finally {
       setUpdatingHideTables(false);
+    }
+  };
+
+  const handleToggleCategoryZone = async (checked: boolean) => {
+    if (!shopId) {
+      message.error("Shop not found");
+      return;
+    }
+
+    setUpdatingCategoryZone(true);
+    try {
+      await updateShop({
+        _id: shopId,
+        category_zone_restriction_enabled: checked,
+      });
+      setCategoryZoneRestrictionEnabled(checked);
+      queryClient.invalidateQueries({ queryKey: ["shop", shopId] });
+      message.success(
+        checked
+          ? "Category zone restrictions enabled — set zones per main category in Category settings"
+          : "Category zone restrictions disabled — all items can be sold in every zone"
+      );
+    } catch (error) {
+      console.error("Failed to update category zone restriction setting:", error);
+      message.error("Failed to update category zone restriction setting");
+    } finally {
+      setUpdatingCategoryZone(false);
     }
   };
 
@@ -622,6 +652,17 @@ const PrivacySettings: React.FC = () => {
               checked={zoneInventoryEnabled}
               onChange={handleToggleZoneInventory}
               loading={updatingZoneInventory}
+            />
+
+            <ToggleRow
+              icon={<EnvironmentOutlined />}
+              color="#0ea5e9"
+              bg="#f0f9ff"
+              title={categoryZoneRestrictionEnabled ? "Category Zone Restrictions On" : "Category Zone Restrictions Off"}
+              description={`Turn this on to link main categories to zones — from Category settings → Main Categories ("Sell only in zones") or from each location's form in Table settings. A linked category can only be sold in its zones, and a zone with linked categories only sells those categories. Applies to both products and services.`}
+              checked={categoryZoneRestrictionEnabled}
+              onChange={handleToggleCategoryZone}
+              loading={updatingCategoryZone}
             />
           </Space>
         </div>
