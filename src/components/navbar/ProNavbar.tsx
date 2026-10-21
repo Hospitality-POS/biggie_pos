@@ -534,6 +534,23 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         </Badge>
       </Popover>
 
+      {/* One-tap logout: staff share devices and switch users mid-service. */}
+      {user && (
+        <Tooltip title={`Logout ${user?.name || ""}`.trim()}>
+          <Button
+            icon={<PoweroffOutlined />} shape="circle" size="middle"
+            onClick={handleLogout}
+            aria-label="Logout"
+            style={{
+              background: "rgba(255,255,255,0.15)",
+              border: "1px solid rgba(255,255,255,0.25)",
+              color: "white", width: 36, height: 36, fontSize: 15,
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}
+          />
+        </Tooltip>
+      )}
+
       {!isMobile && user && (
         <Dropdown
           menu={{ items: userMenuItems }}
@@ -576,28 +593,6 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
             </Space>
           </Button>
         </Dropdown>
-      )}
-
-      {/* One-tap logout: staff share devices and switch users mid-service. */}
-      {user && (
-        <Tooltip title={isMobile ? `Logout ${user?.name || ""}`.trim() : undefined}>
-          <Button
-            danger
-            type="primary"
-            icon={<PoweroffOutlined />}
-            onClick={handleLogout}
-            aria-label="Logout"
-            shape={isMobile ? "circle" : "round"}
-            style={{
-              height: 36, minWidth: 36, fontWeight: 600,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              border: "1px solid rgba(255,255,255,0.35)",
-              boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
-            }}
-          >
-            {!isMobile && "Logout"}
-          </Button>
-        </Tooltip>
       )}
 
       {isMobile && !isPhone && user && (
