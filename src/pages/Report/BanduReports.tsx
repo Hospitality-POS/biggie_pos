@@ -49,28 +49,28 @@ const TAB_CFG = [
     icon: <TeamOutlined />,
     iconColor: C.green,
     label: "Employees",
-    permissionKey: "HR_EMPLOYEES_VIEW",
+    permissionKey: "BANDU_EMPLOYEES_VIEW",
   },
   {
     key: "payroll",
     icon: <DollarOutlined />,
     iconColor: C.blue,
     label: "Payroll",
-    permissionKey: "HR_PAYROLL_VIEW",
+    permissionKey: "BANDU_PAYROLL_VIEW",
   },
   {
     key: "leave",
     icon: <CalendarOutlined />,
     iconColor: C.purple,
     label: "Leave",
-    permissionKey: "HR_LEAVE_VIEW",
+    permissionKey: "BANDU_LEAVE_VIEW",
   },
   {
     key: "department",
     icon: <HomeOutlined />,
     iconColor: C.orange,
     label: "Departments",
-    permissionKey: "HR_DEPARTMENTS_VIEW",
+    permissionKey: "BANDU_EMPLOYEES_VIEW",
   },
 ];
 

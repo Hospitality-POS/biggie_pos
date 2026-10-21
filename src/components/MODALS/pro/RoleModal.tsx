@@ -31,6 +31,7 @@ import {
   Permission,
   ActionType,
   ROLE_PRESETS,
+  getPermissionScopes,
   ModuleScope,
 } from "@utils/accessControl";
 import { useTenantModules } from "@hooks/useTenantModules";
@@ -119,7 +120,9 @@ const PermissionGroupCard: React.FC<{
   const allChecked = selectedCount === keys.length && keys.length > 0;
   const indeterminate = selectedCount > 0 && !allChecked;
 
-  const scope = permissions[0]?.moduleScope || "core";
+  // Modules shared between products carry no product badge — a "POS" tag on
+  // Suppliers would read as wrong to a Pesa-only tenant.
+  const scope = permissions[0]?.sharedWith?.length ? "core" : permissions[0]?.moduleScope || "core";
   const scopeCfg = SCOPE_CFG[scope] || SCOPE_CFG.core;
   const borderColor = allChecked ? C.primary : scope !== "core" ? scopeCfg.color : C.border;
 
@@ -336,7 +339,7 @@ const StepPermissions: React.FC<{
         const matchSearch = !search ||
           p.label.toLowerCase().includes(search.toLowerCase()) ||
           p.key.toLowerCase().includes(search.toLowerCase());
-        const matchScope = filterScope === "all" || p.moduleScope === filterScope;
+        const matchScope = filterScope === "all" || getPermissionScopes(p).includes(filterScope);
         return matchSearch && matchScope;
       });
       if (filtered.length) acc[mod] = filtered;

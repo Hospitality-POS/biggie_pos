@@ -62,7 +62,7 @@ const TAB_CFG = [
     icon: <UserOutlined />,
     iconColor: C.green,
     label: "Customers",
-    permissionKey: "CRM_CUSTOMERS_VIEW",
+    permissionKey: "CUSTOMERS_VIEW",
   },
   {
     key: "leads",
@@ -83,14 +83,14 @@ const TAB_CFG = [
     icon: <DollarOutlined />,
     iconColor: C.orange,
     label: "Sales Targets",
-    permissionKey: "CRM_SALES_TARGETS_VIEW",
+    permissionKey: "CRM_TARGETS_VIEW",
   },
   {
     key: "visits",
     icon: <CalendarOutlined />,
     iconColor: C.red,
     label: "Visits",
-    permissionKey: "CRM_VISITS_VIEW",
+    permissionKey: "CRM_ACTIVITIES_VIEW",
   },
   {
     key: "activities",

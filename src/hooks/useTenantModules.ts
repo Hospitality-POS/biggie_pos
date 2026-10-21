@@ -15,15 +15,14 @@
 
 import { useMemo } from "react";
 import { useAppSelector } from "src/store";
+import {
+    TenantModules,
+    NO_TENANT_MODULES,
+    parseTenantModules as parseModules,
+    readStoredTenant as readFromLocalStorage,
+} from "@utils/parseTenantModules";
 
-interface TenantModules {
-    hasHR: boolean;
-    hasAccounting: boolean;
-    hasMteja: boolean;  // tenant.modules.crm === true  →  Mteja CRM module
-    hasDala: boolean;  // tenant.modules.dala === true  →  Dala Property Management module
-    hasPOS: boolean;   // tenant.pos_integration?.enabled === true  →  Duka by Base POS module
-    hasSignature: boolean;  // tenant.modules.signature === true  →  E-Signature module
-}
+export type { TenantModules };
 
 // ── Try to pluck the tenant object from any known Redux shape ─────────────────
 function selectTenantFromRedux(state: any): any {
@@ -36,76 +35,6 @@ function selectTenantFromRedux(state: any): any {
         state?.shop?.tenant ||
         null
     );
-}
-
-// ── Normalise a single flag value ─────────────────────────────────────────────
-const isEnabled = (v: any): boolean => {
-    if (typeof v === "boolean") return v;
-    if (typeof v === "number") return v !== 0;
-    if (typeof v === "string") return v === "true" || v === "1" || v === "enabled";
-    if (typeof v === "object" && v !== null)
-        return !!(v.enabled ?? v.active ?? v.is_active ?? true);
-    return false;
-};
-
-// ── Parse module flags from a raw tenant object ───────────────────────────────
-function parseModules(tenant: any): TenantModules {
-    if (!tenant) return { hasHR: false, hasAccounting: false, hasMteja: false, hasDala: false, hasPOS: false, hasSignature: false };
-
-    const mods = tenant.modules ?? tenant.module_flags ?? tenant.features ?? {};
-
-    return {
-        hasHR: isEnabled(
-            mods.hr ??
-            mods.HR ??
-            mods.hrm ??
-            mods.payroll ??  // Bandu by Base uses modules.payroll
-            mods.human_resources
-        ),
-        hasAccounting: isEnabled(
-            mods.accounting ??
-            mods.ACCOUNTING ??
-            mods.finance ??
-            mods.accounts ??
-            mods.financial
-        ) || isEnabled(tenant?.accounting_database?.enabled), // legacy shape
-        hasMteja: isEnabled(
-            mods.crm ??  // canonical key — tenant.modules.crm
-            mods.CRM ??
-            mods.mteja ??
-            mods.customer_engagement
-        ),
-        hasDala: isEnabled(
-            mods.dala ??
-            mods.DALA ??
-            mods.property_management ??
-            mods.real_estate
-        ),
-        hasPOS: isEnabled(
-            tenant?.pos_integration?.enabled ??
-            mods.pos ??
-            mods.POS ??
-            mods.duka
-        ),
-        hasSignature: isEnabled(
-            mods.signature ??
-            mods.SIGNATURE ??
-            mods.esignature ??
-            mods.e_signature ??
-            mods.esign
-        ),
-    };
-}
-
-// ── Read from localStorage as fallback ────────────────────────────────────────
-function readFromLocalStorage(): any {
-    try {
-        const raw = localStorage.getItem("tenant");
-        if (!raw) return null;
-        return JSON.parse(raw);
-    } catch {
-        return null;
-    }
 }
 
 // ── The hook ──────────────────────────────────────────────────────────────────
@@ -127,7 +56,7 @@ export function useTenantModules(): TenantModules {
         if (lsTenant) return parseModules(lsTenant);
 
         // 3. No data at all
-        return { hasHR: false, hasAccounting: false, hasMteja: false, hasDala: false, hasPOS: false, hasSignature: false };
+        return NO_TENANT_MODULES;
     }, [reduxTenant]);
 }
 
