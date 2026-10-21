@@ -94,6 +94,17 @@ const useIsMobile = () => {
   return isMobile;
 };
 
+// Narrow phones: the header has no room for both the avatar and the Logout button.
+const useIsPhone = () => {
+  const [isPhone, setIsPhone] = React.useState(window.innerWidth < 480);
+  useEffect(() => {
+    const handler = () => setIsPhone(window.innerWidth < 480);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return isPhone;
+};
+
 const PRIORITY_COLORS: Record<string, string> = {
   low: "green", medium: "blue", high: "orange", urgent: "red",
 };
@@ -132,6 +143,7 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAppSelector((state) => state.auth);
   const primaryColor = usePrimaryColor();
   const isMobile = useIsMobile();
+  const isPhone = useIsPhone();
   const { switchProduct } = useActiveProduct();
   const { toggleQuickLinks } = useQuickLinks();
 
@@ -566,7 +578,29 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         </Dropdown>
       )}
 
-      {isMobile && user && (
+      {/* One-tap logout: staff share devices and switch users mid-service. */}
+      {user && (
+        <Tooltip title={isMobile ? `Logout ${user?.name || ""}`.trim() : undefined}>
+          <Button
+            danger
+            type="primary"
+            icon={<PoweroffOutlined />}
+            onClick={handleLogout}
+            aria-label="Logout"
+            shape={isMobile ? "circle" : "round"}
+            style={{
+              height: 36, minWidth: 36, fontWeight: 600,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              border: "1px solid rgba(255,255,255,0.35)",
+              boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+            }}
+          >
+            {!isMobile && "Logout"}
+          </Button>
+        </Tooltip>
+      )}
+
+      {isMobile && !isPhone && user && (
         <Badge dot color="green" offset={[-3, 26]}>
           <Avatar
             src={user?.thumbnail} icon={<UserOutlined />} size={32}
