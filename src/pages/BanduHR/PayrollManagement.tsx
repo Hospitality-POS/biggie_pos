@@ -1260,7 +1260,7 @@ const PayrollManagement: React.FC = () => {
   // widen it, or drag the bottom edge down to make it taller. The modal
   // stays centered, so both side edges move together.
   const PREVIEW_DEFAULT_WIDTH = 1420;
-  const previewModalWidth = previewWidth ?? (generateStep === 1 ? PREVIEW_DEFAULT_WIDTH : 600);
+  const previewModalWidth = previewWidth ?? (generateStep === 1 ? PREVIEW_DEFAULT_WIDTH : 760);
   const startPreviewResize = (e: React.MouseEvent, side: "left" | "right") => {
     e.preventDefault();
     const startX = e.clientX;
@@ -3602,16 +3602,8 @@ const PayrollManagement: React.FC = () => {
         onCancel={closeGenerateModal}
         afterOpenChange={(open) => {
           if (open && generateStep === 0) {
-            // Set default values when opening modal
-            if (payrollMode === "department") {
-              form.setFieldsValue({
-                department_ids: departments.map((d: any) => d._id),
-              });
-            } else if (payrollMode === "employee") {
-              form.setFieldsValue({
-                employee_ids: employees.map((e: any) => e._id),
-              });
-            }
+            // Departments and employees start empty so the user picks them explicitly
+            form.setFieldsValue({ department_ids: [], employee_ids: [] });
           }
         }}
         footer={null}
@@ -3705,16 +3697,6 @@ const PayrollManagement: React.FC = () => {
               onChange={(e) => {
                 setPayrollMode(e.target.value);
                 form.resetFields(["department_ids", "employee_ids"]);
-                // Set default values for the new mode
-                if (e.target.value === "department") {
-                  form.setFieldsValue({
-                    department_ids: departments.map((d: any) => d._id),
-                  });
-                } else if (e.target.value === "employee") {
-                  form.setFieldsValue({
-                    employee_ids: employees.map((e: any) => e._id),
-                  });
-                }
               }}
             >
               <Radio.Button value="department">By Department</Radio.Button>
@@ -3727,7 +3709,6 @@ const PayrollManagement: React.FC = () => {
               name="department_ids"
               label="Departments"
               rules={[{ required: true, message: "Please select at least one department" }]}
-              initialValue={departments.map((d: any) => d._id)}
             >
               <Select
                 mode="multiple"
@@ -3746,7 +3727,6 @@ const PayrollManagement: React.FC = () => {
               name="employee_ids"
               label="Employees"
               rules={[{ required: true, message: "Please select at least one employee" }]}
-              initialValue={employees.map((e: any) => e._id)}
             >
               <Select
                 mode="multiple"

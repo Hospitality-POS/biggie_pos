@@ -733,7 +733,8 @@ const StaffLoginPage = () => {
                                             onPressEnter={() => handleVerifySubmit()}
                                             prefix={<UsergroupAddOutlined />}
                                             placeholder="Enter Company Code"
-                                            onChange={(e) => setCompanyCode(e.target.value)}
+                                            // Company codes never contain spaces — strip any typed or pasted in
+                                            onChange={(e) => setCompanyCode(e.target.value.replace(/\s+/g, ""))}
                                             size="large"
                                             value={companyCode || ""}
                                             autoComplete="off"

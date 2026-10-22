@@ -343,20 +343,22 @@ const BankStatementPage: React.FC = () => {
                             </Popconfirm>
                         </Tooltip>
                     )}
-                    {(r.status === "Review" || r.status === "Processing" || r.status === "Voided") && !r.pushed_count && (
-                        <Popconfirm
-                            title="Delete this import?"
-                            description={`${r.imported_rows || 0} transactions will be removed permanently.`}
-                            onConfirm={() => deleteMutation.mutateAsync(r._id)}
-                            okText="Delete"
-                            okButtonProps={{ danger: true }}
-                            cancelText="Cancel"
-                        >
-                            <Tooltip title="Delete Import">
-                                <Button icon={<DeleteOutlined />} size="small" danger />
-                            </Tooltip>
-                        </Popconfirm>
-                    )}
+                    <Popconfirm
+                        title="Delete this import?"
+                        description={
+                            r.pushed_count
+                                ? `${r.imported_rows || 0} transactions will be removed permanently, and the ${r.pushed_count} journal entr${r.pushed_count === 1 ? "y" : "ies"} they posted will be deleted from the books.`
+                                : `${r.imported_rows || 0} transactions will be removed permanently.`
+                        }
+                        onConfirm={() => deleteMutation.mutateAsync(r._id)}
+                        okText="Delete"
+                        okButtonProps={{ danger: true }}
+                        cancelText="Cancel"
+                    >
+                        <Tooltip title="Delete Import">
+                            <Button icon={<DeleteOutlined />} size="small" danger />
+                        </Tooltip>
+                    </Popconfirm>
                 </Space>
             ),
         },
