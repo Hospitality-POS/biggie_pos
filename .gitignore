@@ -13,6 +13,9 @@ dist-ssr
 dev-dist
 *.local
 
+# yarn v2
+.yarn/*
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -25,3 +28,20 @@ dev-dist
 *.sw?
 .tool-versions
 /.tool-versions
+# Env / secrets
+.env
+.env.*
+!.env.example
+local-storage-env
+
+# Build artifacts
+dist.zip
+
+# Claude Code personal settings
+.claude/settings.local.json
+
+# Other agent tools' skill links (drop any your team uses)
+/skills/
+.devin/
+.windsurf/
+.hermes/
