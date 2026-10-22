@@ -69,12 +69,9 @@ export function parseTenantModules(tenant: any): TenantModules {
             mods.property_management,
             mods.real_estate
         ),
-        hasPOS: anyEnabled(
-            tenant?.pos_integration?.enabled,
-            mods.pos,
-            mods.POS,
-            mods.duka
-        ),
+        // pos_integration.enabled is the only Duka switch. modules.pos can stay
+        // true after Duka is turned off, so it must not re-enable it here.
+        hasPOS: tenant?.pos_integration?.enabled === true,
         hasSignature: anyEnabled(
             mods.signature,
             mods.SIGNATURE,
