@@ -896,3 +896,40 @@ export const voidImport = async (id: string) => {
         throw error;
     }
 };
+
+export const deleteImport = async (id: string) => {
+    try {
+        const response = await axiosInstance.delete(
+            `${BASE_URL}/accounting/bank-reconciliations/bank-imports/${id}`
+        );
+        message.success("Import deleted");
+        return response.data as { message: string };
+    } catch (error: unknown) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        if (axiosError?.response?.data?.message) {
+            message.error(axiosError.response.data.message);
+        } else {
+            message.error("Error deleting import");
+        }
+        throw error;
+    }
+};
+
+export const deleteTransactions = async (id: string, txn_ids: string[]) => {
+    try {
+        const response = await axiosInstance.post(
+            `${BASE_URL}/accounting/bank-reconciliations/bank-imports/${id}/transactions/delete`,
+            { txn_ids }
+        );
+        message.success(response.data.message);
+        return response.data as { message: string; deleted: number };
+    } catch (error: unknown) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        if (axiosError?.response?.data?.message) {
+            message.error(axiosError.response.data.message);
+        } else {
+            message.error("Error deleting transactions");
+        }
+        throw error;
+    }
+};

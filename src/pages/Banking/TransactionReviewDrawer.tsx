@@ -6,7 +6,7 @@ import {
 } from "antd";
 import {
     CheckCircleOutlined, StopOutlined,
-    SendOutlined, ReloadOutlined, TagOutlined,
+    SendOutlined, ReloadOutlined, TagOutlined, DeleteOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -17,6 +17,8 @@ import {
     excludeTransaction,
     uncategorizeTransaction,
     pushToJournalEntries,
+    deleteImport,
+    deleteTransactions,
     RawTransaction,
     TransactionStatus,
     BankStatementImport,
@@ -384,6 +386,44 @@ const TransactionReviewDrawer: React.FC<Props> = ({
         },
     });
 
+    const deleteTxnsMutation = useMutation({
+        mutationFn: (txnIds: string[]) => deleteTransactions(importId!, txnIds),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["import-detail", importId] });
+            setSelectedRowKeys([]);
+            onSuccess();
+        },
+    });
+
+    const deleteImportMutation = useMutation({
+        mutationFn: () => deleteImport(importId!),
+        onSuccess: () => {
+            onSuccess();
+            onClose();
+        },
+    });
+
+    const handleBulkDelete = () => {
+        if (selectedRowKeys.length === 0) return;
+        modal.confirm({
+            title: `Delete ${selectedRowKeys.length} transaction${selectedRowKeys.length === 1 ? "" : "s"}?`,
+            content: "They will be removed from this import permanently.",
+            okText: "Delete",
+            okButtonProps: { danger: true },
+            onOk: () => deleteTxnsMutation.mutateAsync(selectedRowKeys as string[]),
+        });
+    };
+
+    const handleDeleteImport = () => {
+        modal.confirm({
+            title: "Delete this import?",
+            content: `${importDetail?.imported_rows || 0} transactions will be removed permanently. You can upload the statement again afterwards.`,
+            okText: "Delete Import",
+            okButtonProps: { danger: true },
+            onOk: () => deleteImportMutation.mutateAsync(),
+        });
+    };
+
     const openCategorize = (txn: RawTransaction) => {
         setActiveTxn(txn);
         setCategorizeModal(true);
@@ -499,7 +539,7 @@ const TransactionReviewDrawer: React.FC<Props> = ({
         {
             title: "Actions",
             key: "actions",
-            width: 150,
+            width: 180,
             fixed: "right" as const,
             render: (_: any, r: RawTransaction) => {
                 if (r.status === "Pushed" || r.journal_entry_id) return null;
@@ -530,6 +570,16 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                                 onClick={() => excludeMutation.mutate(r._id)}
                             />
                         </Tooltip>
+                        <Popconfirm
+                            title="Delete this transaction?"
+                            onConfirm={() => deleteTxnsMutation.mutateAsync([r._id])}
+                            okText="Delete"
+                            okButtonProps={{ danger: true }}
+                        >
+                            <Tooltip title="Delete">
+                                <Button icon={<DeleteOutlined />} size="small" danger />
+                            </Tooltip>
+                        </Popconfirm>
                     </Space>
                 );
             },
@@ -559,6 +609,16 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                 destroyOnClose
                 extra={
                     <Space>
+                        <Button
+                            icon={<DeleteOutlined />}
+                            danger
+                            onClick={handleDeleteImport}
+                            disabled={!importDetail || (importDetail.pushed_count || 0) > 0}
+                            loading={deleteImportMutation.isLoading}
+                            size="large"
+                        >
+                            Delete Import
+                        </Button>
                         <Button
                             icon={<ReloadOutlined />}
                             onClick={() => reApplyMutation.mutate()}
@@ -664,6 +724,15 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                                 size="large"
                             >
                                 Apply
+                            </Button>
+                            <Button
+                                danger
+                                icon={<DeleteOutlined />}
+                                onClick={handleBulkDelete}
+                                loading={deleteTxnsMutation.isLoading}
+                                size="large"
+                            >
+                                Delete
                             </Button>
                             <Button onClick={() => setSelectedRowKeys([])} size="large">Clear</Button>
                         </Space>

@@ -8,13 +8,14 @@ import {
     PlusOutlined, FileExcelOutlined, SettingOutlined,
     EyeOutlined, StopOutlined, BankOutlined,
     ThunderboltOutlined, CheckCircleOutlined, ClockCircleOutlined,
-    SafetyCertificateOutlined, DiffOutlined, ReloadOutlined,
+    SafetyCertificateOutlined, DiffOutlined, ReloadOutlined, DeleteOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
     getAllImports,
     getImportSummary,
     voidImport,
+    deleteImport,
     BankStatementImport,
     ImportStatus,
 } from "@services/accounting/bankStatementImport";
@@ -142,6 +143,14 @@ const BankStatementPage: React.FC = () => {
         onError: (error: any) => {
             const errorMessage = error?.response?.data?.message || error?.message || 'Failed to void import';
             console.error('Void import failed:', errorMessage);
+        },
+    });
+
+    const deleteMutation = useMutation({
+        mutationFn: (id: string) => deleteImport(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["bank-imports", shopId] });
+            queryClient.invalidateQueries({ queryKey: ["bank-imports-summary", shopId] });
         },
     });
 
@@ -306,7 +315,7 @@ const BankStatementPage: React.FC = () => {
         {
             title: "Actions",
             key: "actions",
-            width: 165,
+            width: 195,
             fixed: "right" as const,
             render: (_: unknown, r: BankStatementImport) => (
                 <Space size={4}>
@@ -333,6 +342,20 @@ const BankStatementPage: React.FC = () => {
                                 <Button icon={<StopOutlined />} size="small" danger />
                             </Popconfirm>
                         </Tooltip>
+                    )}
+                    {(r.status === "Review" || r.status === "Processing" || r.status === "Voided") && !r.pushed_count && (
+                        <Popconfirm
+                            title="Delete this import?"
+                            description={`${r.imported_rows || 0} transactions will be removed permanently.`}
+                            onConfirm={() => deleteMutation.mutateAsync(r._id)}
+                            okText="Delete"
+                            okButtonProps={{ danger: true }}
+                            cancelText="Cancel"
+                        >
+                            <Tooltip title="Delete Import">
+                                <Button icon={<DeleteOutlined />} size="small" danger />
+                            </Tooltip>
+                        </Popconfirm>
                     )}
                 </Space>
             ),

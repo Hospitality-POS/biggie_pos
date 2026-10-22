@@ -16,6 +16,7 @@ import {
 import { useQuery, useMutation } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import Papa from "papaparse";
+import { getVisibleSheetRows } from "@utils/visibleSheetRows";
 import {
     importStatement,
     uploadAndParseStatement,
@@ -233,10 +234,8 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
         const reader = new FileReader();
         reader.onload = (e) => {
             const data = new Uint8Array(e.target?.result as ArrayBuffer);
-            const workbook = XLSX.read(data, { type: "array", cellDates: true });
-            const sheet = workbook.Sheets[workbook.SheetNames[0]];
-            const rawRows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
-            processRows(rawRows);
+            const workbook = XLSX.read(data, { type: "array", cellDates: true, cellStyles: true });
+            processRows(getVisibleSheetRows(workbook));
         };
         reader.readAsArrayBuffer(file);
         return false;
