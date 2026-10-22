@@ -3,7 +3,8 @@ import { BASE_URL } from "@utils/config";
 import { message } from "antd";
 import { queryClient } from "../main";
 import { getCache, setCache } from "@utils/cache";
-import { makePermissionChecker, PERMISSIONS } from "@utils/accessControl";
+import { isPermissionOfferedForTenant, makePermissionChecker, PERMISSIONS } from "@utils/accessControl";
+import { parseTenantModules, readStoredTenant } from "@utils/parseTenantModules";
 
 let isLoggingOut = false;
 
@@ -41,6 +42,7 @@ const EXCLUDED_ROUTES = [
     '/suppliers',
     '/customers/other-branches',
     '/business-health',
+    '/audit-logs', // admins see every branch; the page passes shop_id itself
 ];
 
 const NON_CACHEABLE_ROUTES = [
@@ -50,6 +52,7 @@ const NON_CACHEABLE_ROUTES = [
     '/payments',
     '/subscriptions',
     '/invoices',
+    '/audit-logs',
 ];
 
 // Routes that should NOT trigger logout on 401 (Meta/Webhook APIs)
@@ -117,15 +120,16 @@ const resolvePermissionKey = (
 
     const urlTokens = cleanUrl.split(/[\s\-_/]+/).filter(Boolean);
 
-    // A short token (e.g. "in", "up") is a substring of many unrelated words
-    // (e.g. "in" -> "invoice", "create"), so only allow substring matches
-    // between tokens that are long enough to be meaningfully specific.
-    // Shorter tokens must match exactly to count.
+    // A short token (e.g. "in", "up") is a prefix of many unrelated words
+    // (e.g. "in" -> "invoice"), so only allow prefix matches between tokens
+    // that are long enough to be meaningfully specific. Prefix, not substring:
+    // "invoice" still matches "invoices", but "count" no longer matches
+    // "accounting". Shorter tokens must match exactly to count.
     const MIN_SUBSTRING_LEN = 4;
     const tokensMatch = (a: string, b: string): boolean => {
         if (a === b) return true;
         if (a.length < MIN_SUBSTRING_LEN || b.length < MIN_SUBSTRING_LEN) return false;
-        return a.includes(b) || b.includes(a);
+        return a.startsWith(b) || b.startsWith(a);
     };
 
     let bestKey: string | null = null;
@@ -145,6 +149,31 @@ const resolvePermissionKey = (
     }
 
     return bestScore >= 2 ? bestKey : null;
+};
+
+// Endpoints shared between products resolve to one product's key; these are
+// the other products' keys that open the same screens, so holding either
+// lets the call through (e.g. Pesa's Invoices tab reads /cart/invoices).
+const PERMISSION_ALTERNATIVES: Record<string, string[]> = {
+    CART_VIEW_INVOICES: ["ACCOUNTING_INVOICE_VIEW"],
+    ACCOUNTING_DASHBOARD_VIEW: ["ACCOUNTING_COA_VIEW"],
+    ORDERS_VIEW_DASHBOARD: ["UNIFIED_DASHBOARD_VIEW"],
+    ORDERS_VIEW_ADMIN_DASHBOARD: ["UNIFIED_DASHBOARD_VIEW"],
+    ORDERS_VIEW_SALES_CHART: ["UNIFIED_DASHBOARD_VIEW"],
+    ORDERS_VIEW_BEST_SELLERS: ["UNIFIED_DASHBOARD_VIEW"],
+    REPORTS_VAT_SUMMARY: ["ACCOUNTING_REPORT_VAT"],
+};
+
+const isRequestAllowed = (permKey: string, can: (key: string) => boolean): boolean => {
+    if (can(permKey)) return true;
+    if ((PERMISSION_ALTERNATIVES[permKey] ?? []).some(can)) return true;
+
+    // The URL matcher can land on a key from a product this tenant doesn't
+    // have (e.g. Dala's maintenance-categories → POS Main Categories). No
+    // role here can hold such a key, so blocking would lock everyone out —
+    // let the page's own route/tab permission be the gate instead.
+    const { hasMteja, ...mods } = parseTenantModules(readStoredTenant());
+    return !isPermissionOfferedForTenant(permKey, { ...mods, hasCRM: hasMteja });
 };
 
 // ─── Axios instance ───────────────────────────────────────────────────────────
@@ -183,7 +212,7 @@ axiosInstance.interceptors.request.use(
 
             const permKey = resolvePermissionKey(config.url, config.method, explicitKey);
 
-            if (permKey && !can(permKey)) {
+            if (permKey && !isRequestAllowed(permKey, can)) {
                 const label = PERMISSIONS[permKey]?.label ?? permKey;
                 handleError(`Access denied: you don't have permission to "${label}".`);
                 return Promise.reject(

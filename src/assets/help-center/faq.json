@@ -2,41 +2,41 @@
   {
     "id": 17,
     "title": "Common Issues",
-    "description": "Troubleshoot frequent problems",
+    "description": "Quick fixes for sign-in, POS, printing, payments and reports",
     "type": "article",
-    "readTime": "6 min",
+    "readTime": "2 min",
     "views": 2100,
     "helpful": 180,
-    "content": "\n# Common Issues\n\n## Login Problems\n- Forgot password: Use reset link\n- Account locked: Contact support\n- 2FA issues: Use backup codes\n- Session expired: Log in again\n\n## POS Issues\n- Products not showing: Check inventory\n- Payment failed: Try again or use different method\n- Receipt not printing: Check printer settings\n- Sync errors: Check internet connection\n\n## Performance\n- Slow loading: Clear cache\n- App crashes: Update browser\n- Data not syncing: Check connection\n- Timeout errors: Refresh page\n\n## Data Issues\n- Missing data: Check filters\n- Incorrect totals: Verify entries\n- Duplicate records: Merge or delete\n- Export errors: Check permissions\n\n## Getting Help\n- Search help center\n- Contact support\n- Join community\n- Schedule training\n      "
+    "content": "\n# Common Issues\n\n## Signing in\n- **Wrong company or email**: check the **Company Code**. Use **Switch Company** if you work for several businesses.\n- **Authenticator code not accepted**: make sure your phone time is correct. Use a **backup code** if you lost the phone.\n- **Account suspended or terminated**: ask an admin to reactivate or reinstate you in **Crew Management**.\n- **\"You don't have permission to access\"**: your role does not allow that page. Ask an admin to update your role in **Role Settings**.\n\n## POS and orders\n- **Products not appearing at the POS**: check the product is in a category that has **Show on POS** turned on, and that it is active.\n- **Table is unavailable**: it is being served by another staff member. Ask them to release it or ask an admin.\n- **Cannot reduce a sent item**: only a cashier or admin can reduce the quantity of an item already sent to the kitchen.\n- **Internet is down**: keep selling. Orders are saved on the device and sync automatically (see *Working Offline*).\n\n## Payments\n- **M-Pesa STK Push not arriving**: confirm a valid Kenyan number such as 0712345678 and that the phone has network.\n- **Payment status unknown**: wait a moment, then check the order's payment history before retrying so you do not charge twice.\n\n## Printing\n- **Receipt not printing**: open **System Setup > Printers**. The printer should show **Online**. Use **Test Print**. See *Printing Setup*.\n\n## Tax (eTIMS)\n- **ETR shows Failed or In Flight**: open the invoice and use **Refresh ETR Status** or **Verify with KRA**. Make sure the shop's **KRA PIN** is set.\n\n## Reports and totals\n- **Report is empty**: check the **date range** and **branch** filters.\n- **Totals differ from the dashboard**: dashboards follow the period filter at the top (Day, Week, Month, Year, Custom).\n\n## Still stuck?\nUse the in-app chat and include the page name, what you clicked and any error message you saw.\n"
   },
   {
     "id": 18,
     "title": "Contact Support",
-    "description": "Get help from our team",
+    "description": "How to reach us and what to include so we can help faster",
     "type": "article",
-    "readTime": "1 min",
+    "readTime": "2 min",
     "views": 500,
     "helpful": 30,
-    "content": "\n# Contact Support\n\n## Support Channels\n\n### Email Support\n- support@basepoint.com\n- Response within 24 hours\n- Include account details\n- Describe the issue\n\n### Phone Support\n- Available for Enterprise plans\n- Business hours only\n- Have account info ready\n- Describe issue clearly\n\n### Live Chat\n- Available in app\n- Instant responses\n- For quick questions\n- Business hours\n\n### Ticket System\n- Submit detailed tickets\n- Track progress\n- Attach screenshots\n- View history\n\n## Before Contacting\n- Check help center\n- Try troubleshooting\n- Gather error details\n- Note steps to reproduce\n\n## Response Times\n- Critical: 4 hours\n- High: 8 hours\n- Normal: 24 hours\n- Low: 48 hours\n      "
+    "content": "\n# Contact Support\n\n## Live chat\nThe quickest route is the **live chat** inside the app. Open it from any page and describe your question.\n\n## Help Center\nSearch this Help Center first. Each module has its own section with step-by-step guides.\n\n## Help your request move faster\nPlease include:\n- Your **business name and Company Code**.\n- The **branch** and **module** (for example Duka, Pesa, Mteja).\n- The **page** you were on and exactly what you clicked.\n- The **error message** or a screenshot.\n- For payments or invoices: the **order, invoice or receipt number**.\n\n## Billing and module pricing\nUse **Discover** and choose **Contact support for pricing** on a module, or ask in the chat.\n\n## Feature requests\nTell us what you tried to do and what was missing. We use this to plan new features.\n\n## Legal and privacy\nFor terms and privacy matters, see the **Terms and Conditions** and **Privacy Policy** linked on the sign-in page.\n"
   },
   {
     "id": 42,
     "title": "Security Best Practices",
-    "description": "Keep your account and data secure",
+    "description": "Protect your business data with roles, strong sign-in and good habits",
     "type": "article",
-    "readTime": "7 min",
+    "readTime": "2 min",
     "views": 1800,
     "helpful": 150,
-    "content": "\n# Security Best Practices\n\n## Password Security\n- Use strong, unique passwords\n- Change passwords regularly\n- Never share passwords\n- Use password manager\n- Enable 2FA\n\n## Account Security\n- Enable two-factor authentication\n- Review login history\n- Revoke unknown sessions\n- Update recovery options\n- Monitor account activity\n\n## Data Protection\n- Regular backups\n- Encrypt sensitive data\n- Limit access permissions\n- Use secure connections\n- Keep software updated\n\n## User Management\n- Remove ex-employees promptly\n- Review access regularly\n- Use role-based permissions\n- Audit user activity\n- Train staff on security\n\n## Phishing Awareness\n- Verify sender identity\n- Don't click suspicious links\n- Report phishing attempts\n- Keep software updated\n- Use email filters\n\n## Compliance\n- Follow data protection laws\n- Maintain audit trails\n- Regular security reviews\n- Incident response plan\n- Staff security training\n      "
+    "content": "\n# Security Best Practices\n\n## Strong sign-in\n- Use a password of 8+ characters with upper-case, lower-case and a number.\n- Turn on **two-factor authentication** in your profile (authenticator app) and store the **backup codes** safely.\n- Use **Quick 4-digit PIN access** only on trusted, shared devices.\n- Never share one login between staff.\n\n## Roles and permissions\nEach user has a role. In **Role Settings** the **Permission Matrix** lets you control, per area, who can **Create**, **Read**, **Update** and **Delete**. Areas include Core (POS), Accounting, Dala and Signature.\n- Give people only what they need.\n- Review roles when someone changes job.\n- Keep admin accounts to a minimum. Admin users cannot be deleted.\n\n## Managing staff access\nIn **Crew Management** you can:\n- **Suspend** a user (they cannot log in until reactivated).\n- **Terminate** a user (blocks all login access; can be reinstated later).\n- **Delete** a user who should be removed completely.\n\nRemove or suspend ex-employees the same day they leave.\n\n## Controlling printing\nIn **System Setup > Printing Controls** you can limit how many times a document can be printed, require a **reason for reprints**, and require **admin approval** for reprints. Use these for receipts and invoices that must not be duplicated.\n\n## Print only after payment\nIn the privacy settings you can stop cashiers printing a customer's bill until the order has been paid for.\n\n## Phishing and devices\n- Only sign in at the official Base address or the installed app.\n- Do not share OTP or backup codes with anyone, including people claiming to be support.\n- Lock shared computers when you leave them.\n"
   },
   {
     "id": 43,
     "title": "Performance Optimization",
-    "description": "Improve system performance and speed",
+    "description": "Keep the app fast on slow connections and busy tills",
     "type": "article",
-    "readTime": "5 min",
+    "readTime": "2 min",
     "views": 1200,
     "helpful": 98,
-    "content": "\n# Performance Optimization\n\n## Browser Optimization\n- Use latest browser version\n- Clear cache regularly\n- Disable unnecessary extensions\n- Enable hardware acceleration\n- Reduce open tabs\n\n## Network Optimization\n- Use stable internet connection\n- Prefer wired connection\n- Check bandwidth\n- Use CDN if available\n- Minimize network calls\n\n## Data Management\n- Archive old data\n- Clean up unused records\n- Optimize database\n- Regular maintenance\n- Monitor storage limits\n\n## System Configuration\n- Adjust cache settings\n- Optimize image sizes\n- Enable compression\n- Use lazy loading\n- Minimize API calls\n\n## Monitoring\n- Track performance metrics\n- Identify bottlenecks\n- Monitor error rates\n- Set up alerts\n- Regular reviews\n\n## When to Contact Support\n- Persistent slowness\n- Frequent errors\n- Timeout issues\n- Unusual behavior\n- Performance degradation\n      "
+    "content": "\n# Performance Optimization\n\n## Network\n- Prefer a stable connection (wired where possible) on the till computer.\n- When the connection drops, the POS shows an **Offline** indicator and keeps working. See *Working Offline*.\n- Large exports and reports are quicker on a good connection.\n\n## Browser and device\n- Use an up-to-date Chrome, Edge or Firefox, or install the **Windows app**.\n- Close unused tabs, and restart the browser if the app feels slow after a long day.\n- If screens look outdated after an update, refresh the page.\n\n## Keep data lean\n- Use the **date range** filters on reports and lists rather than loading everything.\n- Archive or delete test data you no longer need.\n- Use **Branch** filters on multi-branch dashboards to focus the data.\n\n## Dashboards\nDashboards and reports follow the period you pick (Day, Week, Month, Year, Custom). A shorter period loads faster.\n\n## When to contact support\n- Pages stay slow on several devices and networks.\n- You see repeated timeouts or errors.\n- Only one branch or module is affected.\n\nInclude the page name and the time it happened.\n"
   }
 ]

@@ -22,6 +22,7 @@ const MainCategory = lazyWithReload(() => import("@pages/main_category/Main_cate
 const MainOrders = lazyWithReload(() => import("@pages/OrderManagement/MainOrders"));
 const StaffClockTracker = lazyWithReload(() => import("@pages/staff/ClockInTracker"));
 const HelpCenter = lazyWithReload(() => import("src/AdminDashboard/HelpCenter/HelpCenterPage"));
+const AuditTrailPage = lazyWithReload(() => import("src/AdminDashboard/AuditTrail/AuditTrailPage"));
 const DashboardAdminPage = lazyWithReload(() => import("src/AdminDashboard/DashboardPage/DashboardPage"));
 const DukaDashboardPage = lazyWithReload(() => import("src/pages/Dashboard/DukaDashboardPage"));
 const AdminDukaDashboardPage = lazyWithReload(() => import("src/AdminDashboard/DashboardPage/AdminDukaDashboardPage"));
@@ -233,7 +234,7 @@ const AdminBanduHRRoute: React.FC<{ children: React.ReactNode }> = ({ children }
 };
 
 // ─── CRM page wrapper — private + Mteja guard ────────────────────────────────
-const mtejaPage = (Component: React.ComponentType, permission: string) => (
+const mtejaPage = (Component: React.ComponentType, permission: string | string[]) => (
   <MtejaRoute>
     <PermissionRoute permission={permission}>
       {privatePage(Component)}
@@ -241,7 +242,7 @@ const mtejaPage = (Component: React.ComponentType, permission: string) => (
   </MtejaRoute>
 );
 
-const mtejaAdminPage = (Component: React.ComponentType, permission: string) => (
+const mtejaAdminPage = (Component: React.ComponentType, permission: string | string[]) => (
   <AdminMtejaRoute>
     <PermissionRoute permission={permission}>
       {adminPage(Component)}
@@ -250,7 +251,7 @@ const mtejaAdminPage = (Component: React.ComponentType, permission: string) => (
 );
 
 // ─── Dala page wrapper — private + Dala guard ───────────────────────────────────
-const dalaPage = (Component: React.ComponentType, permission: string) => (
+const dalaPage = (Component: React.ComponentType, permission: string | string[]) => (
   <DalaRoute>
     <PermissionRoute permission={permission}>
       {privatePage(Component)}
@@ -258,7 +259,7 @@ const dalaPage = (Component: React.ComponentType, permission: string) => (
   </DalaRoute>
 );
 
-const dalaAdminPage = (Component: React.ComponentType, permission: string) => (
+const dalaAdminPage = (Component: React.ComponentType, permission: string | string[]) => (
   <AdminDalaRoute>
     <PermissionRoute permission={permission}>
       {adminPage(Component)}
@@ -267,7 +268,7 @@ const dalaAdminPage = (Component: React.ComponentType, permission: string) => (
 );
 
 // ─── Bandu HR page wrapper — private + Bandu HR guard ───────────────────────────
-const banduHRPage = (Component: React.ComponentType, permission: string) => (
+const banduHRPage = (Component: React.ComponentType, permission: string | string[]) => (
   <BanduHRRoute>
     <PermissionRoute permission={permission}>
       {privatePage(Component)}
@@ -275,7 +276,7 @@ const banduHRPage = (Component: React.ComponentType, permission: string) => (
   </BanduHRRoute>
 );
 
-const banduHRAdminPage = (Component: React.ComponentType, permission: string) => (
+const banduHRAdminPage = (Component: React.ComponentType, permission: string | string[]) => (
   <AdminBanduHRRoute>
     <PermissionRoute permission={permission}>
       {adminPage(Component)}
@@ -435,7 +436,7 @@ const routes = sentryCreateBrowserRouter(
           element={guardedPage(CategoryMainSettings, "CATEGORIES_VIEW")} />
 
         <Route path="reports" errorElement={<NotFound />}
-          element={guardedPage(UnifiedReportsPage, ["REPORTS_ITEM_SALES", "REPORTS_VIEW"])} />
+          element={guardedPage(UnifiedReportsPage, ["REPORTS_ITEM_SALES", "REPORTS_VIEW", "ACCOUNTING_REPORT_PROFIT_LOSS"])} />
 
         <Route path="inventory-settings" errorElement={<NotFound />}
           element={guardedPage(InventoryMainSettings, "INVENTORY_VIEW")} />
@@ -447,7 +448,7 @@ const routes = sentryCreateBrowserRouter(
           element={privatePage(Profile)} />
 
         <Route path="orders" errorElement={<NotFound />}
-          element={guardedPage(MainOrders, "ORDERS_VIEW")} />
+          element={guardedPage(MainOrders, ["ORDERS_VIEW", "ACCOUNTING_INVOICE_VIEW"])} />
 
         <Route path="customers" errorElement={<NotFound />}
           element={guardedPage(Customer, "CUSTOMERS_VIEW")} />
@@ -485,9 +486,9 @@ const routes = sentryCreateBrowserRouter(
         {/* ── Accounting — shop level (/accounting/...) ──────────────────── */}
         <Route path="accounting" element={<AccountingLayout />}>
           <Route index errorElement={<NotFound />}
-            element={guardedPage(AccountingDashboardPage, "ACCOUNTING_COA_VIEW")} />
+            element={guardedPage(AccountingDashboardPage, ["ACCOUNTING_DASHBOARD_VIEW", "ACCOUNTING_COA_VIEW"])} />
           <Route path="dashboard" errorElement={<NotFound />}
-            element={guardedPage(AccountingDashboardPage, "ACCOUNTING_COA_VIEW")} />
+            element={guardedPage(AccountingDashboardPage, ["ACCOUNTING_DASHBOARD_VIEW", "ACCOUNTING_COA_VIEW"])} />
           <Route path="accounts" errorElement={<NotFound />}
             element={guardedPage(ChartOfAccountsPage, "ACCOUNTING_COA_VIEW")} />
           <Route path="journals" errorElement={<NotFound />}
@@ -527,7 +528,7 @@ const routes = sentryCreateBrowserRouter(
         <Route path="bandu/dashboard" element={<Navigate to="/hr/dashboard" replace />} />
         <Route path="bandu" element={<Navigate to="/hr/dashboard" replace />} />
         <Route path="pos/dashboard" errorElement={<NotFound />}
-          element={guardedPage(DukaDashboardPage, "UNIFIED_DASHBOARD_VIEW")} />
+          element={guardedPage(DukaDashboardPage, ["UNIFIED_DASHBOARD_VIEW", "ORDERS_VIEW_DASHBOARD"])} />
         <Route path="pos" element={<Navigate to="/pos/dashboard" replace />} />
         <Route path="duka/dashboard" element={<Navigate to="/pos/dashboard" replace />} />
         <Route path="duka" element={<Navigate to="/pos/dashboard" replace />} />
@@ -543,13 +544,13 @@ const routes = sentryCreateBrowserRouter(
           <Route path="dashboard" errorElement={<NotFound />}
             element={mtejaPage(MtejaDashboard, "CUSTOMERS_VIEW")} />
           <Route path="leads" errorElement={<NotFound />}
-            element={mtejaPage(LeadsPage, "CUSTOMERS_VIEW")} />
+            element={mtejaPage(LeadsPage, ["CRM_LEADS_VIEW", "CUSTOMERS_VIEW"])} />
           <Route path="campaigns" errorElement={<NotFound />}
-            element={mtejaPage(CampaignsPage, "CUSTOMERS_VIEW")} />
+            element={mtejaPage(CampaignsPage, ["CRM_CAMPAIGNS_VIEW", "CUSTOMERS_VIEW"])} />
           <Route path="sales-targets" errorElement={<NotFound />}
-            element={mtejaPage(SalesTargetsPage, "CUSTOMERS_VIEW")} />
+            element={mtejaPage(SalesTargetsPage, ["CRM_TARGETS_VIEW", "CUSTOMERS_VIEW"])} />
           <Route path="sales-budgets" errorElement={<NotFound />}
-            element={mtejaPage(SalesBudgetsPage, "CUSTOMERS_VIEW")} />
+            element={mtejaPage(SalesBudgetsPage, ["CRM_BUDGETS_VIEW", "CUSTOMERS_VIEW"])} />
           <Route path="quotes" errorElement={<NotFound />}
             element={mtejaPage(QuotesPage, "CUSTOMERS_VIEW")} />
           <Route path="calendar" errorElement={<NotFound />}
@@ -582,9 +583,9 @@ const routes = sentryCreateBrowserRouter(
           <Route path="property-types" errorElement={<NotFound />}
             element={dalaPage(PropertyTypesList, "DALA_PROPERTY_TYPES_VIEW")} />
           <Route path="units" errorElement={<NotFound />}
-            element={dalaPage(UnitsList, "DALA_UNITS_VIEW")} />
+            element={dalaPage(UnitsList, "DALA_PROPERTIES_VIEW")} />
           <Route path="units/:id" errorElement={<NotFound />}
-            element={dalaPage(UnitDetail, "DALA_UNITS_VIEW")} />
+            element={dalaPage(UnitDetail, "DALA_PROPERTIES_VIEW")} />
           <Route path="sales" errorElement={<NotFound />}
             element={dalaPage(SalesManagement, "DALA_SALES_VIEW")} />
           <Route path="sales/:id" errorElement={<NotFound />}
@@ -647,7 +648,7 @@ const routes = sentryCreateBrowserRouter(
           element={guardedAdminPage(DashboardAdminPage, "UNIFIED_DASHBOARD_VIEW")} />
 
         <Route path="orders" errorElement={<NotFound />}
-          element={guardedAdminPage(MainOrders, "ORDERS_VIEW")} />
+          element={guardedAdminPage(MainOrders, ["ORDERS_VIEW", "ACCOUNTING_INVOICE_VIEW"])} />
 
         <Route path="store" errorElement={<NotFound />}
           element={guardedAdminPage(MainStore, "PRODUCTS_VIEW")} />
@@ -678,7 +679,7 @@ const routes = sentryCreateBrowserRouter(
 
         <Route path="reports" errorElement={<NotFound />}
           element={
-            <PermissionRoute permission={["REPORTS_ITEM_SALES", "REPORTS_VIEW"]}>
+            <PermissionRoute permission={["REPORTS_ITEM_SALES", "REPORTS_VIEW", "ACCOUNTING_REPORT_PROFIT_LOSS"]}>
               <Suspense fallback={fullscreenSpin}>
                 <AdminRoute><UnifiedReportsPage /></AdminRoute>
               </Suspense>
@@ -741,6 +742,9 @@ const routes = sentryCreateBrowserRouter(
         <Route path="help-center" errorElement={<NotFound />}
           element={<Suspense fallback={fullscreenSpin}><AdminRoute><HelpCenter /></AdminRoute></Suspense>} />
 
+        <Route path="audit-trail" errorElement={<NotFound />}
+          element={<Suspense fallback={fullscreenSpin}><AdminRoute><AuditTrailPage /></AdminRoute></Suspense>} />
+
         <Route path="esign" errorElement={<NotFound />}
           element={
             <PermissionRoute permission="SIGNATURE_VIEW">
@@ -795,7 +799,7 @@ const routes = sentryCreateBrowserRouter(
         <Route path="bandu/dashboard" element={<Navigate to="/admin/hr/dashboard" replace />} />
         <Route path="bandu" element={<Navigate to="/admin/hr/dashboard" replace />} />
         <Route path="pos/dashboard" errorElement={<NotFound />}
-          element={guardedAdminPage(AdminDukaDashboardPage, "UNIFIED_DASHBOARD_VIEW")} />
+          element={guardedAdminPage(AdminDukaDashboardPage, ["UNIFIED_DASHBOARD_VIEW", "ORDERS_VIEW_DASHBOARD"])} />
         <Route path="pos" element={<Navigate to="/admin/pos/dashboard" replace />} />
         <Route path="duka/dashboard" element={<Navigate to="/admin/pos/dashboard" replace />} />
         <Route path="duka" element={<Navigate to="/admin/pos/dashboard" replace />} />
@@ -803,9 +807,9 @@ const routes = sentryCreateBrowserRouter(
         {/* ── Accounting — admin level (/admin/accounting/...) ───────────── */}
         <Route path="accounting" element={<AccountingLayout />}>
           <Route index errorElement={<NotFound />}
-            element={guardedAdminPage(AccountingDashboardPage, "ACCOUNTING_COA_VIEW")} />
+            element={guardedAdminPage(AccountingDashboardPage, ["ACCOUNTING_DASHBOARD_VIEW", "ACCOUNTING_COA_VIEW"])} />
           <Route path="dashboard" errorElement={<NotFound />}
-            element={guardedAdminPage(AccountingDashboardPage, "ACCOUNTING_COA_VIEW")} />
+            element={guardedAdminPage(AccountingDashboardPage, ["ACCOUNTING_DASHBOARD_VIEW", "ACCOUNTING_COA_VIEW"])} />
           <Route path="accounts" errorElement={<NotFound />}
             element={guardedAdminPage(ChartOfAccountsPage, "ACCOUNTING_COA_VIEW")} />
           <Route path="journals" errorElement={<NotFound />}
@@ -838,13 +842,13 @@ const routes = sentryCreateBrowserRouter(
           <Route path="dashboard" errorElement={<NotFound />}
             element={mtejaAdminPage(MtejaDashboard, "CUSTOMERS_VIEW")} />
           <Route path="leads" errorElement={<NotFound />}
-            element={mtejaAdminPage(LeadsPage, "CUSTOMERS_VIEW")} />
+            element={mtejaAdminPage(LeadsPage, ["CRM_LEADS_VIEW", "CUSTOMERS_VIEW"])} />
           <Route path="campaigns" errorElement={<NotFound />}
-            element={mtejaAdminPage(CampaignsPage, "CUSTOMERS_VIEW")} />
+            element={mtejaAdminPage(CampaignsPage, ["CRM_CAMPAIGNS_VIEW", "CUSTOMERS_VIEW"])} />
           <Route path="sales-targets" errorElement={<NotFound />}
-            element={mtejaAdminPage(SalesTargetsPage, "CUSTOMERS_VIEW")} />
+            element={mtejaAdminPage(SalesTargetsPage, ["CRM_TARGETS_VIEW", "CUSTOMERS_VIEW"])} />
           <Route path="sales-budgets" errorElement={<NotFound />}
-            element={mtejaAdminPage(SalesBudgetsPage, "CUSTOMERS_VIEW")} />
+            element={mtejaAdminPage(SalesBudgetsPage, ["CRM_BUDGETS_VIEW", "CUSTOMERS_VIEW"])} />
           <Route path="quotes" errorElement={<NotFound />}
             element={mtejaAdminPage(QuotesPage, "CUSTOMERS_VIEW")} />
           <Route path="calendar" errorElement={<NotFound />}
@@ -871,9 +875,9 @@ const routes = sentryCreateBrowserRouter(
           <Route path="property-types" errorElement={<NotFound />}
             element={dalaAdminPage(PropertyTypesList, "DALA_PROPERTY_TYPES_VIEW")} />
           <Route path="units" errorElement={<NotFound />}
-            element={dalaAdminPage(UnitsList, "DALA_UNITS_VIEW")} />
+            element={dalaAdminPage(UnitsList, "DALA_PROPERTIES_VIEW")} />
           <Route path="units/:id" errorElement={<NotFound />}
-            element={dalaAdminPage(UnitDetail, "DALA_UNITS_VIEW")} />
+            element={dalaAdminPage(UnitDetail, "DALA_PROPERTIES_VIEW")} />
           <Route path="sales" errorElement={<NotFound />}
             element={dalaAdminPage(SalesManagement, "DALA_SALES_VIEW")} />
           <Route path="sales/:id" errorElement={<NotFound />}

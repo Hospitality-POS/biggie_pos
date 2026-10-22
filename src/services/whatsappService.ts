@@ -613,6 +613,8 @@ export interface FetchConversationsParams {
     channel?: ChannelType;
     assigned_to?: string;
     search?: string;
+    start_date?: string;
+    end_date?: string;
     page?: number;
     limit?: number;
 }

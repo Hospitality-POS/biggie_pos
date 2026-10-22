@@ -478,6 +478,22 @@ export const deleteAllInventory = async (shopId: string): Promise<{ deleted: num
   }
 };
 
+// Adds one variant to a product (enabling variants on it if needed) without
+// touching its other fields. Returns the updated product with variant _ids.
+export const addInventoryVariant = async (
+  inventoryId: string,
+  variant: {
+    name: string;
+    attributes?: Record<string, string>;
+    quantity: number;
+    price?: number;
+    location_id?: string;
+  }
+) => {
+  const response = await axiosInstance.post(`${inventoryUrl}/${inventoryId}/variants`, variant);
+  return response.data?.product;
+};
+
 export const fetchInventoryById = async (inventoryId: string) => {
   try {
     const response = await axiosInstance.get(`${inventoryUrl}/${inventoryId}`);

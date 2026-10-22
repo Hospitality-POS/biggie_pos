@@ -2,31 +2,41 @@
   {
     "id": 25,
     "title": "Reports & Analytics Overview",
-    "description": "Understanding business intelligence features",
+    "description": "Where to find reports for every module and how to use them",
     "type": "article",
-    "readTime": "10 min",
+    "readTime": "2 min",
     "views": 2800,
     "helpful": 220,
-    "content": "\n# Reports & Analytics Overview\n\n## Report Generation Flow\n\n```\n┌──────────────┐\n│ Select       │\n│ Report Type  │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Choose       │\n│ Date Range   │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Apply        │\n│ Filters      │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Generate     │\n│ Report       │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ View         │\n│ Visualizations│\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Export       │\n│ (PDF/Excel)  │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Share/       │\n│ Schedule     │\n└──────────────┘\n```\n\n## Report Categories\n\n### 1. Sales Reports\n- Daily sales summary\n- Product performance\n- Category analysis\n- Staff performance\n- Time-based trends\n\n### 2. Inventory Reports\n- Stock levels\n- Movement reports\n- Valuation reports\n- Low stock alerts\n- Reorder recommendations\n\n### 3. Financial Reports\n- Revenue reports\n- Expense tracking\n- Profit analysis\n- Cash flow\n- Tax reports\n\n### 4. Customer Reports\n- Customer analysis\n- Purchase patterns\n- Loyalty metrics\n- Churn analysis\n- Lifetime value\n\n### 5. Operational Reports\n- Staff performance\n- Shift reports\n- Service metrics\n- Efficiency analysis\n- Capacity utilization\n\n## Dashboard Analytics\n\n### Key Performance Indicators\n- Revenue trends\n- Growth metrics\n- Conversion rates\n- Average order value\n- Customer satisfaction\n\n### Visualizations\n- Charts and graphs\n- Heat maps\n- Trend lines\n- Comparative analysis\n- Geographic distribution\n\n## Custom Reports\n\n### Creating Custom Reports\n1. Select data source\n2. Choose metrics\n3. Apply filters\n4. Set date ranges\n5. Configure visualization\n6. Save and schedule\n\n### Report Scheduling\n- Daily, weekly, monthly\n- Email delivery\n- PDF export\n- Dashboard embedding\n\n## Export Options\n- Excel spreadsheets\n- PDF reports\n- CSV data\n- API access\n- Real-time dashboards\n      "
+    "content": "\n# Reports & Analytics Overview\n\nOpen **Reports** (from the Duka, Pesa, Mteja, Bandu, Dala or admin menus). The page has one tab per enabled module:\n\n| Tab | Reports |\n|---|---|\n| **Duka (Store)** | Item Sales, Sales, Voided Bills, Delivery, Inventory Usage, VAT Summary, Top Sellers, Top Earners, Staff Hours |\n| **Pesa (Accounting)** | Profit and Loss, Balance Sheet, Trial Balance, General Ledger, Account Balances, VAT, Cash Flow, statements, AR/AP Aging |\n| **Mteja (CRM)** | Customer Master List, Lead Pipeline, Campaign Performance, Sales Target vs Actual, Visits, Lead Activity |\n| **Dala (Real Estate)** | Portfolio, Sales, Payment Plans Due, Commissions Due, Rent Collection, Maintenance |\n| **Bandu (HR)** | Employee Master List, Payroll Register, Leave Balance, Leave History, Department Staffing, Contact Directory |\n\n## Common controls\n- **Date & Time Range** (Today, This Week, This Month, This Quarter, This Year, Last Year, or Custom).\n- **Branch** (or All Branches) where available.\n- Other filters such as category, staff, status or department.\n- Click the **Generate** button for the report.\n\n## Output\n- **Export** to CSV, Excel or PDF, or **Print**.\n- Some reports offer **Thermal** or **A4 PDF** layouts.\n- **Send Report** by email with a recipient, optional CC and a personal message.\n\n## Permissions\nIf you see *You don't have permission to generate the report*, ask an admin to grant the report permission in Role Settings.\n\n## Dashboards\nThe dashboards give quick totals for the period you pick; use reports when you need detail and exports.\n"
   },
   {
     "id": 26,
     "title": "Sales Performance Reports",
-    "description": "Analyze sales data and trends",
+    "description": "Item sales, sales by payment method, top sellers and top earners",
     "type": "article",
-    "readTime": "8 min",
+    "readTime": "2 min",
     "views": 2200,
     "helpful": 175,
-    "content": "\n# Sales Performance Reports\n\n## Daily Sales Report\n- Total revenue\n- Transaction count\n- Average order value\n- Payment method breakdown\n- Hourly sales distribution\n\n## Product Performance\n- Top-selling products\n- Slow-moving items\n- Category analysis\n- Margin analysis\n- Stock turnover\n\n## Staff Performance\n- Sales by staff\n- Average transaction value\n- Customer satisfaction\n- Upsell success rate\n- Productivity metrics\n\n## Time-Based Analysis\n- Daily comparisons\n- Weekly trends\n- Monthly summaries\n- Year-over-year growth\n- Seasonal patterns\n\n## Customer Insights\n- New vs returning customers\n- Purchase frequency\n- Average spend\n- Basket analysis\n- Channel performance\n\n## Generating Reports\n1. Go to **Reports > Sales**\n2. Select report type\n3. Choose date range\n4. Apply filters\n5. Generate report\n6. Export or share\n      "
+    "content": "\n# Sales Performance Reports\n\nAll of these are in **Reports > Duka (Store)**.\n\n## Item Sales Report\nShows each product or service sold in the period with **quantity**, **unit price**, **total**, **stock cost**, **gross profit** and **margin**. Group by period, and filter by category, main category, and who served. The header shows **Period Total**, **Stock Cost** and **Profit**.\n\n## Sales Report\nShows total sales, **discounts**, and **sales by payment method** and by category/product, so you can match cash and M-Pesa to your till and bank.\n\n## Top Sellers Report\nAnalyses your best-performing items:\n- **Top 10 / 20 / 50 / 100** by **revenue**, **profit** or **profit margin**.\n- Charts: **Top 10 Items by Revenue**, **Revenue by Category**, **Quantity vs Revenue**, **Profit Margin Analysis**.\n- Per item: rank, margin, transactions and **stock status**.\n- A **hierarchy** view groups sellers by category.\n\n## Top Earners Report\nRanks staff by the revenue they earn, with total staff earnings and the platform cut. Useful for commission and incentives. You can exclude admin users from the PDF.\n\n## Using the results\n- Compare **margin**, not just revenue, before promoting an item.\n- Match the payment-method totals to bank and M-Pesa statements.\n- Drop or reprice items with low margin and low volume.\n"
   },
   {
     "id": 27,
-    "title": "Inventory Reports",
-    "description": "Track and analyze inventory data",
+    "title": "Inventory & Operations Reports",
+    "description": "Inventory usage, deliveries, voided bills, VAT and staff hours",
     "type": "article",
-    "readTime": "7 min",
+    "readTime": "2 min",
     "views": 1800,
     "helpful": 145,
-    "content": "\n# Inventory Reports\n\n## Stock Status Report\n- Current stock levels\n- Reorder points\n- Stock value\n- Location breakdown\n- Category summary\n\n## Movement Reports\n- Stock in (purchases)\n- Stock out (sales)\n- Transfers\n- Adjustments\n- Wastage\n\n## Valuation Reports\n- Total inventory value\n- Cost of goods sold\n- Inventory turnover\n- Aging analysis\n- Margin analysis\n\n## Low Stock Alerts\n- Items below reorder point\n- Out of stock items\n- Critical shortages\n- Recommended orders\n- Supplier information\n\n## Generating Inventory Reports\n1. Go to **Reports > Inventory**\n2. Select report type\n3. Choose date range\n4. Filter by location/category\n5. Generate report\n6. Export to Excel/PDF\n      "
+    "content": "\n# Inventory & Operations Reports\n\nThese live in **Reports > Duka (Store)**.\n\n## Inventory Usage Report\nShows the items used in the period: **item name**, **quantity** and the number of unique items. Choose **Inventory** or **Services**, and optionally a specific item.\n\n## Delivery Report\nLists deliveries with total cost, total items, unit price and line totals. Preview as **Thermal** or **A4 PDF**.\n\n## Voided Bills Report\nLists bills that were voided in the period with the voided categories and prices. Review it regularly to spot unusual voiding.\n\n## VAT Summary Report\nShows **VAT configuration**, **total VAT collected**, subtotal, invoice count, **average VAT per invoice**, VAT as a percentage of revenue, and a breakdown by VAT type and pricing mode.\n\n## Staff Hours Worked Report\nFor each employee: **total hours worked**, **completed sessions**, **open sessions**, first clock-in and last activity. Export to Excel or PDF.\n\n## Stock checks on the Inventory page\nThe Inventory page itself has **Low Stock** and stock-state filters, and the dashboard flags depleted items.\n\n## Tips\n- Run the voided bills and inventory usage reports weekly.\n- Reconcile VAT before filing each return.\n"
+  },
+  {
+    "id": 84,
+    "title": "HR & Payroll Reports",
+    "description": "Employee, payroll, leave and staffing reports",
+    "type": "article",
+    "readTime": "2 min",
+    "views": 0,
+    "helpful": 0,
+    "content": "\n# HR & Payroll Reports\n\nOpen **Reports > Bandu (HR)**. Choose the report, its filters and click **Generate**.\n\n| Report | Shows |\n|---|---|\n| **Employee Master List** | ID, name, email, phone, department, position, employment type and hire date |\n| **Payroll Register** | Period, gross pay, PAYE, NSSF, Housing Levy, NITA, net pay and payment method |\n| **Leave Balance** | Entitlement, used and remaining by leave type |\n| **Leave History** | Requests with type, dates, status and approver |\n| **Department Staffing** | Staff counts, active/inactive and total salary per department |\n| **Employee Contact Directory** | Phone, email and emergency contact |\n\n## Filters\nDepartment, employment status and type (Full-time, Part-time, Contract, Consultant), status (Processed, Pending Approval), employee, and date range.\n\n## Dashboard\nThe **HR & Payroll Dashboard** shows total, active, suspended and terminated employees, attendance overview (present, absent, late, on leave) and leave status.\n\n## Export\n**Export Excel** or **Export PDF**. For payslips and P9 forms, use **Payslips** (see *Managing Wages & Payroll*).\n"
   }
 ]

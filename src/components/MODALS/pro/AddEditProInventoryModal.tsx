@@ -571,7 +571,7 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [usageType, setUsageType] = useState<string>("internal");
+  const [usageType, setUsageType] = useState<string>("both");
   const [hasVariants, setHasVariants] = useState<boolean>(false);
   const [variants, setVariants] = useState<any[]>([]);
   const [variantModalOpen, setVariantModalOpen] = useState(false);
@@ -737,7 +737,7 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
     form.resetFields();
     setFileList([]);
     setUploadedFile(null);
-    setUsageType("internal");
+    setUsageType("both");
     setHasVariants(false);
     setVariants([]);
     setCurrentStep(0);
@@ -818,12 +818,12 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
       prefilled.current = true;
       form.resetFields();
       form.setFieldsValue({
-        usage_type: "internal",
+        usage_type: "both",
         has_variants: false,
         vat_type: "STANDARD",
         status: "active",
       });
-      setUsageType("internal");
+      setUsageType("both");
       setHasVariants(false);
       setVariants([]);
       setCurrentStep(0);

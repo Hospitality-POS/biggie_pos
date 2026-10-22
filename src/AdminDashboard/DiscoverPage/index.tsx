@@ -62,6 +62,7 @@ import {
 } from "@services/tenants";
 import pesapalApi from "@services/pesapalApi";
 import { THEME_C } from "@utils/getPrimaryColor";
+import { isTenantModuleEnabled, TenantModuleId } from "@utils/tenantModules";
 
 const { Text, Title } = Typography;
 
@@ -743,13 +744,9 @@ const DiscoverPage: React.FC = () => {
     const getStatus = (id: string): "enabled" | "not_enabled" => {
         if (!tenantDetails?.data) return "not_enabled";
         const t = tenantDetails.data;
-        if (id === "relia_pos") return t.pos_integration?.enabled === true ? "enabled" : "not_enabled";
-        if (id === "relia_accounting") return t.modules?.accounting === true ? "enabled" : "not_enabled";
-        if (id === "relia_payroll") return t.modules?.bandu_hr === true || t.modules?.payroll === true ? "enabled" : "not_enabled";
-        if (id === "mteja") return t.modules?.crm === true ? "enabled" : "not_enabled";
-        if (id === "dala") return t.modules?.dala === true ? "enabled" : "not_enabled";
+        if (["relia_pos", "relia_accounting", "relia_payroll", "mteja", "dala", "etims"].includes(id))
+            return isTenantModuleEnabled(t, id as TenantModuleId) ? "enabled" : "not_enabled";
         if (id === "asset_manager") return "enabled"; // Auto-enabled
-        if (id === "etims") return t.etims_config?.enabled === true ? "enabled" : "not_enabled";
         if (id === "pesapal") return t.use_pesapal === true || pesapalConfig?.data?.enabled === true ? "enabled" : "not_enabled";
         if (id === "esign") return "enabled"; // Auto-enabled for all users
         if (id === "business_intelligence") return "enabled"; // Biashara AI is enabled by default

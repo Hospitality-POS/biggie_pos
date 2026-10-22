@@ -45,6 +45,14 @@ export const getAdminDashboardAnalysis = async (startDate: string, endDate: stri
   return response.data;
 };
 
+export const getBranchComparison = async (startDate: string, endDate: string) => {
+  const response = await axiosInstance.get(`${BASE_URL}/orders/admin-dashboard/branch-comparison`, {
+    // shop_id "all" keeps the request interceptor from scoping this to the user's own shop
+    params: { startDate, endDate, shop_id: "all" },
+  });
+  return response.data;
+};
+
 export const getTodayOrdersCount = async (data: ParamsType) => {
   const response = await axiosInstance.get(`${BASE_URL}/orders`, {
     params: {

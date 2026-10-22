@@ -2,41 +2,111 @@
   {
     "id": 21,
     "title": "Admin Dashboard Overview",
-    "description": "Navigate and use the admin dashboard",
+    "description": "Your control centre: dashboards, branches, staff, documents and settings",
     "type": "article",
-    "readTime": "8 min",
+    "readTime": "2 min",
     "views": 3200,
     "helpful": 245,
-    "content": "\n# Admin Dashboard Overview\n\n## Dashboard Navigation Flow\n\n```\n┌──────────────┐\n│ Login to     │\n│ Base Point   │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Admin        │\n│ Dashboard    │\n└──────┬───────┘\n       │\n       ├─────────────┬─────────────┬─────────────┐\n       ▼             ▼             ▼             ▼\n┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐\n│ Shops    │ │Customers │ │ Staff    │ │ Settings │\n└──────────┘ └──────────┘ └──────────┘ └──────────┘\n       │             │             │             │\n       ▼             ▼             ▼             ▼\n┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐\n│ Manage   │ │ Manage   │ │ Manage   │ │ Configure│\n│ Locations│ │ Database │ │ Users    │ │ System   │\n└──────────┘ └──────────┘ └──────────┘ └──────────┘\n```\n\n## Dashboard Navigation\nThe Admin Dashboard is your central hub for managing all aspects of your Base Point solution.\n\n## Main Sections\n\n### 1. Dashboard\n- Overview of key metrics\n- Quick access to recent activities\n- Performance indicators\n- Module status\n\n### 2. Shops & Branches\n- Manage multiple locations\n- Configure shop settings\n- Track branch performance\n- Transfer inventory\n\n### 3. Customers\n- Customer database\n- Customer profiles\n- Purchase history\n- Communication logs\n\n### 4. Staff & Users\n- User management\n- Role-based access control\n- Permissions configuration\n- Activity tracking\n\n### 5. Settings\n- Company configuration\n- Module settings\n- Integration setup\n- System preferences\n\n## Quick Actions\n- Add new shop\n- Create customer\n- Add staff member\n- Generate reports\n- Access help center\n\n## Customization\n- Configure dashboard widgets\n- Set up notifications\n- Customize views\n- Create shortcuts\n      "
+    "content": "\n# Admin Dashboard Overview\n\nThe **Admin** area is for owners and managers who look after the whole business across all branches.\n\n## Admin menu\n| Item | Purpose |\n|---|---|\n| **Dashboard** | One tab per enabled module (Duka, Pesa, Mteja, Bandu, Dala) |\n| **Business Health** | An overall health score for the business |\n| **Reports** | Consolidated reports for every module |\n| **Branch Management** | Create and manage branches and their POS mode |\n| **Crew Management** | Users, roles and attendance |\n| **Document Center** | Folders, cheques, invoices and contracts |\n| **Chart of Accounts** | Quick link to accounting accounts |\n\nThe top bar gives you **Notifications**, **Billing**, **Settings**, **Discover**, **Help Center** and **Logout**.\n\n## Dashboard tabs\nEach module has its own tab. Every tab has a **period filter** (Day, Week, Month, Year, Custom) and a branch selector where it applies.\n\n- **Duka:** revenue, orders, growth, active shops and shifts, **Sales Pulse** chart, **Top Sellers** and an **Operations Hub** (orders, low stock, purchase orders). A banner appears when items are low or depleted.\n- **Pesa:** financial summary and receivables/payables.\n- **Mteja:** conversations, pipeline, conversion, messaging.\n- **Bandu:** workforce, attendance, leave and payroll.\n- **Dala:** portfolio, rent, commissions and maintenance.\n\nThe tab you last used is remembered.\n\n## Business Health and Biashara AI\n- **Business Health** scores performance across six dimensions (see *Business Health Score*).\n- **Biashara AI** is an assistant that answers questions about your business (see *Biashara AI Assistant*).\n\n## Daily admin routine\n1. Check each dashboard for the day.\n2. Review low-stock and out-of-stock alerts.\n3. Check pending approvals (leave, refunds, petty cash).\n4. Glance at notifications.\n"
   },
   {
     "id": 22,
     "title": "Managing Shops & Branches",
-    "description": "Configure and manage multiple shop locations",
+    "description": "Create branches, pick a POS mode and manage them centrally",
     "type": "article",
-    "readTime": "10 min",
+    "readTime": "2 min",
     "views": 1900,
     "helpful": 155,
-    "content": "\n# Managing Shops & Branches\n\n## Shop Setup Flow\n\n```\n┌──────────────┐\n│ Go to Admin │\n│ > Shops      │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Click Add    │\n│ Shop         │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Enter Basic  │\n│ Info (Name,  │\n│  Address)    │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Select POS   │\n│ Mode         │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Configure    │\n│ Tax &        │\n│ Payments     │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Link         │\n│ Inventory    │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Setup Tables │\n│ (Restaurant) │\n└──────┬───────┘\n       │\n       ▼\n┌──────────────┐\n│ Save &       │\n│ Activate     │\n└──────────────┘\n```\n\n## Adding a New Shop\n\n### Step 1: Basic Information\n1. Go to **Admin > Shops**\n2. Click **Add Shop**\n3. Enter shop name\n4. Add address and contact details\n5. Set operating hours\n\n### Step 2: Configuration\n- Select POS mode (Restaurant/Retail)\n- Configure tax settings\n- Set up receipt templates\n- Configure payment methods\n\n### Step 3: Inventory Setup\n- Link to inventory\n- Set stock levels\n- Configure suppliers\n- Set reorder points\n\n## Managing Multiple Branches\n\n### Branch Operations\n- Transfer inventory between branches\n- Track branch performance\n- Compare sales data\n- Centralized reporting\n\n### Branch Settings\n- Individual branch configuration\n- Local pricing options\n- Branch-specific tax rates\n- Custom payment methods\n\n## Shop Services\n- Configure service types\n- Set up service pricing\n- Manage service availability\n- Track service usage\n\n## Reports\n- Branch performance reports\n- Inventory by location\n- Sales comparison\n- Staff performance by branch\n      "
+    "content": "\n# Managing Shops & Branches\n\nOpen **Branch Management** in the admin menu.\n\n## The branch list\nEach branch shows its **name**, **mode**, **staff** count, **today's revenue**, and location. Use the search box to find branches. Actions include **Open Shop**, **Copy address**, **Print Settings** and **Delete shop**.\n\n## Add a branch\n1. Click **New Branch**.\n2. Enter the **Branch Name**.\n3. Search and confirm the **Location** (the map confirms it).\n4. Choose the **POS Mode**:\n   - **Duka Services**: restaurants and service businesses.\n   - **Retail**: shops with a product counter.\n   - **Hospital**: departments and pharmacy.\n   - **Hotel**: rooms and floors.\n5. Save.\n\n## After creating a branch\n1. Set up **Categories**, **Products/Services** and **Payment Methods**.\n2. In restaurants, add **Table locations and tables**.\n3. In hotels, add **Locations and Rooms**.\n4. Add staff in **Crew Management** and set their branch.\n5. Configure printers and receipt details in **System Setup**.\n\n## Working across branches\nMany pages have a **Branch** filter and an **All Branches** option, so you can compare branches or focus on one. Use **Print Settings** to adjust printing for a specific branch.\n\n## Delete a branch\n**Delete shop** asks you to confirm and cannot be undone. Export any reports you need first.\n"
   },
   {
     "id": 23,
     "title": "Customer Management",
-    "description": "Manage customer data and relationships",
+    "description": "See all customers across branches with spend, orders and gift cards",
     "type": "article",
-    "readTime": "7 min",
+    "readTime": "2 min",
     "views": 2100,
     "helpful": 170,
-    "content": "\n# Customer Management\n\n## Adding Customers\n\n### Manual Entry\n1. Go to **Admin > Customers**\n2. Click **Add Customer**\n3. Enter customer details\n4. Add contact information\n6. Save customer profile\n\n### Import from CSV\n1. Download customer template\n2. Fill in customer data\n3. Upload CSV file\n4. Map fields\n5. Import customers\n\n## Customer Profiles\n\n### Information Tracked\n- Personal details\n- Contact information\n- Purchase history\n- Payment methods\n- Loyalty points\n- Communication preferences\n\n### Customer Segmentation\n- Create customer groups\n- Segment by purchase behavior\n- Target specific segments\n- Custom pricing rules\n\n## Customer Engagement\n\n### Communication\n- Send email campaigns\n- SMS notifications\n- WhatsApp messages\n- Birthday greetings\n\n### Loyalty Programs\n- Points system\n- Reward tiers\n- Special offers\n- Referral bonuses\n\n## Customer Analytics\n- Purchase patterns\n- Lifetime value\n- Churn analysis\n- Satisfaction scores\n      "
+    "content": "\n# Customer Management\n\nIn the admin area, **Customers** shows every customer across all branches.\n\n## The list\nFor each customer you see **name**, **phone**, **email**, **total spent**, **number of orders**, **unreplied messages** and **last visit**. Search and export the list to Excel or PDF.\n\n## Customer details\nOpen a customer to see contact info, documents, engagement, orders and **visit history** with ratings and reviews.\n\n## Gift cards\nAdmins can see all gift cards:\n- **All Gift Cards** and **Customer Gift Cards**\n- **Non-Customer Gift Cards**\n- **Issue New Gift Card** with an amount, recipient, email and expiry date\n- **Preview** and **Send Email**\n\n## Related\nFor adding and importing customers, packages and subscriptions see *Customers, Packages & Gift Cards*.\n"
   },
   {
     "id": 24,
     "title": "System Settings & Configuration",
-    "description": "Configure system-wide settings",
+    "description": "Business profile, receipts, printers, payroll, hotel and more",
     "type": "article",
-    "readTime": "12 min",
+    "readTime": "2 min",
     "views": 2500,
     "helpful": 195,
-    "content": "\n# System Settings & Configuration\n\n## Company Settings\n\n### Basic Information\n- Company name and logo\n- Business address\n- Contact details\n- Tax registration numbers\n\n### Business Configuration\n- Fiscal year settings\n- Currency configuration\n- Time zone settings\n- Date format preferences\n\n## Module Configuration\n\n### Duka Settings\n- POS mode selection\n- Receipt customization\n- Payment method setup\n- Tax configuration\n\n### Pesa Settings\n- Chart of accounts\n- Tax rates\n- Fiscal periods\n- Bank accounts\n\n### Mteja Settings\n- Lead stages\n- Communication templates\n- Sales targets\n- Loyalty rules\n\n### Dala Settings\n- Property types\n- Lease templates\n- Rent schedules\n- Maintenance rules\n\n## Integration Settings\n\n### Payment Gateways\n- Pesapal configuration\n- M-Pesa integration\n- Card payment setup\n- Mobile money options\n\n### Tax Integration\n- Etims setup\n- KRA credentials\n- VAT configuration\n- Compliance settings\n\n### Third-Party Integrations\n- Email services\n- SMS providers\n- Accounting software\n- CRM systems\n\n## Security Settings\n- User authentication\n- Password policies\n- Two-factor authentication\n- Session management\n- Audit logging\n\n## Notification Settings\n- Email notifications\n- SMS alerts\n- In-app notifications\n- Notification preferences\n      "
+    "content": "\n# System Settings & Configuration\n\nThere are two settings areas.\n\n## 1. Settings (tenant level, admin)\nOpen **Settings** in the top bar. Tabs:\n- **Basic Info**: business name, email, phone. It also shows business type, size, created date and **next billing**.\n- **VAT Config**: VAT status, **pricing mode** (Tax Inclusive or Exclusive) and **VAT rate**.\n- **Logo & Branding**: logo and **colour scheme** (Primary, Secondary, Accent, Background) with a live preview.\n\n## 2. System Setup (per branch)\nPick a branch and open **System Setup**. Sections include:\n| Section | What you set |\n|---|---|\n| **Business Profile** | Business name, email, phone, location, social link, KRA PIN, P.O. Box |\n| **Payment Methods** | M-Pesa and bank payment details printed on documents |\n| **Receipt Print Appearance** | Font size and weight with a live preview |\n| **Printer Management** | Print Agent, printers, default printer, category routing, test print |\n| **Printing Controls** | Print limits, saved copies, reprint rules |\n| **Privacy Settings** | Rules such as not printing a bill before it is paid |\n| **Warranty text** | Receipt warranty and note lines |\n| **Notification Settings** | Channels for customer notifications (email, WhatsApp) |\n| **WhatsApp Secondary Alerts** | Extra phone numbers to notify |\n| **Hotel Settings** | Check-in times, WiFi, rules, amenities, policies |\n| **Payroll Settings** | Partial month, payslip header, default allowances |\n| **Biometric Devices** | Attendance device connection |\n| **Secondary Database Sync** | Scheduled sync of data to a second database |\n| **Bank / Payment Details** | Bank info for invoices (pick a bank to auto-fill paybill) |\n\n## Secondary database sync\nAdvanced: enter a MongoDB URI, a daily sync time and timezone, choose which collections to sync (sales and payments, catalogue and stock, purchasing, crew), and **Sync Now** with options for full re-sync. Use only if your IT team asked for it.\n\n## Tips\n- Set the **KRA PIN** and **VAT** before you issue invoices.\n- Test print after every printer change.\n- Review settings after adding a new branch.\n"
+  },
+  {
+    "id": 77,
+    "title": "Users, Roles & Permissions",
+    "description": "Add users, assign roles and control exactly what each person can do",
+    "type": "article",
+    "readTime": "2 min",
+    "views": 0,
+    "helpful": 0,
+    "content": "\n# Users, Roles & Permissions\n\n## Users (Crew Management)\nOpen **Crew Management** or **Staff Management**. You can:\n- **Search** by name or email, and filter by **role**, **branch** and **status**.\n- Add or edit a user: name, username, email, phone, role and branch.\n- Change status:\n  - **Suspend**: cannot log in until reactivated.\n  - **Terminate**: blocks all access; can be reinstated.\n  - **Reactivate / Reinstate**: sets them back to Active.\n  - **Delete**: removes the user (admin users cannot be deleted).\n- Open a user to see **Clock In / Out History**, total shifts, completed and active sessions. Export to Excel or PDF.\n\n## Roles\nOpen **Role Settings**. Each role shows its type and a **Permission Preview**. The list shows **Total** and **Custom** roles. Create a role, name it, and set its permissions.\n\n### The Permission Matrix\nPermissions are grouped by scope (Core POS, Accounting, Dala, Signature and more) and by action: **CREATE**, **READ**, **UPDATE**, **DELETE**, and special actions. Use **Search permissions** and the **All Scopes / All Actions** filters. Tick what the role should be able to do. Pages a user cannot access show *You don't have permission to access*, with a prompt to contact an administrator.\n\n## Departments\n**Departments** organise people across the whole business: department name, **short code**, **parent department**, head, **associated roles** and colour. Open a department to see its **members**, **targets**, **budgets** and sub-departments.\n\n## Best practice\n- Start from the least access and add as needed.\n- Create separate roles for cashier, waiter, manager and accountant.\n- Review roles whenever your team changes.\n"
+  },
+  {
+    "id": 78,
+    "title": "Document Center",
+    "description": "Store folders, invoices, cheques, contracts and more, with AI search",
+    "type": "article",
+    "readTime": "2 min",
+    "views": 0,
+    "helpful": 0,
+    "content": "\n# Document Center\n\n**Document Center** manages your business documents in one place. Open it from the admin menu or the module menus.\n\n## Tabs\n- **All Documents**\n- **Folders**\n- **Cheques**\n- **Invoices**\n\n## Add a document\nClick **New Document** (or **New Folder**) and fill in:\n- **Name** and **Document Type**: Folder, Cheque, Invoice, Quotation, Receipt, Purchase Order, Delivery Note, Credit Note, Contract or Other.\n- **Status**: Draft, Active, Archived or Cancelled.\n- **Description**, counterparty (client or vendor, phone and email), reference number.\n- **Financial details**: issue date, due date, payment terms, subtotal, amount paid, currency and balance.\n- **Cheque details**: cheque number, bank, drawer, payee, amount and cheque date. Cheque status: Received, Pending, Processed or Bounced.\n- **Attachments**: drag and drop PDFs, images, Word or Excel files.\n\nInvoice-type documents track payment: Sent, Approved, Rejected, Paid, Partial or Overdue, with aging buckets such as *Overdue*, *Current (1-30 days)* and *Upcoming (31+ days)*.\n\n## AI search\nTurn on **AI Search** to find documents by what is inside them (extracted content), not only by name. If AI search is unavailable the page tells you and falls back to normal search.\n\n## Open a document\nView the details, attachments and **extracted content**. Edit or delete with confirmation.\n\n## Use in conversations\nIn the Mteja inbox, search your documents by content and share a suggested file with a customer.\n\n## Tips\n- Use folders per customer, supplier or year.\n- Mark settled invoices as Paid and archive old documents.\n"
+  },
+  {
+    "id": 79,
+    "title": "E-Signature",
+    "description": "Upload a document, place signature fields and collect signatures online",
+    "type": "article",
+    "readTime": "2 min",
+    "views": 0,
+    "helpful": 0,
+    "content": "\n# E-Signature\n\n**E-Signature** lets you sign documents yourself or send them to others to sign.\n\n## Upload a document\nClick **Upload Document** and drop a **PDF, PNG, JPG or JPEG** (up to 50 MB). Base processes and verifies it, then opens it.\n\n## The documents list\nCards or list view show each document's status: **Draft**, **Pending Signature**, **Partially Signed**, **Signed** or **Declined**. Search and filter by status. Totals appear at the top.\n\n## Place fields and sign\nOpen a document. Click on the page to place:\n- **Signature** (required or optional)\n- **Initials**\n- **Company Stamp**\n- Date and other fields\n\nDrag to move, copy to another page or duplicate to other pages, and delete when needed.\n\n### Create a signature\n**Add New** then choose:\n- **Draw** with the mouse or finger\n- **Type** your name in styles such as Script, Elegant, Print or Handwritten\n- **Upload** an image (for stamps, a PNG with a transparent background works best)\n\nChoose to **apply to the document**, **save to the library only**, or both. The **Signature Library** and **Stamp Library** let you reuse them.\n\n## Workflows\nClick **Initiate** and choose:\n- **Self-sign (I will sign)**, or\n- **Send for signing (Multiple signers)**: add signers with names and emails.\n\n## Share a signing link\nCreate a **public signing link**. It expires in 24 hours; you can **Regenerate** or **Revoke** it. The signer opens the link, types their name (and email, optionally), adds their signature or stamp, and chooses **Finish signing**.\n\n## After signing\n**Download** the signed copy, or **Share via email**. A signed document shows *Document Signed*. To redo it use **Re-sign** or **Clear & Re-sign**.\n\n## Permissions\nAccess is controlled by the *Signature* scope in Role Settings.\n"
+  },
+  {
+    "id": 80,
+    "title": "Business Health Score",
+    "description": "A 75-point diagnostic of how your business is performing",
+    "type": "article",
+    "readTime": "2 min",
+    "views": 0,
+    "helpful": 0,
+    "content": "\n# Business Health Score\n\nOpen **Business Health** in the admin menu for a diagnostic of your whole business, computed from your live data.\n\n## What it measures\nA comprehensive **75-point audit** across **six business dimensions**. It combines data from Duka transactions, the Pesa general ledger and aging, and Bandu/Mteja workforce, payroll and CRM data. The page shows what data was available and marks anything estimated as **Imputed**.\n\n## What you see\n- **Overall Business Health** score and band.\n- **Performance across 6 dimensions**.\n- **Key Business Strengths** and **Priority Areas for Improvement**.\n- Detailed measures per dimension with the calculated value, score, weight and impact.\n- **Branch** health scores, share of revenue and growth trend.\n- **Aging ledgers** and **supplier traceability**.\n- **Data Coverage & Diagnostics**: which services responded and how many records were read.\n\n## Recalculate\nClick **Recalculate Audit** after you make changes. It takes a short while, and a progress screen shows while it runs. If the diagnostic is unavailable, use **Retry Diagnostic**.\n\n## How to use it\n- Start with the **Priority Areas**.\n- Fix data gaps first (missing costs, unposted entries) since they lower accuracy.\n- Re-run monthly and watch the trend.\n"
+  },
+  {
+    "id": 81,
+    "title": "Biashara AI Assistant",
+    "description": "Ask questions about sales, stock and growth and get an executive brief",
+    "type": "article",
+    "readTime": "2 min",
+    "views": 0,
+    "helpful": 0,
+    "content": "\n# Biashara AI Assistant\n\n**Biashara AI** is an in-app business advisor. Open it from the chat button in the admin area.\n\n## What you can ask\nUse the quick prompts, or type your own question:\n- **Stock Alert Check**: which items are low or out of stock.\n- **Top Velocity Item**: what is selling fastest.\n- **Margin & Growth Tip**: ideas to improve profit and growth.\n\nWhile it works you will see steps such as scanning branch feeds and cross-referencing analytics, and then it gives a short executive brief.\n\n## Business stage\nChoose the stage so advice fits: **Auto (Smart Detect)**, **Early Stage**, **Growth Stage** or **Mature Stage**.\n\n## Tools\n- **Regenerate** a response or **Retry** a prompt.\n- **Export as PDF** to save the brief.\n- **Listen** to a response (sound must be available).\n- **Clear conversation** to start fresh (with confirmation).\n\n## Tips\n- Be specific: include the branch or period.\n- Always check important figures in the reports before acting.\n"
+  },
+  {
+    "id": 82,
+    "title": "Notifications",
+    "description": "Stay on top of bookings, stock alerts and system messages",
+    "type": "article",
+    "readTime": "2 min",
+    "views": 0,
+    "helpful": 0,
+    "content": "\n# Notifications\n\nOpen **Notifications** from the bell in the top bar.\n\n## What you get\n- **New Booking / New Appointment**\n- **Out of Stock** and **Low Inventory**\n- **System** notifications from Base\n\n## Two tabs\n- **My Notifications**\n- **System Notifications**\n\n## Manage them\n- Filter by **type**, **priority** (Medium, High, Urgent) and **status** (read or unread).\n- Open a notification for the full **message**, when it was received, extra info and expiry.\n- **Mark as Read**, **Mark All as Read** or **Delete**.\n- **Reset Filters** to show everything.\n\n## Tip\nTreat **Out of Stock** alerts as a reorder trigger and check **Urgent** items first each morning.\n"
+  },
+  {
+    "id": 83,
+    "title": "Website Builder & FAQs",
+    "description": "Manage your gallery images and your customer FAQs",
+    "type": "article",
+    "readTime": "2 min",
+    "views": 0,
+    "helpful": 0,
+    "content": "\n# Website Builder & FAQs\n\n## Website Builder\nOpen **Website Builder** to build a web presence for your business.\n- **Gallery:** upload images, search them by name, title or description, filter by type (**Products, Store, Banners, Logos, Social Media, Other**), preview, edit and delete.\n- Other sections (**Home Page** builder, **Product Management**, **Contact Page**, **About Page**) are marked **Coming soon**.\n\n## FAQs\nOpen **FAQs** to manage the questions you want customers to see.\n- **Add Category** to group FAQs.\n- **Add FAQ** with a question, category and answer.\n- Delete a category to remove all its FAQs (you are asked to confirm).\n- **FAQ Details** shows the full entry.\n\n## Tip\nKeep gallery images in the correct type so they are easy to find later.\n"
   }
 ]

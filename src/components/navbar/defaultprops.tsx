@@ -146,8 +146,9 @@ const POS_ROUTE_PERMISSIONS: Record<string, string> = {
   "/inventory": "INVENTORY_VIEW",
   "/employee-shift": "SHIFTS_VIEW",
   "/customers": "CUSTOMERS_VIEW",
-  "/reports": "REPORTS_ITEM_SALES|ACCOUNTING_REPORT_PROFIT_LOSS",
+  "/reports": "REPORTS_ITEM_SALES|REPORTS_VIEW|ACCOUNTING_REPORT_PROFIT_LOSS",
   "/documents": "DOCUMENTS_VIEW",
+  "/esign": "SIGNATURE_VIEW",
   "/petty-cash": "ORDERS_VIEW_DASHBOARD",
   "/refunds": "ORDERS_VIEW_DASHBOARD",
   "/Category-settings": "CATEGORIES_VIEW",
@@ -165,10 +166,10 @@ const POS_ROUTE_PERMISSIONS: Record<string, string> = {
 };
 
 const ACCOUNTING_ROUTE_PERMISSIONS: Record<string, string> = {
-  "/accounting": "ACCOUNTING_DASHBOARD_VIEW",
-  "/accounting/dashboard": "ACCOUNTING_DASHBOARD_VIEW",
+  "/accounting": "ACCOUNTING_DASHBOARD_VIEW|ACCOUNTING_COA_VIEW",
+  "/accounting/dashboard": "ACCOUNTING_DASHBOARD_VIEW|ACCOUNTING_COA_VIEW",
   "/home-dashboard": "UNIFIED_DASHBOARD_VIEW",
-  "/orders": "ACCOUNTING_INVOICE_VIEW",
+  "/orders": "ACCOUNTING_INVOICE_VIEW|ORDERS_VIEW",
   "/accounting/sales-receipts": "ACCOUNTING_INCOME_VIEW_HISTORY",
   "/accounting/expenses": "ACCOUNTING_INCOME_POST_EXPENSE",
   "/accounting/bills": "ACCOUNTING_INVOICE_VIEW",
@@ -180,7 +181,7 @@ const ACCOUNTING_ROUTE_PERMISSIONS: Record<string, string> = {
   "/accounting/assets": "ACCOUNTING_ASSETS_VIEW",
   "/accounting/asset-requests": "ACCOUNTING_ASSET_REQUESTS_VIEW",
   "/accounting/asset-maintenance": "ACCOUNTING_ASSET_MAINTENANCE_VIEW",
-  "/reports": "ACCOUNTING_REPORT_PROFIT_LOSS|REPORTS_ITEM_SALES",
+  "/reports": "ACCOUNTING_REPORT_PROFIT_LOSS|REPORTS_ITEM_SALES|REPORTS_VIEW",
   "/accounting/currencies": "ACCOUNTING_COA_VIEW",
   "/inventory": "INVENTORY_VIEW",
   "/customers": "CUSTOMERS_VIEW",
@@ -188,6 +189,7 @@ const ACCOUNTING_ROUTE_PERMISSIONS: Record<string, string> = {
   "/payment-methods": "PAYMENT_METHODS_VIEW",
   "/system-setup": "SYSTEM_SETUP_VIEW",
   "/documents": "DOCUMENTS_VIEW",
+  "/esign": "SIGNATURE_VIEW",
 };
 
 const CRM_ROUTE_PERMISSIONS: Record<string, string> = {
@@ -203,8 +205,9 @@ const CRM_ROUTE_PERMISSIONS: Record<string, string> = {
   "/crm/stock": "INVENTORY_VIEW",
   "/crm/orders": "ORDERS_VIEW",
   "/customers": "CUSTOMERS_VIEW",
-  "/reports": "REPORTS_ITEM_SALES",
+  "/reports": "REPORTS_ITEM_SALES|REPORTS_VIEW",
   "/documents": "DOCUMENTS_VIEW",
+  "/esign": "SIGNATURE_VIEW",
 };
 
 const DALA_ROUTE_PERMISSIONS: Record<string, string> = {
@@ -221,6 +224,7 @@ const DALA_ROUTE_PERMISSIONS: Record<string, string> = {
   "/dala/reports": "DALA_REPORTS_VIEW",
   "/reports": "REPORTS_VIEW",
   "/documents": "DOCUMENTS_VIEW",
+  "/esign": "SIGNATURE_VIEW",
   "/staff-management": "USERS_VIEW",
 };
 
@@ -238,6 +242,7 @@ const BANDU_ROUTE_PERMISSIONS: Record<string, string> = {
   "/hr/leave-approvals": "BANDU_LEAVE_APPROVALS_VIEW",
   "/reports": "REPORTS_VIEW",
   "/documents": "DOCUMENTS_VIEW",
+  "/esign": "SIGNATURE_VIEW",
   "/staff-management": "USERS_VIEW",
 };
 
@@ -254,6 +259,7 @@ const POS_APP_PERMISSIONS: Record<string, string> = {
   "/fss-faqs": "FAQ_VIEW",
   "/website-builder": "GALLERY_VIEW",
   "/documents": "DOCUMENTS_VIEW",
+  "/esign": "SIGNATURE_VIEW",
   // CRM tiles
   "/crm/leads": "CRM_LEADS_VIEW",
   "/crm/campaigns": "CRM_CAMPAIGNS_VIEW",
@@ -264,8 +270,8 @@ const POS_APP_PERMISSIONS: Record<string, string> = {
 };
 
 const ACCOUNTING_APP_PERMISSIONS: Record<string, string> = {
-  "/accounting": "ACCOUNTING_DASHBOARD_VIEW",
-  "/orders": "ACCOUNTING_INVOICE_VIEW",
+  "/accounting": "ACCOUNTING_DASHBOARD_VIEW|ACCOUNTING_COA_VIEW",
+  "/orders": "ACCOUNTING_INVOICE_VIEW|ORDERS_VIEW",
   "/accounting/notes": "ACCOUNTING_NOTES_VIEW",
   "/accounting/journals": "ACCOUNTING_JOURNAL_VIEW",
   "/accounting/sales-receipts": "ACCOUNTING_INCOME_VIEW_HISTORY",
@@ -275,7 +281,7 @@ const ACCOUNTING_APP_PERMISSIONS: Record<string, string> = {
   "/accounting/expenses": "ACCOUNTING_INCOME_POST_EXPENSE",
   "/accounting/bills": "ACCOUNTING_INVOICE_VIEW",
   "/accounting/income": "ACCOUNTING_INCOME_VIEW_HISTORY",
-  "/reports": "ACCOUNTING_REPORT_PROFIT_LOSS",
+  "/reports": "ACCOUNTING_REPORT_PROFIT_LOSS|REPORTS_ITEM_SALES|REPORTS_VIEW",
   "/accounting/currencies": "ACCOUNTING_COA_VIEW",
   "/inventory": "INVENTORY_VIEW",
   "/customers": "CUSTOMERS_VIEW",
@@ -283,6 +289,7 @@ const ACCOUNTING_APP_PERMISSIONS: Record<string, string> = {
   "/payment-methods": "PAYMENT_METHODS_VIEW",
   "/system-setup": "SYSTEM_SETUP_VIEW",
   "/documents": "DOCUMENTS_VIEW",
+  "/esign": "SIGNATURE_VIEW",
   "/omnichannel": "OMNICHANNEL_VIEW",
   "/currencies": "ACCOUNTING_COA_VIEW",
   // CRM tiles
