@@ -29,7 +29,6 @@ export const setTenantBaseUrl = (url: string): void =>
     storeUrl(TENANT_BASE_URL_STORAGE_KEY, url);
 
 export const BASE_URL: string = getApiBaseUrl()
-export const ACCOUNTING_BASE_URL: string = withProtocol(import.meta.env.VITE_ACCOUNTING_BASE_URL)
 export const TENANT_BASE_URL: string = getTenantBaseUrl()
 export const POS_API_KEY: string = import.meta.env.VITE_POS_API_KEY
 export const QR_Code: string = import.meta.env.VITE_QRCODE;
