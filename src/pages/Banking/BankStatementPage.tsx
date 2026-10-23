@@ -172,7 +172,9 @@ const BankStatementPage: React.FC = () => {
     const handleVoid = (record: BankStatementImport) => {
         modal.confirm({
             title: "Void this import?",
-            content: "This will mark the import as voided. Completed transactions are not reversed.",
+            content: record.pushed_count
+                ? `This will mark the import as voided and void the ${record.pushed_count} journal entr${record.pushed_count === 1 ? "y" : "ies"} its completed transactions posted, removing them from the books.`
+                : "This will mark the import as voided.",
             okText: "Void Import",
             okButtonProps: { danger: true },
             onOk: () => voidMutation.mutateAsync(record._id),
@@ -330,35 +332,30 @@ const BankStatementPage: React.FC = () => {
                             <Button icon={<SafetyCertificateOutlined />} size="small" onClick={() => openVerify(r)} />
                         </Tooltip>
                     )}
-                    {r.status !== "Voided" && r.status !== "Fully Pushed" && (
+                    {r.status !== "Voided" && (
                         <Tooltip title="Void Import">
-                            <Popconfirm
-                                title="Void this import?"
-                                onConfirm={() => handleVoid(r)}
-                                okText="Void"
-                                okButtonProps={{ danger: true }}
-                                cancelText="Cancel"
-                            >
-                                <Button icon={<StopOutlined />} size="small" danger />
-                            </Popconfirm>
+                            <Button icon={<StopOutlined />} size="small" danger onClick={() => handleVoid(r)} />
                         </Tooltip>
                     )}
-                    <Popconfirm
-                        title="Delete this import?"
-                        description={
-                            r.pushed_count
-                                ? `${r.imported_rows || 0} transactions will be removed permanently, and the ${r.pushed_count} journal entr${r.pushed_count === 1 ? "y" : "ies"} they posted will be deleted from the books.`
-                                : `${r.imported_rows || 0} transactions will be removed permanently.`
-                        }
-                        onConfirm={() => deleteMutation.mutateAsync(r._id)}
-                        okText="Delete"
-                        okButtonProps={{ danger: true }}
-                        cancelText="Cancel"
-                    >
-                        <Tooltip title="Delete Import">
-                            <Button icon={<DeleteOutlined />} size="small" danger />
-                        </Tooltip>
-                    </Popconfirm>
+                    {/* Completed imports can only be voided, not deleted */}
+                    {r.status !== "Fully Pushed" && (
+                        <Popconfirm
+                            title="Delete this import?"
+                            description={
+                                r.pushed_count
+                                    ? `${r.imported_rows || 0} transactions will be removed permanently, and the ${r.pushed_count} journal entr${r.pushed_count === 1 ? "y" : "ies"} they posted will be deleted from the books.`
+                                    : `${r.imported_rows || 0} transactions will be removed permanently.`
+                            }
+                            onConfirm={() => deleteMutation.mutateAsync(r._id)}
+                            okText="Delete"
+                            okButtonProps={{ danger: true }}
+                            cancelText="Cancel"
+                        >
+                            <Tooltip title="Delete Import">
+                                <Button icon={<DeleteOutlined />} size="small" danger />
+                            </Tooltip>
+                        </Popconfirm>
+                    )}
                 </Space>
             ),
         },
