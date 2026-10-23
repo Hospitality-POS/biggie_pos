@@ -884,8 +884,13 @@ export const voidImport = async (id: string) => {
         const response = await axiosInstance.patch(
             `${BASE_URL}/accounting/bank-reconciliations/bank-imports/${id}/void`
         );
-        message.success("Import voided");
-        return response.data as { message: string };
+        const data = response.data as { message: string; voided_journal_entries?: number };
+        message.success(
+            data.voided_journal_entries
+                ? `Import voided — ${data.voided_journal_entries} journal entr${data.voided_journal_entries === 1 ? "y" : "ies"} voided`
+                : "Import voided"
+        );
+        return data;
     } catch (error: unknown) {
         const axiosError = error as { response?: { data?: { message?: string } } };
         if (axiosError?.response?.data?.message) {
