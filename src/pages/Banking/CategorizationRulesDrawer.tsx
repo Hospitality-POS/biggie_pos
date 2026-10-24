@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
     Drawer, Tabs, Table, Button, Space, Tag, Switch, Typography,
     Popconfirm, Tooltip, Badge, Form, Input, Select, InputNumber,
-    Modal, Row, Col, Divider, Alert, Radio, Checkbox,
+    Modal, Row, Col, Alert, Radio, Checkbox, Steps, Grid, theme,
 } from "antd";
 import {
     PlusOutlined, EditOutlined, DeleteOutlined,
@@ -71,6 +71,21 @@ interface Props {
 }
 
 // ── Rule Form Modal ────────────────────────────────────────────────────────────
+const RULE_STEPS = [
+    { title: "Rule details", description: "Name and scope" },
+    { title: "Criteria", description: "When it matches" },
+    { title: "Categorize as", description: "Account and tax" },
+    { title: "Reference & accounts", description: "Reference, tags, accounts" },
+];
+
+// Form fields validated before leaving each step
+const RULE_STEP_FIELDS: string[][] = [
+    ["name", "apply_to", "transaction_handling"],
+    ["match_type"],
+    ["action_record_type", "action_account_id", "action_target_account_id", "tax_exemption_reason"],
+    ["reference_number", "custom_reference", "associate_accounts", "associated_account_id"],
+];
+
 const RuleFormModal: React.FC<{
     open: boolean;
     onClose: () => void;
@@ -84,6 +99,10 @@ const RuleFormModal: React.FC<{
     const [conditions, setConditions] = useState<Partial<RuleCondition>[]>([{}]);
     const [showTagInput, setShowTagInput] = useState(false);
     const [newTagValue, setNewTagValue] = useState("");
+    const [step, setStep] = useState(0);
+    const screens = Grid.useBreakpoint();
+    const isWide = !!screens.md;
+    const { token } = theme.useToken();
 
     const tenantId = getCurrentTenantId();
     const { data: tenantData } = useQuery({
@@ -94,6 +113,7 @@ const RuleFormModal: React.FC<{
     const tenant = tenantData?.data;
 
     React.useEffect(() => {
+        if (open) setStep(0);
         if (open && editingRule) {
             form.setFieldsValue({
                 name: editingRule.name,
@@ -108,7 +128,7 @@ const RuleFormModal: React.FC<{
                 vat_treatment: editingRule.vat_treatment,
                 tax: editingRule.tax,
                 tax_exemption_reason: editingRule.tax_exemption_reason,
-                reference_number: editingRule.reference_number,
+                reference_number: editingRule.reference_number || "from_bank_statement",
                 custom_reference: editingRule.custom_reference,
                 reporting_tags: editingRule.reporting_tags || [],
                 action_account_id: editingRule.actions?.account_id,
@@ -120,7 +140,7 @@ const RuleFormModal: React.FC<{
             setNewTagValue('');
         } else if (open) {
             form.resetFields();
-            form.setFieldsValue({ reporting_tags: [] });
+            form.setFieldsValue({ reporting_tags: [], reference_number: "from_bank_statement" });
             setConditions([{}]);
             setShowTagInput(false);
             setNewTagValue('');
@@ -153,7 +173,7 @@ const RuleFormModal: React.FC<{
             vat_treatment: values.vat_treatment,
             tax: values.tax,
             tax_exemption_reason: values.tax_exemption_reason,
-            reference_number: values.reference_number,
+            reference_number: values.reference_number || "from_bank_statement",
             custom_reference: values.custom_reference,
             reporting_tags: values.reporting_tags || [],
             conditions: conditions.filter((c) => c.field && c.operator) as RuleCondition[],
@@ -167,6 +187,29 @@ const RuleFormModal: React.FC<{
                 target_account_name: targetAcc?.account_name,
             },
         });
+    };
+
+    // Moving forward validates the current step; moving back never blocks.
+    const goToStep = async (target: number) => {
+        if (target > step) {
+            try {
+                await form.validateFields(RULE_STEP_FIELDS[step]);
+            } catch {
+                return;
+            }
+        }
+        setStep(target);
+    };
+
+    // On submit, jump to the step holding the first invalid field.
+    const handleSubmit = async () => {
+        try {
+            await handleOk();
+        } catch (err: any) {
+            const field = err?.errorFields?.[0]?.name?.[0];
+            const idx = RULE_STEP_FIELDS.findIndex((names) => names.includes(field));
+            if (idx >= 0) setStep(idx);
+        }
     };
 
     const accountOptions = accounts.map((a: any) => ({
@@ -183,321 +226,383 @@ const RuleFormModal: React.FC<{
             open={open}
             title={editingRule ? "Edit Rule" : "Create Categorization Rule"}
             onCancel={onClose}
-            onOk={handleOk}
-            confirmLoading={loading}
-            okText={editingRule ? "Save Changes" : "Create Rule"}
-            width={680}
+            width={880}
+            style={{ top: 40, maxWidth: "calc(100vw - 32px)" }}
             destroyOnClose
+            footer={[
+                <Button key="cancel" onClick={onClose}>Cancel</Button>,
+                step > 0 && (
+                    <Button key="back" onClick={() => setStep(step - 1)}>Back</Button>
+                ),
+                step < RULE_STEPS.length - 1 ? (
+                    <Button key="next" type="primary" onClick={() => goToStep(step + 1)}>Next</Button>
+                ) : (
+                    <Button key="submit" type="primary" loading={loading} onClick={handleSubmit}>
+                        {editingRule ? "Save Changes" : "Create Rule"}
+                    </Button>
+                ),
+            ]}
         >
-            <Form form={form} layout="vertical">
-                <Form.Item name="name" label="Rule Name" rules={[{ required: true }]}>
-                    <Input placeholder="e.g. Match Safaricom payments" />
-                </Form.Item>
-
-                <Form.Item name="apply_to" label="Apply To" initialValue="deposits">
-                    <Radio.Group>
-                        <Radio value="deposits">Deposit</Radio>
-                        <Radio value="withdrawals">Withdrawal</Radio>
-                    </Radio.Group>
-                </Form.Item>
-
-                <Form.Item name="transaction_handling" label="Transaction Handling" initialValue="recognized">
-                    <Radio.Group>
-                        <Radio value="recognized">Recognized transactions</Radio>
-                        <Radio value="categorized">Categorized transactions</Radio>
-                    </Radio.Group>
-                </Form.Item>
-
-                <Form.Item name="auto_categorize" valuePropName="checked" initialValue={false}>
-                    <Checkbox>Allow Base to categorize my bank statements</Checkbox>
-                </Form.Item>
-
-                <Row gutter={8} align="middle" style={{ marginBottom: 16 }}>
-                    <Col span={12}>
-                        <Text type="secondary" style={{ fontSize: 12 }}>Categorize the transactions when</Text>
-                    </Col>
-                    <Col span={9}>
-                        <Select 
-                            value={form.getFieldValue("match_type") || "all"}
-                            onChange={(v) => form.setFieldsValue({ match_type: v })}
-                            options={[
-                                { label: "All the following criteria matches", value: "all" },
-                                { label: "Any of the following criteria matches", value: "any" },
-                            ]} 
-                            style={{ width: "100%" }}
-                            size="small"
-                        />
-                    </Col>
-                    <Col span={3}>
-                        <div></div>
-                    </Col>
-                </Row>
-
-                {conditions.map((cond, i) => {
-                    const opsGroup = cond.field ? getOperatorGroup(cond.field) : "string";
-                    const ops = OPERATOR_OPTIONS[opsGroup] || [];
-                    return (
-                        <Row key={i} gutter={8} align="middle" style={{ marginBottom: 8 }}>
-                            <Col span={6}>
-                                <Select
-                                    placeholder="Field"
-                                    options={FIELD_OPTIONS}
-                                    value={cond.field}
-                                    onChange={(v) => updateCondition(i, { field: v, operator: undefined as any })}
-                                    style={{ width: "100%" }}
-                                />
-                            </Col>
-                            <Col span={6}>
-                                <Select
-                                    placeholder="Operator"
-                                    options={ops}
-                                    value={cond.operator}
-                                    onChange={(v) => updateCondition(i, { operator: v })}
-                                    style={{ width: "100%" }}
-                                    disabled={!cond.field}
-                                />
-                            </Col>
-                            <Col span={9}>
-                                {cond.field === "direction" ? (
-                                    <Select
-                                        placeholder="debit or credit"
-                                        options={[{ label: "Debit", value: "debit" }, { label: "Credit", value: "credit" }]}
-                                        value={cond.value}
-                                        onChange={(v) => updateCondition(i, { value: v })}
-                                        style={{ width: "100%" }}
-                                    />
-                                ) : cond.operator === "between" ? (
-                                    <Space.Compact style={{ width: "100%" }}>
-                                        <InputNumber
-                                            placeholder="Min"
-                                            value={cond.value as any}
-                                            onChange={(v) => updateCondition(i, { value: String(v) })}
-                                            style={{ width: "50%" }}
-                                        />
-                                        <InputNumber
-                                            placeholder="Max"
-                                            value={cond.value2 as any}
-                                            onChange={(v) => updateCondition(i, { value2: String(v) })}
-                                            style={{ width: "50%" }}
-                                        />
-                                    </Space.Compact>
-                                ) : (
-                                    <Input
-                                        placeholder="Match value"
-                                        value={cond.value}
-                                        onChange={(e) => updateCondition(i, { value: e.target.value })}
-                                    />
-                                )}
-                            </Col>
-                            <Col span={3}>
-                                <Button danger size="small" onClick={() => removeCondition(i)} disabled={conditions.length === 1}>
-                                    ✕
-                                </Button>
-                            </Col>
-                        </Row>
-                    );
-                })}
-                <Button type="dashed" onClick={addCondition} size="small" icon={<PlusOutlined />} style={{ marginBottom: 16 }}>
-                    Add criterion
-                </Button>
-
-                <Form.Item name="action_record_type" label="Record As">
-                    <Select
-                        placeholder="Select type..."
-                        options={[
-                            { label: "Income", value: "income" },
-                            { label: "Expense", value: "expense" },
-                            { label: "Transfer", value: "transfer" },
-                            { label: "Refund", value: "refund" },
-                        ]}
-                        allowClear
+            <div style={{ display: "flex", flexDirection: isWide ? "row" : "column", gap: 24, minHeight: isWide ? 420 : undefined }}>
+                <div
+                    style={isWide
+                        ? { width: 200, flexShrink: 0, paddingTop: 8, paddingRight: 16, borderRight: `1px solid ${token.colorSplit}` }
+                        : { paddingTop: 8 }}
+                >
+                    <Steps
+                        direction={isWide ? "vertical" : "horizontal"}
+                        size="small"
+                        current={step}
+                        onChange={goToStep}
+                        items={RULE_STEPS}
                     />
-                </Form.Item>
+                </div>
 
-                <Form.Item name="action_account_id" label="account">
-                    <Select
-                        placeholder="Select account..."
-                        options={accountOptions}
-                        showSearch
-                        optionFilterProp="label"
-                        allowClear
-                    />
-                </Form.Item>
-
-                <Form.Item noStyle shouldUpdate={(prev, curr) => prev.action_record_type !== curr.action_record_type}>
-                    {({ getFieldValue }) =>
-                        getFieldValue("action_record_type") === "transfer" ? (
-                            <Form.Item name="action_target_account_id" label="Target Account (for transfers)">
-                                <Select
-                                    placeholder="Select target account..."
-                                    options={accountOptions}
-                                    showSearch
-                                    optionFilterProp="label"
-                                    allowClear
-                                />
+                <div style={{ flex: 1, minWidth: 0, paddingTop: 8 }}>
+                    <Form form={form} layout="vertical" requiredMark>
+                        {/* ── Step 1: Rule details ── */}
+                        <div style={{ display: step === 0 ? "block" : "none" }}>
+                            <Form.Item name="name" label="Rule Name" rules={[{ required: true, message: "Please enter a rule name" }]}>
+                                <Input placeholder="e.g. Match Safaricom payments" />
                             </Form.Item>
-                        ) : null
-                    }
-                </Form.Item>
 
-                <Form.Item name="vendor_id" label="Vendor">
-                    <Select
-                        placeholder="Select vendor..."
-                        options={supplierOptions}
-                        showSearch
-                        optionFilterProp="label"
-                        allowClear
-                    />
-                </Form.Item>
-
-                <Form.Item name="vat_treatment" label="Vat Treatment">
-                    <Select
-                        placeholder="Select vat treatment..."
-                        options={[
-                            { label: "Vat Registered", value: "vat_registered" },
-                            { label: "Non Vat registered", value: "non_vat_registered" },
-                        ]}
-                        disabled={!tenant?.is_vat_enabled}
-                    />
-                </Form.Item>
-
-                <Row gutter={12}>
-                    <Col span={12}>
-                        <Form.Item name="tax" label="Tax">
-                            <Select
-                                placeholder="Select tax..."
-                                options={[
-                                    { label: "Taxable", value: "taxable" },
-                                    { label: "Exempt", value: "exempt" },
-                                ]}
-                            />
-                        </Form.Item>
-                    </Col>
-                    <Col span={12}>
-                        <Form.Item noStyle shouldUpdate={(prev, curr) => prev.tax !== curr.tax}>
-                            {({ getFieldValue }) =>
-                                getFieldValue("tax") === "exempt" ? (
-                                    <Form.Item name="tax_exemption_reason" label="Tax Exemption Reason">
-                                        <Input placeholder="Enter exemption reason..." />
+                            <Row gutter={16}>
+                                <Col xs={24} md={12}>
+                                    <Form.Item name="apply_to" label="Apply To" initialValue="deposits" rules={[{ required: true }]}>
+                                        <Radio.Group>
+                                            <Radio value="deposits">Deposit</Radio>
+                                            <Radio value="withdrawals">Withdrawal</Radio>
+                                        </Radio.Group>
                                     </Form.Item>
-                                ) : null
-                            }
-                        </Form.Item>
-                    </Col>
-                </Row>
+                                </Col>
+                                <Col xs={24} md={12}>
+                                    <Form.Item name="transaction_handling" label="Transaction Handling" initialValue="recognized" rules={[{ required: true }]}>
+                                        <Radio.Group>
+                                            <Radio value="recognized">Recognized</Radio>
+                                            <Radio value="categorized">Categorized</Radio>
+                                        </Radio.Group>
+                                    </Form.Item>
+                                </Col>
+                            </Row>
 
-                <Form.Item name="reference_number" label="Reference Number">
-                    <Select
-                        placeholder="Select reference number..."
-                        options={[
-                            { label: "Use value from bank statement", value: "from_bank_statement" },
-                            { label: "Custom", value: "custom" },
-                        ]}
-                    />
-                </Form.Item>
-
-                <Form.Item noStyle shouldUpdate={(prev, curr) => prev.reference_number !== curr.reference_number}>
-                    {({ getFieldValue }) =>
-                        getFieldValue("reference_number") === "custom" ? (
-                            <Form.Item name="custom_reference" label="Custom Reference">
-                                <Input placeholder="Enter custom reference..." />
+                            <Form.Item name="auto_categorize" valuePropName="checked" initialValue={false}>
+                                <Checkbox>Allow Base to categorize my bank statements</Checkbox>
                             </Form.Item>
-                        ) : null
-                    }
-                </Form.Item>
+                        </div>
 
-                <Form.Item name="reporting_tags" label="Reporting Tags">
-                    <Form.List name="reporting_tags">
-                        {(fields, { add, remove }) => (
-                            <div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                                    {fields.map((field) => (
-                                        <Tag key={field.key} closable onClose={() => remove(field.name)}>
-                                            {form.getFieldValue(['reporting_tags', field.name])}
-                                        </Tag>
-                                    ))}
-                                    <Button 
-                                        type="dashed" 
-                                        size="small" 
-                                        icon={<TagOutlined />}
-                                        onClick={() => setShowTagInput(!showTagInput)}
-                                    >
-                                        {showTagInput ? 'Cancel' : 'Add Tag'}
-                                    </Button>
-                                </div>
-                                {showTagInput && (
-                                    <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
-                                        <Input
-                                            placeholder="Enter reporting tag..."
-                                            value={newTagValue}
-                                            onChange={(e) => setNewTagValue(e.target.value)}
-                                            onPressEnter={(e) => {
-                                                e.preventDefault();
-                                                if (newTagValue.trim()) {
-                                                    add(newTagValue.trim());
-                                                    setNewTagValue('');
-                                                    setShowTagInput(false);
-                                                }
-                                            }}
-                                            style={{ flex: 1 }}
-                                        />
-                                        <Button 
-                                            type="primary" 
-                                            size="small"
-                                            onClick={() => {
-                                                if (newTagValue.trim()) {
-                                                    add(newTagValue.trim());
-                                                    setNewTagValue('');
-                                                    setShowTagInput(false);
-                                                }
-                                            }}
-                                        >
-                                            Add
-                                        </Button>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </Form.List>
-                </Form.Item>
-
-                <Divider orientation="left" plain>
-                    <Text type="secondary" style={{ fontSize: 12 }}>Associate Accounts</Text>
-                </Divider>
-
-                <Form.Item name="associate_accounts" label="Associate Accounts" initialValue="all_accounts">
-                    <Radio.Group>
-                        <Radio value="all_accounts">All Accounts</Radio>
-                        <Radio value="all_banks">All Banks</Radio>
-                        <Radio value="all_cards">All Cards</Radio>
-                        <Radio value="custom">Custom</Radio>
-                    </Radio.Group>
-                </Form.Item>
-
-                <Form.Item noStyle shouldUpdate={(prev, curr) => prev.associate_accounts !== curr.associate_accounts}>
-                    {({ getFieldValue }) =>
-                        getFieldValue("associate_accounts") === "custom" ? (
-                            <Form.Item name="associated_account_id" label="Select Accounts">
+                        {/* ── Step 2: Criteria ── */}
+                        <div style={{ display: step === 1 ? "block" : "none" }}>
+                            <Form.Item name="match_type" label="Categorize the transactions when" initialValue="all">
                                 <Select
-                                    placeholder="Select accounts..."
-                                    options={accountOptions}
-                                    showSearch
-                                    optionFilterProp="label"
-                                    allowClear
-                                    mode="multiple"
+                                    options={[
+                                        { label: "All the following criteria match", value: "all" },
+                                        { label: "Any of the following criteria match", value: "any" },
+                                    ]}
+                                    style={{ maxWidth: 320 }}
                                 />
                             </Form.Item>
-                        ) : null
-                    }
-                </Form.Item>
 
-                <Alert
-                    message="Depending on selected record as, some associate account options may be disabled"
-                    type="info"
-                    showIcon
-                    style={{ fontSize: 11, marginTop: 8 }}
-                />
-            </Form>
+                            {conditions.map((cond, i) => {
+                                const opsGroup = cond.field ? getOperatorGroup(cond.field) : "string";
+                                const ops = OPERATOR_OPTIONS[opsGroup] || [];
+                                return (
+                                    <Row key={i} gutter={8} align="middle" style={{ marginBottom: 8 }}>
+                                        <Col span={7}>
+                                            <Select
+                                                placeholder="Field"
+                                                options={FIELD_OPTIONS}
+                                                value={cond.field}
+                                                onChange={(v) => updateCondition(i, { field: v, operator: undefined as any })}
+                                                style={{ width: "100%" }}
+                                            />
+                                        </Col>
+                                        <Col span={7}>
+                                            <Select
+                                                placeholder="Operator"
+                                                options={ops}
+                                                value={cond.operator}
+                                                onChange={(v) => updateCondition(i, { operator: v })}
+                                                style={{ width: "100%" }}
+                                                disabled={!cond.field}
+                                            />
+                                        </Col>
+                                        <Col span={8}>
+                                            {cond.field === "direction" ? (
+                                                <Select
+                                                    placeholder="debit or credit"
+                                                    options={[{ label: "Debit", value: "debit" }, { label: "Credit", value: "credit" }]}
+                                                    value={cond.value}
+                                                    onChange={(v) => updateCondition(i, { value: v })}
+                                                    style={{ width: "100%" }}
+                                                />
+                                            ) : cond.operator === "between" ? (
+                                                <Space.Compact style={{ width: "100%" }}>
+                                                    <InputNumber
+                                                        placeholder="Min"
+                                                        value={cond.value as any}
+                                                        onChange={(v) => updateCondition(i, { value: String(v) })}
+                                                        style={{ width: "50%" }}
+                                                    />
+                                                    <InputNumber
+                                                        placeholder="Max"
+                                                        value={cond.value2 as any}
+                                                        onChange={(v) => updateCondition(i, { value2: String(v) })}
+                                                        style={{ width: "50%" }}
+                                                    />
+                                                </Space.Compact>
+                                            ) : (
+                                                <Input
+                                                    placeholder="Match value"
+                                                    value={cond.value}
+                                                    onChange={(e) => updateCondition(i, { value: e.target.value })}
+                                                />
+                                            )}
+                                        </Col>
+                                        <Col span={2}>
+                                            <Button danger size="small" onClick={() => removeCondition(i)} disabled={conditions.length === 1}>
+                                                ✕
+                                            </Button>
+                                        </Col>
+                                    </Row>
+                                );
+                            })}
+                            <Button type="dashed" onClick={addCondition} size="small" icon={<PlusOutlined />}>
+                                Add criterion
+                            </Button>
+                        </div>
+
+                        {/* ── Step 3: Categorize as ── */}
+                        <div style={{ display: step === 2 ? "block" : "none" }}>
+                            <Row gutter={16}>
+                                <Col xs={24} md={12}>
+                                    <Form.Item name="action_record_type" label="Record As">
+                                        <Select
+                                            placeholder="Select type..."
+                                            options={[
+                                                { label: "Income", value: "income" },
+                                                { label: "Expense", value: "expense" },
+                                                { label: "Transfer", value: "transfer" },
+                                                { label: "Refund", value: "refund" },
+                                            ]}
+                                            allowClear
+                                        />
+                                    </Form.Item>
+                                </Col>
+                                <Col xs={24} md={12}>
+                                    <Form.Item name="action_account_id" label="Account">
+                                        <Select
+                                            placeholder="Select account..."
+                                            options={accountOptions}
+                                            showSearch
+                                            optionFilterProp="label"
+                                            allowClear
+                                        />
+                                    </Form.Item>
+                                </Col>
+                            </Row>
+
+                            <Form.Item noStyle shouldUpdate={(prev, curr) => prev.action_record_type !== curr.action_record_type}>
+                                {({ getFieldValue }) =>
+                                    getFieldValue("action_record_type") === "transfer" ? (
+                                        <Form.Item name="action_target_account_id" label="Target Account (for transfers)">
+                                            <Select
+                                                placeholder="Select target account..."
+                                                options={accountOptions}
+                                                showSearch
+                                                optionFilterProp="label"
+                                                allowClear
+                                            />
+                                        </Form.Item>
+                                    ) : null
+                                }
+                            </Form.Item>
+
+                            <Row gutter={16}>
+                                <Col xs={24} md={12}>
+                                    <Form.Item name="vendor_id" label="Vendor">
+                                        <Select
+                                            placeholder="Select vendor..."
+                                            options={supplierOptions}
+                                            showSearch
+                                            optionFilterProp="label"
+                                            allowClear
+                                        />
+                                    </Form.Item>
+                                </Col>
+                                <Col xs={24} md={12}>
+                                    <Form.Item name="vat_treatment" label="Vat Treatment">
+                                        <Select
+                                            placeholder="Select vat treatment..."
+                                            options={[
+                                                { label: "Vat Registered", value: "vat_registered" },
+                                                { label: "Non Vat registered", value: "non_vat_registered" },
+                                            ]}
+                                            disabled={!tenant?.is_vat_enabled}
+                                        />
+                                    </Form.Item>
+                                </Col>
+                            </Row>
+
+                            <Row gutter={16}>
+                                <Col xs={24} md={12}>
+                                    <Form.Item name="tax" label="Tax">
+                                        <Select
+                                            placeholder="Select tax..."
+                                            options={[
+                                                { label: "Taxable", value: "taxable" },
+                                                { label: "Exempt", value: "exempt" },
+                                            ]}
+                                        />
+                                    </Form.Item>
+                                </Col>
+                                <Col xs={24} md={12}>
+                                    <Form.Item noStyle shouldUpdate={(prev, curr) => prev.tax !== curr.tax}>
+                                        {({ getFieldValue }) =>
+                                            getFieldValue("tax") === "exempt" ? (
+                                                <Form.Item
+                                                    name="tax_exemption_reason"
+                                                    label="Tax Exemption Reason"
+                                                    rules={[{ required: true, message: "Please enter the exemption reason" }]}
+                                                >
+                                                    <Input placeholder="Enter exemption reason..." />
+                                                </Form.Item>
+                                            ) : null
+                                        }
+                                    </Form.Item>
+                                </Col>
+                            </Row>
+                        </div>
+
+                        {/* ── Step 4: Reference & accounts ── */}
+                        <div style={{ display: step === 3 ? "block" : "none" }}>
+                            <Row gutter={16}>
+                                <Col xs={24} md={12}>
+                                    <Form.Item
+                                        name="reference_number"
+                                        label="Reference Number"
+                                        rules={[{ required: true, message: "Please select a reference number option" }]}
+                                    >
+                                        <Select
+                                            placeholder="Select reference number..."
+                                            options={[
+                                                { label: "Use value from bank statement", value: "from_bank_statement" },
+                                                { label: "Custom", value: "custom" },
+                                            ]}
+                                        />
+                                    </Form.Item>
+                                </Col>
+                                <Col xs={24} md={12}>
+                                    <Form.Item noStyle shouldUpdate={(prev, curr) => prev.reference_number !== curr.reference_number}>
+                                        {({ getFieldValue }) =>
+                                            getFieldValue("reference_number") === "custom" ? (
+                                                <Form.Item
+                                                    name="custom_reference"
+                                                    label="Custom Reference"
+                                                    rules={[{ required: true, message: "Please enter a custom reference" }]}
+                                                >
+                                                    <Input placeholder="Enter custom reference..." />
+                                                </Form.Item>
+                                            ) : null
+                                        }
+                                    </Form.Item>
+                                </Col>
+                            </Row>
+
+                            <Form.Item name="reporting_tags" label="Reporting Tags">
+                                <Form.List name="reporting_tags">
+                                    {(fields, { add, remove }) => (
+                                        <div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                                                {fields.map((field) => (
+                                                    <Tag key={field.key} closable onClose={() => remove(field.name)}>
+                                                        {form.getFieldValue(['reporting_tags', field.name])}
+                                                    </Tag>
+                                                ))}
+                                                <Button
+                                                    type="dashed"
+                                                    size="small"
+                                                    icon={<TagOutlined />}
+                                                    onClick={() => setShowTagInput(!showTagInput)}
+                                                >
+                                                    {showTagInput ? 'Cancel' : 'Add Tag'}
+                                                </Button>
+                                            </div>
+                                            {showTagInput && (
+                                                <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+                                                    <Input
+                                                        placeholder="Enter reporting tag..."
+                                                        value={newTagValue}
+                                                        onChange={(e) => setNewTagValue(e.target.value)}
+                                                        onPressEnter={(e) => {
+                                                            e.preventDefault();
+                                                            if (newTagValue.trim()) {
+                                                                add(newTagValue.trim());
+                                                                setNewTagValue('');
+                                                                setShowTagInput(false);
+                                                            }
+                                                        }}
+                                                        style={{ flex: 1 }}
+                                                    />
+                                                    <Button
+                                                        type="primary"
+                                                        size="small"
+                                                        onClick={() => {
+                                                            if (newTagValue.trim()) {
+                                                                add(newTagValue.trim());
+                                                                setNewTagValue('');
+                                                                setShowTagInput(false);
+                                                            }
+                                                        }}
+                                                    >
+                                                        Add
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </Form.List>
+                            </Form.Item>
+
+                            <Form.Item name="associate_accounts" label="Associate Accounts" initialValue="all_accounts" rules={[{ required: true }]}>
+                                <Radio.Group>
+                                    <Radio value="all_accounts">All Accounts</Radio>
+                                    <Radio value="all_banks">All Banks</Radio>
+                                    <Radio value="all_cards">All Cards</Radio>
+                                    <Radio value="custom">Custom</Radio>
+                                </Radio.Group>
+                            </Form.Item>
+
+                            <Form.Item noStyle shouldUpdate={(prev, curr) => prev.associate_accounts !== curr.associate_accounts}>
+                                {({ getFieldValue }) =>
+                                    getFieldValue("associate_accounts") === "custom" ? (
+                                        <Form.Item
+                                            name="associated_account_id"
+                                            label="Select Accounts"
+                                            rules={[{ required: true, message: "Please select at least one account" }]}
+                                        >
+                                            <Select
+                                                placeholder="Select accounts..."
+                                                options={accountOptions}
+                                                showSearch
+                                                optionFilterProp="label"
+                                                allowClear
+                                                mode="multiple"
+                                            />
+                                        </Form.Item>
+                                    ) : null
+                                }
+                            </Form.Item>
+
+                            <Alert
+                                message="Depending on selected record as, some associate account options may be disabled"
+                                type="info"
+                                showIcon
+                                style={{ fontSize: 11 }}
+                            />
+                        </div>
+                    </Form>
+                </div>
+            </div>
         </Modal>
     );
 };
