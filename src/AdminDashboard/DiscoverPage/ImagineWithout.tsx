@@ -14,6 +14,8 @@ interface Piece {
   integrationId: string;
   emoji: string;
   without: { title: string; pain: string };
+  /** The separate solution a business would need for this without Basepoint */
+  need: string;
   with: { app: string; text: string; color: string };
   /** Scattered position (centre, % of the stage) and tilt */
   mess: { x: number; y: number; r: number };
@@ -28,6 +30,7 @@ const PIECES: Piece[] = [
     integrationId: "relia_pos",
     emoji: "📊",
     without: { title: "Stock in a spreadsheet", pain: "Counted by hand, never matches the shelf" },
+    need: "Inventory software",
     with: { app: "Duka", text: "Live stock on every sale", color: "#3b82f6" },
     mess: { x: 20, y: 18, r: -7 },
     tidy: { x: 50, y: 11 },
@@ -37,6 +40,7 @@ const PIECES: Piece[] = [
     integrationId: "relia_pos",
     emoji: "🧾",
     without: { title: "Paper receipt books", pain: "End-of-day totals added up on a calculator" },
+    need: "A POS & billing system",
     with: { app: "Duka", text: "POS, tables, rooms & receipts", color: "#3b82f6" },
     mess: { x: 76, y: 16, r: 6 },
     tidy: { x: 78, y: 25 },
@@ -46,6 +50,7 @@ const PIECES: Piece[] = [
     integrationId: "relia_accounting",
     emoji: "🧮",
     without: { title: "Accountant re-types sales", pain: "Books are weeks behind the till" },
+    need: "Accounting software",
     with: { app: "Pesa", text: "Sales post to the books automatically", color: "#10b981" },
     mess: { x: 47, y: 38, r: 4 },
     tidy: { x: 84, y: 50 },
@@ -55,6 +60,7 @@ const PIECES: Piece[] = [
     integrationId: "relia_payroll",
     emoji: "💼",
     without: { title: "Payroll in Excel", pain: "PAYE, NSSF & SHA worked out by hand every month" },
+    need: "Payroll software",
     with: { app: "Bandu HR", text: "Payroll, payslips, P9s & leave", color: "#f59e0b" },
     mess: { x: 80, y: 48, r: -5 },
     tidy: { x: 78, y: 76 },
@@ -64,6 +70,7 @@ const PIECES: Piece[] = [
     integrationId: "relia_payroll",
     emoji: "📝",
     without: { title: "Paper forms in a drawer", pain: "Consent, onboarding & NDA forms lost or unsigned" },
+    need: "An e-signature & forms tool",
     with: { app: "Forms & Plans", text: "E-signed forms, onboarding & treatment plans", color: "#8b5cf6" },
     mess: { x: 18, y: 56, r: 8 },
     tidy: { x: 50, y: 88 },
@@ -73,6 +80,7 @@ const PIECES: Piece[] = [
     integrationId: "mteja",
     emoji: "💬",
     without: { title: "Orders in personal WhatsApp", pain: "Messages missed when the phone walks out the door" },
+    need: "A shared WhatsApp inbox / CRM",
     with: { app: "Mteja", text: "One shared WhatsApp inbox that sells", color: "#6366f1" },
     mess: { x: 56, y: 68, r: -4 },
     tidy: { x: 22, y: 76 },
@@ -82,6 +90,7 @@ const PIECES: Piece[] = [
     integrationId: "dala",
     emoji: "🏠",
     without: { title: "Rent in a notebook", pain: "Who paid? Who's late? Nobody's sure" },
+    need: "Property management software",
     with: { app: "Dala", text: "Units, tenants & rent collection", color: "#14b8a6" },
     mess: { x: 28, y: 84, r: 5 },
     tidy: { x: 16, y: 50 },
@@ -91,6 +100,7 @@ const PIECES: Piece[] = [
     integrationId: "etims",
     emoji: "🏛️",
     without: { title: "KRA invoices done separately", pain: "Re-keyed into the portal, penalties if late" },
+    need: "An eTIMS invoicing system",
     with: { app: "eTIMS", text: "Tax invoices sent to KRA as you sell", color: "#4f46e5" },
     mess: { x: 78, y: 82, r: -8 },
     tidy: { x: 22, y: 25 },
@@ -301,7 +311,7 @@ const ImagineWithout: React.FC<{ onLearnMore: (integrationId: string) => void }>
           zIndex: 2,
         }}
       >
-        <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: -0.5 }}>Basepoint</div>
+        <img src="/relia.png" alt="Basepoint" style={{ width: 104, height: "auto", objectFit: "contain" }} />
         <div style={{ fontSize: 11, opacity: 0.85, marginTop: 2 }}>one system, one login</div>
       </div>
 
@@ -397,6 +407,41 @@ const ImagineWithout: React.FC<{ onLearnMore: (integrationId: string) => void }>
           </div>
         ))}
       </div>
+
+      {!tidy && (
+        <div
+          style={{
+            marginTop: 16,
+            background: "#fffbeb",
+            border: "1px solid #fde68a",
+            borderRadius: 12,
+            padding: isPhone ? 12 : "14px 18px",
+          }}
+        >
+          <Text strong style={{ fontSize: 13.5, color: "#334155", display: "block" }}>
+            Without Basepoint, you'd need {PIECES.length} separate solutions
+          </Text>
+          <Text style={{ fontSize: 12, color: C.subText, display: "block", marginBottom: 12 }}>
+            Each with its own login, subscription and data that has to be re-typed into the others.
+          </Text>
+          <div style={{ display: "grid", gridTemplateColumns: isPhone ? "1fr" : screens.lg ? "repeat(4, 1fr)" : "repeat(2, 1fr)", gap: 8 }}>
+            {PIECES.map((p, i) => (
+              <div
+                key={p.key}
+                style={{ display: "flex", alignItems: "flex-start", gap: 8, background: "#fff", border: "1px solid #fde68a", borderRadius: 10, padding: "8px 10px" }}
+              >
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#b45309", minWidth: 16 }}>{i + 1}.</span>
+                <div style={{ minWidth: 0 }}>
+                  <Text strong style={{ fontSize: 12.5, color: "#334155", display: "block", lineHeight: 1.3 }}>{p.need}</Text>
+                  <Text style={{ fontSize: 11.5, color: C.subText, lineHeight: 1.35 }}>
+                    In Basepoint: <span style={{ color: p.with.color, fontWeight: 600 }}>{p.with.app}</span>
+                  </Text>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {!tidy && (
         <div style={{ textAlign: "center", marginTop: 14 }}>

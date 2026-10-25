@@ -44,6 +44,7 @@ import {
     SignatureOutlined,
     BulbOutlined,
     AppstoreOutlined,
+    LaptopOutlined,
 } from "@ant-design/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -68,6 +69,7 @@ import pesapalApi from "@services/pesapalApi";
 import { THEME_C } from "@utils/getPrimaryColor";
 import { isTenantModuleEnabled, TenantModuleId } from "@utils/tenantModules";
 import ImagineWithout from "./ImagineWithout";
+import AccessChannels from "./AccessChannels";
 
 const { Text, Title } = Typography;
 
@@ -722,12 +724,13 @@ const LearnMoreModal: React.FC<{
 };
 
 // ── Main page ──────────────────────────────────────────────────────────────────
-type DiscoverTab = "imagine" | "products";
+type DiscoverTab = "imagine" | "products" | "access";
 
 const DiscoverPage: React.FC = () => {
     // ?tab=imagine | products keeps the tab across reloads and shared links
     const [params, setParams] = useSearchParams();
-    const tab: DiscoverTab = params.get("tab") === "products" ? "products" : "imagine";
+    const tabParam = params.get("tab");
+    const tab: DiscoverTab = tabParam === "imagine" || tabParam === "access" ? tabParam : "products";
     const [selectedIntegration, setSelectedIntegration] = useState<(typeof INTEGRATIONS)[0] | null>(null);
     const [learnMoreOpen, setLearnMoreOpen] = useState(false);
     const [pesapalModalOpen, setPesapalModalOpen] = useState(false);
@@ -1042,8 +1045,9 @@ const DiscoverPage: React.FC = () => {
                 activeKey={tab}
                 onChange={(key) => setParams({ tab: key }, { replace: true })}
                 items={[
-                    { key: "imagine", label: <span><BulbOutlined /> Imagine</span> },
                     { key: "products", label: <span><AppstoreOutlined /> Our products</span> },
+                    { key: "imagine", label: <span><BulbOutlined /> Imagine</span> },
+                    { key: "access", label: <span><LaptopOutlined /> Access Basepoint</span> },
                 ]}
                 style={{ marginBottom: 4 }}
             />
@@ -1060,6 +1064,9 @@ const DiscoverPage: React.FC = () => {
                 }}
             />
             )}
+
+            {/* Ways to access Basepoint */}
+            {tab === "access" && <AccessChannels />}
 
             {/* Our products */}
             {tab === "products" && (
