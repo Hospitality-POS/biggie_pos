@@ -35,7 +35,7 @@ import {
   CalendarOutlined,
   ClockCircleOutlined,
   DollarOutlined,
-  HeartOutlined,
+  FormOutlined,
 } from "@ant-design/icons";
 import { useAppSelector } from "src/store";
 import React from "react";
@@ -46,7 +46,7 @@ import { PRODUCT_TO_DASHBOARD_TAB } from "src/hooks/useActiveDashboard";
 import { useQuery } from "@tanstack/react-query";
 import { fetchShop } from "@services/shops";
 import { useTenantModules } from "@hooks/useTenantModules";
-import { useSpaSettings } from "@hooks/useSpaSettings";
+import { useFormsSettings } from "@hooks/useFormsSettings";
 
 // ─── SVG tile helper ──────────────────────────────────────────────────────────
 export const makeTile = (color: string, pathD: string): string => {
@@ -151,7 +151,7 @@ const POS_ROUTE_PERMISSIONS: Record<string, string> = {
   "/reports": "REPORTS_ITEM_SALES|REPORTS_VIEW|ACCOUNTING_REPORT_PROFIT_LOSS",
   "/documents": "DOCUMENTS_VIEW",
   "/esign": "SIGNATURE_VIEW",
-  "/spa": "CLIENT_FORMS_VIEW|TREATMENT_PLANS_VIEW",
+  "/forms": "CLIENT_FORMS_VIEW|CLIENT_FORMS_VIEW_FILLED|CLIENT_PLANS_VIEW",
   "/petty-cash": "ORDERS_VIEW_DASHBOARD",
   "/refunds": "ORDERS_VIEW_DASHBOARD",
   "/Category-settings": "CATEGORIES_VIEW",
@@ -236,6 +236,7 @@ const BANDU_ROUTE_PERMISSIONS: Record<string, string> = {
   "/hr": "BANDU_DASHBOARD_VIEW",
   "/hr/dashboard": "BANDU_DASHBOARD_VIEW",
   "/hr/employees": "BANDU_EMPLOYEES_VIEW",
+  "/hr/forms": "EMPLOYEE_FORMS_VIEW|EMPLOYEE_PLANS_VIEW",
   "/hr/leave": "BANDU_LEAVE_VIEW",
   "/hr/leave-policies": "BANDU_LEAVE_POLICIES_VIEW",
   "/hr/leave-calendar": "BANDU_LEAVE_VIEW",
@@ -331,8 +332,8 @@ export const useProLayoutNav = () => {
   const whatsappMarketplaceOn = !!(navShop as any)?.whatsapp_marketplace?.enabled;
   const { hasPOS: hasDuka } = useTenantModules();
   const mtejaSellsInChat = whatsappMarketplaceOn && !hasDuka;
-  // Spa & Wellness add-on — only shops that switched it on in System Setup
-  const spa = useSpaSettings();
+  // Forms & Plans add-on — only shops that switched it on in System Setup
+  const formsAddOn = useFormsSettings();
 
   const isAdminLayout = window.location.pathname.startsWith("/admin");
   const prefix = isAdminLayout ? "/admin" : "";
@@ -408,9 +409,9 @@ export const useProLayoutNav = () => {
     { ...inventoryRoute },
     { path: p("/employee-shift"), name: "Crew", icon: <UsergroupAddOutlined />, _bare: "/employee-shift" },
     { path: p("/customers"), name: getCustomerLabel(), icon: <UserOutlined />, _bare: "/customers" },
-    // Client forms + treatment plans share one page with side tabs
-    ...(spa.clientForms || spa.treatmentPlans
-      ? [{ path: p("/spa"), name: "Spa & Wellness", icon: <HeartOutlined />, _bare: "/spa" }]
+    // Client forms + plans share one page with side tabs
+    ...(formsAddOn.clientForms || formsAddOn.clientPlans
+      ? [{ path: p("/forms"), name: "Forms & Plans", icon: <FormOutlined />, _bare: "/forms" }]
       : []),
     { path: p("/reports"), name: "Reports", icon: <ApiFilled />, _bare: "/reports" },
     { ...documentRoute },
@@ -496,6 +497,10 @@ export const useProLayoutNav = () => {
   const banduRoutesBase = [
     { path: p("/hr/dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/hr/dashboard" },
     { path: p("/hr/employees"), name: "Employees", icon: <UserOutlined />, _bare: "/hr/employees" },
+    // Employee forms (onboarding, NDAs…) + onboarding / training plans
+    ...(formsAddOn.employeeForms || formsAddOn.employeePlans
+      ? [{ path: "/hr/forms", name: "Forms & Plans", icon: <FormOutlined />, _bare: "/hr/forms" }]
+      : []),
     { path: p("/hr/payroll"), name: "Payroll", icon: <DollarOutlined />, _bare: "/hr/payroll" },
     { path: p("/hr/payslips"), name: "Payslips", icon: <FileTextOutlined />, _bare: "/hr/payslips" },
     { path: p("/hr/attendance"), name: "Attendance", icon: <ClockCircleOutlined />, _bare: "/hr/attendance" },

@@ -76,9 +76,10 @@ export const MODULES = {
     DALA_REPORTS: "Dala · Reports",
     // ── Signature module ───────────────────────────────────────────────────────────
     SIGNATURE: "E-Signature",
-    // ── Spa & Wellness add-on (Duka) ─────────────────────────────────────────
-    CLIENT_FORMS: "Spa · Client Forms",
-    TREATMENT_PLANS: "Spa · Treatment Plans",
+    // ── Forms & Plans add-on (Duka / Pesa / Mteja clients, Bandu employees) ──
+    CLIENT_FORMS: "Client Forms",
+    CLIENT_PLANS: "Client Plans",
+    HR_FORMS_PLANS: "HR · Employee Forms & Plans",
 } as const;
 
 export type ModuleKey = keyof typeof MODULES;
@@ -811,8 +812,8 @@ export const PERMISSIONS: Record<string, Permission> = {
     SIGNATURE_VIEW_HISTORY: { key: "SIGNATURE_VIEW_HISTORY", label: "View Signature History", module: MODULES.SIGNATURE, action: "read", moduleScope: "core" },
 
     // ══════════════════════════════════════════════════════════════════════════
-    // SPA & WELLNESS ADD-ON  (moduleScope: "pos" — switched on per shop in
-    // System Setup → Spa & Wellness)
+    // FORMS & PLANS ADD-ON  (switched on per shop in System Setup → Forms & Plans)
+    // Client forms / plans are "pos"; employee forms / plans are "hr".
     // ══════════════════════════════════════════════════════════════════════════
 
     CLIENT_FORMS_VIEW: { key: "CLIENT_FORMS_VIEW", label: "View Client Forms", module: MODULES.CLIENT_FORMS, action: "read", moduleScope: "pos" },
@@ -826,9 +827,16 @@ export const PERMISSIONS: Record<string, Permission> = {
     CLIENT_FORMS_COUNTERSIGN: { key: "CLIENT_FORMS_COUNTERSIGN", label: "Countersign Client Forms", module: MODULES.CLIENT_FORMS, action: "special", moduleScope: "pos" },
     CLIENT_FORMS_VOID: { key: "CLIENT_FORMS_VOID", label: "Void Filled Client Forms", module: MODULES.CLIENT_FORMS, action: "delete", moduleScope: "pos" },
 
-    TREATMENT_PLANS_VIEW: { key: "TREATMENT_PLANS_VIEW", label: "View Treatment Plans", module: MODULES.TREATMENT_PLANS, action: "read", moduleScope: "pos" },
-    TREATMENT_PLANS_MANAGE: { key: "TREATMENT_PLANS_MANAGE", label: "Create & Update Treatment Plans", module: MODULES.TREATMENT_PLANS, action: "update", moduleScope: "pos" },
-    TREATMENT_PLAN_TEMPLATES_MANAGE: { key: "TREATMENT_PLAN_TEMPLATES_MANAGE", label: "Manage Treatment Plan Templates", module: MODULES.TREATMENT_PLANS, action: "special", moduleScope: "pos" },
+    CLIENT_PLANS_VIEW: { key: "CLIENT_PLANS_VIEW", label: "View Client Plans", module: MODULES.CLIENT_PLANS, action: "read", moduleScope: "pos" },
+    CLIENT_PLANS_MANAGE: { key: "CLIENT_PLANS_MANAGE", label: "Create & Update Client Plans", module: MODULES.CLIENT_PLANS, action: "update", moduleScope: "pos" },
+    CLIENT_PLAN_TEMPLATES_MANAGE: { key: "CLIENT_PLAN_TEMPLATES_MANAGE", label: "Manage Client Plan Templates", module: MODULES.CLIENT_PLANS, action: "special", moduleScope: "pos" },
+
+    // Employee forms hold HR information: viewing, managing and approving are separate
+    EMPLOYEE_FORMS_VIEW: { key: "EMPLOYEE_FORMS_VIEW", label: "View Employee Forms & Signed PDFs", module: MODULES.HR_FORMS_PLANS, action: "read", moduleScope: "hr" },
+    EMPLOYEE_FORMS_MANAGE: { key: "EMPLOYEE_FORMS_MANAGE", label: "Create, Send & Countersign Employee Forms", module: MODULES.HR_FORMS_PLANS, action: "update", moduleScope: "hr" },
+    EMPLOYEE_FORMS_APPROVE: { key: "EMPLOYEE_FORMS_APPROVE", label: "Approve Employee Forms", module: MODULES.HR_FORMS_PLANS, action: "special", moduleScope: "hr" },
+    EMPLOYEE_PLANS_VIEW: { key: "EMPLOYEE_PLANS_VIEW", label: "View Onboarding & Training Plans", module: MODULES.HR_FORMS_PLANS, action: "read", moduleScope: "hr" },
+    EMPLOYEE_PLANS_MANAGE: { key: "EMPLOYEE_PLANS_MANAGE", label: "Manage Onboarding & Training Plans", module: MODULES.HR_FORMS_PLANS, action: "update", moduleScope: "hr" },
 
     // ── Reports ───────────────────────────────────────────────────────────────
 

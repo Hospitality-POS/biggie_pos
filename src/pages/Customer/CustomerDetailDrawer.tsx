@@ -9,9 +9,9 @@ import {
 } from "@ant-design/icons";
 import { uploadCustomerDocument, deleteCustomerDocument, CustomerDocument } from "@services/customerDocuments";
 import { THEME_C } from "@utils/getPrimaryColor";
-import { useSpaSettings } from "@hooks/useSpaSettings";
-import FilledFormsList from "@pages/ClientForms/fill/FilledFormsList";
-import PlansList from "@pages/TreatmentPlans/PlansList";
+import { useFormsSettings } from "@hooks/useFormsSettings";
+import FilledFormsList from "@pages/FormsPlans/forms/fill/FilledFormsList";
+import PlansList from "@pages/FormsPlans/plans/PlansList";
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -66,8 +66,8 @@ interface CustomerDetailDrawerProps {
 }
 
 const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ open, onClose, customer, onUpdated }) => {
-    // Spa & Wellness add-on: consultation / consent forms for this customer
-    const { clientForms, treatmentPlans } = useSpaSettings();
+    // Forms & Plans add-on: this customer's signed forms and plans
+    const { clientForms, clientPlans } = useFormsSettings();
     const [documentForm] = Form.useForm();
     const [documents, setDocuments] = useState<CustomerDocument[]>([]);
     const [documentsLoading, setDocumentsLoading] = useState(false);
@@ -347,16 +347,16 @@ const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ open, onClo
                               {
                                   key: 'forms',
                                   label: 'Forms',
-                                  children: <FilledFormsList customer={customer} />,
+                                  children: <FilledFormsList person={customer} />,
                               },
                           ]
                         : []),
-                    ...(treatmentPlans
+                    ...(clientPlans
                         ? [
                               {
                                   key: 'plans',
                                   label: 'Plans',
-                                  children: <PlansList customer={customer} />,
+                                  children: <PlansList person={customer} />,
                               },
                           ]
                         : []),

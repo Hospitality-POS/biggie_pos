@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
     Alert,
     Button,
@@ -11,6 +12,7 @@ import {
     Row,
     Space,
     Switch,
+    Tabs,
     Typography,
     notification,
 } from "antd";
@@ -40,6 +42,8 @@ import {
     DollarOutlined,
     ToolOutlined,
     SignatureOutlined,
+    BulbOutlined,
+    AppstoreOutlined,
 } from "@ant-design/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -63,6 +67,7 @@ import {
 import pesapalApi from "@services/pesapalApi";
 import { THEME_C } from "@utils/getPrimaryColor";
 import { isTenantModuleEnabled, TenantModuleId } from "@utils/tenantModules";
+import ImagineWithout from "./ImagineWithout";
 
 const { Text, Title } = Typography;
 
@@ -114,7 +119,7 @@ const INTEGRATIONS = [
         name: "Duka by Base",
         category: "Point of Sale",
         description: "Smart POS for seamless sales, inventory, and customer management.",
-        longDescription: "Duka by Base runs your sales floor. Manage sales, shifts, tables and stock, sell by branch or by zone, run restaurant, hotel and retail layouts, print to the right station, and sync data in real time with Pesa by Base and the rest of the Base Suite.",
+        longDescription: "Duka by Base runs your sales floor. Manage sales, shifts, tables and stock, sell by branch or by zone, run restaurant, hotel and retail layouts, print to the right station, and sync data in real time with Pesa by Base and the rest of the Base Suite. With the Forms & Plans add-on, upload your paper consultation and consent forms (PDF, Word or a photo) — AI turns them into digital forms you approve — then customers fill and e-sign them on a tablet or from a link, with the signed PDF kept on their profile and treatment or service plans to follow up.",
         features: [
             "Sales",
             "Shift Management",
@@ -133,6 +138,14 @@ const INTEGRATIONS = [
             "Location-Based Print Agents & Agent Reports",
             "Secondary Database Backup Sync",
             "Quick Date Ranges on Every Report",
+            "Client Forms: Upload Paper Forms, AI Builds the Digital Version",
+            "Form Approval Workflow & Versions",
+            "Customers E-Sign on a Tablet or by Link (WhatsApp / SMS)",
+            "Saved Signatures for Returning Customers",
+            "Signed PDFs Stored Privately on the Customer Profile",
+            "Medical Alerts from Customer Answers",
+            "Client Plans: Sessions with Dates, Notes & Sign-off",
+            "Plan Templates Suggested from Signed Forms",
         ],
         benefits: [
             "Faster checkouts",
@@ -142,12 +155,14 @@ const INTEGRATIONS = [
             "Fewer stock-outs and oversells",
             "Rooms and tables that show real occupancy",
             "Receipts and tickets print at the right station",
+            "No more paper consent forms to file or lose",
+            "Every customer's signed forms and plans in one place",
         ],
         setupTime: "2 minutes",
         status: "available",
         icon: CreditCardOutlined,
         color: C.blue,
-        tags: ["Base Suite", "Popular", "POS"],
+        tags: ["Base Suite", "Popular", "POS", "Forms & Plans"],
     },
     {
         id: "relia_accounting",
@@ -187,7 +202,7 @@ const INTEGRATIONS = [
         name: "Bandu HR by Base",
         category: "Human Resource & Payroll",
         description: "Comprehensive HR management with employees & consultants, biometric attendance, preview-editable payroll, payslips, P9 forms, and statutory compliance.",
-        longDescription: "Bandu HR by Base is a complete human resource management system. Manage employee profiles and documents, handle leave applications and approvals, and clock attendance manually or via biometric terminals (ZKTeco, Suprema, Anviz, Hikvision). Generate payroll with a fully editable preview — adjust salaries, allowances, overtime, and custom deductions like loans with end dates — then let statutory deductions (SHA, NSSF, PAYE, Housing Levy) compute automatically, including employee/employer splits. Consultants are handled with withholding tax, foreign-currency salaries convert to KES automatically, and approval workflows cover reject, return-to-draft, and supplementary runs for late-joining staff. Produce official P9 tax forms and payslips in PDF or Excel with privacy controls, and post everything to Pesa by Base accounting.",
+        longDescription: "Bandu HR by Base is a complete human resource management system. Manage employee profiles and documents, handle leave applications and approvals, and clock attendance manually or via biometric terminals (ZKTeco, Suprema, Anviz, Hikvision). Generate payroll with a fully editable preview — adjust salaries, allowances, overtime, and custom deductions like loans with end dates — then let statutory deductions (SHA, NSSF, PAYE, Housing Levy) compute automatically, including employee/employer splits. Consultants are handled with withholding tax, foreign-currency salaries convert to KES automatically, and approval workflows cover reject, return-to-draft, and supplementary runs for late-joining staff. Produce official P9 tax forms and payslips in PDF or Excel with privacy controls, and post everything to Pesa by Base accounting. With the Forms & Plans add-on, onboarding forms, policy acknowledgements, NDAs and incident reports go digital: the employee fills and e-signs them, HR countersigns, and the signed PDF lands on the employee's file — while onboarding and training plans track each step with dates, notes and sign-off.",
         features: [
             "Employee Management & Documents (Employee & Consultant types)",
             "Draft-Saving Employee Onboarding Form",
@@ -213,6 +228,13 @@ const INTEGRATIONS = [
             "HELB Deductions & Residential Status Tax Rules",
             "Flat-Rate PAYE for Secondary Employees",
             "Role-Based HR Access",
+            "Employee Forms: Onboarding, Policy Acknowledgements, NDAs & Incident Reports",
+            "Upload Paper HR Forms — AI Builds the Digital Version",
+            "Employee E-Signs, HR Countersigns, Signed PDF on the Employee File",
+            "Forms Prefilled with ID Number, Job Title & Start Date",
+            "Flagged Answers for HR Follow-up",
+            "Onboarding & Training Plans: Steps with Dates, Notes & Sign-off",
+            "Reusable Onboarding & Training Plan Templates",
         ],
         benefits: [
             "Complete employee lifecycle management",
@@ -225,12 +247,14 @@ const INTEGRATIONS = [
             "Integrated accounting posting",
             "Reduced manual HR work",
             "Data-driven HR decisions",
+            "Paperless onboarding with signed, searchable records",
+            "Every new hire follows the same onboarding steps",
         ],
         setupTime: "5 minutes",
         status: "available",
         icon: FileProtectOutlined,
         color: C.orange,
-        tags: ["Base Suite", "HR", "Payroll", "Leave", "Compliance"],
+        tags: ["Base Suite", "HR", "Payroll", "Leave", "Compliance", "Forms & Plans"],
     },
     {
         id: "mteja",
@@ -698,7 +722,12 @@ const LearnMoreModal: React.FC<{
 };
 
 // ── Main page ──────────────────────────────────────────────────────────────────
+type DiscoverTab = "imagine" | "products";
+
 const DiscoverPage: React.FC = () => {
+    // ?tab=imagine | products keeps the tab across reloads and shared links
+    const [params, setParams] = useSearchParams();
+    const tab: DiscoverTab = params.get("tab") === "products" ? "products" : "imagine";
     const [selectedIntegration, setSelectedIntegration] = useState<(typeof INTEGRATIONS)[0] | null>(null);
     const [learnMoreOpen, setLearnMoreOpen] = useState(false);
     const [pesapalModalOpen, setPesapalModalOpen] = useState(false);
@@ -1009,7 +1038,31 @@ const DiscoverPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Cards */}
+            <Tabs
+                activeKey={tab}
+                onChange={(key) => setParams({ tab: key }, { replace: true })}
+                items={[
+                    { key: "imagine", label: <span><BulbOutlined /> Imagine</span> },
+                    { key: "products", label: <span><AppstoreOutlined /> Our products</span> },
+                ]}
+                style={{ marginBottom: 4 }}
+            />
+
+            {/* Imagine without Basepoint */}
+            {tab === "imagine" && (
+            <ImagineWithout
+                onLearnMore={(id) => {
+                    const integration = INTEGRATIONS.find((i) => i.id === id);
+                    if (integration) {
+                        setSelectedIntegration(integration);
+                        setLearnMoreOpen(true);
+                    }
+                }}
+            />
+            )}
+
+            {/* Our products */}
+            {tab === "products" && (
             <Row gutter={[16, 16]}>
                 {INTEGRATIONS.map((integration) => {
                     const isEnabled = getStatus(integration.id) === "enabled";
@@ -1044,6 +1097,7 @@ const DiscoverPage: React.FC = () => {
                     );
                 })}
             </Row>
+            )}
 
             {/* Learn More */}
             <LearnMoreModal integration={selectedIntegration} open={learnMoreOpen}
