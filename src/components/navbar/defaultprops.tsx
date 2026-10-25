@@ -35,8 +35,7 @@ import {
   CalendarOutlined,
   ClockCircleOutlined,
   DollarOutlined,
-  FormOutlined,
-  ScheduleOutlined,
+  HeartOutlined,
 } from "@ant-design/icons";
 import { useAppSelector } from "src/store";
 import React from "react";
@@ -152,8 +151,7 @@ const POS_ROUTE_PERMISSIONS: Record<string, string> = {
   "/reports": "REPORTS_ITEM_SALES|REPORTS_VIEW|ACCOUNTING_REPORT_PROFIT_LOSS",
   "/documents": "DOCUMENTS_VIEW",
   "/esign": "SIGNATURE_VIEW",
-  "/client-forms": "CLIENT_FORMS_VIEW",
-  "/treatment-plans": "TREATMENT_PLANS_VIEW",
+  "/spa": "CLIENT_FORMS_VIEW|TREATMENT_PLANS_VIEW",
   "/petty-cash": "ORDERS_VIEW_DASHBOARD",
   "/refunds": "ORDERS_VIEW_DASHBOARD",
   "/Category-settings": "CATEGORIES_VIEW",
@@ -410,11 +408,9 @@ export const useProLayoutNav = () => {
     { ...inventoryRoute },
     { path: p("/employee-shift"), name: "Crew", icon: <UsergroupAddOutlined />, _bare: "/employee-shift" },
     { path: p("/customers"), name: getCustomerLabel(), icon: <UserOutlined />, _bare: "/customers" },
-    ...(spa.clientForms
-      ? [{ path: p("/client-forms"), name: "Client Forms", icon: <FormOutlined />, _bare: "/client-forms" }]
-      : []),
-    ...(spa.treatmentPlans
-      ? [{ path: p("/treatment-plans"), name: "Treatment Plans", icon: <ScheduleOutlined />, _bare: "/treatment-plans" }]
+    // Client forms + treatment plans share one page with side tabs
+    ...(spa.clientForms || spa.treatmentPlans
+      ? [{ path: p("/spa"), name: "Spa & Wellness", icon: <HeartOutlined />, _bare: "/spa" }]
       : []),
     { path: p("/reports"), name: "Reports", icon: <ApiFilled />, _bare: "/reports" },
     { ...documentRoute },

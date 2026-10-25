@@ -66,7 +66,7 @@ import SectionEditor, { AddFieldPicker } from "./components/SectionEditor";
 import FormRenderer from "./components/FormRenderer";
 import { SourcePanel, HistoryPanel, ExtractingState, ExtractionFailed } from "./components/SidePanels";
 import StartFormModal from "./fill/StartFormModal";
-import { CATEGORY_OPTIONS, STATUS_META, clientFormsBasePath, newField, newSectionKey } from "./constants";
+import { CATEGORY_OPTIONS, STATUS_META, clientFormsBasePath, spaHubPath, newField, newSectionKey } from "./constants";
 import type { EditableForm, FormSection, FormSigner, FormTemplate, SignerRole } from "./types";
 
 const { Text } = Typography;
@@ -275,7 +275,7 @@ const FormBuilderPage: React.FC = () => {
           await deleteClientForm(id);
           queryClient.invalidateQueries({ queryKey: ["client-forms"] });
           message.success("Draft deleted");
-          navigate(clientFormsBasePath());
+          navigate(spaHubPath("forms"));
         } catch (error) {
           const msg = apiErrorMessage(error, "Couldn’t delete the draft");
           if (msg) message.error(msg);
@@ -326,7 +326,7 @@ const FormBuilderPage: React.FC = () => {
       <Result
         status="404"
         title="Form not found"
-        extra={<Button onClick={() => navigate(clientFormsBasePath())}>Back to Client Forms</Button>}
+        extra={<Button onClick={() => navigate(spaHubPath("forms"))}>Back to Client Forms</Button>}
       />
     );
   }
@@ -668,7 +668,7 @@ const FormBuilderPage: React.FC = () => {
           flexWrap: "wrap",
         }}
       >
-        <Button type="text" icon={<ArrowLeftOutlined />} onClick={async () => { await flushSave(); navigate(clientFormsBasePath()); }} />
+        <Button type="text" icon={<ArrowLeftOutlined />} onClick={async () => { await flushSave(); navigate(spaHubPath("forms")); }} />
         <div style={{ flex: 1, minWidth: 180, display: "flex", flexDirection: "column" }}>
           <Input
             variant="borderless"

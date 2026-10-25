@@ -4,6 +4,7 @@ import { EditOutlined, CheckCircleFilled } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { THEME_C } from "@utils/getPrimaryColor";
 import SignaturePad, { type SignaturePadHandle } from "../fill/SignaturePad";
+import { BLANK_RE, blankKey, countBlanks } from "../fill/utils";
 import type { FormField, FormSection, FormSigner } from "../types";
 
 const { Text, Title } = Typography;
@@ -51,6 +52,60 @@ const QuestionLabel: React.FC<{ field: FormField; large?: boolean }> = ({ field,
     )}
   </div>
 );
+
+/**
+ * Text with fill-in blanks: "I, ________, voluntarily consent…" renders an
+ * inline box where the underscores are. `start` numbers the blanks across
+ * several lines of the same field.
+ */
+const BlankText: React.FC<{
+  text: string;
+  fieldKey: string;
+  start: number;
+  values: Answers;
+  onChange: (key: string, v: AnswerValue) => void;
+  large?: boolean;
+}> = ({ text, fieldKey, start, values, onChange, large }) => {
+  const parts: React.ReactNode[] = [];
+  let last = 0;
+  let n = start;
+  for (const m of text.matchAll(BLANK_RE)) {
+    const idx = m.index ?? 0;
+    if (idx > last) parts.push(text.slice(last, idx));
+    const key = blankKey(fieldKey, n);
+    const width = Math.max(130, Math.min(280, m[0].length * 9));
+    parts.push(
+      <input
+        key={key}
+        value={(values[key] as string) ?? ""}
+        onChange={(e) => onChange(key, e.target.value)}
+        onClick={(e) => e.stopPropagation()}
+        aria-label="Fill in"
+        placeholder="type here"
+        maxLength={200}
+        style={{
+          width,
+          maxWidth: "100%",
+          border: "none",
+          borderBottom: `1.5px solid ${values[key] ? "#94a3b8" : "#c4b5fd"}`,
+          background: values[key] ? "transparent" : "#faf5ff",
+          borderRadius: 0,
+          padding: "0 4px",
+          margin: "0 3px",
+          font: "inherit",
+          fontSize: large ? 15 : 13.5,
+          fontWeight: 600,
+          color: "#0f172a",
+          outline: "none",
+        }}
+      />
+    );
+    n += 1;
+    last = idx + m[0].length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return <>{parts}</>;
+};
 
 const SignatureBox: React.FC<{ label: string; signed?: boolean; onClick?: () => void }> = ({ label, signed, onClick }) => (
   <div style={{ flex: "1 1 200px" }}>
@@ -373,9 +428,19 @@ const FormRenderer: React.FC<Props> = ({
                         <Text strong style={{ fontSize: large ? 14 : 13, display: "block", marginBottom: 6 }}>{f.label}</Text>
                       )}
                       <ul style={{ margin: 0, paddingLeft: f.content.length > 1 ? 18 : 0, listStyle: f.content.length > 1 ? "disc" : "none" }}>
-                        {f.content.filter(Boolean).map((line, i) => (
-                          <li key={i} style={{ fontSize: large ? 14 : 12.5, color: "#334155", lineHeight: 1.6 }}>{line}</li>
-                        ))}
+                        {(() => {
+                          // Blanks are numbered across all lines (same as the API)
+                          let offset = 0;
+                          return f.content.map((line, i) => {
+                            const start = offset;
+                            offset += countBlanks(line);
+                            return line ? (
+                              <li key={i} style={{ fontSize: large ? 14 : 12.5, color: "#334155", lineHeight: 1.9 }}>
+                                <BlankText text={line} fieldKey={f.key} start={start} values={values} onChange={setValue} large={large} />
+                              </li>
+                            ) : null;
+                          });
+                        })()}
                       </ul>
                     </div>
                   );
@@ -383,12 +448,27 @@ const FormRenderer: React.FC<Props> = ({
                 if (f.type === "consent") {
                   return (
                     <div key={f.key} id={`field-${f.key}`} style={{ flex: "1 1 100%", ...invalidStyle(f.key) }}>
-                      <Checkbox checked={values[f.key] === true} onChange={(e) => setValue(f.key, e.target.checked)}>
-                        <span style={{ fontSize: large ? 15 : 13.5, color: "#0f172a", lineHeight: 1.5 }}>
-                          {f.label}
+                      {/* Checkbox and statement are separate so typing in a blank doesn't tick the box */}
+                      <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                        <Checkbox
+                          checked={values[f.key] === true}
+                          onChange={(e) => setValue(f.key, e.target.checked)}
+                          aria-label="I agree"
+                          style={{ marginTop: large ? 5 : 3 }}
+                        />
+                        <span
+                          onClick={() => setValue(f.key, values[f.key] !== true)}
+                          style={{ fontSize: large ? 15 : 13.5, color: "#0f172a", lineHeight: 1.9, cursor: "pointer" }}
+                        >
+                          <BlankText text={f.label} fieldKey={f.key} start={0} values={values} onChange={setValue} large={large} />
                           {f.required && <span style={{ color: "#ef4444", marginLeft: 3 }}>*</span>}
                         </span>
-                      </Checkbox>
+                      </div>
+                      {invalidKeys?.has(f.key) && (
+                        <Text style={{ color: "#dc2626", fontSize: 12.5, display: "block", marginTop: 4, marginLeft: 26 }}>
+                          {countBlanks(f.label) ? "Fill in the blank and tick to agree" : "Tick to agree"}
+                        </Text>
+                      )}
                     </div>
                   );
                 }

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Modal, Select, Typography, Button, Input, message, Space, Spin } from "antd";
+import { Modal, Select, Typography, Button, Input, message, Space } from "antd";
 import {
   TabletOutlined,
   SendOutlined,
@@ -12,11 +12,10 @@ import {
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { THEME_C } from "@utils/getPrimaryColor";
-import { useDebounce } from "@hooks/useDebounce";
 import { fetchClientForms } from "@services/clientForms";
-import { fetchAllCustomers } from "@services/customers";
 import { createFormSubmission, buildSigningLink, submissionError } from "@services/formSubmissions";
 import { CATEGORY_META } from "../constants";
+import CustomerPicker from "../components/CustomerPicker";
 
 const { Text } = Typography;
 const C = THEME_C;
@@ -85,11 +84,9 @@ const StartFormModal: React.FC<Props> = ({ open, onClose, customer, templateId, 
   const location = useLocation();
   const [formId, setFormId] = useState<string | undefined>(templateId);
   const [picked, setPicked] = useState<CustomerLite | null>(customer ?? null);
-  const [search, setSearch] = useState("");
   const [method, setMethod] = useState<"in_store" | "link">("in_store");
   const [busy, setBusy] = useState(false);
   const [link, setLink] = useState<{ url: string; expires: string } | null>(null);
-  const debounced = useDebounce(search, 300);
 
   useEffect(() => {
     if (open) {
@@ -104,12 +101,6 @@ const StartFormModal: React.FC<Props> = ({ open, onClose, customer, templateId, 
     queryKey: ["client-forms", "approved"],
     queryFn: () => fetchClientForms({ status: "approved" }),
     enabled: open,
-  });
-
-  const { data: customers, isFetching: searching } = useQuery({
-    queryKey: ["form-customer-search", debounced],
-    queryFn: () => fetchAllCustomers({ search: debounced }) as Promise<CustomerLite[]>,
-    enabled: open && !customer && debounced.trim().length >= 2,
   });
 
   const formOptions = useMemo(
@@ -134,7 +125,7 @@ const StartFormModal: React.FC<Props> = ({ open, onClose, customer, templateId, 
       onCreated?.();
       if (method === "in_store") {
         onClose();
-        navigate(`/client-forms/fill/${submission._id}`, { state: { returnTo: location.pathname } });
+        navigate(`/client-forms/fill/${submission._id}`, { state: { returnTo: location.pathname + location.search } });
       } else if (token) {
         setLink({ url: buildSigningLink(token), expires: submission.public_link?.expires_at ?? "" });
       }
@@ -235,21 +226,7 @@ const StartFormModal: React.FC<Props> = ({ open, onClose, customer, templateId, 
             {customer ? (
               <Input size="large" value={customerName(customer)} disabled />
             ) : (
-              <Select
-                showSearch
-                size="large"
-                value={picked?._id}
-                placeholder="Search by name, phone or email"
-                filterOption={false}
-                onSearch={setSearch}
-                onChange={(id) => setPicked((customers ?? []).find((c) => c._id === id) ?? null)}
-                notFoundContent={searching ? <Spin size="small" /> : debounced.length >= 2 ? "No customers found" : "Type at least 2 letters"}
-                options={(customers ?? []).slice(0, 30).map((c) => ({
-                  value: c._id,
-                  label: `${customerName(c)}${c.phone ? ` · 0${String(c.phone).replace(/^0/, "")}` : ""}`,
-                }))}
-                style={{ width: "100%" }}
-              />
+              <CustomerPicker value={picked} onChange={setPicked} size="large" />
             )}
           </div>
 

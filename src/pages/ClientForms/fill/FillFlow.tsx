@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import dayjs from "dayjs";
 import { Button, Progress, Typography, message } from "antd";
 import { ArrowLeftOutlined, ArrowRightOutlined, CheckCircleFilled, CloudSyncOutlined, LockOutlined } from "@ant-design/icons";
 import { THEME_C } from "@utils/getPrimaryColor";
@@ -6,7 +7,8 @@ import FormRenderer, { type Answers, type AnswerValue } from "../components/Form
 import SignaturePad, { type SignaturePadHandle } from "./SignaturePad";
 import { findUnanswered, progressPercent, SubmitError } from "./utils";
 import type { FormSection, FormSigner } from "../types";
-import type { SignatureInput } from "./types";
+import type { SavedSignatureOption, SignatureInput } from "./types";
+import type { ClientSavedSignature } from "@services/formSubmissions";
 
 const { Text, Title } = Typography;
 const C = THEME_C;
@@ -31,6 +33,8 @@ interface Props {
   note?: React.ReactNode;
   /** Extra control in the header (e.g. "Exit" for staff on the tablet) */
   headerExtra?: React.ReactNode;
+  /** The client's signature kept from an earlier form, offered on the sign step */
+  loadSavedSignature?: () => Promise<ClientSavedSignature | null>;
 }
 
 const FillFlow: React.FC<Props> = ({
@@ -47,6 +51,7 @@ const FillFlow: React.FC<Props> = ({
   renderDone,
   note,
   headerExtra,
+  loadSavedSignature,
 }) => {
   const [step, setStep] = useState<"fill" | "sign" | "done">("fill");
   const [answers, setAnswers] = useState<Answers>(initialAnswers);
@@ -59,6 +64,33 @@ const FillFlow: React.FC<Props> = ({
   const dirty = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout>>();
   const answersRef = useRef(answers);
+
+  // The client's kept signature, fetched once when they reach the sign step
+  const [saved, setSaved] = useState<ClientSavedSignature | null>(null);
+  const savedLoaded = useRef(false);
+  useEffect(() => {
+    if (step !== "sign" || savedLoaded.current || !loadSavedSignature) return;
+    savedLoaded.current = true;
+    loadSavedSignature()
+      .then(setSaved)
+      .catch(() => setSaved(null));
+  }, [step, loadSavedSignature]);
+  const savedOptions = useMemo<SavedSignatureOption[]>(
+    () =>
+      saved
+        ? [
+            {
+              id: "client",
+              label: `Saved ${dayjs(saved.saved_at).format("D MMM YYYY")}`,
+              method: saved.method,
+              data: saved.data,
+              typed_name: saved.typed_name,
+              signer_name: saved.signer_name,
+            },
+          ]
+        : [],
+    [saved]
+  );
 
   const save = useCallback(async () => {
     if (!dirty.current) return;
@@ -218,6 +250,9 @@ const FillFlow: React.FC<Props> = ({
               onSignerNameChange={setSignerName}
               onChange={setCanSign}
               nameLabel="Your full name"
+              savedOptions={savedOptions}
+              savedAs="reference"
+              saveLabel="Save my signature for next time"
             />
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 16, color: "#64748b", fontSize: 12.5 }}>
               <LockOutlined />

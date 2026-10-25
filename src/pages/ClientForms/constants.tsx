@@ -97,9 +97,15 @@ export const SIGNER_META: Record<SignerRole, { label: string; icon: React.ReactN
 
 export const CHOICE_TYPES: FieldType[] = ["single_choice", "multi_choice"];
 
-/** /client-forms, or /admin/client-forms inside the admin layout. */
-export const clientFormsBasePath = () =>
-  window.location.pathname.startsWith("/admin") ? "/admin/client-forms" : "/client-forms";
+const adminPrefix = () => (window.location.pathname.startsWith("/admin") ? "/admin" : "");
+
+/** /client-forms (the builder lives at /client-forms/:id), or the admin-layout equivalent. */
+export const clientFormsBasePath = () => `${adminPrefix()}/client-forms`;
+
+export type SpaHubTab = "forms" | "filled" | "plans" | "templates";
+
+/** The Spa & Wellness page (client forms + treatment plans), opened on a tab. */
+export const spaHubPath = (tab?: SpaHubTab) => `${adminPrefix()}/spa${tab ? `?tab=${tab}` : ""}`;
 
 const uid = () => Math.random().toString(36).slice(2, 8);
 

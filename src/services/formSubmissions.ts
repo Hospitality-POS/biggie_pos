@@ -47,6 +47,34 @@ export const staffCountersign = async (
 ): Promise<FormSubmission> =>
   unwrap(await axiosInstance.post(url(`/${id}/staff-sign`), { role, signature }, as("CLIENT_FORMS_COUNTERSIGN")));
 
+export interface ClientSavedSignature {
+  signer_name: string;
+  method: "draw" | "type";
+  typed_name?: string;
+  data: string | null;
+  saved_at: string;
+}
+
+/** The client's signature kept from an earlier form (tablet). */
+export const fetchSavedClientSignature = async (id: string): Promise<ClientSavedSignature | null> =>
+  unwrap(await axiosInstance.get(url(`/${id}/saved-signature`), as("CLIENT_FORMS_SEND")));
+
+// ─── Staff signature library (shared with E-Signature) ──────────────────────
+
+export interface LibrarySignature {
+  _id: string;
+  name: string;
+  signature_type: "draw" | "type" | "upload" | "initials" | "stamp";
+  data?: string;
+}
+
+export const fetchMySignatures = async (): Promise<LibrarySignature[]> =>
+  (await axiosInstance.get(`${BASE_URL}/users/signature-library`, { params: { type: "signature" } })).data?.signatures ?? [];
+
+export const saveMySignature = async (input: { name: string; signature_type: "draw" | "type"; data: string }) => {
+  await axiosInstance.post(`${BASE_URL}/users/signature-library`, { ...input, type: "signature" });
+};
+
 export const createSigningLink = async (id: string): Promise<{ token: string; submission: FormSubmission }> => {
   const res = await axiosInstance.post(url(`/${id}/link`), {}, as("CLIENT_FORMS_SEND"));
   return { token: res.data.token, submission: res.data.data };
@@ -81,6 +109,9 @@ export const signPublicForm = async (token: string, companyCode: string, answers
     status: string;
     has_pdf: boolean;
   };
+
+export const fetchPublicSavedSignature = async (token: string, companyCode: string): Promise<ClientSavedSignature | null> =>
+  (await axios.get(publicUrl(token, companyCode, "/saved-signature"))).data.data;
 
 export const fetchPublicPdfUrl = async (token: string, companyCode: string): Promise<string> =>
   (await axios.get(publicUrl(token, companyCode, "/pdf"))).data.data.url;

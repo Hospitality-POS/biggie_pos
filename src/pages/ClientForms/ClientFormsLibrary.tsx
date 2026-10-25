@@ -1,10 +1,9 @@
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Input, Select, Typography, Grid, Spin, Tooltip, message, Empty, Segmented } from "antd";
+import { Button, Input, Select, Typography, Grid, Spin, Tooltip, message, Empty } from "antd";
 import {
   CloudUploadOutlined,
-  FormOutlined,
   PlusOutlined,
   SearchOutlined,
   LoadingOutlined,
@@ -13,7 +12,6 @@ import {
   EyeOutlined,
   CheckCircleOutlined,
   FileSearchOutlined,
-  SolutionOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -22,7 +20,6 @@ import { useDebounce } from "@hooks/useDebounce";
 import { usePermissions } from "@hooks/usePermissions";
 import { fetchClientForms, createBlankClientForm, apiErrorMessage } from "@services/clientForms";
 import UploadFormModal from "./UploadFormModal";
-import FilledFormsList from "./fill/FilledFormsList";
 import { CATEGORY_META, CATEGORY_OPTIONS, STATUS_META, clientFormsBasePath } from "./constants";
 import type { FormStatus, FormTemplateSummary } from "./types";
 
@@ -173,7 +170,8 @@ const HowItWorks: React.FC = () => (
   </div>
 );
 
-const ClientFormsPage: React.FC = () => {
+/** The form library tab of the Spa & Wellness page. */
+const ClientFormsLibrary: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const screens = Grid.useBreakpoint();
@@ -181,8 +179,6 @@ const ClientFormsPage: React.FC = () => {
   const { can } = usePermissions();
   const canCreate = can("CLIENT_FORMS_CREATE");
 
-  const canViewFilled = can("CLIENT_FORMS_VIEW_FILLED");
-  const [view, setView] = useState<"library" | "filled">("library");
   const [tab, setTab] = useState<TabKey>("all");
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<string | undefined>();
@@ -224,63 +220,24 @@ const ClientFormsPage: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: isMobile ? 12 : "16px 24px", background: C.bg, minHeight: "100%" }}>
-      {/* ── Header ─────────────────────────────────────────────────────── */}
-      <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginBottom: 18 }}>
-        <div
-          style={{
-            width: isMobile ? 40 : 46,
-            height: isMobile ? 40 : 46,
-            borderRadius: 12,
-            background: "linear-gradient(135deg, #fdf2f8 0%, #f5f3ff 100%)",
-            color: "#ec4899",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: isMobile ? 19 : 22,
-            flexShrink: 0,
-          }}
-        >
-          <FormOutlined />
-        </div>
-        <div style={{ flex: 1, minWidth: 200 }}>
-          <Title level={isMobile ? 5 : 4} style={{ margin: 0, color: "#0f172a", letterSpacing: -0.3 }}>
-            Client Forms
-          </Title>
-          <Text style={{ fontSize: isMobile ? 11.5 : 13, color: C.subText }}>
-            Consultation and consent forms your clients fill and e-sign
+    <div>
+      {/* ── Toolbar ────────────────────────────────────────────────────── */}
+      {canCreate && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+          <Text style={{ flex: "1 1 220px", fontSize: 13, color: C.subText }}>
+            Upload the paper forms you use today, review them, and get them approved.
           </Text>
-        </div>
-        {canCreate && view === "library" && (
           <div style={{ display: "flex", gap: 8 }}>
             <Button icon={<PlusOutlined />} onClick={startBlank} loading={creating}>
               {isMobile ? "Blank" : "Start blank"}
             </Button>
-            <Button type="primary" icon={<CloudUploadOutlined />} onClick={() => setUploadOpen(true)} style={{ background: C.primary }}>
+            <Button type="primary" icon={<CloudUploadOutlined />} onClick={() => setUploadOpen(true)}>
               Upload form
             </Button>
           </div>
-        )}
-      </div>
-
-      {canViewFilled && (
-        <Segmented
-          value={view}
-          onChange={(v) => setView(v as "library" | "filled")}
-          options={[
-            { value: "library", label: "Form library", icon: <FormOutlined /> },
-            { value: "filled", label: "Filled by clients", icon: <SolutionOutlined /> },
-          ]}
-          style={{ marginBottom: 16 }}
-        />
+        </div>
       )}
 
-      {view === "filled" ? (
-        <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: isMobile ? 12 : 16 }}>
-          <FilledFormsList showCustomer />
-        </div>
-      ) : (
-      <>
       {/* ── Approval banner ─────────────────────────────────────────────── */}
       {pending > 0 && can("CLIENT_FORMS_APPROVE") && tab !== "pending_approval" && (
         <div
@@ -418,8 +375,6 @@ const ClientFormsPage: React.FC = () => {
           ))}
         </div>
       )}
-      </>
-      )}
 
       <UploadFormModal
         open={uploadOpen}
@@ -435,4 +390,4 @@ const ClientFormsPage: React.FC = () => {
   );
 };
 
-export default ClientFormsPage;
+export default ClientFormsLibrary;

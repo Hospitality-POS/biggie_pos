@@ -236,7 +236,8 @@ const FilledFormsList: React.FC<Props> = ({ customer, showCustomer }) => {
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: 12,
+                  flexWrap: "wrap", // actions drop below the name on phones
+                  gap: "8px 12px",
                   padding: "10px 12px",
                   borderRadius: 12,
                   border: "1px solid #e8edf3",
@@ -247,7 +248,7 @@ const FilledFormsList: React.FC<Props> = ({ customer, showCustomer }) => {
                 <div style={{ width: 36, height: 36, borderRadius: 10, background: cat.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>
                   {cat.emoji}
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ flex: "1 1 180px", minWidth: 0 }}>
                   <Text strong style={{ fontSize: 13.5, display: "block" }} ellipsis>
                     {showCustomer ? `${row.customer_snapshot.name} · ` : ""}
                     {row.form.name}
@@ -272,6 +273,7 @@ const FilledFormsList: React.FC<Props> = ({ customer, showCustomer }) => {
                   </div>
                 </div>
 
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
                 {row.status === "awaiting_therapist" && can("CLIENT_FORMS_COUNTERSIGN") && (
                   <Button size="small" type="primary" icon={<EditOutlined />} onClick={() => setSigning(row)}>
                     Countersign
@@ -286,7 +288,7 @@ const FilledFormsList: React.FC<Props> = ({ customer, showCustomer }) => {
                   <Button
                     size="small"
                     icon={<TabletOutlined />}
-                    onClick={() => navigate(`/client-forms/fill/${row._id}`, { state: { returnTo: location.pathname } })}
+                    onClick={() => navigate(`/client-forms/fill/${row._id}`, { state: { returnTo: location.pathname + location.search } })}
                   >
                     Continue
                   </Button>
@@ -298,7 +300,7 @@ const FilledFormsList: React.FC<Props> = ({ customer, showCustomer }) => {
                       items: menu,
                       onClick: ({ key }) => {
                         if (key === "link") copyNewLink(row);
-                        if (key === "here") navigate(`/client-forms/fill/${row._id}`, { state: { returnTo: location.pathname } });
+                        if (key === "here") navigate(`/client-forms/fill/${row._id}`, { state: { returnTo: location.pathname + location.search } });
                         if (key === "void") setVoiding(row);
                         if (key === "plan") setPlanFrom(row);
                       },
@@ -307,6 +309,7 @@ const FilledFormsList: React.FC<Props> = ({ customer, showCustomer }) => {
                     <Button size="small" type="text" icon={<MoreOutlined />} loading={busy === `link-${row._id}`} />
                   </Dropdown>
                 )}
+                </div>
               </div>
             );
           })}

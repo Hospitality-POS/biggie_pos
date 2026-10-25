@@ -5,10 +5,24 @@ export type SubmissionStatus = "pending" | "in_progress" | "awaiting_therapist" 
 
 export interface SignatureInput {
   signer_name: string;
-  method: "draw" | "type";
+  /** "saved" = the client's signature kept from an earlier form */
+  method: "draw" | "type" | "saved";
   /** PNG data URL when drawn */
   data?: string;
   typed_name?: string;
+  /** Client: keep (true) or forget (false) this signature for next time */
+  save_for_later?: boolean;
+}
+
+/** A signature that can be reused: the client's kept one, or a staff library item. */
+export interface SavedSignatureOption {
+  id: string;
+  label: string;
+  method: "draw" | "type";
+  /** PNG data URL (drawn signatures) */
+  data?: string | null;
+  typed_name?: string;
+  signer_name: string;
 }
 
 export interface SubmissionSignature {

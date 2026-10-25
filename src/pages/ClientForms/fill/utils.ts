@@ -10,6 +10,12 @@ export class SubmitError extends Error {
   }
 }
 
+// "I, ________, consent…" — 3+ underscores (or 4+ dots) are a box the client
+// fills in; answers live under "<key>__blank_<n>" (same rule as the API).
+export const BLANK_RE = /_{3,}|\.{4,}|…{2,}/g;
+export const countBlanks = (text: string) => (text.match(BLANK_RE) ?? []).length;
+export const blankKey = (key: string, index: number) => `${key}__blank_${index}`;
+
 /** Keys of required, visible questions that still have no answer. */
 export const findUnanswered = (sections: FormSection[], answers: Answers): string[] => {
   const keys: string[] = [];
@@ -18,8 +24,11 @@ export const findUnanswered = (sections: FormSection[], answers: Answers): strin
     for (const f of s.fields) {
       if (!f.enabled || !f.required || f.type === "info") continue;
       const v = answers[f.key];
+      const blanksFilled =
+        f.type !== "consent" ||
+        Array.from({ length: countBlanks(f.label) }, (_, i) => answers[blankKey(f.key, i)]).every((b) => !!String(b ?? "").trim());
       const empty =
-        f.type === "consent" ? v !== true : Array.isArray(v) ? v.length === 0 : v === undefined || v === null || v === "";
+        f.type === "consent" ? v !== true || !blanksFilled : Array.isArray(v) ? v.length === 0 : v === undefined || v === null || v === "";
       if (empty) keys.push(f.key);
     }
   }

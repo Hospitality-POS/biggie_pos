@@ -102,12 +102,12 @@ const DocumentCenter = lazyWithReload(() => import("@pages/Documents/DocumentCen
 const ESignPage = lazyWithReload(() => import("@pages/ESign/ESignPage"));
 const PublicSignPage = lazyWithReload(() => import("@pages/ESign/PublicSignPage"));
 
-// ─── Spa & Wellness: Client Forms ─────────────────────────────────────────────
-const ClientFormsPage = lazyWithReload(() => import("@pages/ClientForms/ClientFormsPage"));
+// ─── Spa & Wellness: client forms + treatment plans ──────────────────────────
+const SpaHubPage = lazyWithReload(() => import("@pages/Spa/SpaHubPage"));
 const FormBuilderPage = lazyWithReload(() => import("@pages/ClientForms/FormBuilderPage"));
 const InStoreFillPage = lazyWithReload(() => import("@pages/ClientForms/fill/InStoreFillPage"));
 const PublicClientFormPage = lazyWithReload(() => import("@pages/ClientForms/fill/PublicClientFormPage"));
-const TreatmentPlansPage = lazyWithReload(() => import("@pages/TreatmentPlans/TreatmentPlansPage"));
+const SPA_HUB_PERMISSIONS = ["CLIENT_FORMS_VIEW", "TREATMENT_PLANS_VIEW"];
 
 // ─── Omnichannel Inbox ────────────────────────────────────────────────────────
 const OmnichannelInboxPage = lazyWithReload(() => import("src/pages/OmniChannel/OmnichannelInboxPage"));
@@ -412,14 +412,15 @@ const routes = sentryCreateBrowserRouter(
         <Route path="esign" errorElement={<NotFound />}
           element={guardedPage(ESignPage, "SIGNATURE_VIEW")} />
 
-        <Route path="client-forms" errorElement={<NotFound />}
-          element={guardedPage(ClientFormsPage, "CLIENT_FORMS_VIEW")} />
+        <Route path="spa" errorElement={<NotFound />}
+          element={guardedPage(SpaHubPage, SPA_HUB_PERMISSIONS)} />
+
+        {/* Older links land on the matching Spa & Wellness tab */}
+        <Route path="client-forms" element={<Navigate to="/spa?tab=forms" replace />} />
+        <Route path="treatment-plans" element={<Navigate to="/spa?tab=plans" replace />} />
 
         <Route path="client-forms/:id" errorElement={<NotFound />}
           element={guardedPage(FormBuilderPage, "CLIENT_FORMS_VIEW")} />
-
-        <Route path="treatment-plans" errorElement={<NotFound />}
-          element={guardedPage(TreatmentPlansPage, "TREATMENT_PLANS_VIEW")} />
 
         <Route path="store" errorElement={<NotFound />}
           element={guardedPage(MainStore, "PRODUCTS_VIEW")} />
@@ -785,14 +786,14 @@ const routes = sentryCreateBrowserRouter(
           }
         />
 
-        <Route path="client-forms" errorElement={<NotFound />}
-          element={guardedAdminPage(ClientFormsPage, "CLIENT_FORMS_VIEW")} />
+        <Route path="spa" errorElement={<NotFound />}
+          element={guardedAdminPage(SpaHubPage, SPA_HUB_PERMISSIONS)} />
+
+        <Route path="client-forms" element={<Navigate to="/admin/spa?tab=forms" replace />} />
+        <Route path="treatment-plans" element={<Navigate to="/admin/spa?tab=plans" replace />} />
 
         <Route path="client-forms/:id" errorElement={<NotFound />}
           element={guardedAdminPage(FormBuilderPage, "CLIENT_FORMS_VIEW")} />
-
-        <Route path="treatment-plans" errorElement={<NotFound />}
-          element={guardedAdminPage(TreatmentPlansPage, "TREATMENT_PLANS_VIEW")} />
 
         <Route path="discover" errorElement={<NotFound />}
           element={<Suspense fallback={fullscreenSpin}><AdminRoute><DiscoverPage /></AdminRoute></Suspense>} />

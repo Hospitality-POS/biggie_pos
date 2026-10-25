@@ -420,6 +420,18 @@ const FieldEditor: React.FC<Props> = ({
             </div>
           )}
 
+          {field.type === "consent" && (
+            <div>
+              <Label>Statement the client ticks</Label>
+              <Input.TextArea
+                value={field.label}
+                disabled={readOnly}
+                onChange={(e) => set("label", e.target.value)}
+                autoSize={{ minRows: 2, maxRows: 8 }}
+              />
+            </div>
+          )}
+
           {field.type === "info" && (
             <div>
               <Label>Text the client reads (one paragraph or bullet per line)</Label>
@@ -430,6 +442,13 @@ const FieldEditor: React.FC<Props> = ({
                 autoSize={{ minRows: 3, maxRows: 14 }}
               />
             </div>
+          )}
+
+          {(field.type === "consent" || field.type === "info") && (
+            <Text style={{ fontSize: 11.5, color: "#7c3aed", background: "#f5f3ff", borderRadius: 6, padding: "4px 8px" }}>
+              Type <code>____</code> where the client writes something in, e.g. “I, ____, consent to…”. A blank right
+              after “I,” is filled with the client's name automatically.
+            </Text>
           )}
 
           {(field.type === "signature" || field.type === "initials") && (

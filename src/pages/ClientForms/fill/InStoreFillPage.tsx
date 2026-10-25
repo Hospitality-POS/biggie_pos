@@ -8,6 +8,7 @@ import {
   saveSubmissionAnswers,
   clientSignInStore,
   fetchSignedPdfUrl,
+  fetchSavedClientSignature,
   submissionError,
 } from "@services/formSubmissions";
 import { useQuery } from "@tanstack/react-query";
@@ -50,6 +51,7 @@ const InStoreFillPage: React.FC = () => {
   const leave = () => (returnTo ? navigate(returnTo) : navigate(-1));
 
   const autosave = useCallback((answers: Answers) => saveSubmissionAnswers(id, answers), [id]);
+  const loadSaved = useCallback(() => fetchSavedClientSignature(id), [id]);
 
   const download = async () => {
     setDownloading(true);
@@ -151,6 +153,7 @@ const InStoreFillPage: React.FC = () => {
         }
       }}
       renderDone={() => staffPanel}
+      loadSavedSignature={loadSaved}
       headerExtra={
         <Button
           type="text"

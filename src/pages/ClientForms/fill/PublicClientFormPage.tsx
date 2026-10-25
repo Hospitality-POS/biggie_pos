@@ -8,6 +8,7 @@ import {
   savePublicAnswers,
   signPublicForm,
   fetchPublicPdfUrl,
+  fetchPublicSavedSignature,
   submissionError,
 } from "@services/formSubmissions";
 import FillFlow from "./FillFlow";
@@ -49,6 +50,7 @@ const PublicClientFormPage: React.FC = () => {
   }, [token, companyCode]);
 
   const autosave = useCallback((answers: Answers) => savePublicAnswers(token, companyCode, answers), [token, companyCode]);
+  const loadSaved = useCallback(() => fetchPublicSavedSignature(token, companyCode), [token, companyCode]);
 
   const download = async () => {
     setDownloading(true);
@@ -122,6 +124,7 @@ const PublicClientFormPage: React.FC = () => {
       declaration={view.form.declaration}
       initialAnswers={view.answers}
       onAutosave={autosave}
+      loadSavedSignature={loadSaved}
       onSubmit={async (answers, signature) => {
         try {
           const res = await signPublicForm(token, companyCode, answers, signature);

@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Modal, Select, Input, DatePicker, Typography, Spin, message } from "antd";
+import { Modal, Input, DatePicker, Typography, Spin, message } from "antd";
 import { BulbOutlined, FileAddOutlined, CheckCircleFilled } from "@ant-design/icons";
 import dayjs, { type Dayjs } from "dayjs";
 import { THEME_C } from "@utils/getPrimaryColor";
-import { useDebounce } from "@hooks/useDebounce";
-import { fetchAllCustomers } from "@services/customers";
 import { fetchPlanTemplates, fetchPlanSuggestions, createTreatmentPlan, planError } from "@services/treatmentPlans";
+import CustomerPicker from "@pages/ClientForms/components/CustomerPicker";
 import { CATEGORY_META } from "@pages/ClientForms/constants";
 import type { FormCategory } from "@pages/ClientForms/types";
 import type { TreatmentPlan } from "./types";
@@ -71,12 +70,10 @@ const Choice: React.FC<{
 
 const NewPlanModal: React.FC<Props> = ({ open, onClose, customer, submissionId, onCreated }) => {
   const [picked, setPicked] = useState<PlanCustomer | null>(customer ?? null);
-  const [search, setSearch] = useState("");
   const [choice, setChoice] = useState<string>(BLANK);
   const [title, setTitle] = useState("");
   const [start, setStart] = useState<Dayjs>(dayjs());
   const [saving, setSaving] = useState(false);
-  const debounced = useDebounce(search, 300);
 
   const { data: templates = [], isLoading: loadingTemplates } = useQuery({
     queryKey: ["plan-templates", "active"],
@@ -87,11 +84,6 @@ const NewPlanModal: React.FC<Props> = ({ open, onClose, customer, submissionId, 
     queryKey: ["plan-suggestions", submissionId],
     queryFn: () => fetchPlanSuggestions(submissionId as string),
     enabled: open && !!submissionId,
-  });
-  const { data: customers = [], isFetching: searching } = useQuery({
-    queryKey: ["plan-customer-search", debounced],
-    queryFn: () => fetchAllCustomers({ search: debounced }) as Promise<PlanCustomer[]>,
-    enabled: open && !customer && debounced.trim().length >= 2,
   });
 
   useEffect(() => {
@@ -144,17 +136,7 @@ const NewPlanModal: React.FC<Props> = ({ open, onClose, customer, submissionId, 
             {customer ? (
               <Input value={nameOf(customer)} disabled />
             ) : (
-              <Select
-                showSearch
-                value={picked?._id}
-                placeholder="Search by name or phone"
-                filterOption={false}
-                onSearch={setSearch}
-                onChange={(id) => setPicked(customers.find((c) => c._id === id) ?? null)}
-                notFoundContent={searching ? <Spin size="small" /> : debounced.length >= 2 ? "No customers found" : "Type at least 2 letters"}
-                options={customers.slice(0, 30).map((c) => ({ value: c._id, label: nameOf(c) }))}
-                style={{ width: "100%" }}
-              />
+              <CustomerPicker value={picked} onChange={setPicked} />
             )}
           </div>
           <div>
