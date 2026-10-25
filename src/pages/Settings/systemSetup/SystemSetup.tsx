@@ -15,6 +15,7 @@ import {
   ScanOutlined,
   CloudSyncOutlined,
   WhatsAppOutlined,
+  HeartOutlined,
 } from "@ant-design/icons";
 import { Typography, Grid, Tabs } from "antd";
 import { useQuery } from "@tanstack/react-query";
@@ -32,6 +33,7 @@ import TransactionLocking from "./TransactionLocking";
 import PayrollSettings from "./PayrollSettings";
 import AccessSettings from "./AccessSettings";
 import DataSyncSettings from "./DataSyncSettings";
+import SpaSettings from "./SpaSettings";
 import ChartOfAccountsSettings from "./ChartOfAccountsSettings";
 import CurrencyPage from "@pages/Currency/CurrencyPage";
 import WhatsAppIntegrationSettings from "./WhatsAppIntegrationSettings";
@@ -182,6 +184,16 @@ const SystemSetup: React.FC = () => {
           bg: "#fffbeb",
           group: "POS & Receipts",
           render: () => <PrivacySettings />,
+        },
+        {
+          key: "spa-wellness",
+          label: "Spa & Wellness",
+          description: "Client forms, e-sign & treatment plans",
+          icon: <HeartOutlined />,
+          color: "#ec4899",
+          bg: "#fdf2f8",
+          group: "Add-ons",
+          render: () => <SpaSettings />,
         }
       );
     }

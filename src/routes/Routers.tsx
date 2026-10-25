@@ -102,6 +102,10 @@ const DocumentCenter = lazyWithReload(() => import("@pages/Documents/DocumentCen
 const ESignPage = lazyWithReload(() => import("@pages/ESign/ESignPage"));
 const PublicSignPage = lazyWithReload(() => import("@pages/ESign/PublicSignPage"));
 
+// ─── Spa & Wellness: Client Forms ─────────────────────────────────────────────
+const ClientFormsPage = lazyWithReload(() => import("@pages/ClientForms/ClientFormsPage"));
+const FormBuilderPage = lazyWithReload(() => import("@pages/ClientForms/FormBuilderPage"));
+
 // ─── Omnichannel Inbox ────────────────────────────────────────────────────────
 const OmnichannelInboxPage = lazyWithReload(() => import("src/pages/OmniChannel/OmnichannelInboxPage"));
 const OAuthCallbackPage = lazyWithReload(() => import("src/pages/OmniChannel/OAuthCallbackPage"));
@@ -390,6 +394,12 @@ const routes = sentryCreateBrowserRouter(
 
         <Route path="esign" errorElement={<NotFound />}
           element={guardedPage(ESignPage, "SIGNATURE_VIEW")} />
+
+        <Route path="client-forms" errorElement={<NotFound />}
+          element={guardedPage(ClientFormsPage, "CLIENT_FORMS_VIEW")} />
+
+        <Route path="client-forms/:id" errorElement={<NotFound />}
+          element={guardedPage(FormBuilderPage, "CLIENT_FORMS_VIEW")} />
 
         <Route path="store" errorElement={<NotFound />}
           element={guardedPage(MainStore, "PRODUCTS_VIEW")} />
@@ -754,6 +764,12 @@ const routes = sentryCreateBrowserRouter(
             </PermissionRoute>
           }
         />
+
+        <Route path="client-forms" errorElement={<NotFound />}
+          element={guardedAdminPage(ClientFormsPage, "CLIENT_FORMS_VIEW")} />
+
+        <Route path="client-forms/:id" errorElement={<NotFound />}
+          element={guardedAdminPage(FormBuilderPage, "CLIENT_FORMS_VIEW")} />
 
         <Route path="discover" errorElement={<NotFound />}
           element={<Suspense fallback={fullscreenSpin}><AdminRoute><DiscoverPage /></AdminRoute></Suspense>} />

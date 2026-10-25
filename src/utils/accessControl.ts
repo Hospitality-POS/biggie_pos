@@ -76,6 +76,8 @@ export const MODULES = {
     DALA_REPORTS: "Dala · Reports",
     // ── Signature module ───────────────────────────────────────────────────────────
     SIGNATURE: "E-Signature",
+    // ── Spa & Wellness add-on (Duka) ─────────────────────────────────────────
+    CLIENT_FORMS: "Spa · Client Forms",
 } as const;
 
 export type ModuleKey = keyof typeof MODULES;
@@ -806,6 +808,17 @@ export const PERMISSIONS: Record<string, Permission> = {
     SIGNATURE_ADD_SIGNATURE_FIELD: { key: "SIGNATURE_ADD_SIGNATURE_FIELD", label: "Add Signature Field", module: MODULES.SIGNATURE, action: "create", moduleScope: "core" },
     SIGNATURE_MANAGE_SIGNATURES: { key: "SIGNATURE_MANAGE_SIGNATURES", label: "Manage Signature Library", module: MODULES.SIGNATURE, action: "update", moduleScope: "core" },
     SIGNATURE_VIEW_HISTORY: { key: "SIGNATURE_VIEW_HISTORY", label: "View Signature History", module: MODULES.SIGNATURE, action: "read", moduleScope: "core" },
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // SPA & WELLNESS ADD-ON  (moduleScope: "pos" — switched on per shop in
+    // System Setup → Spa & Wellness)
+    // ══════════════════════════════════════════════════════════════════════════
+
+    CLIENT_FORMS_VIEW: { key: "CLIENT_FORMS_VIEW", label: "View Client Forms", module: MODULES.CLIENT_FORMS, action: "read", moduleScope: "pos" },
+    CLIENT_FORMS_CREATE: { key: "CLIENT_FORMS_CREATE", label: "Upload / Create Client Forms", module: MODULES.CLIENT_FORMS, action: "create", moduleScope: "pos" },
+    CLIENT_FORMS_UPDATE: { key: "CLIENT_FORMS_UPDATE", label: "Edit Client Forms", module: MODULES.CLIENT_FORMS, action: "update", moduleScope: "pos" },
+    CLIENT_FORMS_DELETE: { key: "CLIENT_FORMS_DELETE", label: "Delete Draft Client Forms", module: MODULES.CLIENT_FORMS, action: "delete", moduleScope: "pos" },
+    CLIENT_FORMS_APPROVE: { key: "CLIENT_FORMS_APPROVE", label: "Approve Client Forms", module: MODULES.CLIENT_FORMS, action: "special", moduleScope: "pos" },
 
     // ── Reports ───────────────────────────────────────────────────────────────
 

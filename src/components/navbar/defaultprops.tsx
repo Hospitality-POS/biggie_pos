@@ -35,6 +35,7 @@ import {
   CalendarOutlined,
   ClockCircleOutlined,
   DollarOutlined,
+  FormOutlined,
 } from "@ant-design/icons";
 import { useAppSelector } from "src/store";
 import React from "react";
@@ -45,6 +46,7 @@ import { PRODUCT_TO_DASHBOARD_TAB } from "src/hooks/useActiveDashboard";
 import { useQuery } from "@tanstack/react-query";
 import { fetchShop } from "@services/shops";
 import { useTenantModules } from "@hooks/useTenantModules";
+import { useSpaSettings } from "@hooks/useSpaSettings";
 
 // ─── SVG tile helper ──────────────────────────────────────────────────────────
 export const makeTile = (color: string, pathD: string): string => {
@@ -149,6 +151,7 @@ const POS_ROUTE_PERMISSIONS: Record<string, string> = {
   "/reports": "REPORTS_ITEM_SALES|REPORTS_VIEW|ACCOUNTING_REPORT_PROFIT_LOSS",
   "/documents": "DOCUMENTS_VIEW",
   "/esign": "SIGNATURE_VIEW",
+  "/client-forms": "CLIENT_FORMS_VIEW",
   "/petty-cash": "ORDERS_VIEW_DASHBOARD",
   "/refunds": "ORDERS_VIEW_DASHBOARD",
   "/Category-settings": "CATEGORIES_VIEW",
@@ -328,6 +331,8 @@ export const useProLayoutNav = () => {
   const whatsappMarketplaceOn = !!(navShop as any)?.whatsapp_marketplace?.enabled;
   const { hasPOS: hasDuka } = useTenantModules();
   const mtejaSellsInChat = whatsappMarketplaceOn && !hasDuka;
+  // Spa & Wellness add-on — only shops that switched it on in System Setup
+  const spa = useSpaSettings();
 
   const isAdminLayout = window.location.pathname.startsWith("/admin");
   const prefix = isAdminLayout ? "/admin" : "";
@@ -403,6 +408,9 @@ export const useProLayoutNav = () => {
     { ...inventoryRoute },
     { path: p("/employee-shift"), name: "Crew", icon: <UsergroupAddOutlined />, _bare: "/employee-shift" },
     { path: p("/customers"), name: getCustomerLabel(), icon: <UserOutlined />, _bare: "/customers" },
+    ...(spa.clientForms
+      ? [{ path: p("/client-forms"), name: "Client Forms", icon: <FormOutlined />, _bare: "/client-forms" }]
+      : []),
     { path: p("/reports"), name: "Reports", icon: <ApiFilled />, _bare: "/reports" },
     { ...documentRoute },
     { ...esignRoute },
