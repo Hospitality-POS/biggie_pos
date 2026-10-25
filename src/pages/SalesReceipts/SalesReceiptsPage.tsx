@@ -19,7 +19,7 @@ import {
 import {
     PlusOutlined,
     EyeOutlined,
-    AccountBookOutlined,
+    EditOutlined,
     FilterOutlined,
     ReloadOutlined,
 } from "@ant-design/icons";
@@ -34,7 +34,7 @@ import {
 } from "@services/accounting/salesReceipts";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { THEME_C } from "@utils/getPrimaryColor";
-import SalesReceiptFormDrawer from "./SalesReceiptFormDrawer";
+import SalesReceiptFormModal from "./SalesReceiptFormModal";
 import SalesReceiptDetailDrawer from "./SalesReceiptDetailDrawer";
 import dayjs, { Dayjs } from "dayjs";
 
@@ -86,6 +86,7 @@ const SalesReceiptsPage: React.FC = () => {
     const shopId = getShopId();
     const primaryColor = usePrimaryColor();
     const queryClient = useQueryClient();
+    const { message } = App.useApp();
     const actionRef = useRef<ActionType>();
 
     const [activeStatus, setActiveStatus] = useState<SalesReceiptStatus | "ALL">("ALL");
@@ -138,6 +139,7 @@ const SalesReceiptsPage: React.FC = () => {
     };
 
     const handleEdit = (id: string) => {
+        setDetailOpen(false);
         setSelectedReceiptId(id);
         setFormOpen(true);
     };
@@ -241,7 +243,7 @@ const SalesReceiptsPage: React.FC = () => {
                         <Tooltip title="Edit">
                             <Button
                                 type="text"
-                                icon={<AccountBookOutlined />}
+                                icon={<EditOutlined />}
                                 onClick={() => handleEdit(record._id)}
                             />
                         </Tooltip>
@@ -343,21 +345,23 @@ const SalesReceiptsPage: React.FC = () => {
                 />
             </ProCard>
 
-            {/* Form Drawer */}
-            <SalesReceiptFormDrawer
+            {/* Create / edit — stepped modal */}
+            <SalesReceiptFormModal
                 open={formOpen}
-                setOpen={setFormOpen}
+                onClose={() => setFormOpen(false)}
                 receiptId={selectedReceiptId}
                 onSuccess={() => {
                     queryClient.invalidateQueries({ queryKey: ["sales-receipts"] });
                     queryClient.invalidateQueries({ queryKey: ["sales-receipts-summary"] });
+                    queryClient.invalidateQueries({ queryKey: ["sales-receipt"] });
                 }}
             />
 
-            {/* Detail Drawer */}
+            {/* View — side drawer */}
             <SalesReceiptDetailDrawer
                 open={detailOpen}
                 setOpen={setDetailOpen}
+                onEdit={handleEdit}
                 receiptId={selectedReceiptId}
                 onSuccess={() => {
                     queryClient.invalidateQueries({ queryKey: ["sales-receipts"] });
