@@ -65,6 +65,7 @@ import {
 import SectionEditor, { AddFieldPicker } from "./components/SectionEditor";
 import FormRenderer from "./components/FormRenderer";
 import { SourcePanel, HistoryPanel, ExtractingState, ExtractionFailed } from "./components/SidePanels";
+import StartFormModal from "./fill/StartFormModal";
 import { CATEGORY_OPTIONS, STATUS_META, clientFormsBasePath, newField, newSectionKey } from "./constants";
 import type { EditableForm, FormSection, FormSigner, FormTemplate, SignerRole } from "./types";
 
@@ -109,6 +110,7 @@ const FormBuilderPage: React.FC = () => {
   const [reviewModal, setReviewModal] = useState<null | "approve" | "reject" | "submit">(null);
   const [reviewNotes, setReviewNotes] = useState("");
   const [hideAiBanner, setHideAiBanner] = useState(false);
+  const [sendOpen, setSendOpen] = useState(false);
 
   const dirtyRef = useRef(false);
   const draftRef = useRef<EditableForm | null>(null);
@@ -380,11 +382,20 @@ const FormBuilderPage: React.FC = () => {
           Withdraw to edit
         </Button>
       );
-    if (status === "approved" && can("CLIENT_FORMS_UPDATE"))
+    if (status === "approved")
       return (
-        <Button type="primary" icon={<BranchesOutlined />} loading={busy === "version"} onClick={() => run("version", () => newClientFormVersion(id), "New draft version created")} style={{ background: C.primary }}>
-          {isMobile ? "Edit" : "Edit as new version"}
-        </Button>
+        <div style={{ display: "flex", gap: 8 }}>
+          {can("CLIENT_FORMS_UPDATE") && (
+            <Button icon={<BranchesOutlined />} loading={busy === "version"} onClick={() => run("version", () => newClientFormVersion(id), "New draft version created")}>
+              {isMobile ? "" : "Edit as new version"}
+            </Button>
+          )}
+          {can("CLIENT_FORMS_SEND") && (
+            <Button type="primary" icon={<SendOutlined />} onClick={() => setSendOpen(true)}>
+              {isMobile ? "Send" : "Send to client"}
+            </Button>
+          )}
+        </div>
       );
     if (status === "archived" && can("CLIENT_FORMS_APPROVE"))
       return (
@@ -756,6 +767,8 @@ const FormBuilderPage: React.FC = () => {
           </>
         )}
       </div>
+
+      <StartFormModal open={sendOpen} onClose={() => setSendOpen(false)} templateId={id} />
 
       {/* ── Review modals ───────────────────────────────────────────── */}
       <Modal

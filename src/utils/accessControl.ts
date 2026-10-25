@@ -819,6 +819,11 @@ export const PERMISSIONS: Record<string, Permission> = {
     CLIENT_FORMS_UPDATE: { key: "CLIENT_FORMS_UPDATE", label: "Edit Client Forms", module: MODULES.CLIENT_FORMS, action: "update", moduleScope: "pos" },
     CLIENT_FORMS_DELETE: { key: "CLIENT_FORMS_DELETE", label: "Delete Draft Client Forms", module: MODULES.CLIENT_FORMS, action: "delete", moduleScope: "pos" },
     CLIENT_FORMS_APPROVE: { key: "CLIENT_FORMS_APPROVE", label: "Approve Client Forms", module: MODULES.CLIENT_FORMS, action: "special", moduleScope: "pos" },
+    // Filled-in forms hold clients' health information — viewing them is its own permission
+    CLIENT_FORMS_VIEW_FILLED: { key: "CLIENT_FORMS_VIEW_FILLED", label: "View Filled Client Forms & Signed PDFs", module: MODULES.CLIENT_FORMS, action: "read", moduleScope: "pos" },
+    CLIENT_FORMS_SEND: { key: "CLIENT_FORMS_SEND", label: "Send Forms to Clients / Fill In Store", module: MODULES.CLIENT_FORMS, action: "create", moduleScope: "pos" },
+    CLIENT_FORMS_COUNTERSIGN: { key: "CLIENT_FORMS_COUNTERSIGN", label: "Countersign Client Forms", module: MODULES.CLIENT_FORMS, action: "special", moduleScope: "pos" },
+    CLIENT_FORMS_VOID: { key: "CLIENT_FORMS_VOID", label: "Void Filled Client Forms", module: MODULES.CLIENT_FORMS, action: "delete", moduleScope: "pos" },
 
     // ── Reports ───────────────────────────────────────────────────────────────
 

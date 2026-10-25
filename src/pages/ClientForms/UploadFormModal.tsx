@@ -80,7 +80,7 @@ const UploadFormModal: React.FC<Props> = ({ open, onClose, onUploaded }) => {
         }
       }}
       width={560}
-      destroyOnClose
+      destroyOnHidden
     >
       <Text style={{ color: C.subText, display: "block", marginBottom: 14, fontSize: 13 }}>
         Upload the form as a PDF or Word file, or take photos of each page. The AI reads every question

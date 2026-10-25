@@ -9,6 +9,8 @@ import {
 } from "@ant-design/icons";
 import { uploadCustomerDocument, deleteCustomerDocument, CustomerDocument } from "@services/customerDocuments";
 import { THEME_C } from "@utils/getPrimaryColor";
+import { useSpaSettings } from "@hooks/useSpaSettings";
+import FilledFormsList from "@pages/ClientForms/fill/FilledFormsList";
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -63,6 +65,8 @@ interface CustomerDetailDrawerProps {
 }
 
 const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ open, onClose, customer, onUpdated }) => {
+    // Spa & Wellness add-on: consultation / consent forms for this customer
+    const { clientForms } = useSpaSettings();
     const [documentForm] = Form.useForm();
     const [documents, setDocuments] = useState<CustomerDocument[]>([]);
     const [documentsLoading, setDocumentsLoading] = useState(false);
@@ -337,6 +341,15 @@ const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ open, onClo
                             </>
                         ),
                     },
+                    ...(clientForms
+                        ? [
+                              {
+                                  key: 'forms',
+                                  label: 'Forms',
+                                  children: <FilledFormsList customer={customer} />,
+                              },
+                          ]
+                        : []),
                 ]}
             />
         </Drawer>

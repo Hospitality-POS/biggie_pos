@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Input, Select, Typography, Grid, Spin, Tooltip, message, Empty } from "antd";
+import { Button, Input, Select, Typography, Grid, Spin, Tooltip, message, Empty, Segmented } from "antd";
 import {
   CloudUploadOutlined,
   FormOutlined,
@@ -13,6 +13,7 @@ import {
   EyeOutlined,
   CheckCircleOutlined,
   FileSearchOutlined,
+  SolutionOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -21,6 +22,7 @@ import { useDebounce } from "@hooks/useDebounce";
 import { usePermissions } from "@hooks/usePermissions";
 import { fetchClientForms, createBlankClientForm, apiErrorMessage } from "@services/clientForms";
 import UploadFormModal from "./UploadFormModal";
+import FilledFormsList from "./fill/FilledFormsList";
 import { CATEGORY_META, CATEGORY_OPTIONS, STATUS_META, clientFormsBasePath } from "./constants";
 import type { FormStatus, FormTemplateSummary } from "./types";
 
@@ -179,6 +181,8 @@ const ClientFormsPage: React.FC = () => {
   const { can } = usePermissions();
   const canCreate = can("CLIENT_FORMS_CREATE");
 
+  const canViewFilled = can("CLIENT_FORMS_VIEW_FILLED");
+  const [view, setView] = useState<"library" | "filled">("library");
   const [tab, setTab] = useState<TabKey>("all");
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<string | undefined>();
@@ -247,7 +251,7 @@ const ClientFormsPage: React.FC = () => {
             Consultation and consent forms your clients fill and e-sign
           </Text>
         </div>
-        {canCreate && (
+        {canCreate && view === "library" && (
           <div style={{ display: "flex", gap: 8 }}>
             <Button icon={<PlusOutlined />} onClick={startBlank} loading={creating}>
               {isMobile ? "Blank" : "Start blank"}
@@ -259,6 +263,24 @@ const ClientFormsPage: React.FC = () => {
         )}
       </div>
 
+      {canViewFilled && (
+        <Segmented
+          value={view}
+          onChange={(v) => setView(v as "library" | "filled")}
+          options={[
+            { value: "library", label: "Form library", icon: <FormOutlined /> },
+            { value: "filled", label: "Filled by clients", icon: <SolutionOutlined /> },
+          ]}
+          style={{ marginBottom: 16 }}
+        />
+      )}
+
+      {view === "filled" ? (
+        <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: isMobile ? 12 : 16 }}>
+          <FilledFormsList showCustomer />
+        </div>
+      ) : (
+      <>
       {/* ── Approval banner ─────────────────────────────────────────────── */}
       {pending > 0 && can("CLIENT_FORMS_APPROVE") && tab !== "pending_approval" && (
         <div
@@ -395,6 +417,8 @@ const ClientFormsPage: React.FC = () => {
             </Tooltip>
           ))}
         </div>
+      )}
+      </>
       )}
 
       <UploadFormModal

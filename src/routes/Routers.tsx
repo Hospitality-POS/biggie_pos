@@ -105,6 +105,8 @@ const PublicSignPage = lazyWithReload(() => import("@pages/ESign/PublicSignPage"
 // ─── Spa & Wellness: Client Forms ─────────────────────────────────────────────
 const ClientFormsPage = lazyWithReload(() => import("@pages/ClientForms/ClientFormsPage"));
 const FormBuilderPage = lazyWithReload(() => import("@pages/ClientForms/FormBuilderPage"));
+const InStoreFillPage = lazyWithReload(() => import("@pages/ClientForms/fill/InStoreFillPage"));
+const PublicClientFormPage = lazyWithReload(() => import("@pages/ClientForms/fill/PublicClientFormPage"));
 
 // ─── Omnichannel Inbox ────────────────────────────────────────────────────────
 const OmnichannelInboxPage = lazyWithReload(() => import("src/pages/OmniChannel/OmnichannelInboxPage"));
@@ -360,6 +362,20 @@ const routes = sentryCreateBrowserRouter(
         path="/esign/sign/:token"
         errorElement={<NotFound />}
         element={<Suspense fallback={fullscreenSpin}><PublicSignPage /></Suspense>}
+      />
+
+      {/* Public — client fills & signs a spa form from the link they were sent */}
+      <Route
+        path="/f/:token"
+        errorElement={<NotFound />}
+        element={<Suspense fallback={fullscreenSpin}><PublicClientFormPage /></Suspense>}
+      />
+
+      {/* Full-screen form on the shop's tablet (no sidebar for the client to wander into) */}
+      <Route
+        path="/client-forms/fill/:id"
+        errorElement={<NotFound />}
+        element={guardedPage(InStoreFillPage, "CLIENT_FORMS_SEND")}
       />
 
       {/* ══════════════════════════════════════════════════════════════════
