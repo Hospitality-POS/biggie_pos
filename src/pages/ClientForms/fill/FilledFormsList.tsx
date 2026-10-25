@@ -12,6 +12,7 @@ import {
   MoreOutlined,
   MedicineBoxOutlined,
   SendOutlined,
+  ScheduleOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -30,6 +31,9 @@ import StartFormModal, { type CustomerLite } from "./StartFormModal";
 import StaffSignModal from "./StaffSignModal";
 import { SUBMISSION_STATUS_META, type FormSubmissionSummary, type SubmissionStatus } from "./types";
 import { questionLead } from "./utils";
+import { useSpaSettings } from "@hooks/useSpaSettings";
+import NewPlanModal from "@pages/TreatmentPlans/NewPlanModal";
+import PlanDrawer from "@pages/TreatmentPlans/PlanDrawer";
 
 dayjs.extend(relativeTime);
 
@@ -71,6 +75,11 @@ const FilledFormsList: React.FC<Props> = ({ customer, showCustomer }) => {
   const [voiding, setVoiding] = useState<FormSubmissionSummary | null>(null);
   const [voidReason, setVoidReason] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
+  // Start a treatment plan from a signed form
+  const { treatmentPlans } = useSpaSettings();
+  const [planFrom, setPlanFrom] = useState<FormSubmissionSummary | null>(null);
+  const [openPlanId, setOpenPlanId] = useState<string | null>(null);
+  const canStartPlan = treatmentPlans && can("TREATMENT_PLANS_MANAGE");
 
   const statuses = FILTERS.find((f) => f.key === filter)?.statuses;
   const queryKey = ["form-submissions", customer?._id ?? "all", filter];
@@ -214,6 +223,9 @@ const FilledFormsList: React.FC<Props> = ({ customer, showCustomer }) => {
                 ? [{ key: "link", icon: <LinkOutlined />, label: "Copy a new link" }]
                 : []),
               ...(open && can("CLIENT_FORMS_SEND") ? [{ key: "here", icon: <TabletOutlined />, label: "Fill on this device" }] : []),
+              ...(row.status === "completed" && canStartPlan
+                ? [{ key: "plan", icon: <ScheduleOutlined />, label: "Start treatment plan" }]
+                : []),
               ...(row.status !== "voided" && can("CLIENT_FORMS_VOID")
                 ? [{ key: "void", icon: <StopOutlined />, label: "Void", danger: true }]
                 : []),
@@ -288,6 +300,7 @@ const FilledFormsList: React.FC<Props> = ({ customer, showCustomer }) => {
                         if (key === "link") copyNewLink(row);
                         if (key === "here") navigate(`/client-forms/fill/${row._id}`, { state: { returnTo: location.pathname } });
                         if (key === "void") setVoiding(row);
+                        if (key === "plan") setPlanFrom(row);
                       },
                     }}
                   >
@@ -301,6 +314,22 @@ const FilledFormsList: React.FC<Props> = ({ customer, showCustomer }) => {
       )}
 
       <StartFormModal open={startOpen} onClose={() => setStartOpen(false)} customer={customer} onCreated={refresh} />
+
+      {canStartPlan && (
+        <>
+          <NewPlanModal
+            open={!!planFrom}
+            onClose={() => setPlanFrom(null)}
+            customer={planFrom ? { _id: planFrom.customer_id, customer_name: planFrom.customer_snapshot.name } : null}
+            submissionId={planFrom?._id}
+            onCreated={(plan) => {
+              setPlanFrom(null);
+              setOpenPlanId(plan._id);
+            }}
+          />
+          <PlanDrawer planId={openPlanId} onClose={() => setOpenPlanId(null)} />
+        </>
+      )}
 
       {signing && (
         <StaffSignModal

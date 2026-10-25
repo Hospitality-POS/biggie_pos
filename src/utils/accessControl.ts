@@ -78,6 +78,7 @@ export const MODULES = {
     SIGNATURE: "E-Signature",
     // ── Spa & Wellness add-on (Duka) ─────────────────────────────────────────
     CLIENT_FORMS: "Spa · Client Forms",
+    TREATMENT_PLANS: "Spa · Treatment Plans",
 } as const;
 
 export type ModuleKey = keyof typeof MODULES;
@@ -824,6 +825,10 @@ export const PERMISSIONS: Record<string, Permission> = {
     CLIENT_FORMS_SEND: { key: "CLIENT_FORMS_SEND", label: "Send Forms to Clients / Fill In Store", module: MODULES.CLIENT_FORMS, action: "create", moduleScope: "pos" },
     CLIENT_FORMS_COUNTERSIGN: { key: "CLIENT_FORMS_COUNTERSIGN", label: "Countersign Client Forms", module: MODULES.CLIENT_FORMS, action: "special", moduleScope: "pos" },
     CLIENT_FORMS_VOID: { key: "CLIENT_FORMS_VOID", label: "Void Filled Client Forms", module: MODULES.CLIENT_FORMS, action: "delete", moduleScope: "pos" },
+
+    TREATMENT_PLANS_VIEW: { key: "TREATMENT_PLANS_VIEW", label: "View Treatment Plans", module: MODULES.TREATMENT_PLANS, action: "read", moduleScope: "pos" },
+    TREATMENT_PLANS_MANAGE: { key: "TREATMENT_PLANS_MANAGE", label: "Create & Update Treatment Plans", module: MODULES.TREATMENT_PLANS, action: "update", moduleScope: "pos" },
+    TREATMENT_PLAN_TEMPLATES_MANAGE: { key: "TREATMENT_PLAN_TEMPLATES_MANAGE", label: "Manage Treatment Plan Templates", module: MODULES.TREATMENT_PLANS, action: "special", moduleScope: "pos" },
 
     // ── Reports ───────────────────────────────────────────────────────────────
 

@@ -36,6 +36,7 @@ import {
   ClockCircleOutlined,
   DollarOutlined,
   FormOutlined,
+  ScheduleOutlined,
 } from "@ant-design/icons";
 import { useAppSelector } from "src/store";
 import React from "react";
@@ -152,6 +153,7 @@ const POS_ROUTE_PERMISSIONS: Record<string, string> = {
   "/documents": "DOCUMENTS_VIEW",
   "/esign": "SIGNATURE_VIEW",
   "/client-forms": "CLIENT_FORMS_VIEW",
+  "/treatment-plans": "TREATMENT_PLANS_VIEW",
   "/petty-cash": "ORDERS_VIEW_DASHBOARD",
   "/refunds": "ORDERS_VIEW_DASHBOARD",
   "/Category-settings": "CATEGORIES_VIEW",
@@ -410,6 +412,9 @@ export const useProLayoutNav = () => {
     { path: p("/customers"), name: getCustomerLabel(), icon: <UserOutlined />, _bare: "/customers" },
     ...(spa.clientForms
       ? [{ path: p("/client-forms"), name: "Client Forms", icon: <FormOutlined />, _bare: "/client-forms" }]
+      : []),
+    ...(spa.treatmentPlans
+      ? [{ path: p("/treatment-plans"), name: "Treatment Plans", icon: <ScheduleOutlined />, _bare: "/treatment-plans" }]
       : []),
     { path: p("/reports"), name: "Reports", icon: <ApiFilled />, _bare: "/reports" },
     { ...documentRoute },

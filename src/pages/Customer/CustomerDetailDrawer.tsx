@@ -11,6 +11,7 @@ import { uploadCustomerDocument, deleteCustomerDocument, CustomerDocument } from
 import { THEME_C } from "@utils/getPrimaryColor";
 import { useSpaSettings } from "@hooks/useSpaSettings";
 import FilledFormsList from "@pages/ClientForms/fill/FilledFormsList";
+import PlansList from "@pages/TreatmentPlans/PlansList";
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -66,7 +67,7 @@ interface CustomerDetailDrawerProps {
 
 const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ open, onClose, customer, onUpdated }) => {
     // Spa & Wellness add-on: consultation / consent forms for this customer
-    const { clientForms } = useSpaSettings();
+    const { clientForms, treatmentPlans } = useSpaSettings();
     const [documentForm] = Form.useForm();
     const [documents, setDocuments] = useState<CustomerDocument[]>([]);
     const [documentsLoading, setDocumentsLoading] = useState(false);
@@ -347,6 +348,15 @@ const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ open, onClo
                                   key: 'forms',
                                   label: 'Forms',
                                   children: <FilledFormsList customer={customer} />,
+                              },
+                          ]
+                        : []),
+                    ...(treatmentPlans
+                        ? [
+                              {
+                                  key: 'plans',
+                                  label: 'Plans',
+                                  children: <PlansList customer={customer} />,
                               },
                           ]
                         : []),

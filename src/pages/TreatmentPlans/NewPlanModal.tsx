@@ -1,0 +1,227 @@
+import React, { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Modal, Select, Input, DatePicker, Typography, Spin, message } from "antd";
+import { BulbOutlined, FileAddOutlined, CheckCircleFilled } from "@ant-design/icons";
+import dayjs, { type Dayjs } from "dayjs";
+import { THEME_C } from "@utils/getPrimaryColor";
+import { useDebounce } from "@hooks/useDebounce";
+import { fetchAllCustomers } from "@services/customers";
+import { fetchPlanTemplates, fetchPlanSuggestions, createTreatmentPlan, planError } from "@services/treatmentPlans";
+import { CATEGORY_META } from "@pages/ClientForms/constants";
+import type { FormCategory } from "@pages/ClientForms/types";
+import type { TreatmentPlan } from "./types";
+
+const { Text } = Typography;
+const C = THEME_C;
+
+export interface PlanCustomer {
+  _id: string;
+  customer_name?: string;
+  company_name?: string;
+  phone?: string | number;
+}
+
+interface Props {
+  open: boolean;
+  onClose: () => void;
+  customer?: PlanCustomer | null;
+  /** Signed form the plan starts from — enables suggestions and copies precautions */
+  submissionId?: string | null;
+  onCreated: (plan: TreatmentPlan) => void;
+}
+
+const BLANK = "__blank";
+const nameOf = (c?: PlanCustomer | null) => c?.customer_name || c?.company_name || "";
+const emoji = (category: string) => CATEGORY_META[category as FormCategory]?.emoji ?? "📋";
+
+const Choice: React.FC<{
+  active: boolean;
+  onClick: () => void;
+  title: string;
+  sub: string;
+  icon: React.ReactNode;
+  badge?: React.ReactNode;
+}> = ({ active, onClick, title, sub, icon, badge }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    aria-pressed={active}
+    style={{
+      display: "flex",
+      gap: 10,
+      alignItems: "flex-start",
+      textAlign: "left",
+      padding: "10px 12px",
+      borderRadius: 10,
+      border: `1.5px solid ${active ? C.primary : "#e2e8f0"}`,
+      background: active ? C.primaryLight : "#fff",
+      cursor: "pointer",
+      width: "100%",
+    }}
+  >
+    <span style={{ fontSize: 20, lineHeight: 1 }}>{icon}</span>
+    <span style={{ flex: 1, minWidth: 0 }}>
+      <span style={{ display: "block", fontWeight: 600, color: "#0f172a", fontSize: 13.5 }}>{title}</span>
+      <span style={{ display: "block", fontSize: 12, color: C.subText }}>{sub}</span>
+      {badge}
+    </span>
+    {active && <CheckCircleFilled style={{ color: C.primary, marginTop: 2 }} />}
+  </button>
+);
+
+const NewPlanModal: React.FC<Props> = ({ open, onClose, customer, submissionId, onCreated }) => {
+  const [picked, setPicked] = useState<PlanCustomer | null>(customer ?? null);
+  const [search, setSearch] = useState("");
+  const [choice, setChoice] = useState<string>(BLANK);
+  const [title, setTitle] = useState("");
+  const [start, setStart] = useState<Dayjs>(dayjs());
+  const [saving, setSaving] = useState(false);
+  const debounced = useDebounce(search, 300);
+
+  const { data: templates = [], isLoading: loadingTemplates } = useQuery({
+    queryKey: ["plan-templates", "active"],
+    queryFn: () => fetchPlanTemplates(true),
+    enabled: open,
+  });
+  const { data: suggestions = [], isLoading: loadingSuggestions } = useQuery({
+    queryKey: ["plan-suggestions", submissionId],
+    queryFn: () => fetchPlanSuggestions(submissionId as string),
+    enabled: open && !!submissionId,
+  });
+  const { data: customers = [], isFetching: searching } = useQuery({
+    queryKey: ["plan-customer-search", debounced],
+    queryFn: () => fetchAllCustomers({ search: debounced }) as Promise<PlanCustomer[]>,
+    enabled: open && !customer && debounced.trim().length >= 2,
+  });
+
+  useEffect(() => {
+    if (open) {
+      setPicked(customer ?? null);
+      setChoice(BLANK);
+      setTitle("");
+      setStart(dayjs());
+    }
+  }, [open, customer]);
+
+  // Preselect the best suggestion once it arrives
+  useEffect(() => {
+    if (open && suggestions.length) setChoice((c) => (c === BLANK ? suggestions[0]._id : c));
+  }, [open, suggestions]);
+
+  const suggestedIds = new Set(suggestions.map((s) => s._id));
+  const others = templates.filter((t) => !suggestedIds.has(t._id));
+
+  const create = async () => {
+    if (!picked) {
+      message.warning("Choose a customer");
+      return;
+    }
+    setSaving(true);
+    try {
+      const plan = await createTreatmentPlan({
+        customer_id: picked._id,
+        template_id: choice === BLANK ? undefined : choice,
+        submission_id: submissionId ?? undefined,
+        title: choice === BLANK ? title.trim() || undefined : undefined,
+        start_date: start.toISOString(),
+      });
+      message.success("Treatment plan started");
+      onCreated(plan);
+    } catch (e) {
+      const msg = planError(e, "Couldn't start the plan");
+      if (msg) message.error(msg);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal open={open} onCancel={onClose} onOk={create} okText="Start plan" confirmLoading={saving} title="New treatment plan" width={600} destroyOnHidden>
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 12 }}>
+          <div>
+            <Text style={{ fontSize: 12.5, color: C.subText, display: "block", marginBottom: 4 }}>Customer</Text>
+            {customer ? (
+              <Input value={nameOf(customer)} disabled />
+            ) : (
+              <Select
+                showSearch
+                value={picked?._id}
+                placeholder="Search by name or phone"
+                filterOption={false}
+                onSearch={setSearch}
+                onChange={(id) => setPicked(customers.find((c) => c._id === id) ?? null)}
+                notFoundContent={searching ? <Spin size="small" /> : debounced.length >= 2 ? "No customers found" : "Type at least 2 letters"}
+                options={customers.slice(0, 30).map((c) => ({ value: c._id, label: nameOf(c) }))}
+                style={{ width: "100%" }}
+              />
+            )}
+          </div>
+          <div>
+            <Text style={{ fontSize: 12.5, color: C.subText, display: "block", marginBottom: 4 }}>First session</Text>
+            <DatePicker value={start} onChange={(d) => d && setStart(d)} format="D MMM YYYY" allowClear={false} style={{ width: "100%" }} />
+          </div>
+        </div>
+
+        {submissionId && (
+          <div>
+            <Text style={{ fontSize: 12.5, color: C.subText, display: "block", marginBottom: 6 }}>
+              <BulbOutlined style={{ color: "#f59e0b" }} /> Suggested from the client's signed form
+            </Text>
+            {loadingSuggestions ? (
+              <Spin size="small" />
+            ) : suggestions.length === 0 ? (
+              <Text style={{ fontSize: 12.5, color: "#94a3b8" }}>No template matches this form. Pick one below or start blank.</Text>
+            ) : (
+              <div style={{ display: "grid", gap: 8 }}>
+                {suggestions.map((s) => (
+                  <Choice
+                    key={s._id}
+                    active={choice === s._id}
+                    onClick={() => setChoice(s._id)}
+                    icon={emoji(s.category)}
+                    title={s.name}
+                    sub={`${s.sessions} session${s.sessions === 1 ? "" : "s"}`}
+                    badge={<span style={{ display: "block", fontSize: 11.5, color: "#b45309", marginTop: 2 }}>{s.reasons.join(" · ")}</span>}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div>
+          <Text style={{ fontSize: 12.5, color: C.subText, display: "block", marginBottom: 6 }}>
+            {submissionId ? "Other templates" : "Start from"}
+          </Text>
+          {loadingTemplates ? (
+            <Spin size="small" />
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 8, maxHeight: 280, overflowY: "auto" }}>
+              <Choice active={choice === BLANK} onClick={() => setChoice(BLANK)} icon={<FileAddOutlined style={{ color: C.primary }} />} title="Blank plan" sub="Add sessions yourself" />
+              {others.map((t) => (
+                <Choice
+                  key={t._id}
+                  active={choice === t._id}
+                  onClick={() => setChoice(t._id)}
+                  icon={emoji(t.category)}
+                  title={t.name}
+                  sub={`${t.sessions.length} session${t.sessions.length === 1 ? "" : "s"}${t.description ? ` · ${t.description}` : ""}`}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {choice === BLANK && (
+          <div>
+            <Text style={{ fontSize: 12.5, color: C.subText, display: "block", marginBottom: 4 }}>Plan name</Text>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Pigmentation programme" maxLength={200} />
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
+};
+
+export default NewPlanModal;

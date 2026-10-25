@@ -107,6 +107,7 @@ const ClientFormsPage = lazyWithReload(() => import("@pages/ClientForms/ClientFo
 const FormBuilderPage = lazyWithReload(() => import("@pages/ClientForms/FormBuilderPage"));
 const InStoreFillPage = lazyWithReload(() => import("@pages/ClientForms/fill/InStoreFillPage"));
 const PublicClientFormPage = lazyWithReload(() => import("@pages/ClientForms/fill/PublicClientFormPage"));
+const TreatmentPlansPage = lazyWithReload(() => import("@pages/TreatmentPlans/TreatmentPlansPage"));
 
 // ─── Omnichannel Inbox ────────────────────────────────────────────────────────
 const OmnichannelInboxPage = lazyWithReload(() => import("src/pages/OmniChannel/OmnichannelInboxPage"));
@@ -416,6 +417,9 @@ const routes = sentryCreateBrowserRouter(
 
         <Route path="client-forms/:id" errorElement={<NotFound />}
           element={guardedPage(FormBuilderPage, "CLIENT_FORMS_VIEW")} />
+
+        <Route path="treatment-plans" errorElement={<NotFound />}
+          element={guardedPage(TreatmentPlansPage, "TREATMENT_PLANS_VIEW")} />
 
         <Route path="store" errorElement={<NotFound />}
           element={guardedPage(MainStore, "PRODUCTS_VIEW")} />
@@ -786,6 +790,9 @@ const routes = sentryCreateBrowserRouter(
 
         <Route path="client-forms/:id" errorElement={<NotFound />}
           element={guardedAdminPage(FormBuilderPage, "CLIENT_FORMS_VIEW")} />
+
+        <Route path="treatment-plans" errorElement={<NotFound />}
+          element={guardedAdminPage(TreatmentPlansPage, "TREATMENT_PLANS_VIEW")} />
 
         <Route path="discover" errorElement={<NotFound />}
           element={<Suspense fallback={fullscreenSpin}><AdminRoute><DiscoverPage /></AdminRoute></Suspense>} />
