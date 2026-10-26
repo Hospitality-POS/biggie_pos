@@ -84,6 +84,11 @@ import { resolveBenefitTypes, computeBenefitAmount } from "@utils/benefitTypes";
 import { useAppDispatch } from "../../store";
 import dayjs from "dayjs";
 import { THEME_C } from "@utils/getPrimaryColor";
+import { useFormsSettings } from "@hooks/useFormsSettings";
+import { usePermissions } from "@hooks/usePermissions";
+import { AudienceContext, AUDIENCES } from "@pages/FormsPlans/audience";
+import FilledFormsList from "@pages/FormsPlans/forms/fill/FilledFormsList";
+import PlansList from "@pages/FormsPlans/plans/PlansList";
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -204,6 +209,11 @@ const EmployeeManagement: React.FC = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isDrawerVisible, setIsDrawerVisible] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  // Forms & Plans add-on: the employee's signed forms and onboarding / training plans
+  const formsAddOn = useFormsSettings();
+  const { can: canDo } = usePermissions();
+  const showEmployeeForms = formsAddOn.employeeForms && canDo("EMPLOYEE_FORMS_VIEW");
+  const showEmployeePlans = formsAddOn.employeePlans && canDo("EMPLOYEE_PLANS_VIEW");
   const [isDocumentModalVisible, setIsDocumentModalVisible] = useState(false);
   const [isAllowanceModalVisible, setIsAllowanceModalVisible] = useState(false);
   const [isBenefitModalVisible, setIsBenefitModalVisible] = useState(false);
@@ -2871,6 +2881,21 @@ const EmployeeManagement: React.FC = () => {
                 )}
               </div>
             </Tabs.TabPane>
+
+            {showEmployeeForms && (
+              <Tabs.TabPane tab="Forms" key="forms">
+                <AudienceContext.Provider value={AUDIENCES.employee}>
+                  <FilledFormsList person={selectedEmployee} />
+                </AudienceContext.Provider>
+              </Tabs.TabPane>
+            )}
+            {showEmployeePlans && (
+              <Tabs.TabPane tab="Plans" key="plans">
+                <AudienceContext.Provider value={AUDIENCES.employee}>
+                  <PlansList person={selectedEmployee} />
+                </AudienceContext.Provider>
+              </Tabs.TabPane>
+            )}
           </Tabs>
         )}
       </Drawer>

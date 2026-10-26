@@ -5,6 +5,8 @@ import {
   RouterProvider,
   Navigate,
   Outlet,
+  useLocation,
+  useParams,
 } from "react-router-dom";
 import * as Sentry from "@sentry/react";
 import { Suspense } from "react";
@@ -71,6 +73,14 @@ const guardedAdminPage = (Component: React.ComponentType, permission: string | s
   </PermissionRoute>
 );
 
+/** Redirect an old link to its new path, keeping :params and the query string. */
+const RedirectWithParams: React.FC<{ to: string }> = ({ to }) => {
+  const params = useParams();
+  const { search } = useLocation();
+  const path = to.replace(/:(w+)/g, (_, k: string) => encodeURIComponent(params[k] ?? ""));
+  return <Navigate to={`${path}${search}`} replace />;
+};
+
 // ─── Wages Module ─────────────────────────────────────────────────────────────
 const WagesList = lazyWithReload(() => import("src/AdminDashboard/Wages/WageList"));
 
@@ -101,6 +111,15 @@ const DocumentCenter = lazyWithReload(() => import("@pages/Documents/DocumentCen
 // ─── E-Signature ───────────────────────────────────────────────────────────────
 const ESignPage = lazyWithReload(() => import("@pages/ESign/ESignPage"));
 const PublicSignPage = lazyWithReload(() => import("@pages/ESign/PublicSignPage"));
+
+// ─── Forms & Plans: client forms / plans (Duka) and employee forms / plans (Bandu) ──
+const FormsHubPage = lazyWithReload(() => import("@pages/FormsPlans/FormsHubPage"));
+const FormBuilderPage = lazyWithReload(() => import("@pages/FormsPlans/forms/FormBuilderPage"));
+const InStoreFillPage = lazyWithReload(() => import("@pages/FormsPlans/forms/fill/InStoreFillPage"));
+const PublicFormPage = lazyWithReload(() => import("@pages/FormsPlans/forms/fill/PublicFormPage"));
+const EmployeeFormsHubPage = () => <FormsHubPage audience="employee" />;
+const CLIENT_FORMS_HUB_PERMISSIONS = ["CLIENT_FORMS_VIEW", "CLIENT_FORMS_VIEW_FILLED", "CLIENT_PLANS_VIEW"];
+const EMPLOYEE_FORMS_HUB_PERMISSIONS = ["EMPLOYEE_FORMS_VIEW", "EMPLOYEE_PLANS_VIEW"];
 
 // ─── Omnichannel Inbox ────────────────────────────────────────────────────────
 const OmnichannelInboxPage = lazyWithReload(() => import("src/pages/OmniChannel/OmnichannelInboxPage"));
@@ -358,6 +377,26 @@ const routes = sentryCreateBrowserRouter(
         element={<Suspense fallback={fullscreenSpin}><PublicSignPage /></Suspense>}
       />
 
+      {/* Public — a client or employee fills & signs a form from the link they were sent */}
+      <Route
+        path="/f/:token"
+        errorElement={<NotFound />}
+        element={<Suspense fallback={fullscreenSpin}><PublicFormPage /></Suspense>}
+      />
+
+      {/* Full-screen form on the shop's tablet (no sidebar for the person to wander into) */}
+      <Route
+        path="/forms/fill/:id"
+        errorElement={<NotFound />}
+        element={guardedPage(InStoreFillPage, "CLIENT_FORMS_SEND")}
+      />
+      <Route
+        path="/hr/forms/fill/:id"
+        errorElement={<NotFound />}
+        element={banduHRPage(InStoreFillPage, "EMPLOYEE_FORMS_MANAGE")}
+      />
+      <Route path="/client-forms/fill/:id" element={<RedirectWithParams to="/forms/fill/:id" />} />
+
       {/* ══════════════════════════════════════════════════════════════════
           SHOP / POS ROUTES  (prefix: "/")
       ══════════════════════════════════════════════════════════════════ */}
@@ -390,6 +429,18 @@ const routes = sentryCreateBrowserRouter(
 
         <Route path="esign" errorElement={<NotFound />}
           element={guardedPage(ESignPage, "SIGNATURE_VIEW")} />
+
+        <Route path="forms" errorElement={<NotFound />}
+          element={guardedPage(FormsHubPage, CLIENT_FORMS_HUB_PERMISSIONS)} />
+
+        <Route path="forms/builder/:id" errorElement={<NotFound />}
+          element={guardedPage(FormBuilderPage, "CLIENT_FORMS_VIEW")} />
+
+        {/* Older links land on the matching Forms & Plans tab */}
+        <Route path="spa" element={<RedirectWithParams to="/forms" />} />
+        <Route path="client-forms" element={<Navigate to="/forms?tab=forms" replace />} />
+        <Route path="treatment-plans" element={<Navigate to="/forms?tab=plans" replace />} />
+        <Route path="client-forms/:id" element={<RedirectWithParams to="/forms/builder/:id" />} />
 
         <Route path="store" errorElement={<NotFound />}
           element={guardedPage(MainStore, "PRODUCTS_VIEW")} />
@@ -613,6 +664,10 @@ const routes = sentryCreateBrowserRouter(
             element={banduHRPage(BanduHRDashboard, "BANDU_DASHBOARD_VIEW")} />
           <Route path="employees" errorElement={<NotFound />}
             element={banduHRPage(EmployeeManagement, "BANDU_EMPLOYEES_VIEW")} />
+          <Route path="forms" errorElement={<NotFound />}
+            element={banduHRPage(EmployeeFormsHubPage, EMPLOYEE_FORMS_HUB_PERMISSIONS)} />
+          <Route path="forms/builder/:id" errorElement={<NotFound />}
+            element={banduHRPage(FormBuilderPage, "EMPLOYEE_FORMS_VIEW")} />
           <Route path="leave" errorElement={<NotFound />}
             element={banduHRPage(LeaveApplication, "BANDU_LEAVE_VIEW")} />
           <Route path="leave-policies" errorElement={<NotFound />}
@@ -754,6 +809,17 @@ const routes = sentryCreateBrowserRouter(
             </PermissionRoute>
           }
         />
+
+        <Route path="forms" errorElement={<NotFound />}
+          element={guardedAdminPage(FormsHubPage, CLIENT_FORMS_HUB_PERMISSIONS)} />
+
+        <Route path="forms/builder/:id" errorElement={<NotFound />}
+          element={guardedAdminPage(FormBuilderPage, "CLIENT_FORMS_VIEW")} />
+
+        <Route path="spa" element={<RedirectWithParams to="/admin/forms" />} />
+        <Route path="client-forms" element={<Navigate to="/admin/forms?tab=forms" replace />} />
+        <Route path="treatment-plans" element={<Navigate to="/admin/forms?tab=plans" replace />} />
+        <Route path="client-forms/:id" element={<RedirectWithParams to="/admin/forms/builder/:id" />} />
 
         <Route path="discover" errorElement={<NotFound />}
           element={<Suspense fallback={fullscreenSpin}><AdminRoute><DiscoverPage /></AdminRoute></Suspense>} />

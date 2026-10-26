@@ -15,7 +15,8 @@ const C = THEME_C;
 interface AddCustomerModalProps {
     visible: boolean;
     onClose: () => void;
-    onSuccess?: () => void;
+    /** Receives the saved customer when the API returns it (e.g. to select it straight away) */
+    onSuccess?: (saved?: any) => void;
     customer?: any;
     mode?: "add" | "edit";
     /**
@@ -33,6 +34,8 @@ interface AddCustomerModalProps {
         location?: string;
         entity_type?: 'individual' | 'company';
     };
+    /** Plain "add" mode with a name or phone already filled in (e.g. from a search box) */
+    prefill?: { customer_name?: string; phone?: string };
 }
 
 /** Parse a raw phone string into the { code, phone, short } shape PhoneInput expects */
@@ -162,7 +165,7 @@ const useGooglePlacesAutocomplete = () => {
 };
 
 const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
-    visible, onClose, onSuccess, customer, mode = "add", leadPrefill,
+    visible, onClose, onSuccess, customer, mode = "add", leadPrefill, prefill,
 }) => {
     const [form] = Form.useForm();
     const [loading, setLoading] = useState(false);
@@ -210,9 +213,14 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
         } else {
             form.resetFields();
             setEntityType('individual');
-            form.setFieldsValue({ entity_type: 'individual' });
+            form.setFieldsValue({
+                entity_type: 'individual',
+                // Quick-add from a search box: start with what was typed
+                customer_name: prefill?.customer_name || undefined,
+                phoneNumber: prefill?.phone ? parsePhoneForInput(prefill.phone) : undefined,
+            });
         }
-    }, [visible, mode, customer, leadPrefill, form]);
+    }, [visible, mode, customer, leadPrefill, prefill, form]);
 
     const handleSubmit = async (values: any) => {
         setLoading(true);
@@ -269,7 +277,7 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                 );
                 form.resetFields();
                 onClose();
-                onSuccess?.();
+                onSuccess?.(response?.data?.customer ?? response?.data);
             }
         } catch (error: any) {
             message.error(

@@ -9,6 +9,9 @@ import {
 } from "@ant-design/icons";
 import { uploadCustomerDocument, deleteCustomerDocument, CustomerDocument } from "@services/customerDocuments";
 import { THEME_C } from "@utils/getPrimaryColor";
+import { useFormsSettings } from "@hooks/useFormsSettings";
+import FilledFormsList from "@pages/FormsPlans/forms/fill/FilledFormsList";
+import PlansList from "@pages/FormsPlans/plans/PlansList";
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -63,6 +66,8 @@ interface CustomerDetailDrawerProps {
 }
 
 const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ open, onClose, customer, onUpdated }) => {
+    // Forms & Plans add-on: this customer's signed forms and plans
+    const { clientForms, clientPlans } = useFormsSettings();
     const [documentForm] = Form.useForm();
     const [documents, setDocuments] = useState<CustomerDocument[]>([]);
     const [documentsLoading, setDocumentsLoading] = useState(false);
@@ -337,6 +342,24 @@ const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ open, onClo
                             </>
                         ),
                     },
+                    ...(clientForms
+                        ? [
+                              {
+                                  key: 'forms',
+                                  label: 'Forms',
+                                  children: <FilledFormsList person={customer} />,
+                              },
+                          ]
+                        : []),
+                    ...(clientPlans
+                        ? [
+                              {
+                                  key: 'plans',
+                                  label: 'Plans',
+                                  children: <PlansList person={customer} />,
+                              },
+                          ]
+                        : []),
                 ]}
             />
         </Drawer>
