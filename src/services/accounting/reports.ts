@@ -430,6 +430,49 @@ export const getVATReport = async (params: PeriodReportParams) => {
 };
 
 /**
+ * Tourism Catering Levy — eligible / exempt sales, levy charged on customer
+ * invoices and sales receipts, and the Catering Levy Payable (2220) movement.
+ */
+export interface CateringLevyDocument {
+    type: "Invoice" | "Sales Receipt";
+    id: string;
+    number: string;
+    date: string;
+    shop_id: string;
+    shop_name: string;
+    customer: string;
+    rate: number;
+    exempt: boolean;
+    base: number;
+    levy: number;
+    total: number;
+    status: string;
+}
+
+export interface CateringLevyReportResponse {
+    period: { from: string | null; to: string | null };
+    summary: {
+        eligible_sales: number;
+        exempt_sales: number;
+        levy_charged: number;
+        documents: number;
+        exempt_documents: number;
+        rates: number[];
+    };
+    ledger: { levy_collected: number; adjustments: number; payable: number };
+    by_branch: { shop_id: string; shop_name: string; eligible_sales: number; exempt_sales: number; levy: number; documents: number }[];
+    documents: CateringLevyDocument[];
+}
+
+export const getCateringLevyReport = async (params: PeriodReportParams) => {
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/reports/catering-levy`,
+        { params }
+    );
+    return response.data as CateringLevyReportResponse;
+};
+
+/**
  * Cash Flow Summary — inflows/outflows for all bank/cash accounts.
  */
 export const getCashFlowSummary = async (params: PeriodReportParams) => {

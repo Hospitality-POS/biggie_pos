@@ -9,7 +9,7 @@ import {
     DownloadOutlined, EyeOutlined,
 } from "@ant-design/icons";
 import { useAppDispatch } from "src/store";
-import { Lead, LeadStage, updateLeadStage, convertLead, getLeadById } from "@services/crm/leads";
+import { Lead, LeadStage, updateLeadStage, convertLead, getLeadById, isDalaEnabled } from "@services/crm/leads";
 import { createLeadActivity } from "@services/crm/leadActivities";
 import { uploadLeadDocument, deleteLeadDocument, LeadDocument } from "@services/crm/leadDocuments";
 import { THEME_C } from "@utils/getPrimaryColor";
@@ -293,7 +293,7 @@ const LeadDetailDrawer: React.FC<LeadDetailDrawerProps> = ({ open, onClose, lead
                 <InfoRow icon={<PhoneOutlined />} label="Phone" value={lead.phone} />
                 <InfoRow icon={<MailOutlined />} label="Email" value={lead.email} />
                 <InfoRow icon={<UserOutlined />} label="Assigned To" value={lead.assigned_to?.name} />
-                <InfoRow icon={<ProjectOutlined />} label="Project" value={lead.project} />
+                {isDalaEnabled() && <InfoRow icon={<ProjectOutlined />} label="Project" value={lead.project} />}
                 <InfoRow icon={<WalletOutlined />} label="Est. Value"
                     value={lead.estimated_value ? `KES ${lead.estimated_value.toLocaleString()} (${lead.probability ?? 0}%)` : undefined} />
                 <InfoRow icon={<CalendarOutlined />} label="Expected Close"

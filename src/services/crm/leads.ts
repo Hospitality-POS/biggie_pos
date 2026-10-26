@@ -174,6 +174,18 @@ export const fetchLeadSources = async (shop_id?: string): Promise<string[]> => {
    works in that case.
 ============================================================ */
 
+// Projects are a dala (real estate) concept — the lead form, table and
+// drawer only show the Project field for tenants with the dala module.
+export const isDalaEnabled = (): boolean => {
+    try {
+        const stored = localStorage.getItem("tenant");
+        const tenant = stored ? JSON.parse(stored) : null;
+        return tenant?.modules?.dala === true;
+    } catch {
+        return false;
+    }
+};
+
 export const fetchProjectOptions = async (shop_id?: string): Promise<string[]> => {
     const names = new Set<string>();
 

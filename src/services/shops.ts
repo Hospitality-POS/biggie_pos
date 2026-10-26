@@ -2,6 +2,7 @@ import { ParamsType } from "@ant-design/pro-components";
 import { BASE_URL } from "@utils/config";
 import { message } from "antd";
 import axiosInstance from "./request";
+import type { ShopTaxSettings } from "@utils/taxConfig";
 
 const url = `${BASE_URL}/shops`;
 
@@ -212,4 +213,10 @@ export const updateShopHotelSettings = async (shopId: string, hotelSettings: any
     console.error('Error updating shop hotel settings:', error);
     throw error;
   }
+};
+// Branch-only VAT / catering levy — business-wide ones live on the tenant
+// (VAT) and system settings (levy). See utils/taxConfig.ts.
+export const updateShopTaxSettings = async (shopId: string, taxSettings: ShopTaxSettings) => {
+  const response = await axiosInstance.patch(`${url}/${shopId}`, { tax_settings: taxSettings });
+  return response.data;
 };

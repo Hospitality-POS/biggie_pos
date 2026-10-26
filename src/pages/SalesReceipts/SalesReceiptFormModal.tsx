@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
     Form, Button, Select, InputNumber, Input, Table, Typography, Divider,
-    Row, Col, DatePicker, Descriptions, Alert, Spin, message,
+    Row, Col, DatePicker, Descriptions, Alert, Spin, Space, Switch, message,
 } from "antd";
 import {
     PlusOutlined, DeleteOutlined, AccountBookOutlined, UserOutlined,
@@ -22,6 +22,7 @@ import { getAllAccounts, ChartOfAccount } from "@services/accounting/accounts";
 import { getAllInvoices } from "@services/accounting/invoice";
 import StepperModal from "@components/MODALS/StepperModal";
 import dayjs from "dayjs";
+import { useCateringLevy, computeCateringLevy } from "@hooks/useCateringLevy";
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -106,6 +107,11 @@ const SalesReceiptFormModal: React.FC<Props> = ({ open, onClose, receiptId, onSu
     const [step, setStep] = useState(0);
     const [lines, setLines] = useState<LineItem[]>([emptyLine()]);
     const [vatPricingMode, setVatPricingMode] = useState<VatPricingMode>("EXCLUSIVE");
+    const [levyExempt, setLevyExempt] = useState(false);
+    // Rate saved on the receipt when editing, else the branch's current rate
+    const [savedLevyRate, setSavedLevyRate] = useState<number | null>(null);
+    const branchLevy = useCateringLevy(open);
+    const levyRate = savedLevyRate ?? branchLevy.rate;
     const isEdit = !!receiptId;
 
     // ── Data ────────────────────────────────────────────────────────────────────
@@ -156,6 +162,8 @@ const SalesReceiptFormModal: React.FC<Props> = ({ open, onClose, receiptId, onSu
         if (!open) return;
         setStep(0);
         form.resetFields();
+        setLevyExempt(false);
+        setSavedLevyRate(null);
         if (isEdit && receipt) {
             form.setFieldsValue({
                 customer_id: receipt.customer_id?._id,
@@ -170,6 +178,8 @@ const SalesReceiptFormModal: React.FC<Props> = ({ open, onClose, receiptId, onSu
                 invoice_id: receipt.invoice_id?._id,
             });
             setVatPricingMode(receipt.vat_pricing_mode || "EXCLUSIVE");
+            setLevyExempt(!!receipt.catering_levy_exempt);
+            setSavedLevyRate(receipt.catering_levy_rate ?? 0);
             setLines(receipt.lines.map((l) => ({
                 key: l._id || crypto.randomUUID(),
                 description: l.description,
@@ -195,16 +205,24 @@ const SalesReceiptFormModal: React.FC<Props> = ({ open, onClose, receiptId, onSu
 
     // ── Calculations ────────────────────────────────────────────────────────────
 
+    // Mirrors the API: netAmount is always ex-VAT, so net + VAT is what the
+    // customer pays in both pricing modes. Only Standard lines carry VAT.
     const calcLine = (line: LineItem) => {
-        const netAmount = line.quantity * line.unit_price - line.discount;
+        const amount = line.quantity * line.unit_price - line.discount;
+        const vatRate = line.vat_type === "STANDARD" ? line.vat_rate : 0;
         const vatAmount = vatPricingMode === "INCLUSIVE"
-            ? netAmount - (netAmount / (1 + line.vat_rate))
-            : netAmount * line.vat_rate;
+            ? amount - (amount / (1 + vatRate))
+            : amount * vatRate;
+        const netAmount = vatPricingMode === "INCLUSIVE" ? amount - vatAmount : amount;
         return { netAmount, vatAmount, lineTotal: netAmount + vatAmount };
     };
     const subtotal = lines.reduce((s, l) => s + calcLine(l).netAmount, 0);
     const totalVat = lines.reduce((s, l) => s + calcLine(l).vatAmount, 0);
-    const grandTotal = subtotal + totalVat;
+    // Catering levy on the net sale value (after discounts, ex VAT)
+    const levyAmount = computeCateringLevy(subtotal, levyRate, levyExempt);
+    const fullLevy = computeCateringLevy(subtotal, levyRate, false);
+    const levyPct = parseFloat((levyRate * 100).toFixed(2));
+    const grandTotal = subtotal + totalVat + levyAmount;
 
     const updateLine = (key: string, field: keyof LineItem, value: any) =>
         setLines((prev) => prev.map((l) => (l.key === key ? { ...l, [field]: value } : l)));
@@ -289,6 +307,7 @@ const SalesReceiptFormModal: React.FC<Props> = ({ open, onClose, receiptId, onSu
             vat_standard_rate: values.vat_standard_rate,
             status: values.status || "Pending",
             invoice_id: values.invoice_id,
+            catering_levy_exempt: levyExempt,
         };
 
         if (isEdit) updateMutation.mutate({ id: receiptId!, data });
@@ -466,6 +485,19 @@ const SalesReceiptFormModal: React.FC<Props> = ({ open, onClose, receiptId, onSu
                         >
                             Add Line Item
                         </Button>
+                        {levyRate > 0 && (
+                            <div style={{
+                                display: "flex", justifyContent: "space-between", alignItems: "center",
+                                gap: 12, flexWrap: "wrap", marginTop: 12,
+                            }}>
+                                <Space size={10} wrap>
+                                    <Text>Catering Levy ({levyPct}%)</Text>
+                                    <Switch size="small" checked={levyExempt} onChange={setLevyExempt} />
+                                    <Text type="secondary" style={{ fontSize: 12 }}>Exempt from catering levy</Text>
+                                </Space>
+                                <Text strong delete={levyExempt}>KES {fmt2(fullLevy)}</Text>
+                            </div>
+                        )}
                         <div style={{
                             display: "flex", justifyContent: "flex-end", gap: 24, flexWrap: "wrap",
                             marginTop: 12, padding: "8px 12px", borderRadius: 8,
@@ -473,6 +505,7 @@ const SalesReceiptFormModal: React.FC<Props> = ({ open, onClose, receiptId, onSu
                         }}>
                             <Text style={{ fontSize: 12 }}>Subtotal {fmt2(subtotal)}</Text>
                             <Text style={{ fontSize: 12 }}>VAT {fmt2(totalVat)}</Text>
+                            {levyRate > 0 && <Text style={{ fontSize: 12 }}>Levy {fmt2(levyAmount)}</Text>}
                             <Text strong style={{ fontSize: 13, color: "#15803d" }}>Grand Total KES {fmt2(grandTotal)}</Text>
                         </div>
                     </div>
@@ -532,6 +565,11 @@ const SalesReceiptFormModal: React.FC<Props> = ({ open, onClose, receiptId, onSu
                                     </Descriptions.Item>
                                     <Descriptions.Item label="Lines">{lines.length}</Descriptions.Item>
                                     <Descriptions.Item label="VAT">{fmt2(totalVat)}</Descriptions.Item>
+                                    {levyRate > 0 && (
+                                        <Descriptions.Item label={`Catering Levy (${levyPct}%)`} span={2}>
+                                            {levyExempt ? "Exempt" : fmt2(levyAmount)}
+                                        </Descriptions.Item>
+                                    )}
                                     <Descriptions.Item label="Grand Total" span={2}>
                                         <Text strong style={{ color: "#15803d" }}>KES {fmt2(grandTotal)}</Text>
                                     </Descriptions.Item>

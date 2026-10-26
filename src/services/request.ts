@@ -22,6 +22,21 @@ const logoutUser = () => {
     window.location.href = "/login";
 };
 
+// The API answers 403 { code: "ACCOUNT_INACTIVE", status } when the signed-in
+// (or signing-in) staff member is suspended or terminated. Sign them out and
+// show the restricted-account page. companyCode is kept so "Back to sign in"
+// lands on the same business.
+const restrictAccount = (status?: string) => {
+    if (window.location.pathname.startsWith("/account-restricted")) return;
+    isLoggingOut = true;
+    queryClient.cancelQueries();
+    queryClient.clear();
+    localStorage.removeItem("user");
+    localStorage.removeItem("shopId");
+    const kind = status === "Terminated" ? "terminated" : "suspended";
+    window.location.href = `/account-restricted?status=${kind}`;
+};
+
 const getValidShopId = (): string | null => {
     const shopId = localStorage.getItem("shopId");
     if (!shopId || shopId === "undefined" || shopId === "null" || shopId.trim() === "") {
@@ -344,7 +359,9 @@ axiosInstance.interceptors.response.use(
                     break;
                 }
                 case 403:
-                    if (response.data?.message?.toLowerCase().includes("locked")) {
+                    if (response.data?.code === "ACCOUNT_INACTIVE") {
+                        restrictAccount(response.data?.status);
+                    } else if (response.data?.message?.toLowerCase().includes("locked")) {
                         handleError(`Transaction Lock: ${response.data.message}`);
                     } else {
                         handleError(response.data.message || "Access denied");

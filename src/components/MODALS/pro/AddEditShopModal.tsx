@@ -1,13 +1,16 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import { Button, Form, Input, Modal, Space, Tag, Typography } from "antd";
+import { Button, Form, Input, InputNumber, Modal, Segmented, Space, Switch, Tag, Typography } from "antd";
 import {
   CheckCircleFilled, EditOutlined,
   EnvironmentOutlined, HomeOutlined, LoadingOutlined, MedicineBoxOutlined,
-  SearchOutlined, ShopOutlined, SolutionOutlined,
+  PercentageOutlined, SearchOutlined, ShopOutlined, SolutionOutlined, TagOutlined,
 } from "@ant-design/icons";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { createShop, updateShop } from "@services/shops";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
+import { DEFAULT_CATERING_LEVY_RATE, ShopTaxSettings, formatRate } from "@utils/taxConfig";
+import { useQuery } from "@tanstack/react-query";
+import { fetchCateringLevy } from "@services/systemsetup";
 
 interface ShopModalProps { actionRef: any; edit?: boolean; data?: any; }
 
@@ -303,6 +306,62 @@ const ModeCard: React.FC<{
   </div>
 );
 
+// ── Branch tax row (VAT / Catering Levy) ─────────────────────────────────────
+const DEFAULT_TAX: Required<ShopTaxSettings> = {
+  vat_enabled: false,
+  vat_pricing_mode: "EXCLUSIVE",
+  vat_standard_rate: 0.16,
+  catering_levy_enabled: false,
+  catering_levy_rate: DEFAULT_CATERING_LEVY_RATE,
+};
+
+const toPct = (rate?: number) => parseFloat(((Number(rate) || 0) * 100).toFixed(2));
+
+const TaxRow: React.FC<{
+  icon: React.ReactNode; title: string; desc: string; primaryColor: string;
+  enabled: boolean; onToggle: (v: boolean) => void;
+  tenantOn: boolean; tenantRate?: number;
+  ratePct: number; onRate: (pct: number) => void;
+  children?: React.ReactNode;
+}> = ({ icon, title, desc, primaryColor, enabled, onToggle, tenantOn, tenantRate, ratePct, onRate, children }) => (
+  <div style={{
+    border: `1px solid ${enabled ? `${primaryColor}55` : "#e2e8f0"}`,
+    background: enabled ? `${primaryColor}08` : "#fff",
+    borderRadius: 10, padding: "12px 14px", transition: "all 0.18s",
+  }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <div style={{
+        width: 32, height: 32, borderRadius: 8, flexShrink: 0, fontSize: 15,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        background: enabled ? `${primaryColor}18` : "#f1f5f9", color: enabled ? primaryColor : "#94a3b8",
+      }}>{icon}</div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <Typography.Text strong style={{ fontSize: 13, display: "block" }}>{title}</Typography.Text>
+        <Typography.Text type="secondary" style={{ fontSize: 11 }}>{desc}</Typography.Text>
+      </div>
+      <Switch size="small" checked={enabled} onChange={onToggle} />
+    </div>
+
+    {tenantOn && (
+      <div style={{ marginTop: 8, fontSize: 11, color: "#0e7490", background: "#ecfeff", borderRadius: 6, padding: "4px 8px" }}>
+        {enabled
+          ? `On for all branches at ${formatRate(tenantRate)} — this branch uses its own rate below.`
+          : `Already on for all branches at ${formatRate(tenantRate)} (Admin → Settings).`}
+      </div>
+    )}
+
+    {enabled && (
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginTop: 10, paddingLeft: 44 }}>
+        <InputNumber
+          size="small" min={0} max={100} step={0.5} addonAfter="%"
+          value={ratePct} onChange={(v) => onRate(Number(v) || 0)} style={{ width: 120 }}
+        />
+        {children}
+      </div>
+    )}
+  </div>
+);
+
 // ── Normalise legacy "restaurant" → "service" on read ─────────────────────────
 const normalisePosMode = (mode: string | undefined): PosMode => {
   if (mode === "restaurant") return "restaurant";
@@ -318,7 +377,17 @@ const AddEditShopModal: React.FC<ShopModalProps> = ({ actionRef, edit, data }) =
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [posMode, setPosMode] = useState<PosMode>(normalisePosMode(data?.pos_mode));
+  const [tax, setTax] = useState<Required<ShopTaxSettings>>(DEFAULT_TAX);
   const primaryColor = usePrimaryColor();
+  // Business-wide levy (system settings) — only to tell the user it already applies
+  const { data: businessLevy } = useQuery({
+    queryKey: ["catering-levy"],
+    queryFn: fetchCateringLevy,
+    enabled: open,
+    refetchOnWindowFocus: false,
+  });
+  const setTaxField =<K extends keyof ShopTaxSettings>(k: K, v: Required<ShopTaxSettings>[K]) =>
+    setTax((p) => ({ ...p, [k]: v }));
 
   // ── Tenant flags ─────────────────────────────────────────────────────────
   const storedTenant = localStorage.getItem("tenant");
@@ -339,6 +408,9 @@ const AddEditShopModal: React.FC<ShopModalProps> = ({ actionRef, edit, data }) =
     if (edit && data) {
       form.setFieldsValue({ name: data.name, location: data.location });
       setPosMode(normalisePosMode(data?.pos_mode));
+      setTax({ ...DEFAULT_TAX, ...(data?.tax_settings || {}) });
+    } else {
+      setTax(DEFAULT_TAX);
     }
     setOpen(true);
   };
@@ -347,6 +419,7 @@ const AddEditShopModal: React.FC<ShopModalProps> = ({ actionRef, edit, data }) =
     setOpen(false);
     form.resetFields();
     setPosMode("restaurant");
+    setTax(DEFAULT_TAX);
   };
 
   const handleOk = async () => {
@@ -359,8 +432,8 @@ const AddEditShopModal: React.FC<ShopModalProps> = ({ actionRef, edit, data }) =
       if (!confirmed) return;
       setLoading(true);
       edit
-        ? await updateShop({ ...values, _id: data?._id, pos_mode: posMode })
-        : await createShop({ ...values, pos_mode: posMode });
+        ? await updateShop({ ...values, _id: data?._id, pos_mode: posMode, tax_settings: tax })
+        : await createShop({ ...values, pos_mode: posMode, tax_settings: tax });
       actionRef?.current?.reload?.() || actionRef?.current?.reset?.();
       // Clear localStorage posMode when shop is updated to force refetch
       if (edit) {
@@ -450,6 +523,50 @@ const AddEditShopModal: React.FC<ShopModalProps> = ({ actionRef, edit, data }) =
               </div>
             </Form.Item>
           )}
+
+          {/* Branch-only taxes — business-wide ones are set in Admin → Settings */}
+          <Form.Item
+            label="Taxes & Levies"
+            extra="Switching a tax on here applies it to this branch only."
+            style={{ marginTop: 8 }}
+          >
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <TaxRow
+                icon={<TagOutlined />}
+                title="VAT"
+                desc="Charge VAT on this branch's sales"
+                primaryColor={primaryColor}
+                enabled={tax.vat_enabled}
+                onToggle={(v) => setTaxField("vat_enabled", v)}
+                tenantOn={!!tenant?.is_vat_enabled}
+                tenantRate={tenant?.vat_standard_rate}
+                ratePct={toPct(tax.vat_standard_rate)}
+                onRate={(pct) => setTaxField("vat_standard_rate", pct / 100)}
+              >
+                <Segmented
+                  size="small"
+                  value={tax.vat_pricing_mode}
+                  onChange={(v) => setTaxField("vat_pricing_mode", v as "INCLUSIVE" | "EXCLUSIVE")}
+                  options={[
+                    { label: "Tax exclusive", value: "EXCLUSIVE" },
+                    { label: "Tax inclusive", value: "INCLUSIVE" },
+                  ]}
+                />
+              </TaxRow>
+              <TaxRow
+                icon={<PercentageOutlined />}
+                title="Catering Levy"
+                desc="Tourism levy on food & drink sales"
+                primaryColor={primaryColor}
+                enabled={tax.catering_levy_enabled}
+                onToggle={(v) => setTaxField("catering_levy_enabled", v)}
+                tenantOn={!!businessLevy?.enabled}
+                tenantRate={(businessLevy?.percentage ?? 2) / 100}
+                ratePct={toPct(tax.catering_levy_rate)}
+                onRate={(pct) => setTaxField("catering_levy_rate", pct / 100)}
+              />
+            </div>
+          </Form.Item>
         </Form>
       </Modal>
     </>

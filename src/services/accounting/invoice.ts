@@ -87,6 +87,10 @@ export interface Invoice {
     discount_percentage?: number;
     discount_reason?: string;
     total_vat_amount: number;
+    catering_levy_rate?: number;
+    catering_levy_exempt?: boolean;
+    catering_levy_base?: number;
+    catering_levy_amount?: number;
     grand_total: number;
     amount_paid: number;
     amount_due: number;

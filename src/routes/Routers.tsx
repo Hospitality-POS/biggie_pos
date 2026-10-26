@@ -117,6 +117,7 @@ const FormsHubPage = lazyWithReload(() => import("@pages/FormsPlans/FormsHubPage
 const FormBuilderPage = lazyWithReload(() => import("@pages/FormsPlans/forms/FormBuilderPage"));
 const InStoreFillPage = lazyWithReload(() => import("@pages/FormsPlans/forms/fill/InStoreFillPage"));
 const PublicFormPage = lazyWithReload(() => import("@pages/FormsPlans/forms/fill/PublicFormPage"));
+const AccountRestrictedPage = lazyWithReload(() => import("@pages/AccountRestricted/AccountRestrictedPage"));
 const EmployeeFormsHubPage = () => <FormsHubPage audience="employee" />;
 const CLIENT_FORMS_HUB_PERMISSIONS = ["CLIENT_FORMS_VIEW", "CLIENT_FORMS_VIEW_FILLED", "CLIENT_PLANS_VIEW"];
 const EMPLOYEE_FORMS_HUB_PERMISSIONS = ["EMPLOYEE_FORMS_VIEW", "EMPLOYEE_PLANS_VIEW"];
@@ -375,6 +376,13 @@ const routes = sentryCreateBrowserRouter(
         path="/esign/sign/:token"
         errorElement={<NotFound />}
         element={<Suspense fallback={fullscreenSpin}><PublicSignPage /></Suspense>}
+      />
+
+      {/* Public — a suspended or terminated staff member lands here (see services/request.ts) */}
+      <Route
+        path="/account-restricted"
+        errorElement={<NotFound />}
+        element={<Suspense fallback={fullscreenSpin}><AccountRestrictedPage /></Suspense>}
       />
 
       {/* Public — a client or employee fills & signs a form from the link they were sent */}

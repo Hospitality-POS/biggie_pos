@@ -56,6 +56,10 @@ export interface SalesReceipt {
     internal_notes?: string;
     vat_pricing_mode?: VatPricingMode;
     vat_standard_rate?: number;
+    catering_levy_rate?: number;
+    catering_levy_exempt?: boolean;
+    catering_levy_base?: number;
+    catering_levy_amount?: number;
     journal_entry_id?: {
         _id: string;
         entry_no: string;
