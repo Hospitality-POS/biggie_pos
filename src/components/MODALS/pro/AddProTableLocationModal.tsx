@@ -12,6 +12,8 @@ interface AddProTableLocationModalProps {
   actionRef: any;
   edit?: boolean;
   data?: any;
+  /** Full-width, touch-sized edit trigger (used by the location cards). */
+  block?: boolean;
 }
 
 type ZoneRestriction = { main_category: string; locations: string[] };
@@ -20,6 +22,7 @@ const AddProTableLocationModal: React.FC<AddProTableLocationModalProps> = ({
   actionRef,
   edit,
   data,
+  block,
 }) => {
   const [form] = Form.useForm();
   const formRef = useRef();
@@ -106,8 +109,10 @@ const AddProTableLocationModal: React.FC<AddProTableLocationModalProps> = ({
       trigger={
         edit ? (
           <Button
-            size="small"
+            size={block ? "middle" : "small"}
+            block={block}
             key="button"
+            style={block ? { borderRadius: 8 } : undefined}
             icon={
               <EditOutlined
                 style={{ color: "var(--primary-color)" }}

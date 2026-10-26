@@ -22,6 +22,7 @@ import { useLogin } from "@components/staffCard/hook/useLogin";
 import { useNavigate } from "react-router-dom";
 import { ProCard } from "@ant-design/pro-components";
 import { useRefreshPrimaryColor } from "@context/PrimaryColorContext";
+import { useIsCompact } from "@hooks/useIsCompact";
 
 const { Text } = Typography;
 
@@ -46,6 +47,14 @@ const StaffLoginPage = () => {
     const [tenant, setTenant] = useState<any>(null);
     const [visible, setVisible] = useState(false);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    // The desktop app is Windows-only, so don't offer it on phones/tablets.
+    // Width alone misses iPads in landscape (1024–1366px), so check the device
+    // too; iPadOS reports itself as "MacIntel" but has a touch screen.
+    const isCompact = useIsCompact();
+    const isTouchDevice =
+        /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    const showGetApp = !IS_TAURI && !isCompact && !isTouchDevice;
 
     // New state for email login
     const [loginMethod, setLoginMethod] = useState<LoginMethod>("companyCode");
@@ -558,8 +567,8 @@ const StaffLoginPage = () => {
                     />
                 </Tooltip>
             )}
-            {/* Desktop app — web only: open installed app or download it */}
-            {!IS_TAURI && (
+            {/* Desktop app — web on desktop screens only: open installed app or download it */}
+            {showGetApp && (
                 <Dropdown
                     menu={{
                         items: [

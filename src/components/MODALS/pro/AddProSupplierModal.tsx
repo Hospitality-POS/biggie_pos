@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Button, Form, Space } from "antd";
+import { Button, Form, Grid, Space } from "antd";
 import { ModalForm, ProFormText, ProForm } from "@ant-design/pro-form";
 import { EditOutlined, SisternodeOutlined } from "@ant-design/icons";
 import ShowConfirm from "@utils/ConfirmUtil";
@@ -14,6 +14,8 @@ interface AddSupplierDialogProps {
   actionRef?: any;
   externalOpen?: boolean;
   onExternalClose?: () => void;
+  /** Full-width, touch-sized edit trigger (used by the supplier cards). */
+  block?: boolean;
 }
 
 const AddProSupplierModal: React.FC<AddSupplierDialogProps> = ({
@@ -22,8 +24,11 @@ const AddProSupplierModal: React.FC<AddSupplierDialogProps> = ({
   edit,
   externalOpen,
   onExternalClose,
+  block,
 }) => {
   const [form] = Form.useForm();
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
   const formRef = useRef();
   const [open, setOpen] = useState(false);
 
@@ -53,7 +58,7 @@ const AddProSupplierModal: React.FC<AddSupplierDialogProps> = ({
 
   return (
     <ModalForm
-      width={750}
+      width={isMobile ? "calc(100vw - 24px)" : 750}
       open={open}
       formRef={formRef}
       onOpenChange={handleOpenChange}
@@ -68,9 +73,11 @@ const AddProSupplierModal: React.FC<AddSupplierDialogProps> = ({
         externalOpen !== undefined ? undefined : (
           edit ? (
             <Button
-              size="small"
+              size={block ? "middle" : "small"}
+              block={block}
               key="button"
               icon={<EditOutlined style={{ color: "var(--primary-color)" }} />}
+              style={block ? { borderRadius: 8 } : undefined}
               onClick={() => form.setFieldsValue(data)}
             >
               Edit
@@ -116,22 +123,29 @@ const AddProSupplierModal: React.FC<AddSupplierDialogProps> = ({
         },
       }}
     >
-      <ProForm.Group>
+      <ProForm.Group style={isMobile ? { width: "100%" } : undefined}>
         <ProFormText
-          width="md"
+          width={isMobile ? undefined : "md"}
+          formItemProps={isMobile ? { style: { width: "100%" } } : undefined}
           name="name"
           label="Name"
           rules={[{ required: true, message: "Name is required" }]}
           placeholder="Enter supplier name"
         />
         <ProFormText
-          width="md"
+          width={isMobile ? undefined : "md"}
+          formItemProps={isMobile ? { style: { width: "100%" } } : undefined}
           name="email"
           label="Email"
           rules={[{ pattern: /^\S+@\S+\.\S+$/, message: "Invalid email format" }]}
           placeholder="Enter supplier email (optional)"
         />
-        <PhoneInput label="Phone" owner="phoneNumber" required={false} />
+        <PhoneInput
+          label="Phone"
+          owner="phoneNumber"
+          required={false}
+          width={isMobile ? "100%" : undefined}
+        />
       </ProForm.Group>
     </ModalForm>
   );
