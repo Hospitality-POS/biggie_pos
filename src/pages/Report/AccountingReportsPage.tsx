@@ -11,8 +11,10 @@ import { useQuery } from "@tanstack/react-query";
 import {
     getTrialBalance, getProfitAndLoss, getBalanceSheet, getGeneralLedger,
     getAccountBalances, getVATReport, getCashFlowSummary, getCustomerStatement,
-    getSupplierStatement, getARAgingReport, getAPAgingReport,
+    getSupplierStatement, getARAgingReport, getAPAgingReport, getCateringLevyReport,
 } from "@services/accounting/reports";
+import { fetchCateringLevy } from "@services/systemsetup";
+import CateringLevyReport from "./CateringLevyReport";
 import { fetchAllCustomers } from "@services/customers";
 import { fetchAllSuppliers } from "@services/supplier";
 import { fetchAllShops } from "@services/shops";
@@ -37,7 +39,7 @@ const { Text } = Typography;
 type ReportTab =
     | "profit-loss" | "balance-sheet" | "trial-balance" | "general-ledger"
     | "account-balances" | "vat" | "cash-flow" | "customer-statement"
-    | "supplier-statement" | "ar-aging" | "ap-aging";
+    | "supplier-statement" | "ar-aging" | "ap-aging" | "catering-levy";
 
 const TAB_ITEMS = [
     { key: "profit-loss", label: "P&L" },
@@ -46,6 +48,7 @@ const TAB_ITEMS = [
     { key: "general-ledger", label: "General Ledger" },
     { key: "account-balances", label: "Account Balances" },
     { key: "vat", label: "VAT Report" },
+    { key: "catering-levy", label: "Tourism Levy" },
     { key: "cash-flow", label: "Cash Flow" },
     { key: "customer-statement", label: "Customer Statement" },
     { key: "supplier-statement", label: "Supplier Statement" },
@@ -195,6 +198,7 @@ const AccountingReportsPage: React.FC = () => {
     const [plPeriod, setPlPeriod] = useState<ComparativePeriod>(makeDefaultPeriod());
     const [tbPeriod, setTbPeriod] = useState<ComparativePeriod>(makeDefaultPeriod());
     const [vatPeriod, setVatPeriod] = useState<ComparativePeriod>(makeDefaultPeriod());
+    const [levyPeriod, setLevyPeriod] = useState<ComparativePeriod>(makeDefaultPeriod());
     const [cfPeriod, setCfPeriod] = useState<ComparativePeriod>(makeDefaultPeriod());
     const [custPeriod, setCustPeriod] = useState<ComparativePeriod>(makeDefaultPeriod());
     const [suppPeriod, setSuppPeriod] = useState<ComparativePeriod>(makeDefaultPeriod());
@@ -262,7 +266,7 @@ const AccountingReportsPage: React.FC = () => {
     const [runKey, setRunKey] = useState<Record<ReportTab, number>>({
         "profit-loss": 0, "balance-sheet": 0, "trial-balance": 0,
         "general-ledger": 0, "account-balances": 0, "vat": 0, "cash-flow": 0,
-        "customer-statement": 0, "supplier-statement": 0, "ar-aging": 0, "ap-aging": 0,
+        "customer-statement": 0, "supplier-statement": 0, "ar-aging": 0, "ap-aging": 0, "catering-levy": 0,
     });
 
     const run = (tab: ReportTab) => setRunKey((p) => ({ ...p, [tab]: p[tab] + 1 }));
@@ -289,6 +293,7 @@ const AccountingReportsPage: React.FC = () => {
     const tbQ = useQuery({ queryKey: ["rpt-tb", tbPeriod.primary, selectedBranchId, runKey["trial-balance"]], queryFn: () => getTrialBalance(buildQueryParams({ from: tbPeriod.primary[0]?.toISOString(), to: tbPeriod.primary[1]?.toISOString() })), enabled: isReady("trial-balance"), retry: 1 });
     const abQ = useQuery({ queryKey: ["rpt-ab", abAsOf.primary, selectedBranchId, runKey["account-balances"]], queryFn: () => getAccountBalances(buildQueryParams({ as_of: abAsOf.primary?.toISOString() })), enabled: isReady("account-balances"), retry: 1 });
     const vatQ = useQuery({ queryKey: ["rpt-vat", vatPeriod.primary, selectedBranchId, runKey["vat"]], queryFn: () => getVATReport(buildQueryParams({ from: vatPeriod.primary[0]?.toISOString(), to: vatPeriod.primary[1]?.toISOString() })), enabled: isReady("vat"), retry: 1 });
+    const levyQ = useQuery({ queryKey: ["rpt-levy", levyPeriod.primary, selectedBranchId, runKey["catering-levy"]], queryFn: () => getCateringLevyReport(buildQueryParams({ from: levyPeriod.primary[0]?.toISOString(), to: levyPeriod.primary[1]?.toISOString() })), enabled: isReady("catering-levy"), retry: 1 });
     const cfQ = useQuery({ queryKey: ["rpt-cf", cfPeriod.primary, selectedBranchId, runKey["cash-flow"]], queryFn: () => getCashFlowSummary(buildQueryParams({ from: cfPeriod.primary[0]?.toISOString(), to: cfPeriod.primary[1]?.toISOString() })), enabled: isReady("cash-flow"), retry: 1 });
     const custQ = useQuery({ queryKey: ["rpt-cust", customerId, custPeriod.primary, selectedBranchId, runKey["customer-statement"]], queryFn: () => getCustomerStatement(customerId!, buildQueryParams({ from: custPeriod.primary[0]?.toISOString(), to: custPeriod.primary[1]?.toISOString() })), enabled: !!customerId && isReady("customer-statement"), retry: 1 });
     const suppQ = useQuery({ queryKey: ["rpt-supp", supplierId, suppPeriod.primary, selectedBranchId, runKey["supplier-statement"]], queryFn: () => getSupplierStatement(supplierId!, buildQueryParams({ from: suppPeriod.primary[0]?.toISOString(), to: suppPeriod.primary[1]?.toISOString() })), enabled: !!supplierId && isReady("supplier-statement"), retry: 1 });
@@ -321,6 +326,11 @@ const AccountingReportsPage: React.FC = () => {
     const customers = Array.isArray(customersRaw) ? customersRaw : [];
     const suppliers = Array.isArray(suppliersRaw) ? suppliersRaw : [];
     const shops = Array.isArray(shopsRaw) ? shopsRaw : [];
+
+    // Tourism Levy tab only when the levy is on business-wide or for any branch
+    const { data: businessLevy } = useQuery({ queryKey: ["catering-levy"], queryFn: fetchCateringLevy, retry: 1 });
+    const levyActive = !!businessLevy?.enabled || shops.some((s: any) => s?.tax_settings?.catering_levy_enabled);
+    const tabItems = TAB_ITEMS.filter((t) => t.key !== "catering-levy" || levyActive);
 
     const Loading = () => <div style={{ textAlign: "center", padding: 60 }}><Spin size="large" /></div>;
     const EmptyState = () => <Empty description="Run the report to see results" style={{ padding: 40 }} />;
@@ -549,6 +559,11 @@ const AccountingReportsPage: React.FC = () => {
                 {vatQ.isFetching ? <Loading /> : vatPeriod.enabled && vatQ.data && vatQC.data ? renderComparativeVAT() : vatQ.data ? <VATReportTable data={vatQ.data} /> : <EmptyState />}
             </>;
 
+            case "catering-levy": return <>
+                <PeriodFilter value={levyPeriod} onChange={setLevyPeriod} onRun={() => run("catering-levy")} loading={levyQ.isFetching} supportComparative={false} />
+                {levyQ.isFetching ? <Loading /> : levyQ.data ? <CateringLevyReport data={levyQ.data} showBranches={!selectedBranchId} /> : <EmptyState />}
+            </>;
+
             case "cash-flow": return <>
                 <PeriodFilter value={cfPeriod} onChange={setCfPeriod} onRun={() => run("cash-flow")} loading={isLoading(cfQ, cfQC, cfPeriod.enabled)} supportComparative extra={<FilterControls />} />
                 {cfQ.isFetching ? <Loading /> : cfPeriod.enabled && cfQ.data && cfQC.data ? renderComparativeCF() : cfQ.data ? <CashFlowTable data={cfQ.data} /> : <EmptyState />}
@@ -627,6 +642,9 @@ const AccountingReportsPage: React.FC = () => {
             case "vat":
                 if (!vatQ.data) return empty;
                 return vatQ.data.transactions.map((t: any) => ({ Date: dayjs(t.entry_date).format("DD MMM YYYY"), "Entry No.": t.entry_no, Description: t.description, Source: t.source, "VAT Collected (KES)": t.vat_collected, "VAT Paid (KES)": t.vat_paid }));
+            case "catering-levy":
+                if (!levyQ.data) return empty;
+                return levyQ.data.documents.map((d) => ({ Date: dayjs(d.date).format("DD MMM YYYY"), Type: d.type, Number: d.number, Customer: d.customer, Branch: d.shop_name, "Net Sale (KES)": d.base, "Rate (%)": parseFloat((d.rate * 100).toFixed(2)), Exempt: d.exempt ? "Yes" : "No", "Levy (KES)": d.exempt ? 0 : d.levy, Status: d.status }));
             case "cash-flow":
                 if (!cfQ.data) return empty;
                 return cfQ.data.accounts.map((a: any) => ({ Code: a.account_code, Account: a.account_name, "Opening (KES)": a.opening_balance, "Inflows (KES)": a.inflows, "Outflows (KES)": a.outflows, "Net (KES)": a.net_cash_flow, "Closing (KES)": a.closing_balance }));
@@ -658,6 +676,8 @@ const AccountingReportsPage: React.FC = () => {
                 return tbPeriod.primary;
             case "vat":
                 return vatPeriod.primary;
+            case "catering-levy":
+                return levyPeriod.primary;
             case "cash-flow":
                 return cfPeriod.primary;
             case "customer-statement":
@@ -823,7 +843,7 @@ const AccountingReportsPage: React.FC = () => {
                                 setRunKey({
                                     "profit-loss": 0, "balance-sheet": 0, "trial-balance": 0,
                                     "general-ledger": 0, "account-balances": 0, "vat": 0, "cash-flow": 0,
-                                    "customer-statement": 0, "supplier-statement": 0, "ar-aging": 0, "ap-aging": 0,
+                                    "customer-statement": 0, "supplier-statement": 0, "ar-aging": 0, "ap-aging": 0, "catering-levy": 0,
                                 });
                             }}
                             allowClear
@@ -848,7 +868,7 @@ const AccountingReportsPage: React.FC = () => {
                                     setRunKey({
                                         "profit-loss": 0, "balance-sheet": 0, "trial-balance": 0,
                                         "general-ledger": 0, "account-balances": 0, "vat": 0, "cash-flow": 0,
-                                        "customer-statement": 0, "supplier-statement": 0, "ar-aging": 0, "ap-aging": 0,
+                                        "customer-statement": 0, "supplier-statement": 0, "ar-aging": 0, "ap-aging": 0, "catering-levy": 0,
                                     });
                                 }}
                             >
@@ -859,7 +879,7 @@ const AccountingReportsPage: React.FC = () => {
                 </div>
             )}
 
-                <Tabs activeKey={activeTab} onChange={(k) => setActiveTab(k as ReportTab)} type="card" size="small" items={TAB_ITEMS} style={{ padding: "0 16px" }} tabBarStyle={{ marginBottom: 0 }} />
+                <Tabs activeKey={activeTab} onChange={(k) => setActiveTab(k as ReportTab)} type="card" size="small" items={tabItems} style={{ padding: "0 16px" }} tabBarStyle={{ marginBottom: 0 }} />
                 <div style={{ padding: 16 }}>{renderContent()}</div>
 
                 <Modal

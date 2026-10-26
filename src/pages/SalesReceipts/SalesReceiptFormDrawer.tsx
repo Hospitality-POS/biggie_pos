@@ -18,6 +18,7 @@ import {
     Divider,
     Row,
     Col,
+    Switch,
     message,
 } from "antd";
 import { PlusOutlined, DeleteOutlined } from "@ant-design/icons";
@@ -35,6 +36,7 @@ import { fetchAllCustomers } from "@services/customers";
 import { getAllAccounts, ChartOfAccount } from "@services/accounting/accounts";
 import { getAllInvoices } from "@services/accounting/invoice";
 import dayjs from "dayjs";
+import { useCateringLevy, computeCateringLevy } from "@hooks/useCateringLevy";
 
 const { Text } = Typography;
 
@@ -102,6 +104,11 @@ const SalesReceiptFormDrawer: React.FC<Props> = ({ open, setOpen, receiptId, onS
     const [submitting, setSubmitting] = useState(false);
     const [vatPricingMode, setVatPricingMode] = useState<VatPricingMode>("EXCLUSIVE");
     const [vatStandardRate, setVatStandardRate] = useState(0.16);
+    const [levyExempt, setLevyExempt] = useState(false);
+    // Rate saved on the receipt when editing, else the branch's current rate
+    const [savedLevyRate, setSavedLevyRate] = useState<number | null>(null);
+    const branchLevy = useCateringLevy(open);
+    const levyRate = savedLevyRate ?? branchLevy.rate;
 
     // ── Customers ───────────────────────────────────────────────────────────────
 
@@ -173,6 +180,8 @@ const SalesReceiptFormDrawer: React.FC<Props> = ({ open, setOpen, receiptId, onS
             form.resetFields();
             setVatPricingMode("EXCLUSIVE");
             setVatStandardRate(0.16);
+            setLevyExempt(false);
+            setSavedLevyRate(null);
             if (receiptId && receiptData) {
                 // Populate form for editing
                 const receipt = receiptData as SalesReceipt;
@@ -190,6 +199,8 @@ const SalesReceiptFormDrawer: React.FC<Props> = ({ open, setOpen, receiptId, onS
                 });
                 setVatPricingMode(receipt.vat_pricing_mode || "EXCLUSIVE");
                 setVatStandardRate(receipt.vat_standard_rate || 0.16);
+                setLevyExempt(!!receipt.catering_levy_exempt);
+                setSavedLevyRate(receipt.catering_levy_rate ?? 0);
                 setLines(
                     receipt.lines.map((l) => ({
                         key: l._id || crypto.randomUUID(),
@@ -217,11 +228,15 @@ const SalesReceiptFormDrawer: React.FC<Props> = ({ open, setOpen, receiptId, onS
 
     // ── Calculations ───────────────────────────────────────────────────────────
 
+    // Mirrors the API: netAmount is always ex-VAT, so net + VAT is what the
+    // customer pays in both pricing modes. Only Standard lines carry VAT.
     const calculateLineTotal = (line: LineItem) => {
-        const netAmount = line.quantity * line.unit_price - line.discount;
+        const amount = line.quantity * line.unit_price - line.discount;
+        const vatRate = line.vat_type === "STANDARD" ? line.vat_rate : 0;
         const vatAmount = vatPricingMode === "INCLUSIVE"
-            ? netAmount - (netAmount / (1 + line.vat_rate))
-            : netAmount * line.vat_rate;
+            ? amount - (amount / (1 + vatRate))
+            : amount * vatRate;
+        const netAmount = vatPricingMode === "INCLUSIVE" ? amount - vatAmount : amount;
         return {
             netAmount,
             vatAmount,
@@ -231,7 +246,10 @@ const SalesReceiptFormDrawer: React.FC<Props> = ({ open, setOpen, receiptId, onS
 
     const subtotal = lines.reduce((sum, line) => sum + calculateLineTotal(line).netAmount, 0);
     const totalVat = lines.reduce((sum, line) => sum + calculateLineTotal(line).vatAmount, 0);
-    const grandTotal = subtotal + totalVat;
+    // Catering levy on the net sale value (after discounts, ex VAT)
+    const levyBase = subtotal;
+    const levyAmount = computeCateringLevy(levyBase, levyRate, levyExempt);
+    const grandTotal = subtotal + totalVat + levyAmount;
 
     // ── Line mutations ─────────────────────────────────────────────────────────
 
@@ -299,6 +317,7 @@ const SalesReceiptFormDrawer: React.FC<Props> = ({ open, setOpen, receiptId, onS
                 vat_standard_rate: values.vat_standard_rate,
                 status: values.status || "Pending",
                 invoice_id: values.invoice_id,
+                catering_levy_exempt: levyExempt,
             };
 
             if (receiptId) {
@@ -516,6 +535,20 @@ const SalesReceiptFormDrawer: React.FC<Props> = ({ open, setOpen, receiptId, onS
                         <Text strong>KES {totalVat.toFixed(2)}</Text>
                     </Col>
                 </Row>
+                {levyRate > 0 && (
+                    <Row gutter={16} align="middle" style={{ margin: "4px 0" }}>
+                        <Col flex="auto">
+                            <Space size={10} wrap>
+                                <Text>Catering Levy ({parseFloat((levyRate * 100).toFixed(2))}%):</Text>
+                                <Switch size="small" checked={levyExempt} onChange={setLevyExempt} />
+                                <Text type="secondary" style={{ fontSize: 12 }}>Exempt from catering levy</Text>
+                            </Space>
+                        </Col>
+                        <Col style={{ textAlign: "right" }}>
+                            <Text strong delete={levyExempt}>KES {levyExempt ? computeCateringLevy(levyBase, levyRate, false).toFixed(2) : levyAmount.toFixed(2)}</Text>
+                        </Col>
+                    </Row>
+                )}
                 <Row gutter={16}>
                     <Col span={8}>
                         <Text strong>Grand Total:</Text>

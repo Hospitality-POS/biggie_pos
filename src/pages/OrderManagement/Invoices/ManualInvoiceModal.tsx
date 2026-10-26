@@ -26,6 +26,7 @@ import { fetchSystemSetupDetailsById } from "@services/systemsetup";
 import { useCurrency } from "@context/CurrencyContext";
 import { CurrencySelector } from "@components/Currency/CurrencySelector";
 import dayjs, { Dayjs } from "dayjs";
+import { useCateringLevy, computeCateringLevy } from "@hooks/useCateringLevy";
 
 const { TextArea } = Input;
 const { Text } = Typography;
@@ -115,6 +116,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
     const [discountAmount, setDiscountAmount] = useState<number>(0);
     const [discountPercentage, setDiscountPercentage] = useState<number>(0);
     const [discountReason, setDiscountReason] = useState<string>("");
+    const [levyExempt, setLevyExempt] = useState(false);
 
     // ETR state
     const [etrEnabled, setEtrEnabled] = useState(false);
@@ -146,6 +148,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
     const DRAFT_KEY = `inv_draft_${tenantId || shopId}`;
 
     const isEditMode = !!invoiceToEdit;
+    const branchLevy = useCateringLevy(open);
 
     // ── Fetch fresh invoice when editing ───────────────────────────────────────
     const { data: freshInvoiceData } = useQuery({
@@ -349,6 +352,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
             if (draft.discountPercentage != null) setDiscountPercentage(draft.discountPercentage);
             if (draft.discountReason  != null)   setDiscountReason(draft.discountReason);
             if (draft.etrEnabled      != null)   setEtrEnabled(draft.etrEnabled);
+            if (draft.levyExempt      != null)   setLevyExempt(draft.levyExempt);
             if (draft.selectedCurrency)          setSelectedCurrency(draft.selectedCurrency);
             setDraftSavedAt(draft.savedAt || null);
             setHasDraft(true);
@@ -390,6 +394,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
         setDiscountAmount(freshInvoice.discount_amount || 0);
         setDiscountPercentage(freshInvoice.discount_percentage || 0);
         setDiscountReason(freshInvoice.discount_reason || "");
+        setLevyExempt(!!freshInvoice.catering_levy_exempt);
         setStep(0);
         setSavedInvoice(null);
         setHasDraft(false);
@@ -445,6 +450,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
                     discountPercentage,
                     discountReason,
                     etrEnabled,
+                    levyExempt,
                     selectedCurrency,
                     savedAt: ts,
                 }));
@@ -456,7 +462,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
         return () => {
             if (draftDebounceRef.current) clearTimeout(draftDebounceRef.current);
         };
-    }, [open, step, formChangeCount, lines, docType, discountType, discountAmount, discountPercentage, discountReason, etrEnabled, selectedCurrency]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [open, step, formChangeCount, lines, docType, discountType, discountAmount, discountPercentage, discountReason, etrEnabled, levyExempt, selectedCurrency]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const customerOptions = (customersData || []).map((c: any) => ({
         label: `${c.company_name || c.customer_name || "Unknown"}${c.phone ? ` — ${c.phone}` : ""}${c.shop_id?.name ? ` [${c.shop_id.name}]` : ""}`,
@@ -547,7 +553,13 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
         ? (subtotal * discountPercentage) / 100 
         : discountAmount;
     
-    const grandTotal = subtotal + totalVAT - invoiceDiscount;
+    // Catering levy on the net value after discount (ex VAT). An existing
+    // invoice keeps the rate captured when it was issued.
+    const levyRate = isEditMode ? (freshInvoice?.catering_levy_rate ?? 0) : branchLevy.rate;
+    const levyBase = Math.max(0, subtotal - invoiceDiscount);
+    const levyAmount = computeCateringLevy(levyBase, levyRate, levyExempt);
+
+    const grandTotal = subtotal + totalVAT - invoiceDiscount + levyAmount;
 
     const fmt = (n: number) =>
         n.toLocaleString("en-KE", { minimumFractionDigits: 2 });
@@ -682,6 +694,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
         setDiscountPercentage(0);
         setDiscountReason("");
         setEtrEnabled(false);
+        setLevyExempt(false);
     };
 
     // ── Reset + close — always fires onSuccess if anything was saved ──────────
@@ -696,6 +709,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
         setCustomTermInput("");
         stopEtrPoll();
         setEtrEnabled(false);
+        setLevyExempt(false);
         onClose();
     };
 
@@ -726,6 +740,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
         discount_percentage: invoiceDiscount > 0 && discountType === "percentage" ? discountPercentage : undefined,
         discount_reason: invoiceDiscount > 0 ? discountReason : undefined,
         etr_enabled: etrEnabled,
+        catering_levy_exempt: levyExempt,
         counterparty_kra_pin: values.counterparty_kra_pin || undefined,
         lines: lines.map((l) => ({
             description: l.description,
@@ -757,6 +772,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
         discount_percentage: invoiceDiscount > 0 && discountType === "percentage" ? discountPercentage : undefined,
         discount_reason: invoiceDiscount > 0 ? discountReason : undefined,
         etr_enabled: etrEnabled,
+        catering_levy_exempt: levyExempt,
         counterparty_kra_pin: values.counterparty_kra_pin || undefined,
         lines: lines.map((l) => ({
             description: l.description,
@@ -1078,6 +1094,23 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
                         <Text type="secondary">Discount Amount</Text>
                         <Text type="secondary">-KES {fmt(invoiceDiscount)}</Text>
                     </div>
+                    {levyRate > 0 && (
+                        <div style={{ marginBottom: 8 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between" }}>
+                                <Text type="secondary">Catering Levy ({parseFloat((levyRate * 100).toFixed(2))}%)</Text>
+                                {levyExempt
+                                    ? <Tag color="default">Exempt</Tag>
+                                    : <Text>KES {fmt(levyAmount)}</Text>}
+                            </div>
+                            <Checkbox
+                                checked={levyExempt}
+                                onChange={(e) => setLevyExempt(e.target.checked)}
+                                style={{ fontSize: 12, marginTop: 2 }}
+                            >
+                                Exempt from catering levy
+                            </Checkbox>
+                        </div>
+                    )}
                     <Divider style={{ margin: "8px 0" }} />
                     <div style={{ display: "flex", justifyContent: "space-between" }}>
                         <Text strong>Grand Total</Text>

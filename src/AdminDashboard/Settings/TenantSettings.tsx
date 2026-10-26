@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,
+  IdcardOutlined,
   LoadingOutlined,
   MailOutlined,
+  PercentageOutlined,
   PhoneOutlined,
   PictureOutlined,
   SettingOutlined,
@@ -11,17 +13,14 @@ import {
   UploadOutlined,
   UserOutlined,
 } from "@ant-design/icons";
-import { PageContainer, ProCard } from "@ant-design/pro-components";
 import {
   Button,
   ColorPicker,
   Form,
   Input,
   message,
-  Radio,
   Result,
   Skeleton,
-  Switch,
   Typography,
   Upload,
 } from "antd";
@@ -32,8 +31,10 @@ import {
   getCurrentTenantId,
   updateTenant,
 } from "@services/tenants";
-
-import { usePrimaryColor } from "@context/PrimaryColorContext";
+import SettingsShell, { SettingSection } from "@components/Settings/SettingsShell";
+import VatPanel from "@pages/Settings/taxes/VatPanel";
+import CateringLevyPanel from "@pages/Settings/taxes/CateringLevyPanel";
+import { CardLabel, PanelStack, panelCard } from "@pages/Settings/taxes/TaxPanelParts";
 import { THEME_C, getPrimaryColor } from "@utils/getPrimaryColor";
 
 const { Text } = Typography;
@@ -41,42 +42,9 @@ const { Text } = Typography;
 // ── Palette (Dynamic Getters) ────────────────────────────────────────────────
 const C = THEME_C;
 
-// ── Mobile hook ───────────────────────────────────────────────────────────────
-const useIsMobile = () => {
-  const [v, setV] = useState(window.innerWidth < 768);
-  useEffect(() => {
-    const h = () => setV(window.innerWidth < 768);
-    window.addEventListener("resize", h);
-    return () => window.removeEventListener("resize", h);
-  }, []);
-  return v;
-};
-
-// ── Section label ─────────────────────────────────────────────────────────────
-const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <Text style={{
-    fontSize: 10, fontWeight: 700, color: C.subText,
-    textTransform: "uppercase", letterSpacing: "0.5px",
-    display: "block", marginBottom: 10,
-  }}>
-    {children}
-  </Text>
-);
-
-// ── Form section ──────────────────────────────────────────────────────────────
-const FormSection: React.FC<{ label?: string; children: React.ReactNode }> = ({ label, children }) => (
-  <div style={{
-    background: C.bg, border: `1px solid ${C.border}`,
-    borderRadius: 10, padding: "14px 14px 6px", marginBottom: 14,
-  }}>
-    {label && <SectionLabel>{label}</SectionLabel>}
-    {children}
-  </div>
-);
-
 // ── Status badge ──────────────────────────────────────────────────────────────
 const STATUS_CFG: Record<string, { color: string; bg: string; icon: React.ReactNode; label: string }> = {
-  active: { color: C.green, bg: "#f0fdf4", icon: <CheckCircleOutlined />, label: "Active" },
+  active: { color: "#059669", bg: "#ecfdf5", icon: <CheckCircleOutlined />, label: "Active" },
   pending_approval: { color: C.orange, bg: "#fffbeb", icon: <LoadingOutlined />, label: "Pending Approval" },
   suspended: { color: C.red, bg: "#fef2f2", icon: <CloseCircleOutlined />, label: "Suspended" },
   terminated: { color: C.subText, bg: C.bg, icon: <CloseCircleOutlined />, label: "Terminated" },
@@ -88,7 +56,7 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
     <span style={{
       background: cfg.bg, color: cfg.color,
       borderRadius: 6, fontSize: 10, fontWeight: 700,
-      padding: "3px 9px", textTransform: "uppercase",
+      padding: "2px 8px", textTransform: "uppercase",
       display: "inline-flex", alignItems: "center", gap: 5,
       whiteSpace: "nowrap",
     }}>
@@ -100,68 +68,32 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
 // ── Info row ──────────────────────────────────────────────────────────────────
 const InfoRow: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
   <div style={{
-    display: "flex", justifyContent: "space-between", alignItems: "center",
-    padding: "6px 0", borderBottom: `1px solid ${C.border}`,
+    display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
+    padding: "9px 0", borderTop: `1px solid ${C.border}`,
   }}>
-    <Text style={{ fontSize: 11, color: C.subText }}>{label}</Text>
-    <Text style={{ fontSize: 12, color: C.darkText, fontWeight: 500, textAlign: "right", maxWidth: "60%" }}>
+    <Text style={{ fontSize: 12, color: C.subText }}>{label}</Text>
+    <Text style={{ fontSize: 13, color: C.darkText, fontWeight: 500, textAlign: "right" }}>
       {value || "—"}
     </Text>
   </div>
 );
 
-// ── Color preview swatch ──────────────────────────────────────────────────────
-const ColorSwatch: React.FC<{ color: string; label: string }> = ({ color, label }) => (
-  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+const TenantLogo: React.FC<{ url?: string; size: number }> = ({ url, size }) =>
+  url ? (
+    <img
+      src={url}
+      alt="logo"
+      style={{ width: size, height: size, borderRadius: 10, objectFit: "contain", border: `1px solid ${C.border}`, background: "#fff", flexShrink: 0 }}
+    />
+  ) : (
     <div style={{
-      width: 24, height: 24, borderRadius: 6,
-      background: color, border: `1px solid ${C.border}`, flexShrink: 0,
-    }} />
-    <Text style={{ fontSize: 11, color: C.subText }}>{label}</Text>
-    <Text style={{ fontSize: 11, color: C.darkText, fontFamily: "monospace", marginLeft: "auto" }}>{color}</Text>
-  </div>
-);
-
-// ── Tab pill nav ──────────────────────────────────────────────────────────────
-const TabNav: React.FC<{
-  tabs: { key: string; label: React.ReactNode }[];
-  active: string;
-  onChange: (k: string) => void;
-  primaryColor?: string;
-}> = ({ tabs, active, onChange, primaryColor: propPrimaryColor }) => {
-  const contextColor = usePrimaryColor();
-  const primary = propPrimaryColor || contextColor || C.primary;
-
-  return (
-    <div style={{
-      display: "flex", gap: 6, flexWrap: "wrap",
-      padding: "0 0 16px",
-      borderBottom: `1px solid ${C.border}`,
-      marginBottom: 20,
+      width: size, height: size, borderRadius: 10, flexShrink: 0,
+      background: C.primaryLight, color: C.primary, fontSize: size * 0.4,
+      display: "flex", alignItems: "center", justifyContent: "center",
     }}>
-      {tabs.map((t) => {
-        const isActive = t.key === active;
-        return (
-          <button
-            key={t.key}
-            onClick={() => onChange(t.key)}
-            style={{
-              background: isActive ? primary : C.bg,
-              color: isActive ? "#fff" : C.subText,
-              border: `1px solid ${isActive ? primary : C.border}`,
-              borderRadius: 8, padding: "7px 14px",
-              fontSize: 12, fontWeight: isActive ? 700 : 500,
-              cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
-              transition: "all 0.15s",
-            }}
-          >
-            {t.label}
-          </button>
-        );
-      })}
+      <UserOutlined />
     </div>
   );
-};
 
 // ── Default colors ────────────────────────────────────────────────────────────
 const getDefaultColors = () => ({
@@ -175,21 +107,18 @@ const getDefaultColors = () => ({
 // ── Main component ────────────────────────────────────────────────────────────
 function TenantSettings() {
   const [form] = Form.useForm();
-  const [colorForm] = Form.useForm();
   const [fileList, setFileList] = useState<any[]>([]);
   const [colors, setColors] = useState(getDefaultColors);
-  const primaryColor = usePrimaryColor();
   const [activeTab, setActiveTab] = useState("basic");
 
   const params = useParams();
   const queryClient = useQueryClient();
-  const isMobile = useIsMobile();
   const tenantId = params.id || getCurrentTenantId();
 
   // ── Query ─────────────────────────────────────────────────────────────────
   const { data: tenantDetails, isLoading, refetch } = useQuery({
     queryKey: ["tenant", tenantId],
-    queryFn: () => fetchTenantDetails(tenantId),
+    queryFn: () => fetchTenantDetails(tenantId!),
     enabled: !!tenantId,
     refetchOnWindowFocus: false,
     networkMode: "always",
@@ -210,22 +139,9 @@ function TenantSettings() {
   useEffect(() => {
     if (!tenantDetails?.data) return;
     const t = tenantDetails.data;
-
-    form.setFieldsValue({
-      name: t.name,
-      email: t.email,
-      phone: t.phone,
-      vat_standard_rate: t.vat_standard_rate,
-      vat_pricing_mode: t.vat_pricing_mode,
-      is_vat_enabled: t.is_vat_enabled,
-    });
-
-    if (t.color_scheme) {
-      const scheme = { ...getDefaultColors(), ...t.color_scheme };
-      setColors(scheme);
-      colorForm.setFieldsValue(scheme);
-    }
-  }, [tenantDetails, form, colorForm]);
+    form.setFieldsValue({ name: t.name, email: t.email, phone: t.phone });
+    if (t.color_scheme) setColors({ ...getDefaultColors(), ...t.color_scheme });
+  }, [tenantDetails, form]);
 
   // ── Load colors from localStorage on mount ────────────────────────────────
   useEffect(() => {
@@ -250,10 +166,6 @@ function TenantSettings() {
       id: tenantId,
       data: { color_scheme: colors, primary_color: colors.primary },
     });
-  };
-
-  const handleColorChange = (hex: string, type: string) => {
-    setColors((p) => ({ ...p, [type]: hex }));
   };
 
   const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/svg+xml", "image/webp"];
@@ -281,370 +193,242 @@ function TenantSettings() {
     return false;
   };
 
-  // ── Guards ────────────────────────────────────────────────────────────────
-  if (!tenantId) {
-    return (
-      <PageContainer title="Tenant Settings">
-        <ProCard><Result status="404" title="Tenant ID not found" subTitle="Please make sure you're logged in." /></ProCard>
-      </PageContainer>
-    );
-  }
+  const tenant = tenantDetails?.data;
+  const saving = updateMutation.isLoading;
 
-  if (isLoading) {
-    return (
-      <PageContainer title="Tenant Settings">
-        <ProCard><Skeleton active paragraph={{ rows: 6 }} /></ProCard>
-      </PageContainer>
-    );
-  }
-
-  if (!tenantDetails?.data) {
-    return (
-      <PageContainer title="Tenant Settings">
-        <ProCard><Result status="404" title="Tenant not found" subTitle="The tenant you're looking for does not exist." /></ProCard>
-      </PageContainer>
-    );
-  }
-
-  const tenant = tenantDetails.data;
-  const subName = typeof tenant.subscription_id === "object"
-    ? `${tenant.subscription_id.name} — KES ${tenant.subscription_id.price}`
-    : null;
-
-  // ── Tab definitions ───────────────────────────────────────────────────────
-  const TABS = [
-    { key: "basic", label: <><SettingOutlined /> Basic Info</> },
-    { key: "vat", label: <><TagOutlined /> VAT Config</> },
-    { key: "branding", label: <><PictureOutlined /> Logo & Branding</> },
-  ];
-
-  return (
-    <PageContainer
-      title={
-        <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ background: C.primaryLight, borderRadius: 8, padding: "4px 6px", color: C.primary, fontSize: 16, lineHeight: 1 }}>
-            <SettingOutlined />
-          </div>
-          Tenant Settings
-        </span>
-      }
-      subTitle="Manage your business configuration and branding"
-      style={{ minHeight: "100vh" }}
-      childrenContentStyle={{ padding: 0 }}
-    >
-      <div style={{ width: "100%", padding: "0 0 24px", display: "flex", flexDirection: "column", gap: 16 }}>
-
-        {/* ── Overview card ──────────────────────────────────────────────── */}
-        <div style={{
-          background: "#fff", border: `1px solid ${C.border}`,
-          borderRadius: 12, padding: "16px",
-          width: "100%", boxSizing: "border-box",
-        }}>
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 14, flexWrap: "wrap" }}>
-            {/* Logo */}
-            <div style={{ flexShrink: 0 }}>
-              {tenant.tenant_logo?.url ? (
-                <img
-                  src={tenant.tenant_logo.url}
-                  alt="logo"
-                  style={{
-                    width: 64, height: 64, borderRadius: 12,
-                    objectFit: "contain",
-                    border: `2px solid ${C.border}`,
-                  }}
-                />
-              ) : (
-                <div style={{
-                  width: 64, height: 64, borderRadius: 12,
-                  background: C.primaryLight,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  color: C.primary, fontSize: 24,
-                  border: `2px solid ${C.primary}20`,
-                }}>
-                  <UserOutlined />
-                </div>
-              )}
-            </div>
-
-            {/* Details */}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
-                <Text strong style={{ fontSize: 15, color: C.darkText }}>{tenant.name}</Text>
-                <StatusBadge status={tenant.subscription_status} />
-              </div>
-              <Text style={{ fontSize: 12, color: C.subText, display: "block", marginBottom: 8 }}>
-                {tenant.tenant_code}
-              </Text>
-
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {tenant.subscription_cycle && (
-                  <span style={{ background: "#eff6ff", color: C.blue, borderRadius: 5, fontSize: 10, fontWeight: 600, padding: "2px 8px" }}>
-                    {tenant.subscription_cycle}
-                  </span>
-                )}
-                {subName && (
-                  <span style={{ background: "#f5f3ff", color: "#8b5cf6", borderRadius: 5, fontSize: 10, fontWeight: 600, padding: "2px 8px" }}>
-                    {subName}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Meta rows */}
-          <div style={{ marginTop: 14 }}>
-            <InfoRow label="Business Type" value={tenant.business_type_name || (typeof tenant.business_type === "object" ? tenant.business_type?.name : null)} />
-            <InfoRow label="Business Size" value={tenant.business_size} />
-            <InfoRow label="Created" value={new Date(tenant.createdAt).toLocaleDateString()} />
-            {tenant.next_billing_date && (
-              <InfoRow label="Next Billing" value={new Date(tenant.next_billing_date).toLocaleDateString()} />
-            )}
+  // ── Panels ────────────────────────────────────────────────────────────────
+  const renderBasic = () => (
+    // Two columns on wide screens so the panel uses the full content width
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: 16, alignItems: "start" }}>
+      <Form
+        form={form}
+        layout="vertical"
+        onFinish={handleUpdateBasic}
+        disabled={saving}
+        requiredMark={false}
+        initialValues={{ name: tenant?.name, email: tenant?.email, phone: tenant?.phone }}
+      >
+        <div style={panelCard}>
+          <CardLabel>Business identity</CardLabel>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", columnGap: 14, marginTop: 12 }}>
+            <Form.Item label="Business name" name="name" rules={[{ required: true, message: "Required" }]}>
+              <Input prefix={<UserOutlined style={{ color: C.subText }} />} placeholder="Business name" />
+            </Form.Item>
+            <Form.Item label="Email address" name="email" rules={[{ required: true, message: "Required" }, { type: "email", message: "Invalid email" }]}>
+              <Input prefix={<MailOutlined style={{ color: C.subText }} />} placeholder="Email address" />
+            </Form.Item>
+            <Form.Item label="Phone number" name="phone" rules={[{ required: true, message: "Required" }]} style={{ marginBottom: 4 }}>
+              <Input prefix={<PhoneOutlined style={{ color: C.subText }} />} placeholder="Phone number" />
+            </Form.Item>
           </div>
         </div>
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
+          <Button type="primary" htmlType="submit" loading={saving} icon={<CheckCircleOutlined />} style={{ borderRadius: 8 }}>
+            Save Basic Info
+          </Button>
+        </div>
+      </Form>
 
-        {/* ── Settings tabs ───────────────────────────────────────────────── */}
-        <div style={{
-          background: "#fff", border: `1px solid ${C.border}`,
-          borderRadius: 12, padding: "16px 16px 20px",
-          width: "100%", boxSizing: "border-box",
-        }}>
-          <TabNav tabs={TABS} active={activeTab} onChange={setActiveTab} primaryColor={primaryColor} />
-
-          {/* ── Basic Info ─────────────────────────────────────────────── */}
-          {activeTab === "basic" && (
-            <Form
-              form={form}
-              layout="vertical"
-              onFinish={handleUpdateBasic}
-              disabled={updateMutation.isLoading}
-            >
-              <FormSection label="Business Identity">
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 0 }}>
-                  <div style={{ flex: "1 1 240px", minWidth: 0, paddingRight: isMobile ? 0 : 8 }}>
-                    <Form.Item label="Business Name" name="name" rules={[{ required: true, message: "Required" }]} style={{ marginBottom: 12 }}>
-                      <Input prefix={<UserOutlined style={{ color: C.subText }} />} placeholder="Enter business name" style={{ borderRadius: 8, width: "100%" }} />
-                    </Form.Item>
-                  </div>
-                  <div style={{ flex: "1 1 240px", minWidth: 0 }}>
-                    <Form.Item label="Email Address" name="email" rules={[{ required: true, message: "Required" }, { type: "email", message: "Invalid email" }]} style={{ marginBottom: 12 }}>
-                      <Input prefix={<MailOutlined style={{ color: C.subText }} />} placeholder="Enter email address" style={{ borderRadius: 8, width: "100%" }} />
-                    </Form.Item>
-                  </div>
-                  <div style={{ flex: "1 1 240px", minWidth: 0, paddingRight: isMobile ? 0 : 8 }}>
-                    <Form.Item label="Phone Number" name="phone" rules={[{ required: true, message: "Required" }]} style={{ marginBottom: 6 }}>
-                      <Input prefix={<PhoneOutlined style={{ color: C.subText }} />} placeholder="Enter phone number" style={{ borderRadius: 8, width: "100%" }} />
-                    </Form.Item>
-                  </div>
-                </div>
-              </FormSection>
-
-              <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                <Button
-                  type="primary"
-                  htmlType="submit"
-                  loading={updateMutation.isLoading}
-                  icon={<CheckCircleOutlined />}
-                  style={{ borderRadius: 8, background: C.primary, borderColor: C.primary }}
-                >
-                  Save Basic Info
-                </Button>
-              </div>
-            </Form>
-          )}
-
-          {/* ── VAT Config ─────────────────────────────────────────────── */}
-          {activeTab === "vat" && (
-            <Form
-              form={form}
-              layout="vertical"
-              onFinish={handleUpdateBasic}
-              disabled={updateMutation.isLoading}
-            >
-              <FormSection label="VAT Status">
-                <Form.Item name="is_vat_enabled" label="Enable VAT" valuePropName="checked" style={{ marginBottom: 6 }}>
-                  <Switch checkedChildren="Enabled" unCheckedChildren="Disabled" />
-                </Form.Item>
-              </FormSection>
-
-              <FormSection label="Pricing Mode">
-                <Form.Item name="vat_pricing_mode" label="Selling price of items" rules={[{ required: true }]} style={{ marginBottom: 6 }}>
-                  <Radio.Group>
-                    <Radio value="INCLUSIVE">Tax Inclusive</Radio>
-                    <Radio value="EXCLUSIVE">Tax Exclusive</Radio>
-                  </Radio.Group>
-                </Form.Item>
-              </FormSection>
-
-              <FormSection label="VAT Rate">
-                <Form.Item
-                  name="vat_standard_rate"
-                  label="Standard Rate"
-                  rules={[{ required: true, message: "Required" }]}
-                  style={{ marginBottom: 6 }}
-                  extra={<Text style={{ fontSize: 11, color: C.subText }}>e.g. 0.16 for 16%</Text>}
-                >
-                  <Input
-                    prefix={<TagOutlined style={{ color: C.subText }} />}
-                    placeholder="0.16"
-                    type="number" step="0.01" min="0" max="1"
-                    style={{ borderRadius: 8, maxWidth: 240 }}
-                  />
-                </Form.Item>
-              </FormSection>
-
-              <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                <Button
-                  type="primary"
-                  htmlType="submit"
-                  loading={updateMutation.isLoading}
-                  icon={<CheckCircleOutlined />}
-                  style={{ borderRadius: 8, background: C.primary, borderColor: C.primary }}
-                >
-                  Save Tax Settings
-                </Button>
-              </div>
-            </Form>
-          )}
-
-          {/* ── Logo & Branding ────────────────────────────────────────── */}
-          {activeTab === "branding" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-
-              {/* Logo + Colors — stack on mobile, side by side on desktop */}
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
-
-                {/* Logo upload */}
-                <div style={{ flex: "1 1 260px", minWidth: 0 }}>
-                  <FormSection label="Business Logo">
-                    <div style={{
-                      display: "flex", alignItems: "center", gap: 12,
-                      padding: "12px", background: "#fff",
-                      border: `1px solid ${C.border}`, borderRadius: 8, marginBottom: 10,
-                    }}>
-                      {tenant.tenant_logo?.url ? (
-                        <img
-                          src={tenant.tenant_logo.url}
-                          alt="logo"
-                          style={{ width: 56, height: 56, borderRadius: 8, objectFit: "contain", border: `1px solid ${C.border}`, flexShrink: 0 }}
-                        />
-                      ) : (
-                        <div style={{
-                          width: 56, height: 56, borderRadius: 8, flexShrink: 0,
-                          background: C.primaryLight, display: "flex",
-                          alignItems: "center", justifyContent: "center",
-                          color: C.primary, fontSize: 22,
-                        }}>
-                          <PictureOutlined />
-                        </div>
-                      )}
-                      <div style={{ minWidth: 0 }}>
-                        <Text strong style={{ fontSize: 13, color: C.darkText, display: "block" }}>
-                          {tenant.tenant_logo?.filename || "No logo uploaded"}
-                        </Text>
-                        {tenant.tenant_logo?.size && (
-                          <Text style={{ fontSize: 11, color: C.subText }}>
-                            {(tenant.tenant_logo.size / 1024).toFixed(1)} KB
-                          </Text>
-                        )}
-                      </div>
-                    </div>
-
-                    <Upload
-                      accept="image/*"
-                      fileList={fileList}
-                      beforeUpload={handleBeforeUpload}
-                      disabled={updateMutation.isLoading}
-                      maxCount={1}
-                      showUploadList={false}
-                      style={{ width: "100%" }}
-                    >
-                      <Button
-                        block
-                        icon={<UploadOutlined />}
-                        loading={updateMutation.isLoading}
-                        style={{ borderRadius: 8, height: 44, borderStyle: "dashed", borderColor: C.primary, color: C.primary, width: "100%" }}
-                      >
-                        {updateMutation.isLoading ? "Uploading..." : "Upload New Logo"}
-                      </Button>
-                    </Upload>
-                    <Text style={{ fontSize: 11, color: C.subText, display: "block", marginTop: 8 }}>
-                      PNG, JPG, SVG, WebP · Max 5MB
-                    </Text>
-                  </FormSection>
-                </div>
-
-                {/* Color scheme */}
-                <div style={{ flex: "1 1 260px", minWidth: 0 }}>
-                  <FormSection label="Color Scheme">
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 0 }}>
-                      {[
-                        { key: "primary", label: "Primary" },
-                        { key: "secondary", label: "Secondary" },
-                        { key: "accent", label: "Accent" },
-                        { key: "background", label: "Background" },
-                      ].map(({ key, label }) => (
-                        <div key={key} style={{ flex: "1 1 120px", minWidth: 0, paddingRight: 8 }}>
-                          <Form.Item label={label} style={{ marginBottom: 10 }}>
-                            <ColorPicker
-                              value={colors[key as keyof typeof colors]}
-                              onChange={(c) => handleColorChange(c.toHexString(), key)}
-                              showText
-                              style={{ width: "100%" }}
-                            />
-                          </Form.Item>
-                        </div>
-                      ))}
-                    </div>
-
-                    <Button
-                      block type="primary"
-                      onClick={handleUpdateColors}
-                      loading={updateMutation.isLoading}
-                      icon={<CheckCircleOutlined />}
-                      style={{ borderRadius: 8, background: C.primary, borderColor: C.primary, marginTop: 4 }}
-                    >
-                      Save Colors
-                    </Button>
-                  </FormSection>
-                </div>
-              </div>
-
-              {/* Color preview */}
-              <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "14px 16px" }}>
-                <SectionLabel>Preview</SectionLabel>
-                <div style={{
-                  display: "flex", gap: 10, flexWrap: "wrap",
-                  background: colors.background, borderRadius: 8,
-                  padding: "14px", border: `1px solid ${C.border}`,
-                  marginBottom: 12,
-                }}>
-                  {[
-                    { color: colors.primary, label: "Primary" },
-                    { color: colors.secondary, label: "Secondary" },
-                    { color: colors.accent, label: "Accent" },
-                  ].map(({ color, label }) => (
-                    <div key={label} style={{
-                      background: color, color: "#fff",
-                      borderRadius: 7, padding: "8px 16px",
-                      fontSize: 12, fontWeight: 600,
-                    }}>
-                      {label}
-                    </div>
-                  ))}
-                </div>
-
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  <ColorSwatch color={colors.primary} label="Primary" />
-                  <ColorSwatch color={colors.secondary} label="Secondary" />
-                  <ColorSwatch color={colors.accent} label="Accent" />
-                  <ColorSwatch color={colors.background} label="Background" />
-                </div>
-              </div>
-            </div>
+      <div style={panelCard}>
+        <CardLabel>Account</CardLabel>
+        <div style={{ marginTop: 6 }}>
+          <InfoRow label="Business code" value={tenant?.tenant_code} />
+          <InfoRow label="Status" value={tenant?.subscription_status ? <StatusBadge status={tenant.subscription_status} /> : null} />
+          <InfoRow
+            label="Subscription"
+            value={typeof tenant?.subscription_id === "object"
+              ? `${tenant.subscription_id.name} · KES ${tenant.subscription_id.price}${tenant.subscription_cycle ? ` / ${tenant.subscription_cycle}` : ""}`
+              : tenant?.subscription_cycle}
+          />
+          <InfoRow label="Business type" value={tenant?.business_type_name || (typeof tenant?.business_type === "object" ? tenant?.business_type?.name : null)} />
+          <InfoRow label="Business size" value={tenant?.business_size} />
+          <InfoRow label="Created" value={tenant?.createdAt ? new Date(tenant.createdAt).toLocaleDateString() : null} />
+          {tenant?.next_billing_date && (
+            <InfoRow label="Next billing" value={new Date(tenant.next_billing_date).toLocaleDateString()} />
           )}
         </div>
       </div>
-    </PageContainer>
+    </div>
+  );
+
+  const renderBranding = () => (
+    <PanelStack>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
+        {/* Logo upload */}
+        <div style={{ ...panelCard, flex: "1 1 260px", minWidth: 0 }}>
+          <CardLabel>Business logo</CardLabel>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "12px 0" }}>
+            {tenant?.tenant_logo?.url ? (
+              <TenantLogo url={tenant.tenant_logo.url} size={56} />
+            ) : (
+              <div style={{
+                width: 56, height: 56, borderRadius: 10, flexShrink: 0,
+                background: C.primaryLight, color: C.primary, fontSize: 22,
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <PictureOutlined />
+              </div>
+            )}
+            <div style={{ minWidth: 0 }}>
+              <Text strong style={{ fontSize: 13, color: C.darkText, display: "block" }}>
+                {tenant?.tenant_logo?.filename || "No logo uploaded"}
+              </Text>
+              <Text style={{ fontSize: 11, color: C.subText }}>
+                {tenant?.tenant_logo?.size ? `${(tenant.tenant_logo.size / 1024).toFixed(1)} KB · ` : ""}PNG, JPG, SVG, WebP · max 5MB
+              </Text>
+            </div>
+          </div>
+          <Upload
+            accept="image/*"
+            fileList={fileList}
+            beforeUpload={handleBeforeUpload}
+            disabled={saving}
+            maxCount={1}
+            showUploadList={false}
+            style={{ width: "100%" }}
+          >
+            <Button block icon={<UploadOutlined />} loading={saving} style={{ borderRadius: 8, borderStyle: "dashed", width: "100%" }}>
+              {saving ? "Uploading…" : "Upload new logo"}
+            </Button>
+          </Upload>
+        </div>
+
+        {/* Color scheme */}
+        <div style={{ ...panelCard, flex: "1 1 260px", minWidth: 0 }}>
+          <CardLabel>Color scheme</CardLabel>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12, marginTop: 12 }}>
+            {[
+              { key: "primary", label: "Primary" },
+              { key: "secondary", label: "Secondary" },
+              { key: "accent", label: "Accent" },
+              { key: "background", label: "Background" },
+            ].map(({ key, label }) => (
+              <div key={key}>
+                <Text style={{ fontSize: 12, color: C.subText, display: "block", marginBottom: 4 }}>{label}</Text>
+                <ColorPicker
+                  value={colors[key as keyof typeof colors]}
+                  onChange={(c) => setColors((p) => ({ ...p, [key]: c.toHexString() }))}
+                  showText
+                  style={{ width: "100%", justifyContent: "flex-start" }}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Preview */}
+      <div style={panelCard}>
+        <CardLabel>Preview</CardLabel>
+        <div style={{
+          display: "flex", gap: 10, flexWrap: "wrap", marginTop: 12,
+          background: colors.background, borderRadius: 10,
+          padding: 14, border: `1px solid ${C.border}`,
+        }}>
+          {[
+            { color: colors.primary, label: "Primary" },
+            { color: colors.secondary, label: "Secondary" },
+            { color: colors.accent, label: "Accent" },
+          ].map(({ color, label }) => (
+            <div key={label} style={{ background: color, color: "#fff", borderRadius: 8, padding: "8px 16px", fontSize: 12, fontWeight: 600 }}>
+              {label}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <Button type="primary" onClick={handleUpdateColors} loading={saving} icon={<CheckCircleOutlined />} style={{ borderRadius: 8 }}>
+          Save Colors
+        </Button>
+      </div>
+    </PanelStack>
+  );
+
+  const sections = useMemo<SettingSection[]>(() => [
+    {
+      key: "basic",
+      label: "Basic Info",
+      description: "Business name, contacts & account",
+      icon: <IdcardOutlined />,
+      color: "#3b82f6",
+      bg: "#eff6ff",
+      group: "Business",
+      render: renderBasic,
+    },
+    {
+      key: "branding",
+      label: "Logo & Branding",
+      description: "Logo and app colors",
+      icon: <PictureOutlined />,
+      color: "#8b5cf6",
+      bg: "#f5f3ff",
+      group: "Business",
+      render: renderBranding,
+    },
+    {
+      key: "vat",
+      label: "VAT",
+      description: "VAT rate & pricing for all branches",
+      icon: <TagOutlined />,
+      color: "#2563eb",
+      bg: "#eff6ff",
+      group: "Taxes",
+      render: () => <VatPanel scope="business" />,
+    },
+    {
+      key: "catering-levy",
+      label: "Catering Levy",
+      description: "Tourism levy for all branches",
+      icon: <PercentageOutlined />,
+      color: "#0d9488",
+      bg: "#f0fdfa",
+      group: "Taxes",
+      render: () => <CateringLevyPanel scope="business" />,
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [tenant, colors, fileList, saving]);
+
+  // ── Guards ────────────────────────────────────────────────────────────────
+  if (!tenantId) {
+    return <Result status="404" title="Tenant ID not found" subTitle="Please make sure you're logged in." />;
+  }
+
+  if (isLoading) {
+    return <div style={{ padding: 24 }}><Skeleton active paragraph={{ rows: 8 }} /></div>;
+  }
+
+  if (!tenant) {
+    return <Result status="404" title="Tenant not found" subTitle="The tenant you're looking for does not exist." />;
+  }
+
+  // Business summary at the top of the sidebar
+  const summary = (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 10,
+      padding: "8px 10px 14px", margin: "0 4px 6px",
+      borderBottom: `1px solid ${C.border}`,
+    }}>
+      <TenantLogo url={tenant.tenant_logo?.url} size={40} />
+      <div style={{ minWidth: 0 }}>
+        <Text strong style={{ fontSize: 13, color: C.darkText, display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          {tenant.name}
+        </Text>
+        <StatusBadge status={tenant.subscription_status} />
+      </div>
+    </div>
+  );
+
+  return (
+    <SettingsShell
+      title="Settings"
+      subtitle={`Business profile, branding and taxes for ${tenant.name}`}
+      icon={<SettingOutlined />}
+      sections={sections}
+      activeKey={activeTab}
+      onChange={setActiveTab}
+      sidebarHeader={summary}
+    />
   );
 }
 
