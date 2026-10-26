@@ -9,7 +9,7 @@ import {
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
-import ManualIncomeModal from "./Orders/ManualIncomeModal";
+import BillFormModal from "./Orders/BillFormModal";
 import {
     getAllBills, getBillSummary, recordBillPayment, voidBill,
     type Bill, type BillStatus,
@@ -482,18 +482,16 @@ function BillsPage() {
                 </div>
             </div>
 
-            <ManualIncomeModal
+            <BillFormModal
                 open={modalOpen}
                 onClose={() => setModalOpen(false)}
                 onSuccess={refresh}
-                defaultTab="bill"
             />
 
-            <ManualIncomeModal
+            <BillFormModal
                 open={!!editTarget}
                 onClose={() => setEditTarget(null)}
                 onSuccess={refresh}
-                defaultTab="bill"
                 billToEdit={editTarget}
             />
 

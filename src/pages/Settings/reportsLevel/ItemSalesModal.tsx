@@ -500,10 +500,10 @@ const A4Report = forwardRef<HTMLDivElement, ReportProps>(({
           gap: 12,
         }}>
           {[
-            { label: "Total Sales", value: `KES ${fmt(overallTotal)}`, color: C.primary, bg: C.primaryLight },
+            { label: "Total Item Sales", value: `KES ${fmt(overallTotal)}`, color: C.primary, bg: C.primaryLight },
             { label: "Stock Cost", value: `KES ${fmt(overallSupplierTotal)}`, color: C.blue, bg: C.blueLight },
             { label: "Commission", value: `KES ${fmt(totalCommission)}`, color: C.orange, bg: C.orangeLight },
-            { label: "Gross Profit", value: `KES ${fmt(overallTotal - overallSupplierTotal)}`, color: C.green, bg: C.greenLight },
+            { label: "Gross Cost", value: `KES ${fmt(overallTotal - overallSupplierTotal)}`, color: C.green, bg: C.greenLight },
           ].map(({ label, value, color, bg }) => (
             <div key={label} style={{
               flex: 1, background: bg,
@@ -876,9 +876,9 @@ const ItemSalesModal: React.FC<ItemSalesModalProps> = ({
               {/* Summary cards */}
               {hasData && (
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                  <SummaryCard label="Total Sales" value={`KES ${fmt(overallTotal)}`} color={C.primary} bg={C.primaryLight} icon={<DollarOutlined />} />
+                  <SummaryCard label="Total Item Sales" value={`KES ${fmt(overallTotal)}`} color={C.primary} bg={C.primaryLight} icon={<DollarOutlined />} />
                   <SummaryCard label="Stock Cost" value={`KES ${fmt(overallSupplierTotal)}`} color={C.blue} bg={C.blueLight} icon={<ShoppingOutlined />} />
-                  <SummaryCard label="Gross Profit" value={`KES ${fmt(grossProfit)}`} color={C.green} bg={C.greenLight} icon={<TagOutlined />} />
+                  <SummaryCard label="Gross Cost" value={`KES ${fmt(grossProfit)}`} color={C.green} bg={C.greenLight} icon={<TagOutlined />} />
                   <SummaryCard label="Commission" value={`KES ${fmt(totalCommission)}`} color={C.orange} bg={C.orangeLight} icon={<TagOutlined />} />
                 </div>
               )}

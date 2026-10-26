@@ -154,7 +154,7 @@ const fetchShops = async () => {
   return res.data;
 };
 
-const fetchRecentCustomers = async (params: { shop_id?: string; limit?: number }) => {
+const fetchRecentCustomers = async (params: { shop_id?: string; limit?: number; start_date?: string; end_date?: string }) => {
   const res = await axiosInstance.get(`${BASE_URL}/api/customers`, {
     params: { ...params, sort: "-createdAt" },
   });
@@ -168,14 +168,14 @@ const fetchMtejaStats = async (params: Record<string, any>) => {
   } catch { return {}; }
 };
 
-const fetchLeadPipeline = async (params: { shop_id?: string }) => {
+const fetchLeadPipeline = async (params: { shop_id?: string; start_date?: string; end_date?: string }) => {
   try {
     const res = await axiosInstance.get(`${BASE_URL}/api/crm/leads/pipeline-summary`, { params });
     return res.data;
   } catch { return { stages: [], total_leads: 0, total_value: 0, won_value: 0, conversion_rate: 0 }; }
 };
 
-const fetchRecentLeads = async (params: { shop_id?: string; limit?: number }) => {
+const fetchRecentLeads = async (params: { shop_id?: string; limit?: number; start_date?: string; end_date?: string }) => {
   try {
     const res = await axiosInstance.get(`${BASE_URL}/api/crm/leads`, {
       params: { ...params, limit: params.limit || 8, sort: "-createdAt" },
@@ -285,8 +285,8 @@ const MtejaDashboard: React.FC = () => {
 
   // Conversations
   const { data: convData, isLoading: convLoading, isRefetching: convRefetching } = useQuery({
-    queryKey: ["mteja-conversations", shopId, convStatus],
-    queryFn: () => fetchConversations({ shop_id: shopId || undefined, status: convStatus === "all" ? undefined : convStatus, page: 1, limit: 100 }),
+    queryKey: ["mteja-conversations", shopId, convStatus, start_date, end_date],
+    queryFn: () => fetchConversations({ shop_id: shopId || undefined, status: convStatus === "all" ? undefined : convStatus, start_date, end_date, page: 1, limit: 100 }),
     staleTime: 10_000,
     refetchInterval: 30_000,
   });
@@ -328,8 +328,8 @@ const MtejaDashboard: React.FC = () => {
 
   // Customers
   const { data: recentCustomers, isLoading: custLoading } = useQuery({
-    queryKey: ["mteja-recent-customers", shopId],
-    queryFn: () => fetchRecentCustomers({ shop_id: shopId || undefined, limit: 50 }),
+    queryKey: ["mteja-recent-customers", shopId, start_date, end_date],
+    queryFn: () => fetchRecentCustomers({ shop_id: shopId || undefined, start_date, end_date, limit: 50 }),
     staleTime: 30_000,
   });
   const customerList: any[] = Array.isArray(recentCustomers) ? recentCustomers : [];
@@ -343,8 +343,8 @@ const MtejaDashboard: React.FC = () => {
 
   // Lead pipeline
   const { data: pipelineData, isLoading: pipelineLoading } = useQuery({
-    queryKey: ["mteja-lead-pipeline", shopId],
-    queryFn: () => fetchLeadPipeline({ shop_id: shopId || undefined }),
+    queryKey: ["mteja-lead-pipeline", shopId, start_date, end_date],
+    queryFn: () => fetchLeadPipeline({ shop_id: shopId || undefined, start_date, end_date }),
     staleTime: 60_000,
   });
   const pipelineStages = pipelineData?.stages || [];
@@ -355,8 +355,8 @@ const MtejaDashboard: React.FC = () => {
 
   // Recent leads
   const { data: recentLeadsData, isLoading: leadsLoading } = useQuery({
-    queryKey: ["mteja-recent-leads", shopId],
-    queryFn: () => fetchRecentLeads({ shop_id: shopId || undefined, limit: 8 }),
+    queryKey: ["mteja-recent-leads", shopId, start_date, end_date],
+    queryFn: () => fetchRecentLeads({ shop_id: shopId || undefined, start_date, end_date, limit: 8 }),
     staleTime: 30_000,
   });
   const recentLeads: any[] = Array.isArray(recentLeadsData) ? recentLeadsData : [];

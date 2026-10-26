@@ -14,6 +14,7 @@ import {
   InboxOutlined,
 } from "@ant-design/icons";
 import useCartItemsData from "@hooks/cartItemsData";
+import { usePermissions } from "@hooks/usePermissions";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import axiosInstance from "../../services/request";
 import { BASE_URL } from "@utils/config";
@@ -72,6 +73,20 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem, cartDeductionEnab
       !!cartDetails?._id &&
       pendingPrintSnapshot.cartDetails?._id === cartDetails._id);
   const canEditQty = (user?.role === "admin" || user?.role === "cashier" || user?.role === "waiter") && !cartLocked;
+  // Once an item is sent, waiters may still add quantity but only
+  // admin/cashier may reduce it — same rule as deleting a sent item.
+  const canDecreaseQty =
+    canEditQty &&
+    (!cartItem?.sent || user?.role === "admin" || user?.role === "cashier");
+  const { can } = usePermissions();
+  // Unsent items can be removed by waiters the same as admin/cashier (plus
+  // any other role granted CART_DELETE_ITEM). Once an item is sent, only
+  // admin/cashier may delete it.
+  const canDeleteItem =
+    !cartLocked &&
+    (cartItem?.sent
+      ? user?.role === "admin" || user?.role === "cashier"
+      : user?.role === "waiter" || can("CART_DELETE_ITEM"));
 
   // Sync display when cart updates externally
   useEffect(() => {
@@ -298,7 +313,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem, cartDeductionEnab
   };
 
   const handleStepRemove = async () => {
-    if (!canEditQty || stepLoading || qtyLoading || cartItem.quantity <= 0.01) return;
+    if (!canDecreaseQty || stepLoading || qtyLoading || cartItem.quantity <= 0.01) return;
     setStepLoading("remove");
     try {
       await dispatch(removeQtyCart(cartItem));
@@ -315,6 +330,14 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem, cartDeductionEnab
     const parsed = parseFloat(qtyInputValue);
 
     if (isNaN(parsed) || parsed < 0.01 || parsed === cartItem.quantity) {
+      setQtyInputValue(String(cartItem.quantity));
+      return;
+    }
+
+    if (parsed < cartItem.quantity && !canDecreaseQty) {
+      notification.warning({
+        message: "Only a cashier or admin can reduce the quantity of a sent item",
+      });
       setQtyInputValue(String(cartItem.quantity));
       return;
     }
@@ -585,33 +608,38 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem, cartDeductionEnab
                 <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
 
                   {/* Minus */}
-                  <button
-                    onClick={handleStepRemove}
-                    disabled={!!stepLoading || qtyLoading || cartItem.quantity <= 0.01}
-                    style={{
-                      width: 26,
-                      height: 26,
-                      borderRadius: "50%",
-                      border: `1.5px solid ${isSent ? "rgba(255,255,255,0.5)" : primaryColor}`,
-                      backgroundColor: "transparent",
-                      color: isSent ? "#fff" : primaryColor,
-                      cursor: (cartItem.quantity <= 0.01 || stepLoading) ? "not-allowed" : "pointer",
-                      opacity: cartItem.quantity <= 0.01 ? 0.35 : 1,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      padding: 0,
-                      fontSize: 16,
-                      fontWeight: "bold",
-                      lineHeight: 1,
-                      transition: "all 0.15s ease",
-                      flexShrink: 0,
-                    }}
+                  <Tooltip
+                    title={!canDecreaseQty ? "Only a cashier or admin can reduce a sent item" : undefined}
+                    placement="top"
                   >
-                    {stepLoading === "remove"
-                      ? <LoadingOutlined style={{ fontSize: 10 }} />
-                      : "−"}
-                  </button>
+                    <button
+                      onClick={handleStepRemove}
+                      disabled={!canDecreaseQty || !!stepLoading || qtyLoading || cartItem.quantity <= 0.01}
+                      style={{
+                        width: 26,
+                        height: 26,
+                        borderRadius: "50%",
+                        border: `1.5px solid ${isSent ? "rgba(255,255,255,0.5)" : primaryColor}`,
+                        backgroundColor: "transparent",
+                        color: isSent ? "#fff" : primaryColor,
+                        cursor: (!canDecreaseQty || cartItem.quantity <= 0.01 || stepLoading) ? "not-allowed" : "pointer",
+                        opacity: (!canDecreaseQty || cartItem.quantity <= 0.01) ? 0.35 : 1,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: 0,
+                        fontSize: 16,
+                        fontWeight: "bold",
+                        lineHeight: 1,
+                        transition: "all 0.15s ease",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {stepLoading === "remove"
+                        ? <LoadingOutlined style={{ fontSize: 10 }} />
+                        : "−"}
+                    </button>
+                  </Tooltip>
 
                   {/* Quantity: click to type */}
                   {isEditingQty ? (
@@ -772,7 +800,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem, cartDeductionEnab
                       onClick={handleEditMiscItem}
                     />
                   )}
-                  {user?.role === "admin" && !cartLocked && (
+                  {canDeleteItem && (
                     <Button
                       danger
                       size="small"
@@ -798,7 +826,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem, cartDeductionEnab
                       onClick={handleEditMiscItem}
                     />
                   )}
-                  {!cartLocked && (
+                  {canDeleteItem && (
                     <Button
                       danger
                       size="small"
@@ -1027,11 +1055,22 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem, cartDeductionEnab
           <Form.Item
             name="quantity"
             label="Quantity"
-            rules={[{ required: true, message: "Please enter quantity" }]}
+            rules={[
+              { required: true, message: "Please enter quantity" },
+              ...(!canDecreaseQty
+                ? [{
+                    validator: (_: unknown, v: number) =>
+                      v == null || v >= cartItem.quantity
+                        ? Promise.resolve()
+                        : Promise.reject(new Error("Only a cashier or admin can reduce the quantity of a sent item")),
+                  }]
+                : []),
+            ]}
+            extra={!canDecreaseQty ? `Sent item — quantity can be increased only (min ${cartItem.quantity})` : undefined}
           >
             <InputNumber
               style={{ width: "100%" }}
-              min={0.01}
+              min={canDecreaseQty ? 0.01 : cartItem.quantity}
               precision={2}
             />
           </Form.Item>

@@ -1,6 +1,7 @@
 import {
   ApiFilled,
   AppstoreOutlined,
+  ShoppingCartOutlined,
   ApartmentOutlined,
   CalculatorFilled,
   DashboardOutlined,
@@ -34,6 +35,7 @@ import {
   CalendarOutlined,
   ClockCircleOutlined,
   DollarOutlined,
+  FormOutlined,
 } from "@ant-design/icons";
 import { useAppSelector } from "src/store";
 import React from "react";
@@ -41,6 +43,10 @@ import { makePermissionChecker } from "@utils/accessControl";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { useActiveProduct, ProductKey, PRODUCT_CONFIGS } from "@context/ProductContext";
 import { PRODUCT_TO_DASHBOARD_TAB } from "src/hooks/useActiveDashboard";
+import { useQuery } from "@tanstack/react-query";
+import { fetchShop } from "@services/shops";
+import { useTenantModules } from "@hooks/useTenantModules";
+import { useFormsSettings } from "@hooks/useFormsSettings";
 
 // ─── SVG tile helper ──────────────────────────────────────────────────────────
 export const makeTile = (color: string, pathD: string): string => {
@@ -142,8 +148,10 @@ const POS_ROUTE_PERMISSIONS: Record<string, string> = {
   "/inventory": "INVENTORY_VIEW",
   "/employee-shift": "SHIFTS_VIEW",
   "/customers": "CUSTOMERS_VIEW",
-  "/reports": "REPORTS_ITEM_SALES|ACCOUNTING_REPORT_PROFIT_LOSS",
+  "/reports": "REPORTS_ITEM_SALES|REPORTS_VIEW|ACCOUNTING_REPORT_PROFIT_LOSS",
   "/documents": "DOCUMENTS_VIEW",
+  "/esign": "SIGNATURE_VIEW",
+  "/forms": "CLIENT_FORMS_VIEW|CLIENT_FORMS_VIEW_FILLED|CLIENT_PLANS_VIEW",
   "/petty-cash": "ORDERS_VIEW_DASHBOARD",
   "/refunds": "ORDERS_VIEW_DASHBOARD",
   "/Category-settings": "CATEGORIES_VIEW",
@@ -161,10 +169,10 @@ const POS_ROUTE_PERMISSIONS: Record<string, string> = {
 };
 
 const ACCOUNTING_ROUTE_PERMISSIONS: Record<string, string> = {
-  "/accounting": "ACCOUNTING_DASHBOARD_VIEW",
-  "/accounting/dashboard": "ACCOUNTING_DASHBOARD_VIEW",
+  "/accounting": "ACCOUNTING_DASHBOARD_VIEW|ACCOUNTING_COA_VIEW",
+  "/accounting/dashboard": "ACCOUNTING_DASHBOARD_VIEW|ACCOUNTING_COA_VIEW",
   "/home-dashboard": "UNIFIED_DASHBOARD_VIEW",
-  "/orders": "ACCOUNTING_INVOICE_VIEW",
+  "/orders": "ACCOUNTING_INVOICE_VIEW|ORDERS_VIEW",
   "/accounting/sales-receipts": "ACCOUNTING_INCOME_VIEW_HISTORY",
   "/accounting/expenses": "ACCOUNTING_INCOME_POST_EXPENSE",
   "/accounting/bills": "ACCOUNTING_INVOICE_VIEW",
@@ -176,7 +184,7 @@ const ACCOUNTING_ROUTE_PERMISSIONS: Record<string, string> = {
   "/accounting/assets": "ACCOUNTING_ASSETS_VIEW",
   "/accounting/asset-requests": "ACCOUNTING_ASSET_REQUESTS_VIEW",
   "/accounting/asset-maintenance": "ACCOUNTING_ASSET_MAINTENANCE_VIEW",
-  "/reports": "ACCOUNTING_REPORT_PROFIT_LOSS|REPORTS_ITEM_SALES",
+  "/reports": "ACCOUNTING_REPORT_PROFIT_LOSS|REPORTS_ITEM_SALES|REPORTS_VIEW",
   "/accounting/currencies": "ACCOUNTING_COA_VIEW",
   "/inventory": "INVENTORY_VIEW",
   "/customers": "CUSTOMERS_VIEW",
@@ -184,6 +192,7 @@ const ACCOUNTING_ROUTE_PERMISSIONS: Record<string, string> = {
   "/payment-methods": "PAYMENT_METHODS_VIEW",
   "/system-setup": "SYSTEM_SETUP_VIEW",
   "/documents": "DOCUMENTS_VIEW",
+  "/esign": "SIGNATURE_VIEW",
 };
 
 const CRM_ROUTE_PERMISSIONS: Record<string, string> = {
@@ -196,9 +205,12 @@ const CRM_ROUTE_PERMISSIONS: Record<string, string> = {
   "/crm/sales-budgets": "CRM_BUDGETS_VIEW",
   "/crm/quotes": "CUSTOMERS_VIEW",
   "/crm/calendar": "CUSTOMERS_VIEW",
+  "/crm/stock": "INVENTORY_VIEW",
+  "/crm/orders": "ORDERS_VIEW",
   "/customers": "CUSTOMERS_VIEW",
-  "/reports": "REPORTS_ITEM_SALES",
+  "/reports": "REPORTS_ITEM_SALES|REPORTS_VIEW",
   "/documents": "DOCUMENTS_VIEW",
+  "/esign": "SIGNATURE_VIEW",
 };
 
 const DALA_ROUTE_PERMISSIONS: Record<string, string> = {
@@ -215,6 +227,7 @@ const DALA_ROUTE_PERMISSIONS: Record<string, string> = {
   "/dala/reports": "DALA_REPORTS_VIEW",
   "/reports": "REPORTS_VIEW",
   "/documents": "DOCUMENTS_VIEW",
+  "/esign": "SIGNATURE_VIEW",
   "/staff-management": "USERS_VIEW",
 };
 
@@ -223,6 +236,7 @@ const BANDU_ROUTE_PERMISSIONS: Record<string, string> = {
   "/hr": "BANDU_DASHBOARD_VIEW",
   "/hr/dashboard": "BANDU_DASHBOARD_VIEW",
   "/hr/employees": "BANDU_EMPLOYEES_VIEW",
+  "/hr/forms": "EMPLOYEE_FORMS_VIEW|EMPLOYEE_PLANS_VIEW",
   "/hr/leave": "BANDU_LEAVE_VIEW",
   "/hr/leave-policies": "BANDU_LEAVE_POLICIES_VIEW",
   "/hr/leave-calendar": "BANDU_LEAVE_VIEW",
@@ -232,6 +246,7 @@ const BANDU_ROUTE_PERMISSIONS: Record<string, string> = {
   "/hr/leave-approvals": "BANDU_LEAVE_APPROVALS_VIEW",
   "/reports": "REPORTS_VIEW",
   "/documents": "DOCUMENTS_VIEW",
+  "/esign": "SIGNATURE_VIEW",
   "/staff-management": "USERS_VIEW",
 };
 
@@ -248,6 +263,7 @@ const POS_APP_PERMISSIONS: Record<string, string> = {
   "/fss-faqs": "FAQ_VIEW",
   "/website-builder": "GALLERY_VIEW",
   "/documents": "DOCUMENTS_VIEW",
+  "/esign": "SIGNATURE_VIEW",
   // CRM tiles
   "/crm/leads": "CRM_LEADS_VIEW",
   "/crm/campaigns": "CRM_CAMPAIGNS_VIEW",
@@ -258,8 +274,8 @@ const POS_APP_PERMISSIONS: Record<string, string> = {
 };
 
 const ACCOUNTING_APP_PERMISSIONS: Record<string, string> = {
-  "/accounting": "ACCOUNTING_DASHBOARD_VIEW",
-  "/orders": "ACCOUNTING_INVOICE_VIEW",
+  "/accounting": "ACCOUNTING_DASHBOARD_VIEW|ACCOUNTING_COA_VIEW",
+  "/orders": "ACCOUNTING_INVOICE_VIEW|ORDERS_VIEW",
   "/accounting/notes": "ACCOUNTING_NOTES_VIEW",
   "/accounting/journals": "ACCOUNTING_JOURNAL_VIEW",
   "/accounting/sales-receipts": "ACCOUNTING_INCOME_VIEW_HISTORY",
@@ -269,7 +285,7 @@ const ACCOUNTING_APP_PERMISSIONS: Record<string, string> = {
   "/accounting/expenses": "ACCOUNTING_INCOME_POST_EXPENSE",
   "/accounting/bills": "ACCOUNTING_INVOICE_VIEW",
   "/accounting/income": "ACCOUNTING_INCOME_VIEW_HISTORY",
-  "/reports": "ACCOUNTING_REPORT_PROFIT_LOSS",
+  "/reports": "ACCOUNTING_REPORT_PROFIT_LOSS|REPORTS_ITEM_SALES|REPORTS_VIEW",
   "/accounting/currencies": "ACCOUNTING_COA_VIEW",
   "/inventory": "INVENTORY_VIEW",
   "/customers": "CUSTOMERS_VIEW",
@@ -277,6 +293,7 @@ const ACCOUNTING_APP_PERMISSIONS: Record<string, string> = {
   "/payment-methods": "PAYMENT_METHODS_VIEW",
   "/system-setup": "SYSTEM_SETUP_VIEW",
   "/documents": "DOCUMENTS_VIEW",
+  "/esign": "SIGNATURE_VIEW",
   "/omnichannel": "OMNICHANNEL_VIEW",
   "/currencies": "ACCOUNTING_COA_VIEW",
   // CRM tiles
@@ -299,6 +316,24 @@ export const useProLayoutNav = () => {
   const rolePermissions: string[] =
     (user as any)?.rolePermissions ?? (user as any)?.permissions ?? [];
   const can = makePermissionChecker(rolePermissions, isAdmin);
+
+  // Shop settings (cached under the same key the inbox and settings use) —
+  // the Mteja nav shows Stock when the WhatsApp Marketplace is on.
+  const navShopId = (() => {
+    const v = localStorage.getItem("shopId");
+    return v && v !== "{}" && v !== "null" ? v : "";
+  })();
+  const { data: navShop } = useQuery({
+    queryKey: ["shop", navShopId],
+    queryFn: () => fetchShop(navShopId),
+    enabled: !!navShopId && activeProduct === "mteja",
+    staleTime: 60_000,
+  });
+  const whatsappMarketplaceOn = !!(navShop as any)?.whatsapp_marketplace?.enabled;
+  const { hasPOS: hasDuka } = useTenantModules();
+  const mtejaSellsInChat = whatsappMarketplaceOn && !hasDuka;
+  // Forms & Plans add-on — only shops that switched it on in System Setup
+  const formsAddOn = useFormsSettings();
 
   const isAdminLayout = window.location.pathname.startsWith("/admin");
   const prefix = isAdminLayout ? "/admin" : "";
@@ -374,6 +409,10 @@ export const useProLayoutNav = () => {
     { ...inventoryRoute },
     { path: p("/employee-shift"), name: "Crew", icon: <UsergroupAddOutlined />, _bare: "/employee-shift" },
     { path: p("/customers"), name: getCustomerLabel(), icon: <UserOutlined />, _bare: "/customers" },
+    // Client forms + plans share one page with side tabs
+    ...(formsAddOn.clientForms || formsAddOn.clientPlans
+      ? [{ path: p("/forms"), name: "Forms & Plans", icon: <FormOutlined />, _bare: "/forms" }]
+      : []),
     { path: p("/reports"), name: "Reports", icon: <ApiFilled />, _bare: "/reports" },
     { ...documentRoute },
     { ...esignRoute },
@@ -426,6 +465,16 @@ export const useProLayoutNav = () => {
   const mtejaRoutesBase = [
     { path: p("/crm/dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/crm/dashboard" },
     { path: p("/omnichannel"), name: "Conversations", icon: <MessageOutlined />, _bare: "/omnichannel" },
+    // Selling in WhatsApp needs stock and orders at hand — shown once the
+    // shop turns the WhatsApp Marketplace on, but only for tenants without
+    // Duka (Duka's own nav already has Inventory and Orders). The /crm/...
+    // paths keep the Mteja workspace active.
+    ...(mtejaSellsInChat
+      ? [
+          { path: p("/crm/stock"), name: "Stock", icon: <AppstoreOutlined />, _bare: "/crm/stock" },
+          { path: p("/crm/orders"), name: "Orders", icon: <ShoppingCartOutlined />, _bare: "/crm/orders" },
+        ]
+      : []),
     { path: p("/crm/leads"), name: "Leads", icon: <TeamOutlined />, _bare: "/crm/leads" },
     { path: p("/crm/calendar"), name: "Activity Calendar", icon: <CalendarOutlined />, _bare: "/crm/calendar" },
     { path: p("/crm/quotes"), name: "Quotes", icon: <FileTextOutlined />, _bare: "/crm/quotes" },
@@ -448,6 +497,10 @@ export const useProLayoutNav = () => {
   const banduRoutesBase = [
     { path: p("/hr/dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/hr/dashboard" },
     { path: p("/hr/employees"), name: "Employees", icon: <UserOutlined />, _bare: "/hr/employees" },
+    // Employee forms (onboarding, NDAs…) + onboarding / training plans
+    ...(formsAddOn.employeeForms || formsAddOn.employeePlans
+      ? [{ path: "/hr/forms", name: "Forms & Plans", icon: <FormOutlined />, _bare: "/hr/forms" }]
+      : []),
     { path: p("/hr/payroll"), name: "Payroll", icon: <DollarOutlined />, _bare: "/hr/payroll" },
     { path: p("/hr/payslips"), name: "Payslips", icon: <FileTextOutlined />, _bare: "/hr/payslips" },
     { path: p("/hr/attendance"), name: "Attendance", icon: <ClockCircleOutlined />, _bare: "/hr/attendance" },

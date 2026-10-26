@@ -50,7 +50,8 @@ const UomModal: React.FC<UomModalProps> = ({
     });
     if (confirmed) {
       try {
-        edit ? await updateUom(values) : await createUom(values);
+        // The form only holds the visible fields, so the id comes from the record being edited
+        edit ? await updateUom({ ...values, _id: data?._id }) : await createUom(values);
         setOpen(false);
         actionRef?.current?.reset?.();
         onExternalClose?.();

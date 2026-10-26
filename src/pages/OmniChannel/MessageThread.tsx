@@ -4,7 +4,6 @@ import {
     Badge,
     Button,
     Checkbox,
-    Divider,
     Dropdown,
     Empty,
     Grid,
@@ -43,6 +42,10 @@ import {
     PhoneOutlined,
     VideoCameraOutlined,
     FileExclamationOutlined,
+    ShoppingCartOutlined,
+    AppstoreOutlined,
+    GiftOutlined,
+    CalendarOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
@@ -62,6 +65,7 @@ import {
 import { useAppDispatch } from "src/store";
 import { createLeadActivity } from "@services/crm/leadActivities";
 import { searchDocuments } from "@services/documents";
+import { fetchShop, ShopWhatsappMarketplace } from "@services/shops";
 import { formatCurrency } from "@utils/formatters";
 import {
     Conversation,
@@ -70,6 +74,10 @@ import {
     STATUS_CONFIG,
 } from "./OmnichannelInboxPage";
 import ScriptsManager from "./ScriptsManager";
+import ChatOrderDrawer from "./ChatOrderDrawer";
+import GuidedFlowBanner from "./GuidedFlowBanner";
+import { ContactAvatar, HScroll, tintStyle } from "./shared/ui";
+import { startGuidedFlow, type GuidedFlow } from "@services/omnichannel/marketplace";
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -120,8 +128,8 @@ interface Props {
 
 const STATUS_ICONS: Record<string, React.ReactNode> = {
     pending: <span style={{ fontSize: 10, color: "#bfbfbf" }}>⏳</span>,
-    sent: <CheckOutlined style={{ fontSize: 10, color: "#bfbfbf" }} />,
-    delivered: <span style={{ fontSize: 10, color: "#bfbfbf" }}>✓✓</span>,
+    sent: <CheckOutlined style={{ fontSize: 10, color: "#8696a0" }} />,
+    delivered: <span style={{ fontSize: 10, color: "#8696a0" }}>✓✓</span>,
     read: <span style={{ fontSize: 10, color: "#53bdeb" }}>✓✓</span>,
     failed: <CloseCircleOutlined style={{ fontSize: 10, color: "#ff4d4f" }} />,
 };
@@ -175,17 +183,19 @@ const MessageBubble: React.FC<{ msg: Message; channelColor: string; onReply?: (m
     const isOut = msg.direction === "outbound";
 
     const bubbleStyle: React.CSSProperties = {
-        maxWidth: "85%",
-        padding: "8px 12px",
-        borderRadius: isOut ? "16px 4px 16px 16px" : "4px 16px 16px 16px",
-        background: isOut ? channelColor : "#f0f0f0",
-        color: isOut ? "#fff" : "#262626",
-        fontSize: 13,
+        maxWidth: "75%",
+        padding: "6px 9px 4px",
+        // WhatsApp palette — light green out, white in, dark text on both
+        // (white text on #25D366 was hard to read).
+        borderRadius: isOut ? "8px 2px 8px 8px" : "2px 8px 8px 8px",
+        background: isOut ? "#d9fdd3" : "#ffffff",
+        color: "#111b21",
+        fontSize: 13.5,
         lineHeight: "1.5",
         wordBreak: "break-word",
         position: "relative",
         cursor: onReply ? "pointer" : "default",
-        boxShadow: isReplying ? `0 0 0 2px ${channelColor}` : undefined,
+        boxShadow: isReplying ? `0 0 0 2px ${channelColor}` : "0 1px 0.5px rgba(11,20,26,0.13)",
         transition: "box-shadow 0.15s ease",
     };
 
@@ -219,7 +229,7 @@ const MessageBubble: React.FC<{ msg: Message; channelColor: string; onReply?: (m
                         }}
                     />
                 ) : (
-                    <Text style={{ color: isOut ? "rgba(255,255,255,0.7)" : "#8c8c8c" }}>
+                    <Text style={{ color: "#667781" }}>
                         Video message
                     </Text>
                 );
@@ -234,7 +244,7 @@ const MessageBubble: React.FC<{ msg: Message; channelColor: string; onReply?: (m
                             display: "flex",
                             alignItems: "center",
                             gap: 6,
-                            color: isOut ? "#fff" : "#1677ff",
+                            color: "#027eb5",
                             textDecoration: "none",
                         }}
                     >
@@ -253,7 +263,7 @@ const MessageBubble: React.FC<{ msg: Message; channelColor: string; onReply?: (m
                 ) : (
                     <Space>
                         <AudioOutlined />
-                        <Text style={{ color: isOut ? "#fff" : undefined }}>
+                        <Text style={{ color: "#667781" }}>
                             Audio message
                         </Text>
                     </Space>
@@ -269,7 +279,7 @@ const MessageBubble: React.FC<{ msg: Message; channelColor: string; onReply?: (m
                             display: "flex",
                             alignItems: "center",
                             gap: 6,
-                            color: isOut ? "#fff" : "#1677ff",
+                            color: "#027eb5",
                             textDecoration: "none",
                         }}
                     >
@@ -296,7 +306,7 @@ const MessageBubble: React.FC<{ msg: Message; channelColor: string; onReply?: (m
                                 href={callLink}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                style={{ color: isOut ? "#fff" : "#1677ff" }}
+                                style={{ color: "#027eb5" }}
                                 onClick={(e) => e.stopPropagation()}
                             >
                                 {isOut ? "Tap to join the call" : msg.content}
@@ -328,7 +338,7 @@ const MessageBubble: React.FC<{ msg: Message; channelColor: string; onReply?: (m
                         style={{
                             fontSize: 12,
                             fontStyle: "italic",
-                            color: isOut ? "rgba(255,255,255,0.7)" : "#8c8c8c",
+                            color: "#667781",
                         }}
                     >
                         Unsupported message type
@@ -350,13 +360,6 @@ const MessageBubble: React.FC<{ msg: Message; channelColor: string; onReply?: (m
                 gap: 6,
             }}
         >
-            {!isOut && (
-                <Avatar
-                    size={24}
-                    icon={<UserOutlined />}
-                    style={{ flexShrink: 0, marginBottom: 2 }}
-                />
-            )}
 
             <div
                 style={bubbleStyle}
@@ -382,7 +385,7 @@ const MessageBubble: React.FC<{ msg: Message; channelColor: string; onReply?: (m
                     <Text
                         style={{
                             fontSize: 10,
-                            color: isOut ? "rgba(255,255,255,0.65)" : "#bfbfbf",
+                            color: "#667781",
                         }}
                     >
                         {dayjs(msg.createdAt).format("HH:mm")}
@@ -408,13 +411,24 @@ const MessageBubble: React.FC<{ msg: Message; channelColor: string; onReply?: (m
 // ── Date Separator ────────────────────────────────────────────────────────────
 
 const DateSeparator: React.FC<{ date: string }> = ({ date }) => (
-    <Divider plain style={{ fontSize: 11, color: "#bfbfbf", margin: "8px 0" }}>
-        {dayjs(date).isSame(dayjs(), "day")
-            ? "Today"
-            : dayjs(date).isSame(dayjs().subtract(1, "day"), "day")
-                ? "Yesterday"
-                : dayjs(date).format("DD MMM YYYY")}
-    </Divider>
+    <div style={{ display: "flex", justifyContent: "center", margin: "10px 0 8px" }}>
+        <span
+            style={{
+                background: "#ffffff",
+                color: "#54656f",
+                fontSize: 11.5,
+                padding: "4px 12px",
+                borderRadius: 8,
+                boxShadow: "0 1px 0.5px rgba(11,20,26,0.13)",
+            }}
+        >
+            {dayjs(date).isSame(dayjs(), "day")
+                ? "Today"
+                : dayjs(date).isSame(dayjs().subtract(1, "day"), "day")
+                    ? "Yesterday"
+                    : dayjs(date).format("DD MMM YYYY")}
+        </span>
+    </div>
 );
 
 // ── Main Component ────────────────────────────────────────────────────────────
@@ -440,6 +454,17 @@ const MessageThread: React.FC<Props> = ({
         enabled: !!shopId,
         staleTime: 30_000,
     });
+
+    // Shop-level flag — the "Sell" button only appears for WhatsApp chats when
+    // the marketplace integration is enabled in System Setup → Integrations.
+    const { data: shopData } = useQuery({
+        queryKey: ["shop", shopId],
+        queryFn: () => fetchShop(shopId),
+        enabled: !!shopId,
+        staleTime: 60_000,
+    });
+    const marketplace = shopData?.whatsapp_marketplace as ShopWhatsappMarketplace | undefined;
+    const canSellInChat = conversation.channel === "whatsapp" && !!marketplace?.enabled;
 
     const handoverMutation = useMutation({
         mutationFn: (agentId: string) => handoverConversation(conversation._id, agentId),
@@ -484,6 +509,23 @@ const MessageThread: React.FC<Props> = ({
     const [docSearch, setDocSearch] = useState("");
     const [docResults, setDocResults] = useState<any[]>([]);
     const [docLoading, setDocLoading] = useState(false);
+    const [orderDrawerOpen, setOrderDrawerOpen] = useState(false);
+    // Quick chips above the composer start a guided flow in one tap.
+    const [startingFlow, setStartingFlow] = useState<GuidedFlow | null>(null);
+    const handleQuickFlow = async (flow: GuidedFlow) => {
+        setStartingFlow(flow);
+        try {
+            await startGuidedFlow(conversation._id, flow);
+            antMessage.success("Sent — the assistant is guiding the customer");
+            queryClient.invalidateQueries({ queryKey: ["marketplace-flow", conversation._id] });
+            refetch();
+            onMessageSent();
+        } catch (err: any) {
+            antMessage.error(err?.response?.data?.message || "Couldn't start that flow");
+        } finally {
+            setStartingFlow(null);
+        }
+    };
     // Products the AI suggestion referenced that have an image — their photos
     // are attached to the reply so the customer sees what they are buying.
     const [suggestedProducts, setSuggestedProducts] = useState<SuggestedProduct[]>([]);
@@ -907,6 +949,16 @@ const MessageThread: React.FC<Props> = ({
 
     const moreMenu: MenuProps = {
         items: [
+            ...(canSellInChat
+                ? [
+                      {
+                          key: "sell",
+                          label: "Sell in chat",
+                          icon: <ShoppingCartOutlined />,
+                          onClick: () => setOrderDrawerOpen(true),
+                      },
+                  ]
+                : []),
             ...(conversation.channel === "whatsapp"
                 ? [
                       {
@@ -987,47 +1039,40 @@ const MessageThread: React.FC<Props> = ({
                                 style={{ padding: "0 4px", flexShrink: 0 }}
                             />
                         )}
-                        <div style={{ position: "relative", flexShrink: 0 }}>
-                            <Avatar
-                                size={36}
-                                icon={<UserOutlined />}
-                                style={{ background: cfg?.bg, color: cfg?.color }}
-                            />
-                            <span
-                                style={{
-                                    position: "absolute",
-                                    bottom: -1,
-                                    right: -1,
-                                    width: 13,
-                                    height: 13,
-                                    borderRadius: "50%",
-                                    background: cfg?.color,
-                                    border: "2px solid #fff",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    fontSize: 7,
-                                }}
-                            >
-                                {cfg?.icon}
-                            </span>
-                        </div>
+                        <ContactAvatar
+                            size={38}
+                            name={conversation.external_contact_name || conversation.external_contact_phone}
+                            seed={conversation.external_contact_id}
+                            badgeColor={cfg?.color}
+                            badgeIcon={cfg?.icon}
+                        />
                         <div style={{ minWidth: 0, flex: 1 }}>
                             <Text strong style={{ fontSize: 14, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                                 {conversation.external_contact_name ||
                                     conversation.external_contact_id}
                             </Text>
                             <Space size={4} style={{ display: "flex", flexWrap: "nowrap", overflow: "hidden" }}>
-                                <Badge status={statusCfg.badge} />
+                                {isMobile && (
+                                    <>
+                                        <Badge status={statusCfg.badge} />
+                                        <Text type="secondary" style={{ fontSize: 11, whiteSpace: "nowrap" }}>
+                                            {statusCfg.label} ·
+                                        </Text>
+                                    </>
+                                )}
                                 <Text type="secondary" style={{ fontSize: 11, whiteSpace: "nowrap" }}>
-                                    {statusCfg.label}
+                                    {conversation.external_contact_phone || cfg?.label}
                                 </Text>
-                                <Text type="secondary" style={{ fontSize: 11, whiteSpace: "nowrap" }}>
-                                    · {cfg?.label}
-                                </Text>
-                                {!isMobile && conversation.external_contact_phone && (
+                                {!isMobile && (
                                     <Text type="secondary" style={{ fontSize: 11, whiteSpace: "nowrap" }}>
-                                        · {conversation.external_contact_phone}
+                                        ·{" "}
+                                        {conversation.assigned_to ? (
+                                            <>
+                                                <UserOutlined /> {conversation.assigned_to.fullname}
+                                            </>
+                                        ) : (
+                                            <span style={{ color: "#d97706" }}>Unassigned</span>
+                                        )}
                                     </Text>
                                 )}
                             </Space>
@@ -1059,35 +1104,29 @@ const MessageThread: React.FC<Props> = ({
                             </Dropdown>
                         </Space>
                     ) : (
-                        <Space wrap size="middle">
-                            {conversation.channel === "whatsapp" && (
-                                <>
-                                    <Tooltip title="Voice calls — coming soon">
-                                        <Button
-                                            size="small"
-                                            icon={<PhoneOutlined />}
-                                            onClick={showCallComingSoon}
-                                        />
-                                    </Tooltip>
-                                    <Tooltip title="Video calls — coming soon">
-                                        <Button
-                                            size="small"
-                                            icon={<VideoCameraOutlined />}
-                                            onClick={showCallComingSoon}
-                                        />
-                                    </Tooltip>
-                                </>
-                            )}
-                            {conversation.assigned_to && (
-                                <Tooltip title={`Assigned to ${conversation.assigned_to.fullname}`}>
-                                    <Tag icon={<UserOutlined />}>
-                                        {conversation.assigned_to.fullname}
-                                    </Tag>
+                        // Desktop: the few actions agents use on every chat stay
+                        // visible; everything else lives in the ⋯ menu.
+                        <Space size={8} style={{ flexShrink: 0 }}>
+                            {canSellInChat && (
+                                <Tooltip title="Sell, send a gift card or book an appointment — build it yourself or let the assistant guide the customer">
+                                    <Button
+                                        type="primary"
+                                        icon={<ShoppingCartOutlined />}
+                                        onClick={() => setOrderDrawerOpen(true)}
+                                        className="omni-btn-tint"
+                                        style={{ ...tintStyle("#25D366"), background: "#25D366", borderColor: "#25D366", borderRadius: 8 }}
+                                    >
+                                        Sell
+                                    </Button>
                                 </Tooltip>
                             )}
                             <Select
-                                size="small"
-                                placeholder="Handover to…"
+                                placeholder={
+                                    <Space size={4}>
+                                        <UserOutlined />
+                                        Assign
+                                    </Space>
+                                }
                                 value={conversation.assigned_to?._id || undefined}
                                 onChange={(value: string) => {
                                     if (value && value !== conversation.assigned_to?._id) {
@@ -1096,47 +1135,68 @@ const MessageThread: React.FC<Props> = ({
                                 }}
                                 loading={handoverMutation.isLoading}
                                 showSearch
-                                style={{ minWidth: 150 }}
+                                optionFilterProp="name"
+                                popupMatchSelectWidth={220}
+                                style={{ width: 160 }}
                                 options={agents.map((agent: any) => ({
                                     value: agent._id,
-                                    label: `${agent.fullname} (${agent.open_conversations})`,
+                                    name: agent.fullname,
+                                    label: (
+                                        <Space size={6}>
+                                            <Badge
+                                                status={agent.agent_status === "online" ? "success" : agent.agent_status === "busy" ? "warning" : "default"}
+                                            />
+                                            <span>{agent.fullname}</span>
+                                            <Text type="secondary" style={{ fontSize: 11 }}>
+                                                {agent.open_conversations}
+                                            </Text>
+                                        </Space>
+                                    ),
                                     disabled: agent._id === conversation.assigned_to?._id,
                                 }))}
                             />
-                            <Button size="small" onClick={() => setScriptsOpen(true)}>
-                                Scripts
-                            </Button>
-                            <Dropdown menu={convertMenu} trigger={["click"]}>
-                                <Button size="small" icon={<UserAddOutlined />}>
-                                    Convert
-                                </Button>
-                            </Dropdown>
                             <Dropdown menu={statusMenu} trigger={["click"]}>
-                                <Button size="small" icon={<DownOutlined />}>
-                                    {conversation.status.charAt(0).toUpperCase() +
-                                        conversation.status.slice(1)}
+                                <Button style={{ borderRadius: 8 }}>
+                                    <Space size={6}>
+                                        <Badge status={statusCfg.badge} />
+                                        {statusCfg.label}
+                                        <DownOutlined style={{ fontSize: 10 }} />
+                                    </Space>
                                 </Button>
                             </Dropdown>
-                            <Button
-                                size="small"
-                                danger
-                                icon={<DeleteOutlined />}
-                                onClick={handleDelete}
+                            {conversation.status !== "resolved" && conversation.status !== "closed" && (
+                                <Tooltip title="Mark as resolved">
+                                    <Button
+                                        icon={<CheckOutlined />}
+                                        loading={statusMutation.isLoading}
+                                        onClick={() => statusMutation.mutate({ status: "resolved" })}
+                                        style={{ borderRadius: 8 }}
+                                    >
+                                        Resolve
+                                    </Button>
+                                </Tooltip>
+                            )}
+                            <Dropdown
+                                menu={{ items: (moreMenu.items || []).filter((i: any) => i?.key !== "sell" && i?.key !== "status") }}
+                                trigger={["click"]}
+                                placement="bottomRight"
                             >
-                                Delete
-                            </Button>
-                            <Button
-                                size="small"
-                                icon={<CloseOutlined />}
-                                disabled={conversation.status === "closed"}
-                                loading={statusMutation.isLoading}
-                                onClick={() => statusMutation.mutate({ status: "closed" })}
-                            >
-                                Close
-                            </Button>
+                                <Button icon={<MoreOutlined />} style={{ borderRadius: 8 }} />
+                            </Dropdown>
                         </Space>
                     )}
                 </div>
+
+                {/* Assistant-guided sale / gift card / booking in progress */}
+                {canSellInChat && (
+                    <GuidedFlowBanner
+                        conversationId={conversation._id}
+                        onChanged={() => {
+                            refetch();
+                            onConversationUpdate();
+                        }}
+                    />
+                )}
 
                 {/* Messages Container - with scroll handling */}
                 <div
@@ -1146,7 +1206,7 @@ const MessageThread: React.FC<Props> = ({
                         flex: 1,
                         overflowY: "auto",
                         padding: isMobile ? "8px 10px" : "12px 16px",
-                        background: "#fafafa",
+                        background: "#efeae2",
                         display: "flex",
                         flexDirection: "column",
                     }}
@@ -1310,95 +1370,136 @@ const MessageThread: React.FC<Props> = ({
                                 ))}
                         </div>
                     )}
-                    <div
-                        style={{
-                            display: "flex",
-                            gap: 8,
-                            alignItems: "flex-end",
-                            flexWrap: isMobile ? "wrap" : "nowrap",
-                        }}
-                    >
-                        <Upload
-                            accept="image/*,video/*,.pdf,application/pdf"
-                            showUploadList={false}
-                            beforeUpload={(file) => {
-                                handleSendMedia(file as File);
-                                return false;
+                    {/* One-tap actions — start a guided flow for the customer
+                        or open scripts without leaving the composer. */}
+                    <HScroll padding="0 0 8px">
+                        {canSellInChat &&
+                            ([
+                                { flow: "hub", label: "Send menu", icon: <AppstoreOutlined /> },
+                                ...(marketplace?.sell_inventory !== false || marketplace?.sell_services !== false
+                                    ? [{ flow: "shop", label: "Catalogue", icon: <ShoppingCartOutlined /> }]
+                                    : []),
+                                ...(marketplace?.sell_gift_cards !== false
+                                    ? [{ flow: "giftcard", label: "Gift card", icon: <GiftOutlined /> }]
+                                    : []),
+                                ...(marketplace?.sell_services !== false && marketplace?.booking_enabled !== false
+                                    ? [{ flow: "booking", label: "Book", icon: <CalendarOutlined /> }]
+                                    : []),
+                            ] as { flow: GuidedFlow; label: string; icon: React.ReactNode }[]).map((q) => (
+                                <Tooltip key={q.flow} title={`Let the assistant guide ${conversation.external_contact_name || "the customer"}: ${q.label.toLowerCase()}`}>
+                                    <Button
+                                        size="small"
+                                        icon={q.icon}
+                                        loading={startingFlow === q.flow}
+                                        disabled={!!startingFlow && startingFlow !== q.flow}
+                                        onClick={() => handleQuickFlow(q.flow)}
+                                        style={{ borderRadius: 999, flexShrink: 0, fontSize: 12, color: "#15803d", borderColor: "#bbf7d0", background: "#f0fdf4" }}
+                                    >
+                                        {q.label}
+                                    </Button>
+                                </Tooltip>
+                            ))}
+                        <Button
+                            size="small"
+                            icon={<MessageOutlined />}
+                            onClick={() => setScriptsOpen(true)}
+                            style={{ borderRadius: 999, flexShrink: 0, fontSize: 12 }}
+                        >
+                            Scripts
+                        </Button>
+                        <Button
+                            size="small"
+                            icon={<FileSearchOutlined />}
+                            loading={docLoading}
+                            onClick={() => {
+                                setDocModalOpen(true);
+                                handleSuggestDocuments();
+                            }}
+                            style={{ borderRadius: 999, flexShrink: 0, fontSize: 12 }}
+                        >
+                            Documents
+                        </Button>
+                    </HScroll>
+
+                    <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+                        {/* WhatsApp-style input pill: attach · text · AI */}
+                        <div
+                            style={{
+                                flex: 1,
+                                minWidth: 0,
+                                display: "flex",
+                                alignItems: "flex-end",
+                                gap: 2,
+                                background: "#f0f2f5",
+                                borderRadius: 22,
+                                padding: "4px 6px",
                             }}
                         >
-                            <Button
-                                icon={<PaperClipOutlined />}
-                                size={isMobile ? "middle" : "large"}
-                                disabled={sendingMedia}
-                                loading={sendingMedia}
-                                style={{ height: isMobile ? 36 : 48, width: isMobile ? 36 : 48 }}
-                            />
-                        </Upload>
-
-                        <Tooltip title="Suggest a document">
-                            <Button
-                                icon={<FileSearchOutlined />}
-                                onClick={() => {
-                                    setDocModalOpen(true);
-                                    handleSuggestDocuments();
+                            <Upload
+                                accept="image/*,video/*,.pdf,application/pdf"
+                                showUploadList={false}
+                                beforeUpload={(file) => {
+                                    handleSendMedia(file as File);
+                                    return false;
                                 }}
-                                loading={docLoading}
-                                size={isMobile ? "middle" : "large"}
-                                style={{ height: isMobile ? 36 : 48, width: isMobile ? 36 : 48 }}
-                            />
-                        </Tooltip>
-
-                        <div style={{ position: "relative", flex: 1, minWidth: 0 }}>
+                            >
+                                <Tooltip title="Attach a photo, video or PDF">
+                                    <Button
+                                        type="text"
+                                        shape="circle"
+                                        icon={<PaperClipOutlined style={{ fontSize: 17, color: "#54656f" }} />}
+                                        disabled={sendingMedia}
+                                        loading={sendingMedia}
+                                    />
+                                </Tooltip>
+                            </Upload>
                             <TextArea
                                 value={text}
                                 onChange={(e) => setText(e.target.value)}
                                 onKeyDown={handleKeyDown}
-                                placeholder={isMobile ? "Type a message…" : "Type a message… (Enter to send, Shift+Enter for new line)"}
-                                autoSize={{ minRows: isMobile ? 1 : 2, maxRows: isMobile ? 3 : 4 }}
-                                style={{
-                                    flex: 1,
-                                    borderRadius: 8,
-                                    resize: "none",
-                                }}
+                                placeholder={isMobile ? "Message" : "Type a message — Enter to send, Shift+Enter for a new line"}
+                                autoSize={{ minRows: 1, maxRows: isMobile ? 4 : 6 }}
+                                variant="borderless"
+                                style={{ flex: 1, resize: "none", background: "transparent", fontSize: 14, padding: "6px 4px" }}
                             />
-                        </div>
-
-                        {text && (
-                            <Tooltip title="Clear message">
+                            {text && (
+                                <Tooltip title="Clear">
+                                    <Button
+                                        type="text"
+                                        shape="circle"
+                                        icon={<CloseOutlined style={{ fontSize: 13, color: "#8696a0" }} />}
+                                        onClick={() => setText("")}
+                                    />
+                                </Tooltip>
+                            )}
+                            <Tooltip title="Draft a reply with AI">
                                 <Button
-                                    icon={<CloseOutlined />}
-                                    onClick={() => setText("")}
-                                    size={isMobile ? "middle" : "large"}
-                                    style={{ height: isMobile ? 36 : 48, width: isMobile ? 36 : 48 }}
+                                    type="text"
+                                    shape="circle"
+                                    icon={<ThunderboltOutlined style={{ fontSize: 16, color: "#6366f1" }} />}
+                                    onClick={() => suggestMutation.mutate()}
+                                    loading={suggestMutation.isLoading}
                                 />
                             </Tooltip>
-                        )}
-
+                        </div>
                         <Button
                             type="primary"
+                            shape="circle"
+                            size="large"
                             icon={<SendOutlined />}
                             onClick={handleSend}
                             loading={sendMutation.isLoading || sendingMedia}
                             disabled={!text.trim()}
-                            size={isMobile ? "middle" : "large"}
+                            className="omni-btn-tint"
                             style={{
-                                background: cfg?.color || primaryColor,
-                                borderColor: cfg?.color || primaryColor,
-                                borderRadius: 8,
-                                height: isMobile ? 36 : 48,
+                                ...tintStyle("#25D366"),
+                                background: text.trim() ? "#25D366" : undefined,
+                                borderColor: text.trim() ? "#25D366" : undefined,
+                                width: 44,
+                                height: 44,
+                                flexShrink: 0,
                             }}
-                        >
-                            {!isMobile && "Send"}
-                        </Button>
-                        <Tooltip title="AI suggestion">
-                            <Button
-                                icon={<ThunderboltOutlined />}
-                                onClick={() => suggestMutation.mutate()}
-                                loading={suggestMutation.isLoading}
-                                size={isMobile ? "middle" : "large"}
-                                style={{ height: isMobile ? 36 : 48, width: isMobile ? 36 : 48 }}
-                            />
-                        </Tooltip>
+                        />
                     </div>
                 </div>
             </div>
@@ -1505,6 +1606,21 @@ const MessageThread: React.FC<Props> = ({
                     readOnly
                 />
             </Modal>
+
+            {canSellInChat && (
+                <ChatOrderDrawer
+                    open={orderDrawerOpen}
+                    onClose={() => setOrderDrawerOpen(false)}
+                    conversation={conversation}
+                    shopId={shopId}
+                    marketplace={marketplace}
+                    onOrderPlaced={() => {
+                        refetch();
+                        onMessageSent();
+                        onConversationUpdate();
+                    }}
+                />
+            )}
 
             <Modal
                 title="Suggest a document to share"

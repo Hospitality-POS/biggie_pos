@@ -115,6 +115,8 @@ export interface UpdateManualEntryParams {
     description: string;
     reference?: string;
     lines: Array<{
+        /** Existing line id — lets the server keep metadata (currency etc.) on edit. */
+        _id?: string;
         account_id: string;
         debit?: number;
         credit?: number;
@@ -227,7 +229,7 @@ export const createManualEntry = async (data: CreateManualEntryParams) => {
 };
 
 /**
- * Update an existing Draft manual journal entry.
+ * Update any non-voided journal entry (manual or system-generated).
  * Blocked by the server if the period is locked.
  */
 export const updateJournalEntry = async (id: string, data: UpdateManualEntryParams) => {

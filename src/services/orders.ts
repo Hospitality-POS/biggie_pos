@@ -21,27 +21,35 @@ export const getAllOrders = async (data: ParamsType) => {
 };
 
 export const getDashboardAnalysis = async (startDate: string, endDate: string, shopId?: string) => {
-  const params = new URLSearchParams();
-  if (startDate) params.append('startDate', startDate);
-  if (endDate) params.append('endDate', endDate);
-  if (shopId) params.append('shop_id', shopId);
-
-  const queryString = params.toString();
-  const url = `${BASE_URL}/orders/dashboard/summary${queryString ? `?${queryString}` : ''}`;
-
-  const response = await axiosInstance.get(url);
+  const response = await axiosInstance.get(`${BASE_URL}/orders/dashboard/summary`, {
+    params: {
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+      shop_id: shopId || undefined,
+    },
+  });
   return response.data;
 };
 
-export const getAdminDashboardAnalysis = async (startDate: string, endDate: string) => {
-  const params = new URLSearchParams();
-  if (startDate) params.append('startDate', startDate);
-  if (endDate) params.append('endDate', endDate);
+export const getAdminDashboardAnalysis = async (startDate: string, endDate: string, shopId?: string) => {
+  const response = await axiosInstance.get(`${BASE_URL}/orders/admin-dashboard/summary`, {
+    params: {
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+      // Explicitly pass shop_id (even "all") so the request interceptor
+      // doesn't think it's unset and inject the logged-in user's own shop,
+      // which would combine it with the dashboard's selected branch filter.
+      shop_id: shopId || "all",
+    },
+  });
+  return response.data;
+};
 
-  const queryString = params.toString();
-  const url = `${BASE_URL}/orders/admin-dashboard/summary${queryString ? `?${queryString}` : ''}`;
-
-  const response = await axiosInstance.get(url);
+export const getBranchComparison = async (startDate: string, endDate: string) => {
+  const response = await axiosInstance.get(`${BASE_URL}/orders/admin-dashboard/branch-comparison`, {
+    // shop_id "all" keeps the request interceptor from scoping this to the user's own shop
+    params: { startDate, endDate, shop_id: "all" },
+  });
   return response.data;
 };
 
@@ -439,6 +447,8 @@ interface TopEarner {
   staff_id: string;
   staff_name: string;
   total_earnings: number;
+  /** Order revenue attributed to this staff member (equal split across servers). */
+  total_revenue?: number;
   order_count: number;
   average_per_order: number;
 }

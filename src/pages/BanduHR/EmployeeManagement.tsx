@@ -45,6 +45,8 @@ import {
   InboxOutlined,
   DeleteOutlined,
   StopOutlined,
+  PauseOutlined,
+  RollbackOutlined,
   CheckCircleOutlined,
   WarningOutlined,
   CloseCircleOutlined,
@@ -59,7 +61,7 @@ import {
   fetchEmployees,
   createEmployee,
   updateEmployee,
-  deleteEmployee,
+  updateEmployeeStatus,
   permanentlyDeleteEmployee,
   uploadEmployeeDocument,
   fetchEmployeeDocuments,
@@ -82,10 +84,16 @@ import { resolveBenefitTypes, computeBenefitAmount } from "@utils/benefitTypes";
 import { useAppDispatch } from "../../store";
 import dayjs from "dayjs";
 import { THEME_C } from "@utils/getPrimaryColor";
+import { useFormsSettings } from "@hooks/useFormsSettings";
+import { usePermissions } from "@hooks/usePermissions";
+import { AudienceContext, AUDIENCES } from "@pages/FormsPlans/audience";
+import FilledFormsList from "@pages/FormsPlans/forms/fill/FilledFormsList";
+import PlansList from "@pages/FormsPlans/plans/PlansList";
 
 const { Title, Text } = Typography;
 const { Option } = Select;
 const { TextArea } = Input;
+const { RangePicker } = DatePicker;
 
 const C = THEME_C;
 
@@ -201,6 +209,11 @@ const EmployeeManagement: React.FC = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isDrawerVisible, setIsDrawerVisible] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  // Forms & Plans add-on: the employee's signed forms and onboarding / training plans
+  const formsAddOn = useFormsSettings();
+  const { can: canDo } = usePermissions();
+  const showEmployeeForms = formsAddOn.employeeForms && canDo("EMPLOYEE_FORMS_VIEW");
+  const showEmployeePlans = formsAddOn.employeePlans && canDo("EMPLOYEE_PLANS_VIEW");
   const [isDocumentModalVisible, setIsDocumentModalVisible] = useState(false);
   const [isAllowanceModalVisible, setIsAllowanceModalVisible] = useState(false);
   const [isBenefitModalVisible, setIsBenefitModalVisible] = useState(false);
@@ -272,6 +285,12 @@ const EmployeeManagement: React.FC = () => {
   const [documentForm] = Form.useForm();
   const [allowanceForm] = Form.useForm();
   const [benefitForm] = Form.useForm();
+  const [statusForm] = Form.useForm();
+  const [statusModal, setStatusModal] = useState<{
+    open: boolean;
+    mode: "suspend" | "terminate";
+    employee: Employee | null;
+  }>({ open: false, mode: "suspend", employee: null });
   const [allFormValues, setAllFormValues] = useState<Record<string, any>>({});
   const [newDeptName, setNewDeptName] = useState("");
   const [addingDept, setAddingDept] = useState(false);
@@ -371,13 +390,42 @@ const EmployeeManagement: React.FC = () => {
     },
   });
 
-  // Delete employee mutation
-  const deleteMutation = useMutation({
-    mutationFn: deleteEmployee,
+  // Employment status mutation — suspend / terminate / reinstate
+  const statusMutation = useMutation({
+    mutationFn: ({ employeeId, params }: { employeeId: string; params: Parameters<typeof updateEmployeeStatus>[1] }) =>
+      updateEmployeeStatus(employeeId, params),
     onSuccess: () => {
+      setStatusModal({ open: false, mode: "suspend", employee: null });
+      statusForm.resetFields();
       queryClient.invalidateQueries({ queryKey: ["bandu-employees"] });
     },
   });
+
+  const openStatusModal = (mode: "suspend" | "terminate", employee: Employee) => {
+    statusForm.resetFields();
+    setStatusModal({ open: true, mode, employee });
+  };
+
+  const handleStatusSubmit = async (values: { suspension_period?: [any, any]; reason: string }) => {
+    const employee = statusModal.employee;
+    if (!employee) return;
+
+    const params: Parameters<typeof updateEmployeeStatus>[1] =
+      statusModal.mode === "suspend"
+        ? {
+            employment_status: "suspended",
+            reason: values.reason,
+            suspension_start_date: values.suspension_period?.[0]?.startOf("day").toISOString(),
+            suspension_end_date: values.suspension_period?.[1]?.endOf("day").toISOString(),
+          }
+        : { employment_status: "terminated", reason: values.reason };
+
+    await statusMutation.mutateAsync({ employeeId: employee._id, params });
+  };
+
+  const handleReinstate = (employee: Employee) => {
+    statusMutation.mutate({ employeeId: employee._id, params: { employment_status: "active" } });
+  };
 
   // Permanently delete employee mutation
   const permanentDeleteMutation = useMutation({
@@ -644,16 +692,32 @@ const EmployeeManagement: React.FC = () => {
               Edit
             </Button>
           )}
-          {canUpdateEmployee && (
+          {canUpdateEmployee && (record.employment_status === "active" || record.employment_status === "on_leave") && (
+            <Button
+              type="link"
+              icon={<PauseOutlined />}
+              title="Suspend"
+              onClick={() => openStatusModal("suspend", record)}
+            />
+          )}
+          {canUpdateEmployee && (record.employment_status === "suspended" || record.employment_status === "terminated") && (
             <Popconfirm
-              title="Terminate employee"
-              description="This will mark the employee as terminated. Continue?"
-              okText="Terminate"
-              okButtonProps={{ danger: true }}
-              onConfirm={() => deleteMutation.mutate(record._id)}
+              title="Reinstate employee"
+              description="This will mark the employee as active again. Continue?"
+              okText="Reinstate"
+              onConfirm={() => handleReinstate(record)}
             >
-              <Button type="link" danger icon={<StopOutlined />} title="Terminate" />
+              <Button type="link" icon={<RollbackOutlined />} title="Reinstate" />
             </Popconfirm>
+          )}
+          {canUpdateEmployee && record.employment_status !== "terminated" && (
+            <Button
+              type="link"
+              danger
+              icon={<StopOutlined />}
+              title="Terminate"
+              onClick={() => openStatusModal("terminate", record)}
+            />
           )}
           {canDeleteEmployee && (
             <Popconfirm
@@ -677,7 +741,7 @@ const EmployeeManagement: React.FC = () => {
     setIsDrawerVisible(true);
   };
 
-  const openEditModal = (record: Employee, startStep: number = 0) => {
+  const openEditModal = (record: Employee, startStep = 0) => {
     setSelectedEmployee(record);
     setLinkToUser(!!record.user_id);
     // Map API response to form field structure
@@ -1293,16 +1357,34 @@ const EmployeeManagement: React.FC = () => {
                   {canUpdateEmployee && (
                     <Button type="text" size="small" icon={<EditOutlined style={{ color: C.primary }} />} onClick={() => openEditModal(emp)} />
                   )}
-                  {canUpdateEmployee && (
+                  {canUpdateEmployee && (emp.employment_status === "active" || emp.employment_status === "on_leave") && (
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<PauseOutlined style={{ color: "#d97706" }} />}
+                      title="Suspend"
+                      onClick={() => openStatusModal("suspend", emp)}
+                    />
+                  )}
+                  {canUpdateEmployee && (emp.employment_status === "suspended" || emp.employment_status === "terminated") && (
                     <Popconfirm
-                      title="Terminate employee"
-                      description="This will mark the employee as terminated. Continue?"
-                      okText="Terminate"
-                      okButtonProps={{ danger: true }}
-                      onConfirm={() => deleteMutation.mutate(emp._id)}
+                      title="Reinstate employee"
+                      description="This will mark the employee as active again. Continue?"
+                      okText="Reinstate"
+                      onConfirm={() => handleReinstate(emp)}
                     >
-                      <Button type="text" size="small" danger icon={<StopOutlined />} title="Terminate" />
+                      <Button type="text" size="small" icon={<RollbackOutlined style={{ color: "#16a34a" }} />} title="Reinstate" />
                     </Popconfirm>
+                  )}
+                  {canUpdateEmployee && emp.employment_status !== "terminated" && (
+                    <Button
+                      type="text"
+                      size="small"
+                      danger
+                      icon={<StopOutlined />}
+                      title="Terminate"
+                      onClick={() => openStatusModal("terminate", emp)}
+                    />
                   )}
                   {canDeleteEmployee && (
                     <Popconfirm
@@ -2061,6 +2143,45 @@ const EmployeeManagement: React.FC = () => {
         </Row>
       </Modal>
 
+      {/* Suspend / Terminate Modal */}
+      <Modal
+        title={statusModal.mode === "suspend" ? "Suspend Employee" : "Terminate Employee"}
+        open={statusModal.open}
+        onCancel={() => {
+          setStatusModal({ open: false, mode: "suspend", employee: null });
+          statusForm.resetFields();
+        }}
+        okText={statusModal.mode === "suspend" ? "Suspend" : "Terminate"}
+        okButtonProps={{ danger: true, loading: statusMutation.isLoading }}
+        onOk={() => statusForm.submit()}
+        destroyOnClose
+        width={420}
+      >
+        <Text type="secondary" style={{ fontSize: 13 }}>
+          {statusModal.mode === "suspend"
+            ? `Suspend ${statusModal.employee?.fullname || statusModal.employee?.user_id?.fullname || "this employee"} for a defined period.`
+            : `Terminate ${statusModal.employee?.fullname || statusModal.employee?.user_id?.fullname || "this employee"}. You can reinstate them later.`}
+        </Text>
+        <Form form={statusForm} layout="vertical" onFinish={handleStatusSubmit} style={{ marginTop: 16 }}>
+          {statusModal.mode === "suspend" && (
+            <Form.Item
+              name="suspension_period"
+              label="Suspension Period"
+              rules={[{ required: true, message: "Please select the suspension period" }]}
+            >
+              <RangePicker style={{ width: "100%" }} />
+            </Form.Item>
+          )}
+          <Form.Item
+            name="reason"
+            label={statusModal.mode === "suspend" ? "Suspension Reason" : "Termination Reason"}
+            rules={[{ required: true, message: "Please provide a reason" }]}
+          >
+            <TextArea rows={3} placeholder="Enter reason…" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
       {/* Employee Details Drawer */}
       <Drawer
         title="Employee Details"
@@ -2181,6 +2302,15 @@ const EmployeeManagement: React.FC = () => {
                 )}
                 {selectedEmployee.termination_reason && (
                   <InfoItem label="Termination Reason">{selectedEmployee.termination_reason}</InfoItem>
+                )}
+                {selectedEmployee.suspension_start_date && selectedEmployee.suspension_end_date && (
+                  <InfoItem label="Suspension Period">
+                    {dayjs(selectedEmployee.suspension_start_date).format("DD MMM YYYY")} –{" "}
+                    {dayjs(selectedEmployee.suspension_end_date).format("DD MMM YYYY")}
+                  </InfoItem>
+                )}
+                {selectedEmployee.suspension_reason && (
+                  <InfoItem label="Suspension Reason">{selectedEmployee.suspension_reason}</InfoItem>
                 )}
               </InfoCard>
 
@@ -2751,6 +2881,21 @@ const EmployeeManagement: React.FC = () => {
                 )}
               </div>
             </Tabs.TabPane>
+
+            {showEmployeeForms && (
+              <Tabs.TabPane tab="Forms" key="forms">
+                <AudienceContext.Provider value={AUDIENCES.employee}>
+                  <FilledFormsList person={selectedEmployee} />
+                </AudienceContext.Provider>
+              </Tabs.TabPane>
+            )}
+            {showEmployeePlans && (
+              <Tabs.TabPane tab="Plans" key="plans">
+                <AudienceContext.Provider value={AUDIENCES.employee}>
+                  <PlansList person={selectedEmployee} />
+                </AudienceContext.Provider>
+              </Tabs.TabPane>
+            )}
           </Tabs>
         )}
       </Drawer>

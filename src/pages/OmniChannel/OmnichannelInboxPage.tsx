@@ -76,6 +76,9 @@ export interface Conversation {
     phone_number_id?: string;
     assigned_to?: { _id: string; fullname: string; thumbnail?: string };
     is_window_open?: boolean;
+    // Present while the WhatsApp assistant is guiding the customer.
+    pending_marketplace_order?: { step?: string; flow?: string } | null;
+    pending_booking?: { step?: string; flow?: string } | null;
 }
 
 export const getShopId = (): string => {
@@ -187,6 +190,9 @@ const OmnichannelInboxPage: React.FC = () => {
         instagram: channels.some((c: any) => c.channel === "instagram" && c.is_active),
     };
     const anyConnected = connected.whatsapp || connected.messenger || connected.instagram;
+    // Only the official Cloud API (has a WABA id) enforces the 24-hour reply
+    // window — WhatsApp Web connections don't, so the badge would mislead.
+    const usesCloudApi = channels.some((c: any) => c.channel === "whatsapp" && c.is_active && !!c.waba_id);
 
     const getAssignedTo = () => {
         if (activeStatus === "queue" || !currentUserId) return undefined;
@@ -627,6 +633,7 @@ const OmnichannelInboxPage: React.FC = () => {
                                 onPageChange={setPage}
                                 onSelect={handleConversationSelect}
                                 statusCounts={statusCounts}
+                                showWindowBadge={usesCloudApi}
                                 primaryColor={primaryColor}
                             />
                         )}

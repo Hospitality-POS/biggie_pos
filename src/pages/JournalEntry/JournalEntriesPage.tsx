@@ -114,6 +114,36 @@ const sortKeepFirst = (a: JournalEntry, b: JournalEntry) =>
     dayjs(a.entry_date).valueOf() - dayjs(b.entry_date).valueOf() ||
     String(a.entry_no).localeCompare(String(b.entry_no));
 
+// ── Double-posted detection (same source document posted more than once) ────
+// An entry's (source_type, source_id) links it back to the document that
+// created it — e.g. a bank-import transaction. Two live entries sharing that
+// link AND identical lines mean the source was posted twice (double-click or
+// retry during push), which inflates account balances. Unlike the fuzzy match
+// this cannot false-positive on transactions that merely look alike. Reversal
+// entries share the source link by design, so they're excluded.
+const VOID_REVERSAL_RX = /^VOID REVERSAL/i;
+
+const lineSignature = (e: JournalEntry): string =>
+    (e.lines || [])
+        .map((l) => {
+            const acc = typeof l.account_id === "object" ? l.account_id?._id : l.account_id;
+            return `${acc}:${l.debit || 0}:${l.credit || 0}`;
+        })
+        .sort()
+        .join(",");
+
+const sourceLinkKey = (e: JournalEntry): string | null => {
+    if (!e.source_id || VOID_REVERSAL_RX.test(e.description || "")) return null;
+    return `link|${e.source_type || e.source}|${e.source_id}|${lineSignature(e)}`;
+};
+
+// Exact (source-linked) groups keep the NEWEST copy — denormalized pointers on
+// the source document (e.g. the import transaction's journal_entry_id) hold
+// the id of the last entry written.
+const sortNewestFirst = (a: JournalEntry, b: JournalEntry) =>
+    dayjs(b.createdAt || b.entry_date).valueOf() - dayjs(a.createdAt || a.entry_date).valueOf() ||
+    String(b.entry_no).localeCompare(String(a.entry_no));
+
 const SOURCE_OPTIONS: { label: string; value: JournalEntrySource }[] = [
     { label: "Manual", value: "manual" },
     { label: "Journal", value: "journal" },
@@ -213,66 +243,123 @@ const JournalEntriesPage: React.FC = () => {
     const allEntries = allEntriesData?.entries || [];
 
     // ── Duplicate detection (across all matching entries, not just the page) ──
+    // Two detectors feed one grouping:
+    //   - fuzzy: same source + date + description + reference + amounts
+    //   - exact: same (source_type, source_id) link AND identical lines —
+    //     the signature of one source document pushed to the journal twice.
+    interface DupGroup {
+        entries: JournalEntry[];
+        exact: boolean;
+    }
 
-    const duplicateGroups = useMemo(() => {
-        const groups: Record<string, JournalEntry[]> = {};
+    const duplicateGroups = useMemo<DupGroup[]>(() => {
+        const groups: DupGroup[] = [];
+        const keyToGroup = new Map<string, number>();
         for (const e of allEntries) {
-            const key = duplicateKey(e);
-            if (!key) continue;
-            (groups[key] ||= []).push(e);
+            const fuzzyKey = duplicateKey(e);
+            const linkKey = sourceLinkKey(e);
+            if (!fuzzyKey && !linkKey) continue;
+            let gi: number | undefined;
+            for (const k of [fuzzyKey, linkKey]) {
+                if (k && keyToGroup.has(k)) {
+                    gi = keyToGroup.get(k);
+                    break;
+                }
+            }
+            if (gi === undefined) {
+                gi = groups.length;
+                groups.push({ entries: [], exact: false });
+            }
+            if (linkKey) groups[gi].exact = true;
+            groups[gi].entries.push(e);
+            if (fuzzyKey) keyToGroup.set(fuzzyKey, gi);
+            if (linkKey) keyToGroup.set(linkKey, gi);
         }
-        return Object.values(groups).filter(
-            (g) => g.filter(isDeletable).length > 1
-        );
+        return groups.filter((g) => g.entries.filter(isDeletable).length > 1);
     }, [allEntries]);
+
+    // Exact (source-linked) groups keep the NEWEST copy — the source document's
+    // stored journal_entry_id points at the last entry written. Fuzzy groups
+    // keep the earliest Posted entry.
+    const sortGroup = (g: DupGroup) =>
+        g.entries
+            .filter(isDeletable)
+            .sort(g.exact ? sortNewestFirst : sortKeepFirst);
 
     // Ordered so each group's surviving entry (KEEP) comes first, followed by
     // the copies that will be deleted — groups stay visually together.
     const duplicateEntries = useMemo(
-        () =>
-            duplicateGroups.flatMap((g) =>
-                g.filter(isDeletable).sort(sortKeepFirst)
-            ),
+        () => duplicateGroups.flatMap(sortGroup),
         [duplicateGroups]
     );
 
     // Per-entry duplicate info: which group it belongs to and which entry
     // number survives in that group — makes KEEP/DELETE tags explainable.
     const duplicateGroupInfo = useMemo(() => {
-        const info = new Map<string, { group: number; keptNo: string; keptId: string }>();
+        const info = new Map<string, { group: number; keptNo: string; keptId: string; exact: boolean }>();
         duplicateGroups.forEach((g, i) => {
-            const sorted = g.filter(isDeletable).sort(sortKeepFirst);
+            const sorted = sortGroup(g);
             const keptNo = sorted[0]?.entry_no || "";
             const keptId = sorted[0]?._id || "";
             for (const e of sorted) {
-                info.set(e._id, { group: i + 1, keptNo, keptId });
+                info.set(e._id, { group: i + 1, keptNo, keptId, exact: g.exact });
             }
         });
         return info;
     }, [duplicateGroups]);
 
+    // Double-posted groups: entries sharing the same source document link.
+    // These are certain duplicates (not just lookalikes) so they get a banner.
+    const doublePostGroups = useMemo(
+        () => duplicateGroups.filter((g) => g.exact),
+        [duplicateGroups]
+    );
+
+    const doublePostDeleteCount = useMemo(
+        () =>
+            doublePostGroups.reduce(
+                (sum, g) => sum + g.entries.filter(isDeletable).length - 1,
+                0
+            ),
+        [doublePostGroups]
+    );
+
     // Duplicate groups formed ONLY from the rows the user has selected —
     // the delete-duplicates action is scoped to the selection.
-    const selectedDuplicateGroups = useMemo(() => {
+    const selectedDuplicateGroups = useMemo<DupGroup[]>(() => {
         if (!selectedRowKeys.length) return [];
         const byId = new Map(allEntries.map((e) => [e._id, e]));
-        const groups: Record<string, JournalEntry[]> = {};
+        const groups: DupGroup[] = [];
+        const keyToGroup = new Map<string, number>();
         for (const key of selectedRowKeys) {
             const e = byId.get(String(key));
             if (!e) continue;
-            const dk = duplicateKey(e);
-            if (!dk) continue;
-            (groups[dk] ||= []).push(e);
+            const fuzzyKey = duplicateKey(e);
+            const linkKey = sourceLinkKey(e);
+            if (!fuzzyKey && !linkKey) continue;
+            let gi: number | undefined;
+            for (const k of [fuzzyKey, linkKey]) {
+                if (k && keyToGroup.has(k)) {
+                    gi = keyToGroup.get(k);
+                    break;
+                }
+            }
+            if (gi === undefined) {
+                gi = groups.length;
+                groups.push({ entries: [], exact: false });
+            }
+            if (linkKey) groups[gi].exact = true;
+            groups[gi].entries.push(e);
+            if (fuzzyKey) keyToGroup.set(fuzzyKey, gi);
+            if (linkKey) keyToGroup.set(linkKey, gi);
         }
-        return Object.values(groups).filter(
-            (g) => g.filter(isDeletable).length > 1
-        );
+        return groups.filter((g) => g.entries.filter(isDeletable).length > 1);
     }, [selectedRowKeys, allEntries]);
 
     const selectedDuplicateCount = useMemo(
         () =>
             selectedDuplicateGroups.reduce(
-                (sum, g) => sum + g.filter(isDeletable).length - 1,
+                (sum, g) => sum + g.entries.filter(isDeletable).length - 1,
                 0
             ),
         [selectedDuplicateGroups]
@@ -282,7 +369,7 @@ const JournalEntriesPage: React.FC = () => {
     const allDuplicatesDeleteCount = useMemo(
         () =>
             duplicateGroups.reduce(
-                (sum, g) => sum + g.filter(isDeletable).length - 1,
+                (sum, g) => sum + g.entries.filter(isDeletable).length - 1,
                 0
             ),
         [duplicateGroups]
@@ -350,10 +437,8 @@ const JournalEntriesPage: React.FC = () => {
     // Show every entry that will be deleted, grouped under the copy kept,
     // then bulk-delete on confirm. Used for both selected-rows dedupe and
     // the delete-all-duplicates action.
-    const confirmDeleteDuplicates = (groups: JournalEntry[][]) => {
-        const toDelete = groups.flatMap((g) =>
-            g.filter(isDeletable).sort(sortKeepFirst).slice(1)
-        );
+    const confirmDeleteDuplicates = (groups: DupGroup[]) => {
+        const toDelete = groups.flatMap((g) => sortGroup(g).slice(1));
 
         if (!toDelete.length) {
             message.info("No duplicates found");
@@ -367,12 +452,13 @@ const JournalEntriesPage: React.FC = () => {
                 <div>
                     <Text type="secondary" style={{ fontSize: 12 }}>
                         The entries below will be permanently deleted — one copy is
-                        kept per group (preferring Posted, then the earliest).
-                        Locked periods are skipped.
+                        kept per group (entries linked to the same source document
+                        keep the last-posted copy; lookalike groups keep the
+                        earliest Posted entry). Locked periods are skipped.
                     </Text>
                     <div style={{ maxHeight: 320, overflowY: "auto", marginTop: 10 }}>
                         {groups.map((g, i) => {
-                            const sorted = g.filter(isDeletable).sort(sortKeepFirst);
+                            const sorted = sortGroup(g);
                             const kept = sorted[0];
                             const del = sorted.slice(1);
                             if (!del.length) return null;
@@ -468,6 +554,11 @@ const JournalEntriesPage: React.FC = () => {
     const handleDeleteDuplicates = () =>
         confirmDeleteDuplicates(selectedDuplicateGroups);
 
+    // Double-posted entries (same source document pushed twice) — exact match,
+    // so this fix is always safe to offer proactively.
+    const handleFixDoublePosts = () =>
+        confirmDeleteDuplicates(doublePostGroups);
+
     // Across ALL duplicate groups matching the current filters — keep one
     // entry per group, delete every extra copy in a single bulk request.
     const handleDeleteAllDuplicates = () =>
@@ -502,7 +593,11 @@ const JournalEntriesPage: React.FC = () => {
                         <Text code style={{ fontSize: 12 }}>{v}</Text>
                         {dup && (
                             <>
-                                <Tag style={{ fontSize: 10, marginInlineEnd: 0 }}>G{dup.group}</Tag>
+                                <Tooltip title={dup.exact ? "Same source document posted more than once" : "Matching description, date, reference and amounts"}>
+                                    <Tag color={dup.exact ? "volcano" : "default"} style={{ fontSize: 10, marginInlineEnd: 0 }}>
+                                        {dup.exact ? "2× POST" : `G${dup.group}`}
+                                    </Tag>
+                                </Tooltip>
                                 {dup.keptId === r._id ? (
                                     <Tag color="success" style={{ fontSize: 10, marginInlineEnd: 0 }}>
                                         KEEP
@@ -610,7 +705,7 @@ const JournalEntriesPage: React.FC = () => {
                             onClick={() => openDetail(record._id)}
                         />
                     </Tooltip>
-                    {record.source === "manual" && !record.period_locked && record.status !== "Voided" && (
+                    {!record.period_locked && record.status !== "Voided" && (
                         <Tooltip title="Edit">
                             <Button
                                 icon={<EditOutlined />}
@@ -835,6 +930,36 @@ const JournalEntriesPage: React.FC = () => {
                         </Popconfirm>
                     )}
                 </Space>
+
+                {doublePostDeleteCount > 0 && (
+                    <Alert
+                        type="error"
+                        showIcon
+                        style={{ marginBottom: 12 }}
+                        message={`${doublePostDeleteCount} double-posted journal entr${doublePostDeleteCount === 1 ? "y" : "ies"} detected`}
+                        description="The same source transaction was posted to the journal more than once (e.g. a bank-import transaction pushed twice). This inflates account balances in reports — review and remove the extra copies."
+                        action={
+                            <Space direction="vertical" size={4}>
+                                <Button
+                                    size="small"
+                                    onClick={() => setShowDuplicatesOnly(true)}
+                                >
+                                    Review
+                                </Button>
+                                <Button
+                                    size="small"
+                                    danger
+                                    type="primary"
+                                    icon={<DeleteOutlined />}
+                                    loading={deletingDuplicates}
+                                    onClick={handleFixDoublePosts}
+                                >
+                                    Fix Now
+                                </Button>
+                            </Space>
+                        }
+                    />
+                )}
 
                 {!shopId && (
                     <Alert type="warning" message="Shop ID not found." showIcon style={{ marginBottom: 12 }} />

@@ -94,6 +94,17 @@ const useIsMobile = () => {
   return isMobile;
 };
 
+// Narrow phones: the header has no room for both the avatar and the Logout button.
+const useIsPhone = () => {
+  const [isPhone, setIsPhone] = React.useState(window.innerWidth < 480);
+  useEffect(() => {
+    const handler = () => setIsPhone(window.innerWidth < 480);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return isPhone;
+};
+
 const PRIORITY_COLORS: Record<string, string> = {
   low: "green", medium: "blue", high: "orange", urgent: "red",
 };
@@ -132,6 +143,7 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAppSelector((state) => state.auth);
   const primaryColor = usePrimaryColor();
   const isMobile = useIsMobile();
+  const isPhone = useIsPhone();
   const { switchProduct } = useActiveProduct();
   const { toggleQuickLinks } = useQuickLinks();
 
@@ -522,39 +534,57 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         </Badge>
       </Popover>
 
+      {/* One-tap logout: staff share devices and switch users mid-service. */}
+      {user && (
+        <Tooltip title={`Logout ${user?.name || ""}`.trim()}>
+          <Button
+            icon={<PoweroffOutlined />} shape="circle" size="middle"
+            onClick={handleLogout}
+            aria-label="Logout"
+            style={{
+              background: "rgba(255,255,255,0.15)",
+              border: "1px solid rgba(255,255,255,0.25)",
+              color: "white", width: 36, height: 36, fontSize: 15,
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}
+          />
+        </Tooltip>
+      )}
+
       {!isMobile && user && (
         <Dropdown
           menu={{ items: userMenuItems }}
           arrow={{ pointAtCenter: true }}
           trigger={["hover", "click"]}
-          placement="bottomCenter"
+          placement="bottomRight"
           overlayStyle={{ minWidth: 280, borderRadius: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.12)" }}
         >
           <Button
             type="text"
             style={{
-              padding: "4px 8px",
+              padding: "0 10px 0 3px",
               background: "rgba(255,255,255,0.12)",
               border: "1px solid rgba(255,255,255,0.2)",
-              borderRadius: 50, height: "auto", minHeight: 36,
+              borderRadius: 50, height: 36,
+              display: "flex", alignItems: "center",
             }}
           >
             <Space align="center" size={8} style={{ cursor: "pointer" }}>
-              <Badge dot status="success" offset={[-4, 26]}>
+              <Badge dot status="success" offset={[-4, 24]}>
                 <Avatar
-                  src={user?.thumbnail} icon={<UserOutlined />} size={30}
+                  src={user?.thumbnail} icon={<UserOutlined />} size={28}
                   style={{ border: "2px solid rgba(255,255,255,0.3)" }}
                 />
               </Badge>
-              <div style={{ textAlign: "left", lineHeight: 1.2 }}>
+              <div style={{ textAlign: "left", lineHeight: 1.15 }}>
                 <Text strong style={{
-                  color: "white", fontSize: 13, display: "block",
+                  color: "white", fontSize: 12, display: "block",
                   maxWidth: 90, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                 }}>
                   {user?.name || "User"}
                 </Text>
                 <Text style={{
-                  color: "rgba(255,255,255,0.75)", fontSize: 11, display: "block",
+                  color: "rgba(255,255,255,0.75)", fontSize: 10, display: "block",
                   maxWidth: 90, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                 }}>
                   {user?.role || "Role"}
@@ -566,7 +596,7 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         </Dropdown>
       )}
 
-      {isMobile && user && (
+      {isMobile && !isPhone && user && (
         <Badge dot color="green" offset={[-3, 26]}>
           <Avatar
             src={user?.thumbnail} icon={<UserOutlined />} size={32}

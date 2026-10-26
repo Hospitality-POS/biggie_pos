@@ -13,6 +13,8 @@ import { useReactToPrint } from "react-to-print";
 import dayjs from "dayjs";
 import { useAppSelector } from "../../store";
 import useSystemDetails from "@hooks/useSystemDetails";
+import { useThermalAgentPrint } from "@hooks/useThermalAgentPrint";
+import ThermalPrintControls from "./ThermalPrintControls";
 import { COOP_NAME } from "@utils/config";
 import "@components/MODALS/bill.css";
 
@@ -317,9 +319,9 @@ const SalesReportModal: React.FC<SalesReportProps> = ({ openM, onCloseM, startDa
 
   const sharedProps: ReportProps = { data, startDate, endDate, brandName: BRAND_NAME1, overallTotal };
 
-  const printThermal = useReactToPrint({ content: () => thermalRef.current });
   const printA4 = useReactToPrint({ content: () => a4Ref.current });
-  const handlePrint = () => printMode === "thermal" ? printThermal() : printA4();
+  const thermal = useThermalAgentPrint(thermalRef);
+  const handlePrint = () => printMode === "thermal" ? void thermal.print() : printA4();
 
   return (
     <Modal
@@ -349,16 +351,29 @@ const SalesReportModal: React.FC<SalesReportProps> = ({ openM, onCloseM, startDa
         </div>
       }
       footer={
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+        <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          {printMode === "thermal" && (
+            <ThermalPrintControls
+              target={thermal.target}
+              onTargetChange={thermal.setTarget}
+              zones={thermal.zoneOptions}
+              zoneKey={thermal.zoneKey}
+              onZoneChange={thermal.setZoneKey}
+              loading={thermal.agentsLoading}
+            />
+          )}
           <Button onClick={onCloseM} style={{ borderRadius: 8 }}>Cancel</Button>
           <Button
             type="primary"
             icon={<PrinterFilled />}
             disabled={loading || !hasData}
+            loading={thermal.printing}
             onClick={handlePrint}
             style={{ background: C.primary, borderColor: C.primary, borderRadius: 8, fontWeight: 600 }}
           >
-            {printMode === "thermal" ? "Print Thermal Receipt" : "Print A4 Report"}
+            {printMode === "thermal"
+              ? thermal.target === "agent" ? "Send to Printer" : "Print Thermal Receipt"
+              : "Print A4 Report"}
           </Button>
         </div>
       }

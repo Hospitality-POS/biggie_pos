@@ -16,7 +16,19 @@ import {
     Tooltip,
     Typography,
 } from "antd";
-import { UserOutlined, UserAddOutlined, TeamOutlined, WifiOutlined, ClockCircleOutlined, MessageOutlined } from "@ant-design/icons";
+import {
+    UserOutlined,
+    UserAddOutlined,
+    TeamOutlined,
+    WifiOutlined,
+    ClockCircleOutlined,
+    MessageOutlined,
+    RobotOutlined,
+    ShoppingCartOutlined,
+} from "@ant-design/icons";
+import { fetchMarketplaceStats } from "@services/omnichannel/marketplace";
+import { formatCurrency } from "@utils/formatters";
+import { cardChrome, KpiTile, PageHeader, TONES, useMarketplace } from "./shared/ui";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
     fetchAgents,
@@ -70,6 +82,19 @@ const AgentsManager: React.FC<Props> = ({ shopId }) => {
 
     const agents = (agentsData?.agents || []) as Agent[];
     const users = (usersData?.users || []) as User[];
+
+    // Chat sales per agent (last 30 days) when the marketplace is on.
+    const { enabled: marketplaceOn } = useMarketplace(shopId);
+    const { data: mktStats } = useQuery({
+        queryKey: ["marketplace-stats", shopId, 30],
+        queryFn: () => fetchMarketplaceStats(shopId, 30),
+        enabled: !!shopId && marketplaceOn,
+        staleTime: 60_000,
+    });
+    const salesByAgent = useMemo(
+        () => new Map((mktStats?.by_agent || []).map((a) => [a.agent_id, a])),
+        [mktStats]
+    );
 
     const statusMutation = useMutation({
         mutationFn: ({
@@ -179,6 +204,32 @@ const AgentsManager: React.FC<Props> = ({ shopId }) => {
                     <Text type="secondary">0</Text>
                 ),
         },
+        ...(marketplaceOn
+            ? [
+                  {
+                      title: (
+                          <Tooltip title="Orders placed from offers this agent sent in chat — last 30 days">
+                              <span>Chat sales (30d)</span>
+                          </Tooltip>
+                      ),
+                      key: "chat_sales",
+                      width: 170,
+                      render: (_: any, record: Agent) => {
+                          const s = salesByAgent.get(record._id);
+                          return s ? (
+                              <div>
+                                  <Text strong style={{ fontSize: 13 }}>{formatCurrency(s.revenue)}</Text>
+                                  <Text type="secondary" style={{ fontSize: 11, display: "block" }}>
+                                      {s.orders} order{s.orders === 1 ? "" : "s"}
+                                  </Text>
+                              </div>
+                          ) : (
+                              <Text type="secondary">—</Text>
+                          );
+                      },
+                  },
+              ]
+            : []),
         {
             title: "",
             width: 120,
@@ -203,61 +254,37 @@ const AgentsManager: React.FC<Props> = ({ shopId }) => {
         },
     ];
 
-    const cardChrome: React.CSSProperties = {
-        borderRadius: 12,
-        border: "1px solid #e2e8f0",
-        boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
-    };
+    const kpis = [
+        { title: "Total agents", value: stats.total, icon: <TeamOutlined />, ...TONES.blue },
+        { title: "Online now", value: stats.online, icon: <WifiOutlined />, ...TONES.green },
+        { title: "Busy", value: stats.busy, icon: <ClockCircleOutlined />, ...TONES.amber },
+        { title: "Open conversations", value: stats.openConversations, icon: <MessageOutlined />, ...TONES.indigo },
+        ...(marketplaceOn
+            ? [
+                  {
+                      title: "Chat sales by agents",
+                      value: mktStats ? formatCurrency(mktStats.revenue - mktStats.assistant.revenue) : "—",
+                      icon: <ShoppingCartOutlined />,
+                      hint: "Last 30 days, from offers agents sent in chat",
+                      ...TONES.teal,
+                  },
+                  {
+                      title: "Closed by assistant",
+                      value: mktStats ? `${mktStats.assistant.orders} · ${formatCurrency(mktStats.assistant.revenue)}` : "—",
+                      icon: <RobotOutlined />,
+                      hint: "Last 30 days — orders customers completed with the WhatsApp assistant alone",
+                      ...TONES.orange,
+                  },
+              ]
+            : []),
+    ];
 
     const agentsContent = (
         <div style={{ paddingTop: isMobile ? 10 : 14 }}>
             <Row gutter={isMobile ? [8, 8] : [12, 12]} style={{ marginBottom: isMobile ? 12 : 16 }}>
-                {[
-                    { title: "Total agents", value: stats.total, icon: <TeamOutlined />, color: "#3b82f6", bg: "#eff6ff", border: "#bfdbfe" },
-                    { title: "Online now", value: stats.online, icon: <WifiOutlined />, color: "#10b981", bg: "#f0fdf4", border: "#bbf7d0" },
-                    { title: "Busy", value: stats.busy, icon: <ClockCircleOutlined />, color: "#f59e0b", bg: "#fffbeb", border: "#fde68a" },
-                    { title: "Open conversations", value: stats.openConversations, icon: <MessageOutlined />, color: "#6366f1", bg: "#eef2ff", border: "#c7d2fe" },
-                ].map((k) => (
-                    <Col xs={12} sm={6} key={k.title}>
-                        <div
-                            style={{
-                                background: k.bg,
-                                border: `1px solid ${k.border}`,
-                                borderRadius: isMobile ? 10 : 12,
-                                padding: isMobile ? "10px 12px" : "14px 16px",
-                                height: "100%",
-                            }}
-                        >
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
-                                <Text style={{ fontSize: isMobile ? 11 : 12, color: "#475569", fontWeight: 500 }}>
-                                    {k.title}
-                                </Text>
-                                <div
-                                    style={{
-                                        background: "#fff",
-                                        borderRadius: 7,
-                                        padding: "3px 6px",
-                                        color: k.color,
-                                        fontSize: 13,
-                                        lineHeight: 1,
-                                        flexShrink: 0,
-                                    }}
-                                >
-                                    {k.icon}
-                                </div>
-                            </div>
-                            <div
-                                style={{
-                                    fontSize: isMobile ? 17 : 22,
-                                    fontWeight: 700,
-                                    color: "#0f172a",
-                                    marginTop: 2,
-                                    lineHeight: 1.2,
-                                }}
-                            >
-                                {agentsLoading ? "…" : k.value}
-                            </div>
-                        </div>
+                {kpis.map((k) => (
+                    <Col xs={12} sm={marketplaceOn ? 8 : 6} lg={marketplaceOn ? 4 : 6} key={k.title}>
+                        <KpiTile {...k} loading={agentsLoading} />
                     </Col>
                 ))}
             </Row>
@@ -335,7 +362,18 @@ const AgentsManager: React.FC<Props> = ({ shopId }) => {
     );
 
     return (
-        <div style={{ padding: isMobile ? "0 12px 12px" : "0 24px 24px", height: "100%", overflowY: "auto" }}>
+        <div style={{ padding: isMobile ? 12 : 20, height: "100%", overflowY: "auto" }}>
+            <PageHeader
+                icon={<TeamOutlined />}
+                {...TONES.blue}
+                title="Agents"
+                marketplace={marketplaceOn}
+                subtitle={
+                    marketplaceOn
+                        ? "Who handles conversations — and how much they sell in chat"
+                        : "Who handles conversations, their availability and performance"
+                }
+            />
             <Tabs
                 activeKey={activeSubTab}
                 onChange={setActiveSubTab}

@@ -40,6 +40,7 @@ import dayjs from "dayjs";
 import { useReactToPrint } from "react-to-print";
 import * as XLSX from "xlsx";
 import { THEME_C } from "@utils/getPrimaryColor";
+import { useIsCompact } from "@hooks/useIsCompact";
 
 const { Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -72,16 +73,16 @@ const fmtAmt = (n: number) => `KES ${fmt(n)}`;
 // ── Tiny KPI card ─────────────────────────────────────────────────────────────
 const KpiCard: React.FC<{
   label: string; value: string; icon: React.ReactNode;
-  color: string; bg: string; border: string;
-}> = ({ label, value, icon, color, bg, border }) => (
+  color: string; bg: string; border: string; compact?: boolean;
+}> = ({ label, value, icon, color, bg, border, compact }) => (
   <div style={{
     flex: "1 1 140px",
     background: bg,
     border: `1px solid ${border}`,
     borderLeft: `3px solid ${color}`,
     borderRadius: 10,
-    padding: "12px 16px",
-    minWidth: 130,
+    padding: compact ? "10px 12px" : "12px 16px",
+    minWidth: compact ? 0 : 130,
   }}>
     <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
       <span style={{ color, fontSize: 13 }}>{icon}</span>
@@ -89,7 +90,7 @@ const KpiCard: React.FC<{
         {label}
       </Text>
     </div>
-    <Text strong style={{ fontSize: 18, color }}>{value}</Text>
+    <Text strong style={{ fontSize: compact ? 15 : 18, color, wordBreak: "break-word" }}>{value}</Text>
   </div>
 );
 
@@ -416,11 +417,97 @@ const ReportDocument = React.forwardRef<HTMLDivElement, {
 });
 ReportDocument.displayName = "ReportDocument";
 
+// ── Mobile / tablet cards ─────────────────────────────────────────────────────
+const ORDERS_PAGE = 10;
+
+const OrderCard: React.FC<{ order: any; primaryColor: string }> = ({ order, primaryColor }) => (
+  <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 10px" }}>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+      <Text strong style={{ fontFamily: "monospace", fontSize: 12, color: primaryColor }}>{order.order_no}</Text>
+      <Text strong style={{ color: C.green, fontSize: 13, whiteSpace: "nowrap" }}>{fmtAmt(order.order_amount || 0)}</Text>
+    </div>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginTop: 4 }}>
+      <div style={{ minWidth: 0 }}>
+        <Text style={{ fontSize: 12, display: "block" }}>{order.customer_name || "—"}</Text>
+        {order.customer_phone && (
+          <a href={`tel:${order.customer_phone}`} style={{ fontSize: 11, color: C.subText }}>{order.customer_phone}</a>
+        )}
+      </div>
+      <Space size={4} wrap style={{ justifyContent: "flex-end" }}>
+        {order.order_type && <Tag color="blue" style={{ fontSize: 10, margin: 0 }}>{order.order_type}</Tag>}
+        <Tag color={order.status === "COMPLETED" ? "green" : "orange"} style={{ fontSize: 10, margin: 0 }}>{order.status}</Tag>
+      </Space>
+    </div>
+    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginTop: 6, paddingTop: 6, borderTop: `1px dashed ${C.border}` }}>
+      <Text style={{ fontSize: 11, color: C.subText }}>{dayjs(order.createdAt).format("DD MMM YYYY HH:mm")}</Text>
+      <Text style={{ fontSize: 11, color: C.subText }}>Served by {order.served_by || "—"}</Text>
+    </div>
+  </div>
+);
+
+const LocationCard: React.FC<{ loc: LocationData; maxRevenue: number; primaryColor: string }> = ({ loc, maxRevenue, primaryColor }) => {
+  const [open, setOpen] = useState(false);
+  const [shown, setShown] = useState(ORDERS_PAGE);
+  const avg = loc.order_count ? loc.total_amount / loc.order_count : 0;
+
+  return (
+    <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 12, padding: "12px 14px", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+        <div style={{ background: primaryColor + "18", borderRadius: 8, padding: "6px 7px", color: primaryColor, fontSize: 15, lineHeight: 1, flexShrink: 0 }}>
+          <EnvironmentOutlined />
+        </div>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <Text strong style={{ fontSize: 14, color: C.darkText, display: "block" }}>{loc.city || "—"}</Text>
+          <Text style={{ fontSize: 11, color: C.subText }}>{[loc.county, loc.country].filter(Boolean).join(", ")}</Text>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, padding: "8px 10px", background: C.bg, borderRadius: 8, marginBottom: 10 }}>
+        {[
+          { label: "Orders", value: fmt(loc.order_count), color: C.blue },
+          { label: "Revenue", value: fmtAmt(loc.total_amount), color: C.green },
+          { label: "Avg / Order", value: fmtAmt(avg), color: C.orange },
+        ].map((s, i) => (
+          <div key={s.label} style={{ textAlign: "center", borderLeft: i ? `1px solid ${C.border}` : undefined, minWidth: 0 }}>
+            <Text style={{ fontSize: 10, color: "#94a3b8", display: "block" }}>{s.label}</Text>
+            <Text strong style={{ fontSize: 12, color: s.color, wordBreak: "break-word" }}>{s.value}</Text>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ height: 6, background: "#e2e8f0", borderRadius: 3, marginBottom: 10 }}>
+        <div style={{ width: `${Math.max(2, (loc.total_amount / (maxRevenue || 1)) * 100)}%`, height: "100%", background: primaryColor, borderRadius: 3 }} />
+      </div>
+
+      {loc.orders.length > 0 && (
+        <>
+          <Button block onClick={() => setOpen((v) => !v)} style={{ borderRadius: 8 }}>
+            {open ? "Hide orders" : `Show ${loc.orders.length} order${loc.orders.length === 1 ? "" : "s"}`}
+          </Button>
+          {open && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10, padding: 8, background: C.bg, borderRadius: 8 }}>
+              {loc.orders.slice(0, shown).map((o: any, i: number) => (
+                <OrderCard key={`${o.order_no}-${i}`} order={o} primaryColor={primaryColor} />
+              ))}
+              {shown < loc.orders.length && (
+                <Button type="link" onClick={() => setShown((n) => n + ORDERS_PAGE)}>
+                  Show more ({loc.orders.length - shown} left)
+                </Button>
+              )}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+};
+
 // ══════════════════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ══════════════════════════════════════════════════════════════════════════════
 const OrdersByLocation = () => {
   const primaryColor = usePrimaryColor();
+  const isCompact = useIsCompact();
 
   const [loading, setLoading] = useState(false);
   const [data, setData]       = useState<LocationData[]>([]);
@@ -478,6 +565,10 @@ const OrdersByLocation = () => {
   const totalRevenue = data.reduce((s, l) => s + l.total_amount, 0);
   const avgPerOrder  = totalOrders ? totalRevenue / totalOrders : 0;
   const maxRevenue   = Math.max(...data.map((l) => l.total_amount), 1);
+
+  // Phones/tablets: three filter selects per row, action buttons share a row.
+  const selectWidth = "calc((100% - 20px) / 3)";
+  const actionBtn: React.CSSProperties = isCompact ? { flex: 1, height: 34 } : {};
 
   const countryOptions = useMemo(() => [...new Set(data.map((d) => d.country))].map((v) => ({ value: v, label: v })), [data]);
   const countyOptions  = useMemo(() => [...new Set(data.map((d) => d.county))].map((v) => ({ value: v, label: v })), [data]);
@@ -652,7 +743,7 @@ const OrdersByLocation = () => {
         display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center",
       }}>
         {/* Title */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginRight: 6 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginRight: 6, width: isCompact ? "100%" : undefined }}>
           <div style={{
             background: primaryColor + "18", borderRadius: 7,
             padding: "5px 7px", color: primaryColor, fontSize: 14, lineHeight: 1,
@@ -667,11 +758,12 @@ const OrdersByLocation = () => {
           </div>
         </div>
 
-        <div style={{ width: 1, height: 32, background: C.border, flexShrink: 0 }} />
+        {!isCompact && <div style={{ width: 1, height: 32, background: C.border, flexShrink: 0 }} />}
 
         {/* Filters */}
         <RangePicker
-          size="small"
+          size={isCompact ? "middle" : "small"}
+          inputReadOnly={isCompact}
           value={
             filters.from && filters.to
               ? [dayjs(filters.from), dayjs(filters.to)]
@@ -688,7 +780,7 @@ const OrdersByLocation = () => {
               setFilters((f) => ({ ...f, from: undefined, to: undefined }));
             }
           }}
-          style={{ width: 230 }}
+          style={{ width: isCompact ? "100%" : 230 }}
           allowClear
           suffixIcon={<CalendarOutlined style={{ color: C.subText }} />}
         />
@@ -700,7 +792,7 @@ const OrdersByLocation = () => {
           value={filters.country}
           onChange={(v) => setFilters((f) => ({ ...f, country: v }))}
           options={countryOptions}
-          style={{ width: 130 }}
+          style={{ width: isCompact ? selectWidth : 130 }}
         />
         <Select
           size="small"
@@ -709,7 +801,7 @@ const OrdersByLocation = () => {
           value={filters.county}
           onChange={(v) => setFilters((f) => ({ ...f, county: v }))}
           options={countyOptions}
-          style={{ width: 130 }}
+          style={{ width: isCompact ? selectWidth : 130 }}
         />
         <Select
           size="small"
@@ -718,11 +810,11 @@ const OrdersByLocation = () => {
           value={filters.city}
           onChange={(v) => setFilters((f) => ({ ...f, city: v }))}
           options={cityOptions}
-          style={{ width: 120 }}
+          style={{ width: isCompact ? selectWidth : 120 }}
         />
 
         {/* Spacer */}
-        <div style={{ flex: 1 }} />
+        {!isCompact && <div style={{ flex: 1 }} />}
 
         {/* Actions */}
         <Button
@@ -731,7 +823,7 @@ const OrdersByLocation = () => {
           type="primary"
           onClick={fetchData}
           loading={loading}
-          style={{ background: primaryColor, borderColor: primaryColor, borderRadius: 7 }}
+          style={{ background: primaryColor, borderColor: primaryColor, borderRadius: 7, ...actionBtn }}
         >
           Apply
         </Button>
@@ -746,7 +838,7 @@ const OrdersByLocation = () => {
             });
             fetchData();
           }}
-          style={{ borderRadius: 7 }}
+          style={{ borderRadius: 7, ...actionBtn }}
         >
           Reset
         </Button>
@@ -754,19 +846,21 @@ const OrdersByLocation = () => {
           size="small"
           icon={<BarChartOutlined />}
           onClick={() => setReportOpen(true)}
-          style={{ borderRadius: 7, fontWeight: 600 }}
+          style={{ borderRadius: 7, fontWeight: 600, ...actionBtn }}
         >
-          View Report
+          {isCompact ? "Report" : "View Report"}
         </Button>
       </div>
 
       {/* ── KPI strip ──────────────────────────────────────────────────────── */}
       {data.length > 0 && (
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <KpiCard label="Locations"    value={String(data.length)}  icon={<EnvironmentOutlined />} color={C.blue}   bg={C.blueLight}   border={C.blue + "30"} />
-          <KpiCard label="Total Orders" value={fmt(totalOrders)}     icon={<ShoppingCartOutlined />} color={C.purple} bg={C.purpleLight}  border={C.purple + "30"} />
-          <KpiCard label="Revenue"      value={fmtAmt(totalRevenue)} icon={<DollarOutlined />}      color={C.green}  bg={C.greenLight}   border={C.green + "30"} />
-          <KpiCard label="Avg / Order"  value={fmtAmt(avgPerOrder)}  icon={<DollarOutlined />}      color={C.orange} bg={C.orangeLight}  border={C.orange + "30"} />
+        <div style={isCompact
+          ? { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 8 }
+          : { display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <KpiCard compact={isCompact} label="Locations"    value={String(data.length)}  icon={<EnvironmentOutlined />} color={C.blue}   bg={C.blueLight}   border={C.blue + "30"} />
+          <KpiCard compact={isCompact} label="Total Orders" value={fmt(totalOrders)}     icon={<ShoppingCartOutlined />} color={C.purple} bg={C.purpleLight}  border={C.purple + "30"} />
+          <KpiCard compact={isCompact} label="Revenue"      value={fmtAmt(totalRevenue)} icon={<DollarOutlined />}      color={C.green}  bg={C.greenLight}   border={C.green + "30"} />
+          <KpiCard compact={isCompact} label="Avg / Order"  value={fmtAmt(avgPerOrder)}  icon={<DollarOutlined />}      color={C.orange} bg={C.orangeLight}  border={C.orange + "30"} />
         </div>
       )}
 
@@ -777,6 +871,30 @@ const OrdersByLocation = () => {
         </div>
       ) : data.length === 0 ? (
         <Empty description="No orders found for the selected filters" style={{ padding: "60px 0" }} />
+      ) : isCompact ? (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 10, alignItems: "start" }}>
+          {data.map((loc) => (
+            <LocationCard
+              key={`${loc.country}-${loc.county}-${loc.city}`}
+              loc={loc}
+              maxRevenue={maxRevenue}
+              primaryColor={primaryColor}
+            />
+          ))}
+          <div style={{
+            gridColumn: "1 / -1",
+            background: primaryColor + "0d", border: `1px solid ${primaryColor}25`,
+            borderRadius: 12, padding: "10px 14px",
+            display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap",
+          }}>
+            <Text strong style={{ fontSize: 13 }}>Total</Text>
+            <Space size={12} wrap>
+              <Text style={{ fontSize: 12 }}><Text type="secondary" style={{ fontSize: 12 }}>Orders </Text><Text strong style={{ color: C.blue }}>{fmt(totalOrders)}</Text></Text>
+              <Text style={{ fontSize: 12 }}><Text type="secondary" style={{ fontSize: 12 }}>Revenue </Text><Text strong style={{ color: C.green }}>{fmtAmt(totalRevenue)}</Text></Text>
+              <Text style={{ fontSize: 12 }}><Text type="secondary" style={{ fontSize: 12 }}>Avg </Text><Text strong style={{ color: C.orange }}>{fmtAmt(avgPerOrder)}</Text></Text>
+            </Space>
+          </div>
+        </div>
       ) : (
         <div style={{
           background: "#fff", border: `1px solid ${C.border}`,
@@ -849,10 +967,10 @@ const OrdersByLocation = () => {
           </Space>
         }
         styles={{
-          body: { padding: 0, maxHeight: "76vh", overflowY: "auto", background: C.bg },
+          body: { padding: 0, maxHeight: "76vh", overflow: "auto", background: C.bg },
         }}
         footer={
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>
             <Button onClick={() => setReportOpen(false)}>Close</Button>
             <Tooltip title="Download Excel workbook with Summary + Orders sheets">
               <Button
@@ -877,7 +995,7 @@ const OrdersByLocation = () => {
         }
         destroyOnClose={false}
       >
-        <div style={{ padding: "16px 20px", background: C.bg }}>
+        <div style={{ padding: isCompact ? 8 : "16px 20px", background: C.bg }}>
           {/* Preview wrapper */}
           <div style={{
             background: "#fff",

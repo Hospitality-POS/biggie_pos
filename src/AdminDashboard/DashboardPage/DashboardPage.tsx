@@ -14,23 +14,28 @@ import {
   Flex,
   Alert,
   Drawer,
+  Select,
 } from "antd";
 import {
   ReloadOutlined,
   CalendarOutlined,
   FilterOutlined,
+  ShopOutlined,
   DashboardOutlined,
   WarningOutlined,
   DollarOutlined,
   ShoppingCartOutlined,
   RiseOutlined,
   TeamOutlined,
+  AndroidOutlined,
 } from "@ant-design/icons";
 import {
   getAdminDashboardAnalysis,
+  getBranchComparison,
   getBestSellers,
   getSalesChartData,
 } from "@services/orders";
+import { fetchAllShops } from "@services/shops";
 import dayjs from "dayjs";
 import quarterOfYear from "dayjs/plugin/quarterOfYear";
 import {
@@ -38,9 +43,11 @@ import {
   DashboardSalesTrendChart,
   DashboardTopSellersChart,
   DashboardOperationalHub,
+  DashboardBranchComparison,
 } from "src/components/dashboard";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { fmtK } from "@utils/formatters";
+import URLShareModal from "src/components/URLShareModal";
 
 dayjs.extend(quarterOfYear);
 
@@ -70,6 +77,9 @@ const PERIOD_LABELS: Record<string, string> = {
   custom: "Custom Period",
 };
 
+// Direct owner-app APK download link (DigitalOcean) — scanning the QR opens this URL and downloads the app
+const OWNER_APP_DOWNLOAD_URL = "https://reliatechdocs.nyc3.digitaloceanspaces.com/APKS/basepoint-owner.apk";
+
 const useIsMobile = () => {
   const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);
   React.useEffect(() => {
@@ -90,6 +100,19 @@ const DashboardAdminPage: React.FC = () => {
   const [customDateRange, setCustomDateRange] = useState<any[]>([]);
   const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+  const [shopFilter, setShopFilter] = useState<string>("all");
+  const [ownerAppModalOpen, setOwnerAppModalOpen] = useState(false);
+
+  const { data: shops } = useQuery({
+    queryKey: ["dashboard-branch-options"],
+    queryFn: () => fetchAllShops({}),
+    networkMode: "always",
+    staleTime: 60000,
+  });
+  const shopOptions = (shops ?? []).map((s: any) => ({ label: s.name, value: s._id }));
+  const selectedShopName = shopFilter === "all"
+    ? "All Branches & POS Terminals"
+    : shopOptions.find((o: any) => o.value === shopFilter)?.label || "Selected Branch";
 
   const getDateRange = useCallback(() => {
     const today = dayjs();
@@ -131,8 +154,8 @@ const DashboardAdminPage: React.FC = () => {
 
   // 1. Dashboard summary analysis
   const { data, isLoading, refetch, isRefetching } = useQuery({
-    queryKey: ["admindashBoardAnalysis", startDate.format(), endDate.format()],
-    queryFn: () => getAdminDashboardAnalysis(startDate.toISOString(), endDate.toISOString()),
+    queryKey: ["admindashBoardAnalysis", startDate.format(), endDate.format(), shopFilter],
+    queryFn: () => getAdminDashboardAnalysis(startDate.toISOString(), endDate.toISOString(), shopFilter),
     networkMode: "always",
     refetchOnWindowFocus: false,
     staleTime: 30000,
@@ -152,12 +175,13 @@ const DashboardAdminPage: React.FC = () => {
     : (periodFilter as "day" | "week" | "month" | "year");
 
   const { data: chartData, isLoading: chartLoading } = useQuery({
-    queryKey: ["adminSalesChartData", periodFilter, startDate.format(), endDate.format()],
+    queryKey: ["adminSalesChartData", periodFilter, startDate.format(), endDate.format(), shopFilter],
     queryFn: () =>
       getSalesChartData({
         period: chartPeriod,
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString(),
+        shop_id: shopFilter,
       }),
     networkMode: "always",
     refetchOnWindowFocus: false,
@@ -167,11 +191,12 @@ const DashboardAdminPage: React.FC = () => {
 
   // 3. Best Sellers data
   const { data: bestSellersData, isLoading: bestSellersLoading } = useQuery({
-    queryKey: ["adminBestSellers", startDate.format(), endDate.format()],
+    queryKey: ["adminBestSellers", startDate.format(), endDate.format(), shopFilter],
     queryFn: () =>
       getBestSellers({
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString(),
+        shop_id: shopFilter,
         limit: 15,
       }),
     networkMode: "always",
@@ -180,14 +205,26 @@ const DashboardAdminPage: React.FC = () => {
     retry: 1,
   });
 
+  // 4. Per-branch comparison (only meaningful across all branches)
+  const showBranchComparison = shopFilter === "all" && (shops?.length ?? 0) > 1;
+  const { data: branchData, isLoading: branchLoading, refetch: refetchBranches } = useQuery({
+    queryKey: ["adminBranchComparison", startDate.format(), endDate.format()],
+    queryFn: () => getBranchComparison(startDate.toISOString(), endDate.toISOString()),
+    enabled: showBranchComparison,
+    networkMode: "always",
+    refetchOnWindowFocus: false,
+    staleTime: 30000,
+    retry: 1,
+  });
+
   const handleRefresh = useCallback(async () => {
     try {
-      await refetch();
+      await Promise.all([refetch(), showBranchComparison ? refetchBranches() : null]);
       messageApi.success({ content: "Dashboard refreshed!", duration: 2 });
     } catch {
       messageApi.error({ content: "Refresh failed.", duration: 3 });
     }
-  }, [refetch, messageApi]);
+  }, [refetch, refetchBranches, showBranchComparison, messageApi]);
 
   const handlePeriodChange = useCallback(
     (value: string) => {
@@ -229,6 +266,15 @@ const DashboardAdminPage: React.FC = () => {
     <div style={{ paddingBottom: 24 }}>
       {contextHolder}
 
+      {/* ── Owner App Download QR ── */}
+      <URLShareModal
+        open={ownerAppModalOpen}
+        onClose={() => setOwnerAppModalOpen(false)}
+        url={OWNER_APP_DOWNLOAD_URL}
+        title="Scan to Download Owner App"
+        showCopy={false}
+      />
+
       {/* ── Mobile Filter Drawer ── */}
       <Drawer
         title="Filter Period"
@@ -265,6 +311,15 @@ const DashboardAdminPage: React.FC = () => {
               style={{ width: "100%" }}
             />
           )}
+          <Select
+            value={shopFilter}
+            onChange={setShopFilter}
+            showSearch
+            options={[{ label: "All Branches", value: "all" }, ...shopOptions]}
+            filterOption={(input, opt) => String(opt?.label ?? "").toLowerCase().includes(input.toLowerCase())}
+            style={{ width: "100%" }}
+            placeholder="Branch"
+          />
         </Space>
       </Drawer>
 
@@ -289,7 +344,7 @@ const DashboardAdminPage: React.FC = () => {
                 {PERIOD_LABELS[periodFilter]} · Duka Overview
               </Title>
               <Text style={{ fontSize: 12, color: "#64748b" }}>
-                {getFormattedDateRange()} · All Branches & POS Terminals
+                {getFormattedDateRange()} · {selectedShopName}
               </Text>
             </div>
           </Space>
@@ -304,6 +359,11 @@ const DashboardAdminPage: React.FC = () => {
                 >
                   {PERIOD_LABELS[periodFilter]}
                 </Button>
+                <Button
+                  icon={<AndroidOutlined />}
+                  onClick={() => setOwnerAppModalOpen(true)}
+                  size="middle"
+                />
                 <Button
                   type="primary"
                   icon={<ReloadOutlined spin={isRefetching} />}
@@ -350,6 +410,26 @@ const DashboardAdminPage: React.FC = () => {
                     style={{ minWidth: 240 }}
                   />
                 )}
+
+                <Select
+                  value={shopFilter}
+                  onChange={setShopFilter}
+                  showSearch
+                  size="small"
+                  suffixIcon={<ShopOutlined style={{ color: primaryColor }} />}
+                  options={[{ label: "All Branches", value: "all" }, ...shopOptions]}
+                  filterOption={(input, opt) => String(opt?.label ?? "").toLowerCase().includes(input.toLowerCase())}
+                  style={{ minWidth: 160 }}
+                />
+
+                <Button
+                  icon={<AndroidOutlined />}
+                  onClick={() => setOwnerAppModalOpen(true)}
+                  size="small"
+                  style={{ fontWeight: 500 }}
+                >
+                  Owner App
+                </Button>
 
                 <Button
                   icon={<ReloadOutlined spin={isRefetching} />}
@@ -431,6 +511,18 @@ const DashboardAdminPage: React.FC = () => {
         onShopsClick={() => navigate("/shops")}
       />
 
+      {/* ── Tier 2b: Multi-branch comparison ── */}
+      {showBranchComparison && (
+        <DashboardBranchComparison
+          branches={branchData?.data?.branches || []}
+          loading={branchLoading}
+          dateRange={getFormattedDateRange()}
+          primaryColor={primaryColor}
+          isMobile={isMobile}
+          onBranchClick={setShopFilter}
+        />
+      )}
+
       {/* ── Tier 3: Visual Analytics & Charts Hub ── */}
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         {/* Left 60%: Sales & Volume Trend (Area Chart) */}
@@ -465,6 +557,7 @@ const DashboardAdminPage: React.FC = () => {
             purchaseOrderStats={data?.purchaseOrderStats}
             loading={isDataLoading}
             isMobile={isMobile}
+            showBranch={shopFilter === "all"}
           />
         </Col>
       </Row>

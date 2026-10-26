@@ -5,6 +5,7 @@ import {
   AuditOutlined,
   FileDoneOutlined,
   CompassOutlined,
+  GlobalOutlined,
   UsergroupAddOutlined,
   ReconciliationOutlined,
   SafetyCertificateOutlined,
@@ -63,6 +64,7 @@ const useAdminProLayoutNav = () => {
     { path: "/admin/reports", name: "Reports", icon: <ReconciliationOutlined /> },
     { path: "/admin/shop-management", name: "Branch Management", icon: <ShopOutlined /> },
     { path: "/admin/staff-management", name: "Crew Management", icon: <UsergroupAddOutlined /> },
+    { path: "/admin/discover", name: "Discover", icon: <GlobalOutlined /> },
   ];
 
   // ── Duka (POS) routes ─────────────────────────────────────────────────────

@@ -32,6 +32,7 @@ export interface ShopPrintSettings {
   reprint_requires_reason?: boolean;
   save_on_print?: boolean;
   captain_order_enabled?: boolean;
+  print_by_agent_enabled?: boolean;
 }
 
 export const locationFromGooglePlace = (place: google.maps.places.PlaceResult): ShopLocation => {
@@ -162,6 +163,43 @@ export const sendCheckinInfo = async (data: {
     return response.data;
   } catch (error: any) {
     console.error('Error sending check-in info:', error);
+    throw error;
+  }
+};
+
+export interface ShopWhatsappMarketplace {
+  enabled?: boolean;
+  sell_inventory?: boolean;
+  sell_services?: boolean;
+  sell_gift_cards?: boolean;
+  require_confirmation?: boolean;
+  confirmation_message?: string;
+  self_serve_enabled?: boolean;
+  gift_card_presets?: number[];
+  booking_enabled?: boolean;
+  booking_open_time?: string;
+  booking_close_time?: string;
+  booking_slot_minutes?: number;
+  booking_capacity?: number;
+  booking_max_days_ahead?: number;
+  booking_require_payment?: boolean;
+  pickup_enabled?: boolean;
+  delivery_enabled?: boolean;
+  delivery_fee?: number;
+  delivery_note?: string;
+}
+
+export const updateShopWhatsappMarketplace = async (
+  shopId: string,
+  settings: ShopWhatsappMarketplace
+) => {
+  try {
+    const response = await axiosInstance.patch(`${url}/${shopId}`, {
+      whatsapp_marketplace: settings,
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error('Error updating shop WhatsApp marketplace settings:', error);
     throw error;
   }
 };

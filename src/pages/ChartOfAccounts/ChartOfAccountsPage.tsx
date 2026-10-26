@@ -2,19 +2,18 @@ import React, { useRef, useState, useCallback } from "react";
 import { ProTable, ActionType } from "@ant-design/pro-components";
 import {
     Button, Space, Tag, Tooltip, Popconfirm,
-    Typography, Badge, Card, Tabs, App, Dropdown, MenuProps,
+    Typography, Badge, Card, Tabs, App, Dropdown, MenuProps, Input,
 } from "antd";
 import {
     PlusOutlined, EditOutlined, DeleteOutlined,
     PoweroffOutlined, BookOutlined, ThunderboltOutlined, BankOutlined,
-    DownloadOutlined, FilePdfOutlined, FileExcelOutlined,
+    DownloadOutlined, FilePdfOutlined, FileExcelOutlined, SearchOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
     getAllAccounts, deleteAccount, toggleAccountActive,
     seedDefaultAccounts, ChartOfAccount, AccountType,
 } from "@services/accounting/accounts";
-import { getCurrentTenantId } from "@services/tenants";
 import { fetchSystemSetupDetailsById } from "@services/systemsetup";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import AccountFormDrawer from "./AccountFormDrawer";
@@ -112,9 +111,12 @@ const ChartOfAccountsPage: React.FC = () => {
     const actionRef = useRef<ActionType>();
     const { modal } = App.useApp();
 
-    const shopId = getCurrentTenantId();
+    // Chart of Accounts is scoped to the POS Shop record (localStorage.shopId,
+    // set at login), not the SaaS tenant record (getCurrentTenantId).
+    const shopId = localStorage.getItem("shopId") || "";
 
     const [activeType, setActiveType] = useState<AccountType | "ALL">("ALL");
+    const [searchText, setSearchText] = useState("");
     const [formOpen, setFormOpen] = useState(false);
     const [ledgerOpen, setLedgerOpen] = useState(false);
     const [editingAccount, setEditingAccount] = useState<ChartOfAccount | null>(null);
@@ -140,9 +142,17 @@ const ChartOfAccountsPage: React.FC = () => {
     const allAccounts: ChartOfAccount[] = data?.accounts || [];
     const requireAccountCode = systemSettings?.require_account_code ?? true;
 
-    const filteredAccounts = activeType === "ALL"
+    const typeFilteredAccounts = activeType === "ALL"
         ? allAccounts
         : allAccounts.filter((a) => a.account_type === activeType);
+
+    const searchQuery = searchText.trim().toLowerCase();
+    const filteredAccounts = searchQuery
+        ? typeFilteredAccounts.filter((a) =>
+            (a.account_name || "").toLowerCase().includes(searchQuery) ||
+            (a.account_code || "").toLowerCase().includes(searchQuery)
+        )
+        : typeFilteredAccounts;
 
     // FIX: reference filteredAccounts (not the undefined `accounts`) for pagination
     const paginatedAccounts = filteredAccounts.slice(
@@ -212,6 +222,11 @@ const ChartOfAccountsPage: React.FC = () => {
 
     const handleTabChange = (key: string) => {
         setActiveType(key as AccountType | "ALL");
+        setCurrentPage(1);
+    };
+
+    const handleSearchChange = (value: string) => {
+        setSearchText(value);
         setCurrentPage(1);
     };
 
@@ -392,13 +407,23 @@ const ChartOfAccountsPage: React.FC = () => {
                     </Space>
                 }
             >
-                <Tabs
-                    activeKey={activeType}
-                    onChange={handleTabChange}
-                    items={tabItems}
-                    style={{ paddingLeft: 16, paddingRight: 16, marginBottom: 0 }}
-                    tabBarStyle={{ marginBottom: 0 }}
-                />
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, padding: "0 16px" }}>
+                    <Tabs
+                        activeKey={activeType}
+                        onChange={handleTabChange}
+                        items={tabItems}
+                        style={{ marginBottom: 0, flex: 1 }}
+                        tabBarStyle={{ marginBottom: 0 }}
+                    />
+                    <Input
+                        placeholder="Search by account name or code"
+                        prefix={<SearchOutlined style={{ color: "#bfbfbf" }} />}
+                        value={searchText}
+                        onChange={(e) => handleSearchChange(e.target.value)}
+                        allowClear
+                        style={{ width: 280, marginBottom: 8 }}
+                    />
+                </div>
 
                 <ProTable<ChartOfAccount>
                     rowKey="_id"

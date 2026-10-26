@@ -12,6 +12,7 @@ export interface ChatInputBarProps {
   shopName?: string;
   onSend: () => void;
   onKeyDown: (e: React.KeyboardEvent) => void;
+  placeholder?: string;
 }
 
 export const ChatInputBar: React.FC<ChatInputBarProps> = ({
@@ -21,6 +22,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
   shopName,
   onSend,
   onKeyDown,
+  placeholder,
 }) => {
   const textareaRef = useRef<any>(null);
 
@@ -47,7 +49,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder={`Ask Biashara AI about ${shopName || "this shop"}...`}
+          placeholder={placeholder ?? `Ask Biashara AI about ${shopName || "this shop"}...`}
           autoSize={{ minRows: 1, maxRows: 4 }}
           variant="borderless"
           style={{

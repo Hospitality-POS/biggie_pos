@@ -16,6 +16,7 @@ import {
   AimOutlined,
   RiseOutlined,
   CheckCircleOutlined,
+  BarChartOutlined,
 } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import { getPermissionChecker } from "@utils/getPermissionChecker";
@@ -33,9 +34,16 @@ import { fetchAllCustomers } from "@services/customers";
 import { formatCurrency } from "@utils/formatters";
 import { exportToExcel, exportToPDF } from "@utils/exportUtils";
 import dayjs, { Dayjs } from "dayjs";
+import sharedRangePresets from "@utils/DateRangeUtils";
 import weekOfYear from "dayjs/plugin/weekOfYear";
 import quarterOfYear from "dayjs/plugin/quarterOfYear";
 import { THEME_C } from "@utils/getPrimaryColor";
+import { fetchShop } from "@services/shops";
+import { useTenantModules } from "@hooks/useTenantModules";
+import { getStoredShopId } from "@pages/OmniChannel/shared/ui";
+import { useAppDispatch } from "src/store";
+import { generateInventoryUsageReport } from "src/features/Report/reportActions";
+import InventoryUsageReportModal from "@components/Reports/InventoryUsageReport";
 
 dayjs.extend(weekOfYear);
 dayjs.extend(quarterOfYear);
@@ -54,7 +62,7 @@ const TAB_CFG = [
     icon: <UserOutlined />,
     iconColor: C.green,
     label: "Customers",
-    permissionKey: "CRM_CUSTOMERS_VIEW",
+    permissionKey: "CUSTOMERS_VIEW",
   },
   {
     key: "leads",
@@ -75,14 +83,14 @@ const TAB_CFG = [
     icon: <DollarOutlined />,
     iconColor: C.orange,
     label: "Sales Targets",
-    permissionKey: "CRM_SALES_TARGETS_VIEW",
+    permissionKey: "CRM_TARGETS_VIEW",
   },
   {
     key: "visits",
     icon: <CalendarOutlined />,
     iconColor: C.red,
     label: "Visits",
-    permissionKey: "CRM_VISITS_VIEW",
+    permissionKey: "CRM_ACTIVITIES_VIEW",
   },
   {
     key: "activities",
@@ -92,6 +100,15 @@ const TAB_CFG = [
     permissionKey: "CRM_ACTIVITIES_VIEW",
   },
 ];
+
+// Shown only for WhatsApp Marketplace shops without Duka.
+const INVENTORY_USAGE_TAB = {
+  key: "inventory_usage",
+  icon: <BarChartOutlined />,
+  iconColor: C.purple,
+  label: "Inventory Usage",
+  permissionKey: "INVENTORY_VIEW_USAGE_BY_DATE",
+};
 
 // ── Locked placeholder ────────────────────────────────────────────────────────
 const LockedTab: React.FC<{ label: string }> = ({ label }) => (
@@ -293,9 +310,29 @@ const MtejaReports: React.FC<MtejaReportsProps> = ({ onReportGenerated }) => {
   const can = useMemo(() => getPermissionChecker(), []);
 
   // Attach allowed flag to every tab
+  // Shops selling through the WhatsApp Marketplace without Duka get the
+  // Inventory Usage report here (Duka tenants already have it under Duka).
+  const shopId = getStoredShopId();
+  const { data: shopData } = useQuery({
+    queryKey: ["shop", shopId],
+    queryFn: () => fetchShop(shopId),
+    enabled: !!shopId,
+    staleTime: 60_000,
+  });
+  const { hasPOS: hasDuka } = useTenantModules();
+  const showInventoryUsage = !!(shopData as any)?.whatsapp_marketplace?.enabled && !hasDuka;
+
+  const dispatch = useAppDispatch();
+  const [usageRange, setUsageRange] = useState<[string, string]>(["", ""]);
+  const [usageOpen, setUsageOpen] = useState(false);
+
   const tabsWithAccess = useMemo(
-    () => TAB_CFG.map((t) => ({ ...t, allowed: can(t.permissionKey) })),
-    [can]
+    () =>
+      [...TAB_CFG, ...(showInventoryUsage ? [INVENTORY_USAGE_TAB] : [])].map((t) => ({
+        ...t,
+        allowed: can(t.permissionKey),
+      })),
+    [can, showInventoryUsage]
   );
 
   // Default to first tab the user can actually access
@@ -376,17 +413,7 @@ const MtejaReports: React.FC<MtejaReportsProps> = ({ onReportGenerated }) => {
   }, [customersData]);
 
   // ── Date range presets ───────────────────────────────────────────────────
-  const rangePresets: {
-    label: string;
-    value: [Dayjs, Dayjs];
-  }[] = [
-    { label: "Today", value: [dayjs().startOf("day"), dayjs().endOf("day")] },
-    { label: "This Week", value: [dayjs().startOf("week"), dayjs().endOf("week")] },
-    { label: "This Month", value: [dayjs().startOf("month"), dayjs().endOf("month")] },
-    { label: "This Quarter", value: [dayjs().startOf("quarter"), dayjs().endOf("quarter")] },
-    { label: "This Year", value: [dayjs().startOf("year"), dayjs().endOf("year")] },
-    { label: "Last Year", value: [dayjs().subtract(1, "year").startOf("year"), dayjs().subtract(1, "year").endOf("year")] },
-  ];
+  const rangePresets = sharedRangePresets() as { label: string; value: [Dayjs, Dayjs] }[];
 
   // ── Active tab config (with allowed flag) ─────────────────────────────────
   const activeTabCfg = tabsWithAccess.find((t) => t.key === activeTab);
@@ -1040,6 +1067,32 @@ const MtejaReports: React.FC<MtejaReportsProps> = ({ onReportGenerated }) => {
               </div>
             </div>
             <GenerateButton label="Generate Lead Activity Report" icon={<PrinterOutlined />} disabled={loading} loading={loading} />
+          </Form>
+        );
+
+      case "inventory_usage":
+        return (
+          <Form
+            form={form}
+            layout="vertical"
+            onFinish={(values) => {
+              const start = values.dateRange?.[0]?.format("YYYY-MM-DD HH:mm") || "";
+              const end = values.dateRange?.[1]?.format("YYYY-MM-DD HH:mm") || "";
+              if (!start || !end) return;
+              setUsageRange([start, end]);
+              dispatch(generateInventoryUsageReport({ startDate: start, endDate: end, shop_id: shopId || undefined }));
+              setUsageOpen(true);
+            }}
+          >
+            <SectionLabel>Stock used in the period</SectionLabel>
+            <DateRangeField presets={rangePresets} />
+            <GenerateButton label="Generate Inventory Usage Report" icon={<BarChartOutlined />} disabled={false} />
+            <InventoryUsageReportModal
+              openM={usageOpen}
+              onCloseM={() => setUsageOpen(false)}
+              startDate={usageRange[0]}
+              endDate={usageRange[1]}
+            />
           </Form>
         );
 

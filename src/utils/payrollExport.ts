@@ -848,15 +848,31 @@ export const exportPayeFiling = (payrolls: any[], employeeIds?: string[]) =>
       const houseBenefit = bSum(/house|housing|rent|quarters/i, ['house', 'housing']);
       const otherNonCash = Math.max(0, benefits - carBenefit - mealBenefit - houseBenefit);
 
+      const isSecondary = emp.employee_type === 'secondary';
       const pension = num(d.pension);
-      const insuranceRelief = num(d.insurance_relief);
+      // Secondary employment — KRA taxes it at a flat 35% of taxable pay with
+      // no personal/insurance relief (reliefs are claimed at the primary
+      // employer) and no NSSF/pension columns — the portal validates that
+      // NSSF (J), Other Pension (K), Personal Relief (P) and Insurance
+      // Relief (Q) are blank for secondary rows, so they are emitted as
+      // empty cells rather than 0. The self-assessed PAYE is recomputed
+      // here rather than trusting the stored figure, so returns match the
+      // KRA sheet even for payrolls generated before the secondary-rate
+      // recalculation existed.
       const personalRelief = num(d.personal_relief) || 2400;
+      const insuranceRelief = num(d.insurance_relief);
+      const taxablePay =
+        num(d.taxable_pay) ||
+        Math.max(0, gross - num(d.nssf) - num(d.nhif) - num(d.housing_levy) - Math.min(pension, 20000));
+      const selfAssessedPaye = isSecondary
+        ? Math.round(taxablePay * 0.35 * 100) / 100
+        : num(d.paye);
 
       return [
         emp.kra_pin || '',                                      // PIN of Employee
         lineName(line),                                         // Name of Employee
         emp.residential_status === 'non_resident' ? 'Non-Resident' : 'Resident',
-        emp.employee_type === 'secondary' ? 'Secondary Employee' : 'Primary Employee', // Type of Employee
+        isSecondary ? 'Secondary Employee' : 'Primary Employee', // Type of Employee
         emp.is_pwd ? 'Yes' : 'No',                              // Persons With Disability
         emp.is_pwd ? emp.pwd_certificate_number || '' : '',     // Exemption Certificate Number
         kraMoney(gross - benefits),                             // Total Cash Pay (A)
@@ -868,16 +884,16 @@ export const exportPayeFiling = (payrolls: any[], employeeIds?: string[]) =>
         kraMoney(0),                                            // Other Benefits (G)
         '',                                                     // Total Gross Pay (H) — KRA calculates
         kraMoney(d.nhif),                                       // SHIF (I)
-        kraMoney(d.nssf),                                       // NSSF Contribution (J)
-        kraMoney(pension),                                      // Other Pension Contribution (K)
+        isSecondary ? '' : kraMoney(d.nssf),                    // NSSF Contribution (J)
+        isSecondary ? '' : kraMoney(pension),                   // Other Pension Contribution (K)
         kraMoney(0),                                            // Post Retirement Medical Fund (L)
         kraMoney(0),                                            // Mortgage Interest (M)
         kraMoneyGeneral(d.housing_levy),                        // Affordable Housing Levy (N)
         '',                                                     // Taxable Pay (O) — KRA calculates
-        kraMoney(personalRelief),                               // Monthly Personal Relief (P)
-        kraMoney(insuranceRelief),                               // Amount of Insurance Relief (Q)
+        isSecondary ? '' : kraMoney(personalRelief),            // Monthly Personal Relief (P)
+        isSecondary ? '' : kraMoney(insuranceRelief),           // Amount of Insurance Relief (Q)
         '',                                                     // PAYE Tax (R) — KRA calculates
-        kraMoneyGeneral(d.paye),                                // Self Assessed PAYE Tax (S)
+        kraMoneyGeneral(selfAssessedPaye),                      // Self Assessed PAYE Tax (S)
       ];
     },
     'PAYE_Return',

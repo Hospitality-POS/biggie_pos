@@ -2,6 +2,7 @@ import { ParamsType } from "@ant-design/pro-components";
 import { BASE_URL } from "@utils/config";
 import { message } from "antd";
 import axiosInstance from "./request";
+import type { PrintLine } from "./printAgent";
 
 const printerUrl = `${BASE_URL}/printer`;
 const printerServiceUrl = `${BASE_URL}/printer-service`;
@@ -49,6 +50,28 @@ export const deletePrinter = async (printerId: string) => {
       message.error("Failed to delete printer");
     }
   }
+};
+
+/**
+ * Create a printer job for a rendered report and dispatch it to the print
+ * agent(s) in `zone` — same backend path as bill printing (/printer).
+ */
+export interface PrintReportResult {
+  message?: string;
+  job_id?: string;
+  printerJobId?: string;
+  agentsSent?: number;
+}
+
+export const printReportLines = async (payload: {
+  shop_id: string;
+  zone: string;
+  documentType?: string;
+  order_no?: string;
+  lines: PrintLine[];
+}): Promise<PrintReportResult> => {
+  const response = await axiosInstance.post(`${printerUrl}/print-report`, payload);
+  return response.data;
 };
 
 // Printer Service API Methods

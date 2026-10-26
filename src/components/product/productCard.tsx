@@ -38,6 +38,9 @@ interface ProductCardProps {
   menu: menudetails;
   handleCart?: () => void;
   style?: React.CSSProperties;
+  /** When true, adding items is blocked (e.g. shop flag prevents cashiers
+   * from adding to a table already served by another staff member). */
+  blockAdd?: boolean;
 }
 
 function formatPrice(price: number) {
@@ -53,7 +56,7 @@ function formatDuration(duration: number) {
   return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
 }
 
-const ProductCard: React.FC<ProductCardProps> = ({ menu, handleCart, style }) => {
+const ProductCard: React.FC<ProductCardProps> = ({ menu, handleCart, style, blockAdd }) => {
   const { user } = useAppSelector((state) => state.auth);
   const { cartDetails, cartItems, loading } = useAppSelector((state) => state.cart);
   const [isHovered, setIsHovered] = useState(false);
@@ -104,6 +107,10 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu, handleCart, style }) =>
   const handleAddToCart = useCallback(
     async (addons?: string[]) => {
       if (loading || isProcessing) return;
+      if (blockAdd) {
+        message.warning("This table is being served by another staff member — you can't add items to it.");
+        return;
+      }
       // Block selling inventory items that are out of stock
       if (stockBlockMessage) {
         message.error(stockBlockMessage);
@@ -182,10 +189,15 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu, handleCart, style }) =>
       invalidate,
       existingCartItem,
       handleCart,
+      blockAdd,
     ]
   );
 
   const handleClick = useCallback(() => {
+    if (blockAdd) {
+      message.warning("This table is being served by another staff member — you can't add items to it.");
+      return;
+    }
     if (!loading && !isProcessing && tableId) {
       if (stockBlockMessage) {
         message.error(stockBlockMessage);
@@ -200,7 +212,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu, handleCart, style }) =>
         handleAddToCart();
       }
     }
-  }, [loading, isProcessing, tableId, menu.addons, existingCartItem, handleAddToCart, stockBlockMessage]);
+  }, [loading, isProcessing, tableId, menu.addons, existingCartItem, handleAddToCart, stockBlockMessage, blockAdd]);
 
   const handleAddonModalConfirm = (selectedAddonIds: string[]) => {
     handleAddToCart(selectedAddonIds);

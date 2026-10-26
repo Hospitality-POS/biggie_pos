@@ -20,7 +20,26 @@ const { Text } = Typography;
 
 const C = THEME_C;
 
+const AGENT_RELEASES_URL = "https://github.com/Hospitality-POS/base-printing-agent/releases/latest";
+const AGENT_RELEASE_API = "https://api.github.com/repos/Hospitality-POS/base-printing-agent/releases/latest";
+
+interface AgentReleaseAsset {
+  name: string;
+  browser_download_url: string;
+  size: number;
+}
+
+interface AgentRelease {
+  tag_name: string;
+  published_at: string;
+  assets: AgentReleaseAsset[];
+}
+
+const formatAssetSize = (bytes: number) => `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+
 const PrinterSettings: React.FC = () => {
+  const [agentRelease, setAgentRelease] = useState<AgentRelease | null>(null);
+  const [agentReleaseFailed, setAgentReleaseFailed] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("agents");
   const [driversSubTab, setDriversSubTab] = useState<string>("download-drivers");
   const [agents, setAgents] = useState<ConnectedAgent[]>([]);
@@ -67,8 +86,23 @@ const PrinterSettings: React.FC = () => {
     loadMainCategories();
   }, [loadMappings, loadMainCategories]);
 
-  // Captain order is a shop-wide setting stored on the server — one toggle
-  // applies to every device. Print-by-agent stays per-machine (local printer).
+  // Always show the newest published agent build from the public GitHub repo.
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch(AGENT_RELEASE_API, { signal: controller.signal })
+      .then((res) => (res.ok ? res.json() : Promise.reject(res.status)))
+      .then(setAgentRelease)
+      .catch((e) => {
+        if (e?.name !== "AbortError") setAgentReleaseFailed(true);
+      });
+    return () => controller.abort();
+  }, []);
+
+  const findAgentAsset = (test: (name: string) => boolean) =>
+    agentRelease?.assets.find((a) => test(a.name));
+
+  // Both toggles are shop-wide settings stored on the server — one toggle
+  // applies to every device. localStorage is only a fallback while loading.
   useEffect(() => {
     const savedPrintByAgent = localStorage.getItem("print_by_agent_enabled");
     setPrintByAgentEnabled(savedPrintByAgent === "true");
@@ -82,6 +116,9 @@ const PrinterSettings: React.FC = () => {
           const enabled = shop?.print_settings?.captain_order_enabled === true;
           setCaptainOrderEnabled(enabled);
           localStorage.setItem("captain_order_enabled", String(enabled));
+          const agentEnabled = shop?.print_settings?.print_by_agent_enabled === true;
+          setPrintByAgentEnabled(agentEnabled);
+          localStorage.setItem("print_by_agent_enabled", String(agentEnabled));
         })
         .catch(() => { /* keep localStorage fallback */ });
     }
@@ -181,14 +218,20 @@ const PrinterSettings: React.FC = () => {
     }
   };
 
-  const handleTogglePrintByAgent = (checked: boolean) => {
+  const handleTogglePrintByAgent = async (checked: boolean) => {
     if (checked && agents.length === 0) {
       message.warning("Cannot enable agent printing: No print agents connected. Please install and configure the Print Agent app first.");
       return;
     }
     setPrintByAgentEnabled(checked);
-    localStorage.setItem("print_by_agent_enabled", checked.toString());
-    message.success(checked ? "Agent-based printing enabled" : "Browser printing enabled");
+    const ok = await updateShopPrintSettings(shopId, { print_by_agent_enabled: checked });
+    if (ok) {
+      localStorage.setItem("print_by_agent_enabled", checked.toString());
+      message.success(checked ? "Agent-based printing enabled" : "Browser printing enabled");
+    } else {
+      // Revert — server is the source of truth for this shop-wide setting.
+      setPrintByAgentEnabled(!checked);
+    }
   };
 
   const renderSteps = (steps: React.ReactNode[], style?: React.CSSProperties) => (
@@ -608,22 +651,39 @@ const PrinterSettings: React.FC = () => {
                 gap: 12,
               }}
             >
-              {downloadCard(
-                <AppleOutlined style={{ fontSize: 20, color: C.primary }} />,
-                "macOS (Apple Silicon)",
-                "v0.4.2",
-                "For Mac computers with Apple Silicon (M1, M2, M3 chips)",
-                "https://reliatechdocs.nyc3.digitaloceanspaces.com/Print%20Agents/PrintAgent_0.4.2_aarch64.dmg",
-                "Download for macOS"
-              )}
-              {downloadCard(
-                <WindowsOutlined style={{ fontSize: 20, color: C.primary }} />,
-                "Windows (64-bit)",
-                "v0.6.2",
-                "For Windows 10/11 computers (64-bit)",
-                "https://reliatechdocs.nyc3.digitaloceanspaces.com/Print%20Agents/PrintAgent_0.6.2_x64-setup.exe",
-                "Download for Windows"
-              )}
+              {[
+                {
+                  title: "Windows 10/11 (64-bit)",
+                  desc: "Desktop app that runs in the system tray. Best choice for modern computers.",
+                  asset: findAgentAsset((n) => /^PrintAgent_.*_x64-setup\.exe$/i.test(n)),
+                  recommended: true,
+                },
+                {
+                  title: "Windows 7/8/8.1 (64-bit)",
+                  desc: "Lightweight helper that runs the agent from your browser at localhost:14200.",
+                  asset: findAgentAsset((n) => /^PrintAgentHelper-Setup-x64\.exe$/i.test(n)),
+                  recommended: false,
+                },
+                {
+                  title: "Windows 7/8 (32-bit)",
+                  desc: "Helper build for older 32-bit Windows computers.",
+                  asset: findAgentAsset((n) => /^PrintAgentHelper-Setup-x86\.exe$/i.test(n)),
+                  recommended: false,
+                },
+              ]
+                // Once the release has loaded, hide builds it doesn't ship.
+                .filter((c) => c.asset || !agentRelease)
+                .map((c) =>
+                  downloadCard(
+                    <WindowsOutlined style={{ fontSize: 20, color: C.primary }} />,
+                    c.title,
+                    agentRelease ? agentRelease.tag_name : agentReleaseFailed ? "latest" : "…",
+                    c.asset ? `${c.desc} (${formatAssetSize(c.asset.size)})` : c.desc,
+                    c.asset?.browser_download_url ?? AGENT_RELEASES_URL,
+                    "Download for Windows",
+                    c.recommended
+                  )
+                )}
             </div>
 
             {renderSteps(

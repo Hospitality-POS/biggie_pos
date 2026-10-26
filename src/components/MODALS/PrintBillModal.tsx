@@ -52,6 +52,7 @@ import {
   getAgentForCategory, printFromCart,
 } from "@services/printAgent";
 import { fetchMainCategories } from "@services/categories";
+import { fetchShop } from "@services/shops";
 
 import {
   C,
@@ -79,6 +80,9 @@ export interface PrintBillProps {
   // When true, printing is blocked because this shop requires payment to be
   // completed on the cart before the bill can be printed.
   printLocked?: boolean;
+  // When set, the Print Bill button is disabled and this explains why
+  // (e.g. nothing has been sent yet while the shop prints only sent items).
+  disabledReason?: string;
   // Stretch the trigger button to fill its container (used when the button
   // sits in an equal-width row next to other actions).
   triggerBlock?: boolean;
@@ -93,6 +97,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
   grandTotal: customGrandTotal,
   isSpa = false,
   printLocked = false,
+  disabledReason,
   triggerBlock = false,
 }) => {
   const { subtotal, totalVatAmount, grandTotal } = useAppSelector((s) => s.cart);
@@ -181,10 +186,23 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
     loadCategories();
   }, [loadCategories]);
 
-  // Load global print_by_agent setting from localStorage
+  // Print method is a shop-wide setting stored on the server — the server
+  // value wins so a toggle on any device applies everywhere. localStorage
+  // is only a fallback while loading.
   useEffect(() => {
     const savedPrintByAgent = localStorage.getItem("print_by_agent_enabled");
     setUseIPPrinterMode(savedPrintByAgent === "true");
+
+    const shopIdValue = localStorage.getItem("shopId") ?? "";
+    if (shopIdValue) {
+      fetchShop(shopIdValue)
+        .then((shop: any) => {
+          const enabled = shop?.print_settings?.print_by_agent_enabled === true;
+          setUseIPPrinterMode(enabled);
+          localStorage.setItem("print_by_agent_enabled", String(enabled));
+        })
+        .catch(() => { /* keep localStorage fallback */ });
+    }
   }, []);
 
   const pendingPrintRef = useRef(false);
@@ -262,7 +280,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
 
   // Printing is also blocked when this shop requires payment before the
   // bill can be printed and the cart hasn't been paid for yet.
-  const canPrint = canPrintDoc && !printLocked;
+  const canPrint = canPrintDoc && !printLocked && !disabledReason;
 
   // Calculate net subtotal for inclusive VAT
   const netSubtotal = vatMode === "INCLUSIVE" ? finalSubtotal - finalTotalVat : finalSubtotal;
@@ -358,13 +376,14 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
   const executePrint = useCallback(async (reason?: string) => {
     if (!canPrint) {
       message.error(
-        printLocked
-          ? "Payment must be completed before the bill can be printed."
-          : "Print limit reached. Printing is not allowed for this document."
+        disabledReason ||
+          (printLocked
+            ? "Payment must be completed before the bill can be printed."
+            : "Print limit reached. Printing is not allowed for this document.")
       );
       return;
     }
-    
+
     setIsPrinting(true);
     
     try {
@@ -415,7 +434,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
     } finally {
       setIsPrinting(false);
     }
-  }, [canPrint, printLocked, isPdfView, refReady, recordPrint, isReprint, useIPPrinterMode, cartDetails]);
+  }, [canPrint, printLocked, disabledReason, isPdfView, refReady, recordPrint, isReprint, useIPPrinterMode, cartDetails]);
 
   const agentShopId = localStorage.getItem("shopId") ?? "";
 
@@ -534,7 +553,10 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
 
   const handleFinish = async () => {
     if (!canPrint) {
-      message.error(printLocked ? "Payment must be completed before printing the bill." : "Print limit reached.");
+      message.error(
+        disabledReason ||
+          (printLocked ? "Payment must be completed before printing the bill." : "Print limit reached.")
+      );
       return false;
     }
     if (isReprint && printStatus?.requires_reason) { setReasonModalOpen(true); return false; }
@@ -736,8 +758,8 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
           },
         }}
         trigger={
-          <Tooltip title={printLocked ? "Payment must be completed before the bill can be printed" : undefined}>
-            <Button type="primary" block={triggerBlock} icon={canPrint ? <PrinterOutlined /> : <LockOutlined />} disabled={statusLoading || !hasDuka}>
+          <Tooltip title={disabledReason || (printLocked ? "Payment must be completed before the bill can be printed" : undefined)}>
+            <Button type="primary" block={triggerBlock} icon={canPrint ? <PrinterOutlined /> : <LockOutlined />} disabled={statusLoading || !hasDuka || !!disabledReason}>
               {printLocked ? "Pending Print" : isReprint ? "Reprint Bill" : "Print Bill"}
             </Button>
           </Tooltip>

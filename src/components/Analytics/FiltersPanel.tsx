@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Form, Select, DatePicker, Button, Space, Row, Col } from 'antd';
+import rangePresets from '@utils/DateRangeUtils';
 import { SearchOutlined, ReloadOutlined } from '@ant-design/icons';
 import { fetchInventoryCategories } from '../../services/inventory';
 import dayjs from 'dayjs';
@@ -79,6 +80,7 @@ const FiltersPanel: React.FC<FiltersPanelProps> = ({
             <Form.Item label="Date Range" name="dateRange">
               <RangePicker 
                 style={{ width: '100%' }}
+                presets={rangePresets()}
                 placeholder={['Start date', 'End date']}
                 format="YYYY-MM-DD"
               />

@@ -107,6 +107,12 @@ const UnifiedDashboardPage: React.FC = () => {
     );
   }
 
+  // useActiveDashboard resolves its tab from useTenantModules, which reads more
+  // module flags than getModuleFlags above (e.g. modules.pos). When the two
+  // disagree the resolved tab may not exist here, and Tabs then renders no pane
+  // at all — a blank page. Fall back to the first tab this page actually has.
+  const resolvedTab = tabItems.some((t) => t.key === activeTab) ? activeTab : tabItems[0].key;
+
   return (
     <div
       style={{
@@ -118,7 +124,7 @@ const UnifiedDashboardPage: React.FC = () => {
       }}
     >
       <Tabs
-        activeKey={activeTab}
+        activeKey={resolvedTab}
         onChange={(key) => setActiveDashboard(key)}
         items={tabItems}
         size={isMobile ? "middle" : "large"}

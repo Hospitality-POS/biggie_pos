@@ -106,7 +106,12 @@ export interface GetAccountsParams {
 
 export interface CreateAccountParams {
     shop_id: string;
-    account_code: string;
+    /** Optional — the server generates a guaranteed-free code when omitted
+     *  or when `auto_generate_code` is set and the suggestion collides. */
+    account_code?: string;
+    /** When true, the server falls back to a generated code instead of a
+     *  409 if the suggested code is already taken. */
+    auto_generate_code?: boolean;
     account_name: string;
     account_type: AccountType;
     account_subtype?: string;

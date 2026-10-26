@@ -297,12 +297,21 @@ export const useQuickLinks = (customFlags?: QuickLinkModuleFlags) => {
       if (moduleFlags.hasAccounting) {
         actions.push({
           id: "income-expense",
-          title: "Expense / Bill",
+          title: "Expense",
           section: "Transactions",
-          keywords: "expense bill expenditure payment cash outflow record money out",
+          keywords: "expense expenditure payment cash outflow record money out split bank",
           hotkey: "alt+e",
           icon: ICONS.expense,
           handler: () => openModal("income-expense"),
+        });
+        actions.push({
+          id: "supplier-bill",
+          title: "Supplier Bill",
+          section: "Transactions",
+          keywords: "bill supplier payable vendor invoice owe",
+          hotkey: "alt+b",
+          icon: ICONS.supplier,
+          handler: () => openModal("supplier-bill"),
         });
       }
     }

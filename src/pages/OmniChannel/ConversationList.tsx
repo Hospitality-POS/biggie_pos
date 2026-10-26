@@ -1,33 +1,13 @@
 import React from "react";
-import {
-    Input,
-    List,
-    Avatar,
-    Badge,
-    Typography,
-    Space,
-    Select,
-    Tag,
-    Spin,
-    Empty,
-    Tabs,
-    Tooltip,
-    Grid,
-} from "antd";
-import {
-    SearchOutlined,
-    UserOutlined,
-} from "@ant-design/icons";
-import dayjs from "dayjs";
-import relativeTime from "dayjs/plugin/relativeTime";
+import { Input, Avatar, Typography, Select, Spin, Empty, Tooltip, Grid, Pagination, Tag } from "antd";
+import { SearchOutlined, UserOutlined, CalendarOutlined, ShoppingCartOutlined } from "@ant-design/icons";
 import {
     Conversation,
     ConversationStatus,
     CHANNEL_CONFIG,
     STATUS_CONFIG,
 } from "./OmnichannelInboxPage";
-
-dayjs.extend(relativeTime);
+import { chatTime, ContactAvatar, HScroll } from "./shared/ui";
 
 const { Text } = Typography;
 
@@ -39,11 +19,13 @@ interface AgentOption {
     thumbnail?: string;
 }
 
+type StatusKey = ConversationStatus | "all" | "queue" | "needs_reply";
+
 interface Props {
     conversations: Conversation[];
     loading: boolean;
     selectedId: string | null;
-    activeStatus: ConversationStatus | "all" | "queue" | "needs_reply";
+    activeStatus: StatusKey;
     total: number;
     page: number;
     pageSize: number;
@@ -54,46 +36,29 @@ interface Props {
     isAdmin?: boolean;
     agents?: AgentOption[];
     selectedAgent?: string;
+    // WhatsApp Web has no 24-hour reply window — hide that badge for it.
+    showWindowBadge?: boolean;
     onSelect: (conv: Conversation) => void;
     onSearchChange: (v: string) => void;
-    onStatusChange: (s: ConversationStatus | "all" | "queue" | "needs_reply") => void;
+    onStatusChange: (s: StatusKey) => void;
     onPageChange: (p: number) => void;
     onAgentChange?: (v: string) => void;
 }
 
-// ── Status tab items ──────────────────────────────────────────────────────────
+// ── Status filter pills ───────────────────────────────────────────────────────
 
-const STATUS_TABS: { key: ConversationStatus | "all" | "queue" | "needs_reply"; label: string }[] = [
-    { key: "all", label: "All" },
-    { key: "needs_reply", label: "Needs Reply" },
-    { key: "open", label: "Open" },
-    { key: "pending", label: "Pending" },
-    { key: "pending_dispatch", label: "Dispatch" },
-    { key: "resolved", label: "Resolved" },
-    { key: "closed", label: "Closed" },
-    { key: "queue", label: "Queue" },
+const STATUS_FILTERS: { key: StatusKey; label: string; tone: string }[] = [
+    { key: "all", label: "All", tone: "#54656f" },
+    { key: "needs_reply", label: "Needs reply", tone: "#ef4444" },
+    { key: "open", label: "Open", tone: "#16a34a" },
+    { key: "pending", label: "Pending", tone: "#d97706" },
+    { key: "pending_dispatch", label: "Dispatch", tone: "#7c3aed" },
+    { key: "resolved", label: "Resolved", tone: "#64748b" },
+    { key: "closed", label: "Closed", tone: "#64748b" },
+    { key: "queue", label: "Queue", tone: "#d97706" },
 ];
 
-// ── Channel dot indicator ─────────────────────────────────────────────────────
-
-const ChannelDot: React.FC<{ channel: string }> = ({ channel }) => {
-    const cfg = CHANNEL_CONFIG[channel];
-    if (!cfg) return null;
-    return (
-        <Tooltip title={cfg.label}>
-            <span
-                style={{
-                    display: "inline-block",
-                    width: 8,
-                    height: 8,
-                    borderRadius: "50%",
-                    backgroundColor: cfg.color,
-                    flexShrink: 0,
-                }}
-            />
-        </Tooltip>
-    );
-};
+const WA_GREEN = "#25D366";
 
 // ── Single conversation row ───────────────────────────────────────────────────
 
@@ -101,185 +66,141 @@ const ConversationRow: React.FC<{
     conv: Conversation;
     selected: boolean;
     onClick: () => void;
-    isMobile?: boolean;
-}> = ({ conv, selected, onClick, isMobile }) => {
+    showWindowBadge: boolean;
+}> = ({ conv, selected, onClick, showWindowBadge }) => {
     const cfg = CHANNEL_CONFIG[conv.channel];
     const statusCfg = STATUS_CONFIG[conv.status];
-    const timeAgo = conv.last_message_at
-        ? dayjs(conv.last_message_at).fromNow()
-        : "";
     const hasUnread = conv.unread_count > 0;
-    const windowOpen = conv.is_window_open;
+    const name = conv.external_contact_name || conv.external_contact_phone || conv.external_contact_id;
+    const inCheckout = !!conv.pending_marketplace_order;
+    const inBooking = !!conv.pending_booking;
+    const quiet = conv.status === "resolved" || conv.status === "closed";
 
     return (
         <div
+            role="button"
+            tabIndex={0}
             onClick={onClick}
+            onKeyDown={(e) => (e.key === "Enter" ? onClick() : undefined)}
+            className="omni-conv-row"
             style={{
-                padding: "12px 16px",
+                display: "flex",
+                gap: 12,
+                alignItems: "center",
+                padding: "10px 14px",
                 cursor: "pointer",
-                borderBottom: "1px solid #f5f5f5",
-                background: selected ? "#f0f7ff" : "transparent",
-                borderLeft: selected ? `3px solid ${cfg?.color || "#1677ff"}` : "3px solid transparent",
-                transition: "background 0.15s",
-            }}
-            onMouseEnter={(e) => {
-                if (!selected)
-                    (e.currentTarget as HTMLDivElement).style.background = "#fafafa";
-            }}
-            onMouseLeave={(e) => {
-                if (!selected)
-                    (e.currentTarget as HTMLDivElement).style.background = "transparent";
+                background: selected ? "#f0f2f5" : "#fff",
+                borderLeft: `3px solid ${selected ? cfg?.color || WA_GREEN : "transparent"}`,
+                opacity: quiet && !selected ? 0.75 : 1,
             }}
         >
-            <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                {/* Avatar with channel dot */}
-                <div style={{ position: "relative", flexShrink: 0 }}>
-                    <Avatar
-                        icon={<UserOutlined />}
-                        size={38}
+            <ContactAvatar
+                size={44}
+                name={name}
+                seed={conv.external_contact_id}
+                badgeColor={cfg?.color}
+                badgeIcon={cfg?.icon}
+            />
+
+            <div style={{ flex: 1, minWidth: 0, borderBottom: "1px solid #f0f2f5", paddingBottom: 10, marginBottom: -10 }}>
+                {/* Name + time */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+                    <Text
                         style={{
-                            backgroundColor: cfg?.bg || "#f0f0f0",
-                            color: cfg?.color || "#8c8c8c",
-                            fontSize: 16,
-                        }}
-                    />
-                    <span
-                        style={{
-                            position: "absolute",
-                            bottom: -1,
-                            right: -1,
-                            width: 14,
-                            height: 14,
-                            borderRadius: "50%",
-                            backgroundColor: cfg?.color || "#8c8c8c",
-                            border: "2px solid #fff",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: 7,
+                            fontSize: 14,
+                            fontWeight: hasUnread ? 600 : 500,
+                            color: "#111b21",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
                         }}
                     >
-                        {cfg?.icon}
-                    </span>
+                        {name}
+                    </Text>
+                    <Text
+                        style={{
+                            fontSize: 11,
+                            flexShrink: 0,
+                            color: hasUnread ? WA_GREEN : "#667781",
+                            fontWeight: hasUnread ? 600 : 400,
+                        }}
+                    >
+                        {chatTime(conv.last_message_at)}
+                    </Text>
                 </div>
 
-                {/* Content */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                    {/* Name row */}
-                    <div
+                {/* Preview + unread */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginTop: 2 }}>
+                    <Text
                         style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            marginBottom: 2,
+                            fontSize: 13,
+                            color: hasUnread ? "#111b21" : "#667781",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
                         }}
                     >
-                        <Text
-                            strong={hasUnread}
+                        {conv.last_message_preview || "No messages yet"}
+                    </Text>
+                    {hasUnread && (
+                        <span
                             style={{
-                                fontSize: 13,
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                                maxWidth: isMobile ? "70vw" : 160,
+                                background: WA_GREEN,
+                                color: "#fff",
+                                fontSize: 11,
+                                fontWeight: 600,
+                                minWidth: 20,
+                                height: 20,
+                                borderRadius: 10,
+                                padding: "0 6px",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                flexShrink: 0,
                             }}
                         >
-                            {conv.external_contact_name || conv.external_contact_id}
-                        </Text>
-                        <Text
-                            type="secondary"
-                            style={{ fontSize: 11, flexShrink: 0, marginLeft: 6 }}
-                        >
-                            {timeAgo}
-                        </Text>
-                    </div>
+                            {conv.unread_count > 99 ? "99+" : conv.unread_count}
+                        </span>
+                    )}
+                </div>
 
-                    {/* Preview row */}
-                    <div
-                        style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                        }}
-                    >
-                        <Text
-                            type="secondary"
-                            style={{
-                                fontSize: 12,
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                                maxWidth: isMobile ? "75vw" : 170,
-                                fontWeight: hasUnread ? 500 : 400,
-                                color: hasUnread ? "#262626" : undefined,
-                            }}
-                        >
-                            {conv.last_message_preview || "No messages yet"}
-                        </Text>
-
-                        {/* Right side badges */}
-                        <Space size={4} style={{ flexShrink: 0, marginLeft: 6 }}>
-                            {hasUnread && (
-                                <Badge
-                                    count={conv.unread_count}
-                                    size="small"
-                                    style={{
-                                        backgroundColor: cfg?.color || "#1677ff",
-                                        fontSize: 10,
-                                        minWidth: 16,
-                                        height: 16,
-                                        lineHeight: "16px",
-                                    }}
-                                />
-                            )}
-                        </Space>
-                    </div>
-
-                    {/* Status + window row */}
-                    <div style={{ marginTop: 4, display: "flex", gap: 4, alignItems: "center" }}>
-                        <Badge
-                            status={statusCfg.badge}
-                            text={
-                                <Text style={{ fontSize: 10, color: "#8c8c8c" }}>
-                                    {statusCfg.label}
+                {/* Status · flow · window · assignee */}
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, minHeight: 16 }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                        <span style={{ width: 6, height: 6, borderRadius: "50%", background: statusCfg.color }} />
+                        <Text style={{ fontSize: 10.5, color: "#667781" }}>{statusCfg.label}</Text>
+                    </span>
+                    {inCheckout && (
+                        <Tooltip title="Customer is in a guided checkout">
+                            <Tag icon={<ShoppingCartOutlined />} color="green" style={{ fontSize: 10, lineHeight: "15px", padding: "0 5px", margin: 0 }}>
+                                Checkout
+                            </Tag>
+                        </Tooltip>
+                    )}
+                    {inBooking && (
+                        <Tooltip title="Customer is booking an appointment">
+                            <Tag icon={<CalendarOutlined />} color="purple" style={{ fontSize: 10, lineHeight: "15px", padding: "0 5px", margin: 0 }}>
+                                Booking
+                            </Tag>
+                        </Tooltip>
+                    )}
+                    {showWindowBadge && conv.channel === "whatsapp" && conv.is_window_open === false && (
+                        <Tooltip title="24-hour window closed — only templates can be sent">
+                            <Tag color="red" style={{ fontSize: 10, lineHeight: "15px", padding: "0 5px", margin: 0 }}>
+                                24h closed
+                            </Tag>
+                        </Tooltip>
+                    )}
+                    {conv.assigned_to && (
+                        <Tooltip title={`Assigned to ${conv.assigned_to.fullname}`}>
+                            <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                                <Avatar size={16} src={conv.assigned_to.thumbnail} icon={<UserOutlined />} style={{ fontSize: 9 }} />
+                                <Text style={{ fontSize: 10.5, color: "#667781", maxWidth: 80 }} ellipsis>
+                                    {conv.assigned_to.fullname.split(" ")[0]}
                                 </Text>
-                            }
-                        />
-                        {conv.channel === "whatsapp" && (
-                            <Tooltip
-                                title={
-                                    windowOpen
-                                        ? "24hr window open — free-form replies allowed"
-                                        : "24hr window closed — templates only"
-                                }
-                            >
-                                <Tag
-                                    style={{
-                                        fontSize: 9,
-                                        padding: "0 4px",
-                                        lineHeight: "14px",
-                                        height: 14,
-                                        border: "none",
-                                        background: windowOpen ? "#f6ffed" : "#fff1f0",
-                                        color: windowOpen ? "#52c41a" : "#ff4d4f",
-                                        marginLeft: 2,
-                                    }}
-                                >
-                                    {windowOpen ? "24h ✓" : "24h ✗"}
-                                </Tag>
-                            </Tooltip>
-                        )}
-                        {conv.assigned_to && (
-                            <Tooltip title={`Assigned to ${conv.assigned_to.fullname}`}>
-                                <Avatar
-                                    size={14}
-                                    src={conv.assigned_to.thumbnail}
-                                    icon={<UserOutlined />}
-                                    style={{ fontSize: 8 }}
-                                />
-                            </Tooltip>
-                        )}
-                    </div>
+                            </span>
+                        </Tooltip>
+                    )}
                 </div>
             </div>
         </div>
@@ -299,99 +220,95 @@ const ConversationList: React.FC<Props> = ({
     search,
     statusCounts,
     queueCount,
-    primaryColor,
     isAdmin,
     agents = [],
     selectedAgent,
+    showWindowBadge = false,
     onSelect,
     onSearchChange,
     onStatusChange,
     onPageChange,
     onAgentChange,
 }) => {
-    const screens = Grid.useBreakpoint();
-    const isMobile = !screens.md;
+    const isMobile = !Grid.useBreakpoint().md;
 
     return (
-        <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+        <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "#fff" }}>
+            <style>{`.omni-conv-row:hover { background: #f5f6f6 !important; }`}</style>
 
             {/* ── Search & agent filter ── */}
-            <div style={{ padding: isMobile ? "8px 10px" : "10px 12px", borderBottom: "1px solid #f0f0f0" }}>
-                <div style={{ display: "flex", gap: 8, flexWrap: isMobile ? "wrap" : "nowrap" }}>
-                    <Input
-                        placeholder="Search conversations…"
-                        prefix={<SearchOutlined style={{ color: "#bfbfbf" }} />}
-                        value={search}
-                        onChange={(e) => onSearchChange(e.target.value)}
-                        allowClear
-                        size="middle"
-                        style={{ flex: 1, minWidth: isMobile ? "100%" : undefined }}
+            <div style={{ padding: isMobile ? "8px 10px 6px" : "10px 12px 6px", display: "flex", gap: 8 }}>
+                <Input
+                    placeholder="Search or start a new chat"
+                    prefix={<SearchOutlined style={{ color: "#8696a0" }} />}
+                    value={search}
+                    onChange={(e) => onSearchChange(e.target.value)}
+                    allowClear
+                    variant="filled"
+                    style={{ flex: 1, borderRadius: 8, background: "#f0f2f5" }}
+                />
+                {onAgentChange && (
+                    <Select
+                        value={selectedAgent}
+                        onChange={onAgentChange}
+                        variant="filled"
+                        popupMatchSelectWidth={200}
+                        style={{ width: isMobile ? 120 : 140 }}
+                        options={[
+                            { value: "", label: "All agents" },
+                            { value: "mine", label: "Assigned to me" },
+                            ...agents.map((a) => ({ value: a._id, label: a.fullname })),
+                        ]}
                     />
-                    {onAgentChange && (
-                        <Select
-                            value={selectedAgent}
-                            onChange={onAgentChange}
-                            style={{ minWidth: isMobile ? "100%" : 170, flex: isMobile ? "1 1 100%" : undefined }}
-                            size="middle"
-                            options={[
-                                { value: "", label: "All agents" },
-                                { value: "mine", label: "Assigned to me" },
-                                ...agents.map((a) => ({
-                                    value: a._id,
-                                    label: a.fullname,
-                                })),
-                            ]}
-                        />
-                    )}
-                </div>
+                )}
             </div>
 
-            {/* ── Status tabs ── */}
-            <Tabs
-                activeKey={activeStatus}
-                onChange={(k) => onStatusChange(k as ConversationStatus | "all" | "queue" | "needs_reply")}
-                size="small"
-                style={{ paddingLeft: 8, paddingRight: 8 }}
-                tabBarStyle={{ marginBottom: 0 }}
-                tabBarGutter={isMobile ? 14 : 32}
-                items={STATUS_TABS.filter(
-                    (tab) => isAdmin || tab.key !== "queue"
-                ).map((tab) => {
-                    const count = tab.key === "queue" ? (queueCount || 0) : (statusCounts[tab.key] || 0);
-                    return {
-                        key: tab.key,
-                        label: (
-                            <Space size={4}>
-                                <span style={{ fontSize: isMobile ? 11 : 12 }}>{tab.label}</span>
-                                {tab.key !== "all" && count > 0 && (
-                                    <Badge
-                                        count={count}
-                                        size="small"
-                                        style={{
-                                            fontSize: 9,
-                                            backgroundColor:
-                                                tab.key === "needs_reply"
-                                                    ? "#ff4d4f"
-                                                    : tab.key === "open"
-                                                        ? "#52c41a"
-                                                        : tab.key === "pending" || tab.key === "queue"
-                                                            ? "#faad14"
-                                                            : "#8c8c8c",
-                                        }}
-                                    />
-                                )}
-                            </Space>
-                        ),
-                    };
+            {/* ── Status pills ── */}
+            <HScroll padding="4px 12px 10px" style={{ flexShrink: 0 }}>
+                {STATUS_FILTERS.filter((f) => isAdmin || f.key !== "queue").map((f) => {
+                    const active = activeStatus === f.key;
+                    const count = f.key === "queue" ? queueCount || 0 : statusCounts[f.key] || 0;
+                    return (
+                        <button
+                            key={f.key}
+                            type="button"
+                            onClick={() => onStatusChange(f.key)}
+                            style={{
+                                flexShrink: 0,
+                                border: "none",
+                                cursor: "pointer",
+                                borderRadius: 999,
+                                padding: "4px 12px",
+                                fontSize: 12.5,
+                                fontWeight: active ? 600 : 500,
+                                background: active ? "#d9fdd3" : "#f0f2f5",
+                                color: active ? "#008069" : "#54656f",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 6,
+                            }}
+                        >
+                            {f.label}
+                            {f.key !== "all" && count > 0 && (
+                                <span
+                                    style={{
+                                        fontSize: 10.5,
+                                        fontWeight: 700,
+                                        color: active ? "#008069" : f.tone,
+                                    }}
+                                >
+                                    {count}
+                                </span>
+                            )}
+                        </button>
+                    );
                 })}
-            />
+            </HScroll>
 
             {/* ── List ── */}
-            <div style={{ flex: 1, overflowY: "auto" }}>
+            <div style={{ flex: 1, overflowY: "auto", borderTop: "1px solid #f0f2f5" }}>
                 {loading ? (
-                    <div
-                        style={{ display: "flex", justifyContent: "center", padding: 40 }}
-                    >
+                    <div style={{ display: "flex", justifyContent: "center", padding: 40 }}>
                         <Spin />
                     </div>
                 ) : conversations.length === 0 ? (
@@ -399,10 +316,14 @@ const ConversationList: React.FC<Props> = ({
                         image={Empty.PRESENTED_IMAGE_SIMPLE}
                         description={
                             <Text type="secondary" style={{ fontSize: 13 }}>
-                                {search ? "No conversations match your search" : "No conversations yet"}
+                                {search
+                                    ? "No chats match your search"
+                                    : activeStatus === "needs_reply"
+                                        ? "You're all caught up 🎉"
+                                        : "No conversations here yet"}
                             </Text>
                         }
-                        style={{ marginTop: 40 }}
+                        style={{ marginTop: 48 }}
                     />
                 ) : (
                     conversations.map((conv) => (
@@ -411,7 +332,7 @@ const ConversationList: React.FC<Props> = ({
                             conv={conv}
                             selected={selectedId === conv._id}
                             onClick={() => onSelect(conv)}
-                            isMobile={isMobile}
+                            showWindowBadge={showWindowBadge}
                         />
                     ))
                 )}
@@ -421,49 +342,17 @@ const ConversationList: React.FC<Props> = ({
             {total > pageSize && (
                 <div
                     style={{
-                        padding: "8px 12px",
-                        borderTop: "1px solid #f0f0f0",
+                        padding: "6px 12px",
+                        borderTop: "1px solid #f0f2f5",
                         display: "flex",
                         justifyContent: "space-between",
                         alignItems: "center",
                     }}
                 >
-                    <Text type="secondary" style={{ fontSize: 11 }}>
-                        {(page - 1) * pageSize + 1}–
-                        {Math.min(page * pageSize, total)} of {total}
+                    <Text style={{ fontSize: 11, color: "#667781" }}>
+                        {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} of {total}
                     </Text>
-                    <Space size={4}>
-                        <button
-                            onClick={() => onPageChange(page - 1)}
-                            disabled={page === 1}
-                            style={{
-                                border: "1px solid #d9d9d9",
-                                background: page === 1 ? "#f5f5f5" : "#fff",
-                                cursor: page === 1 ? "not-allowed" : "pointer",
-                                borderRadius: 4,
-                                padding: "2px 8px",
-                                fontSize: 12,
-                                color: page === 1 ? "#bfbfbf" : "#262626",
-                            }}
-                        >
-                            ‹
-                        </button>
-                        <button
-                            onClick={() => onPageChange(page + 1)}
-                            disabled={page * pageSize >= total}
-                            style={{
-                                border: "1px solid #d9d9d9",
-                                background: page * pageSize >= total ? "#f5f5f5" : "#fff",
-                                cursor: page * pageSize >= total ? "not-allowed" : "pointer",
-                                borderRadius: 4,
-                                padding: "2px 8px",
-                                fontSize: 12,
-                                color: page * pageSize >= total ? "#bfbfbf" : "#262626",
-                            }}
-                        >
-                            ›
-                        </button>
-                    </Space>
+                    <Pagination simple size="small" current={page} pageSize={pageSize} total={total} onChange={onPageChange} />
                 </div>
             )}
         </div>

@@ -9,6 +9,9 @@ interface DateDetails {
   startDate: string;
   endDate: string;
   shop_id?: string;
+  servedBy?: string;
+  createdBy?: string;
+  locationId?: string;
 }
 
 export const generateSalesReport = createAsyncThunk(
@@ -45,6 +48,10 @@ export const generateInventoryUsageReport = createAsyncThunk(
             startDate: dated.startDate,
             endDate: dated.endDate,
             print: true,
+            shop_id: dated.shop_id,
+            // Zone/table-location filter — matches usage records whose
+            // variant belongs to this zone (see zone-based inventory).
+            locationId: dated.locationId,
           },
         }
       );
@@ -92,13 +99,16 @@ export const generatePurchaseReport = createAsyncThunk(
             startDate: dated.startDate,
             endDate: dated.endDate,
             print: true,
+            shop_id: dated.shop_id,
+            createdBy: dated.createdBy,
+            locationId: dated.locationId,
           },
         }
       );
-      message.success("Purchase report generated successfully");
+      message.success("Sales report generated successfully");
       return response.data;
     } catch (error: any) {
-      message.error("Failed to generate purchase report");
+      message.error("Failed to generate sales report");
       return rejectWithValue(error.response.data.error || error.toString());
     }
   }

@@ -8,6 +8,9 @@ import ManualInvoiceModal from "./Invoices/ManualInvoiceModal";
 import { getPermissionChecker } from "@utils/getPermissionChecker";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { THEME_C } from "@utils/getPrimaryColor";
+import { getStoredShopId, useMarketplace } from "@pages/OmniChannel/shared/ui";
+import { useTenantModules } from "@hooks/useTenantModules";
+import { useIsCompact } from "@hooks/useIsCompact";
 
 const { Text } = Typography;
 
@@ -89,18 +92,6 @@ const LockedTab = ({ label }: { label: string }) => (
   </div>
 );
 
-const getModules = () => {
-  try {
-    const tenant = JSON.parse(localStorage.getItem("tenant") || "{}");
-    return {
-      hasPOS: tenant?.pos_integration?.enabled === true,
-      hasAccounting: tenant?.modules?.accounting === true,
-    };
-  } catch {
-    return { hasPOS: false, hasAccounting: false };
-  }
-};
-
 const AccountingInvoicesTab: React.FC = () => (
   <div>
     <InvoiceTable />
@@ -109,7 +100,14 @@ const AccountingInvoicesTab: React.FC = () => (
 
 function MainOrders() {
   const primaryColor = usePrimaryColor();
-  const { hasPOS, hasAccounting } = getModules();
+  const isCompact = useIsCompact();
+  const { hasPOS: hasDuka, hasAccounting } = useTenantModules();
+
+  // Chat orders from the WhatsApp Marketplace are real orders, so a Mteja
+  // shop selling in chat gets the Orders tabs even without Duka (POS).
+  const shopId = getStoredShopId();
+  const { enabled: sellsInChat } = useMarketplace(shopId);
+  const hasPOS = hasDuka || sellsInChat;
 
   // Admin users get can() === true for every key via makePermissionChecker
   const can = useMemo(() => getPermissionChecker(), []);
@@ -118,7 +116,7 @@ function MainOrders() {
     () =>
       TAB_CFG
         .filter((t) => {
-          // Orders list and Order Analysis are Duka (POS) features only.
+          // Orders list and Order Analysis need Duka (POS) or chat selling.
           if (t.key === "orders" || t.key === "done") return hasPOS;
           return true;
         })
@@ -134,7 +132,11 @@ function MainOrders() {
     return "orders";
   };
 
-  const [activeTab, setActiveTab] = useState(getDefaultTab);
+  // The shop settings load after first paint, so the default tab is derived
+  // until the user picks one — otherwise Orders would never become the default.
+  const [pickedTab, setActiveTab] = useState<string | null>(null);
+  const activeTab =
+    pickedTab && visibleTabs.some((t) => t.key === pickedTab) ? pickedTab : getDefaultTab();
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
 
   const activeTabCfg = visibleTabs.find((t) => t.key === activeTab);
@@ -161,7 +163,7 @@ function MainOrders() {
         <div style={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
           flexWrap: "wrap", gap: 10,
-          padding: "14px 18px", background: C.bg, borderBottom: `1px solid ${C.border}`,
+          padding: isCompact ? "12px" : "14px 18px", background: C.bg, borderBottom: `1px solid ${C.border}`,
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{
@@ -175,7 +177,7 @@ function MainOrders() {
           <TabNav tabs={visibleTabs} active={activeTab} onChange={setActiveTab} primaryColor={primaryColor} />
         </div>
 
-        <div style={{ padding: "16px 18px" }}>
+        <div style={{ padding: isCompact ? "10px" : "16px 18px" }}>
           {renderTab()}
         </div>
       </div>

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
     Alert,
     Button,
@@ -11,6 +12,7 @@ import {
     Row,
     Space,
     Switch,
+    Tabs,
     Typography,
     notification,
 } from "antd";
@@ -40,6 +42,9 @@ import {
     DollarOutlined,
     ToolOutlined,
     SignatureOutlined,
+    BulbOutlined,
+    AppstoreOutlined,
+    LaptopOutlined,
 } from "@ant-design/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -62,6 +67,9 @@ import {
 } from "@services/tenants";
 import pesapalApi from "@services/pesapalApi";
 import { THEME_C } from "@utils/getPrimaryColor";
+import { isTenantModuleEnabled, TenantModuleId } from "@utils/tenantModules";
+import ImagineWithout from "./ImagineWithout";
+import AccessChannels from "./AccessChannels";
 
 const { Text, Title } = Typography;
 
@@ -113,14 +121,50 @@ const INTEGRATIONS = [
         name: "Duka by Base",
         category: "Point of Sale",
         description: "Smart POS for seamless sales, inventory, and customer management.",
-        longDescription: "Duka by Base enables businesses to manage sales, handle shift operations, send notifications, and sync data in real-time with Base Pesa and other Base Suite products.",
-        features: ["Sales", "Shift Management", "Notifications", "Inventory Management", "Customer Profiles", "Multi-branch Support", "Reports Dashboard"],
-        benefits: ["Faster checkouts", "Accurate stock levels", "Better customer experience", "Centralized reporting"],
+        longDescription: "Duka by Base runs your sales floor. Manage sales, shifts, tables and stock, sell by branch or by zone, run restaurant, hotel and retail layouts, print to the right station, and sync data in real time with Pesa by Base and the rest of the Base Suite. With the Forms & Plans add-on, upload your paper consultation and consent forms (PDF, Word or a photo) — AI turns them into digital forms you approve — then customers fill and e-sign them on a tablet or from a link, with the signed PDF kept on their profile and treatment or service plans to follow up.",
+        features: [
+            "Sales",
+            "Shift Management",
+            "Notifications",
+            "Inventory Management",
+            "Customer Profiles",
+            "Multi-branch Support",
+            "Reports Dashboard",
+            "Waiter Table Tools & Hide-Served Tables",
+            "Universal Search Across Orders and Items",
+            "All-Items Order View",
+            "Zone-Based Stock by Table Location",
+            "Out-of-Stock Sale Guard",
+            "Recipe & Formula Templates with Excel Import",
+            "Hotel Rooms View with Occupancy by Floor",
+            "Location-Based Print Agents & Agent Reports",
+            "Secondary Database Backup Sync",
+            "Quick Date Ranges on Every Report",
+            "Client Forms: Upload Paper Forms, AI Builds the Digital Version",
+            "Form Approval Workflow & Versions",
+            "Customers E-Sign on a Tablet or by Link (WhatsApp / SMS)",
+            "Saved Signatures for Returning Customers",
+            "Signed PDFs Stored Privately on the Customer Profile",
+            "Medical Alerts from Customer Answers",
+            "Client Plans: Sessions with Dates, Notes & Sign-off",
+            "Plan Templates Suggested from Signed Forms",
+        ],
+        benefits: [
+            "Faster checkouts",
+            "Accurate stock levels",
+            "Better customer experience",
+            "Centralized reporting",
+            "Fewer stock-outs and oversells",
+            "Rooms and tables that show real occupancy",
+            "Receipts and tickets print at the right station",
+            "No more paper consent forms to file or lose",
+            "Every customer's signed forms and plans in one place",
+        ],
         setupTime: "2 minutes",
         status: "available",
         icon: CreditCardOutlined,
         color: C.blue,
-        tags: ["Base Suite", "Popular", "POS"],
+        tags: ["Base Suite", "Popular", "POS", "Forms & Plans"],
     },
     {
         id: "relia_accounting",
@@ -128,8 +172,27 @@ const INTEGRATIONS = [
         category: "Accounting & Finance",
         description: "Complete accounting solution auto-integrated with your POS.",
         longDescription: "Comprehensive accounting for Duka by Base. Auto-sync sales, track expenses, and generate professional financial reports.",
-        features: ["Auto POS Sync", "Chart of Accounts", "Double-Entry Bookkeeping", "Financial Reports", "Bank Reconciliation", "Multi-user Access"],
-        benefits: ["Eliminate manual entry", "Real-time visibility", "Professional statements", "Better cash flow", "Tax-ready reports"],
+        features: [
+            "Auto POS Sync",
+            "Chart of Accounts",
+            "Double-Entry Bookkeeping",
+            "Financial Reports",
+            "Bank Reconciliation",
+            "Multi-user Access",
+            "Bank Statement Reconciliation (Branch-Aware)",
+            "Duplicate Journal Entry Detection",
+            "Bank Imports Refresh",
+            "Statement Comparison Reports",
+            "Quick Date Ranges (Today, Yesterday, Week & More)",
+        ],
+        benefits: [
+            "Eliminate manual entry",
+            "Real-time visibility",
+            "Professional statements",
+            "Better cash flow",
+            "Tax-ready reports",
+            "Catch double-posted entries before they reach your books",
+        ],
         setupTime: "2 minutes",
         status: "available",
         icon: CalculatorOutlined,
@@ -141,7 +204,7 @@ const INTEGRATIONS = [
         name: "Bandu HR by Base",
         category: "Human Resource & Payroll",
         description: "Comprehensive HR management with employees & consultants, biometric attendance, preview-editable payroll, payslips, P9 forms, and statutory compliance.",
-        longDescription: "Bandu HR by Base is a complete human resource management system. Manage employee profiles and documents, handle leave applications and approvals, and clock attendance manually or via biometric terminals (ZKTeco, Suprema, Anviz, Hikvision). Generate payroll with a fully editable preview — adjust salaries, allowances, overtime, and custom deductions like loans with end dates — then let statutory deductions (SHA, NSSF, PAYE, Housing Levy) compute automatically, including employee/employer splits. Consultants are handled with withholding tax, foreign-currency salaries convert to KES automatically, and approval workflows cover reject, return-to-draft, and supplementary runs for late-joining staff. Produce official P9 tax forms and payslips in PDF or Excel with privacy controls, and post everything to Pesa by Base accounting.",
+        longDescription: "Bandu HR by Base is a complete human resource management system. Manage employee profiles and documents, handle leave applications and approvals, and clock attendance manually or via biometric terminals (ZKTeco, Suprema, Anviz, Hikvision). Generate payroll with a fully editable preview — adjust salaries, allowances, overtime, and custom deductions like loans with end dates — then let statutory deductions (SHA, NSSF, PAYE, Housing Levy) compute automatically, including employee/employer splits. Consultants are handled with withholding tax, foreign-currency salaries convert to KES automatically, and approval workflows cover reject, return-to-draft, and supplementary runs for late-joining staff. Produce official P9 tax forms and payslips in PDF or Excel with privacy controls, and post everything to Pesa by Base accounting. With the Forms & Plans add-on, onboarding forms, policy acknowledgements, NDAs and incident reports go digital: the employee fills and e-signs them, HR countersigns, and the signed PDF lands on the employee's file — while onboarding and training plans track each step with dates, notes and sign-off.",
         features: [
             "Employee Management & Documents (Employee & Consultant types)",
             "Draft-Saving Employee Onboarding Form",
@@ -162,6 +225,18 @@ const INTEGRATIONS = [
             "Configurable Deduction Rates, Caps & First-Month Proration",
             "HR Reports & Analytics",
             "Integration with Pesa by Base Accounting",
+            "PWD Certificates, Pension & Insurance",
+            "KRA PAYE Filing Format & P10 Export",
+            "HELB Deductions & Residential Status Tax Rules",
+            "Flat-Rate PAYE for Secondary Employees",
+            "Role-Based HR Access",
+            "Employee Forms: Onboarding, Policy Acknowledgements, NDAs & Incident Reports",
+            "Upload Paper HR Forms — AI Builds the Digital Version",
+            "Employee E-Signs, HR Countersigns, Signed PDF on the Employee File",
+            "Forms Prefilled with ID Number, Job Title & Start Date",
+            "Flagged Answers for HR Follow-up",
+            "Onboarding & Training Plans: Steps with Dates, Notes & Sign-off",
+            "Reusable Onboarding & Training Plan Templates",
         ],
         benefits: [
             "Complete employee lifecycle management",
@@ -174,38 +249,53 @@ const INTEGRATIONS = [
             "Integrated accounting posting",
             "Reduced manual HR work",
             "Data-driven HR decisions",
+            "Paperless onboarding with signed, searchable records",
+            "Every new hire follows the same onboarding steps",
         ],
         setupTime: "5 minutes",
         status: "available",
         icon: FileProtectOutlined,
         color: C.orange,
-        tags: ["Base Suite", "HR", "Payroll", "Leave", "Compliance"],
+        tags: ["Base Suite", "HR", "Payroll", "Leave", "Compliance", "Forms & Plans"],
     },
     {
         id: "mteja",
         name: "Mteja by Base",
         category: "Customer Engagement",
-        description: "WhatsApp Web integration for your business — manage conversations, convert chats to customers and leads, and track engagement in one inbox.",
-        longDescription: "Mteja by Base lets you chat with customers through WhatsApp Web, convert conversations into customers or leads, and view customer engagement stats directly from the omnichannel inbox.",
+        description: "Sell, book and support through WhatsApp. Guided chats take a customer from browsing to payment, gift cards and appointments, with SMS, email, scripts and analytics in one inbox.",
+        longDescription: "Mteja by Base turns WhatsApp into a sales channel. Switch on the WhatsApp Marketplace for a shop and the assistant guides each customer in plain, friendly language: browse products and services, buy a gift card, book an appointment, choose collection or delivery, and pay by M-Pesa. Agents see everything in one inbox, can build and send an order from the Sell in chat drawer, and get AI insights on demand. Stock, Orders and an Inventory Usage report sit inside Mteja for businesses that do not use Duka.",
         features: [
-            "WhatsApp Web Conversations Inbox",
-            "Convert Chats to Customers",
-            "Convert Chats to Leads",
-            "Customer/Lead Linking",
-            "Order & Payment Alerts",
-            "Customer Engagement Dashboard",
-            "Conversation Stats",
+            "WhatsApp Conversations Inbox (WhatsApp Web and Cloud API)",
+            "Guided Selling in Chat: Browse, Pick, Pay and Confirm",
+            "Gift Card Purchase Flow",
+            "Appointment Booking with Time Slots in Chat",
+            "Collect or Delivery Choice",
+            "Multi-Shop Pickup with Next-Shop Stock Suggestions",
+            "M-Pesa Payment Check from the Customer's Confirmation SMS",
+            "Product Photos Shared on Request",
+            "Sell in Chat: Agents Send Ready-to-Pay Orders",
+            "Stock and Orders Inside Mteja (no Duka needed)",
+            "Inventory Usage Report",
+            "AI Insights in a Side Drawer",
+            "SMS and Email Campaigns with Senders and Analytics",
+            "Reply Scripts and Automated Welcome Message",
+            "Auto-Reply and Round-Robin Agent Assignment",
+            "Marketplace Analytics and Agent Performance",
+            "Convert Chats to Customers or Leads",
+            "Leads, Quotes, Activity Calendar, Sales Targets and Budgets",
         ],
         comingSoonFeatures: [
-            "AI Auto-Reply & Chatbot Builder",
+            "Automatic Order Status Messages",
+            "Abandoned Order Reminders",
             "Loyalty Points & Rewards",
-            "Automated WhatsApp Campaigns",
         ],
         benefits: [
-            "Chat with customers in real-time",
-            "Turn conversations into sales",
-            "Track unconverted and resolved chats",
-            "Keep customer context in one place",
+            "Customers can order, pay and book without leaving the chat",
+            "Replies sound human, not scripted",
+            "Fewer repetitive questions for your team",
+            "Pickup from the shop that actually has stock",
+            "One inbox for WhatsApp, SMS and email",
+            "Track what each campaign and agent delivers",
         ],
         setupTime: "5 minutes",
         status: "available",
@@ -329,7 +419,15 @@ const INTEGRATIONS = [
         category: "AI Business Assistant",
         description: "Your subscription-aware AI assistant across Duka, Mteja, Pesa, Bandu, and Dala.",
         longDescription: "Biashara AI is the intelligence layer of Basepoint Cloud. Ask plain-English questions and get answers based only on the modules you subscribe to — sales insights, customer behaviour, financial analysis, HR metrics, property performance, and cross-module intelligence.",
-        features: ["Natural Language Queries", "Cross-Module Insights", "Sales & Inventory Intelligence", "Customer & CRM Analysis", "Financial Analysis", "HR & Property Assistant"],
+        features: [
+            "Natural Language Queries",
+            "Cross-Module Insights",
+            "Sales & Inventory Intelligence",
+            "Customer & CRM Analysis",
+            "Financial Analysis",
+            "HR & Property Assistant",
+            "Business Health Score Diagnostic",
+        ],
         benefits: ["One AI for every Basepoint module", "Safer, subscription-aware answers", "Spot trends across the business", "Ask without knowing which module has the data"],
         setupTime: "N/A",
         status: "available",
@@ -626,7 +724,13 @@ const LearnMoreModal: React.FC<{
 };
 
 // ── Main page ──────────────────────────────────────────────────────────────────
+type DiscoverTab = "imagine" | "products" | "access";
+
 const DiscoverPage: React.FC = () => {
+    // ?tab=imagine | products keeps the tab across reloads and shared links
+    const [params, setParams] = useSearchParams();
+    const tabParam = params.get("tab");
+    const tab: DiscoverTab = tabParam === "imagine" || tabParam === "access" ? tabParam : "products";
     const [selectedIntegration, setSelectedIntegration] = useState<(typeof INTEGRATIONS)[0] | null>(null);
     const [learnMoreOpen, setLearnMoreOpen] = useState(false);
     const [pesapalModalOpen, setPesapalModalOpen] = useState(false);
@@ -672,13 +776,9 @@ const DiscoverPage: React.FC = () => {
     const getStatus = (id: string): "enabled" | "not_enabled" => {
         if (!tenantDetails?.data) return "not_enabled";
         const t = tenantDetails.data;
-        if (id === "relia_pos") return t.pos_integration?.enabled === true ? "enabled" : "not_enabled";
-        if (id === "relia_accounting") return t.modules?.accounting === true ? "enabled" : "not_enabled";
-        if (id === "relia_payroll") return t.modules?.bandu_hr === true || t.modules?.payroll === true ? "enabled" : "not_enabled";
-        if (id === "mteja") return t.modules?.crm === true ? "enabled" : "not_enabled";
-        if (id === "dala") return t.modules?.dala === true ? "enabled" : "not_enabled";
+        if (["relia_pos", "relia_accounting", "relia_payroll", "mteja", "dala", "etims"].includes(id))
+            return isTenantModuleEnabled(t, id as TenantModuleId) ? "enabled" : "not_enabled";
         if (id === "asset_manager") return "enabled"; // Auto-enabled
-        if (id === "etims") return t.etims_config?.enabled === true ? "enabled" : "not_enabled";
         if (id === "pesapal") return t.use_pesapal === true || pesapalConfig?.data?.enabled === true ? "enabled" : "not_enabled";
         if (id === "esign") return "enabled"; // Auto-enabled for all users
         if (id === "business_intelligence") return "enabled"; // Biashara AI is enabled by default
@@ -941,7 +1041,35 @@ const DiscoverPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Cards */}
+            <Tabs
+                activeKey={tab}
+                onChange={(key) => setParams({ tab: key }, { replace: true })}
+                items={[
+                    { key: "products", label: <span><AppstoreOutlined /> Our products</span> },
+                    { key: "imagine", label: <span><BulbOutlined /> Imagine</span> },
+                    { key: "access", label: <span><LaptopOutlined /> Access Basepoint</span> },
+                ]}
+                style={{ marginBottom: 4 }}
+            />
+
+            {/* Imagine without Basepoint */}
+            {tab === "imagine" && (
+            <ImagineWithout
+                onLearnMore={(id) => {
+                    const integration = INTEGRATIONS.find((i) => i.id === id);
+                    if (integration) {
+                        setSelectedIntegration(integration);
+                        setLearnMoreOpen(true);
+                    }
+                }}
+            />
+            )}
+
+            {/* Ways to access Basepoint */}
+            {tab === "access" && <AccessChannels />}
+
+            {/* Our products */}
+            {tab === "products" && (
             <Row gutter={[16, 16]}>
                 {INTEGRATIONS.map((integration) => {
                     const isEnabled = getStatus(integration.id) === "enabled";
@@ -976,6 +1104,7 @@ const DiscoverPage: React.FC = () => {
                     );
                 })}
             </Row>
+            )}
 
             {/* Learn More */}
             <LearnMoreModal integration={selectedIntegration} open={learnMoreOpen}

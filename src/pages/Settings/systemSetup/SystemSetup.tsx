@@ -13,6 +13,9 @@ import {
   RightOutlined,
   GlobalOutlined,
   ScanOutlined,
+  CloudSyncOutlined,
+  WhatsAppOutlined,
+  FormOutlined,
 } from "@ant-design/icons";
 import { Typography, Grid, Tabs } from "antd";
 import { useQuery } from "@tanstack/react-query";
@@ -29,11 +32,15 @@ import HotelSettings from "./HotelSettings";
 import TransactionLocking from "./TransactionLocking";
 import PayrollSettings from "./PayrollSettings";
 import AccessSettings from "./AccessSettings";
+import DataSyncSettings from "./DataSyncSettings";
+import FormsSettings from "./FormsSettings";
 import ChartOfAccountsSettings from "./ChartOfAccountsSettings";
 import CurrencyPage from "@pages/Currency/CurrencyPage";
+import WhatsAppIntegrationSettings from "./WhatsAppIntegrationSettings";
 import { fetchShop } from "@services/shops";
 import { THEME_C } from "@utils/getPrimaryColor";
 import { makePermissionChecker } from "@utils/accessControl";
+import { useTenantModules } from "@hooks/useTenantModules";
 import { useAppSelector } from "src/store";
 
 const { Text, Title } = Typography;
@@ -96,6 +103,8 @@ const SystemSetup: React.FC = () => {
   );
   // Bandu HR module — shown unless explicitly disabled
   const hasBandu = tenant?.modules?.bandu_hr !== false;
+  // WhatsApp integrations (incl. chat marketplace) require the Mteja module
+  const { hasMteja } = useTenantModules();
 
   const { user } = useAppSelector((state) => state.auth);
   const rolePermissions: string[] =
@@ -179,6 +188,20 @@ const SystemSetup: React.FC = () => {
       );
     }
 
+    // Client forms need customers (POS); employee forms need Bandu HR
+    if (hasPOS || hasBandu) {
+      list.push({
+        key: "forms-plans",
+        label: "Forms & Plans",
+        description: "Forms, e-sign & plans for clients and employees",
+        icon: <FormOutlined />,
+        color: "#8b5cf6",
+        bg: "#f5f3ff",
+        group: "Add-ons",
+        render: () => <FormsSettings hasClients={hasPOS} hasEmployees={hasBandu} />,
+      });
+    }
+
     list.push(
       {
         key: "profile",
@@ -199,6 +222,16 @@ const SystemSetup: React.FC = () => {
         bg: "#fffbeb",
         group: "General",
         render: () => <NotificationSettings />,
+      },
+      {
+        key: "data-sync",
+        label: "Data Sync",
+        description: "Secondary database backup & schedule",
+        icon: <CloudSyncOutlined />,
+        color: "#0ea5e9",
+        bg: "#f0f9ff",
+        group: "General",
+        render: () => <DataSyncSettings />,
       },
     );
 
@@ -265,6 +298,19 @@ const SystemSetup: React.FC = () => {
       });
     }
 
+    if (hasMteja) {
+      list.push({
+        key: "integrations-whatsapp",
+        label: "WhatsApp",
+        description: "Chat marketplace & sender registration",
+        icon: <WhatsAppOutlined />,
+        color: "#25D366",
+        bg: "#f0fdf4",
+        group: "Integrations",
+        render: () => <WhatsAppIntegrationSettings />,
+      });
+    }
+
     if (isHotelMode) {
       list.push({
         key: "hotel-settings",
@@ -279,7 +325,7 @@ const SystemSetup: React.FC = () => {
     }
 
     return list;
-  }, [hasPOS, hasAccounting, isHotelMode, canSeeCurrencies]);
+  }, [hasPOS, hasBandu, hasAccounting, isHotelMode, canSeeCurrencies, hasMteja]);
 
   const activeSection =
     sections.find((s) => s.key === activeTab) ?? sections[0];

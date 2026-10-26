@@ -19,6 +19,8 @@ import { useReactToPrint } from "react-to-print";
 import dayjs from "dayjs";
 import { useAppSelector } from "../../store";
 import useSystemDetails from "@hooks/useSystemDetails";
+import { useThermalAgentPrint } from "@hooks/useThermalAgentPrint";
+import ThermalPrintControls from "./ThermalPrintControls";
 import { COOP_NAME } from "@utils/config";
 import { sendPurchaseReportEmail, refToHtmlString } from "@services/emailReports";
 
@@ -102,7 +104,7 @@ const ThermalReceipt = forwardRef<HTMLDivElement, ReportProps>(({
           {brandName && brandName !== "undefined undefined" && (
             <div style={{ fontSize: 14, fontWeight: 800, letterSpacing: "0.5px", marginBottom: 1 }}>{brandName}</div>
           )}
-          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "2px", marginBottom: 4 }}>PURCHASE REPORT</div>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "2px", marginBottom: 4 }}>SALES REPORT</div>
           {divider()}
           <div style={{ fontSize: 9.5, color: "#444", lineHeight: 1.7 }}>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -221,7 +223,7 @@ const A4Report = forwardRef<HTMLDivElement, ReportProps>(({
                 <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 2, letterSpacing: "-0.3px" }}>{brandName}</div>
               )}
               <div style={{ fontSize: 11, fontWeight: 600, opacity: 0.8, letterSpacing: "1.5px", textTransform: "uppercase" }}>
-                Purchase Report
+                Sales Report
               </div>
             </div>
             <div style={{ textAlign: "right", fontSize: 11, opacity: 0.88, lineHeight: 1.7, flexShrink: 0 }}>
@@ -389,7 +391,7 @@ const SendEmailModal: React.FC<{
           <Input prefix={<PlusOutlined style={{ color: C.subText }} />} placeholder="cfo@company.com, accounts@company.com" />
         </Form.Item>
         <Form.Item name="intro" label="Personal Message (optional)">
-          <Input.TextArea rows={3} placeholder="Please find the purchase report for the selected period." />
+          <Input.TextArea rows={3} placeholder="Please find the sales report for the selected period." />
         </Form.Item>
       </Form>
     </Modal>
@@ -454,9 +456,9 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({ openM, onCloseM, s
     tableData, totalCost, totalDiscount, totalInclusiveDiscount,
   };
 
-  const printThermal = useReactToPrint({ content: () => thermalRef.current });
   const printA4 = useReactToPrint({ content: () => a4Ref.current });
-  const handlePrint = () => printMode === "thermal" ? printThermal() : printA4();
+  const thermal = useThermalAgentPrint(thermalRef);
+  const handlePrint = () => printMode === "thermal" ? void thermal.print() : printA4();
 
   const handleSendEmail = async (values: SendEmailValues) => {
     setSending(true);
@@ -499,7 +501,7 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({ openM, onCloseM, s
               <div style={{ background: C.primaryLight, borderRadius: 7, padding: "4px 6px", color: C.primary, fontSize: 14, lineHeight: 1 }}>
                 <FileTextOutlined />
               </div>
-              <Text strong style={{ fontSize: 14, color: C.darkText }}>Purchase Report</Text>
+              <Text strong style={{ fontSize: 14, color: C.darkText }}>Sales Report</Text>
             </div>
             <Segmented
               value={printMode}
@@ -513,33 +515,48 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({ openM, onCloseM, s
           </div>
         }
         footer={
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Button
-              icon={<MailOutlined />}
-              disabled={loading || !hasData}
-              onClick={() => setEmailModalOpen(true)}
-              style={{ borderColor: C.primary, color: C.primary }}
-            >
-              Send via Email
-            </Button>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+            <Space wrap>
+              <Button
+                icon={<MailOutlined />}
+                disabled={loading || !hasData}
+                onClick={() => setEmailModalOpen(true)}
+                style={{ borderColor: C.primary, color: C.primary }}
+              >
+                Send via Email
+              </Button>
+              {printMode === "thermal" && (
+                <ThermalPrintControls
+                  target={thermal.target}
+                  onTargetChange={thermal.setTarget}
+                  zones={thermal.zoneOptions}
+                  zoneKey={thermal.zoneKey}
+                  onZoneChange={thermal.setZoneKey}
+                  loading={thermal.agentsLoading}
+                />
+              )}
+            </Space>
             <Space>
               <Button onClick={onCloseM} style={{ borderRadius: 8 }}>Cancel</Button>
               <Button
                 type="primary"
                 icon={<PrinterFilled />}
                 disabled={loading || !hasData}
+                loading={thermal.printing}
                 onClick={handlePrint}
                 style={{ background: C.primary, borderColor: C.primary, borderRadius: 8, fontWeight: 600 }}
               >
-                {printMode === "thermal" ? "Print Thermal" : "Print A4"}
+                {printMode === "thermal"
+                  ? thermal.target === "agent" ? "Send to Printer" : "Print Thermal"
+                  : "Print A4"}
               </Button>
             </Space>
           </div>
         }
       >
-        <Spin spinning={loading} tip="Generating purchase report…" style={{ display: "block", width: "100%" }}>
+        <Spin spinning={loading} tip="Generating sales report…" style={{ display: "block", width: "100%" }}>
           {!hasData && !loading ? (
-            <Empty description="No purchase data found for the selected period" style={{ padding: "40px 0" }} />
+            <Empty description="No sales data found for the selected period" style={{ padding: "40px 0" }} />
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
 

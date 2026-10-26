@@ -92,7 +92,12 @@ const initialState: CartState = {
 // item.quantity = number of units ordered
 // line total    = item.price * item.quantity   ← computed here, never stored
 // ─────────────────────────────────────────────────────────────────────────────
-const calculateTotals = (state: CartState) => {
+// Totals for any set of cart lines (e.g. only the items already sent) —
+// the same rules the store uses for the whole cart.
+export const computeCartTotals = (
+  items: Array<Pick<CartItem, "price" | "quantity" | "vat_type">>,
+  cartDetails: Pick<CartDetails, "discount" | "discount_type" | "tip_amount" | "tip_type">
+) => {
   const storedTenant = localStorage.getItem("tenant");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
 
@@ -104,7 +109,7 @@ const calculateTotals = (state: CartState) => {
   let totalVatAmount = 0;
   let grossTotal = 0;
 
-  state.cartItems.forEach((item) => {
+  items.forEach((item) => {
     // item.price is the UNIT price — multiply by quantity to get line total
     const unitPrice = typeof item.price === "string" ? parseFloat(item.price) : (item.price || 0);
     const quantity = typeof item.quantity === "string" ? parseFloat(item.quantity) : (item.quantity || 1);
@@ -138,12 +143,12 @@ const calculateTotals = (state: CartState) => {
 
   // ── Discount ──────────────────────────────────────────────────────────────
   let discountAmount = 0;
-  if (state.cartDetails.discount && state.cartDetails.discount > 0) {
+  if (cartDetails.discount && cartDetails.discount > 0) {
     const discountBase = VAT_MODE === "INCLUSIVE" ? grossTotal : subtotal;
     discountAmount =
-      state.cartDetails.discount_type === "percentage"
-        ? discountBase * (state.cartDetails.discount / 100)
-        : state.cartDetails.discount;
+      cartDetails.discount_type === "percentage"
+        ? discountBase * (cartDetails.discount / 100)
+        : cartDetails.discount;
     discountAmount = Math.min(discountAmount, discountBase);
   }
 
@@ -161,19 +166,26 @@ const calculateTotals = (state: CartState) => {
   }
 
   // ── Tip applied on grandTotal after discount ──────────────────────────────
-  if (state.cartDetails.tip_amount && state.cartDetails.tip_amount > 0) {
+  if (cartDetails.tip_amount && cartDetails.tip_amount > 0) {
     const tipAmount =
-      state.cartDetails.tip_type === "percentage"
-        ? grandTotal * (state.cartDetails.tip_amount / 100)
-        : state.cartDetails.tip_amount;
+      cartDetails.tip_type === "percentage"
+        ? grandTotal * (cartDetails.tip_amount / 100)
+        : cartDetails.tip_amount;
     grandTotal += tipAmount;
   }
 
-  state.subtotal = parseFloat(
-    (VAT_MODE === "INCLUSIVE" ? grossTotal : subtotal).toFixed(2)
-  );
-  state.totalVatAmount = parseFloat(displayVat.toFixed(2));
-  state.grandTotal = parseFloat(grandTotal.toFixed(2));
+  return {
+    subtotal: parseFloat((VAT_MODE === "INCLUSIVE" ? grossTotal : subtotal).toFixed(2)),
+    totalVatAmount: parseFloat(displayVat.toFixed(2)),
+    grandTotal: parseFloat(grandTotal.toFixed(2)),
+  };
+};
+
+const calculateTotals = (state: CartState) => {
+  const totals = computeCartTotals(state.cartItems, state.cartDetails);
+  state.subtotal = totals.subtotal;
+  state.totalVatAmount = totals.totalVatAmount;
+  state.grandTotal = totals.grandTotal;
 };
 
 const cartSlice = createSlice({

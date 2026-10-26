@@ -22,6 +22,8 @@ import dayjs from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
 import useSystemDetails from "@hooks/useSystemDetails";
 import { COOP_NAME } from "@utils/config";
+import { useThermalAgentPrint } from "@hooks/useThermalAgentPrint";
+import ThermalPrintControls from "@components/Reports/ThermalPrintControls";
 // ↓ Only two imports needed now — sendSalesReportEmail builds the full payload
 import { sendSalesReportEmail, refToHtmlString } from "@services/emailReports";
 import "@components/MODALS/bill.css";
@@ -263,7 +265,7 @@ const A4PeriodTotals: React.FC<{ period: PeriodGroup }> = ({ period }) => (
   <div style={{ display: "flex", justifyContent: "flex-end", padding: "8px 0 12px" }}>
     <table style={{ width: 280, borderCollapse: "collapse", fontSize: 11 }}>
       <tbody>
-        {[{ label: "Period Total", value: fmt(period.total), accent: true }, { label: "Stock Cost", value: fmt(period.supplierTotal), accent: false }, { label: "Gross Profit", value: fmt(period.total - period.supplierTotal), accent: false }].map(({ label, value, accent }) => (
+        {[{ label: "Period Total", value: fmt(period.total), accent: true }, { label: "Stock Cost", value: fmt(period.supplierTotal), accent: false }, { label: "Gross Cost", value: fmt(period.total - period.supplierTotal), accent: false }].map(({ label, value, accent }) => (
           <tr key={label} style={{ background: accent ? C.primaryLight : "#fff" }}>
             <td style={{ padding: "5px 12px", borderBottom: `1px solid ${C.border}`, fontWeight: accent ? 700 : 500, color: accent ? C.primary : C.darkText }}>{label}</td>
             <td style={{ padding: "5px 12px", borderBottom: `1px solid ${C.border}`, textAlign: "right", fontWeight: accent ? 700 : 500, color: accent ? C.primary : C.darkText }}>KES {value}</td>
@@ -309,7 +311,7 @@ const ThermalReceipt = forwardRef<HTMLDivElement, ReportProps>(({ data, startDat
               <div style={{ borderTop: "1px dashed #ccc", margin: "6px 0" }} />
             </div>
           )}
-          {[{ label: groupBy !== "none" ? "Grand Total" : "Total Sales", value: fmt(overallTotal), bold: true }, { label: "Stock Cost", value: fmt(overallSupplierTotal), bold: false }, { label: "Gross Profit", value: fmt(grossProfit), bold: true }, ...(totalCommissionAmount > 0 ? [{ label: "Commission", value: fmt(totalCommissionAmount), bold: false }] : [])].map(({ label, value, bold }) => (
+          {[{ label: groupBy !== "none" ? "Grand Total" : "Total Item Sales", value: fmt(overallTotal), bold: true }, { label: "Stock Cost", value: fmt(overallSupplierTotal), bold: false }, { label: "Gross Cost", value: fmt(grossProfit), bold: true }, ...(totalCommissionAmount > 0 ? [{ label: "Commission", value: fmt(totalCommissionAmount), bold: false }] : [])].map(({ label, value, bold }) => (
             <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: 10, fontWeight: bold ? 700 : 400, padding: "2px 0", borderBottom: "1px dotted #ddd" }}>
               <span>{label}:</span><span>KSh. {value}</span>
             </div>
@@ -355,7 +357,7 @@ const A4Report = forwardRef<HTMLDivElement, ReportProps>(({ data, startDate, end
           </div>
         </div>
         <div style={{ display: "flex", borderBottom: `2px solid ${C.border}`, background: C.bg }}>
-          {[{ label: groupBy !== "none" ? "Grand Total" : "Total Sales", value: `KES ${fmt(overallTotal)}`, color: C.primary }, { label: "Stock Cost", value: `KES ${fmt(overallSupplierTotal)}`, color: C.blue }, { label: "Gross Profit", value: `KES ${fmt(grossProfit)}`, color: C.green }, { label: "Margin", value: `${margin}%`, color: C.orange }, ...(totalCommissionAmount > 0 ? [{ label: "Commission", value: `KES ${fmt(totalCommissionAmount)}`, color: "#8b5cf6" }] : [])].map(({ label, value, color }) => (
+          {[{ label: groupBy !== "none" ? "Grand Total" : "Total Item Sales", value: `KES ${fmt(overallTotal)}`, color: C.primary }, { label: "Stock Cost", value: `KES ${fmt(overallSupplierTotal)}`, color: C.blue }, { label: "Gross Cost", value: `KES ${fmt(grossProfit)}`, color: C.green }, { label: "Margin", value: `${margin}%`, color: C.orange }, ...(totalCommissionAmount > 0 ? [{ label: "Commission", value: `KES ${fmt(totalCommissionAmount)}`, color: "#8b5cf6" }] : [])].map(({ label, value, color }) => (
             <div key={label} style={{ flex: 1, padding: "14px 16px", borderLeft: `3px solid ${color}`, background: "#fff", margin: "8px 0 8px 8px", borderRadius: 6 }}>
               <div style={{ fontSize: 9, fontWeight: 700, color: C.subText, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 4 }}>{label}</div>
               <div style={{ fontSize: 13, fontWeight: 800, color }}>{value}</div>
@@ -385,7 +387,7 @@ const A4Report = forwardRef<HTMLDivElement, ReportProps>(({ data, startDate, end
           <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
             <table style={{ width: 340, borderCollapse: "collapse", fontSize: 11 }}>
               <tbody>
-                {[{ label: groupBy !== "none" ? "Grand Total Sales" : "Overall Total Sales", value: fmt(overallTotal), accent: false, highlight: false }, { label: "Overall Stock Cost", value: fmt(overallSupplierTotal), accent: false, highlight: false }, { label: "Gross Profit", value: fmt(grossProfit), accent: true, highlight: true }, ...(totalCommissionAmount > 0 ? [{ label: "Commission", value: fmt(totalCommissionAmount), accent: false, highlight: false }] : [])].map(({ label, value, accent, highlight }) => (
+                {[{ label: groupBy !== "none" ? "Grand Total Item Sales" : "Overall Total Item Sales", value: fmt(overallTotal), accent: false, highlight: false }, { label: "Overall Stock Cost", value: fmt(overallSupplierTotal), accent: false, highlight: false }, { label: "Gross Cost", value: fmt(grossProfit), accent: true, highlight: true }, ...(totalCommissionAmount > 0 ? [{ label: "Commission", value: fmt(totalCommissionAmount), accent: false, highlight: false }] : [])].map(({ label, value, accent, highlight }) => (
                   <tr key={label} style={{ background: highlight ? C.primaryLight : "#fff" }}>
                     <td style={{ padding: "7px 12px", borderBottom: `1px solid ${C.border}`, fontWeight: accent ? 700 : 500, color: accent ? C.primary : C.darkText }}>{label}</td>
                     <td style={{ padding: "7px 12px", textAlign: "right", borderBottom: `1px solid ${C.border}`, fontWeight: accent ? 700 : 500, color: accent ? C.primary : C.darkText }}>KES {value}</td>
@@ -559,9 +561,9 @@ function ItemSalesModal({ data, startDate, endDate, loading, open, onClose, onGr
   const grossProfit = overallTotal - overallSupplierTotal;
   const hasData = salesData.length > 0;
 
-  const printThermal = useReactToPrint({ content: () => thermalRef.current });
   const printA4 = useReactToPrint({ content: () => a4Ref.current });
-  const handlePrint = () => printMode === "thermal" ? printThermal() : printA4();
+  const thermal = useThermalAgentPrint(thermalRef);
+  const handlePrint = () => printMode === "thermal" ? void thermal.print() : printA4();
 
   const handleGroupByChange = (newGroupBy: GroupBy) => {
     setGroupBy(newGroupBy);
@@ -649,25 +651,40 @@ function ItemSalesModal({ data, startDate, endDate, loading, open, onClose, onGr
           </div>
         }
         footer={
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Button
-              icon={<MailOutlined />}
-              disabled={loading || !hasData}
-              onClick={() => setEmailModalOpen(true)}
-              style={{ borderColor: C.primary, color: C.primary }}
-            >
-              Send via Email
-            </Button>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+            <Space wrap>
+              <Button
+                icon={<MailOutlined />}
+                disabled={loading || !hasData}
+                onClick={() => setEmailModalOpen(true)}
+                style={{ borderColor: C.primary, color: C.primary }}
+              >
+                Send via Email
+              </Button>
+              {printMode === "thermal" && (
+                <ThermalPrintControls
+                  target={thermal.target}
+                  onTargetChange={thermal.setTarget}
+                  zones={thermal.zoneOptions}
+                  zoneKey={thermal.zoneKey}
+                  onZoneChange={thermal.setZoneKey}
+                  loading={thermal.agentsLoading}
+                />
+              )}
+            </Space>
             <Space>
               <Button onClick={onClose} style={{ borderRadius: 8 }}>Cancel</Button>
               <Button
                 type="primary"
                 icon={<PrinterFilled />}
                 disabled={loading || !hasData}
+                loading={thermal.printing}
                 onClick={handlePrint}
                 style={{ background: C.primary, borderColor: C.primary, borderRadius: 8, fontWeight: 600 }}
               >
-                {printMode === "thermal" ? "Print Thermal Receipt" : "Print A4 Report"}
+                {printMode === "thermal"
+                  ? thermal.target === "agent" ? "Send to Printer" : "Print Thermal Receipt"
+                  : "Print A4 Report"}
               </Button>
             </Space>
           </div>
@@ -680,9 +697,9 @@ function ItemSalesModal({ data, startDate, endDate, loading, open, onClose, onGr
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {hasData && (
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                  <SummaryCard label="Total Sales" value={`KES ${fmt(overallTotal)}`} color={C.primary} bg={C.primaryLight} icon={<DollarOutlined />} />
+                  <SummaryCard label="Total Item Sales" value={`KES ${fmt(overallTotal)}`} color={C.primary} bg={C.primaryLight} icon={<DollarOutlined />} />
                   <SummaryCard label="Stock Cost" value={`KES ${fmt(overallSupplierTotal)}`} color={C.blue} bg="#eff6ff" icon={<ShoppingOutlined />} />
-                  <SummaryCard label="Gross Profit" value={`KES ${fmt(grossProfit)}`} color={C.green} bg="#f0fdf4" icon={<BarChartOutlined />} />
+                  <SummaryCard label="Gross Cost" value={`KES ${fmt(grossProfit)}`} color={C.green} bg="#f0fdf4" icon={<BarChartOutlined />} />
                   {totalCommissionAmount > 0 && (
                     <SummaryCard label="Commission" value={`KES ${fmt(totalCommissionAmount)}`} color={C.orange} bg="#fffbeb" icon={<CheckCircleOutlined />} />
                   )}

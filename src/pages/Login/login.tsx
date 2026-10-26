@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, Input, Space, Row, Col, Typography, Segmented } from "antd";
+import { Button, Dropdown, Input, Space, Row, Col, Typography, Segmented, Tooltip } from "antd";
 import {
     KeyOutlined,
     DeleteOutlined,
@@ -9,7 +9,12 @@ import {
     EyeOutlined,
     MailOutlined,
     SafetyCertificateOutlined,
+    SettingOutlined,
+    WindowsOutlined,
+    DesktopOutlined,
+    DownloadOutlined,
 } from "@ant-design/icons";
+import ServerSettingsModal from "@components/ServerSettingsModal";
 import { sendOtp, loginWithMethod } from "../../services/authentication";
 import { useAppDispatch, useAppSelector } from "src/store";
 import { verifyCompanyCode, verifyBusinessEmail } from "@services/users";
@@ -17,8 +22,12 @@ import { useLogin } from "@components/staffCard/hook/useLogin";
 import { useNavigate } from "react-router-dom";
 import { ProCard } from "@ant-design/pro-components";
 import { useRefreshPrimaryColor } from "@context/PrimaryColorContext";
+import { useIsCompact } from "@hooks/useIsCompact";
 
 const { Text } = Typography;
+
+const IS_TAURI = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+const DESKTOP_APP_SCHEME = "base://open";
 
 type LoginMethod = "companyCode" | "businessEmail";
 
@@ -38,6 +47,14 @@ const StaffLoginPage = () => {
     const [tenant, setTenant] = useState<any>(null);
     const [visible, setVisible] = useState(false);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    // The desktop app is Windows-only, so don't offer it on phones/tablets.
+    // Width alone misses iPads in landscape (1024–1366px), so check the device
+    // too; iPadOS reports itself as "MacIntel" but has a touch screen.
+    const isCompact = useIsCompact();
+    const isTouchDevice =
+        /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    const showGetApp = !IS_TAURI && !isCompact && !isTouchDevice;
 
     // New state for email login
     const [loginMethod, setLoginMethod] = useState<LoginMethod>("companyCode");
@@ -54,6 +71,7 @@ const StaffLoginPage = () => {
     const [showPasswordOptions, setShowPasswordOptions] = useState<boolean>(false);
     const [currentAuthMethod, setCurrentAuthMethod] = useState<'pin' | 'password' | '2fa' | 'otp'>('pin');
     const [authMethodLoading, setAuthMethodLoading] = useState(false);
+    const [serverSettingsOpen, setServerSettingsOpen] = useState<boolean>(false);
 
     useEffect(() => {
         const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -536,8 +554,59 @@ const StaffLoginPage = () => {
                 backgroundPosition: "center",
                 backgroundRepeat: "no-repeat",
                 padding: isMobile ? "1rem" : "1.5rem",
+                position: "relative",
             }}
         >
+            {/* API server settings — desktop (Tauri) shell only */}
+            {IS_TAURI && (
+                <Tooltip title="Desktop settings">
+                    <Button
+                        icon={<SettingOutlined />}
+                        onClick={() => setServerSettingsOpen(true)}
+                        style={{ position: "absolute", top: 16, right: 16, zIndex: 10 }}
+                    />
+                </Tooltip>
+            )}
+            {/* Desktop app — web on desktop screens only: open installed app or download it */}
+            {showGetApp && (
+                <Dropdown
+                    menu={{
+                        items: [
+                            {
+                                key: "open",
+                                icon: <DesktopOutlined />,
+                                label: "Open in app",
+                            },
+                            {
+                                key: "download",
+                                icon: <DownloadOutlined />,
+                                label: "Download for Windows",
+                            },
+                        ],
+                        onClick: ({ key }) => {
+                            if (key === "open") {
+                                // base:// scheme is registered by the installed app;
+                                // the browser shows an "Open Base?" prompt if present.
+                                window.location.href = DESKTOP_APP_SCHEME;
+                            } else {
+                                navigate("/download");
+                            }
+                        },
+                    }}
+                    trigger={["click"]}
+                >
+                    <Button
+                        icon={<WindowsOutlined />}
+                        style={{ position: "absolute", top: 16, right: 16, zIndex: 10 }}
+                    >
+                        Get the app
+                    </Button>
+                </Dropdown>
+            )}
+            <ServerSettingsModal
+                open={serverSettingsOpen}
+                onClose={() => setServerSettingsOpen(false)}
+            />
             <ProCard
                 boxShadow
                 style={{
@@ -673,7 +742,8 @@ const StaffLoginPage = () => {
                                             onPressEnter={() => handleVerifySubmit()}
                                             prefix={<UsergroupAddOutlined />}
                                             placeholder="Enter Company Code"
-                                            onChange={(e) => setCompanyCode(e.target.value)}
+                                            // Company codes never contain spaces — strip any typed or pasted in
+                                            onChange={(e) => setCompanyCode(e.target.value.replace(/\s+/g, ""))}
                                             size="large"
                                             value={companyCode || ""}
                                             autoComplete="off"

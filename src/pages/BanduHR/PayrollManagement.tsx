@@ -229,6 +229,12 @@ const PayrollManagement: React.FC = () => {
   const [isPreviewLineModalOpen, setIsPreviewLineModalOpen] = useState(false);
   const [editingPreviewLine, setEditingPreviewLine] = useState<any>(null);
   const [previewOverrides, setPreviewOverrides] = useState<Record<string, any>>({});
+  // Employees exempted on the review step — their lines are dropped from the
+  // preview and they are never sent to generate (this run only; nothing is
+  // written to their employee record)
+  const [exemptedEmployeeIds, setExemptedEmployeeIds] = useState<string[]>([]);
+  // Checkbox selection across the review tables — feeds the bulk "exempt" action
+  const [selectedPreviewIds, setSelectedPreviewIds] = useState<string[]>([]);
 
   // Quick employee-record edit — lets a draft payroll's department/job title
   // be fixed without leaving the payroll screen (payroll figures stay on the
@@ -249,9 +255,11 @@ const PayrollManagement: React.FC = () => {
     // statutory fields keep their hardcoded defaults — see autoFillStatutoryRates)
     const helbCfg = deductionConfigs.find((c: any) => c.deduction_type === "HELB");
     const whtCfg = deductionConfigs.find((c: any) => c.deduction_type === "WITHHOLDING_TAX");
+    const payeCfg = deductionConfigs.find((c: any) => c.deduction_type === "PAYE");
     deductionForm.setFieldsValue({
       helb_enabled: helbCfg ? helbCfg.is_active !== false : true,
       helb_amount: helbCfg?.fixed_amount ?? 0,
+      paye_secondary_rate: (payeCfg?.secondary_rate ?? 0.35) * 100,
       ...(whtCfg && {
         withholding_tax_enabled: whtCfg.is_active !== false,
         withholding_tax_rate: (whtCfg.rate ?? 0.05) * 100,
@@ -402,6 +410,11 @@ const PayrollManagement: React.FC = () => {
         <Text strong style={{ fontSize: 10.5, color: "#94a3b8", letterSpacing: 0.6, textTransform: "uppercase", display: "block", marginBottom: 4 }}>
           Results{periodLabel ? ` · Payslip for ${periodLabel}` : ""}
         </Text>
+        {line.employee_id?.employee_type === "secondary" && (
+          <Tag color="orange" style={{ fontSize: 10, marginBottom: 4 }}>
+            Secondary Employee — PAYE at flat rate, no reliefs
+          </Tag>
+        )}
         <Row label="Basic Pay" value={line.gross_salary} />
         <Row label="NSSF" value={-(d.nssf || 0)} color="#64748b" />
         <Row label="S.H.I.F." value={-(d.nhif || 0)} color="#64748b" />
@@ -649,7 +662,38 @@ const PayrollManagement: React.FC = () => {
   const [previewProgress, setPreviewProgress] = useState<{ done: number; total: number } | null>(null);
   const PREVIEW_EMPLOYEE_BATCH = 10;
 
-  const runPreview = async (params: GeneratePayrollParams) => {
+  // Drop exempted employees from a preview result — filters their lines and
+  // recomputes each group's totals/count, dropping groups left empty.
+  const applyPreviewExclusions = (
+    data: PayrollPreviewResult,
+    excluded: Set<string>
+  ): PayrollPreviewResult => {
+    if (!excluded.size) return data;
+    const fields = [
+      "total_gross", "total_deductions", "total_net", "total_paye",
+      "total_nssf", "total_nhif", "total_housing_levy", "total_nita", "total_withholding_tax",
+    ];
+    const lineField = (l: any, f: string): number =>
+      f === "total_gross" ? l.gross_salary
+      : f === "total_deductions" ? l.deductions?.total
+      : f === "total_net" ? l.net_pay
+      : l.deductions?.[f.replace("total_", "")];
+    const previews = data.previews
+      .map((g) => {
+        const lines = (g.lines || []).filter(
+          (l: any) => !excluded.has(String(l.employee_id?._id || l.employee_id))
+        );
+        const ng: any = { ...g, lines, employee_count: lines.length };
+        for (const f of fields) {
+          ng[f] = lines.reduce((s: number, l: any) => s + (lineField(l, f) || 0), 0);
+        }
+        return ng;
+      })
+      .filter((g) => g.lines.length > 0);
+    return { ...data, previews };
+  };
+
+  const runPreview = async (params: GeneratePayrollParams, excluded?: Set<string>) => {
     const { department_ids, employee_ids, ...rest } = params;
     const chunks: GeneratePayrollParams[] = department_ids?.length
       ? department_ids.map((id) => ({ ...rest, department_ids: [id] }))
@@ -692,7 +736,7 @@ const PayrollManagement: React.FC = () => {
         merged.conflicts.push(...(res?.conflicts || []));
         setPreviewProgress((p) => (p ? { ...p, done: p.done + 1 } : p));
       }
-      setPreviewData(merged);
+      setPreviewData(applyPreviewExclusions(merged, excluded ?? new Set(exemptedEmployeeIds)));
       setGenerateStep(1);
     } catch (error) {
       console.error("Payroll preview failed:", error);
@@ -819,6 +863,7 @@ const PayrollManagement: React.FC = () => {
       paye_bracket4_rate: 32.5,
       paye_bracket5_rate: 35,
       paye_pwd_exemption_limit: 150000,
+      paye_secondary_rate: 35,
       // SHA — 2.75% of gross, no cap (replaced NHIF)
       sha_enabled: true,
       sha_employee_rate: 2.75,
@@ -1105,11 +1150,31 @@ const PayrollManagement: React.FC = () => {
     try {
       const params = await buildGenerateParams();
       setPendingGenerateParams(params);
-      runPreview(params);
+      setExemptedEmployeeIds([]);
+      setSelectedPreviewIds([]);
+      runPreview(params, new Set());
     } catch (error) {
       console.error("Validation failed:", error);
     }
   };
+
+  // Exempt employees on the review step — removes their lines from the
+  // preview and keeps their ids out of the generate calls for this run
+  const exemptPreviewEmployees = (ids: string[]) => {
+    if (!ids.length) return;
+    const set = new Set(ids);
+    setExemptedEmployeeIds((prev) => [...new Set([...prev, ...set])]);
+    setPreviewData((prev) => (prev ? applyPreviewExclusions(prev, set) : prev));
+    setPreviewOverrides((prev) => {
+      const next = { ...prev };
+      set.forEach((id) => delete next[id]);
+      return next;
+    });
+    setSelectedPreviewIds((prev) => prev.filter((id) => !set.has(id)));
+  };
+
+  const exemptPreviewEmployee = (line: any) =>
+    exemptPreviewEmployees([String(line.employee_id?._id || line.employee_id)]);
 
   // Step 2 → generate. submit=false saves a plain draft; submit=true runs the
   // real submit step — for admin that skips pending_approval and lands on
@@ -1119,9 +1184,19 @@ const PayrollManagement: React.FC = () => {
 
     const { department_ids, employee_ids, ...rest } = pendingGenerateParams;
     const saveAsDraft = !submit && isAdminUser;
-    const chunks: GeneratePayrollParams[] = department_ids?.length
-      ? department_ids.map((id) => ({ ...rest, department_ids: [id], overrides: previewOverrides, save_as_draft: saveAsDraft }))
-      : [{ ...rest, employee_ids, overrides: previewOverrides, save_as_draft: saveAsDraft }];
+    const shared = { ...rest, overrides: previewOverrides, save_as_draft: saveAsDraft };
+    // When employees were exempted on review, generate from the remaining
+    // preview lines (one chunk per department group) instead of the original
+    // department/employee selection — exempted ids are never sent.
+    const chunks: GeneratePayrollParams[] =
+      exemptedEmployeeIds.length && previewData
+        ? previewData.previews.map((g) => ({
+            ...shared,
+            employee_ids: g.lines.map((l: any) => String(l.employee_id?._id || l.employee_id)),
+          }))
+        : department_ids?.length
+          ? department_ids.map((id) => ({ ...shared, department_ids: [id] }))
+          : [{ ...shared, employee_ids }];
 
     setIsGenerating(true);
     setGenerateProgress({ done: 0, total: chunks.length });
@@ -1175,6 +1250,8 @@ const PayrollManagement: React.FC = () => {
     setPreviewData(null);
     setPendingGenerateParams(null);
     setPreviewOverrides({});
+    setExemptedEmployeeIds([]);
+    setSelectedPreviewIds([]);
     form.resetFields();
     setPayrollMode("department");
   };
@@ -1183,7 +1260,7 @@ const PayrollManagement: React.FC = () => {
   // widen it, or drag the bottom edge down to make it taller. The modal
   // stays centered, so both side edges move together.
   const PREVIEW_DEFAULT_WIDTH = 1420;
-  const previewModalWidth = previewWidth ?? (generateStep === 1 ? PREVIEW_DEFAULT_WIDTH : 600);
+  const previewModalWidth = previewWidth ?? (generateStep === 1 ? PREVIEW_DEFAULT_WIDTH : 760);
   const startPreviewResize = (e: React.MouseEvent, side: "left" | "right") => {
     e.preventDefault();
     const startX = e.clientX;
@@ -2629,6 +2706,10 @@ const PayrollManagement: React.FC = () => {
                 scroll={{ x: payrollView === "branches" ? 1350 : 1600 }}
                 summary={() => {
                   const cellStyle: React.CSSProperties = { fontSize: 12, fontWeight: 700 };
+                  // No rows → no totals row (avoids a "TOTALS 0 0 0…" line on
+                  // an empty table).
+                  const rows = payrollView === "branches" ? filteredPayrolls : employeeRows;
+                  if (!rows.length) return null;
                   // Note: the row-selection checkbox occupies the first column
                   // in the summary row too, so leading colSpans include it.
                   if (payrollView === "branches") {
@@ -3117,13 +3198,31 @@ const PayrollManagement: React.FC = () => {
                         />
                       </Form.Item>
                     </Col>
+                    <Col span={12}>
+                      <Form.Item
+                        name="paye_secondary_rate"
+                        label="Secondary Employment Rate (%)"
+                        initialValue={35}
+                        tooltip="Flat PAYE rate applied to taxable pay for employees marked as Secondary — KRA taxes secondary employment at the highest bracket with no personal or insurance relief."
+                        rules={[{ required: true, message: "Required" }]}
+                      >
+                        <InputNumber
+                          min={0}
+                          max={100}
+                          style={{ width: "100%" }}
+                          addonAfter="%"
+                        />
+                      </Form.Item>
+                    </Col>
                   </Row>
                   <Text type="secondary" style={{ fontSize: 12 }}>
                     Monthly KRA bands: 10% up to 24,000 · 25% on the next 8,333 · 30% on the next 467,667 ·
                     32.5% on the next 300,000 · 35% above 800,000. Personal relief is deducted from the
                     computed tax; taxable pay below the minimum taxable income is untaxed. Employees marked
                     as PWD (with a valid certificate) are exempt from PAYE on the first "PWD Exemption Limit"
-                    of taxable pay — tax is computed only on the amount above it.
+                    of taxable pay — tax is computed only on the amount above it. Secondary employees skip
+                    the bands entirely — their taxable pay is taxed at the flat Secondary Employment Rate
+                    with no personal or insurance relief.
                   </Text>
                 </Form>
               </Tabs.TabPane>
@@ -3503,16 +3602,8 @@ const PayrollManagement: React.FC = () => {
         onCancel={closeGenerateModal}
         afterOpenChange={(open) => {
           if (open && generateStep === 0) {
-            // Set default values when opening modal
-            if (payrollMode === "department") {
-              form.setFieldsValue({
-                department_ids: departments.map((d: any) => d._id),
-              });
-            } else if (payrollMode === "employee") {
-              form.setFieldsValue({
-                employee_ids: employees.map((e: any) => e._id),
-              });
-            }
+            // Departments and employees start empty so the user picks them explicitly
+            form.setFieldsValue({ department_ids: [], employee_ids: [] });
           }
         }}
         footer={null}
@@ -3606,16 +3697,6 @@ const PayrollManagement: React.FC = () => {
               onChange={(e) => {
                 setPayrollMode(e.target.value);
                 form.resetFields(["department_ids", "employee_ids"]);
-                // Set default values for the new mode
-                if (e.target.value === "department") {
-                  form.setFieldsValue({
-                    department_ids: departments.map((d: any) => d._id),
-                  });
-                } else if (e.target.value === "employee") {
-                  form.setFieldsValue({
-                    employee_ids: employees.map((e: any) => e._id),
-                  });
-                }
               }}
             >
               <Radio.Button value="department">By Department</Radio.Button>
@@ -3628,7 +3709,6 @@ const PayrollManagement: React.FC = () => {
               name="department_ids"
               label="Departments"
               rules={[{ required: true, message: "Please select at least one department" }]}
-              initialValue={departments.map((d: any) => d._id)}
             >
               <Select
                 mode="multiple"
@@ -3647,7 +3727,6 @@ const PayrollManagement: React.FC = () => {
               name="employee_ids"
               label="Employees"
               rules={[{ required: true, message: "Please select at least one employee" }]}
-              initialValue={employees.map((e: any) => e._id)}
             >
               <Select
                 mode="multiple"
@@ -3729,6 +3808,45 @@ const PayrollManagement: React.FC = () => {
               />
             )}
 
+            {exemptedEmployeeIds.length > 0 && (
+              <Alert
+                type="info"
+                showIcon
+                message={`${exemptedEmployeeIds.length} employee(s) exempted from this run`}
+                action={
+                  <Button
+                    size="small"
+                    onClick={() => {
+                      setExemptedEmployeeIds([]);
+                      setSelectedPreviewIds([]);
+                      if (pendingGenerateParams) {
+                        runPreview({ ...pendingGenerateParams, overrides: previewOverrides }, new Set());
+                      }
+                    }}
+                  >
+                    Restore
+                  </Button>
+                }
+                style={{ borderRadius: 8 }}
+              />
+            )}
+
+            {selectedPreviewIds.length > 0 && (
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <Popconfirm
+                  title={`Exempt ${selectedPreviewIds.length} selected employee(s)?`}
+                  description="They will be removed from this payroll run."
+                  okText="Exempt"
+                  okButtonProps={{ danger: true }}
+                  onConfirm={() => exemptPreviewEmployees(selectedPreviewIds)}
+                >
+                  <Button danger icon={<DeleteOutlined />}>
+                    Exempt selected ({selectedPreviewIds.length})
+                  </Button>
+                </Popconfirm>
+              </div>
+            )}
+
             {previewData.previews.length === 0 ? (
               <Empty
                 description="Nothing to generate — review your selections"
@@ -3772,10 +3890,24 @@ const PayrollManagement: React.FC = () => {
 
                   <Table
                     dataSource={group.lines}
-                    rowKey="employee_id"
+                    rowKey={(l: any) => String(l.employee_id?._id || l.employee_id)}
                     size="small"
                     pagination={false}
                     scroll={{ x: 1520, y: 300 }}
+                    rowSelection={{
+                      selectedRowKeys: group.lines
+                        .map((l: any) => String(l.employee_id?._id || l.employee_id))
+                        .filter((id: string) => selectedPreviewIds.includes(id)),
+                      onChange: (keys: React.Key[]) => {
+                        const groupIds = new Set(
+                          group.lines.map((l: any) => String(l.employee_id?._id || l.employee_id))
+                        );
+                        setSelectedPreviewIds((prev) => [
+                          ...prev.filter((id) => !groupIds.has(id)),
+                          ...keys.map(String),
+                        ]);
+                      },
+                    }}
                     expandable={{
                       expandedRowRender: (line: any) =>
                         renderLineResults(line, previewData?.period_label || pendingGenerateParams?.period_label),
@@ -3785,20 +3917,39 @@ const PayrollManagement: React.FC = () => {
                       ...payrollLineColumns(true, group.lines),
                       {
                         title: "",
-                        key: "preview-edit",
-                        width: 60,
+                        key: "preview-actions",
+                        width: 84,
                         render: (_: any, line: any) => (
-                          <Tooltip title="Edit this line">
-                            <Button
-                              type="text"
-                              size="small"
-                              icon={<EditOutlined />}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openPreviewLineModal(line);
-                              }}
-                            />
-                          </Tooltip>
+                          <Space size={0}>
+                            <Tooltip title="Edit this line">
+                              <Button
+                                type="text"
+                                size="small"
+                                icon={<EditOutlined />}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openPreviewLineModal(line);
+                                }}
+                              />
+                            </Tooltip>
+                            <Popconfirm
+                              title="Exempt this employee?"
+                              description="They will be removed from this payroll run."
+                              okText="Exempt"
+                              okButtonProps={{ danger: true }}
+                              onConfirm={() => exemptPreviewEmployee(line)}
+                            >
+                              <Tooltip title="Exempt from this run">
+                                <Button
+                                  type="text"
+                                  size="small"
+                                  danger
+                                  icon={<DeleteOutlined />}
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              </Tooltip>
+                            </Popconfirm>
+                          </Space>
                         ),
                       },
                     ]}

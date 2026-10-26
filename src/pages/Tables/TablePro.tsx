@@ -1,12 +1,14 @@
 import {
   AppstoreOutlined,
   AimOutlined,
+  BarChartOutlined,
   HolderOutlined,
   LoadingOutlined,
   PlusOutlined,
   MenuOutlined,
   TableOutlined,
   RightOutlined,
+  SettingOutlined,
 } from "@ant-design/icons";
 import { ProCard } from "@ant-design/pro-components";
 import SuccesssModal from "@components/MODALS/SuccessModal";
@@ -23,6 +25,8 @@ import {
   Space,
   Drawer,
   Empty,
+  Segmented,
+  Tooltip,
 } from "antd";
 import Lottie from "lottie-react";
 import React, { useState, useEffect, useMemo, useCallback, Suspense, lazy } from "react";
@@ -33,14 +37,15 @@ import { useNavigate } from "react-router-dom";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { usePOSMode } from "@context/POSModeContext";
 import QuickAddTableModal from "@components/MODALS/pro/QuickAddTableModal";
+import TableStatsPanel from "./TableStats";
 
 const HospitalPage = lazy(() => import("@pages/Hospital/HospitalPage"));
 const HotelPage = lazy(() => import("@pages/Hotel/HotelPage"));
 
 const { Text, Title } = Typography;
 
-// Key for the trailing "+ New Location" pseudo-tab in the locations tab bar
-const ADD_LOCATION_TAB = "__add_location__";
+// Page-level views: the slots/tables board vs the cross-location stats view
+type PageView = "tables" | "stats";
 
 // ── Mobile detection ──────────────────────────────────────────────────────────
 const useIsMobile = () => {
@@ -140,7 +145,7 @@ const MobileSlotSelector: React.FC<SlotSelectorProps> = ({
 }) => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const activeTab = tabs.find((t) => t.key === activeKey);
-  const slots = tabs.filter((t) => t.key !== "overview" && t.key !== ADD_LOCATION_TAB);
+  const slots = tabs.filter((t) => t.key !== "overview");
 
   return (
     <>
@@ -422,6 +427,7 @@ export default function TablePro() {
   // Keyed by user — the fetcher applies per-user privacy filtering, so the
   // cache entry must not be shared between logins.
   const currentUserKey = (user as any)?._id || user?.id || "anon";
+  const [pageView, setPageView] = useState<PageView>("tables");
   const queryKey = useMemo(
     () => ["tables", currentUserKey, activeTabId === DEFAULT_TAB ? "overview" : activeTabId],
     [activeTabId, currentUserKey]
@@ -434,12 +440,6 @@ export default function TablePro() {
 
   const handleTabChange = useCallback(
     (key: any) => {
-      // The trailing "+ New Location" pseudo-tab opens the quick-add modal
-      // instead of becoming the active tab.
-      if (key === ADD_LOCATION_TAB) {
-        setQuickAdd({ mode: "location" });
-        return;
-      }
       if (key && key !== "undefined" && key !== "null" && String(key).trim() !== "") {
         setValidActiveTab(key);
       } else {
@@ -531,43 +531,38 @@ export default function TablePro() {
         <Title level={isMobile ? 5 : 4} style={{ color: "#0f172a", marginBottom: 6 }}>
           Slots Management
         </Title>
-        <Text style={{ fontSize: 13, color: "#64748b", display: "block", marginBottom: 20 }}>
+        <Text style={{ fontSize: 13, color: "#64748b", display: "block", marginBottom: isMobile ? 0 : 20 }}>
           {isMobile
             ? "Tap a slot from the selector above to view its customer tables."
             : "Select a staff slot from the tabs above to view its customer tables."}
         </Text>
-        <Space size={8} wrap>
-          <Button
-            type="primary"
-            onClick={() => setQuickAdd({ mode: "table" })}
-            icon={<PlusOutlined />}
-            disabled={!canManageSlots}
-            style={{
-              backgroundColor: primaryColor,
-              borderColor: primaryColor,
-              borderRadius: 8,
-              fontWeight: 500,
-            }}
-          >
-            Quick Add Table
-          </Button>
-          <Button
-            onClick={() => setQuickAdd({ mode: "location" })}
-            icon={<AimOutlined />}
-            disabled={!canManageSlots}
-            style={{ borderRadius: 8, fontWeight: 500 }}
-          >
-            New Location
-          </Button>
-          {(user?.role === "admin" || user?.role === "cashier") && (
+        {/* Mobile has its own Add button and New Location in the slot drawer */}
+        {!isMobile && (
+          <Space size={8} wrap style={{ justifyContent: "center" }}>
             <Button
-              onClick={() => navigate("/table-settings")}
+              icon={<AimOutlined />}
+              onClick={() => setQuickAdd({ mode: "location" })}
+              disabled={!canManageSlots}
               style={{ borderRadius: 8, fontWeight: 500 }}
             >
-              Slot Settings
+              New Location
             </Button>
-          )}
-        </Space>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => setQuickAdd({ mode: "table" })}
+              disabled={!canManageSlots}
+              style={{
+                backgroundColor: primaryColor,
+                borderColor: primaryColor,
+                borderRadius: 8,
+                fontWeight: 500,
+              }}
+            >
+              Add Table
+            </Button>
+          </Space>
+        )}
       </div>
     </div>
   );
@@ -631,23 +626,6 @@ export default function TablePro() {
         children: overviewContent,
       },
       ...dynamicTabs,
-      // Trailing "+ New Location" pseudo-tab — opens the quick-add modal,
-      // it never becomes the active tab (intercepted in handleTabChange)
-      ...(canManageSlots
-        ? [
-            {
-              key: ADD_LOCATION_TAB,
-              tab: "add",
-              label: (
-                <Space size={4}>
-                  <PlusOutlined />
-                  New Location
-                </Space>
-              ),
-              children: null,
-            },
-          ]
-        : []),
     ];
   }, [data, primaryColor, user?.role, navigate, isMobile, handleOpen, canManageSlots, addingTableFor, handleInstantAddTable]);
 
@@ -663,6 +641,22 @@ export default function TablePro() {
     : DEFAULT_TAB;
 
   const activeTabContent = generateTabItems.find((t: any) => t.key === safeActiveTabId)?.children;
+
+  // Slot Settings lives in the page header (desktop and mobile) for admins/cashiers.
+  const slotSettingsButton =
+    user?.role === "admin" || user?.role === "cashier" ? (
+      <Tooltip title={isMobile ? "Slot Settings" : undefined}>
+        <Button
+          size={isMobile ? "small" : "middle"}
+          icon={<SettingOutlined />}
+          onClick={() => navigate("/table-settings")}
+          aria-label="Slot Settings"
+          style={{ borderRadius: 8, fontWeight: 500 }}
+        >
+          {!isMobile && "Slot Settings"}
+        </Button>
+      </Tooltip>
+    ) : null;
 
   // ── Early returns ─────────────────────────────────────────────────────────
   if (successmodal) return <SuccesssModal />;
@@ -764,35 +758,57 @@ export default function TablePro() {
                 <Text style={{ fontSize: 11, color: "#94a3b8" }}>Manage customer slots</Text>
               </div>
             </Space>
-            <Button
-              size="small"
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => setQuickAdd({ mode: "table" })}
-              disabled={!canManageSlots}
-              style={{
-                backgroundColor: primaryColor,
-                borderColor: primaryColor,
-                borderRadius: 8,
-                fontWeight: 500,
-              }}
-            >
-              Add
-            </Button>
+            <Space size={6}>
+              {slotSettingsButton}
+              <Button
+                size="small"
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => setQuickAdd({ mode: "table" })}
+                disabled={!canManageSlots}
+                style={{
+                  backgroundColor: primaryColor,
+                  borderColor: primaryColor,
+                  borderRadius: 8,
+                  fontWeight: 500,
+                }}
+              >
+                Add
+              </Button>
+            </Space>
           </div>
 
-          <MobileSlotSelector
-            tabs={generateTabItems}
-            activeKey={safeActiveTabId}
-            onChange={handleTabChange}
-            primaryColor={primaryColor}
-            loading={isLoading}
-            onAddLocation={canManageSlots ? () => setQuickAdd({ mode: "location" }) : undefined}
+          <Segmented
+            block
+            value={pageView}
+            onChange={(v) => setPageView(v as PageView)}
+            options={[
+              { label: "Slots", value: "tables", icon: <TableOutlined /> },
+              { label: "Stats", value: "stats", icon: <BarChartOutlined /> },
+            ]}
+            style={{ marginBottom: 12 }}
           />
 
-          <div style={{ minHeight: 200 }}>
-            {isLoading ? <LoadingTabContent isMobile={true} /> : activeTabContent}
-          </div>
+          {pageView === "stats" ? (
+            <div style={{ minHeight: 200 }}>
+              <TableStatsPanel isMobile={true} primaryColor={primaryColor} />
+            </div>
+          ) : (
+            <>
+              <MobileSlotSelector
+                tabs={generateTabItems}
+                activeKey={safeActiveTabId}
+                onChange={handleTabChange}
+                primaryColor={primaryColor}
+                loading={isLoading}
+                onAddLocation={canManageSlots ? () => setQuickAdd({ mode: "location" }) : undefined}
+              />
+
+              <div style={{ minHeight: 200 }}>
+                {isLoading ? <LoadingTabContent isMobile={true} /> : activeTabContent}
+              </div>
+            </>
+          )}
         </div>
 
         <QuickAddTableModal
@@ -814,16 +830,26 @@ export default function TablePro() {
 
   // ── Desktop layout ────────────────────────────────────────────────────────
   const cardTitle = (
-    <Space size={8} align="center">
-      <div
-        style={{
-          background: `${primaryColor}15`, borderRadius: 8,
-          padding: "6px 7px", color: primaryColor, fontSize: 16, lineHeight: 1,
-        }}
-      >
-        <AppstoreOutlined />
-      </div>
-      <Text strong style={{ fontSize: 15, color: "#0f172a" }}>Tables</Text>
+    <Space size={16} align="center">
+      <Space size={8} align="center">
+        <div
+          style={{
+            background: `${primaryColor}15`, borderRadius: 8,
+            padding: "6px 7px", color: primaryColor, fontSize: 16, lineHeight: 1,
+          }}
+        >
+          <AppstoreOutlined />
+        </div>
+        <Text strong style={{ fontSize: 15, color: "#0f172a" }}>Tables</Text>
+      </Space>
+      <Segmented
+        value={pageView}
+        onChange={(v) => setPageView(v as PageView)}
+        options={[
+          { label: "Slots", value: "tables", icon: <TableOutlined /> },
+          { label: "Stats", value: "stats", icon: <BarChartOutlined /> },
+        ]}
+      />
     </Space>
   );
 
@@ -847,35 +873,17 @@ export default function TablePro() {
             <LoadingTabs />
             <LoadingTabContent isMobile={false} />
           </ProCard>
+        ) : pageView === "stats" ? (
+          <ProCard
+            title={cardTitle}
+            style={{ borderRadius: 12, boxShadow: "none", border: "none" }}
+          >
+            <TableStatsPanel isMobile={false} primaryColor={primaryColor} />
+          </ProCard>
         ) : (
           <ProCard
             title={cardTitle}
-            extra={
-              <Space size={8}>
-                <Button
-                  icon={<AimOutlined />}
-                  onClick={() => setQuickAdd({ mode: "location" })}
-                  disabled={!canManageSlots}
-                  style={{ borderRadius: 8, fontWeight: 500 }}
-                >
-                  Location
-                </Button>
-                <Button
-                  type="primary"
-                  icon={<PlusOutlined />}
-                  onClick={() => setQuickAdd({ mode: "table" })}
-                  disabled={!canManageSlots}
-                  style={{
-                    backgroundColor: primaryColor,
-                    borderColor: primaryColor,
-                    borderRadius: 8,
-                    fontWeight: 500,
-                  }}
-                >
-                  Add Table
-                </Button>
-              </Space>
-            }
+            extra={slotSettingsButton}
             tabs={{
               type: "card",
               items: generateTabItems,

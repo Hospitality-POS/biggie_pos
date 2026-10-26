@@ -8,22 +8,26 @@ import {
     PlusOutlined, FileExcelOutlined, SettingOutlined,
     EyeOutlined, StopOutlined, BankOutlined,
     ThunderboltOutlined, CheckCircleOutlined, ClockCircleOutlined,
+    SafetyCertificateOutlined, DiffOutlined, ReloadOutlined, DeleteOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
     getAllImports,
     getImportSummary,
     voidImport,
+    deleteImport,
     BankStatementImport,
     ImportStatus,
 } from "@services/accounting/bankStatementImport";
 import { getBankAccounts } from "@services/accounting/accounts";
-import { getCurrentTenantId } from "@services/tenants";
+import { fetchAllShops } from "@services/shops";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import dayjs from "dayjs";
 import ImportStatementDrawer from "./ImportStatementDrawer";
 import TransactionReviewDrawer from "./TransactionReviewDrawer";
 import CategorizationRulesDrawer from "./CategorizationRulesDrawer";
+import VerifyPostingModal from "./VerifyPostingModal";
+import ReconcileStatementDrawer from "./ReconcileStatementDrawer";
 
 const { Text } = Typography;
 
@@ -39,6 +43,14 @@ const ALL_STATUSES: (ImportStatus | "ALL")[] = [
     "ALL", "Review", "Processing", "Partially Pushed", "Fully Pushed", "Voided",
 ];
 
+const getImportAccountInfo = (r: BankStatementImport | null) => {
+    if (!r) return { id: undefined as string | undefined, label: undefined as string | undefined };
+    const id = typeof r.account_id === "object" ? r.account_id?._id : r.account_id;
+    const name = r.account_name || (typeof r.account_id === "object" ? r.account_id?.account_name : "") || "";
+    const code = r.account_code || (typeof r.account_id === "object" ? r.account_id?.account_code : "") || "";
+    return { id, label: code ? `${name} (${code})` : name };
+};
+
 const BankStatementPage: React.FC = () => {
     const primaryColor = usePrimaryColor();
     const queryClient = useQueryClient();
@@ -50,12 +62,40 @@ const BankStatementPage: React.FC = () => {
     const [importOpen, setImportOpen] = useState(false);
     const [reviewOpen, setReviewOpen] = useState(false);
     const [rulesOpen, setRulesOpen] = useState(false);
+    const [verifyOpen, setVerifyOpen] = useState(false);
+    const [reconcileOpen, setReconcileOpen] = useState(false);
     const [selectedImport, setSelectedImport] = useState<BankStatementImport | null>(null);
     const [selectedAccountId, setSelectedAccountId] = useState<string | undefined>(undefined);
 
-    const shopId = getCurrentTenantId() || "";
+    // Chart of Accounts / bank imports are scoped to the POS Shop record
+    // (localStorage.shopId, set at login), not the SaaS tenant record
+    // (getCurrentTenantId) — using the tenant id here made every import
+    // invisible since they're saved with the real shop_id.
+    //
+    // Reading localStorage.getItem("shopId") directly (as this page used to)
+    // isn't reactive: switching branches elsewhere in the app (the same shop
+    // switcher the Dashboard uses) doesn't re-render this page, so it can
+    // keep showing data for a stale/wrong branch — looking like "0 imports".
+    // Instead we pull the branch list from the same source as the Dashboard
+    // (fetchAllShops) and keep the active branch in state so this page stays
+    // in sync and the user can see/confirm exactly which branch they're on.
+    const [shopId, setShopId] = useState<string>(() => localStorage.getItem("shopId") || "");
 
-    const { data, isLoading, refetch } = useQuery({
+    const { data: shopsData } = useQuery({
+        queryKey: ["bank-statements-branch-options"],
+        queryFn: () => fetchAllShops({}),
+        staleTime: 60000,
+    });
+    const shopOptions = (shopsData || []).map((s: any) => ({ label: s.name, value: s._id }));
+
+    const handleShopChange = (value: string) => {
+        setShopId(value);
+        localStorage.setItem("shopId", value);
+        setSelectedAccountId(undefined);
+        setPage(1);
+    };
+
+    const { data, isLoading, isFetching, refetch } = useQuery({
         queryKey: ["bank-imports", shopId, activeStatus, page, selectedAccountId],
         queryFn: () =>
             getAllImports({
@@ -73,13 +113,13 @@ const BankStatementPage: React.FC = () => {
         },
     });
 
-    const { data: bankAccountsData } = useQuery({
+    const { data: bankAccountsData, refetch: refetchBankAccounts } = useQuery({
         queryKey: ["bank-accounts", shopId],
         queryFn: () => getBankAccounts(shopId),
         enabled: !!shopId,
     });
 
-    const { data: summaryData } = useQuery({
+    const { data: summaryData, refetch: refetchSummary } = useQuery({
         queryKey: ["bank-imports-summary", shopId],
         queryFn: () => getImportSummary(shopId),
         enabled: !!shopId,
@@ -106,10 +146,24 @@ const BankStatementPage: React.FC = () => {
         },
     });
 
+    const deleteMutation = useMutation({
+        mutationFn: (id: string) => deleteImport(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["bank-imports", shopId] });
+            queryClient.invalidateQueries({ queryKey: ["bank-imports-summary", shopId] });
+        },
+    });
+
     const onSuccess = useCallback(() => {
         queryClient.invalidateQueries({ queryKey: ["bank-imports", shopId] });
         queryClient.invalidateQueries({ queryKey: ["bank-imports-summary", shopId] });
     }, [queryClient, shopId]);
+
+    const handleRefresh = useCallback(() => {
+        refetch();
+        refetchSummary();
+        refetchBankAccounts();
+    }, [refetch, refetchSummary, refetchBankAccounts]);
 
     if (!shopId) {
         return <div>Shop not selected. Please select a shop to view bank statements.</div>;
@@ -118,7 +172,9 @@ const BankStatementPage: React.FC = () => {
     const handleVoid = (record: BankStatementImport) => {
         modal.confirm({
             title: "Void this import?",
-            content: "This will mark the import as voided. Completed transactions are not reversed.",
+            content: record.pushed_count
+                ? `This will mark the import as voided and void the ${record.pushed_count} journal entr${record.pushed_count === 1 ? "y" : "ies"} its completed transactions posted, removing them from the books.`
+                : "This will mark the import as voided.",
             okText: "Void Import",
             okButtonProps: { danger: true },
             onOk: () => voidMutation.mutateAsync(record._id),
@@ -128,6 +184,16 @@ const BankStatementPage: React.FC = () => {
     const openReview = (record: BankStatementImport) => {
         setSelectedImport(record);
         setReviewOpen(true);
+    };
+
+    const openVerify = (record: BankStatementImport) => {
+        setSelectedImport(record);
+        setVerifyOpen(true);
+    };
+
+    const openReconcile = (record: BankStatementImport) => {
+        setSelectedImport(record);
+        setReconcileOpen(true);
     };
 
     const imports = data?.imports || [];
@@ -251,25 +317,44 @@ const BankStatementPage: React.FC = () => {
         {
             title: "Actions",
             key: "actions",
-            width: 130,
+            width: 195,
             fixed: "right" as const,
             render: (_: unknown, r: BankStatementImport) => (
                 <Space size={4}>
                     <Tooltip title="Review Transactions">
                         <Button icon={<EyeOutlined />} size="small" onClick={() => openReview(r)} />
                     </Tooltip>
-                    {r.status !== "Voided" && r.status !== "Fully Pushed" && (
-                        <Tooltip title="Void Import">
-                            <Popconfirm
-                                title="Void this import?"
-                                onConfirm={() => handleVoid(r)}
-                                okText="Void"
-                                okButtonProps={{ danger: true }}
-                                cancelText="Cancel"
-                            >
-                                <Button icon={<StopOutlined />} size="small" danger />
-                            </Popconfirm>
+                    <Tooltip title="Find Missing / Reconcile — check this account's transactions are complete and correctly categorized against the balance sheet">
+                        <Button icon={<DiffOutlined />} size="small" onClick={() => openReconcile(r)} />
+                    </Tooltip>
+                    {(r.status === "Fully Pushed" || r.status === "Partially Pushed") && (
+                        <Tooltip title="Verify Posting">
+                            <Button icon={<SafetyCertificateOutlined />} size="small" onClick={() => openVerify(r)} />
                         </Tooltip>
+                    )}
+                    {r.status !== "Voided" && (
+                        <Tooltip title="Void Import">
+                            <Button icon={<StopOutlined />} size="small" danger onClick={() => handleVoid(r)} />
+                        </Tooltip>
+                    )}
+                    {/* Completed imports can only be voided, not deleted */}
+                    {r.status !== "Fully Pushed" && (
+                        <Popconfirm
+                            title="Delete this import?"
+                            description={
+                                r.pushed_count
+                                    ? `${r.imported_rows || 0} transactions will be removed permanently, and the ${r.pushed_count} journal entr${r.pushed_count === 1 ? "y" : "ies"} they posted will be deleted from the books.`
+                                    : `${r.imported_rows || 0} transactions will be removed permanently.`
+                            }
+                            onConfirm={() => deleteMutation.mutateAsync(r._id)}
+                            okText="Delete"
+                            okButtonProps={{ danger: true }}
+                            cancelText="Cancel"
+                        >
+                            <Tooltip title="Delete Import">
+                                <Button icon={<DeleteOutlined />} size="small" danger />
+                            </Tooltip>
+                        </Popconfirm>
                     )}
                 </Space>
             ),
@@ -310,6 +395,16 @@ const BankStatementPage: React.FC = () => {
                     </Space>
                     <Space>
                         <Select
+                            placeholder="Branch"
+                            options={shopOptions}
+                            value={shopId || undefined}
+                            onChange={handleShopChange}
+                            style={{ width: 220 }}
+                            showSearch
+                            optionFilterProp="label"
+                            size="large"
+                        />
+                        <Select
                             placeholder="Filter by account"
                             options={bankAccountOptions}
                             value={selectedAccountId}
@@ -320,6 +415,14 @@ const BankStatementPage: React.FC = () => {
                             optionFilterProp="label"
                             size="large"
                         />
+                        <Tooltip title="Refresh">
+                            <Button
+                                icon={<ReloadOutlined />}
+                                onClick={handleRefresh}
+                                loading={isFetching}
+                                size="large"
+                            />
+                        </Tooltip>
                         <Button
                             icon={<SettingOutlined />}
                             onClick={() => setRulesOpen(true)}
@@ -439,6 +542,23 @@ const BankStatementPage: React.FC = () => {
                 open={rulesOpen}
                 onClose={() => setRulesOpen(false)}
                 shopId={shopId}
+            />
+
+            <VerifyPostingModal
+                open={verifyOpen}
+                onClose={() => { setVerifyOpen(false); setSelectedImport(null); }}
+                onSuccess={onSuccess}
+                importRecord={selectedImport}
+                shopId={shopId}
+            />
+
+            <ReconcileStatementDrawer
+                open={reconcileOpen}
+                onClose={() => { setReconcileOpen(false); setSelectedImport(null); }}
+                onSuccess={onSuccess}
+                shopId={shopId}
+                presetAccountId={getImportAccountInfo(selectedImport).id}
+                presetAccountName={getImportAccountInfo(selectedImport).label}
             />
         </App>
     );

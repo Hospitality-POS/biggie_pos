@@ -25,11 +25,17 @@ interface TransferItem {
   quantity: number;
   unit_id: string;
   notes?: string;
+  from_variant_id?: string;
+  from_variant_name?: string;
+  to_variant_id?: string;
+  to_variant_name?: string;
 }
 
 interface CreateTransferParams {
   from_shop_id: string;
   to_shop_id: string;
+  // Derived server-side from the shop ids — same shop means zone_to_zone.
+  transfer_type?: "shop_to_shop" | "zone_to_zone";
   items: TransferItem[];
   expected_delivery_date?: string;
   notes?: string;
@@ -470,6 +476,22 @@ export const deleteAllInventory = async (shopId: string): Promise<{ deleted: num
     if (error?.response?.status !== 403) message.error("Failed to delete all inventory items");
     throw error;
   }
+};
+
+// Adds one variant to a product (enabling variants on it if needed) without
+// touching its other fields. Returns the updated product with variant _ids.
+export const addInventoryVariant = async (
+  inventoryId: string,
+  variant: {
+    name: string;
+    attributes?: Record<string, string>;
+    quantity: number;
+    price?: number;
+    location_id?: string;
+  }
+) => {
+  const response = await axiosInstance.post(`${inventoryUrl}/${inventoryId}/variants`, variant);
+  return response.data?.product;
 };
 
 export const fetchInventoryById = async (inventoryId: string) => {

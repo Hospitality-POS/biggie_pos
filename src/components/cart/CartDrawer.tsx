@@ -5,11 +5,13 @@ import {
   closeCartAfterPrint,
   createCart,
   deleteAllCartItems,
+  deleteCartItem,
   getCart,
   fetchCartItems,
   updateCart,
 } from "../../features/Cart/CartActions";
 import { clearPendingPrint, setPendingPrint } from "../../features/PendingPrint/PendingPrintSlice";
+import { computeCartTotals } from "../../features/Cart/CartSlice";
 import { updateCart as updateCartService } from "../../services/cart";
 import PaymentDrawer from "../payment/PaymentDrawer";
 import SkeletonCartItemCard from "./SkeletonCartItemCard";
@@ -49,6 +51,7 @@ import { usePOSMode } from "@context/POSModeContext";
 import { useRetailQueue } from "@context/RetailQueueContext";
 import { usePrintDocument, DocumentType } from "../MODALS/Hooks/usePrintDocument";
 import useSystemDetails from "@hooks/useSystemDetails";
+import { usePermissions } from "@hooks/usePermissions";
 import { sendPrintFromCart } from "@services/printAgent";
 import dayjs from "dayjs";
 
@@ -107,6 +110,7 @@ const CartDrawer: React.FC = () => {
     loading,
   } = useAppSelector((s) => s.cart);
   const { user } = useAppSelector((s) => s.auth);
+  const { can } = usePermissions();
   const { tableData: td } = useAppSelector((s) => s.Tables);
   const pendingPrintSnapshot = useAppSelector((s) => s.pendingPrint.snapshot);
 
@@ -314,6 +318,15 @@ const CartDrawer: React.FC = () => {
     try {
       await sendPrintFromCart(cartId, shopIdValue, companyCode);
       message.success("Printing jobs have been initiated");
+      // The backend marks the items as sent — refetch so their status
+      // updates here without a manual refresh.
+      const refetchTableId =
+        tableId || cartDetails?.table_id?._id || cartDetails?.table_id;
+      if (window.location.pathname.includes("/cart/cart/")) {
+        await dispatch(fetchCartItems(cartId));
+      } else if (refetchTableId) {
+        await dispatch(getCart(refetchTableId));
+      }
     } catch (error: any) {
       console.error("Error sending to printer:", error);
       message.error(error.message || "Failed to send order to printer");
@@ -374,6 +387,40 @@ const CartDrawer: React.FC = () => {
   const printLocked =
     requirePaymentBeforePrint && (data?.length ?? 0) > 0 && !isAwaitingPrintCart;
 
+  // ── Print only items already sent to the kitchen (shop setting) ──
+  // A sent line can grow afterwards, so only its sent_quantity is billed;
+  // items marked sent without a count are billed in full.
+  const printOnlySentItems = !!shopData?.print_only_sent_items;
+  const sentItems = useMemo(() => {
+    if (!printOnlySentItems) return null;
+    return (data ?? [])
+      .map((item: any) => {
+        const sentQty =
+          item.sent_quantity > 0
+            ? Math.min(item.sent_quantity, item.quantity)
+            : item.sent
+              ? item.quantity
+              : 0;
+        return { ...item, quantity: sentQty };
+      })
+      .filter((item: any) => item.quantity > 0);
+  }, [printOnlySentItems, data]);
+  const sentTotals = useMemo(
+    () => (sentItems && cartDetails ? computeCartTotals(sentItems, cartDetails) : null),
+    [sentItems, cartDetails]
+  );
+  const billProps = sentItems
+    ? {
+        data: sentItems,
+        subtotal: sentTotals?.subtotal,
+        totalVatAmount: sentTotals?.totalVatAmount,
+        grandTotal: sentTotals?.grandTotal,
+        disabledReason: sentItems.length
+          ? undefined
+          : "Send the order first — the bill only prints items already sent",
+      }
+    : { data };
+
   // If the page was refreshed (or the cart opened elsewhere) while a paid cart
   // is still awaiting its bill print, rebuild the pending-print snapshot from
   // the live cart so the global print/close prompt comes back. Independent of
@@ -427,6 +474,42 @@ const CartDrawer: React.FC = () => {
     (user?.role === "admin" || user?.role === "cashier") &&
     (data?.length ?? 0) > 0 &&
     !isAwaitingPrintCart;
+
+  // Clear Cart mirrors the per-item delete rule: waiters may only remove
+  // items that haven't been sent, so for them the button clears just the
+  // unsent items and is disabled only once everything has been sent.
+  // Admin/cashier can always clear the whole cart.
+  const hasSentItems = useMemo(
+    () => (data ?? []).some((item: any) => item?.sent),
+    [data]
+  );
+  const hasUnsentItems = useMemo(
+    () => (data ?? []).some((item: any) => !item?.sent),
+    [data]
+  );
+  const isPrivilegedRole = user?.role === "admin" || user?.role === "cashier";
+  const clearCartDisabledForRole = !hasUnsentItems && !isPrivilegedRole;
+  const clearCartUnsentOnly = hasSentItems && !isPrivilegedRole;
+
+  const handleClearCart = async () => {
+    const cartId = cartDetails?._id;
+    if (!cartId) return;
+
+    if (!clearCartUnsentOnly) {
+      dispatch(deleteAllCartItems(cartId));
+      return;
+    }
+
+    // Non-privileged roles may only remove items that haven't been sent.
+    const unsentItems = (data ?? []).filter((item: any) => !item?.sent);
+    try {
+      await Promise.all(
+        unsentItems.map((item: any) => dispatch(deleteCartItem(item._id)).unwrap())
+      );
+    } catch (e: any) {
+      message.error(typeof e === "string" ? e : e?.message || "Failed to remove some items");
+    }
+  };
 
   const handleServedByChange = async (newUserIds: string[]) => {
     const cartId = cartDetails?._id ?? cartDetails?.id;
@@ -561,7 +644,11 @@ const CartDrawer: React.FC = () => {
                 okText="Clear"
                 okButtonProps={{ danger: true }}
                 cancelText="Cancel"
-                disabled={!activeTable || isOnlySlot}
+                disabled={
+                  !activeTable ||
+                  isOnlySlot ||
+                  !(user?.role === "admin" || user?.role === "cashier")
+                }
               >
                 <Tooltip title={isOnlySlot ? "Cannot remove the only slot" : "Clear slot"}>
                   <Button
@@ -569,7 +656,12 @@ const CartDrawer: React.FC = () => {
                     danger
                     type="text"
                     icon={<ClearOutlined />}
-                    disabled={!activeTable || isLoadingSlots || isOnlySlot}
+                    disabled={
+                      !activeTable ||
+                      isLoadingSlots ||
+                      isOnlySlot ||
+                      !(user?.role === "admin" || user?.role === "cashier")
+                    }
                   />
                 </Tooltip>
               </Popconfirm>
@@ -809,7 +901,7 @@ const CartDrawer: React.FC = () => {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <PrintBillModal
                       cartDetails={cartDetails}
-                      data={data}
+                      {...billProps}
                       isSpa={isSpa}
                       printLocked={false}
                       triggerBlock
@@ -865,7 +957,7 @@ const CartDrawer: React.FC = () => {
                 )}
                 <PrintBillModal
                   cartDetails={cartDetails}
-                  data={data}
+                  {...billProps}
                   isSpa={isSpa}
                   printLocked={printLocked}
                   {...printProps}
@@ -875,24 +967,38 @@ const CartDrawer: React.FC = () => {
                 )}
               </Flex>
             )}
-            {user?.role === "admin" && !isAwaitingPrintCart && (
+            {can("CART_DELETE_ALL_ITEMS") && !isAwaitingPrintCart && (
               <Popconfirm
-                title="Clear all items?"
-                description="This will remove everything from the cart."
-                onConfirm={() => dispatch(deleteAllCartItems(cartDetails?._id))}
+                title={clearCartUnsentOnly ? "Clear unsent items?" : "Clear all items?"}
+                description={
+                  clearCartUnsentOnly
+                    ? "Only items that haven't been sent yet will be removed."
+                    : "This will remove everything from the cart."
+                }
+                onConfirm={handleClearCart}
                 okText="Clear"
                 okButtonProps={{ danger: true }}
                 cancelText="Cancel"
+                disabled={clearCartDisabledForRole}
               >
-                <Button
-                  danger
-                  block
-                  size="middle"
-                  icon={<CloseCircleOutlined />}
-                  style={{ borderRadius: 6 }}
+                <Tooltip
+                  title={
+                    clearCartDisabledForRole
+                      ? "All items have been sent — only a cashier or admin can clear them"
+                      : undefined
+                  }
                 >
-                  Clear Cart
-                </Button>
+                  <Button
+                    danger
+                    block
+                    size="middle"
+                    icon={<CloseCircleOutlined />}
+                    disabled={clearCartDisabledForRole}
+                    style={{ borderRadius: 6 }}
+                  >
+                    Clear Cart
+                  </Button>
+                </Tooltip>
               </Popconfirm>
             )}
           </Space>

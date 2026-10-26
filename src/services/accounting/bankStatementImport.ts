@@ -249,6 +249,38 @@ export interface PushToJournalEntriesInput {
     txn_ids?: string[];
 }
 
+export type UnpostedReason =
+    | "not_categorized"
+    | "not_posted"
+    | "missing_journal_entry"
+    | "journal_entry_deleted"
+    | "journal_entry_voided";
+
+export interface UnpostedTransaction {
+    _id: string;
+    description: string;
+    reference?: string;
+    transaction_date: string;
+    debit: number;
+    credit: number;
+    status: TransactionStatus;
+    account_id?: string;
+    account_code?: string;
+    account_name?: string;
+    journal_entry_id?: string | null;
+    reason: UnpostedReason;
+}
+
+export interface VerifyPostingResult {
+    import_id: string;
+    import_no: string;
+    total_checked: number;
+    posted_count: number;
+    unposted_count: number;
+    all_posted: boolean;
+    unposted: UnpostedTransaction[];
+}
+
 export interface ReApplyRulesInput {
     reset_categorized?: boolean;
 }
@@ -550,6 +582,76 @@ export const importStatement = async (data: ImportStatementInput) => {
     }
 };
 
+// ── Compare / Reconcile ──────────────────────────────────────────────────────
+
+export interface CompareStatementInput {
+    shop_id: string;
+    account_id: string;
+    transactions: {
+        transaction_date: string;
+        description?: string;
+        reference?: string;
+        debit: number;
+        credit: number;
+    }[];
+}
+
+export interface CompareStatementRow {
+    row_index?: number;
+    transaction_date: string;
+    description: string;
+    reference?: string;
+    debit: number;
+    credit: number;
+    matched_import_no?: string;
+    import_no?: string;
+}
+
+export interface CompareStatementResult {
+    account_id: string;
+    uploaded_count: number;
+    system_count: number;
+    matched_count: number;
+    missing_in_system: CompareStatementRow[];
+    missing_in_system_count: number;
+    missing_in_upload: CompareStatementRow[];
+    missing_in_upload_count: number;
+    totals: {
+        uploaded_debits: number;
+        uploaded_credits: number;
+        system_debits: number;
+        system_credits: number;
+        missing_in_system_debits: number;
+        missing_in_system_credits: number;
+        missing_in_upload_debits: number;
+        missing_in_upload_credits: number;
+    };
+}
+
+/**
+ * Re-upload a statement and diff it against everything already imported for
+ * this account, to find transactions that are missing from the system
+ * (not yet imported) or missing from the upload (already imported but not
+ * present in this file).
+ */
+export const compareStatement = async (data: CompareStatementInput) => {
+    try {
+        const response = await axiosInstance.post(
+            `${BASE_URL}/accounting/bank-reconciliations/bank-imports/compare`,
+            data
+        );
+        return response.data as CompareStatementResult;
+    } catch (error: unknown) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        if (axiosError?.response?.data?.message) {
+            message.error(axiosError.response.data.message);
+        } else {
+            message.error("Error comparing statement");
+        }
+        throw error;
+    }
+};
+
 // ============================================
 // NEW: PDF UPLOAD & PARSE SERVICE
 // ============================================
@@ -732,16 +834,18 @@ export const uncategorizeTransaction = async (id: string, txn_id: string) => {
     }
 };
 
-export const pushToJournalEntries = async (id: string, data: PushToJournalEntriesInput) => {
+export const pushToJournalEntries = async (id: string, data: PushToJournalEntriesInput, silent = false) => {
     try {
         const response = await axiosInstance.patch(
             `${BASE_URL}/accounting/bank-reconciliations/bank-imports/${id}/push-to-journal-entries`,
             data
         );
-        message.success(
-            response.data.message ||
-                `${response.data.pushed_count} journal entries created`
-        );
+        if (!silent) {
+            message.success(
+                response.data.message ||
+                    `${response.data.pushed_count} journal entries created`
+            );
+        }
         return response.data as {
             created_entries: string[];
             pushed_count: number;
@@ -758,19 +862,78 @@ export const pushToJournalEntries = async (id: string, data: PushToJournalEntrie
     }
 };
 
+export const verifyPosting = async (id: string) => {
+    try {
+        const response = await axiosInstance.get(
+            `${BASE_URL}/accounting/bank-reconciliations/bank-imports/${id}/verify-posting`
+        );
+        return response.data as VerifyPostingResult;
+    } catch (error: unknown) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        if (axiosError?.response?.data?.message) {
+            message.error(axiosError.response.data.message);
+        } else {
+            message.error("Error verifying posting status");
+        }
+        throw error;
+    }
+};
+
 export const voidImport = async (id: string) => {
     try {
         const response = await axiosInstance.patch(
             `${BASE_URL}/accounting/bank-reconciliations/bank-imports/${id}/void`
         );
-        message.success("Import voided");
-        return response.data as { message: string };
+        const data = response.data as { message: string; voided_journal_entries?: number };
+        message.success(
+            data.voided_journal_entries
+                ? `Import voided — ${data.voided_journal_entries} journal entr${data.voided_journal_entries === 1 ? "y" : "ies"} voided`
+                : "Import voided"
+        );
+        return data;
     } catch (error: unknown) {
         const axiosError = error as { response?: { data?: { message?: string } } };
         if (axiosError?.response?.data?.message) {
             message.error(axiosError.response.data.message);
         } else {
             message.error("Error voiding import");
+        }
+        throw error;
+    }
+};
+
+export const deleteImport = async (id: string) => {
+    try {
+        const response = await axiosInstance.delete(
+            `${BASE_URL}/accounting/bank-reconciliations/bank-imports/${id}`
+        );
+        message.success("Import deleted");
+        return response.data as { message: string };
+    } catch (error: unknown) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        if (axiosError?.response?.data?.message) {
+            message.error(axiosError.response.data.message);
+        } else {
+            message.error("Error deleting import");
+        }
+        throw error;
+    }
+};
+
+export const deleteTransactions = async (id: string, txn_ids: string[]) => {
+    try {
+        const response = await axiosInstance.post(
+            `${BASE_URL}/accounting/bank-reconciliations/bank-imports/${id}/transactions/delete`,
+            { txn_ids }
+        );
+        message.success(response.data.message);
+        return response.data as { message: string; deleted: number };
+    } catch (error: unknown) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        if (axiosError?.response?.data?.message) {
+            message.error(axiosError.response.data.message);
+        } else {
+            message.error("Error deleting transactions");
         }
         throw error;
     }

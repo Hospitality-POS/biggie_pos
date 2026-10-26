@@ -10,6 +10,8 @@ export default defineConfig(({ mode }) => {
     server: {
       host: '0.0.0.0',
       port: 5374,
+      // Tauri (base_desktop) points devUrl at this exact port — never drift
+      strictPort: true,
     },
     esbuild: isProduction
       ? {

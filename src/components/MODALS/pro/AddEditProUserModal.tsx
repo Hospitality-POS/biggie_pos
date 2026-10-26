@@ -3,33 +3,26 @@ import {
   Avatar,
   Button,
   Checkbox,
+  Col,
   Drawer,
   Empty,
   Form,
   Input,
   InputNumber,
+  Row,
   Select,
   Skeleton,
   Space,
-  Tabs,
   Typography,
   Upload,
   message,
 } from "antd";
 import { useLocation } from "react-router-dom";
+import { ModalForm } from "@ant-design/pro-components";
 import {
-  ModalForm,
-  ProForm,
-  ProFormDigit,
-  ProFormSelect,
-  ProFormText,
-} from "@ant-design/pro-components";
-import {
-  CheckCircleOutlined,
+  CameraOutlined,
   EditOutlined,
-  InboxOutlined,
   PlusOutlined,
-  ShoppingOutlined,
   UserOutlined,
   UsergroupAddOutlined,
 } from "@ant-design/icons";
@@ -80,45 +73,6 @@ interface AddEditProUserModalProps {
   onSuccess?: () => void;
 }
 
-// ── Section label ─────────────────────────────────────────────────────────────
-const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <Text
-    style={{
-      fontSize: 10,
-      fontWeight: 700,
-      color: C.subText,
-      textTransform: "uppercase",
-      letterSpacing: "0.5px",
-      display: "block",
-      marginBottom: 12,
-    }}
-  >
-    {children}
-  </Text>
-);
-
-// ── Form section card ─────────────────────────────────────────────────────────
-const FormSection: React.FC<{
-  label: string;
-  children: React.ReactNode;
-  style?: React.CSSProperties;
-}> = ({ label, children, style }) => (
-  <div
-    style={{
-      background: "#ffffff",
-      border: `1px solid ${C.border}`,
-      borderRadius: 12,
-      boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-      padding: "14px 14px 8px",
-      marginBottom: 14,
-      ...style,
-    }}
-  >
-    <SectionLabel>{label}</SectionLabel>
-    {children}
-  </div>
-);
-
 // ── Category card ─────────────────────────────────────────────────────────────
 const CategoryCard: React.FC<{
   category: any;
@@ -155,128 +109,85 @@ const CategoryCard: React.FC<{
   </label>
 );
 
-// ── Categories tab content (shared) ──────────────────────────────────────────
-const CategoriesTabContent: React.FC<{
-  categoriesLoading: boolean;
-  categoriesData: any[];
-  selectedCategories: string[];
-  onCategoryChange: (id: string, checked: boolean) => void;
-}> = ({
-  categoriesLoading,
-  categoriesData,
-  selectedCategories,
-  onCategoryChange,
-}) => (
-    <div style={{ padding: "4px 0" }}>
-      {/* Header */}
-      <div
-        style={{
-          background: "#ffffff",
-          border: `1px solid ${C.border}`,
-          borderRadius: 12,
-          boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-          padding: "12px 14px",
-          marginBottom: 14,
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-        }}
+// ── Photo picker — a round avatar with Upload / Change / Remove ─────────────────
+const PhotoPicker: React.FC<{
+  fileList: UploadFile[];
+  previewImage: string | null;
+  beforeUpload: (file: RcFile) => boolean;
+  handleUploadChange: UploadProps["onChange"];
+  name?: string;
+}> = ({ fileList, previewImage, beforeUpload, handleUploadChange, name }) => {
+  const initials = String(name || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase())
+    .join("");
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 18 }}>
+      <Avatar
+        size={64}
+        src={previewImage || undefined}
+        icon={!previewImage && !initials ? <UserOutlined /> : undefined}
+        style={{ background: previewImage ? undefined : `${C.primary}1a`, color: C.primary, fontWeight: 600, flexShrink: 0 }}
       >
-        <div
-          style={{
-            background: C.primaryLight,
-            borderRadius: 7,
-            padding: 6,
-            color: C.primary,
-            fontSize: 16,
-            lineHeight: 1,
-          }}
-        >
-          <ShoppingOutlined />
-        </div>
-        <div>
-          <Text strong style={{ fontSize: 13, color: C.darkText, display: "block" }}>
-            Product Categories
-          </Text>
-          <Text style={{ fontSize: 11, color: C.subText }}>
-            Showing categories for the selected branch.
-          </Text>
-        </div>
-      </div>
-
-      {categoriesLoading && (
-        <div
-          style={{
-            background: C.bg,
-            border: `1px solid ${C.border}`,
-            borderRadius: 10,
-            padding: "14px",
-          }}
-        >
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} active paragraph={{ rows: 1 }} style={{ marginBottom: 8 }} />
-          ))}
-        </div>
-      )}
-
-      {!categoriesLoading && categoriesData.length > 0 && (
-        <>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
-              gap: 10,
-              marginBottom: 14,
-            }}
+        {!previewImage && initials}
+      </Avatar>
+      <div style={{ minWidth: 0 }}>
+        <Space size={8} wrap>
+          <Upload
+            fileList={fileList}
+            beforeUpload={beforeUpload}
+            onChange={handleUploadChange}
+            maxCount={1}
+            showUploadList={false}
+            accept="image/*"
+            customRequest={({ onSuccess }) => setTimeout(() => onSuccess?.("ok"), 0)}
           >
-            {categoriesData.map((cat: any) => (
-              <CategoryCard
-                key={cat._id}
-                category={cat}
-                checked={selectedCategories.includes(cat._id)}
-                onChange={onCategoryChange}
-              />
-            ))}
-          </div>
-
-          {selectedCategories.length > 0 && (
-            <div
-              style={{
-                background: C.primaryLight,
-                borderLeft: `3px solid ${C.primary}`,
-                borderRadius: "0 8px 8px 0",
-                padding: "10px 14px",
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-              }}
+            <Button size="small" icon={<CameraOutlined />} style={{ borderRadius: 7 }}>
+              {previewImage ? "Change photo" : "Upload photo"}
+            </Button>
+          </Upload>
+          {previewImage && (
+            <Button
+              size="small"
+              type="text"
+              danger
+              onClick={() => handleUploadChange?.({ fileList: [], file: {} as any })}
             >
-              <CheckCircleOutlined style={{ color: C.primary, fontSize: 14 }} />
-              <Text style={{ fontSize: 12, color: C.primary, fontWeight: 600 }}>
-                {selectedCategories.length}{" "}
-                {selectedCategories.length === 1 ? "category" : "categories"} selected
-              </Text>
-            </div>
+              Remove
+            </Button>
           )}
-        </>
-      )}
-
-      {!categoriesLoading && categoriesData.length === 0 && (
-        <Empty
-          description="No categories found for this branch"
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-          style={{ padding: "32px 0" }}
-        />
-      )}
+        </Space>
+        <Text style={{ fontSize: 11.5, color: C.subText, display: "block", marginTop: 4 }}>
+          Optional · JPG or PNG, up to 5 MB
+        </Text>
+      </div>
     </div>
   );
+};
 
-// ── Mobile form fields (plain AntD Form.Item — full width) ────────────────────
-const MobileDetailsFields: React.FC<{
+// ── Section heading inside the form ────────────────────────────────────────────
+const FieldGroup: React.FC<{ title: string; hint?: string; children: React.ReactNode }> = ({ title, hint, children }) => (
+  <div style={{ marginBottom: 6 }}>
+    <div style={{ marginBottom: 10, paddingTop: 4, borderTop: `1px solid ${C.border}` }}>
+      <Text strong style={{ fontSize: 13, color: C.darkText, display: "block", marginTop: 12 }}>
+        {title}
+      </Text>
+      {hint && <Text style={{ fontSize: 12, color: C.subText }}>{hint}</Text>}
+    </div>
+    {children}
+  </div>
+);
+
+// ── All staff fields — used by the desktop modal and the mobile sheet ──────────
+const StaffFields: React.FC<{
+  isMobile: boolean;
   isAdmin: boolean;
   isProfile: boolean;
   isEditingOwnProfile: boolean;
-  userRole: string;
+  showBranch: boolean;
   fileList: UploadFile[];
   previewImage: string | null;
   beforeUpload: (file: RcFile) => boolean;
@@ -284,153 +195,159 @@ const MobileDetailsFields: React.FC<{
   shops: any[];
   userRoles: any[];
   handleShopChange: (id: string) => void;
-  isShopLevelStaffManagement: boolean;
-}> = ({
-  isAdmin,
-  isProfile,
-  isEditingOwnProfile,
-  userRole,
-  fileList,
-  previewImage,
-  beforeUpload,
-  handleUploadChange,
-  shops,
-  userRoles,
-  handleShopChange,
-  isShopLevelStaffManagement,
-}) => {
-    const fieldLabel = (label: string) => (
-      <Text style={{ fontSize: 12, color: C.subText }}>{label}</Text>
-    );
+  showCategories: boolean;
+  categoriesLoading: boolean;
+  categoriesData: any[];
+  selectedCategories: string[];
+  onCategoryChange: (id: string, checked: boolean) => void;
+  onSelectAllCategories: (all: boolean) => void;
+  watchedName?: string;
+}> = (p) => {
+  const span = p.isMobile ? 24 : 12;
+  const label = (text: string) => <Text style={{ fontSize: 12.5, color: C.darkText }}>{text}</Text>;
+  const item = { style: { marginBottom: 14 } };
 
-    return (
-      <>
-        {/* Profile image */}
-        <FormSection label="Profile Image">
-          <Upload.Dragger
-            fileList={fileList}
-            beforeUpload={beforeUpload}
-            onChange={handleUploadChange}
-            maxCount={1}
-            showUploadList={{ showRemoveIcon: true }}
-            accept="image/*"
-            customRequest={({ onSuccess }) => setTimeout(() => onSuccess?.("ok"), 0)}
-            style={{ borderRadius: 8 }}
-          >
-            <p className="ant-upload-drag-icon" style={{ margin: "8px 0 4px" }}>
-              <InboxOutlined style={{ fontSize: 30, color: C.primary }} />
-            </p>
-            <Text style={{ fontSize: 12, color: C.darkText }}>Tap to upload image</Text>
-            <br />
-            <Text style={{ fontSize: 11, color: C.subText }}>Single file · max 5 MB</Text>
-          </Upload.Dragger>
-          {previewImage && (
-            <div style={{ marginTop: 12, textAlign: "center" }}>
-              <Avatar
-                size={80}
-                src={previewImage}
-                icon={<UserOutlined />}
-                style={{ border: `3px solid ${C.primary}` }}
-              />
-            </div>
-          )}
-        </FormSection>
+  return (
+    <>
+      <PhotoPicker
+        fileList={p.fileList}
+        previewImage={p.previewImage}
+        beforeUpload={p.beforeUpload}
+        handleUploadChange={p.handleUploadChange}
+        name={p.watchedName}
+      />
 
-        {/* Basic info */}
-        <FormSection label="Basic Info">
-          <Form.Item
-            name="fullname"
-            label={fieldLabel("Full Name")}
-            rules={[{ required: true, message: "Name is required" }]}
-            style={{ marginBottom: 10 }}
-          >
-            <Input placeholder="Enter full name" style={{ borderRadius: 8 }} />
-          </Form.Item>
-          <Form.Item
-            name="username"
-            label={fieldLabel("Username")}
-            rules={[{ required: true, message: "Username is required" }]}
-            style={{ marginBottom: 10 }}
-          >
-            <Input placeholder="Preferred username" style={{ borderRadius: 8 }} />
-          </Form.Item>
-          {isAdmin && (
-            <Form.Item
-              name="roleId"
-              label={fieldLabel("Role")}
-              rules={[{ required: true, message: "Role is required" }]}
-              style={{ marginBottom: 10 }}
-            >
-              <Select
-                placeholder="Select role"
-                disabled={isProfile || isEditingOwnProfile}
-                showSearch
-                optionFilterProp="label"
-                style={{ borderRadius: 8 }}
-                options={(userRoles || []).map((r: any) => ({
-                  label: r.role_type,
-                  value: r._id,
-                }))}
-              />
+      <FieldGroup title="Personal details">
+        <Row gutter={16}>
+          <Col span={span}>
+            <Form.Item name="fullname" label={label("Full name")} rules={[{ required: true, message: "Enter their full name" }]} {...item}>
+              <Input placeholder="e.g. Mercy Atieno" />
             </Form.Item>
-          )}
-          <Form.Item
-            name="email"
-            label={fieldLabel("Email")}
-            rules={[
-              { required: true, pattern: /^\S+@\S+\.\S+$/, message: "Invalid email" },
-            ]}
-            style={{ marginBottom: 10 }}
-          >
-            <Input placeholder="user@example.com" style={{ borderRadius: 8 }} />
-          </Form.Item>
-          <Form.Item
-            name="pin"
-            label={fieldLabel("PIN")}
-            tooltip="4-digit login PIN"
-            rules={[
-              { required: true, pattern: /^[0-9]{4}$/, message: "Must be 4 digits" },
-            ]}
-            style={{ marginBottom: 10 }}
-          >
-            <Input.Password placeholder="••••" style={{ borderRadius: 8 }} maxLength={4} />
-          </Form.Item>
-          <Form.Item
-            name="idNumber"
-            label={fieldLabel("National ID")}
-            style={{ marginBottom: 10 }}
-          >
-            <InputNumber
-              placeholder="ID number"
-              style={{ width: "100%", borderRadius: 8 }}
-              controls={false}
-            />
-          </Form.Item>
-          {userRole !== "cashier" && (!isAdmin || !isEditingOwnProfile) && !isShopLevelStaffManagement && (
-            <Form.Item
-              name="shop_id"
-              label={fieldLabel("Branch")}
-              rules={[{ required: true, message: "Branch is required" }]}
-              style={{ marginBottom: 10 }}
-            >
-              <Select
-                placeholder="Select branch"
-                showSearch
-                optionFilterProp="label"
-                onChange={handleShopChange}
-                style={{ borderRadius: 8 }}
-                options={(shops || []).map((s: any) => ({
-                  label: s.name,
-                  value: s._id,
-                }))}
-              />
+          </Col>
+          <Col span={span}>
+            <Form.Item name="idNumber" label={label("National ID")} {...item}>
+              <InputNumber placeholder="Optional" style={{ width: "100%" }} controls={false} />
             </Form.Item>
+          </Col>
+          <Col span={span}>
+            <PhoneInput label={label("Phone")} owner="phoneNumber" required={false} />
+          </Col>
+        </Row>
+      </FieldGroup>
+
+      <FieldGroup title="Login details" hint="Used to sign in to the POS and the dashboard">
+        <Row gutter={16}>
+          <Col span={span}>
+            <Form.Item name="username" label={label("Username")} rules={[{ required: true, message: "Choose a username" }]} {...item}>
+              <Input placeholder="e.g. mercy" autoComplete="off" />
+            </Form.Item>
+          </Col>
+          <Col span={span}>
+            <Form.Item
+              name="email"
+              label={label("Email")}
+              rules={[{ required: true, pattern: /^\S+@\S+\.\S+$/, message: "Enter a valid email" }]}
+              {...item}
+            >
+              <Input placeholder="name@example.com" autoComplete="off" />
+            </Form.Item>
+          </Col>
+          <Col span={span}>
+            <Form.Item
+              name="pin"
+              label={label("4-digit PIN")}
+              tooltip="Used for quick sign-in on the POS"
+              rules={[{ required: true, pattern: /^[0-9]{4}$/, message: "The PIN must be 4 digits" }]}
+              {...item}
+            >
+              <Input.Password placeholder="••••" maxLength={4} inputMode="numeric" autoComplete="new-password" />
+            </Form.Item>
+          </Col>
+        </Row>
+      </FieldGroup>
+
+      {(p.isAdmin || p.showBranch) && (
+        <FieldGroup title="Role and branch">
+          <Row gutter={16}>
+            {p.isAdmin && (
+              <Col span={span}>
+                <Form.Item name="roleId" label={label("Role")} rules={[{ required: true, message: "Choose a role" }]} {...item}>
+                  <Select
+                    placeholder="Choose a role"
+                    disabled={p.isProfile || p.isEditingOwnProfile}
+                    showSearch
+                    optionFilterProp="label"
+                    options={(p.userRoles || []).map((r: any) => ({ label: r.role_type, value: r._id }))}
+                  />
+                </Form.Item>
+              </Col>
+            )}
+            {p.showBranch && (
+              <Col span={span}>
+                <Form.Item name="shop_id" label={label("Branch")} rules={[{ required: true, message: "Choose a branch" }]} {...item}>
+                  <Select
+                    placeholder="Choose a branch"
+                    showSearch
+                    optionFilterProp="label"
+                    onChange={p.handleShopChange}
+                    options={(p.shops || []).map((s: any) => ({ label: s.name, value: s._id }))}
+                  />
+                </Form.Item>
+              </Col>
+            )}
+          </Row>
+        </FieldGroup>
+      )}
+
+      {p.showCategories && (
+        <FieldGroup title="What they can sell" hint="Leave empty to allow every category in this branch">
+          {p.categoriesLoading ? (
+            <Skeleton active paragraph={{ rows: 2 }} title={false} />
+          ) : p.categoriesData.length === 0 ? (
+            <Empty description="No categories in this branch yet" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ margin: "8px 0 16px" }} />
+          ) : (
+            <>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <Text style={{ fontSize: 12, color: p.selectedCategories.length ? C.primary : C.subText, fontWeight: 600 }}>
+                  {p.selectedCategories.length
+                    ? `${p.selectedCategories.length} of ${p.categoriesData.length} selected`
+                    : "All categories allowed"}
+                </Text>
+                <Space size={4}>
+                  <Button size="small" type="link" onClick={() => p.onSelectAllCategories(true)} style={{ padding: "0 4px" }}>
+                    Select all
+                  </Button>
+                  {p.selectedCategories.length > 0 && (
+                    <Button size="small" type="link" onClick={() => p.onSelectAllCategories(false)} style={{ padding: "0 4px" }}>
+                      Clear
+                    </Button>
+                  )}
+                </Space>
+              </div>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: `repeat(auto-fill, minmax(${p.isMobile ? 130 : 150}px, 1fr))`,
+                  gap: 8,
+                  marginBottom: 14,
+                }}
+              >
+                {p.categoriesData.map((cat: any) => (
+                  <CategoryCard
+                    key={cat._id}
+                    category={cat}
+                    checked={p.selectedCategories.includes(cat._id)}
+                    onChange={p.onCategoryChange}
+                  />
+                ))}
+              </div>
+            </>
           )}
-          <PhoneInput label="Phone" owner="phoneNumber" required={false} />
-        </FormSection>
-      </>
-    );
-  };
+        </FieldGroup>
+      )}
+    </>
+  );
+};
 
 // ── Main component ────────────────────────────────────────────────────────────
 const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
@@ -484,12 +401,6 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
     networkMode: "always",
   });
 
-  const roleRequest = async () =>
-    (userRoles || []).map((r: any) => ({ label: r.role_type, value: r._id }));
-
-  const shopRequest = async () =>
-    (shops || []).map((s: any) => ({ label: s.name, value: s._id }));
-
   // ── Populate on open ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (!open) return;
@@ -521,12 +432,7 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
       ...data,
       phoneNumber: reversePhoneNumber(data?.phone),
       roleId: data?.role?._id,
-      shop_id: shopId
-        ? {
-          value: shopId,
-          label: typeof rawShopId === "object" ? rawShopId?.name : rawShopId,
-        }
-        : undefined,
+      shop_id: shopId || undefined,
     });
 
     if (data?.categories?.length) {
@@ -719,58 +625,66 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
     ? (isShopLevelStaffManagement ? currentShopId : selectedShopId) || null
     : null;
 
-  // ── Shared tab items ───────────────────────────────────────────────────────
-  const categoriesTabLabel = (
-    <Space size={6}>
-      <ShoppingOutlined style={{ fontSize: 13 }} />
-      <span>Categories</span>
-      {selectedCategories.length > 0 && (
-        <span
-          style={{
-            background: C.primary,
-            color: "#fff",
-            borderRadius: 10,
-            padding: "0 6px",
-            fontSize: 11,
-            fontWeight: 700,
-            lineHeight: "18px",
-            display: "inline-block",
-          }}
-        >
-          {selectedCategories.length}
-        </span>
-      )}
-    </Space>
-  );
+  const handleSelectAllCategories = (all: boolean) =>
+    setSelectedCategories(all ? categoriesData.map((c: any) => c._id) : []);
 
-  const categoriesContent = (
-    <CategoriesTabContent
+  const showBranch =
+    user?.role !== "cashier" && (!isAdmin || !isEditingOwnProfile) && !isShopLevelStaffManagement;
+
+  const watchedName = Form.useWatch("fullname", form);
+
+  const fields = (
+    <StaffFields
+      isMobile={isMobile}
+      isAdmin={isAdmin}
+      isProfile={!!isProfile}
+      isEditingOwnProfile={!!isEditingOwnProfile}
+      showBranch={showBranch}
+      fileList={fileList}
+      previewImage={previewImage}
+      beforeUpload={beforeUpload}
+      handleUploadChange={handleUploadChange}
+      shops={shops || []}
+      userRoles={userRoles || []}
+      handleShopChange={handleShopChange}
+      showCategories={!!effectiveShopId}
       categoriesLoading={categoriesLoading}
       categoriesData={categoriesData}
       selectedCategories={selectedCategories}
       onCategoryChange={handleCategoryChange}
+      onSelectAllCategories={handleSelectAllCategories}
+      watchedName={watchedName}
     />
   );
 
   // ── Modal title ────────────────────────────────────────────────────────────
   const modalTitle = (
-    <Space size={8}>
+    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
       <div
         style={{
+          width: 34,
+          height: 34,
+          borderRadius: 9,
           background: C.primaryLight,
-          borderRadius: 7,
-          padding: "4px 6px",
           color: C.primary,
-          fontSize: 14,
-          lineHeight: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 15,
+          flexShrink: 0,
         }}
       >
         {edit ? <EditOutlined /> : <UsergroupAddOutlined />}
       </div>
-      <Text strong style={{ fontSize: 13, color: C.darkText }}>
-        {edit ? `Edit ${isProfile ? "Profile" : "User"}` : "New Staff"}
-      </Text>
-    </Space>
+      <div style={{ minWidth: 0 }}>
+        <Text strong style={{ fontSize: 15, color: C.darkText, display: "block", lineHeight: 1.25 }}>
+          {edit ? (isProfile ? "Edit your profile" : `Edit ${data?.fullname || "staff member"}`) : "Add a staff member"}
+        </Text>
+        <Text style={{ fontSize: 12, color: C.subText, fontWeight: 400 }}>
+          {edit ? "Update their details, login and access" : "They can sign in with their username or PIN"}
+        </Text>
+      </div>
+    </div>
   );
 
   // ── Trigger button ─────────────────────────────────────────────────────────
@@ -784,163 +698,16 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
       Edit
     </Button>
   ) : (
-    <Button
-      type="primary"
-      icon={<PlusOutlined />}
-      style={{
-        background: C.primary,
-        borderColor: C.primary,
-        borderRadius: 7,
-        fontWeight: 500,
-      }}
-      onClick={() => setOpen(true)}
-    >
+    <Button type="primary" icon={<PlusOutlined />} style={{ borderRadius: 7, fontWeight: 500 }} onClick={() => setOpen(true)}>
       {isMobile ? "Add" : "New Staff"}
     </Button>
   );
 
-  // ── Desktop: ProForm inside ModalForm ──────────────────────────────────────
-  const desktopDetailsTab = (
-    <>
-      {/* Avatar upload */}
-      <div
-        style={{
-          background: "#ffffff",
-          border: `1px solid ${C.border}`,
-          borderRadius: 12,
-          boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-          padding: "14px 14px 10px",
-          marginBottom: 16,
-        }}
-      >
-        <SectionLabel>Profile Image</SectionLabel>
-        <Upload.Dragger
-          fileList={fileList}
-          beforeUpload={beforeUpload}
-          onChange={handleUploadChange}
-          maxCount={1}
-          showUploadList={{ showRemoveIcon: true }}
-          accept="image/*"
-          customRequest={({ onSuccess }) => setTimeout(() => onSuccess?.("ok"), 0)}
-          style={{ borderRadius: 8 }}
-        >
-          <p className="ant-upload-drag-icon" style={{ margin: "8px 0 4px" }}>
-            <InboxOutlined style={{ fontSize: 36, color: C.primary }} />
-          </p>
-          <Text style={{ fontSize: 13, color: C.darkText }}>
-            Click or drag image to upload
-          </Text>
-          <br />
-          <Text style={{ fontSize: 11, color: C.subText }}>Single image · max 5 MB</Text>
-        </Upload.Dragger>
-        {previewImage && (
-          <div style={{ marginTop: 14, textAlign: "center" }}>
-            <Avatar
-              size={90}
-              src={previewImage}
-              icon={<UserOutlined />}
-              style={{ border: `3px solid ${C.primary}` }}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Fields */}
-      <div
-        style={{
-          background: "#ffffff",
-          border: `1px solid ${C.border}`,
-          borderRadius: 12,
-          boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-          padding: "14px 14px 4px",
-          marginBottom: 16,
-        }}
-      >
-        <SectionLabel>Basic Info</SectionLabel>
-        <ProForm.Group>
-          <ProFormText
-            hasFeedback
-            width="md"
-            name="fullname"
-            label="Full Name"
-            rules={[{ required: true, message: "Name is required" }]}
-            placeholder="Enter full name"
-          />
-          <ProFormText
-            hasFeedback
-            width="md"
-            name="username"
-            label="Username"
-            rules={[{ required: true, message: "Username is required" }]}
-            placeholder="Preferred username"
-          />
-        </ProForm.Group>
-        <ProForm.Group>
-          <ProFormText
-            hasFeedback
-            width="md"
-            name="email"
-            label="Email"
-            rules={[
-              { required: true, pattern: /^\S+@\S+\.\S+$/, message: "Invalid email" },
-            ]}
-            placeholder="user@example.com"
-          />
-          <ProFormText.Password
-            hasFeedback
-            width="md"
-            name="pin"
-            label="PIN"
-            tooltip="4-digit login PIN"
-            rules={[{ required: true, pattern: /^[0-9]{4}$/, message: "Must be 4 digits" }]}
-            placeholder="••••"
-          />
-        </ProForm.Group>
-        <ProForm.Group>
-          {isAdmin && (
-            <ProFormSelect
-              hasFeedback
-              width="md"
-              name="roleId"
-              label="Role"
-              disabled={isProfile || isEditingOwnProfile}
-              rules={[{ required: true, message: "Role is required" }]}
-              showSearch
-              placeholder="Select role"
-              request={roleRequest}
-            />
-          )}
-          <ProFormDigit
-            hasFeedback
-            width="md"
-            name="idNumber"
-            label="National ID"
-            placeholder="Enter national ID number"
-          />
-        </ProForm.Group>
-        <ProForm.Group>
-          {user?.role !== "cashier" && (!isAdmin || !isEditingOwnProfile) && !isShopLevelStaffManagement && (
-            <ProFormSelect
-              hasFeedback
-              width="md"
-              name="shop_id"
-              label="Branch"
-              rules={[{ required: true, message: "Branch is required" }]}
-              showSearch
-              placeholder="Select branch"
-              request={shopRequest}
-              fieldProps={{ onChange: handleShopChange }}
-            />
-          )}
-          <PhoneInput label="Phone" owner="phoneNumber" required={false} />
-        </ProForm.Group>
-      </div>
-    </>
-  );
+  const submitText = edit ? "Save changes" : "Add staff member";
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
-  // Mobile → bottom Drawer with plain Form ────────────────────────────────────
+  // Mobile → bottom sheet with the same fields in one column
   if (isMobile) {
     return (
       <>
@@ -953,83 +720,30 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
           destroyOnClose
           title={modalTitle}
           styles={{
-            body: { padding: "14px 14px 100px", overflowY: "auto" },
-            footer: {
-              padding: "12px 14px",
-              borderTop: `1px solid ${C.border}`,
-              background: "#fff",
-            },
+            header: { padding: "12px 14px" },
+            body: { padding: "14px 16px 24px", overflowY: "auto", overflowX: "hidden" },
+            footer: { padding: "12px 14px", borderTop: `1px solid ${C.border}`, background: "#fff" },
           }}
           footer={
             <div style={{ display: "flex", gap: 10 }}>
-              <Button
-                block
-                onClick={() => handleOpenChange(false)}
-                style={{ borderRadius: 8, height: 44 }}
-              >
+              <Button block onClick={() => handleOpenChange(false)} style={{ borderRadius: 8, height: 44 }}>
                 Cancel
               </Button>
-              <Button
-                block
-                type="primary"
-                onClick={handleMobileSubmit}
-                style={{
-                  background: C.primary,
-                  borderColor: C.primary,
-                  borderRadius: 8,
-                  height: 44,
-                  fontWeight: 600,
-                }}
-              >
-                {edit ? "Save Changes" : "Create Staff"}
+              <Button block type="primary" onClick={handleMobileSubmit} style={{ borderRadius: 8, height: 44, fontWeight: 600 }}>
+                {submitText}
               </Button>
             </div>
           }
         >
           <Form form={form} layout="vertical" requiredMark={false}>
-            <Tabs
-              defaultActiveKey="details"
-              size="small"
-              items={[
-                {
-                  key: "details",
-                  label: (
-                    <Space size={6}>
-                      <UserOutlined style={{ fontSize: 13 }} />
-                      <span>User Details</span>
-                    </Space>
-                  ),
-                  children: (
-                    <MobileDetailsFields
-                      isAdmin={isAdmin}
-                      isProfile={!!isProfile}
-                      isEditingOwnProfile={!!isEditingOwnProfile}
-                      userRole={user?.role || ""}
-                      isShopLevelStaffManagement={isShopLevelStaffManagement}
-                      fileList={fileList}
-                      previewImage={previewImage}
-                      beforeUpload={beforeUpload}
-                      handleUploadChange={handleUploadChange}
-                      shops={shops || []}
-                      userRoles={userRoles || []}
-                      handleShopChange={handleShopChange}
-                    />
-                  ),
-                },
-                ...(effectiveShopId ? [{
-                  key: "categories",
-                  label: categoriesTabLabel,
-                  children: categoriesContent,
-                }] : []),
-              ]}
-            />
+            {fields}
           </Form>
         </Drawer>
       </>
     );
   }
 
-  // Desktop → ModalForm ────────────────────────────────────────────────────────
+  // Desktop → ModalForm, two columns
   return (
     <ModalForm
       form={form}
@@ -1037,23 +751,15 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
       onOpenChange={handleOpenChange}
       formRef={formRef}
       title={modalTitle}
+      requiredMark={false}
       initialValues={
         edit
           ? {
-            ...data,
-            phoneNumber: reversePhoneNumber(data?.phone),
-            roleId: { value: data?.role?._id, label: data?.role?.role_type },
-            shop_id: {
-              value:
-                typeof data?.shop_id === "object"
-                  ? data?.shop_id?._id
-                  : data?.shop_id,
-              label:
-                typeof data?.shop_id === "object"
-                  ? data?.shop_id?.name
-                  : data?.shop_id,
-            },
-          }
+              ...data,
+              phoneNumber: reversePhoneNumber(data?.phone),
+              roleId: data?.role?._id,
+              shop_id: typeof data?.shop_id === "object" ? data?.shop_id?._id : data?.shop_id,
+            }
           : {}
       }
       trigger={triggerButton}
@@ -1061,49 +767,21 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
       modalProps={{
         destroyOnClose: true,
         centered: true,
-        width: "min(820px, 96vw)",
+        width: "min(760px, 96vw)",
         styles: {
-          body: { maxHeight: "78vh", overflowY: "auto", padding: "20px 20px 8px" },
+          header: { paddingBottom: 12, borderBottom: `1px solid ${C.border}`, marginBottom: 0 },
+          body: { maxHeight: "72vh", overflowY: "auto", overflowX: "hidden", padding: "18px 8px 4px" },
+          footer: { borderTop: `1px solid ${C.border}`, paddingTop: 12, marginTop: 4 },
         },
       }}
       onFinish={onFinish}
       submitter={{
-        searchConfig: {
-          resetText: "Cancel",
-          submitText: edit ? "Save Changes" : "Create Staff",
-        },
-        submitButtonProps: {
-          style: {
-            background: C.primary,
-            borderColor: C.primary,
-            borderRadius: 7,
-            fontWeight: 500,
-          },
-        },
+        searchConfig: { resetText: "Cancel", submitText },
+        submitButtonProps: { style: { borderRadius: 7, fontWeight: 500 } },
         resetButtonProps: { style: { borderRadius: 7 } },
       }}
     >
-      <Tabs
-        defaultActiveKey="details"
-        size="small"
-        items={[
-          {
-            key: "details",
-            label: (
-              <Space size={6}>
-                <UserOutlined style={{ fontSize: 13 }} />
-                <span>User Details</span>
-              </Space>
-            ),
-            children: desktopDetailsTab,
-          },
-          ...(effectiveShopId ? [{
-            key: "categories",
-            label: categoriesTabLabel,
-            children: categoriesContent,
-          }] : []),
-        ]}
-      />
+      {fields}
     </ModalForm>
   );
 };

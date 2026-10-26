@@ -27,6 +27,7 @@ import { fetchAllDepartments } from "@services/crm/departments";
 import { fetchEmployees } from "@services/bandu";
 import { exportToExcel, exportToPDF } from "@utils/exportUtils";
 import dayjs, { Dayjs } from "dayjs";
+import sharedRangePresets from "@utils/DateRangeUtils";
 import weekOfYear from "dayjs/plugin/weekOfYear";
 import quarterOfYear from "dayjs/plugin/quarterOfYear";
 import { THEME_C } from "@utils/getPrimaryColor";
@@ -48,28 +49,28 @@ const TAB_CFG = [
     icon: <TeamOutlined />,
     iconColor: C.green,
     label: "Employees",
-    permissionKey: "HR_EMPLOYEES_VIEW",
+    permissionKey: "BANDU_EMPLOYEES_VIEW",
   },
   {
     key: "payroll",
     icon: <DollarOutlined />,
     iconColor: C.blue,
     label: "Payroll",
-    permissionKey: "HR_PAYROLL_VIEW",
+    permissionKey: "BANDU_PAYROLL_VIEW",
   },
   {
     key: "leave",
     icon: <CalendarOutlined />,
     iconColor: C.purple,
     label: "Leave",
-    permissionKey: "HR_LEAVE_VIEW",
+    permissionKey: "BANDU_LEAVE_VIEW",
   },
   {
     key: "department",
     icon: <HomeOutlined />,
     iconColor: C.orange,
     label: "Departments",
-    permissionKey: "HR_DEPARTMENTS_VIEW",
+    permissionKey: "BANDU_EMPLOYEES_VIEW",
   },
 ];
 
@@ -299,17 +300,7 @@ const BanduReports: React.FC = () => {
   }, [employeesData]);
 
   // ── Date range presets ───────────────────────────────────────────────────
-  const rangePresets: {
-    label: string;
-    value: [Dayjs, Dayjs];
-  }[] = [
-    { label: "Today", value: [dayjs().startOf("day"), dayjs().endOf("day")] },
-    { label: "This Week", value: [dayjs().startOf("week"), dayjs().endOf("week")] },
-    { label: "This Month", value: [dayjs().startOf("month"), dayjs().endOf("month")] },
-    { label: "This Quarter", value: [dayjs().startOf("quarter"), dayjs().endOf("quarter")] },
-    { label: "This Year", value: [dayjs().startOf("year"), dayjs().endOf("year")] },
-    { label: "Last Year", value: [dayjs().subtract(1, "year").startOf("year"), dayjs().subtract(1, "year").endOf("year")] },
-  ];
+  const rangePresets = sharedRangePresets() as { label: string; value: [Dayjs, Dayjs] }[];
 
   // ── Active tab config (with allowed flag) ─────────────────────────────────
   const activeTabCfg = tabsWithAccess.find((t) => t.key === activeTab);

@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Button, Form, Input, InputNumber, Select, Modal, message } from "antd";
+import { useQuery } from "@tanstack/react-query";
+import { getTableLocation } from "@services/tables";
+
+const ZONE_ATTRIBUTE_TYPE = "zone";
 
 interface AddEditVariantModalProps {
   open: boolean;
@@ -7,6 +11,12 @@ interface AddEditVariantModalProps {
   onSubmit: (variantData: any) => void;
   editingVariant?: any;
   productName?: string;
+  /** Shows the "Zone / Table Location" variant type when the shop has
+   *  zone-based inventory enabled, letting each variant represent a zone. */
+  zoneInventoryEnabled?: boolean;
+  /** The product's current active selling price — pre-fills the variant's
+   *  price when adding a new variant (still fully editable). */
+  productPrice?: number;
 }
 
 const AddEditVariantModal: React.FC<AddEditVariantModalProps> = ({
@@ -14,14 +24,16 @@ const AddEditVariantModal: React.FC<AddEditVariantModalProps> = ({
   onClose,
   onSubmit,
   editingVariant,
-  productName = "PRODUCT"
+  productName = "PRODUCT",
+  zoneInventoryEnabled = false,
+  productPrice,
 }) => {
-  console.log('AddEditVariantModal rendered with props:', { open, editingVariant, productName });
   const [form] = Form.useForm();
   const [variantData, setVariantData] = useState({
     name: '',
     attributeType: '',
     attributeValue: '',
+    location_id: '',
     quantity: 0,
     sku: '',
     price: 0,
@@ -29,22 +41,44 @@ const AddEditVariantModal: React.FC<AddEditVariantModalProps> = ({
     timestamp: Date.now()
   });
 
+  const { data: locations } = useQuery<{ _id: string; name: string }[]>({
+    queryKey: ["table-locations"],
+    queryFn: () => getTableLocation({}),
+    enabled: open && zoneInventoryEnabled,
+    staleTime: 30 * 1000,
+  });
+
+  const isZoneVariant = variantData.attributeType === ZONE_ATTRIBUTE_TYPE;
+
   useEffect(() => {
     if (open) {
       if (editingVariant) {
+        // Variants loaded from the API carry an `attributes` map (e.g.
+        // { zone: "Bar Area" }) rather than flat attributeType/attributeValue
+        // fields — derive them so the form pre-fills correctly.
+        const attrs: Record<string, any> =
+          editingVariant.attributes instanceof Map
+            ? Object.fromEntries(editingVariant.attributes)
+            : editingVariant.attributes && typeof editingVariant.attributes === 'object'
+              ? editingVariant.attributes
+              : {};
+        const attributeType = editingVariant.attributeType || Object.keys(attrs)[0] || '';
+        const attributeValue = editingVariant.attributeValue ?? attrs[attributeType] ?? '';
+
         // Edit mode - populate form with existing variant data
         form.setFieldsValue({
           name: editingVariant.name,
-          attributeType: editingVariant.attributeType,
-          attributeValue: editingVariant.attributeValue,
+          attributeType,
+          attributeValue,
           quantity: editingVariant.quantity,
           price: editingVariant.price,
           vat_type: editingVariant.vat_type
         });
         setVariantData({
           name: editingVariant.name,
-          attributeType: editingVariant.attributeType,
-          attributeValue: editingVariant.attributeValue,
+          attributeType,
+          attributeValue,
+          location_id: editingVariant.location_id || '',
           quantity: editingVariant.quantity,
           sku: editingVariant.sku,
           price: editingVariant.price,
@@ -52,24 +86,28 @@ const AddEditVariantModal: React.FC<AddEditVariantModalProps> = ({
           timestamp: Date.now()
         });
       } else {
-        // Add mode - reset form
+        // Add mode - reset form, but pre-fill the price with the product's
+        // current selling price (if any) — the cashier can still change it.
+        const prefilledPrice = productPrice || 0;
         form.resetFields();
         form.setFieldsValue({
-          vat_type: 'STANDARD'
+          vat_type: 'STANDARD',
+          price: prefilledPrice,
         });
         setVariantData({
           name: '',
           attributeType: '',
           attributeValue: '',
+          location_id: '',
           quantity: 0,
           sku: '',
-          price: 0,
+          price: prefilledPrice,
           vat_type: 'STANDARD',
           timestamp: Date.now()
         });
       }
     }
-  }, [open, editingVariant, form]);
+  }, [open, editingVariant, form, productPrice]);
 
   const generateSku = (name: string) => {
     return `${productName.toUpperCase()}-${name?.toUpperCase() || 'VAR'}-${(variantData.timestamp % 10000).toString().padStart(4, '0')}`;
@@ -86,7 +124,8 @@ const AddEditVariantModal: React.FC<AddEditVariantModalProps> = ({
         id: editingVariant?.id || Date.now().toString(),
         attributes: {
           [values.attributeType]: values.attributeValue
-        }
+        },
+        ...(isZoneVariant ? { location_id: variantData.location_id } : {}),
       };
 
       onSubmit(finalVariantData);
@@ -132,6 +171,7 @@ const AddEditVariantModal: React.FC<AddEditVariantModalProps> = ({
           >
             <Input
               placeholder="e.g., Red, Small"
+              disabled={isZoneVariant}
               onChange={(e) => {
                 const newName = e.target.value;
                 setVariantData(prev => ({ ...prev, name: newName }));
@@ -156,27 +196,44 @@ const AddEditVariantModal: React.FC<AddEditVariantModalProps> = ({
             <Select
               placeholder="Select type"
               onChange={(value) => {
-                setVariantData(prev => ({ ...prev, attributeType: value }));
+                setVariantData(prev => ({ ...prev, attributeType: value, attributeValue: '', location_id: '' }));
+                form.setFieldsValue({ attributeValue: undefined, name: undefined });
               }}
             >
               <Select.Option value="color">Color</Select.Option>
               <Select.Option value="size">Size</Select.Option>
               <Select.Option value="material">Material</Select.Option>
+              {zoneInventoryEnabled && (
+                <Select.Option value={ZONE_ATTRIBUTE_TYPE}>Zone / Table Location</Select.Option>
+              )}
               <Select.Option value="other">Other</Select.Option>
             </Select>
           </Form.Item>
 
           <Form.Item
             name="attributeValue"
-            label="Variant Value"
-            rules={[{ required: true, message: "Variant value is required" }]}
+            label={isZoneVariant ? "Zone" : "Variant Value"}
+            rules={[{ required: true, message: isZoneVariant ? "Zone is required" : "Variant value is required" }]}
           >
-            <Input
-              placeholder="e.g., Red, M, Cotton"
-              onChange={(e) => {
-                setVariantData(prev => ({ ...prev, attributeValue: e.target.value }));
-              }}
-            />
+            {isZoneVariant ? (
+              <Select
+                placeholder="Select a zone/table location"
+                options={(locations || []).map((loc) => ({ label: loc.name, value: loc.name, locationId: loc._id }))}
+                onChange={(value, option: any) => {
+                  const locationId = Array.isArray(option) ? option[0]?.locationId : option?.locationId;
+                  // Variant name mirrors the zone so stock lists read naturally (e.g. "Bar", "Patio")
+                  form.setFieldsValue({ name: value });
+                  setVariantData(prev => ({ ...prev, attributeValue: value, location_id: locationId || '', name: value }));
+                }}
+              />
+            ) : (
+              <Input
+                placeholder="e.g., Red, M, Cotton"
+                onChange={(e) => {
+                  setVariantData(prev => ({ ...prev, attributeValue: e.target.value }));
+                }}
+              />
+            )}
           </Form.Item>
 
           <Form.Item
@@ -198,6 +255,11 @@ const AddEditVariantModal: React.FC<AddEditVariantModalProps> = ({
             name="price"
             label="Price (Ksh)"
             rules={[{ required: true, message: "Price is required" }]}
+            extra={
+              !editingVariant && productPrice
+                ? "Pre-filled from the product's selling price — change it if this variant is priced differently."
+                : undefined
+            }
           >
             <InputNumber
               placeholder="0.00"

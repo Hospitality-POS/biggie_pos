@@ -42,6 +42,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchAllUnits } from "@services/products";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { addNewInventory, editInventory } from "@services/inventory";
+import { fetchShop } from "@services/shops";
 import { UploadFile } from "antd/lib/upload";
 import { ProCard } from "@ant-design/pro-components";
 import AddEditVariantModal from "./AddEditVariantModal";
@@ -570,7 +571,7 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [usageType, setUsageType] = useState<string>("internal");
+  const [usageType, setUsageType] = useState<string>("both");
   const [hasVariants, setHasVariants] = useState<boolean>(false);
   const [variants, setVariants] = useState<any[]>([]);
   const [variantModalOpen, setVariantModalOpen] = useState(false);
@@ -584,6 +585,19 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
 
   // Derived: is the modal actually visible (handles both controlled & uncontrolled)
   const isOpen = externalOpen !== undefined ? externalOpen : open;
+
+  const shopId = localStorage.getItem("shopId");
+  const { data: shopData } = useQuery({
+    queryKey: ["shop", shopId],
+    queryFn: () => fetchShop(shopId!),
+    enabled: !!shopId,
+    staleTime: 60 * 1000,
+  });
+  const zoneInventoryEnabled = !!shopData?.zone_inventory_enabled;
+
+  // Tracks the product's current selling price so a new variant can be
+  // pre-filled with it (still editable in the variant modal).
+  const watchedPrice = Form.useWatch("price", form);
 
   // ── Sync external open prop ───────────────────────────────────────────────
   useEffect(() => {
@@ -723,7 +737,7 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
     form.resetFields();
     setFileList([]);
     setUploadedFile(null);
-    setUsageType("internal");
+    setUsageType("both");
     setHasVariants(false);
     setVariants([]);
     setCurrentStep(0);
@@ -804,12 +818,12 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
       prefilled.current = true;
       form.resetFields();
       form.setFieldsValue({
-        usage_type: "internal",
+        usage_type: "both",
         has_variants: false,
         vat_type: "STANDARD",
         status: "active",
       });
-      setUsageType("internal");
+      setUsageType("both");
       setHasVariants(false);
       setVariants([]);
       setCurrentStep(0);
@@ -1352,6 +1366,11 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
                             {variant.name || `Variant ${index + 1}`}
                           </div>
                           <div style={{ marginBottom: 4 }}>
+                            {variant.location_id && (
+                              <Tag color="blue" style={{ fontSize: 11 }}>
+                                Zone: {variant.name}
+                              </Tag>
+                            )}
                             {variant.attributes &&
                               Object.entries(variant.attributes).map(
                                 ([key, value]) => (
@@ -1747,6 +1766,8 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
         onSubmit={handleVariantSubmit}
         editingVariant={editingVariant}
         productName={form.getFieldValue("name")}
+        zoneInventoryEnabled={zoneInventoryEnabled}
+        productPrice={watchedPrice}
       />
 
       {/* ── Category add modal ── */}

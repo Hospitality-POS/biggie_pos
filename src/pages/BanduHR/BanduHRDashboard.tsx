@@ -121,6 +121,14 @@ const GENDER_COLORS: Record<string, string> = {
   not_specified: "#94a3b8",
 };
 
+const STATUS_COLORS: Record<string, string> = {
+  active: "#10b981",
+  on_leave: "#3b82f6",
+  suspended: "#f59e0b",
+  terminated: "#ef4444",
+  resigned: "#64748b",
+};
+
 // ── KPI Card Component (Unified Duka & Mteja Style) ──────────────────────────
 
 interface KPICardProps {
@@ -357,6 +365,9 @@ const BanduHRDashboard: React.FC = () => {
     total_employees: 0,
     active_employees: 0,
     on_leave: 0,
+    suspended: 0,
+    terminated: 0,
+    resigned: 0,
     new_hires_this_month: 0,
   };
   const leaveStats = dashboardData.leave_stats || {
@@ -424,6 +435,16 @@ const BanduHRDashboard: React.FC = () => {
         },
       ].filter((item) => item.value > 0)
     : [];
+
+  const statusPieData = [
+    { key: "active", name: "Active", value: employeeStats.active_employees || 0 },
+    { key: "on_leave", name: "On Leave", value: employeeStats.on_leave || 0 },
+    { key: "suspended", name: "Suspended", value: employeeStats.suspended || 0 },
+    { key: "terminated", name: "Terminated", value: employeeStats.terminated || 0 },
+    { key: "resigned", name: "Resigned", value: employeeStats.resigned || 0 },
+  ]
+    .map((s) => ({ ...s, color: STATUS_COLORS[s.key] }))
+    .filter((s) => s.value > 0);
 
   // ── Table Column Definitions ───────────────────────────────────────────────
 
@@ -781,7 +802,7 @@ const BanduHRDashboard: React.FC = () => {
               isMobile={isMobile}
               subtext={
                 <Text style={{ fontSize: 11, color: "#64748b" }}>
-                  {employeeStats.active_employees} active · {employeeStats.new_hires_this_month} new hires
+                  {employeeStats.active_employees} active · {employeeStats.suspended || 0} suspended · {employeeStats.terminated || 0} terminated
                 </Text>
               }
             />
@@ -888,6 +909,7 @@ const BanduHRDashboard: React.FC = () => {
                   onChange={(v) => setDemographicsTab(v as string)}
                   options={[
                     { label: "Department", value: "dept" },
+                    { label: "Status", value: "status" },
                     { label: "Leave", value: "leave" },
                     { label: "Gender", value: "gender" },
                   ]}
@@ -925,6 +947,64 @@ const BanduHRDashboard: React.FC = () => {
                   ) : (
                     <div style={{ textAlign: "center", padding: "60px 0", color: "#94a3b8", fontSize: 12 }}>
                       No department data available
+                    </div>
+                  )}
+                </>
+              )}
+
+              {demographicsTab === "status" && (
+                <>
+                  {statusPieData.length > 0 ? (
+                    <div>
+                      <ResponsiveContainer width="100%" height={140}>
+                        <PieChart>
+                          <Pie
+                            data={statusPieData}
+                            dataKey="value"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={58}
+                            innerRadius={32}
+                          >
+                            {statusPieData.map((entry, i) => (
+                              <Cell key={i} fill={entry.color} />
+                            ))}
+                          </Pie>
+                          <ReTooltip
+                            formatter={(v: any, name: any) => [v, name]}
+                            contentStyle={{ borderRadius: 8, fontSize: 12 }}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div style={{ marginTop: 8, maxHeight: 95, overflowY: "auto" }}>
+                        {statusPieData.map((e, i) => (
+                          <div
+                            key={i}
+                            style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}
+                          >
+                            <Space size={6}>
+                              <div
+                                style={{
+                                  width: 8,
+                                  height: 8,
+                                  borderRadius: "50%",
+                                  background: e.color,
+                                  flexShrink: 0,
+                                }}
+                              />
+                              <Text style={{ fontSize: 11, color: "#64748b", textTransform: "capitalize" }}>
+                                {e.name}
+                              </Text>
+                            </Space>
+                            <Text style={{ fontSize: 11, fontWeight: 600 }}>{e.value}</Text>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ textAlign: "center", padding: "60px 0", color: "#94a3b8", fontSize: 12 }}>
+                      No employee data available
                     </div>
                   )}
                 </>

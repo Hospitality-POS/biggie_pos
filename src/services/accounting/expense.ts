@@ -124,6 +124,7 @@ export interface CreateExpenseParams {
     payee_name?: string;
     expense_lines: CreateExpenseLineParam[];
     payment_method?: ExpensePaymentMethod;
+    payment_method_id?: string;
     payment_account_id?: string;
     receipt_no?: string;
     receipt_date?: string;

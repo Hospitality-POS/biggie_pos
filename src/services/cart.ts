@@ -414,6 +414,62 @@ export const transferCartItems = async (data: {
   }
 };
 
+// ==================== BULK TABLE OPERATIONS ====================
+
+export interface BulkTableResult {
+  table_id: string;
+  status: "paid" | "voided" | "cleared" | "skipped" | "failed";
+  reason?: string;
+  detail?: string;
+}
+
+export interface BulkTableResponse {
+  message?: string;
+  results?: BulkTableResult[];
+}
+
+/**
+ * Confirm payment for the open cart on each given table in one call —
+ * the server runs each cart through the normal order pipeline.
+ */
+export const bulkPayTables = async (
+  tableIds: string[],
+  methodId: string,
+  updatedBy?: string
+): Promise<BulkTableResponse> => {
+  const response = await axiosInstance.post(`${baseUrl}/orders/bulk-pay`, {
+    table_ids: tableIds,
+    method_id: methodId,
+    updated_by: updatedBy,
+  });
+  return response.data;
+};
+
+/**
+ * Void the open cart on each given table (records void audit docs, removes
+ * items, frees the tables).
+ */
+export const bulkVoidTables = async (
+  tableIds: string[]
+): Promise<BulkTableResponse> => {
+  const response = await axiosInstance.put(`${baseUrl}/cart/bulk-void`, {
+    table_ids: tableIds,
+  });
+  return response.data;
+};
+
+/**
+ * Clear every item from the open cart on each given table and free them.
+ */
+export const bulkClearTables = async (
+  tableIds: string[]
+): Promise<BulkTableResponse> => {
+  const response = await axiosInstance.delete(`${baseUrl}/cart/bulk-clear`, {
+    data: { table_ids: tableIds },
+  });
+  return response.data;
+};
+
 // ==================== TYPES ====================
 
 export interface Cart {

@@ -5,7 +5,7 @@ import {
 import { DollarOutlined, PlusOutlined, OrderedListOutlined } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
-import ManualIncomeModal from "./Orders/ManualIncomeModal";
+import ExpenseFormModal from "./Orders/ExpenseFormModal";
 import { getIncomeHistory } from "@services/accounting/income";
 import { THEME_C } from "@utils/getPrimaryColor";
 
@@ -218,7 +218,7 @@ function IncomePage() {
                 </div>
             </div>
 
-            <ManualIncomeModal open={incomeModalOpen} onClose={() => setIncomeModalOpen(false)} />
+            <ExpenseFormModal open={incomeModalOpen} onClose={() => setIncomeModalOpen(false)} />
         </>
     );
 }

@@ -76,6 +76,10 @@ export const MODULES = {
     DALA_REPORTS: "Dala · Reports",
     // ── Signature module ───────────────────────────────────────────────────────────
     SIGNATURE: "E-Signature",
+    // ── Forms & Plans add-on (Duka / Pesa / Mteja clients, Bandu employees) ──
+    CLIENT_FORMS: "Client Forms",
+    CLIENT_PLANS: "Client Plans",
+    HR_FORMS_PLANS: "HR · Employee Forms & Plans",
 } as const;
 
 export type ModuleKey = keyof typeof MODULES;
@@ -92,6 +96,8 @@ export interface Permission {
     module: string;
     action: ActionType;
     moduleScope: ModuleScope;
+    /** Other products whose pages also need this permission (see SHARED_MODULE_SCOPES) */
+    sharedWith?: ModuleScope[];
 }
 
 // ─── All permissions ──────────────────────────────────────────────────────────
@@ -359,7 +365,7 @@ export const PERMISSIONS: Record<string, Permission> = {
     REPORTS_VAT_SUMMARY: { key: "REPORTS_VAT_SUMMARY", label: "View VAT Summary Report (POS)", module: MODULES.REPORTS, action: "read", moduleScope: "pos" },
 
     // ── REPORTS (Accounting / Unified) ─────────────────────────────────────────
-    REPORTS_VIEW: { key: "REPORTS_VIEW", label: "View Reports", module: MODULES.REPORTS, action: "read", moduleScope: "accounting" },
+    REPORTS_VIEW: { key: "REPORTS_VIEW", label: "View Reports", module: MODULES.REPORTS, action: "read", moduleScope: "core" },
 
     // ── ROLES ─────────────────────────────────────────────────────────────────
 
@@ -805,11 +811,64 @@ export const PERMISSIONS: Record<string, Permission> = {
     SIGNATURE_MANAGE_SIGNATURES: { key: "SIGNATURE_MANAGE_SIGNATURES", label: "Manage Signature Library", module: MODULES.SIGNATURE, action: "update", moduleScope: "core" },
     SIGNATURE_VIEW_HISTORY: { key: "SIGNATURE_VIEW_HISTORY", label: "View Signature History", module: MODULES.SIGNATURE, action: "read", moduleScope: "core" },
 
+    // ══════════════════════════════════════════════════════════════════════════
+    // FORMS & PLANS ADD-ON  (switched on per shop in System Setup → Forms & Plans)
+    // Client forms / plans are "pos"; employee forms / plans are "hr".
+    // ══════════════════════════════════════════════════════════════════════════
+
+    CLIENT_FORMS_VIEW: { key: "CLIENT_FORMS_VIEW", label: "View Client Forms", module: MODULES.CLIENT_FORMS, action: "read", moduleScope: "pos" },
+    CLIENT_FORMS_CREATE: { key: "CLIENT_FORMS_CREATE", label: "Upload / Create Client Forms", module: MODULES.CLIENT_FORMS, action: "create", moduleScope: "pos" },
+    CLIENT_FORMS_UPDATE: { key: "CLIENT_FORMS_UPDATE", label: "Edit Client Forms", module: MODULES.CLIENT_FORMS, action: "update", moduleScope: "pos" },
+    CLIENT_FORMS_DELETE: { key: "CLIENT_FORMS_DELETE", label: "Delete Draft Client Forms", module: MODULES.CLIENT_FORMS, action: "delete", moduleScope: "pos" },
+    CLIENT_FORMS_APPROVE: { key: "CLIENT_FORMS_APPROVE", label: "Approve Client Forms", module: MODULES.CLIENT_FORMS, action: "special", moduleScope: "pos" },
+    // Filled-in forms hold clients' health information — viewing them is its own permission
+    CLIENT_FORMS_VIEW_FILLED: { key: "CLIENT_FORMS_VIEW_FILLED", label: "View Filled Client Forms & Signed PDFs", module: MODULES.CLIENT_FORMS, action: "read", moduleScope: "pos" },
+    CLIENT_FORMS_SEND: { key: "CLIENT_FORMS_SEND", label: "Send Forms to Clients / Fill In Store", module: MODULES.CLIENT_FORMS, action: "create", moduleScope: "pos" },
+    CLIENT_FORMS_COUNTERSIGN: { key: "CLIENT_FORMS_COUNTERSIGN", label: "Countersign Client Forms", module: MODULES.CLIENT_FORMS, action: "special", moduleScope: "pos" },
+    CLIENT_FORMS_VOID: { key: "CLIENT_FORMS_VOID", label: "Void Filled Client Forms", module: MODULES.CLIENT_FORMS, action: "delete", moduleScope: "pos" },
+
+    CLIENT_PLANS_VIEW: { key: "CLIENT_PLANS_VIEW", label: "View Client Plans", module: MODULES.CLIENT_PLANS, action: "read", moduleScope: "pos" },
+    CLIENT_PLANS_MANAGE: { key: "CLIENT_PLANS_MANAGE", label: "Create & Update Client Plans", module: MODULES.CLIENT_PLANS, action: "update", moduleScope: "pos" },
+    CLIENT_PLAN_TEMPLATES_MANAGE: { key: "CLIENT_PLAN_TEMPLATES_MANAGE", label: "Manage Client Plan Templates", module: MODULES.CLIENT_PLANS, action: "special", moduleScope: "pos" },
+
+    // Employee forms hold HR information: viewing, managing and approving are separate
+    EMPLOYEE_FORMS_VIEW: { key: "EMPLOYEE_FORMS_VIEW", label: "View Employee Forms & Signed PDFs", module: MODULES.HR_FORMS_PLANS, action: "read", moduleScope: "hr" },
+    EMPLOYEE_FORMS_MANAGE: { key: "EMPLOYEE_FORMS_MANAGE", label: "Create, Send & Countersign Employee Forms", module: MODULES.HR_FORMS_PLANS, action: "update", moduleScope: "hr" },
+    EMPLOYEE_FORMS_APPROVE: { key: "EMPLOYEE_FORMS_APPROVE", label: "Approve Employee Forms", module: MODULES.HR_FORMS_PLANS, action: "special", moduleScope: "hr" },
+    EMPLOYEE_PLANS_VIEW: { key: "EMPLOYEE_PLANS_VIEW", label: "View Onboarding & Training Plans", module: MODULES.HR_FORMS_PLANS, action: "read", moduleScope: "hr" },
+    EMPLOYEE_PLANS_MANAGE: { key: "EMPLOYEE_PLANS_MANAGE", label: "Manage Onboarding & Training Plans", module: MODULES.HR_FORMS_PLANS, action: "update", moduleScope: "hr" },
+
     // ── Reports ───────────────────────────────────────────────────────────────
 
     DALA_REPORTS_VIEW: { key: "DALA_REPORTS_VIEW", label: "View Dala Reports", module: MODULES.DALA_REPORTS, action: "read", moduleScope: "dala" },
 
 } as const;
+
+// ─── Shared modules ───────────────────────────────────────────────────────────
+// Some pages are opened from more than one product (Pesa's Suppliers and
+// Payment Methods, Mteja's Stock / Orders / Bookings, the Customers tabs…).
+// Their permissions keep their home scope but are also offered to these
+// products, so a tenant with only that product can still grant them.
+
+const SHARED_MODULE_SCOPES: Partial<Record<string, ModuleScope[]>> = {
+    [MODULES.SUPPLIERS]: ["accounting"],
+    [MODULES.PAYMENT_METHODS]: ["accounting"],
+    [MODULES.INVENTORY]: ["crm"],
+    [MODULES.UOM]: ["crm"],
+    [MODULES.ORDERS]: ["crm"],
+    [MODULES.GIFT_CARDS]: ["accounting", "dala"],
+    [MODULES.SCHEDULES]: ["crm", "accounting", "hr"],
+    [MODULES.SHIFTS]: ["hr"],
+};
+
+Object.values(PERMISSIONS).forEach((p) => {
+    const shared = SHARED_MODULE_SCOPES[p.module];
+    if (shared) p.sharedWith = shared;
+});
+
+/** Every product scope a permission belongs to — its home scope plus any shared ones */
+export const getPermissionScopes = (p: Permission): ModuleScope[] =>
+    [p.moduleScope, ...(p.sharedWith ?? [])];
 
 // ─── Key collections ──────────────────────────────────────────────────────────
 
@@ -851,17 +910,25 @@ export const getPermissionsForTenant = (options: {
     hasDala?: boolean;
     hasPOS?: boolean;
     hasSignature?: boolean;
-}): Permission[] =>
-    Object.values(PERMISSIONS).filter((p) => {
-        if (p.moduleScope === "core") return true;
-        if (p.moduleScope === "pos") return !!options.hasPOS;
-        if (p.moduleScope === "hr") return !!options.hasHR;
-        if (p.moduleScope === "accounting") return !!options.hasAccounting;
-        if (p.moduleScope === "crm") return !!options.hasCRM;
-        if (p.moduleScope === "dala") return !!options.hasDala;
-        if (p.moduleScope === "signature") return !!options.hasSignature;
+}): Permission[] => {
+    const scopeEnabled = (scope: ModuleScope): boolean => {
+        if (scope === "core") return true;
+        if (scope === "pos") return !!options.hasPOS;
+        if (scope === "hr") return !!options.hasHR;
+        if (scope === "accounting") return !!options.hasAccounting;
+        if (scope === "crm") return !!options.hasCRM;
+        if (scope === "dala") return !!options.hasDala;
+        if (scope === "signature") return !!options.hasSignature;
         return false;
-    });
+    };
+    return Object.values(PERMISSIONS).filter((p) => getPermissionScopes(p).some(scopeEnabled));
+};
+
+/** Whether a role on this tenant could be granted the permission at all */
+export const isPermissionOfferedForTenant = (
+    key: string,
+    options: Parameters<typeof getPermissionsForTenant>[0],
+): boolean => getPermissionsForTenant(options).some((p) => p.key === key);
 
 export const getPermissionsGroupedByModuleForTenant = (options: {
     hasHR?: boolean;
@@ -999,7 +1066,7 @@ export const ROLE_PRESETS: Record<string, string[]> = {
 
     /** HR_STAFF — self-service only */
     HR_STAFF: [
-        "HR_LEAVE_APPLY", "HR_LEAVE_VIEW", "HR_LEAVE_VIEW_ONE", "HR_LEAVE_CANCEL", "HR_LEAVE_VIEW_BALANCE",
+        "HR_LEAVE_APPLY", "BANDU_LEAVE_VIEW", "HR_LEAVE_VIEW_ONE", "HR_LEAVE_CANCEL", "HR_LEAVE_VIEW_BALANCE",
         "HR_ATTENDANCE_CLOCK_IN", "HR_ATTENDANCE_CLOCK_OUT",
         "HR_ATTENDANCE_VIEW_STATUS", "HR_ATTENDANCE_VIEW_MY",
         "BANDU_PAYSLIPS_VIEW", "BANDU_PAYSLIPS_EXPORT",
@@ -1101,11 +1168,11 @@ export const ROLE_PRESETS: Record<string, string[]> = {
         "CART_SEND_TO_KITCHEN", "CART_VOID", "CART_TRANSFER_ITEMS",
         "CART_PRINT_INVOICE", "CART_VIEW_INVOICES", "CART_REPRINT_INVOICE",
         "CART_VIEW_ACTIVE_SUBSCRIPTIONS",
-        "PRODUCTS_VIEW", "PRODUCTS_VIEW_ONE", "INVENTORY_VIEW", "INVENTORY_VIEW_ONE",
+        "PRODUCTS_VIEW", "INVENTORY_VIEW", "INVENTORY_VIEW_ONE",
         "CATEGORIES_VIEW", "SUB_CATEGORIES_VIEW", "MAIN_CATEGORIES_VIEW",
         "CUSTOMERS_VIEW", "CUSTOMERS_VIEW_ONE", "CUSTOMERS_CREATE", "CUSTOMERS_UPDATE",
-        "TABLES_VIEW", "TABLES_VIEW_ONE", "TABLES_CREATE", "TABLES_UPDATE", "TABLES_DELETE",
-        "ORDERS_VIEW", "ORDERS_VIEW_ONE", "ORDERS_CREATE", "ORDERS_UPDATE", "ORDERS_DELETE",
+        "TABLES_VIEW", "TABLES_CREATE", "TABLES_UPDATE", "TABLES_DELETE",
+        "ORDERS_VIEW", "ORDERS_UPDATE", "ORDERS_DELETE",
         "DELIVERY_VIEW", "DELIVERY_CREATE", "DELIVERY_UPDATE",
         "PAYMENT_METHODS_VIEW",
         "REPORTS_VIEW", "REPORTS_ITEM_SALES", "REPORTS_PURCHASE_SUMMARY", "REPORTS_VAT_SUMMARY",
@@ -1147,11 +1214,11 @@ export const ROLE_PRESETS: Record<string, string[]> = {
         "CART_SEND_TO_KITCHEN", "CART_VOID", "CART_TRANSFER_ITEMS",
         "CART_PRINT_INVOICE", "CART_VIEW_INVOICES", "CART_REPRINT_INVOICE",
         "CART_VIEW_ACTIVE_SUBSCRIPTIONS",
-        "PRODUCTS_VIEW", "PRODUCTS_VIEW_ONE", "INVENTORY_VIEW", "INVENTORY_VIEW_ONE",
+        "PRODUCTS_VIEW", "INVENTORY_VIEW", "INVENTORY_VIEW_ONE",
         "CATEGORIES_VIEW", "SUB_CATEGORIES_VIEW", "MAIN_CATEGORIES_VIEW",
         "CUSTOMERS_VIEW", "CUSTOMERS_VIEW_ONE", "CUSTOMERS_CREATE", "CUSTOMERS_UPDATE",
-        "TABLES_VIEW", "TABLES_VIEW_ONE", "TABLES_CREATE", "TABLES_UPDATE", "TABLES_DELETE",
-        "ORDERS_VIEW", "ORDERS_VIEW_ONE", "ORDERS_CREATE", "ORDERS_UPDATE", "ORDERS_DELETE",
+        "TABLES_VIEW", "TABLES_CREATE", "TABLES_UPDATE", "TABLES_DELETE",
+        "ORDERS_VIEW", "ORDERS_UPDATE", "ORDERS_DELETE",
         "DELIVERY_VIEW", "DELIVERY_CREATE", "DELIVERY_UPDATE",
         "PAYMENT_METHODS_VIEW",
         "REPORTS_VIEW", "REPORTS_ITEM_SALES", "REPORTS_PURCHASE_SUMMARY", "REPORTS_VAT_SUMMARY",
@@ -1229,7 +1296,7 @@ DIGITAX_MANAGER: [
     "ACCOUNTING_DIGITAX_GENERATE_INVOICE", "ACCOUNTING_DIGITAX_VIEW_INVOICE_STATUS", "ACCOUNTING_DIGITAX_CANCEL_INVOICE",
     // Basic accounting access needed for DigiTax operations
     "ACCOUNTING_DASHBOARD_VIEW",
-    "ACCOUNTING_INVOICES_VIEW", "ACCOUNTING_INVOICES_VIEW_ONE",
+    "ACCOUNTING_INVOICE_VIEW", "ACCOUNTING_INVOICE_VIEW_ONE",
     "DOCUMENTS_VIEW", "DOCUMENTS_VIEW_ONE",
     "NOTIFICATIONS_VIEW_MY", "NOTIFICATIONS_MARK_READ",
 ],
