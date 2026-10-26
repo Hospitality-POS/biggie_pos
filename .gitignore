@@ -14,7 +14,7 @@ dev-dist
 *.local
 
 # yarn v2
-.yarn/*
+.yarn
 
 # Editor directories and files
 .vscode/*
