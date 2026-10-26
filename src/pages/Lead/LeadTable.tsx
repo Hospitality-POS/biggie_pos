@@ -6,7 +6,8 @@ import {
     PhoneOutlined, TeamOutlined, UserOutlined,
 } from "@ant-design/icons";
 import { App, Button, Dropdown, Modal, Tag, Typography } from "antd";
-import { deleteLead, fetchAllLeads, fetchProjectOptions, Lead, LeadStage } from "@services/crm/leads";
+import { deleteLead, fetchAllLeads, fetchLeadSources, fetchProjectOptions, isDalaEnabled, Lead, LeadStage } from "@services/crm/leads";
+import { fetchAllUsersList } from "@services/users";
 import { useAppDispatch } from "src/store";
 import { THEME_C } from "@utils/getPrimaryColor";
 
@@ -25,7 +26,10 @@ const STAGE_CONFIG: Record<LeadStage, { color: string; bg: string; border: strin
     disqualified: { color: C.subText, bg: C.bg, border: C.border, label: "Disqualified" },
 };
 
-const StagePill = ({ stage }: { stage: LeadStage }) => {
+// "social_media" → "Social Media"
+const formatSource = (s: string) => s.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
+
+const StagePill =({ stage }: { stage: LeadStage }) => {
     const cfg = STAGE_CONFIG[stage] ?? STAGE_CONFIG.new;
     return (
         <span style={{
@@ -59,6 +63,7 @@ const LeadTable = forwardRef<LeadTableHandle, LeadTableProps>(({ onView, onEdit 
     const { message: msg } = App.useApp();
     const dispatch = useAppDispatch();
     const shop_id = JSON.parse(localStorage.getItem("shop") || "{}")._id;
+    const hasDala = isDalaEnabled();
 
     const handleDelete = (record: Lead) => {
         const displayName = record.entity_type === 'company' 
@@ -125,8 +130,13 @@ const LeadTable = forwardRef<LeadTableHandle, LeadTableProps>(({ onView, onEdit 
                 : <Text style={{ fontSize: 12, color: C.subText }}>—</Text>,
         },
         {
-            title: "Stage", dataIndex: "stage", search: false,
-            render: (stage: LeadStage) => <StagePill stage={stage} />,
+            title: "Stage", dataIndex: "stage",
+            valueType: "select" as const,
+            valueEnum: Object.fromEntries(
+                Object.entries(STAGE_CONFIG).map(([key, cfg]) => [key, { text: cfg.label }])
+            ),
+            fieldProps: { allowClear: true, placeholder: "All stages" },
+            render: (_: any, record: Lead) => <StagePill stage={record.stage} />,
         },
         {
             title: "Value", dataIndex: "estimated_value", search: false,
@@ -139,8 +149,19 @@ const LeadTable = forwardRef<LeadTableHandle, LeadTableProps>(({ onView, onEdit 
                 : <Text style={{ fontSize: 12, color: C.subText }}>—</Text>,
         },
         {
-            title: "Assigned To", dataIndex: "assigned_to", search: false,
-            render: (assignedTo: any) => {
+            title: "Assigned To", dataIndex: "assigned_to",
+            valueType: "select" as const,
+            fieldProps: { showSearch: true, allowClear: true, optionFilterProp: "label", placeholder: "Anyone" },
+            request: async () => {
+                const res = await fetchAllUsersList({ shop_id: shop_id || undefined });
+                const users = res?.data || res?.users || res || [];
+                return (Array.isArray(users) ? users : []).map((u: any) => ({
+                    label: u.name || u.username,
+                    value: u._id,
+                }));
+            },
+            render: (_: any, record: Lead) => {
+                const assignedTo: any = record.assigned_to;
                 if (!assignedTo) {
                     return <Text style={{ fontSize: 12, color: C.subText }}>Unassigned</Text>;
                 }
@@ -169,14 +190,22 @@ const LeadTable = forwardRef<LeadTableHandle, LeadTableProps>(({ onView, onEdit 
                 : <Text style={{ fontSize: 12, color: C.subText }}>—</Text>,
         },
         {
-            title: "Source", dataIndex: "source", search: false,
-            render: (source: string) => source ? (
+            title: "Source", dataIndex: "source",
+            valueType: "select" as const,
+            fieldProps: { showSearch: true, allowClear: true, optionFilterProp: "label", placeholder: "All sources" },
+            // Default sources + custom ones already used on this shop's leads
+            request: async () => {
+                const sources = await fetchLeadSources(shop_id);
+                return sources.map(s => ({ label: formatSource(s), value: s }));
+            },
+            render: (_: any, record: Lead) => record.source ? (
                 <Text style={{ fontSize: 11, color: C.subText }}>
-                    {source.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}
+                    {formatSource(record.source)}
                 </Text>
             ) : <Text style={{ fontSize: 12, color: C.subText }}>—</Text>,
         },
-        {
+        // Project column (and its filter) only for tenants with dala
+        ...(!hasDala ? [] : [{
             title: "Project", dataIndex: "project",
             valueType: "select" as const,
             fieldProps: {
@@ -192,7 +221,7 @@ const LeadTable = forwardRef<LeadTableHandle, LeadTableProps>(({ onView, onEdit 
             render: (v: string) => v
                 ? <Text style={{ fontSize: 12, color: C.darkText }}>{v}</Text>
                 : <Text style={{ fontSize: 12, color: C.subText }}>—</Text>,
-        },
+        }]),
         {
             title: "Actions", key: "actions", search: false, fixed: "right" as const, width: 56,
             render: (_: any, record: Lead) => (

@@ -3,11 +3,12 @@ import {
     Button, DatePicker, Divider, Form, Input, InputNumber, Modal, Select, Typography, message, Spin, Radio,
 } from "antd";
 import {
-    EditOutlined, MailOutlined, PhoneOutlined, PlusOutlined, SaveOutlined,
-    TeamOutlined, UserOutlined, UserSwitchOutlined, ShopOutlined,
+    CalendarOutlined, EditOutlined, EnvironmentOutlined, FundOutlined,
+    MailOutlined, PhoneOutlined, PlusOutlined, TeamOutlined, UserOutlined, UserSwitchOutlined, ShopOutlined,
 } from "@ant-design/icons";
 import { useAppDispatch } from "../../store";
-import { createLead, updateLead, fetchLeadSources, fetchProjectOptions, Lead } from "@services/crm/leads";
+import { FormStep, StepFormFooter, StepFormLayout, useFormSteps } from "@components/StepForm/StepForm";
+import { createLead, updateLead, fetchLeadSources, fetchProjectOptions, isDalaEnabled, Lead } from "@services/crm/leads";
 import { fetchAllUsersList } from "@services/users";
 import dayjs from "dayjs";
 import { THEME_C } from "@utils/getPrimaryColor";
@@ -36,6 +37,17 @@ interface User {
 const STAGES = ["new", "contacted", "qualified", "proposal", "negotiation", "won", "lost", "disqualified"];
 const SOURCES = ["walk_in", "referral", "social_media", "website", "cold_call", "email_campaign", "exhibition", "partner", "other"];
 
+const STEPS: FormStep[] = [
+    { title: "Contact", description: "Who the lead is", icon: <UserOutlined />,
+        fields: ["entity_type", "lead_name", "company_name", "contact_person", "phone", "email"] },
+    { title: "Opportunity", description: "Stage, source & value", icon: <FundOutlined />,
+        fields: ["stage", "source", "project", "estimated_value", "probability"] },
+    { title: "Follow-up", description: "Owner & key dates", icon: <CalendarOutlined />,
+        fields: ["assigned_to", "expected_close_date", "next_follow_up"] },
+    { title: "Location & Notes", description: "Address, tags, notes", icon: <EnvironmentOutlined />,
+        fields: ["city", "county", "street", "tags", "notes"] },
+];
+
 // Custom sources are stored in the same snake_case style as the defaults so
 // "TikTok Ads" and "tiktok_ads" don't end up as two different options.
 const slugifySource = (v: string) =>
@@ -56,6 +68,8 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
     const [entityType, setEntityType] = useState<'individual' | 'company'>('individual');
     const dispatch = useAppDispatch();
     const isEdit = mode === "edit";
+    const hasDala = isDalaEnabled();
+    const { current, setCurrent, isLastStep, goToStep, onFinishFailed, onKeyDown, stepStyle } = useFormSteps(form, STEPS);
 
     // Fetch users when modal opens
     useEffect(() => {
@@ -117,7 +131,7 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
     // Load project options: dala portfolio property names (when the shop has
     // dala data) + project names already used on this shop's leads.
     useEffect(() => {
-        if (!visible) return;
+        if (!visible || !hasDala) return;
         const load = async () => {
             setProjectsLoading(true);
             try {
@@ -134,7 +148,7 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
             }
         };
         load();
-    }, [visible, lead]);
+    }, [visible, lead, hasDala]);
 
     const addCustomProject = () => {
         const name = newProject.trim();
@@ -148,6 +162,7 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
 
     useEffect(() => {
         if (!visible) return;
+        setCurrent(0);
         if (isEdit && lead) {
             const entityTypeValue = lead.entity_type || 'individual';
             setEntityType(entityTypeValue);
@@ -180,6 +195,13 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
             form.setFieldsValue({ entity_type: 'individual' });
         }
     }, [visible, mode, lead, form]);
+
+    const handleClose = () => {
+        if (loading) return;
+        form.resetFields();
+        setCurrent(0);
+        onClose();
+    };
 
     const handleSubmit = async (values: any) => {
         setLoading(true);
@@ -226,6 +248,7 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
             }
 
             form.resetFields();
+            setCurrent(0);
             onClose();
             onSuccess?.();
         } catch (err: any) {
@@ -238,12 +261,12 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
     return (
         <Modal
             open={visible}
-            onCancel={() => { if (!loading) { form.resetFields(); onClose(); } }}
+            onCancel={handleClose}
             destroyOnClose
             style={{ top: 20 }}
-            width="min(640px, 96vw)"
+            width="min(860px, 96vw)"
             footer={null}
-            styles={{ body: { padding: "20px 24px 24px", maxHeight: "80vh", overflowY: "auto" } }}
+            styles={{ body: { padding: 0 } }}
             title={
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <div style={{
@@ -259,245 +282,255 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
                 </div>
             }
         >
-            <Form form={form} layout="vertical" onFinish={handleSubmit} style={{ marginTop: 4 }}>
+            <Form form={form} layout="vertical" onFinish={handleSubmit}
+                onFinishFailed={onFinishFailed} onKeyDown={onKeyDown}>
+                <StepFormLayout
+                    steps={STEPS}
+                    current={current}
+                    onStepChange={goToStep}
+                    footer={
+                        <StepFormFooter
+                            current={current} isLastStep={isLastStep} isEdit={isEdit} loading={loading}
+                            submitLabel={isEdit ? "Update Lead" : "Add Lead"}
+                            onCancel={handleClose}
+                            onBack={() => goToStep(current - 1)}
+                            onNext={() => goToStep(current + 1)}
+                            onSubmit={() => form.submit()}
+                        />
+                    }
+                >
+                    {/* ── Step 1: Contact ── */}
+                    <div style={stepStyle(0)}>
+                        <Form.Item name="entity_type" label="Entity Type" initialValue="individual">
+                            <Radio.Group
+                                onChange={(e) => setEntityType(e.target.value)}
+                                style={{ width: '100%' }}
+                            >
+                                <Radio.Button value="individual" style={{ marginRight: 8 }}>
+                                    <UserOutlined /> Individual
+                                </Radio.Button>
+                                <Radio.Button value="company">
+                                    <ShopOutlined /> Company
+                                </Radio.Button>
+                            </Radio.Group>
+                        </Form.Item>
 
-                {/* Entity Type */}
-                <Form.Item name="entity_type" label="Entity Type" initialValue="individual">
-                    <Radio.Group 
-                        onChange={(e) => setEntityType(e.target.value)}
-                        style={{ width: '100%' }}
-                    >
-                        <Radio.Button value="individual" style={{ marginRight: 8 }}>
-                            <UserOutlined /> Individual
-                        </Radio.Button>
-                        <Radio.Button value="company">
-                            <ShopOutlined /> Company
-                        </Radio.Button>
-                    </Radio.Group>
-                </Form.Item>
-
-                {/* Name fields based on entity type */}
-                {entityType === 'individual' ? (
-                    <Form.Item name="lead_name" label="Lead Name"
-                        rules={[{ required: true, message: "Lead name is required for individual leads" }]}
-                    >
-                        <Input prefix={<UserOutlined style={{ color: C.subText }} />}
-                            placeholder="Full name" style={{ borderRadius: 8 }} autoFocus />
-                    </Form.Item>
-                ) : (
-                    <Form.Item name="company_name" label="Company Name"
-                        rules={[{ required: true, message: "Company name is required for company leads" }]}
-                    >
-                        <Input prefix={<ShopOutlined style={{ color: C.subText }} />}
-                            placeholder="Company name" style={{ borderRadius: 8 }} autoFocus />
-                    </Form.Item>
-                )}
-
-                {/* Contact Person (optional for both, recommended for company) */}
-                <Form.Item name="contact_person" label="Contact Person">
-                    <Input prefix={<UserOutlined style={{ color: C.subText }} />}
-                        placeholder={entityType === 'company' ? "Primary contact person" : "Contact person (optional)"}
-                        style={{ borderRadius: 8 }} />
-                </Form.Item>
-
-                {/* Phone + Email */}
-                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                    <Form.Item name="phone" label="Phone" 
-                        rules={[{ required: true, message: "Phone number is required" }]}
-                        style={{ flex: "1 1 200px" }}>
-                        <Input prefix={<PhoneOutlined style={{ color: C.subText }} />}
-                            placeholder="e.g. 0712345678" style={{ borderRadius: 8 }} />
-                    </Form.Item>
-                    <Form.Item name="email" label="Email"
-                        rules={[{ type: "email", message: "Enter a valid email" }]}
-                        style={{ flex: "1 1 200px" }}>
-                        <Input prefix={<MailOutlined style={{ color: C.subText }} />}
-                            placeholder="email@example.com" style={{ borderRadius: 8 }} />
-                    </Form.Item>
-                </div>
-
-                {/* Stage + Source */}
-                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                    <Form.Item name="stage" label="Stage" style={{ flex: "1 1 180px" }}>
-                        <Select placeholder="Select stage" style={{ borderRadius: 8 }}>
-                            {STAGES.map(s => (
-                                <Option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</Option>
-                            ))}
-                        </Select>
-                    </Form.Item>
-                    <Form.Item name="source" label="Source" style={{ flex: "1 1 180px" }}>
-                        <Select
-                            placeholder="Select or add a source"
-                            allowClear
-                            showSearch
-                            optionFilterProp="children"
-                            style={{ borderRadius: 8 }}
-                            dropdownRender={(menu) => (
-                                <>
-                                    {menu}
-                                    <Divider style={{ margin: "8px 0" }} />
-                                    <div style={{ display: "flex", gap: 8, padding: "0 8px 8px" }}>
-                                        <Input
-                                            size="small"
-                                            placeholder="New source (e.g. TikTok)"
-                                            value={newSource}
-                                            onChange={(e) => setNewSource(e.target.value)}
-                                            onKeyDown={(e) => e.stopPropagation()}
-                                            onPressEnter={(e) => { e.preventDefault(); addCustomSource(); }}
-                                            style={{ borderRadius: 6 }}
-                                        />
-                                        <Button
-                                            type="text"
-                                            size="small"
-                                            icon={<PlusOutlined />}
-                                            onClick={addCustomSource}
-                                            disabled={!newSource.trim()}
-                                        >
-                                            Add
-                                        </Button>
-                                    </div>
-                                </>
-                            )}
-                        >
-                            {sourceOptions.map(s => (
-                                <Option key={s} value={s}>{s.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}</Option>
-                            ))}
-                        </Select>
-                    </Form.Item>
-                </div>
-
-                {/* Project — select from the dala portfolio when available,
-                    otherwise type a project name (same pattern as Source) */}
-                <Form.Item name="project" label="Project">
-                    <Select
-                        placeholder={projectOptions.length ? "Select or add a project" : "Type a project name"}
-                        allowClear
-                        showSearch
-                        optionFilterProp="children"
-                        loading={projectsLoading}
-                        style={{ borderRadius: 8 }}
-                        dropdownRender={(menu) => (
-                            <>
-                                {menu}
-                                <Divider style={{ margin: "8px 0" }} />
-                                <div style={{ display: "flex", gap: 8, padding: "0 8px 8px" }}>
-                                    <Input
-                                        size="small"
-                                        placeholder="New project name"
-                                        value={newProject}
-                                        onChange={(e) => setNewProject(e.target.value)}
-                                        onKeyDown={(e) => e.stopPropagation()}
-                                        onPressEnter={(e) => { e.preventDefault(); addCustomProject(); }}
-                                        style={{ borderRadius: 6 }}
-                                    />
-                                    <Button
-                                        type="text"
-                                        size="small"
-                                        icon={<PlusOutlined />}
-                                        onClick={addCustomProject}
-                                        disabled={!newProject.trim()}
-                                    >
-                                        Add
-                                    </Button>
-                                </div>
-                            </>
+                        {/* Name fields based on entity type */}
+                        {entityType === 'individual' ? (
+                            <Form.Item name="lead_name" label="Lead Name"
+                                rules={[{ required: true, message: "Lead name is required for individual leads" }]}
+                            >
+                                <Input prefix={<UserOutlined style={{ color: C.subText }} />}
+                                    placeholder="Full name" style={{ borderRadius: 8 }} autoFocus />
+                            </Form.Item>
+                        ) : (
+                            <Form.Item name="company_name" label="Company Name"
+                                rules={[{ required: true, message: "Company name is required for company leads" }]}
+                            >
+                                <Input prefix={<ShopOutlined style={{ color: C.subText }} />}
+                                    placeholder="Company name" style={{ borderRadius: 8 }} autoFocus />
+                            </Form.Item>
                         )}
-                    >
-                        {projectOptions.map(p => (
-                            <Option key={p} value={p}>{p}</Option>
-                        ))}
-                    </Select>
-                </Form.Item>
 
-                {/* Assigned To - New Section */}
-                <Form.Item name="assigned_to" label="Assigned To">
-                    <Select
-                        placeholder="Select user to assign this lead"
-                        allowClear
-                        loading={usersLoading}
-                        suffixIcon={usersLoading ? <Spin size="small" /> : <UserSwitchOutlined />}
-                        style={{ borderRadius: 8 }}
-                        showSearch
-                        optionFilterProp="children"
-                        filterOption={(input, option) =>
-                            (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-                        }
-                    >
-                        {users.map(user => (
-                            <Option key={user._id} value={user._id} label={`${user.name} (${user.username})`}>
-                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                    <UserOutlined style={{ color: C.subText }} />
-                                    <div>
-                                        <div style={{ fontWeight: 500 }}>{user.name}</div>
-                                        {user.username && (
-                                            <div style={{ fontSize: 12, color: C.subText }}>
-                                                @{user.username}
+                        {/* Contact Person (optional for both, recommended for company) */}
+                        <Form.Item name="contact_person" label="Contact Person">
+                            <Input prefix={<UserOutlined style={{ color: C.subText }} />}
+                                placeholder={entityType === 'company' ? "Primary contact person" : "Contact person (optional)"}
+                                style={{ borderRadius: 8 }} />
+                        </Form.Item>
+
+                        {/* Phone + Email — not unique: one contact can have several leads */}
+                        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                            <Form.Item name="phone" label="Phone"
+                                rules={[{ required: true, message: "Phone number is required" }]}
+                                style={{ flex: "1 1 200px" }}>
+                                <Input prefix={<PhoneOutlined style={{ color: C.subText }} />}
+                                    placeholder="e.g. 0712345678" style={{ borderRadius: 8 }} />
+                            </Form.Item>
+                            <Form.Item name="email" label="Email"
+                                rules={[{ type: "email", message: "Enter a valid email" }]}
+                                style={{ flex: "1 1 200px" }}>
+                                <Input prefix={<MailOutlined style={{ color: C.subText }} />}
+                                    placeholder="email@example.com" style={{ borderRadius: 8 }} />
+                            </Form.Item>
+                        </div>
+                    </div>
+
+                    {/* ── Step 2: Opportunity ── */}
+                    <div style={stepStyle(1)}>
+                        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                            <Form.Item name="stage" label="Stage" style={{ flex: "1 1 180px" }}>
+                                <Select placeholder="Select stage" style={{ borderRadius: 8 }}>
+                                    {STAGES.map(s => (
+                                        <Option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</Option>
+                                    ))}
+                                </Select>
+                            </Form.Item>
+                            <Form.Item name="source" label="Source" style={{ flex: "1 1 180px" }}>
+                                <Select
+                                    placeholder="Select or add a source"
+                                    allowClear
+                                    showSearch
+                                    optionFilterProp="children"
+                                    style={{ borderRadius: 8 }}
+                                    dropdownRender={(menu) => (
+                                        <>
+                                            {menu}
+                                            <Divider style={{ margin: "8px 0" }} />
+                                            <div style={{ display: "flex", gap: 8, padding: "0 8px 8px" }}>
+                                                <Input
+                                                    size="small"
+                                                    placeholder="New source (e.g. TikTok)"
+                                                    value={newSource}
+                                                    onChange={(e) => setNewSource(e.target.value)}
+                                                    onKeyDown={(e) => e.stopPropagation()}
+                                                    onPressEnter={(e) => { e.preventDefault(); addCustomSource(); }}
+                                                    style={{ borderRadius: 6 }}
+                                                />
+                                                <Button
+                                                    type="text"
+                                                    size="small"
+                                                    icon={<PlusOutlined />}
+                                                    onClick={addCustomSource}
+                                                    disabled={!newSource.trim()}
+                                                >
+                                                    Add
+                                                </Button>
                                             </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </Option>
-                        ))}
-                    </Select>
-                </Form.Item>
+                                        </>
+                                    )}
+                                >
+                                    {sourceOptions.map(s => (
+                                        <Option key={s} value={s}>{s.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}</Option>
+                                    ))}
+                                </Select>
+                            </Form.Item>
+                        </div>
 
-                {/* Value + Probability */}
-                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                    <Form.Item name="estimated_value" label="Estimated Value (KES)" style={{ flex: "1 1 180px" }}>
-                        <InputNumber min={0} placeholder="0" style={{ width: "100%", borderRadius: 8 }}
-                            formatter={v => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
-                            parser={v => v?.replace(/,/g, "") as any} />
-                    </Form.Item>
-                    <Form.Item name="probability" label="Win Probability (%)" style={{ flex: "1 1 180px" }}>
-                        <InputNumber min={0} max={100} placeholder="0"
-                            style={{ width: "100%", borderRadius: 8 }} addonAfter="%" />
-                    </Form.Item>
-                </div>
+                        {/* Project — only for tenants with dala. Select from the dala
+                            portfolio, or type a project name (same pattern as Source) */}
+                        {hasDala && <Form.Item name="project" label="Project">
+                            <Select
+                                placeholder={projectOptions.length ? "Select or add a project" : "Type a project name"}
+                                allowClear
+                                showSearch
+                                optionFilterProp="children"
+                                loading={projectsLoading}
+                                style={{ borderRadius: 8 }}
+                                dropdownRender={(menu) => (
+                                    <>
+                                        {menu}
+                                        <Divider style={{ margin: "8px 0" }} />
+                                        <div style={{ display: "flex", gap: 8, padding: "0 8px 8px" }}>
+                                            <Input
+                                                size="small"
+                                                placeholder="New project name"
+                                                value={newProject}
+                                                onChange={(e) => setNewProject(e.target.value)}
+                                                onKeyDown={(e) => e.stopPropagation()}
+                                                onPressEnter={(e) => { e.preventDefault(); addCustomProject(); }}
+                                                style={{ borderRadius: 6 }}
+                                            />
+                                            <Button
+                                                type="text"
+                                                size="small"
+                                                icon={<PlusOutlined />}
+                                                onClick={addCustomProject}
+                                                disabled={!newProject.trim()}
+                                            >
+                                                Add
+                                            </Button>
+                                        </div>
+                                    </>
+                                )}
+                            >
+                                {projectOptions.map(p => (
+                                    <Option key={p} value={p}>{p}</Option>
+                                ))}
+                            </Select>
+                        </Form.Item>}
 
-                {/* Dates */}
-                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                    <Form.Item name="expected_close_date" label="Expected Close Date" style={{ flex: "1 1 200px" }}>
-                        <DatePicker style={{ width: "100%", borderRadius: 8 }} />
-                    </Form.Item>
-                    <Form.Item name="next_follow_up" label="Next Follow-Up" style={{ flex: "1 1 200px" }}>
-                        <DatePicker style={{ width: "100%", borderRadius: 8 }} />
-                    </Form.Item>
-                </div>
+                        {/* Value + Probability */}
+                        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                            <Form.Item name="estimated_value" label="Estimated Value (KES)" style={{ flex: "1 1 180px" }}>
+                                <InputNumber min={0} placeholder="0" style={{ width: "100%", borderRadius: 8 }}
+                                    formatter={v => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                                    parser={v => v?.replace(/,/g, "") as any} />
+                            </Form.Item>
+                            <Form.Item name="probability" label="Win Probability (%)" style={{ flex: "1 1 180px" }}>
+                                <InputNumber min={0} max={100} placeholder="0"
+                                    style={{ width: "100%", borderRadius: 8 }} addonAfter="%" />
+                            </Form.Item>
+                        </div>
+                    </div>
 
-                {/* Address */}
-                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                    <Form.Item name="city" label="City" style={{ flex: "1 1 150px" }}>
-                        <Input placeholder="e.g. Nairobi" style={{ borderRadius: 8 }} />
-                    </Form.Item>
-                    <Form.Item name="county" label="County" style={{ flex: "1 1 150px" }}>
-                        <Input placeholder="e.g. Nairobi County" style={{ borderRadius: 8 }} />
-                    </Form.Item>
-                    <Form.Item name="street" label="Street / Building" style={{ flex: "1 1 200px" }}>
-                        <Input placeholder="e.g. Kimathi Street" style={{ borderRadius: 8 }} />
-                    </Form.Item>
-                </div>
+                    {/* ── Step 3: Follow-up ── */}
+                    <div style={stepStyle(2)}>
+                        <Form.Item name="assigned_to" label="Assigned To">
+                            <Select
+                                placeholder="Select user to assign this lead"
+                                allowClear
+                                loading={usersLoading}
+                                suffixIcon={usersLoading ? <Spin size="small" /> : <UserSwitchOutlined />}
+                                style={{ borderRadius: 8 }}
+                                showSearch
+                                optionFilterProp="children"
+                                filterOption={(input, option) =>
+                                    (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                                }
+                            >
+                                {users.map(user => (
+                                    <Option key={user._id} value={user._id} label={`${user.name} (${user.username})`}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                            <UserOutlined style={{ color: C.subText }} />
+                                            <div>
+                                                <div style={{ fontWeight: 500 }}>{user.name}</div>
+                                                {user.username && (
+                                                    <div style={{ fontSize: 12, color: C.subText }}>
+                                                        @{user.username}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </Option>
+                                ))}
+                            </Select>
+                        </Form.Item>
 
-                {/* Tags + Notes */}
-                <Form.Item name="tags" label="Tags (comma-separated)">
-                    <Input placeholder="e.g. vip, hot-lead, referral" style={{ borderRadius: 8 }} />
-                </Form.Item>
+                        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                            <Form.Item name="expected_close_date" label="Expected Close Date" style={{ flex: "1 1 200px" }}>
+                                <DatePicker style={{ width: "100%", borderRadius: 8 }} />
+                            </Form.Item>
+                            <Form.Item name="next_follow_up" label="Next Follow-Up" style={{ flex: "1 1 200px" }}>
+                                <DatePicker style={{ width: "100%", borderRadius: 8 }} />
+                            </Form.Item>
+                        </div>
+                    </div>
 
-                <Form.Item name="notes" label="Notes">
-                    <TextArea rows={3} placeholder="Any notes about this lead…"
-                        showCount maxLength={1000} style={{ borderRadius: 8 }} />
-                </Form.Item>
+                    {/* ── Step 4: Location & Notes ── */}
+                    <div style={stepStyle(3)}>
+                        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                            <Form.Item name="city" label="City" style={{ flex: "1 1 150px" }}>
+                                <Input placeholder="e.g. Nairobi" style={{ borderRadius: 8 }} />
+                            </Form.Item>
+                            <Form.Item name="county" label="County" style={{ flex: "1 1 150px" }}>
+                                <Input placeholder="e.g. Nairobi County" style={{ borderRadius: 8 }} />
+                            </Form.Item>
+                        </div>
+                        <Form.Item name="street" label="Street / Building">
+                            <Input placeholder="e.g. Kimathi Street" style={{ borderRadius: 8 }} />
+                        </Form.Item>
 
-                <div style={{ display: "flex", gap: 10 }}>
-                    <Button block onClick={() => { form.resetFields(); onClose(); }}
-                        disabled={loading} style={{ borderRadius: 8, height: 38 }}>
-                        Cancel
-                    </Button>
-                    <Button block type="primary" htmlType="submit" icon={<SaveOutlined />}
-                        loading={loading}
-                        style={{ background: C.primary, borderColor: C.primary, borderRadius: 8, height: 38, fontWeight: 500 }}>
-                        {isEdit ? "Update Lead" : "Add Lead"}
-                    </Button>
-                </div>
+                        <Form.Item name="tags" label="Tags (comma-separated)">
+                            <Input placeholder="e.g. vip, hot-lead, referral" style={{ borderRadius: 8 }} />
+                        </Form.Item>
+
+                        <Form.Item name="notes" label="Notes">
+                            <TextArea rows={3} placeholder="Any notes about this lead…"
+                                showCount maxLength={1000} style={{ borderRadius: 8 }} />
+                        </Form.Item>
+                    </div>
+                </StepFormLayout>
             </Form>
         </Modal>
     );

@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
 import {
-    Button, DatePicker, Form, Input, InputNumber,
+    DatePicker, Form, Input, InputNumber,
     Modal, Select, Typography,
 } from "antd";
-import { EditOutlined, NotificationOutlined, SaveOutlined } from "@ant-design/icons";
+import {
+    CalendarOutlined, EditOutlined, InfoCircleOutlined, NotificationOutlined, TeamOutlined,
+} from "@ant-design/icons";
 import { useAppDispatch } from "../../store";
+import { FormStep, StepFormFooter, StepFormLayout, useFormSteps } from "@components/StepForm/StepForm";
 import {
     createCampaign, updateCampaign,
     Campaign, CampaignStatus,
@@ -29,6 +32,15 @@ const CAMPAIGN_STATUSES: CampaignStatus[] = [
     "draft", "scheduled", "active", "paused", "completed", "cancelled",
 ];
 
+const STEPS: FormStep[] = [
+    { title: "Basics", description: "Name, type & status", icon: <InfoCircleOutlined />,
+        fields: ["name", "type", "status"] },
+    { title: "Schedule & Budget", description: "Dates, budget & goals", icon: <CalendarOutlined />,
+        fields: ["start_date", "end_date", "budget", "target_leads", "target_revenue"] },
+    { title: "Audience & Details", description: "Department, audience, notes", icon: <TeamOutlined />,
+        fields: ["department_id", "target_audience", "tags", "description"] },
+];
+
 interface CampaignFormModalProps {
     visible: boolean;
     onClose: () => void;
@@ -44,6 +56,7 @@ export const CampaignFormModal: React.FC<CampaignFormModalProps> = ({
     const [loading, setLoading] = useState(false);
     const dispatch = useAppDispatch();
     const isEdit = mode === "edit";
+    const { current, setCurrent, isLastStep, goToStep, onFinishFailed, onKeyDown, stepStyle } = useFormSteps(form, STEPS);
 
     const { data: deptData } = useQuery({
         queryKey: ["departments"],
@@ -55,6 +68,7 @@ export const CampaignFormModal: React.FC<CampaignFormModalProps> = ({
 
     useEffect(() => {
         if (!visible) return;
+        setCurrent(0);
         if (isEdit && campaign) {
             form.setFieldsValue({
                 ...campaign,
@@ -89,6 +103,7 @@ export const CampaignFormModal: React.FC<CampaignFormModalProps> = ({
                 await dispatch(createCampaign(payload)).unwrap();
             }
             form.resetFields();
+            setCurrent(0);
             onClose();
             onSuccess?.();
         } catch {
@@ -98,15 +113,22 @@ export const CampaignFormModal: React.FC<CampaignFormModalProps> = ({
         }
     };
 
+    const handleClose = () => {
+        if (loading) return;
+        form.resetFields();
+        setCurrent(0);
+        onClose();
+    };
+
     return (
         <Modal
             open={visible}
-            onCancel={() => { if (!loading) { form.resetFields(); onClose(); } }}
+            onCancel={handleClose}
             destroyOnClose
             style={{ top: 20 }}
-            width="min(620px, 96vw)"
+            width="min(820px, 96vw)"
             footer={null}
-            styles={{ body: { padding: "20px 24px 24px", maxHeight: "82vh", overflowY: "auto" } }}
+            styles={{ body: { padding: 0 } }}
             title={
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <div style={{ background: isEdit ? "#eff6ff" : C.primaryLight, borderRadius: 7, padding: "4px 6px", color: isEdit ? C.blue : C.primary, fontSize: 14, lineHeight: 1 }}>
@@ -116,96 +138,109 @@ export const CampaignFormModal: React.FC<CampaignFormModalProps> = ({
                 </div>
             }
         >
-            <Form form={form} layout="vertical" onFinish={handleSubmit} style={{ marginTop: 4 }}>
-                {/* Name */}
-                <Form.Item name="name" label="Campaign Name" rules={[{ required: true }]}>
-                    <Input placeholder="e.g. April SMS Blast" style={{ borderRadius: 8 }} autoFocus />
-                </Form.Item>
-
-                {/* Type + Status */}
-                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                    <Form.Item name="type" label="Type" style={{ flex: "1 1 180px" }}>
-                        <Select placeholder="Select type" allowClear>
-                            {CAMPAIGN_TYPES.map(t => (
-                                <Option key={t} value={t}>
-                                    {t.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}
-                                </Option>
-                            ))}
-                        </Select>
-                    </Form.Item>
-                    <Form.Item name="status" label="Status" style={{ flex: "1 1 160px" }} initialValue="draft">
-                        <Select placeholder="Select status">
-                            {CAMPAIGN_STATUSES.map(s => (
-                                <Option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</Option>
-                            ))}
-                        </Select>
-                    </Form.Item>
-                </div>
-
-                {/* Dates */}
-                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                    <Form.Item name="start_date" label="Start Date" style={{ flex: "1 1 200px" }}>
-                        <DatePicker style={{ width: "100%", borderRadius: 8 }} />
-                    </Form.Item>
-                    <Form.Item name="end_date" label="End Date" style={{ flex: "1 1 200px" }}>
-                        <DatePicker style={{ width: "100%", borderRadius: 8 }} />
-                    </Form.Item>
-                </div>
-
-                {/* Budget + Targets */}
-                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                    <Form.Item name="budget" label="Budget (KES)" style={{ flex: "1 1 180px" }}>
-                        <InputNumber
-                            min={0} style={{ width: "100%", borderRadius: 8 }}
-                            formatter={v => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
-                            parser={v => v?.replace(/,/g, "") as any}
+            <Form form={form} layout="vertical" onFinish={handleSubmit}
+                onFinishFailed={onFinishFailed} onKeyDown={onKeyDown}>
+                <StepFormLayout
+                    steps={STEPS}
+                    current={current}
+                    onStepChange={goToStep}
+                    footer={
+                        <StepFormFooter
+                            current={current} isLastStep={isLastStep} isEdit={isEdit} loading={loading}
+                            submitLabel={isEdit ? "Update Campaign" : "Create Campaign"}
+                            onCancel={handleClose}
+                            onBack={() => goToStep(current - 1)}
+                            onNext={() => goToStep(current + 1)}
+                            onSubmit={() => form.submit()}
                         />
-                    </Form.Item>
-                    <Form.Item name="target_leads" label="Target Leads" style={{ flex: "1 1 130px" }}>
-                        <InputNumber min={0} style={{ width: "100%", borderRadius: 8 }} />
-                    </Form.Item>
-                    <Form.Item name="target_revenue" label="Target Revenue (KES)" style={{ flex: "1 1 180px" }}>
-                        <InputNumber
-                            min={0} style={{ width: "100%", borderRadius: 8 }}
-                            formatter={v => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
-                            parser={v => v?.replace(/,/g, "") as any}
-                        />
-                    </Form.Item>
-                </div>
+                    }
+                >
+                    {/* ── Step 1: Basics ── */}
+                    <div style={stepStyle(0)}>
+                        <Form.Item name="name" label="Campaign Name" rules={[{ required: true }]}>
+                            <Input placeholder="e.g. April SMS Blast" style={{ borderRadius: 8 }} autoFocus />
+                        </Form.Item>
 
-                {/* Department */}
-                {departments.length > 0 && (
-                    <Form.Item name="department_id" label="Department (optional)">
-                        <Select placeholder="Scope campaign to a department" allowClear>
-                            {departments.map(d => (
-                                <Option key={d._id} value={d._id}>
-                                    {d.name}{d.code ? ` (${d.code})` : ""}
-                                </Option>
-                            ))}
-                        </Select>
-                    </Form.Item>
-                )}
+                        {/* Type + Status */}
+                        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                            <Form.Item name="type" label="Type" style={{ flex: "1 1 180px" }}>
+                                <Select placeholder="Select type" allowClear>
+                                    {CAMPAIGN_TYPES.map(t => (
+                                        <Option key={t} value={t}>
+                                            {t.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}
+                                        </Option>
+                                    ))}
+                                </Select>
+                            </Form.Item>
+                            <Form.Item name="status" label="Status" style={{ flex: "1 1 160px" }} initialValue="draft">
+                                <Select placeholder="Select status">
+                                    {CAMPAIGN_STATUSES.map(s => (
+                                        <Option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</Option>
+                                    ))}
+                                </Select>
+                            </Form.Item>
+                        </div>
+                    </div>
 
-                {/* Audience + Tags */}
-                <Form.Item name="target_audience" label="Target Audience">
-                    <Input placeholder="e.g. Existing customers aged 25-40" style={{ borderRadius: 8 }} />
-                </Form.Item>
-                <Form.Item name="tags" label="Tags (comma-separated)">
-                    <Input placeholder="e.g. seasonal, promo" style={{ borderRadius: 8 }} />
-                </Form.Item>
-                <Form.Item name="description" label="Description">
-                    <TextArea rows={3} style={{ borderRadius: 8 }} />
-                </Form.Item>
+                    {/* ── Step 2: Schedule & Budget ── */}
+                    <div style={stepStyle(1)}>
+                        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                            <Form.Item name="start_date" label="Start Date" style={{ flex: "1 1 200px" }}>
+                                <DatePicker style={{ width: "100%", borderRadius: 8 }} />
+                            </Form.Item>
+                            <Form.Item name="end_date" label="End Date" style={{ flex: "1 1 200px" }}>
+                                <DatePicker style={{ width: "100%", borderRadius: 8 }} />
+                            </Form.Item>
+                        </div>
 
-                <div style={{ display: "flex", gap: 10 }}>
-                    <Button block onClick={() => { form.resetFields(); onClose(); }} disabled={loading} style={{ borderRadius: 8, height: 38 }}>
-                        Cancel
-                    </Button>
-                    <Button block type="primary" htmlType="submit" icon={<SaveOutlined />} loading={loading}
-                        style={{ background: C.primary, borderColor: C.primary, borderRadius: 8, height: 38, fontWeight: 500 }}>
-                        {isEdit ? "Update Campaign" : "Create Campaign"}
-                    </Button>
-                </div>
+                        {/* Budget + Targets */}
+                        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                            <Form.Item name="budget" label="Budget (KES)" style={{ flex: "1 1 180px" }}>
+                                <InputNumber
+                                    min={0} style={{ width: "100%", borderRadius: 8 }}
+                                    formatter={v => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                                    parser={v => v?.replace(/,/g, "") as any}
+                                />
+                            </Form.Item>
+                            <Form.Item name="target_leads" label="Target Leads" style={{ flex: "1 1 130px" }}>
+                                <InputNumber min={0} style={{ width: "100%", borderRadius: 8 }} />
+                            </Form.Item>
+                            <Form.Item name="target_revenue" label="Target Revenue (KES)" style={{ flex: "1 1 180px" }}>
+                                <InputNumber
+                                    min={0} style={{ width: "100%", borderRadius: 8 }}
+                                    formatter={v => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                                    parser={v => v?.replace(/,/g, "") as any}
+                                />
+                            </Form.Item>
+                        </div>
+                    </div>
+
+                    {/* ── Step 3: Audience & Details ── */}
+                    <div style={stepStyle(2)}>
+                        {departments.length > 0 && (
+                            <Form.Item name="department_id" label="Department (optional)">
+                                <Select placeholder="Scope campaign to a department" allowClear>
+                                    {departments.map(d => (
+                                        <Option key={d._id} value={d._id}>
+                                            {d.name}{d.code ? ` (${d.code})` : ""}
+                                        </Option>
+                                    ))}
+                                </Select>
+                            </Form.Item>
+                        )}
+
+                        {/* Audience + Tags */}
+                        <Form.Item name="target_audience" label="Target Audience">
+                            <Input placeholder="e.g. Existing customers aged 25-40" style={{ borderRadius: 8 }} />
+                        </Form.Item>
+                        <Form.Item name="tags" label="Tags (comma-separated)">
+                            <Input placeholder="e.g. seasonal, promo" style={{ borderRadius: 8 }} />
+                        </Form.Item>
+                        <Form.Item name="description" label="Description">
+                            <TextArea rows={3} style={{ borderRadius: 8 }} />
+                        </Form.Item>
+                    </div>
+                </StepFormLayout>
             </Form>
         </Modal>
     );

@@ -6,7 +6,6 @@ import {
   Typography,
   Row,
   Col,
-  Table,
   Badge,
   Space,
   Skeleton,
@@ -20,6 +19,7 @@ import {
   Avatar,
   Segmented,
   Tabs,
+  Progress,
 } from "antd";
 import {
   ReloadOutlined,
@@ -40,6 +40,12 @@ import {
   ArrowRightOutlined,
   MailOutlined,
   SendOutlined,
+  AimOutlined,
+  TrophyOutlined,
+  BellOutlined,
+  UserOutlined,
+  ProjectOutlined,
+  GlobalOutlined,
 } from "@ant-design/icons";
 import { ProCard } from "@ant-design/pro-components";
 import {
@@ -63,6 +69,8 @@ import { fetchConversations, fetchWhatsappChannels } from "@services/whatsappSer
 import { fetchCampaignAnalytics } from "@services/omnichannel/messagingCampaigns";
 import { THEME_C } from "@utils/getPrimaryColor";
 import { fmtK, fmtKES } from "@utils/formatters";
+import { fetchAllSalesTargets, SalesTarget } from "@services/crm/salesTargets";
+import { isDalaEnabled } from "@services/crm/leads";
 
 dayjs.extend(relativeTime);
 
@@ -112,6 +120,60 @@ const LEAD_STAGES = [
 ];
 
 const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0);
+
+const TARGET_TYPE_LABELS: Record<string, string> = {
+  revenue: "Revenue",
+  units_sold: "Units Sold",
+  leads_generated: "Leads Generated",
+  leads_converted: "Leads Converted",
+  gross_profit: "Gross Profit",
+  new_customers: "New Customers",
+};
+// Types whose actuals the API now calculates from leads/customers;
+// the rest still come from manually entered values
+const LIVE_TARGET_TYPES = ["revenue", "leads_generated", "leads_converted", "new_customers"];
+const isMoneyTarget = (t?: string) => t === "revenue" || t === "gross_profit";
+const fmtTargetValue = (v: number | undefined, type?: string) =>
+  isMoneyTarget(type) ? fmtKES(v || 0) : (v || 0).toLocaleString();
+const achievementColor = (p: number) => (p >= 100 ? "#10b981" : p >= 70 ? "#f59e0b" : "#ef4444");
+
+const targetScopeLabel = (t: SalesTarget) => {
+  if (t.is_company_wide) return "Company-wide";
+  if (typeof t.user_id === "object" && t.user_id?.fullname) return t.user_id.fullname;
+  if (typeof t.department_id === "object" && (t.department_id as any)?.name) return (t.department_id as any).name;
+  if (typeof t.role_id === "object" && (t.role_id as any)?.role_type) return (t.role_id as any).role_type;
+  return t.team || "Team";
+};
+
+type LeaderMetric = "won_value" | "won" | "target_pct";
+interface LeaderEntry {
+  id: string;
+  name: string;
+  leads: number;
+  won: number;
+  won_value: number;
+  win_rate: number;
+  targets: number;
+  target_pct?: number; // average achievement across the person's targets
+}
+
+// "12 days left" / "Last day" / "Ended 3 days ago" / "Starts in 5 days"
+const targetTimeLeft = (t: SalesTarget): { text: string; color: string } => {
+  const today = dayjs().startOf("day");
+  const start = dayjs(t.period_start).startOf("day");
+  const end = dayjs(t.period_end).startOf("day");
+  if (today.isBefore(start)) {
+    const n = start.diff(today, "day");
+    return { text: `Starts in ${n} day${n === 1 ? "" : "s"}`, color: "#3b82f6" };
+  }
+  const left = end.diff(today, "day");
+  if (left < 0) return { text: `Ended ${-left} day${left === -1 ? "" : "s"} ago`, color: "#64748b" };
+  if (left === 0) return { text: "Last day", color: "#ef4444" };
+  return { text: `${left} day${left === 1 ? "" : "s"} left`, color: left <= 7 ? "#f59e0b" : "#0d9488" };
+};
+
+const formatSource = (s?: string) =>
+  (s || "other").replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
 
 const playChime = () => {
   try {
@@ -202,6 +264,49 @@ const Pill: React.FC<{ label: string; color: string; bg: string }> = ({ label, c
   </span>
 );
 
+// ── Operations Hub row: avatar · title/subtitle · right-hand summary ──────────
+const HubRow: React.FC<{
+  avatar: React.ReactNode;
+  accent: string;
+  title: React.ReactNode;
+  subtitle?: React.ReactNode;
+  right?: React.ReactNode;
+  rightSub?: React.ReactNode;
+  onClick?: () => void;
+}> = ({ avatar, accent, title, subtitle, right, rightSub, onClick }) => (
+  <div
+    onClick={onClick}
+    style={{
+      display: "flex", alignItems: "center", gap: 10, padding: "10px 12px",
+      border: "1px solid #eef2f7", borderLeft: `3px solid ${accent}`, borderRadius: 10,
+      background: "#ffffff", cursor: onClick ? "pointer" : "default", minWidth: 0,
+      transition: "background .15s ease",
+    }}
+    onMouseEnter={(e) => { if (onClick) e.currentTarget.style.background = "#f8fafc"; }}
+    onMouseLeave={(e) => { e.currentTarget.style.background = "#ffffff"; }}
+  >
+    <Avatar size={34} style={{ background: accent + "18", color: accent, fontSize: 13, fontWeight: 600, flexShrink: 0 }}>
+      {avatar}
+    </Avatar>
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+        {title}
+      </div>
+      {subtitle && (
+        <div style={{ fontSize: 11, color: "#64748b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          {subtitle}
+        </div>
+      )}
+    </div>
+    {(right || rightSub) && (
+      <div style={{ textAlign: "right", flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3 }}>
+        {right}
+        {rightSub && <span style={{ fontSize: 10, color: "#94a3b8" }}>{rightSub}</span>}
+      </div>
+    )}
+  </div>
+);
+
 const CH_COLORS: Record<string, string> = { whatsapp: "#25D366", messenger: "#0084FF", instagram: "#E1306C" };
 const ST_COLORS: Record<string, string> = { open: C.success, pending: C.warning, resolved: C.blue, closed: C.gray };
 const stageColorMap = Object.fromEntries(LEAD_STAGES.map(({ key, color }) => [key, color]));
@@ -282,6 +387,9 @@ const MtejaDashboard: React.FC = () => {
     instagram: channels.some((c: any) => c.channel === "instagram" && c.is_active),
   };
   const connectedCount = Object.values(connected).filter(Boolean).length;
+  // The Operations Hub only shows conversations when a chat channel
+  // (WhatsApp / Messenger / Instagram) is connected
+  const hasChatChannel = connectedCount > 0;
 
   // Conversations
   const { data: convData, isLoading: convLoading, isRefetching: convRefetching } = useQuery({
@@ -352,6 +460,65 @@ const MtejaDashboard: React.FC = () => {
   const totalLeadValue = pipelineData?.total_value || 0;
   const wonLeadValue = pipelineData?.won_value || 0;
   const conversionRate = pipelineData?.conversion_rate || 0;
+  const leadOwners: any[] = pipelineData?.by_owner || [];
+  const leadSources: any[] = pipelineData?.by_source || [];
+  const leadProjects: any[] = pipelineData?.by_project || [];
+  const overdueFollowUps: number = pipelineData?.follow_ups?.overdue || 0;
+  const dueFollowUps: number = pipelineData?.follow_ups?.due_this_week || 0;
+  const repeatContacts: number = pipelineData?.repeat_contacts || 0;
+  const wonLeadsCount = (pipelineStages.find((s: any) => s.stage === "won")?.count) || 0;
+  const hasDala = isDalaEnabled();
+
+  // Sales targets — actuals for lead/customer-based types are recalculated by
+  // the API on every fetch, so this reflects current progress
+  const { data: targetsData, isLoading: targetsLoading } = useQuery({
+    queryKey: ["mteja-sales-targets", shopId],
+    queryFn: () => fetchAllSalesTargets({ shop_id: shopId || undefined, is_active: true, limit: 100 }),
+    staleTime: 30_000,
+  });
+  // Targets whose period overlaps the dashboard period; company-wide first,
+  // then furthest along
+  const periodTargets: SalesTarget[] = useMemo(() => {
+    const list: SalesTarget[] = targetsData?.targets || [];
+    return list
+      .filter((t) => dayjs(t.period_start).isBefore(endDate) && dayjs(t.period_end).isAfter(startDate))
+      .sort((a, b) =>
+        Number(!!b.is_company_wide) - Number(!!a.is_company_wide) ||
+        (b.achievement_percentage || 0) - (a.achievement_percentage || 0));
+  }, [targetsData, startDate, endDate]);
+  const targetsAchieved = periodTargets.filter((t) => t.is_achieved).length;
+
+  // Leaderboard — team members ranked by won value, deals won, or average
+  // achievement across their individual sales targets in the period
+  const [leaderMetric, setLeaderMetric] = useState<LeaderMetric>("won_value");
+  const leaderboard: LeaderEntry[] = useMemo(() => {
+    const byUser = new Map<string, LeaderEntry & { pctSum: number }>();
+    const entry = (id: string, name: string) => {
+      if (!byUser.has(id)) {
+        byUser.set(id, { id, name, leads: 0, won: 0, won_value: 0, win_rate: 0, targets: 0, target_pct: undefined, pctSum: 0 });
+      }
+      return byUser.get(id)!;
+    };
+
+    leadOwners.filter((o) => o.user_id).forEach((o) => {
+      Object.assign(entry(String(o.user_id), o.name), {
+        leads: o.leads, won: o.won, won_value: o.won_value, win_rate: o.win_rate,
+      });
+    });
+
+    periodTargets.forEach((t) => {
+      if (t.is_company_wide || typeof t.user_id !== "object" || !t.user_id?._id) return;
+      const e = entry(String(t.user_id._id), t.user_id.fullname || t.user_id.username);
+      e.targets += 1;
+      e.pctSum += t.achievement_percentage || 0;
+      e.target_pct = e.pctSum / e.targets;
+    });
+
+    return [...byUser.values()]
+      .filter((e) => (leaderMetric === "target_pct" ? e.targets > 0 : e[leaderMetric] > 0))
+      .sort((a, b) => (b[leaderMetric] ?? 0) - (a[leaderMetric] ?? 0))
+      .slice(0, 10);
+  }, [leadOwners, periodTargets, leaderMetric]);
 
   // Recent leads
   const { data: recentLeadsData, isLoading: leadsLoading } = useQuery({
@@ -387,6 +554,7 @@ const MtejaDashboard: React.FC = () => {
     queryClient.invalidateQueries({ queryKey: ["mteja-lead-pipeline"] });
     queryClient.invalidateQueries({ queryKey: ["mteja-recent-leads"] });
     queryClient.invalidateQueries({ queryKey: ["mteja-msg-analytics"] });
+    queryClient.invalidateQueries({ queryKey: ["mteja-sales-targets"] });
   }, [queryClient]);
 
   const isDataLoading = statsLoading || pipelineLoading || custLoading || convLoading;
@@ -426,6 +594,7 @@ const MtejaDashboard: React.FC = () => {
   // Executive KPI Cards
   const kpiCards = [
     {
+      chatOnly: true,
       title: "Conversations",
       value: totalConversations.toLocaleString(),
       icon: unreadCount > 0 ? (
@@ -470,9 +639,10 @@ const MtejaDashboard: React.FC = () => {
       border: "#fde68a",
       subtext: (
         <Text style={{ fontSize: 11, color: "#64748b" }}>
-          {totalLeads} Total Leads Tracked
+          <span style={{ color: "#10b981", fontWeight: 600 }}>{wonLeadsCount} won</span> of {totalLeads} leads
         </Text>
       ),
+      onClick: () => navTo("/crm/leads"),
     },
     {
       title: "Engagement Health",
@@ -492,142 +662,40 @@ const MtejaDashboard: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ].filter((card) => hasChatChannel || !card.chatOnly);
 
-  // Table Columns
-  const convColumns = [
-    {
-      title: "Channel",
-      dataIndex: "channel",
-      key: "channel",
-      width: 90,
-      render: (ch: string) => (
-        <Tag style={{ background: (CH_COLORS[ch] || C.gray) + "15", color: CH_COLORS[ch] || C.gray, border: "none", fontSize: 11, borderRadius: 4 }}>
-          {ch || "—"}
-        </Tag>
-      ),
-    },
-    {
-      title: "Contact",
-      dataIndex: "external_contact_name",
-      key: "name",
-      render: (name: string, r: any) => (
-        <div>
-          <Text strong style={{ fontSize: 12, color: C.text }}>{name || r.external_contact_phone || "Unknown"}</Text>
-          {r.last_message_preview && (
-            <Text style={{ fontSize: 11, color: C.subtext, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 220 }}>
-              {r.last_message_preview}
-            </Text>
-          )}
-        </div>
-      ),
-    },
-    {
-      title: "Status",
-      dataIndex: "status",
-      key: "status",
-      width: 100,
-      render: (s: string) => <Pill label={s?.toUpperCase()} color={ST_COLORS[s] || C.gray} bg={(ST_COLORS[s] || C.gray) + "15"} />,
-    },
-    {
-      title: "Unread",
-      dataIndex: "unread_count",
-      key: "unread",
-      width: 70,
-      align: "center" as const,
-      render: (n: number) => n > 0 ? <Badge count={n} style={{ backgroundColor: "#f97316" }} /> : <Text style={{ color: C.gray, fontSize: 11 }}>—</Text>,
-    },
-    {
-      title: "Last Active",
-      dataIndex: "last_message_at",
-      key: "last",
-      width: 110,
-      render: (t: string) => <Text style={{ fontSize: 11, color: C.subtext }}>{t ? dayjs(t).fromNow() : "—"}</Text>,
-    },
-  ];
+  // ── Operations Hub list helpers ──
+  const hubGrid: React.CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: isMobile ? "1fr" : "repeat(2, minmax(0, 1fr))",
+    gap: isMobile ? 8 : 10,
+  };
 
-  const leadColumns = [
-    {
-      title: "Lead",
-      dataIndex: "lead_name",
-      key: "name",
-      render: (name: string, r: any) => (
-        <div>
-          <Text strong style={{ fontSize: 12 }}>{name || "—"}</Text>
-          {r.company_name && <Text style={{ fontSize: 11, color: C.subtext, display: "block" }}>{r.company_name}</Text>}
-        </div>
-      ),
-    },
-    {
-      title: "Stage",
-      dataIndex: "stage",
-      key: "stage",
-      width: 110,
-      render: (s: string) => <Pill label={s?.toUpperCase()} color={stageColorMap[s] || C.gray} bg={(stageColorMap[s] || C.gray) + "18"} />,
-    },
-    {
-      title: "Value",
-      dataIndex: "estimated_value",
-      key: "value",
-      width: 120,
-      render: (v: number) => <Text strong style={{ fontSize: 12, color: C.success }}>{v ? fmtKES(v) : "—"}</Text>,
-    },
-    {
-      title: "Source",
-      dataIndex: "source",
-      key: "source",
-      width: 110,
-      render: (s: string) => <Text style={{ fontSize: 11, color: C.subtext }}>{s?.replace(/_/g, " ") || "—"}</Text>,
-    },
-    {
-      title: "Last Contact",
-      dataIndex: "last_contacted_at",
-      key: "last",
-      width: 110,
-      render: (t: string) => <Text style={{ fontSize: 11, color: C.subtext }}>{t ? dayjs(t).fromNow() : "—"}</Text>,
-    },
-  ];
+  const leadDisplayName = (l: any) =>
+    (l.entity_type === "company" ? l.company_name : l.lead_name) || l.lead_name || l.company_name || "Unnamed lead";
 
-  const custColumns = [
-    {
-      title: "Customer",
-      dataIndex: "customer_name",
-      key: "name",
-      render: (name: string) => (
-        <Space size={8}>
-          <Avatar size={28} style={{ background: "#eff6ff", color: "#3b82f6", fontSize: 12 }}>{(name || "?")[0].toUpperCase()}</Avatar>
-          <Text strong style={{ fontSize: 12 }}>{name || "—"}</Text>
-        </Space>
-      ),
-    },
-    {
-      title: "Phone",
-      dataIndex: "phone",
-      key: "phone",
-      width: 130,
-      render: (p: string) => <Text style={{ fontSize: 12, color: C.subtext }}>{p ? String(p) : "—"}</Text>,
-    },
-    {
-      title: "Email",
-      dataIndex: "email",
-      key: "email",
-      render: (e: string) => <Text style={{ fontSize: 12, color: C.subtext }} ellipsis>{e || "—"}</Text>,
-    },
-    {
-      title: "Health",
-      key: "visits",
-      width: 100,
-      render: (_: any, r: any) => {
-        const v = r.visits || [];
-        if (!v.length) return <Pill label="NEW" color={C.blue} bg={C.blueLight} />;
-        const last = v.reduce((p: any, c: any) => new Date(c.createdAt) > new Date(p.createdAt) ? c : p).createdAt;
-        const days = (Date.now() - new Date(last).getTime()) / 86400000;
-        return days <= 14
-          ? <Pill label="ACTIVE" color={C.success} bg={C.successLight} />
-          : <Pill label="OVERDUE" color={C.warning} bg={C.warningLight} />;
-      },
-    },
-  ];
+  const customerHealth = (c: any) => {
+    const v = c.visits || [];
+    if (!v.length) return { label: "NEW", color: C.blue };
+    const last = v.reduce((p: any, x: any) => (new Date(x.createdAt) > new Date(p.createdAt) ? x : p)).createdAt;
+    const days = (Date.now() - new Date(last).getTime()) / 86400000;
+    return days <= 14 ? { label: "ACTIVE", color: C.success } : { label: "OVERDUE", color: C.warning };
+  };
+
+  const hubTabLabel = (icon: React.ReactNode, label: string, mobileLabel: string, count: number, color: string) => (
+    <Space size={6}>
+      {icon}
+      <span>{isMobile ? mobileLabel : label}</span>
+      {count > 0 && <Pill label={count > 99 ? "99+" : String(count)} color={color} bg={color + "18"} />}
+    </Space>
+  );
+
+  const hubFooter = (label: string, to: string) => (
+    <Button block type="dashed" size="small" icon={<ArrowRightOutlined />} onClick={() => navTo(to)}
+      style={{ marginTop: 12, borderRadius: 8, color: C.subtext }}>
+      {label}
+    </Button>
+  );
 
   return (
     <div style={{ paddingBottom: 24 }}>
@@ -758,7 +826,7 @@ const MtejaDashboard: React.FC = () => {
       {/* ── Tier 2: Executive CRM Pulse (4 Refined Cards) ── */}
       <Row gutter={isMobile ? [8, 8] : [12, 12]} style={{ marginBottom: isMobile ? 12 : 16 }}>
         {kpiCards.map((card, i) => (
-          <Col xs={12} sm={12} lg={6} key={i}>
+          <Col xs={12} sm={12} lg={24 / kpiCards.length} key={i}>
             <div
               onClick={card.onClick}
               style={{
@@ -821,10 +889,58 @@ const MtejaDashboard: React.FC = () => {
         ))}
       </Row>
 
+      {/* ── Tier 2.5: Action strip — follow-ups, repeat contacts, targets ── */}
+      {!pipelineLoading && (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: isMobile ? 12 : 16 }}>
+          {([
+            {
+              show: overdueFollowUps > 0,
+              icon: <BellOutlined />,
+              text: `${overdueFollowUps} overdue follow-up${overdueFollowUps === 1 ? "" : "s"}`,
+              color: C.error, bg: C.errorLight,
+            },
+            {
+              show: dueFollowUps > 0,
+              icon: <CalendarOutlined />,
+              text: `${dueFollowUps} follow-up${dueFollowUps === 1 ? "" : "s"} due in the next 7 days`,
+              color: C.warning, bg: C.warningLight,
+            },
+            {
+              show: overdueFollowUps === 0 && dueFollowUps === 0,
+              icon: <CheckCircleOutlined />,
+              text: "No follow-ups overdue or due this week",
+              color: C.success, bg: C.successLight,
+            },
+            {
+              show: repeatContacts > 0,
+              icon: <TeamOutlined />,
+              text: `${repeatContacts} contact${repeatContacts === 1 ? " has" : "s have"} more than one lead`,
+              color: C.purple, bg: C.purpleLight,
+            },
+            {
+              show: periodTargets.length > 0,
+              icon: <TrophyOutlined />,
+              text: `${targetsAchieved} of ${periodTargets.length} sales target${periodTargets.length === 1 ? "" : "s"} achieved`,
+              color: C.teal, bg: C.tealLight, to: "/crm/sales-targets",
+            },
+          ] as { show: boolean; icon: React.ReactNode; text: string; color: string; bg: string; to?: string }[])
+            .filter((x) => x.show).map((x, i) => (
+            <div key={i} onClick={() => navTo(x.to || "/crm/leads")}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer",
+                background: x.bg, color: x.color, borderRadius: 20, padding: "4px 12px", fontSize: 12, fontWeight: 500,
+              }}>
+              {x.icon}
+              <span>{x.text}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* ── Tier 3: Visual Analytics & Charts Hub ── */}
       <Row gutter={isMobile ? [8, 8] : [12, 12]} style={{ marginBottom: isMobile ? 12 : 16 }}>
         {/* Left 60%: Lead Pipeline Funnel (BarChart) */}
-        <Col xs={24} lg={15}>
+        <Col xs={24} lg={hasChatChannel ? 15 : 24}>
           <ProCard
             bordered
             headerBordered
@@ -923,8 +1039,8 @@ const MtejaDashboard: React.FC = () => {
           </ProCard>
         </Col>
 
-        {/* Right 40%: Conversations & Channels Mix (Donut Chart) */}
-        <Col xs={24} lg={9}>
+        {/* Right 40%: Conversations & Channels Mix (Donut Chart) — chat channels only */}
+        {hasChatChannel && <Col xs={24} lg={9}>
           <ProCard
             bordered
             headerBordered
@@ -986,7 +1102,310 @@ const MtejaDashboard: React.FC = () => {
               </ResponsiveContainer>
             )}
           </ProCard>
+        </Col>}
+      </Row>
+
+      {/* ── Tier 3.2: Sales Targets & Team Performance ── */}
+      <Row gutter={isMobile ? [8, 8] : [12, 12]} style={{ marginBottom: isMobile ? 12 : 16 }}>
+        <Col xs={24} lg={12}>
+          <ProCard
+            bordered
+            headerBordered
+            size="small"
+            style={{ borderRadius: 12, height: "100%", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
+            title={
+              <Space size={6} wrap>
+                <div style={{ background: C.tealLight, borderRadius: 8, padding: isMobile ? "3px 6px" : "4px 8px", color: C.teal, display: "inline-flex", fontSize: isMobile ? 12 : 14 }}>
+                  <AimOutlined />
+                </div>
+                <Text strong style={{ fontSize: isMobile ? 13 : 14 }}>Sales Targets</Text>
+                {periodTargets.length > 0 && (
+                  <Tag color="cyan" style={{ borderRadius: 10, fontSize: 10, border: "none" }}>
+                    {targetsAchieved}/{periodTargets.length} achieved
+                  </Tag>
+                )}
+              </Space>
+            }
+            extra={
+              <Button type="link" size="small" onClick={() => navTo("/crm/sales-targets")} style={{ fontSize: 12 }}>
+                {isMobile ? "All →" : "All Targets →"}
+              </Button>
+            }
+            bodyStyle={{ padding: isMobile ? "10px 10px" : "12px 16px" }}
+          >
+            {targetsLoading ? (
+              <Skeleton active paragraph={{ rows: 4 }} />
+            ) : periodTargets.length === 0 ? (
+              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No sales targets running in this period" style={{ padding: "24px 0" }}>
+                <Button size="small" onClick={() => navTo("/crm/sales-targets")}>Set a target</Button>
+              </Empty>
+            ) : (
+              <div style={{ maxHeight: 300, overflowY: "auto", paddingRight: 4 }}>
+                {periodTargets.slice(0, 8).map((t) => {
+                  const p = t.achievement_percentage || 0;
+                  const color = achievementColor(p);
+                  const timeLeft = targetTimeLeft(t);
+                  return (
+                    <div key={t._id} style={{ padding: "8px 0", borderBottom: "1px solid #f1f5f9" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                        <div style={{ minWidth: 0 }}>
+                          <Space size={6} wrap>
+                            <Text strong style={{ fontSize: 12 }}>{t.name}</Text>
+                            {t.is_company_wide && (
+                              <Tag icon={<GlobalOutlined />} color="blue" style={{ fontSize: 10, margin: 0, borderRadius: 4 }}>
+                                Company-wide
+                              </Tag>
+                            )}
+                            {t.is_achieved && <TrophyOutlined style={{ color: C.success }} />}
+                            <Pill label={timeLeft.text.toUpperCase()} color={timeLeft.color} bg={timeLeft.color + "15"} />
+                          </Space>
+                          <Text style={{ fontSize: 11, color: C.subtext, display: "block" }}>
+                            {TARGET_TYPE_LABELS[t.type] || t.type}
+                            {!t.is_company_wide && ` · ${targetScopeLabel(t)}`}
+                            {` · ${dayjs(t.period_start).format("D MMM")} – ${dayjs(t.period_end).format("D MMM YYYY")}`}
+                            {!LIVE_TARGET_TYPES.includes(t.type) && " · manual"}
+                          </Text>
+                        </div>
+                        <div style={{ textAlign: "right", flexShrink: 0 }}>
+                          <Text strong style={{ fontSize: 13, color }}>{p.toFixed(1)}%</Text>
+                          <Text style={{ fontSize: 11, color: C.subtext, display: "block" }}>
+                            {fmtTargetValue(t.actual_value, t.type)} / {fmtTargetValue(t.target_value, t.type)}
+                          </Text>
+                        </div>
+                      </div>
+                      <Progress percent={Math.min(p, 100)} showInfo={false} size="small" strokeColor={color} trailColor="#e2e8f0" style={{ margin: "4px 0 0" }} />
+                    </div>
+                  );
+                })}
+                {periodTargets.length > 8 && (
+                  <Button type="link" size="small" onClick={() => navTo("/crm/sales-targets")} style={{ padding: "6px 0 0", fontSize: 12 }}>
+                    +{periodTargets.length - 8} more targets
+                  </Button>
+                )}
+              </div>
+            )}
+          </ProCard>
         </Col>
+
+        <Col xs={24} lg={12}>
+          <ProCard
+            bordered
+            headerBordered
+            size="small"
+            style={{ borderRadius: 12, height: "100%", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
+            title={
+              <Space size={6}>
+                <div style={{ background: C.warningLight, borderRadius: 8, padding: isMobile ? "3px 6px" : "4px 8px", color: C.warning, display: "inline-flex", fontSize: isMobile ? 12 : 14 }}>
+                  <TrophyOutlined />
+                </div>
+                <Text strong style={{ fontSize: isMobile ? 13 : 14 }}>Leaderboard</Text>
+              </Space>
+            }
+            extra={
+              <Segmented
+                size="small"
+                value={leaderMetric}
+                onChange={(v) => setLeaderMetric(v as LeaderMetric)}
+                options={[
+                  { label: isMobile ? "Value" : "Won Value", value: "won_value" },
+                  { label: isMobile ? "Won" : "Deals Won", value: "won" },
+                  { label: isMobile ? "Target" : "Target %", value: "target_pct" },
+                ]}
+              />
+            }
+            bodyStyle={{ padding: isMobile ? "8px 10px" : "10px 16px" }}
+          >
+            {pipelineLoading || targetsLoading ? (
+              <Skeleton active paragraph={{ rows: 4 }} />
+            ) : leaderboard.length === 0 ? (
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={leaderMetric === "target_pct"
+                  ? "No individual sales targets in this period"
+                  : "No deals won by a team member in this period"}
+                style={{ padding: "24px 0" }}
+              />
+            ) : (
+              <div style={{ maxHeight: 300, overflowY: "auto", paddingRight: 4 }}>
+                {leaderboard.map((e, i) => {
+                  const value = e[leaderMetric] ?? 0;
+                  const leaderValue = leaderboard[0][leaderMetric] ?? 0;
+                  const medal = ["#f59e0b", "#94a3b8", "#c2410c"][i];
+                  return (
+                    <div key={e.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: "1px solid #f1f5f9" }}>
+                      <div style={{
+                        width: 24, height: 24, borderRadius: "50%", flexShrink: 0,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        background: medal ? medal + "20" : "#f1f5f9", color: medal || C.gray,
+                        fontSize: 11, fontWeight: 700,
+                      }}>
+                        {medal ? <TrophyOutlined /> : i + 1}
+                      </div>
+                      <Avatar size={28} style={{ background: C.blueLight, color: C.blue, fontSize: 12, flexShrink: 0 }}>
+                        {(e.name || "?")[0].toUpperCase()}
+                      </Avatar>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                          <Text strong style={{ fontSize: 12 }} ellipsis>{e.name}</Text>
+                          <Text strong style={{ fontSize: 12, color: medal || C.text, flexShrink: 0 }}>
+                            {leaderMetric === "won_value" ? fmtKES(value)
+                              : leaderMetric === "target_pct" ? `${value.toFixed(1)}%`
+                              : `${value} won`}
+                          </Text>
+                        </div>
+                        <Progress
+                          percent={leaderMetric === "target_pct" ? Math.min(value, 100) : leaderValue ? (value / leaderValue) * 100 : 0}
+                          showInfo={false} size="small" trailColor="#e2e8f0"
+                          strokeColor={leaderMetric === "target_pct" ? achievementColor(value) : medal || C.blue}
+                          style={{ margin: "2px 0 0" }}
+                        />
+                        <Text style={{ fontSize: 10, color: C.subtext }}>
+                          {e.won} won of {e.leads} lead{e.leads === 1 ? "" : "s"} · {e.win_rate}% win rate
+                          {e.targets > 0 && ` · ${e.targets} target${e.targets === 1 ? "" : "s"}`}
+                        </Text>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </ProCard>
+        </Col>
+      </Row>
+
+      {/* ── Tier 3.3: Team Performance, Lead Sources (and Projects for dala tenants) ── */}
+      <Row gutter={isMobile ? [8, 8] : [12, 12]} style={{ marginBottom: isMobile ? 12 : 16 }}>
+        <Col xs={24} lg={12}>
+          <ProCard
+            bordered
+            headerBordered
+            size="small"
+            style={{ borderRadius: 12, height: "100%", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
+            title={
+              <Space size={6}>
+                <div style={{ background: C.blueLight, borderRadius: 8, padding: isMobile ? "3px 6px" : "4px 8px", color: C.blue, display: "inline-flex", fontSize: isMobile ? 12 : 14 }}>
+                  <UserOutlined />
+                </div>
+                <Text strong style={{ fontSize: isMobile ? 13 : 14 }}>Team Performance</Text>
+              </Space>
+            }
+            bodyStyle={{ padding: isMobile ? "10px 8px" : "12px 14px" }}
+          >
+            {pipelineLoading ? (
+              <Skeleton active paragraph={{ rows: 4 }} />
+            ) : leadOwners.length === 0 ? (
+              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No leads in this period" style={{ padding: "24px 0" }} />
+            ) : (
+              <div style={{
+                display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(2, minmax(0, 1fr))",
+                gap: 10, maxHeight: 320, overflowY: "auto", paddingRight: 2,
+              }}>
+                {leadOwners.map((o) => {
+                  const assigned = !!o.user_id;
+                  const accent = assigned ? C.blue : C.gray;
+                  return (
+                    <div key={o.user_id || "unassigned"} style={{
+                      border: `1px solid ${assigned ? "#e2e8f0" : "#f1f5f9"}`, borderRadius: 10,
+                      padding: "10px 12px", background: assigned ? "#ffffff" : "#f8fafc",
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                        <Avatar size={30} style={{ background: assigned ? C.blueLight : "#e2e8f0", color: accent, fontSize: 13, flexShrink: 0 }}>
+                          {assigned ? (o.name || "?")[0].toUpperCase() : <UserOutlined />}
+                        </Avatar>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <Text strong style={{ fontSize: 12, color: assigned ? C.text : C.subtext, display: "block" }} ellipsis>
+                            {o.name}
+                          </Text>
+                          <Text style={{ fontSize: 15, fontWeight: 700, color: o.won_value ? C.success : C.subtext }}>
+                            {o.won_value ? fmtKES(o.won_value) : "No wins yet"}
+                          </Text>
+                        </div>
+                      </div>
+
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
+                        <Text style={{ fontSize: 10, color: C.subtext }}>Win rate</Text>
+                        <Text style={{ fontSize: 10, fontWeight: 600, color: C.text }}>{o.win_rate}%</Text>
+                      </div>
+                      <Progress percent={o.win_rate} showInfo={false} size="small" strokeColor={C.success} trailColor="#e2e8f0" style={{ margin: 0 }} />
+
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+                        <Pill label={`${o.leads} LEAD${o.leads === 1 ? "" : "S"}`} color={accent} bg={accent + "15"} />
+                        <Pill label={`${o.won} WON`} color={o.won ? C.success : C.gray} bg={(o.won ? C.success : C.gray) + "15"} />
+                        {o.pipeline_value > 0 && (
+                          <Pill label={`${fmtK(o.pipeline_value)} PIPELINE`} color={C.purple} bg={C.purpleLight} />
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </ProCard>
+        </Col>
+
+        {[
+          {
+            key: "sources",
+            show: true,
+            title: "Lead Sources",
+            icon: <FireOutlined />,
+            color: C.orange, bg: C.orangeLight,
+            rows: leadSources.map((s) => ({ ...s, label: formatSource(s.source) })),
+            empty: "No leads in this period",
+          },
+          {
+            key: "projects",
+            show: hasDala,
+            title: "Leads by Project",
+            icon: <ProjectOutlined />,
+            color: C.purple, bg: C.purpleLight,
+            rows: leadProjects.map((p) => ({ ...p, label: p.project })),
+            empty: "No leads linked to a project in this period",
+          },
+        ].filter((x) => x.show).map((card) => (
+          // Sources sits beside Team Performance; Projects gets its own full row
+          <Col xs={24} lg={card.key === "projects" ? 24 : 12} key={card.key}>
+            <ProCard
+              bordered
+              headerBordered
+              size="small"
+              style={{ borderRadius: 12, height: "100%", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
+              title={
+                <Space size={6}>
+                  <div style={{ background: card.bg, borderRadius: 8, padding: isMobile ? "3px 6px" : "4px 8px", color: card.color, display: "inline-flex", fontSize: isMobile ? 12 : 14 }}>
+                    {card.icon}
+                  </div>
+                  <Text strong style={{ fontSize: isMobile ? 13 : 14 }}>{card.title}</Text>
+                </Space>
+              }
+              bodyStyle={{ padding: isMobile ? "10px 6px 6px" : "14px 12px 8px" }}
+            >
+              {pipelineLoading ? (
+                <Skeleton active paragraph={{ rows: 4 }} />
+              ) : card.rows.length === 0 ? (
+                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={card.empty} style={{ padding: "24px 0" }} />
+              ) : (
+                <ResponsiveContainer width="100%" height={Math.max(140, Math.min(card.rows.length, 8) * 34 + 30)}>
+                  <BarChart data={card.rows.slice(0, 8)} layout="vertical" margin={{ top: 0, right: 16, left: 4, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
+                    <XAxis type="number" allowDecimals={false} tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} />
+                    <YAxis type="category" dataKey="label" width={isMobile ? 80 : 110} tick={{ fontSize: 11, fill: "#475569" }} axisLine={false} tickLine={false} />
+                    <ReTooltip
+                      formatter={(val: any, name: any, entry: any) =>
+                        name === "Won"
+                          ? [`${val} (${fmtKES(entry.payload.won_value)})`, "Won"]
+                          : [`${val} · ${entry.payload.win_rate}% win rate`, "Leads"]}
+                      contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }}
+                    />
+                    <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
+                    <Bar dataKey="leads" name="Leads" fill={card.color} radius={[0, 4, 4, 0]} barSize={10} />
+                    <Bar dataKey="won" name="Won" fill={C.success} radius={[0, 4, 4, 0]} barSize={10} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </ProCard>
+          </Col>
+        ))}
       </Row>
 
       {/* ── Tier 3.5: SMS & Email Messaging Stats ── */}
@@ -1092,7 +1511,7 @@ const MtejaDashboard: React.FC = () => {
         </Col>
       </Row>
 
-      {/* ── Tier 4: Unified CRM Operations Hub (Tabbed Card) ── */}
+      {/* ── Tier 4: CRM Operations Hub — latest activity as compact rows ── */}
       <Row>
         <Col span={24}>
           <ProCard
@@ -1101,167 +1520,189 @@ const MtejaDashboard: React.FC = () => {
             size="small"
             style={{ borderRadius: 12, boxShadow: "0 1px 3px rgba(0,0,0,0.04)", width: "100%", maxWidth: "100%", overflow: "hidden" }}
             title={
-              <Space size={8}>
-                <div style={{ background: "#eff6ff", borderRadius: 8, padding: isMobile ? "3px 6px" : "4px 8px", color: "#3b82f6", display: "inline-flex", fontSize: isMobile ? 12 : 14 }}>
+              <Space size={8} align="center">
+                <div style={{ background: C.blueLight, borderRadius: 8, padding: isMobile ? "3px 6px" : "4px 8px", color: C.blue, display: "inline-flex", fontSize: isMobile ? 12 : 14 }}>
                   <TeamOutlined />
                 </div>
-                <Text strong style={{ fontSize: isMobile ? 13 : 14 }}>CRM Operations Hub</Text>
+                <div>
+                  <Text strong style={{ fontSize: isMobile ? 13 : 14, display: "block", lineHeight: 1.2 }}>CRM Operations Hub</Text>
+                  {!isMobile && <Text style={{ fontSize: 11, color: C.subtext }}>Latest activity · {dateRangeLabel}</Text>}
+                </div>
               </Space>
             }
-            bodyStyle={{ padding: isMobile ? "6px 8px 12px" : "8px 16px 16px", width: "100%", maxWidth: "100%" }}
+            bodyStyle={{ padding: isMobile ? "4px 10px 14px" : "4px 16px 16px", width: "100%", maxWidth: "100%" }}
           >
             <Tabs
-              defaultActiveKey="chats"
+              // Remount when the chats tab appears/disappears so the default tab follows it
+              key={hasChatChannel ? "with-chats" : "no-chats"}
+              defaultActiveKey={hasChatChannel ? "chats" : "leads"}
               size={isMobile ? "small" : "middle"}
               items={[
-                {
+                ...(!hasChatChannel ? [] : [{
                   key: "chats",
-                  label: (
-                    <Space size={isMobile ? 4 : 6}>
-                      <MessageOutlined />
-                      <span>{isMobile ? "Chats" : "Recent Conversations"}</span>
-                      {totalConversations > 0 && <Badge count={totalConversations} style={{ backgroundColor: "#3b82f6", fontSize: 10 }} />}
-                    </Space>
-                  ),
+                  label: hubTabLabel(<MessageOutlined />, "Conversations", "Chats", totalConversations, C.blue),
                   children: (
-                    <div style={{ width: "100%", maxWidth: "100%", overflowX: "auto" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
-                        <Radio.Group value={convStatus} onChange={(e) => setConvStatus(e.target.value)} buttonStyle="solid" size="small">
-                          <Radio.Button value="all">All</Radio.Button>
-                          <Radio.Button value="open">Open</Radio.Button>
-                          <Radio.Button value="pending">Pending</Radio.Button>
-                          <Radio.Button value="resolved">Resolved</Radio.Button>
-                        </Radio.Group>
-                        <Button type="link" size="small" icon={<ArrowRightOutlined />} onClick={() => navTo("/omnichannel")}>
-                          Open Omnichannel Inbox
-                        </Button>
+                    <div>
+                      <div style={{ marginBottom: 12 }}>
+                        <Segmented
+                          size="small"
+                          value={convStatus}
+                          onChange={(v) => setConvStatus(v as typeof convStatus)}
+                          options={[
+                            { label: "All", value: "all" },
+                            { label: `Open${convCounts.open ? ` · ${convCounts.open}` : ""}`, value: "open" },
+                            { label: `Pending${convCounts.pending ? ` · ${convCounts.pending}` : ""}`, value: "pending" },
+                            { label: "Resolved", value: "resolved" },
+                          ]}
+                        />
                       </div>
-                      <Table
-                        columns={convColumns}
-                        dataSource={conversations.slice(0, 6)}
-                        pagination={{ pageSize: 6, hideOnSinglePage: true }}
-                        size="small"
-                        scroll={{ x: 450 }}
-                        rowKey={(r) => r._id || Math.random().toString()}
-                        locale={{ emptyText: <Empty description="No conversations" style={{ padding: 20 }} /> }}
-                      />
+                      {conversations.length === 0 ? (
+                        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No conversations in this period" style={{ padding: "20px 0" }} />
+                      ) : (
+                        <div style={hubGrid}>
+                          {conversations.slice(0, 6).map((c: any) => {
+                            const accent = CH_COLORS[c.channel] || C.gray;
+                            const name = c.external_contact_name || c.external_contact_phone || "Unknown contact";
+                            return (
+                              <HubRow
+                                key={c._id}
+                                accent={accent}
+                                avatar={(name || "?")[0].toUpperCase()}
+                                title={name}
+                                subtitle={c.last_message_preview || <span style={{ textTransform: "capitalize" }}>{c.channel}</span>}
+                                right={
+                                  <Space size={4}>
+                                    {c.unread_count > 0 && <Badge count={c.unread_count} size="small" style={{ backgroundColor: C.orange }} />}
+                                    <Pill label={(c.status || "—").toUpperCase()} color={ST_COLORS[c.status] || C.gray} bg={(ST_COLORS[c.status] || C.gray) + "15"} />
+                                  </Space>
+                                }
+                                rightSub={c.last_message_at ? dayjs(c.last_message_at).fromNow() : undefined}
+                                onClick={() => navTo("/omnichannel")}
+                              />
+                            );
+                          })}
+                        </div>
+                      )}
+                      {hubFooter("Open Omnichannel Inbox", "/omnichannel")}
                     </div>
                   ),
-                },
+                }]),
                 {
                   key: "leads",
-                  label: (
-                    <Space size={isMobile ? 4 : 6}>
-                      <FundOutlined />
-                      <span>{isMobile ? "Leads" : "Recent Leads"}</span>
-                      {totalLeads > 0 && <Badge count={totalLeads} style={{ backgroundColor: "#6366f1", fontSize: 10 }} />}
-                    </Space>
-                  ),
+                  label: hubTabLabel(<FundOutlined />, "Leads", "Leads", totalLeads, C.purple),
                   children: (
-                    <div style={{ width: "100%", maxWidth: "100%", overflowX: "auto" }}>
-                      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
-                        <Button type="link" size="small" icon={<ArrowRightOutlined />} onClick={() => navTo("/crm/leads")}>
-                          View All Leads ({totalLeads})
-                        </Button>
-                      </div>
-                      <Table
-                        columns={leadColumns}
-                        dataSource={recentLeads}
-                        pagination={{ pageSize: 6, hideOnSinglePage: true }}
-                        size="small"
-                        scroll={{ x: 450 }}
-                        rowKey={(r) => r._id || Math.random().toString()}
-                        locale={{ emptyText: <Empty description="No leads found" style={{ padding: 20 }} /> }}
-                      />
+                    <div>
+                      {recentLeads.length === 0 ? (
+                        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No leads in this period" style={{ padding: "20px 0" }} />
+                      ) : (
+                        <div style={hubGrid}>
+                          {recentLeads.slice(0, 6).map((l: any) => {
+                            const accent = stageColorMap[l.stage] || C.gray;
+                            const name = leadDisplayName(l);
+                            const owner = l.assigned_to?.name || l.assigned_to?.fullname || l.assigned_to?.username || "Other";
+                            const details = [
+                              l.entity_type === "company" ? l.contact_person : l.company_name,
+                              formatSource(l.source),
+                              owner,
+                              hasDala ? l.project : undefined,
+                            ].filter(Boolean).join(" · ");
+                            return (
+                              <HubRow
+                                key={l._id}
+                                accent={accent}
+                                avatar={name[0].toUpperCase()}
+                                title={name}
+                                subtitle={details}
+                                right={
+                                  <Space size={6}>
+                                    {l.estimated_value > 0 && (
+                                      <Text strong style={{ fontSize: 12, color: C.success }}>{fmtKES(l.estimated_value)}</Text>
+                                    )}
+                                    <Pill label={(l.stage || "new").toUpperCase()} color={accent} bg={accent + "18"} />
+                                  </Space>
+                                }
+                                rightSub={l.createdAt ? `Added ${dayjs(l.createdAt).fromNow()}` : undefined}
+                                onClick={() => navTo("/crm/leads")}
+                              />
+                            );
+                          })}
+                        </div>
+                      )}
+                      {hubFooter(`View all leads (${totalLeads})`, "/crm/leads")}
                     </div>
                   ),
                 },
                 {
                   key: "customers",
-                  label: (
-                    <Space size={isMobile ? 4 : 6}>
-                      <TeamOutlined />
-                      <span>{isMobile ? "Clients" : "Recent Customers"}</span>
-                      {customerList.length > 0 && <Badge count={customerList.length} style={{ backgroundColor: "#10b981", fontSize: 10 }} />}
-                    </Space>
-                  ),
+                  label: hubTabLabel(<TeamOutlined />, "Customers", "Clients", customerList.length, C.success),
                   children: (
-                    <div style={{ width: "100%", maxWidth: "100%", overflowX: "auto" }}>
-                      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
-                        <Button type="link" size="small" icon={<ArrowRightOutlined />} onClick={() => navTo("/customers")}>
-                          View All Customers ({customerList.length})
-                        </Button>
-                      </div>
-                      <Table
-                        columns={custColumns}
-                        dataSource={customerList.slice(0, 8)}
-                        pagination={{ pageSize: 6, hideOnSinglePage: true }}
-                        size="small"
-                        scroll={{ x: 450 }}
-                        rowKey={(r) => r._id || Math.random().toString()}
-                        locale={{ emptyText: <Empty description="No customers yet" style={{ padding: 20 }} /> }}
-                      />
+                    <div>
+                      {customerList.length === 0 ? (
+                        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No new customers in this period" style={{ padding: "20px 0" }} />
+                      ) : (
+                        <div style={hubGrid}>
+                          {customerList.slice(0, 6).map((c: any) => {
+                            const health = customerHealth(c);
+                            const name = c.customer_name || "Unnamed customer";
+                            return (
+                              <HubRow
+                                key={c._id}
+                                accent={health.color}
+                                avatar={name[0].toUpperCase()}
+                                title={name}
+                                subtitle={[c.phone ? String(c.phone) : null, c.email].filter(Boolean).join(" · ") || "No contact details"}
+                                right={<Pill label={health.label} color={health.color} bg={health.color + "15"} />}
+                                rightSub={c.createdAt ? `Joined ${dayjs(c.createdAt).fromNow()}` : undefined}
+                                onClick={() => navTo("/customers")}
+                              />
+                            );
+                          })}
+                        </div>
+                      )}
+                      {hubFooter(`View all customers (${customerList.length})`, "/customers")}
                     </div>
                   ),
                 },
-                {
+                ...(!hasChatChannel ? [] : [{
                   key: "channels",
-                  label: (
-                    <Space size={isMobile ? 4 : 6}>
-                      <WifiOutlined />
-                      <span>{isMobile ? "Channels" : "Channels & Performance"}</span>
-                    </Space>
-                  ),
+                  label: hubTabLabel(<WifiOutlined />, "Channels", "Channels", 0, C.teal),
                   children: (
-                    <Row gutter={[16, 16]} style={{ padding: "12px 0" }}>
-                      <Col xs={24} md={12}>
-                        <div style={{ background: "#f8fafc", borderRadius: 8, padding: "16px", border: "1px solid #e2e8f0" }}>
-                          <Text strong style={{ fontSize: 13, display: "block", marginBottom: 12 }}>Connected Channels</Text>
-                          <Space direction="vertical" style={{ width: "100%" }} size={10}>
-                            {[
-                              { label: "WhatsApp Business", connected: connected.whatsapp, count: channelCounts.whatsapp, color: "#25D366" },
-                              { label: "Facebook Messenger", connected: connected.messenger, count: channelCounts.messenger, color: "#0084FF" },
-                              { label: "Instagram Direct", connected: connected.instagram, count: channelCounts.instagram, color: "#E1306C" },
-                            ].map((item, i) => (
-                              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                <Space size={8}>
-                                  <div style={{ width: 10, height: 10, borderRadius: "50%", background: item.color }} />
-                                  <Text style={{ fontSize: 12 }}>{item.label}</Text>
-                                </Space>
-                                <Space size={8}>
-                                  <Tag color={item.connected ? "success" : "default"} style={{ fontSize: 10, borderRadius: 4 }}>
-                                    {item.connected ? "Active" : "Not connected"}
-                                  </Tag>
-                                  <Text strong style={{ fontSize: 12 }}>{item.count} chats</Text>
-                                </Space>
-                              </div>
-                            ))}
-                          </Space>
-                        </div>
-                      </Col>
-                      <Col xs={24} md={12}>
-                        <div style={{ background: "#f8fafc", borderRadius: 8, padding: "16px", border: "1px solid #e2e8f0" }}>
-                          <Text strong style={{ fontSize: 13, display: "block", marginBottom: 12 }}>Response & Speed Metrics</Text>
-                          <Row gutter={[10, 10]}>
-                            {[
-                              { label: "Resolution Rate", value: `${pct(convCounts.resolved + convCounts.closed, totalConversations)}%`, color: "#10b981" },
-                              { label: "Avg Resolution", value: `${avgResolutionTime} hrs`, color: "#3b82f6" },
-                              { label: "Active Channels", value: `${connectedCount} of 3`, color: "#6366f1" },
-                              { label: "Unread Messages", value: unreadCount, color: unreadCount > 0 ? "#f97316" : "#64748b" },
-                            ].map((s, i) => (
-                              <Col span={12} key={i}>
-                                <div style={{ background: "#ffffff", padding: "10px 12px", borderRadius: 8, border: "1px solid #e2e8f0" }}>
-                                  <Text style={{ fontSize: 11, color: "#64748b", display: "block" }}>{s.label}</Text>
-                                  <Text strong style={{ fontSize: 16, color: s.color }}>{s.value}</Text>
-                                </div>
-                              </Col>
-                            ))}
-                          </Row>
-                        </div>
-                      </Col>
-                    </Row>
+                    <div>
+                      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))", gap: 10, marginBottom: 12 }}>
+                        {[
+                          { label: "WhatsApp Business", on: connected.whatsapp, count: channelCounts.whatsapp, color: "#25D366" },
+                          { label: "Facebook Messenger", on: connected.messenger, count: channelCounts.messenger, color: "#0084FF" },
+                          { label: "Instagram Direct", on: connected.instagram, count: channelCounts.instagram, color: "#E1306C" },
+                        ].map((ch) => (
+                          <div key={ch.label} style={{
+                            border: "1px solid #eef2f7", borderTop: `3px solid ${ch.on ? ch.color : "#e2e8f0"}`,
+                            borderRadius: 10, padding: "12px 14px", background: ch.on ? "#ffffff" : "#f8fafc",
+                          }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
+                              <Text strong style={{ fontSize: 12, color: ch.on ? C.text : C.subtext }}>{ch.label}</Text>
+                              <Pill label={ch.on ? "LIVE" : "OFF"} color={ch.on ? C.success : C.gray} bg={(ch.on ? C.success : C.gray) + "15"} />
+                            </div>
+                            <div style={{ fontSize: 20, fontWeight: 700, color: ch.on ? ch.color : C.subtext, marginTop: 6 }}>{ch.count}</div>
+                            <Text style={{ fontSize: 11, color: C.subtext }}>conversation{ch.count === 1 ? "" : "s"} this period</Text>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(4, minmax(0, 1fr))", gap: 10 }}>
+                        {[
+                          { label: "Resolution Rate", value: `${pct(convCounts.resolved + convCounts.closed, totalConversations)}%`, color: C.success },
+                          { label: "Avg Resolution", value: `${avgResolutionTime} hrs`, color: C.blue },
+                          { label: "Active Channels", value: `${connectedCount} of 3`, color: C.purple },
+                          { label: "Unread Messages", value: unreadCount, color: unreadCount > 0 ? C.orange : C.gray },
+                        ].map((s) => (
+                          <div key={s.label} style={{ background: "#f8fafc", padding: "10px 12px", borderRadius: 10, border: "1px solid #eef2f7" }}>
+                            <Text style={{ fontSize: 11, color: C.subtext, display: "block" }}>{s.label}</Text>
+                            <Text strong style={{ fontSize: 16, color: s.color }}>{s.value}</Text>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   ),
-                },
+                }]),
               ]}
             />
           </ProCard>

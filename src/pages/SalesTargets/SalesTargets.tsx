@@ -1,9 +1,10 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { ActionType, ProTable } from "@ant-design/pro-components";
 import {
-    AimOutlined, EditOutlined, EyeOutlined, MoreOutlined,
-    PlusOutlined, TrophyOutlined,
+    AimOutlined, CalendarOutlined, EditOutlined, EyeOutlined, MoreOutlined,
+    PlusOutlined, TeamOutlined, TrophyOutlined,
 } from "@ant-design/icons";
+import { FormStep, StepFormFooter, StepFormLayout, useFormSteps } from "@components/StepForm/StepForm";
 import {
     App, Button, DatePicker, Drawer, Dropdown, Form, Grid,
     Input, InputNumber, Modal, Progress, Select, Typography,
@@ -73,6 +74,8 @@ const SalesTargetTable = forwardRef<SalesTargetTableHandle, SalesTargetTableProp
             {
                 title: "Scope", search: false,
                 render: (_: any, r: SalesTarget) => {
+                    if (r.is_company_wide)
+                        return <Text style={{ fontSize: 12, color: C.primary, fontWeight: 500 }}>Company-wide</Text>;
                     if (typeof r.user_id === "object" && r.user_id?.fullname)
                         return <Text style={{ fontSize: 12 }}>{r.user_id.fullname}</Text>;
                     if (typeof r.department_id === "object" && (r.department_id as any)?.name)
@@ -159,6 +162,15 @@ const SalesTargetTable = forwardRef<SalesTargetTableHandle, SalesTargetTableProp
 SalesTargetTable.displayName = "SalesTargetTable";
 
 // ── Form Modal ────────────────────────────────────────────────────────────────
+const FORM_STEPS: FormStep[] = [
+    { title: "Goal", description: "What you're measuring", icon: <AimOutlined />,
+        fields: ["name", "type", "target_value"] },
+    { title: "Period", description: "When it runs", icon: <CalendarOutlined />,
+        fields: ["period", "period_start", "period_end"] },
+    { title: "Assignment", description: "Who it's for & notes", icon: <TeamOutlined />,
+        fields: ["user_id", "role_id", "department_id", "team", "campaign_id", "notes"] },
+];
+
 interface SalesTargetFormModalProps {
     visible: boolean;
     onClose: () => void;
@@ -172,10 +184,11 @@ const SalesTargetFormModal: React.FC<SalesTargetFormModalProps> = ({
 }) => {
     const [form] = Form.useForm();
     const [loading, setLoading] = useState(false);
-    const [scopeType, setScopeType] = useState<"user" | "role" | "department" | "team">("user");
+    const [scopeType, setScopeType] = useState<"company" | "user" | "role" | "department" | "team">("user");
     const dispatch = useAppDispatch();
     const isEdit = mode === "edit";
     const shop_id = JSON.parse(localStorage.getItem("shop") || "{}")?._id;
+    const { current, setCurrent, isLastStep, goToStep, onFinishFailed, onKeyDown, stepStyle } = useFormSteps(form, FORM_STEPS);
 
     const { data: deptData } = useQuery({ queryKey: ["departments"], queryFn: fetchAllDepartments, staleTime: 60_000, enabled: visible });
     const { data: campaignData } = useQuery({ queryKey: ["campaigns-list"], queryFn: () => fetchAllCampaigns({ shop_id }), staleTime: 60_000, enabled: visible });
@@ -189,9 +202,11 @@ const SalesTargetFormModal: React.FC<SalesTargetFormModalProps> = ({
 
     useEffect(() => {
         if (!visible) return;
+        setCurrent(0);
         if (isEdit && target) {
             // Detect scope type from populated fields
-            if (typeof target.user_id === "object" && target.user_id?._id) setScopeType("user");
+            if (target.is_company_wide) setScopeType("company");
+            else if (typeof target.user_id === "object" && target.user_id?._id) setScopeType("user");
             else if (typeof target.role_id === "object" && (target.role_id as any)?._id) setScopeType("role");
             else if (typeof target.department_id === "object" && (target.department_id as any)?._id) setScopeType("department");
             else if (target.team) setScopeType("team");
@@ -219,11 +234,13 @@ const SalesTargetFormModal: React.FC<SalesTargetFormModalProps> = ({
                 ...values,
                 period_start: values.period_start?.toISOString(),
                 period_end: values.period_end?.toISOString(),
-                // Clear unused scope fields
-                user_id: scopeType === "user" ? values.user_id : undefined,
-                role_id: scopeType === "role" ? values.role_id : undefined,
-                department_id: scopeType === "department" ? values.department_id : undefined,
-                team: scopeType === "team" ? values.team : undefined,
+                // Clear unused scope fields — null (not undefined, which is
+                // dropped from the request) so switching scope on edit clears the old one
+                is_company_wide: scopeType === "company",
+                user_id: scopeType === "user" ? values.user_id ?? null : null,
+                role_id: scopeType === "role" ? values.role_id ?? null : null,
+                department_id: scopeType === "department" ? values.department_id ?? null : null,
+                team: scopeType === "team" ? values.team ?? null : null,
                 shop_id,
             };
             if (isEdit && target?._id) {
@@ -232,6 +249,7 @@ const SalesTargetFormModal: React.FC<SalesTargetFormModalProps> = ({
                 await dispatch(createSalesTarget(payload)).unwrap();
             }
             form.resetFields();
+            setCurrent(0);
             onClose();
             onSuccess?.();
         } catch {
@@ -241,12 +259,19 @@ const SalesTargetFormModal: React.FC<SalesTargetFormModalProps> = ({
         }
     };
 
+    const handleClose = () => {
+        if (loading) return;
+        form.resetFields();
+        setCurrent(0);
+        onClose();
+    };
+
     return (
         <Modal
             open={visible}
-            onCancel={() => { if (!loading) { form.resetFields(); onClose(); } }}
-            destroyOnClose style={{ top: 20 }} width="min(600px, 96vw)" footer={null}
-            styles={{ body: { padding: "20px 24px 24px", maxHeight: "82vh", overflowY: "auto" } }}
+            onCancel={handleClose}
+            destroyOnClose style={{ top: 20 }} width="min(820px, 96vw)" footer={null}
+            styles={{ body: { padding: 0 } }}
             title={
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <div style={{ background: isEdit ? "#eff6ff" : C.primaryLight, borderRadius: 7, padding: "4px 6px", color: isEdit ? C.blue : C.primary, fontSize: 14, lineHeight: 1 }}>
@@ -256,116 +281,153 @@ const SalesTargetFormModal: React.FC<SalesTargetFormModalProps> = ({
                 </div>
             }
         >
-            <Form form={form} layout="vertical" onFinish={handleSubmit} style={{ marginTop: 4 }}>
-                <Form.Item name="name" label="Target Name" rules={[{ required: true }]}>
-                    <Input placeholder="e.g. Q2 Revenue Target" style={{ borderRadius: 8 }} autoFocus />
-                </Form.Item>
+            <Form form={form} layout="vertical" onFinish={handleSubmit}
+                onFinishFailed={onFinishFailed} onKeyDown={onKeyDown}>
+                <StepFormLayout
+                    steps={FORM_STEPS}
+                    current={current}
+                    onStepChange={goToStep}
+                    footer={
+                        <StepFormFooter
+                            current={current} isLastStep={isLastStep} isEdit={isEdit} loading={loading}
+                            submitLabel={isEdit ? "Update Target" : "Create Target"}
+                            onCancel={handleClose}
+                            onBack={() => goToStep(current - 1)}
+                            onNext={() => goToStep(current + 1)}
+                            onSubmit={() => form.submit()}
+                        />
+                    }
+                >
+                    {/* ── Step 1: Goal ── */}
+                    <div style={stepStyle(0)}>
+                        <Form.Item name="name" label="Target Name" rules={[{ required: true }]}>
+                            <Input placeholder="e.g. Q2 Revenue Target" style={{ borderRadius: 8 }} autoFocus />
+                        </Form.Item>
 
-                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                    <Form.Item name="type" label="Metric Type" rules={[{ required: true }]} style={{ flex: "1 1 180px" }}>
-                        <Select placeholder="What are you measuring?">
-                            {TYPES.map(t => (
-                                <Option key={t} value={t}>{t.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}</Option>
-                            ))}
-                        </Select>
-                    </Form.Item>
-                    <Form.Item name="period" label="Period" style={{ flex: "1 1 140px" }} initialValue="monthly">
-                        <Select>
-                            {PERIODS.map(p => <Option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</Option>)}
-                        </Select>
-                    </Form.Item>
-                </div>
-
-                <Form.Item name="target_value" label="Target Value" rules={[{ required: true }]}>
-                    <InputNumber
-                        min={0} style={{ width: "100%", borderRadius: 8 }}
-                        formatter={v => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
-                        parser={v => v?.replace(/,/g, "") as any}
-                    />
-                </Form.Item>
-
-                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                    <Form.Item name="period_start" label="Period Start" rules={[{ required: true }]} style={{ flex: "1 1 200px" }}>
-                        <DatePicker style={{ width: "100%", borderRadius: 8 }} />
-                    </Form.Item>
-                    <Form.Item name="period_end" label="Period End" rules={[{ required: true }]} style={{ flex: "1 1 200px" }}>
-                        <DatePicker style={{ width: "100%", borderRadius: 8 }} />
-                    </Form.Item>
-                </div>
-
-                {/* Scope selector */}
-                <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: "12px 14px 4px", marginBottom: 12 }}>
-                    <Text style={{ fontSize: 11, color: C.subText, display: "block", marginBottom: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                        Assign To
-                    </Text>
-                    <Select
-                        value={scopeType}
-                        onChange={(v) => { setScopeType(v); form.resetFields(["user_id", "role_id", "department_id", "team"]); }}
-                        style={{ width: "100%", marginBottom: 10, borderRadius: 8 }}
-                    >
-                        <Option value="user">Specific User</Option>
-                        <Option value="role">Role (all users with this role)</Option>
-                        <Option value="department">Department</Option>
-                        <Option value="team">Free-text Team Label</Option>
-                    </Select>
-
-                    {scopeType === "user" && (
-                        <Form.Item name="user_id" label="User">
-                            <Select placeholder="Select user" allowClear showSearch
-                                filterOption={(input, opt) => String(opt?.children || "").toLowerCase().includes(input.toLowerCase())}>
-                                {users.map((u: any) => (
-                                    <Option key={u._id} value={u._id}>{u.fullname || u.username}</Option>
+                        <Form.Item name="type" label="Metric Type" rules={[{ required: true }]}>
+                            <Select placeholder="What are you measuring?">
+                                {TYPES.map(t => (
+                                    <Option key={t} value={t}>{t.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}</Option>
                                 ))}
                             </Select>
                         </Form.Item>
-                    )}
-                    {scopeType === "role" && (
-                        <Form.Item name="role_id" label="Role">
-                            <Select placeholder="Select role" allowClear>
-                                {roles.map((r: any) => (
-                                    <Option key={r._id} value={r._id}>{r.role_type}</Option>
-                                ))}
+
+                        <Form.Item name="target_value" label="Target Value" rules={[{ required: true }]}>
+                            <InputNumber
+                                min={0} style={{ width: "100%", borderRadius: 8 }}
+                                formatter={v => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                                parser={v => v?.replace(/,/g, "") as any}
+                            />
+                        </Form.Item>
+                    </div>
+
+                    {/* ── Step 2: Period ── */}
+                    <div style={stepStyle(1)}>
+                        <Form.Item name="period" label="Period" initialValue="monthly">
+                            <Select>
+                                {PERIODS.map(p => <Option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</Option>)}
                             </Select>
                         </Form.Item>
-                    )}
-                    {scopeType === "department" && (
-                        <Form.Item name="department_id" label="Department">
-                            <Select placeholder="Select department" allowClear>
-                                {departments.map(d => (
-                                    <Option key={d._id} value={d._id}>{d.name}{d.code ? ` (${d.code})` : ""}</Option>
-                                ))}
+
+                        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                            <Form.Item name="period_start" label="Period Start" rules={[{ required: true }]} style={{ flex: "1 1 200px" }}>
+                                <DatePicker style={{ width: "100%", borderRadius: 8 }} />
+                            </Form.Item>
+                            {/* The API rejects an end on/before the start — catch it on this step */}
+                            <Form.Item name="period_end" label="Period End" dependencies={["period_start"]}
+                                style={{ flex: "1 1 200px" }}
+                                rules={[
+                                    { required: true },
+                                    ({ getFieldValue }) => ({
+                                        validator: (_, value) => {
+                                            const start = getFieldValue("period_start");
+                                            return !value || !start || value.isAfter(start, "day")
+                                                ? Promise.resolve()
+                                                : Promise.reject(new Error("Period end must be after the start"));
+                                        },
+                                    }),
+                                ]}>
+                                <DatePicker style={{ width: "100%", borderRadius: 8 }} />
+                            </Form.Item>
+                        </div>
+                    </div>
+
+                    {/* ── Step 3: Assignment ── */}
+                    <div style={stepStyle(2)}>
+                        <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: "12px 14px 4px", marginBottom: 12 }}>
+                            <Text style={{ fontSize: 11, color: C.subText, display: "block", marginBottom: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                                Assign To
+                            </Text>
+                            <Select
+                                value={scopeType}
+                                onChange={(v) => { setScopeType(v); form.resetFields(["user_id", "role_id", "department_id", "team"]); }}
+                                style={{ width: "100%", marginBottom: 10, borderRadius: 8 }}
+                            >
+                                <Option value="company">Company-wide (all leads & customers)</Option>
+                                <Option value="user">Specific User</Option>
+                                <Option value="role">Role (all users with this role)</Option>
+                                <Option value="department">Department</Option>
+                                <Option value="team">Free-text Team Label</Option>
                             </Select>
+
+                            {scopeType === "company" && (
+                                <Text style={{ fontSize: 12, color: C.subText, display: "block", marginBottom: 10 }}>
+                                    Tracks every lead and customer across all of the company's shops, whoever
+                                    they're assigned to. New Customers counts every customer added in the period.
+                                </Text>
+                            )}
+
+                            {scopeType === "user" && (
+                                <Form.Item name="user_id" label="User">
+                                    <Select placeholder="Select user" allowClear showSearch
+                                        filterOption={(input, opt) => String(opt?.children || "").toLowerCase().includes(input.toLowerCase())}>
+                                        {users.map((u: any) => (
+                                            <Option key={u._id} value={u._id}>{u.fullname || u.username}</Option>
+                                        ))}
+                                    </Select>
+                                </Form.Item>
+                            )}
+                            {scopeType === "role" && (
+                                <Form.Item name="role_id" label="Role">
+                                    <Select placeholder="Select role" allowClear>
+                                        {roles.map((r: any) => (
+                                            <Option key={r._id} value={r._id}>{r.role_type}</Option>
+                                        ))}
+                                    </Select>
+                                </Form.Item>
+                            )}
+                            {scopeType === "department" && (
+                                <Form.Item name="department_id" label="Department">
+                                    <Select placeholder="Select department" allowClear>
+                                        {departments.map(d => (
+                                            <Option key={d._id} value={d._id}>{d.name}{d.code ? ` (${d.code})` : ""}</Option>
+                                        ))}
+                                    </Select>
+                                </Form.Item>
+                            )}
+                            {scopeType === "team" && (
+                                <Form.Item name="team" label="Team Label">
+                                    <Input placeholder="e.g. Field Sales, Nairobi Team" style={{ borderRadius: 8 }} />
+                                </Form.Item>
+                            )}
+                        </div>
+
+                        {/* Campaign link */}
+                        {campaigns.length > 0 && (
+                            <Form.Item name="campaign_id" label="Link to Campaign (optional)">
+                                <Select placeholder="Only count results from this campaign" allowClear>
+                                    {campaigns.map((c: any) => (
+                                        <Option key={c._id} value={c._id}>{c.name}</Option>
+                                    ))}
+                                </Select>
+                            </Form.Item>
+                        )}
+
+                        <Form.Item name="notes" label="Notes">
+                            <TextArea rows={2} style={{ borderRadius: 8 }} />
                         </Form.Item>
-                    )}
-                    {scopeType === "team" && (
-                        <Form.Item name="team" label="Team Label">
-                            <Input placeholder="e.g. Field Sales, Nairobi Team" style={{ borderRadius: 8 }} />
-                        </Form.Item>
-                    )}
-                </div>
-
-                {/* Campaign link */}
-                {campaigns.length > 0 && (
-                    <Form.Item name="campaign_id" label="Link to Campaign (optional)">
-                        <Select placeholder="Only count results from this campaign" allowClear>
-                            {campaigns.map((c: any) => (
-                                <Option key={c._id} value={c._id}>{c.name}</Option>
-                            ))}
-                        </Select>
-                    </Form.Item>
-                )}
-
-                <Form.Item name="notes" label="Notes">
-                    <TextArea rows={2} style={{ borderRadius: 8 }} />
-                </Form.Item>
-
-                <div style={{ display: "flex", gap: 10 }}>
-                    <Button block onClick={() => { form.resetFields(); onClose(); }} disabled={loading} style={{ borderRadius: 8, height: 38 }}>Cancel</Button>
-                    <Button block type="primary" htmlType="submit" loading={loading}
-                        style={{ background: C.primary, borderColor: C.primary, borderRadius: 8, height: 38, fontWeight: 500 }}>
-                        {isEdit ? "Update Target" : "Create Target"}
-                    </Button>
-                </div>
+                    </div>
+                </StepFormLayout>
             </Form>
         </Modal>
     );
@@ -381,6 +443,7 @@ const SalesTargetDetailDrawer: React.FC<{ open: boolean; onClose: () => void; ta
     const isMoneyT = isMoneyType(target.type);
 
     const scopeLabel = () => {
+        if (target.is_company_wide) return "Company-wide";
         if (typeof target.user_id === "object" && target.user_id?.fullname) return target.user_id.fullname;
         if (typeof target.department_id === "object" && (target.department_id as any)?.name) return `Dept: ${(target.department_id as any).name}`;
         if (typeof target.role_id === "object" && (target.role_id as any)?.role_type) return `Role: ${(target.role_id as any).role_type}`;

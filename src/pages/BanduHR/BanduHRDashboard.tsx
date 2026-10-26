@@ -40,6 +40,7 @@ import {
 } from "@ant-design/icons";
 import { QRCodeCanvas } from "qrcode.react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { BranchSelect, useBranchFilter } from "@components/BranchFilter/BranchFilter";
 import { fetchHRDashboard, type HRDashboardData } from "@services/bandu/dashboard";
 import { clockIn, clockOut, fetchClockStatus } from "@services/hr/leave";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
@@ -244,10 +245,13 @@ const KPICard: React.FC<KPICardProps> = ({
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 const BanduHRDashboard: React.FC = () => {
-  const shopId = getShopId();
+  const ownShopId = getShopId();
   const primaryColor = usePrimaryColor();
-  const isAdmin = !shopId;
+  const isAdmin = !ownShopId;
   const isMobile = useIsMobile();
+  // Admins can narrow the dashboard to one branch; shop users stay on their own
+  const { shopId, shops, branchId, setBranchId, showFilter } = useBranchFilter(ownShopId);
+  const branchName = shops.find((s) => s._id === branchId)?.name;
 
   const [periodFilter, setPeriodFilter] = useState("month");
   const [customDateRange, setCustomDateRange] = useState<any[]>([]);
@@ -260,7 +264,7 @@ const BanduHRDashboard: React.FC = () => {
   const clockLinkUrl = (() => {
     try {
       const tenant = JSON.parse(localStorage.getItem("tenant") || "null");
-      return `${import.meta.env.VITE_APP_URL}/admin/staff-clock-in?tenant_id=${tenant?._id}&tenant_code=${tenant?.tenant_code}&shop_id=${shopId}`;
+      return `${import.meta.env.VITE_APP_URL}/admin/staff-clock-in?tenant_id=${tenant?._id}&tenant_code=${tenant?.tenant_code}&shop_id=${ownShopId}`;
     } catch {
       return "";
     }
@@ -600,7 +604,7 @@ const BanduHRDashboard: React.FC = () => {
       <div style={{ padding: "0 0 24px" }}>
         {/* ── Mobile Filter Drawer ── */}
         <Drawer
-          title="Filter Period"
+          title={showFilter ? "Filter Period & Branch" : "Filter Period"}
           placement="bottom"
           height="auto"
           open={filterDrawerOpen}
@@ -608,6 +612,10 @@ const BanduHRDashboard: React.FC = () => {
           styles={{ body: { paddingBottom: 32 } }}
         >
           <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+            {showFilter && (
+              <BranchSelect shops={shops} value={branchId} size="middle" block
+                onChange={(v) => { setBranchId(v); setFilterDrawerOpen(false); }} />
+            )}
             <Radio.Group
               value={periodFilter}
               onChange={(e) => handlePeriodChange(e.target.value)}
@@ -664,7 +672,7 @@ const BanduHRDashboard: React.FC = () => {
                 {PERIOD_LABELS[periodFilter]} · Bandu HR{isAdmin && " (Admin)"}
               </Title>
               <Text style={{ fontSize: 12, color: "#64748b" }}>
-                {getFormattedDateRange()} · {isAdmin ? "Company-wide HR overview" : "HR overview"}
+                {getFormattedDateRange()} · {branchName ? `${branchName} HR overview` : isAdmin ? "Company-wide HR overview" : "HR overview"}
               </Text>
             </div>
           </Space>
@@ -740,6 +748,8 @@ const BanduHRDashboard: React.FC = () => {
                     Clock In
                   </Button>
                 )}
+
+                {showFilter && <BranchSelect shops={shops} value={branchId} onChange={setBranchId} />}
 
                 <div
                   style={{
