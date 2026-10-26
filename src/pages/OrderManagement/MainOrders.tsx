@@ -10,6 +10,7 @@ import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { THEME_C } from "@utils/getPrimaryColor";
 import { getStoredShopId, useMarketplace } from "@pages/OmniChannel/shared/ui";
 import { useTenantModules } from "@hooks/useTenantModules";
+import { useIsCompact } from "@hooks/useIsCompact";
 
 const { Text } = Typography;
 
@@ -99,6 +100,7 @@ const AccountingInvoicesTab: React.FC = () => (
 
 function MainOrders() {
   const primaryColor = usePrimaryColor();
+  const isCompact = useIsCompact();
   const { hasPOS: hasDuka, hasAccounting } = useTenantModules();
 
   // Chat orders from the WhatsApp Marketplace are real orders, so a Mteja
@@ -161,7 +163,7 @@ function MainOrders() {
         <div style={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
           flexWrap: "wrap", gap: 10,
-          padding: "14px 18px", background: C.bg, borderBottom: `1px solid ${C.border}`,
+          padding: isCompact ? "12px" : "14px 18px", background: C.bg, borderBottom: `1px solid ${C.border}`,
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{
@@ -175,7 +177,7 @@ function MainOrders() {
           <TabNav tabs={visibleTabs} active={activeTab} onChange={setActiveTab} primaryColor={primaryColor} />
         </div>
 
-        <div style={{ padding: "16px 18px" }}>
+        <div style={{ padding: isCompact ? "10px" : "16px 18px" }}>
           {renderTab()}
         </div>
       </div>
