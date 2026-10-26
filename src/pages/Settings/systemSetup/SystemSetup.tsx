@@ -15,6 +15,7 @@ import {
   ScanOutlined,
   CloudSyncOutlined,
   WhatsAppOutlined,
+  FormOutlined,
 } from "@ant-design/icons";
 import { Typography, Grid, Tabs } from "antd";
 import { useQuery } from "@tanstack/react-query";
@@ -32,6 +33,7 @@ import TransactionLocking from "./TransactionLocking";
 import PayrollSettings from "./PayrollSettings";
 import AccessSettings from "./AccessSettings";
 import DataSyncSettings from "./DataSyncSettings";
+import FormsSettings from "./FormsSettings";
 import ChartOfAccountsSettings from "./ChartOfAccountsSettings";
 import CurrencyPage from "@pages/Currency/CurrencyPage";
 import WhatsAppIntegrationSettings from "./WhatsAppIntegrationSettings";
@@ -186,6 +188,20 @@ const SystemSetup: React.FC = () => {
       );
     }
 
+    // Client forms need customers (POS); employee forms need Bandu HR
+    if (hasPOS || hasBandu) {
+      list.push({
+        key: "forms-plans",
+        label: "Forms & Plans",
+        description: "Forms, e-sign & plans for clients and employees",
+        icon: <FormOutlined />,
+        color: "#8b5cf6",
+        bg: "#f5f3ff",
+        group: "Add-ons",
+        render: () => <FormsSettings hasClients={hasPOS} hasEmployees={hasBandu} />,
+      });
+    }
+
     list.push(
       {
         key: "profile",
@@ -309,7 +325,7 @@ const SystemSetup: React.FC = () => {
     }
 
     return list;
-  }, [hasPOS, hasAccounting, isHotelMode, canSeeCurrencies, hasMteja]);
+  }, [hasPOS, hasBandu, hasAccounting, isHotelMode, canSeeCurrencies, hasMteja]);
 
   const activeSection =
     sections.find((s) => s.key === activeTab) ?? sections[0];
