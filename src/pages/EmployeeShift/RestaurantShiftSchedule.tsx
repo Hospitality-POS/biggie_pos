@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
-    Avatar, Badge, Button, Drawer, Empty, message, Modal,
-    Popconfirm, Popover, Select, Spin, Typography,
+    Avatar, Button, Empty, message,
+    Popconfirm, Popover, Segmented, Spin, Typography,
 } from "antd";
 import {
     ClockCircleOutlined, DeleteOutlined, EditOutlined,
@@ -30,8 +30,8 @@ const C = {
     ...THEME_C,
     get primary() { return THEME_C.primary; },
     get primaryLight() { return THEME_C.primaryLight; },
-    todayBg: "#eff6ff",
-    todayBorder: "#3b82f6",
+    line: "#eef2f6",
+    todayTint: "#f5f9ff",
 };
 
 const getEmployeeColors = () => [
@@ -44,6 +44,25 @@ const getEmployeeColors = () => [
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const SHORT_DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 const FULL_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+const TIME_FILTERS = [
+    { value: "all", label: "All day" },
+    { value: "morning", label: "Morning" },
+    { value: "afternoon", label: "Afternoon" },
+    { value: "evening", label: "Evening" },
+];
+
+const EMPLOYEE_COL = 200;
+
+// Hover-only affordances (the "+" in empty cells, row highlight).
+const SCHEDULE_CSS = `
+.rss-row:hover .rss-cell { background: #fafbfc; }
+.rss-row:hover .rss-cell.rss-today { background: #eef5ff; }
+.rss-cell .rss-add { opacity: 0; transition: opacity .12s; }
+.rss-cell.rss-empty:hover .rss-add { opacity: 1; }
+.rss-chip { transition: transform .1s, box-shadow .1s; }
+.rss-chip:hover { transform: translateY(-1px); box-shadow: 0 2px 6px rgba(15,23,42,.08); }
+`;
 
 // ── Hooks ──────────────────────────────────────────────────────────────────
 const useWindowWidth = () => {
@@ -63,22 +82,71 @@ const getEmployeeColor = (users: any[], employeeId: string) => {
     return colors[Math.max(0, idx) % colors.length];
 };
 
+/** Shift length in hours; an end time at or before the start runs past midnight. */
+const shiftHours = (s: any) => {
+    const [sh, sm] = String(s?.startTime ?? "").split(":").map(Number);
+    const [eh, em] = String(s?.endTime ?? "").split(":").map(Number);
+    if ([sh, sm, eh, em].some((n) => Number.isNaN(n))) return 0;
+    let mins = eh * 60 + em - (sh * 60 + sm);
+    if (mins <= 0) mins += 24 * 60;
+    return mins / 60;
+};
+
+const fmtHours = (h: number) => `${Number.isInteger(h) ? h : h.toFixed(1)}h`;
+
+const weekLabel = (start: dayjs.Dayjs) => {
+    const end = start.add(6, "day");
+    if (start.year() !== end.year()) return `${start.format("D MMM YYYY")} – ${end.format("D MMM YYYY")}`;
+    if (start.month() !== end.month()) return `${start.format("D MMM")} – ${end.format("D MMM YYYY")}`;
+    return `${start.format("D")} – ${end.format("D MMM YYYY")}`;
+};
+
 // ══════════════════════════════════════════════════════════════════════════
-// DESKTOP: SHIFT PILL
+// SHIFT CHIP (shared by desktop grid and mobile day view)
 // ══════════════════════════════════════════════════════════════════════════
-const ShiftPill: React.FC<{
+const ShiftChip: React.FC<{ shift: any; color: string; large?: boolean }> = ({ shift, color, large }) => (
+    <div
+        className="rss-chip"
+        style={{
+            background: `${color}14`,
+            borderLeft: `3px solid ${color}`,
+            borderRadius: 6,
+            padding: large ? "8px 10px" : "5px 8px",
+            cursor: "pointer",
+            minWidth: 0,
+            printColorAdjust: "exact", WebkitPrintColorAdjust: "exact",
+        } as React.CSSProperties}
+    >
+        <div style={{
+            fontSize: large ? 13 : 11.5, fontWeight: 600, color: C.darkText, lineHeight: 1.3,
+            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+        }}>
+            {shift?.startTime} – {shift?.endTime}
+        </div>
+        <div style={{ fontSize: large ? 11 : 10, color: C.subText, lineHeight: 1.3 }}>
+            {fmtHours(shiftHours(shift))}
+        </div>
+    </div>
+);
+
+// ══════════════════════════════════════════════════════════════════════════
+// DESKTOP: SHIFT WITH HOVER ACTIONS
+// ══════════════════════════════════════════════════════════════════════════
+const DesktopShift: React.FC<{
     shift: any; color: string;
     onEdit: (s: any) => void; onDelete: (id: string) => void;
 }> = ({ shift, color, onEdit, onDelete }) => {
     const popContent = (
-        <div style={{ width: 200 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                <UserOutlined style={{ color: C.subText, fontSize: 12 }} />
-                <Text strong style={{ fontSize: 12 }}>{shift?.employee_id?.fullname}</Text>
+        <div style={{ width: 210 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: color, flexShrink: 0 }} />
+                <Text strong style={{ fontSize: 13 }}>{shift?.employee_id?.fullname}</Text>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
-                <ClockCircleOutlined style={{ color: C.subText, fontSize: 12 }} />
-                <Text style={{ fontSize: 12, color: C.subText }}>{shift?.startTime} – {shift?.endTime}</Text>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12, paddingLeft: 16 }}>
+                <ClockCircleOutlined style={{ color: C.subText, fontSize: 11 }} />
+                <Text style={{ fontSize: 12, color: C.subText }}>
+                    {shift?.dayOfWeek} · {shift?.startTime} – {shift?.endTime} ({fmtHours(shiftHours(shift))})
+                </Text>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
                 <Button size="small" icon={<EditOutlined />} style={{ flex: 1, borderRadius: 6 }}
@@ -93,20 +161,9 @@ const ShiftPill: React.FC<{
     );
 
     return (
-        <Popover content={popContent} trigger="hover" placement="top">
-            <div
-                onClick={(e) => { e.stopPropagation(); onEdit(shift); }}
-                style={{
-                    background: color, color: "#fff", borderRadius: 5,
-                    padding: "4px 7px", marginBottom: 3, cursor: "pointer",
-                    fontSize: 11, fontWeight: 600,
-                    boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-                    whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                    printColorAdjust: "exact", WebkitPrintColorAdjust: "exact",
-                } as React.CSSProperties}
-            >
-                <ClockCircleOutlined style={{ marginRight: 3, fontSize: 9 }} />
-                {shift?.startTime}–{shift?.endTime}
+        <Popover content={popContent} trigger="hover" placement="top" mouseEnterDelay={0.25}>
+            <div onClick={(e) => { e.stopPropagation(); onEdit(shift); }}>
+                <ShiftChip shift={shift} color={color} />
             </div>
         </Popover>
     );
@@ -121,98 +178,117 @@ const DesktopGrid: React.FC<{
     scheduleRef: React.RefObject<HTMLDivElement>;
     onCellClick: (uid: string, dow: string, day: dayjs.Dayjs) => void;
     onEdit: (s: any) => void; onDelete: (id: string) => void;
-}> = ({ users, weekDays, getShifts, scheduleRef, onCellClick, onEdit, onDelete }) => (
-    <div ref={scheduleRef} style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden" }}>
-        {/* Day header */}
-        <div style={{ display: "flex", background: C.bg, borderBottom: `1px solid ${C.border}` }}>
-            <div style={{
-                width: 180, flexShrink: 0, padding: "12px 16px",
-                borderRight: `1px solid ${C.border}`,
-                display: "flex", alignItems: "center",
-            }}>
-                <Text style={{ fontSize: 11, fontWeight: 700, color: C.subText, textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                    Employee
-                </Text>
-            </div>
-            <div style={{ flex: 1, display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
+}> = ({ users, weekDays, getShifts, scheduleRef, onCellClick, onEdit, onDelete }) => {
+    const gridCols = `${EMPLOYEE_COL}px repeat(7, minmax(96px, 1fr))`;
+    const stickyCell: React.CSSProperties = {
+        position: "sticky", left: 0, zIndex: 1, background: C.white,
+        borderRight: `1px solid ${C.line}`,
+    };
+
+    return (
+        <div ref={scheduleRef} style={{ minWidth: EMPLOYEE_COL + 7 * 96, background: C.white }}>
+            {/* Day header */}
+            <div style={{ display: "grid", gridTemplateColumns: gridCols, borderBottom: `1px solid ${C.border}` }}>
+                <div style={{ ...stickyCell, padding: "12px 20px", display: "flex", alignItems: "flex-end" }}>
+                    <Text style={{ fontSize: 11, fontWeight: 600, color: C.subText, letterSpacing: "0.3px" }}>
+                        Staff
+                    </Text>
+                </div>
                 {weekDays.map((day, i) => {
                     const isToday = day.isSame(dayjs(), "day");
                     return (
                         <div key={i} style={{
-                            textAlign: "center", padding: "10px 4px",
-                            background: isToday ? C.todayBg : C.bg,
-                            borderRight: i < 6 ? `1px solid ${C.border}` : "none",
-                            borderTop: isToday ? `3px solid ${C.todayBorder}` : "3px solid transparent",
+                            padding: "10px 4px 8px", textAlign: "center",
+                            background: isToday ? C.todayTint : C.white,
+                            borderRight: i < 6 ? `1px solid ${C.line}` : "none",
                         }}>
-                            <Text style={{ fontSize: 10, color: isToday ? C.todayBorder : C.subText, fontWeight: 600, display: "block" }}>
+                            <Text style={{
+                                fontSize: 11, fontWeight: 600, display: "block", marginBottom: 4,
+                                color: isToday ? C.primary : C.subText,
+                            }}>
                                 {FULL_SHORT[day.day()]}
                             </Text>
-                            <Text style={{ fontSize: 15, fontWeight: 700, color: isToday ? C.todayBorder : C.darkText }}>
+                            <span style={{
+                                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                                width: 28, height: 28, borderRadius: "50%",
+                                fontSize: 14, fontWeight: 700,
+                                background: isToday ? C.primary : "transparent",
+                                color: isToday ? "#fff" : C.darkText,
+                            }}>
                                 {day.format("D")}
-                            </Text>
+                            </span>
                         </div>
                     );
                 })}
             </div>
-        </div>
 
-        {/* Employee rows */}
-        {users?.map((user, ui) => {
-            const color = getEmployeeColor(users, user._id);
-            return (
-                <div key={user._id} style={{
-                    display: "flex",
-                    borderBottom: ui < users.length - 1 ? `1px solid ${C.border}` : "none",
-                }}>
-                    <div style={{
-                        width: 180, flexShrink: 0, padding: "10px 14px",
-                        borderRight: `1px solid ${C.border}`,
-                        display: "flex", alignItems: "center", gap: 10, minHeight: 70,
+            {/* Employee rows */}
+            {users?.map((user, ui) => {
+                const color = getEmployeeColor(users, user._id);
+                const weekShifts = weekDays.flatMap((d) => getShifts(user._id, d));
+                const weekHours = weekShifts.reduce((s, sh) => s + shiftHours(sh), 0);
+                return (
+                    <div key={user._id} className="rss-row" style={{
+                        display: "grid", gridTemplateColumns: gridCols,
+                        borderBottom: ui < users.length - 1 ? `1px solid ${C.line}` : "none",
                     }}>
-                        <Avatar size={30} src={user.thumbnail} icon={<UserOutlined />}
-                            style={{ background: color, flexShrink: 0 }} />
-                        <Text style={{
-                            fontSize: 12, fontWeight: 600, color: C.darkText,
-                            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                        <div className="rss-cell" style={{
+                            ...stickyCell, padding: "10px 20px",
+                            display: "flex", alignItems: "center", gap: 10, minHeight: 64,
                         }}>
-                            {user.fullname}
-                        </Text>
-                    </div>
-                    <div style={{ flex: 1, display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
+                            <Avatar size={32} src={user.thumbnail} icon={<UserOutlined />}
+                                style={{ background: color, flexShrink: 0 }} />
+                            <div style={{ minWidth: 0 }}>
+                                <Text style={{
+                                    fontSize: 13, fontWeight: 600, color: C.darkText, display: "block",
+                                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                                }}>
+                                    {user.fullname}
+                                </Text>
+                                <Text style={{ fontSize: 11, color: C.subText }}>
+                                    {weekShifts.length
+                                        ? `${weekShifts.length} shift${weekShifts.length === 1 ? "" : "s"} · ${fmtHours(weekHours)}`
+                                        : "No shifts"}
+                                </Text>
+                            </div>
+                        </div>
                         {weekDays.map((day, di) => {
                             const isToday = day.isSame(dayjs(), "day");
                             const shifts = getShifts(user._id, day);
+                            const empty = shifts.length === 0;
                             return (
                                 <div key={di}
-                                    onClick={() => { if (!shifts.length) onCellClick(user._id, DAYS[day.day()], day); }}
+                                    className={`rss-cell${isToday ? " rss-today" : ""}${empty ? " rss-empty" : ""}`}
+                                    onClick={() => { if (empty) onCellClick(user._id, DAYS[day.day()], day); }}
                                     style={{
-                                        padding: 5, minHeight: 70,
-                                        borderRight: di < 6 ? `1px solid ${C.border}` : "none",
-                                        background: isToday ? `${C.todayBg}88` : C.white,
-                                        cursor: shifts.length === 0 ? "pointer" : "default",
-                                        display: "flex", flexDirection: "column", gap: 2,
-                                        transition: "background 0.1s",
+                                        padding: 6, minHeight: 64,
+                                        borderRight: di < 6 ? `1px solid ${C.line}` : "none",
+                                        background: isToday ? C.todayTint : C.white,
+                                        cursor: empty ? "pointer" : "default",
+                                        display: "flex", flexDirection: "column", gap: 4,
                                     }}
-                                    onMouseEnter={(e) => { if (!shifts.length) (e.currentTarget as HTMLElement).style.background = C.bg; }}
-                                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = isToday ? `${C.todayBg}88` : C.white; }}
                                 >
                                     {shifts.map((s: any) => (
-                                        <ShiftPill key={s._id} shift={s} color={color} onEdit={onEdit} onDelete={onDelete} />
+                                        <DesktopShift key={s._id} shift={s} color={color} onEdit={onEdit} onDelete={onDelete} />
                                     ))}
-                                    {shifts.length === 0 && (
-                                        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                            <PlusOutlined style={{ color: "#d1d5db", fontSize: 12 }} />
+                                    {empty && (
+                                        <div className="rss-add" style={{
+                                            flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
+                                            border: `1px dashed ${C.border}`, borderRadius: 6,
+                                            color: C.subText, fontSize: 11, gap: 4,
+                                        }}>
+                                            <PlusOutlined style={{ fontSize: 10 }} /> Add
                                         </div>
                                     )}
                                 </div>
                             );
                         })}
                     </div>
-                </div>
-            );
-        })}
-    </div>
-);
+                );
+            })}
+        </div>
+    );
+};
 
 // ══════════════════════════════════════════════════════════════════════════
 // MOBILE: WEEK DAY SELECTOR BAR
@@ -225,7 +301,8 @@ const MobileDayBar: React.FC<{
 }> = ({ weekDays, selected, onSelect, shiftsPerDay }) => (
     <div style={{
         display: "grid", gridTemplateColumns: "repeat(7, 1fr)",
-        background: C.bg, borderBottom: `1px solid ${C.border}`,
+        padding: "8px 8px 10px", gap: 2,
+        borderBottom: `1px solid ${C.border}`,
     }}>
         {weekDays.map((day, i) => {
             const isToday = day.isSame(dayjs(), "day");
@@ -238,39 +315,31 @@ const MobileDayBar: React.FC<{
                     style={{
                         all: "unset",
                         display: "flex", flexDirection: "column",
-                        alignItems: "center", justifyContent: "center",
-                        padding: "10px 4px", cursor: "pointer",
-                        borderBottom: isSelected ? `3px solid ${C.primary}` : "3px solid transparent",
+                        alignItems: "center", gap: 4,
+                        padding: "6px 0", borderRadius: 10, cursor: "pointer",
                         background: isSelected ? C.primaryLight : "transparent",
-                        transition: "all 0.15s",
-                        gap: 4,
                     }}
                 >
                     <Text style={{
-                        fontSize: 9, fontWeight: 600, lineHeight: 1,
-                        color: isSelected ? C.primary : isToday ? C.todayBorder : C.subText,
-                        textTransform: "uppercase",
+                        fontSize: 10, fontWeight: 600, lineHeight: 1,
+                        color: isSelected || isToday ? C.primary : C.subText,
                     }}>
                         {SHORT_DAYS[day.day()]}
                     </Text>
-                    <div style={{
-                        width: 28, height: 28, borderRadius: "50%",
+                    <span style={{
+                        width: 30, height: 30, borderRadius: "50%",
                         display: "flex", alignItems: "center", justifyContent: "center",
-                        background: isSelected ? C.primary : isToday ? C.todayBorder : "transparent",
+                        fontSize: 14, fontWeight: 700, lineHeight: 1,
+                        background: isSelected ? C.primary : "transparent",
+                        color: isSelected ? "#fff" : isToday ? C.primary : C.darkText,
+                        boxShadow: isToday && !isSelected ? `inset 0 0 0 1.5px ${C.primary}` : "none",
                     }}>
-                        <Text style={{
-                            fontSize: 13, fontWeight: 700, lineHeight: 1,
-                            color: isSelected || isToday ? "#fff" : C.darkText,
-                        }}>
-                            {day.format("D")}
-                        </Text>
-                    </div>
-                    {hasShifts && (
-                        <div style={{
-                            width: 5, height: 5, borderRadius: "50%",
-                            background: isSelected ? C.primary : C.subText,
-                        }} />
-                    )}
+                        {day.format("D")}
+                    </span>
+                    <span style={{
+                        width: 4, height: 4, borderRadius: "50%",
+                        background: hasShifts ? (isSelected ? C.primary : C.subText) : "transparent",
+                    }} />
                 </button>
             );
         })}
@@ -287,124 +356,96 @@ const MobileDayView: React.FC<{
     onEdit: (s: any) => void; onDelete: (id: string) => void;
 }> = ({ users, day, getShifts, onAddShift, onEdit, onDelete }) => {
     const isToday = day.isSame(dayjs(), "day");
+    const scheduled = users.filter((u) => getShifts(u._id, day).length > 0);
+    const unscheduled = users.filter((u) => getShifts(u._id, day).length === 0);
 
     return (
-        <div style={{ padding: "12px 16px" }}>
-            {/* Day heading */}
-            <div style={{
-                display: "flex", alignItems: "center", gap: 8,
-                marginBottom: 14, paddingBottom: 10,
-                borderBottom: `1px solid ${C.border}`,
-            }}>
-                <div style={{
-                    width: 36, height: 36, borderRadius: 10,
-                    background: isToday ? C.todayBorder : C.primary,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                }}>
-                    <Text style={{ color: "#fff", fontWeight: 700, fontSize: 14 }}>{day.format("D")}</Text>
-                </div>
-                <div>
-                    <Text strong style={{ fontSize: 14, color: C.darkText, display: "block" }}>
-                        {day.format("dddd")}
-                        {isToday && <span style={{
-                            marginLeft: 6, fontSize: 10, fontWeight: 600,
-                            color: C.todayBorder, background: C.todayBg,
-                            padding: "1px 6px", borderRadius: 4,
-                        }}>Today</span>}
-                    </Text>
-                    <Text style={{ fontSize: 11, color: C.subText }}>{day.format("MMMM D, YYYY")}</Text>
-                </div>
+        <div style={{ padding: "14px 14px 16px" }}>
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12 }}>
+                <Text strong style={{ fontSize: 15, color: C.darkText }}>
+                    {day.format("dddd, D MMM")}
+                    {isToday && <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 600, color: C.primary }}>Today</span>}
+                </Text>
+                <Text style={{ fontSize: 12, color: C.subText }}>
+                    {scheduled.length} on shift
+                </Text>
             </div>
 
-            {/* Employee shift rows */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {users?.map((user) => {
+            {scheduled.length === 0 && (
+                <div style={{
+                    padding: "18px 12px", marginBottom: 12, textAlign: "center",
+                    border: `1px dashed ${C.border}`, borderRadius: 10,
+                }}>
+                    <Text style={{ fontSize: 12, color: C.subText }}>Nobody is scheduled this day</Text>
+                </div>
+            )}
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {scheduled.map((user) => {
                     const color = getEmployeeColor(users, user._id);
                     const shifts = getShifts(user._id, day);
-
                     return (
                         <div key={user._id} style={{
-                            background: C.white, border: `1px solid ${C.border}`,
-                            borderRadius: 12, overflow: "hidden",
+                            border: `1px solid ${C.border}`, borderRadius: 12, padding: 12, background: C.white,
                         }}>
-                            {/* Employee name bar */}
-                            <div style={{
-                                display: "flex", alignItems: "center",
-                                justifyContent: "space-between",
-                                padding: "10px 14px",
-                                background: C.bg,
-                                borderBottom: shifts.length ? `1px solid ${C.border}` : "none",
-                            }}>
-                                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                    <Avatar size={32} src={user.thumbnail} icon={<UserOutlined />}
-                                        style={{ background: color, flexShrink: 0 }} />
-                                    <Text strong style={{ fontSize: 13, color: C.darkText }}>{user.fullname}</Text>
-                                    {shifts.length > 0 && (
-                                        <Badge count={shifts.length}
-                                            style={{ background: color, fontSize: 10 }} />
-                                    )}
-                                </div>
-                                <Button
-                                    size="small" type="text"
-                                    icon={<PlusOutlined />}
+                            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                                <Avatar size={30} src={user.thumbnail} icon={<UserOutlined />}
+                                    style={{ background: color, flexShrink: 0 }} />
+                                <Text strong style={{ fontSize: 13, color: C.darkText, flex: 1, minWidth: 0 }}>{user.fullname}</Text>
+                                <Button size="small" type="text" icon={<PlusOutlined />}
                                     onClick={() => onAddShift(user._id, DAYS[day.day()], day)}
-                                    style={{
-                                        color: C.primary, fontWeight: 600,
-                                        fontSize: 12, borderRadius: 6,
-                                    }}
-                                >
+                                    style={{ color: C.primary, fontWeight: 600, fontSize: 12 }}>
                                     Add
                                 </Button>
                             </div>
-
-                            {/* Shifts for this employee on this day */}
-                            {shifts.length > 0 && (
-                                <div style={{ padding: "10px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
-                                    {shifts.map((shift: any) => (
-                                        <div key={shift._id} style={{
-                                            display: "flex", alignItems: "center",
-                                            justifyContent: "space-between",
-                                            padding: "8px 12px",
-                                            background: `${color}12`,
-                                            border: `1px solid ${color}30`,
-                                            borderLeft: `4px solid ${color}`,
-                                            borderRadius: 8,
-                                        }}>
-                                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                                <ClockCircleOutlined style={{ color, fontSize: 13 }} />
-                                                <Text strong style={{ fontSize: 13, color: C.darkText }}>
-                                                    {shift.startTime} – {shift.endTime}
-                                                </Text>
-                                            </div>
-                                            <div style={{ display: "flex", gap: 6 }}>
-                                                <Button size="small" icon={<EditOutlined />}
-                                                    onClick={() => onEdit(shift)}
-                                                    style={{ borderRadius: 6, borderColor: C.border }} />
-                                                <Popconfirm title="Delete this shift?" okText="Delete"
-                                                    okType="danger" cancelText="Cancel"
-                                                    onConfirm={() => onDelete(shift._id)}>
-                                                    <Button size="small" icon={<DeleteOutlined />} danger
-                                                        style={{ borderRadius: 6 }} />
-                                                </Popconfirm>
-                                            </div>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                {shifts.map((shift: any) => (
+                                    <div key={shift._id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                        <div style={{ flex: 1, minWidth: 0 }} onClick={() => onEdit(shift)}>
+                                            <ShiftChip shift={shift} color={color} large />
                                         </div>
-                                    ))}
-                                </div>
-                            )}
-
-                            {/* Empty state inline */}
-                            {shifts.length === 0 && (
-                                <div style={{
-                                    padding: "10px 14px",
-                                    display: "flex", alignItems: "center", gap: 8,
-                                }}>
-                                    <Text style={{ fontSize: 12, color: C.subText }}>No shift assigned</Text>
-                                </div>
-                            )}
+                                        <Button icon={<EditOutlined />} aria-label="Edit shift"
+                                            onClick={() => onEdit(shift)} style={{ borderRadius: 8 }} />
+                                        <Popconfirm title="Delete this shift?" okText="Delete"
+                                            okType="danger" cancelText="Cancel" placement="topRight"
+                                            onConfirm={() => onDelete(shift._id)}>
+                                            <Button icon={<DeleteOutlined />} danger aria-label="Delete shift" style={{ borderRadius: 8 }} />
+                                        </Popconfirm>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     );
                 })}
             </div>
+
+            {unscheduled.length > 0 && (
+                <>
+                    <Text style={{
+                        display: "block", margin: "16px 0 8px",
+                        fontSize: 11, fontWeight: 600, color: C.subText, letterSpacing: "0.3px",
+                    }}>
+                        Not scheduled
+                    </Text>
+                    <div style={{ border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
+                        {unscheduled.map((user, i) => (
+                            <div key={user._id} style={{
+                                display: "flex", alignItems: "center", gap: 10, padding: "8px 12px",
+                                borderTop: i ? `1px solid ${C.line}` : "none", background: C.white,
+                            }}>
+                                <Avatar size={26} src={user.thumbnail} icon={<UserOutlined />}
+                                    style={{ background: getEmployeeColor(users, user._id), flexShrink: 0 }} />
+                                <Text style={{ fontSize: 13, color: C.darkText, flex: 1, minWidth: 0 }}>{user.fullname}</Text>
+                                <Button size="small" type="text" icon={<PlusOutlined />}
+                                    onClick={() => onAddShift(user._id, DAYS[day.day()], day)}
+                                    style={{ color: C.primary, fontWeight: 600, fontSize: 12 }}>
+                                    Add
+                                </Button>
+                            </div>
+                        ))}
+                    </div>
+                </>
+            )}
         </div>
     );
 };
@@ -462,9 +503,9 @@ const RestaurantShiftSchedule: React.FC = () => {
         onError: () => message.error("Failed to delete shift"),
     });
 
-    const weekDays = Array.from({ length: 7 }, (_, i) =>
-        currentDate.startOf("week").add(i, "day")
-    );
+    const weekStart = currentDate.startOf("week");
+    const weekDays = Array.from({ length: 7 }, (_, i) => weekStart.add(i, "day"));
+    const isCurrentWeek = weekStart.isSame(dayjs().startOf("week"), "day");
 
     const getShiftsForCell = (employeeId: string, day: dayjs.Dayjs) => {
         const dow = DAYS[day.day()];
@@ -480,7 +521,7 @@ const RestaurantShiftSchedule: React.FC = () => {
                 return false;
             });
         }
-        return filtered;
+        return filtered.sort((a: any, b: any) => String(a.startTime).localeCompare(String(b.startTime)));
     };
 
     const triggerNewModal = () => setTimeout(() => {
@@ -533,13 +574,28 @@ const RestaurantShiftSchedule: React.FC = () => {
         (users ?? []).reduce((sum, u) => sum + getShiftsForCell(u._id, day).length, 0)
     );
 
+    // Week summary
+    const weekShifts = (users ?? []).flatMap((u) => weekDays.flatMap((d) => getShiftsForCell(u._id, d)));
+    const staffScheduled = (users ?? []).filter((u) => weekDays.some((d) => getShiftsForCell(u._id, d).length)).length;
+    const weekHours = weekShifts.reduce((s, sh) => s + shiftHours(sh), 0);
+
     const selectedDay = weekDays[selectedDayIndex];
 
+    const goToToday = () => {
+        setCurrentDate(dayjs());
+        const diff = dayjs().diff(dayjs().startOf("week"), "day");
+        setSelectedDayIndex(Math.max(0, Math.min(6, diff)));
+    };
+
+    const summary = [
+        { label: "Shifts", value: String(weekShifts.length) },
+        { label: "Staff scheduled", value: `${staffScheduled}/${users?.length ?? 0}` },
+        { label: "Hours", value: fmtHours(Math.round(weekHours * 10) / 10) },
+    ];
+
     return (
-        <div style={{
-            fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-            width: "100%",
-        }}>
+        <div style={{ width: "100%" }}>
+            <style>{SCHEDULE_CSS}</style>
             <div style={{
                 border: `1px solid ${C.border}`,
                 borderRadius: 12,
@@ -550,88 +606,78 @@ const RestaurantShiftSchedule: React.FC = () => {
 
                 {/* ═══ HEADER ════════════════════════════════════════════ */}
                 <div style={{
-                    background: C.bg,
+                    padding: isMobile ? "14px 14px 12px" : "16px 20px",
                     borderBottom: `1px solid ${C.border}`,
-                    padding: isMobile ? "12px 14px" : "14px 20px",
+                    display: "flex", flexDirection: "column", gap: 12,
                 }}>
-                    {/* Title + week nav always in one row */}
-                    <div style={{
-                        display: "flex", alignItems: "center",
-                        justifyContent: "space-between",
-                        marginBottom: isMobile ? 10 : 10,
-                    }}>
-                        {/* Title */}
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    {/* Title + actions */}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
                             <div style={{
-                                background: C.primaryLight, borderRadius: 8,
-                                padding: "6px 8px", color: C.primary, fontSize: 14, lineHeight: 1,
+                                background: C.primaryLight, borderRadius: 10,
+                                padding: "8px 9px", color: C.primary, fontSize: 16, lineHeight: 1,
                             }}>
                                 <SolutionOutlined />
                             </div>
-                            <div>
-                                <Text strong style={{ fontSize: 14, color: C.darkText, display: "block" }}>
+                            <div style={{ minWidth: 0 }}>
+                                <Text strong style={{ fontSize: 15, color: C.darkText, display: "block", lineHeight: 1.3 }}>
                                     Staff Schedule
                                 </Text>
-                                <Text style={{ fontSize: 11, color: C.subText }}>
-                                    {currentDate.format("MMM YYYY")} · Week {currentDate.week()}
+                                <Text style={{ fontSize: 12, color: C.subText }}>
+                                    {weekLabel(weekStart)}
                                 </Text>
                             </div>
                         </div>
-
-                        {/* Week navigation */}
-                        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                            <Button size="small" icon={<LeftOutlined />}
-                                onClick={() => setCurrentDate(d => d.subtract(1, "week"))}
-                                style={{ borderRadius: 6 }} />
-                            <Button size="small"
-                                onClick={() => {
-                                    setCurrentDate(dayjs());
-                                    const diff = dayjs().diff(dayjs().startOf("week"), "day");
-                                    setSelectedDayIndex(Math.max(0, Math.min(6, diff)));
-                                }}
-                                style={{ borderRadius: 6, fontWeight: 600, fontSize: 12 }}>
-                                Today
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            {!isMobile && (
+                                <Button icon={<FilePdfOutlined />} onClick={exportToPDF} loading={exportLoading}
+                                    style={{ borderRadius: 8 }}>
+                                    Export
+                                </Button>
+                            )}
+                            <Button
+                                type="primary" icon={<PlusOutlined />}
+                                onClick={() => { setCurrentShift(null); setIsEditMode(false); triggerNewModal(); }}
+                                style={{ background: C.primary, borderColor: C.primary, borderRadius: 8, fontWeight: 600 }}
+                            >
+                                {isMobile ? "Add" : "New shift"}
                             </Button>
-                            <Button size="small" icon={<RightOutlined />}
-                                onClick={() => setCurrentDate(d => d.add(1, "week"))}
-                                style={{ borderRadius: 6 }} />
                         </div>
                     </div>
 
-                    {/* Controls row */}
-                    <div style={{
-                        display: "flex", alignItems: "center",
-                        gap: 8, flexWrap: "nowrap",
-                    }}>
-                        <Select
-                            size="small" value={timeFilter} onChange={setTimeFilter}
-                            style={{ flex: 1, maxWidth: isMobile ? "none" : 140 }}
-                            options={[
-                                { value: "all", label: "All Hours" },
-                                { value: "morning", label: "Morning" },
-                                { value: "afternoon", label: "Afternoon" },
-                                { value: "evening", label: "Evening" },
-                            ]}
-                        />
-                        {!isMobile && (
-                            <Button size="small" icon={<FilePdfOutlined />}
-                                onClick={exportToPDF} loading={exportLoading}
-                                style={{ borderRadius: 6 }}>
-                                Export PDF
+                    {/* Week nav + filter + summary */}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <Button icon={<LeftOutlined />} aria-label="Previous week"
+                                onClick={() => setCurrentDate((d) => d.subtract(1, "week"))}
+                                style={{ borderRadius: 8 }} />
+                            <Button onClick={goToToday} disabled={isCurrentWeek}
+                                style={{ borderRadius: 8, fontWeight: 600 }}>
+                                Today
                             </Button>
+                            <Button icon={<RightOutlined />} aria-label="Next week"
+                                onClick={() => setCurrentDate((d) => d.add(1, "week"))}
+                                style={{ borderRadius: 8 }} />
+                        </div>
+
+                        {!isMobile && (
+                            <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+                                {summary.map((s) => (
+                                    <div key={s.label} style={{ textAlign: "right" }}>
+                                        <Text strong style={{ fontSize: 14, color: C.darkText, display: "block", lineHeight: 1.2 }}>{s.value}</Text>
+                                        <Text style={{ fontSize: 11, color: C.subText }}>{s.label}</Text>
+                                    </div>
+                                ))}
+                            </div>
                         )}
-                        <Button
-                            size="small" type="primary"
-                            icon={<PlusOutlined />}
-                            onClick={() => { setCurrentShift(null); setIsEditMode(false); triggerNewModal(); }}
-                            style={{
-                                background: C.primary, borderColor: C.primary,
-                                borderRadius: 6, fontWeight: 600,
-                                whiteSpace: "nowrap",
-                            }}
-                        >
-                            {isMobile ? "Add" : "New Shift"}
-                        </Button>
+
+                        <Segmented
+                            value={timeFilter}
+                            onChange={(v) => setTimeFilter(String(v))}
+                            options={TIME_FILTERS}
+                            block={isMobile}
+                            style={isMobile ? { width: "100%" } : undefined}
+                        />
                     </div>
                 </div>
 
@@ -641,14 +687,12 @@ const RestaurantShiftSchedule: React.FC = () => {
                         <Empty description="No employees found" style={{ padding: "60px 0" }} />
                     ) : isMobile ? (
                         <>
-                            {/* Day selector strip */}
                             <MobileDayBar
                                 weekDays={weekDays}
                                 selected={selectedDayIndex}
                                 onSelect={setSelectedDayIndex}
                                 shiftsPerDay={shiftsPerDay}
                             />
-                            {/* Shifts for the selected day */}
                             <MobileDayView
                                 users={users}
                                 day={selectedDay}
@@ -659,28 +703,16 @@ const RestaurantShiftSchedule: React.FC = () => {
                             />
                         </>
                     ) : (
-                        <div style={{ padding: "16px 20px" }}>
-                            <div style={{ overflowX: "auto" }}>
-                                <div style={{ minWidth: 620 }}>
-                                    <DesktopGrid
-                                        users={users}
-                                        weekDays={weekDays}
-                                        scheduleRef={scheduleRef}
-                                        getShifts={getShiftsForCell}
-                                        onCellClick={handleAddShift}
-                                        onEdit={handleEditShift}
-                                        onDelete={(id) =>
-                                            Modal.confirm({
-                                                title: "Delete Shift",
-                                                content: "Delete this shift?",
-                                                okText: "Delete", okType: "danger",
-                                                cancelText: "Cancel",
-                                                onOk: () => handleDelete(id),
-                                            })
-                                        }
-                                    />
-                                </div>
-                            </div>
+                        <div style={{ overflowX: "auto" }}>
+                            <DesktopGrid
+                                users={users}
+                                weekDays={weekDays}
+                                scheduleRef={scheduleRef}
+                                getShifts={getShiftsForCell}
+                                onCellClick={handleAddShift}
+                                onEdit={handleEditShift}
+                                onDelete={handleDelete}
+                            />
                         </div>
                     )}
                 </Spin>

@@ -7,7 +7,8 @@ import AddProPaymentMethodSettingsModal from "@components/MODALS/pro/AddProPayme
 import AccountFormDrawer from "@pages/ChartOfAccounts/AccountFormDrawer";
 import JournalEntryFormDrawer from "@pages/JournalEntry/JournalEntryFormDrawer";
 import ManualInvoiceModal from "@pages/OrderManagement/Invoices/ManualInvoiceModal";
-import ManualIncomeModal from "@pages/OrderManagement/Orders/ManualIncomeModal";
+import ExpenseFormModal from "@pages/OrderManagement/Orders/ExpenseFormModal";
+import BillFormModal from "@pages/OrderManagement/Orders/BillFormModal";
 import { useQuickLinks } from "../hooks/useQuickLinks";
 import type { QuickLinksModalsProps } from "../types/quicklinks.types";
 
@@ -99,8 +100,13 @@ const QuickLinksModals: React.FC<QuickLinksModalsProps> = ({ shopId, onSuccess }
         quoteOnly
       />
 
-      <ManualIncomeModal
+      <ExpenseFormModal
         open={activeModal === "income-expense"}
+        onClose={closeModal}
+      />
+
+      <BillFormModal
+        open={activeModal === "supplier-bill"}
         onClose={closeModal}
       />
     </>
