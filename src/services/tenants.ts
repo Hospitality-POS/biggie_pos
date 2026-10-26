@@ -1,9 +1,8 @@
 import { message } from "antd";
 import axiosInstance from "./request";
-import { ACCOUNTING_BASE_URL, TENANT_BASE_URL, POS_API_KEY } from "@utils/config";
+import { TENANT_BASE_URL, POS_API_KEY } from "@utils/config";
 
 const tenantUrl = `${TENANT_BASE_URL}/api/tenants`;
-const accountingUrl = `${ACCOUNTING_BASE_URL}/api/v1/tenants`;
 
 interface Tenant {
     _id?: string;
@@ -155,34 +154,6 @@ interface EnableAccountingData {
 interface EnableModuleData {
     accept_terms: boolean;
     accept_charges: boolean;
-}
-
-interface ChartOfAccountsResult {
-    success: boolean;
-    message: string;
-    accounts_count: number;
-    skipped?: boolean;
-    accounts?: Array<{
-        code: string;
-        name: string;
-        type: string;
-    }>;
-}
-
-interface ReseedResponse {
-    success: boolean;
-    message: string;
-    data: {
-        tenant: {
-            id: string;
-            name: string;
-            tenant_code: string;
-        };
-        accounting_database: {
-            db_name: string;
-        };
-        chart_of_accounts: ChartOfAccountsResult;
-    };
 }
 
 // ============================================
@@ -353,26 +324,6 @@ export const disableAccounting = async (id: string) => {
         return response.data;
     } catch (error: any) {
         const errorMessage = error?.response?.data?.error || "Failed to disable accounting module";
-        message.error(errorMessage);
-        throw error;
-    }
-};
-
-export const reseedChartOfAccounts = async (id: string) => {
-    try {
-        const response = await axiosInstance.post(
-            `${accountingUrl}/${id}/reseed-chart-of-accounts`,
-            {},
-            { headers: getPOSHeaders() }
-        );
-        message.success(
-            response.data.data?.chart_of_accounts?.skipped
-                ? "Chart of accounts already exists (26 accounts)"
-                : `Chart of accounts created successfully! (${response.data.data?.chart_of_accounts?.accounts_count || 26} accounts)`
-        );
-        return response.data;
-    } catch (error: any) {
-        const errorMessage = error?.response?.data?.error || "Failed to reseed chart of accounts";
         message.error(errorMessage);
         throw error;
     }
