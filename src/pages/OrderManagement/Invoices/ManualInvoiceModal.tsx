@@ -1,16 +1,18 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-    Modal, Form, Input, InputNumber, Select, DatePicker,
+    Form, Input, InputNumber, Select, DatePicker,
     Button, Space, Table, Divider, App, Row, Col, Tag,
-    Typography, Alert, Segmented, Steps, Card, Statistic, Tooltip, Checkbox, Switch, Spin,
+    Typography, Alert, Segmented, Card, Statistic, Tooltip, Checkbox, Switch, Spin, Descriptions,
 } from "antd";
 import {
     PlusOutlined, DeleteOutlined,
     FileDoneOutlined, FileTextOutlined, DollarOutlined,
     CheckCircleOutlined, ArrowRightOutlined, InfoCircleOutlined,
     SafetyCertificateOutlined, WarningOutlined, ReloadOutlined, LinkOutlined,
-    SelectOutlined, ApartmentOutlined,
+    SelectOutlined, ApartmentOutlined, UserOutlined, CalendarOutlined,
+    UnorderedListOutlined, FileSearchOutlined,
 } from "@ant-design/icons";
+import StepperModal from "@components/MODALS/StepperModal";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getAllAccounts } from "@services/accounting/accounts";
@@ -102,6 +104,8 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
     const [lines, setLines] = useState<LineItem[]>([newLine()]);
     const [docType, setDocType] = useState<DocType>(quoteOnly ? "quote" : "invoice");
     const [step, setStep] = useState(0);
+    // Sub-steps of the details form (step 0): customer → terms → items → review
+    const [detailStep, setDetailStep] = useState(0);
     const [savedInvoice, setSavedInvoice] = useState<any>(null);
     const [customerSearch, setCustomerSearch] = useState("");
     const [selectedOtherShops, setSelectedOtherShops] = useState<string[]>([]);
@@ -391,6 +395,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
         setDiscountPercentage(freshInvoice.discount_percentage || 0);
         setDiscountReason(freshInvoice.discount_reason || "");
         setStep(0);
+        setDetailStep(0);
         setSavedInvoice(null);
         setHasDraft(false);
 
@@ -690,6 +695,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
         payForm.resetFields();
         setLines([newLine(vatEnabled ? standardVatRate : 0)]);
         setStep(0);
+        setDetailStep(0);
         setDocType("invoice");
         setSavedInvoice(null);
         setDidSave(false);
@@ -771,18 +777,54 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
         })),
     } as any);
 
+    // Form fields owned by each details sub-step (line items live in state)
+    const DETAIL_STEP_FIELDS: any[][] = [
+        ["customer_id", "counterparty_kra_pin"],
+        ["issue_date", "terms", "due_date"],
+    ];
+
+    const linesValid = () => {
+        if (lines.some((l) => !l.description || l.unit_price <= 0)) {
+            message.warning("Fill in all line items — description and price are required");
+            return false;
+        }
+        if (lines.some((l) => !l.account_id)) {
+            message.warning("Fill in all line items — Revenue Account is required");
+            return false;
+        }
+        return true;
+    };
+
+    const handleDetailNext = async () => {
+        if (detailStep < DETAIL_STEP_FIELDS.length) {
+            try {
+                await form.validateFields(DETAIL_STEP_FIELDS[detailStep]);
+            } catch {
+                return;
+            }
+        } else if (detailStep === 2 && !linesValid()) {
+            return;
+        }
+        setDetailStep((s) => s + 1);
+    };
+
     const handleSave = async () => {
         if (!shopId) {
             message.error("No shop selected — please select a branch first");
             return;
         }
-        const values = await form.validateFields();
-        if (lines.some((l) => !l.description || l.unit_price <= 0)) {
-            message.warning("Fill in all line items — description and price are required");
+        let values: any;
+        try {
+            values = await form.validateFields();
+        } catch (e: any) {
+            // Jump back to the sub-step that owns the first invalid field
+            const bad = e?.errorFields?.[0]?.name?.[0];
+            const idx = DETAIL_STEP_FIELDS.findIndex((f) => f.includes(bad));
+            if (idx >= 0) setDetailStep(idx);
             return;
         }
-        if (lines.some((l) => !l.account_id)) {
-            message.warning("Fill in all line items — Revenue Account is required");
+        if (!linesValid()) {
+            setDetailStep(2);
             return;
         }
         if (isEditMode) {
@@ -1091,8 +1133,18 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
     );
 
     // ── Step 0 — create quote / invoice ───────────────────────────────────────
+    // Every sub-step stays mounted (just hidden) so form values and validation survive navigation
+    const detailSection = (s: number) => ({ display: detailStep === s ? "block" : "none" });
+
     const renderStep0 = () => (
-        <>
+        <Form
+            form={form}
+            layout="vertical"
+            initialValues={{ issue_date: dayjs() }}
+            onValuesChange={() => setFormChangeCount((c) => c + 1)}
+        >
+            {/* ── Sub-step 1: Customer ─────────────────────────────────────── */}
+            <div style={detailSection(0)}>
             {/* ── Draft restored banner ── */}
             {hasDraft && (
                 <Alert
@@ -1133,35 +1185,6 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
                 />
             </Row>
 
-            {!vatEnabled ? (
-                <Alert
-                    type="warning" showIcon
-                    style={{ marginBottom: 12 }}
-                    message="VAT is disabled for this business"
-                    description={
-                        <>
-                            All line items will be VAT-exempt (0%). To enable VAT go to{" "}
-                            <strong>Tenant Settings → VAT Config</strong>.
-                        </>
-                    }
-                />
-            ) : (
-                <Alert
-                    type="info" showIcon icon={<InfoCircleOutlined />}
-                    style={{ marginBottom: 12 }}
-                    message={
-                        <Space>
-                            VAT active — standard rate{" "}
-                            <strong>{(standardVatRate * 100).toFixed(0)}%</strong>
-                            <Tag color="blue" style={{ fontSize: 11, margin: 0 }}>
-                                {vatPricingMode === "INCLUSIVE" ? "Tax Inclusive" : "Tax Exclusive"}
-                            </Tag>
-                        </Space>
-                    }
-                    description="Standard rate is pre-applied to new lines. You can set individual lines to Exempt."
-                />
-            )}
-
             <Alert
                 type={docType === "quote" ? "warning" : "info"}
                 showIcon style={{ marginBottom: 16 }}
@@ -1175,12 +1198,6 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
                 }
             />
 
-            <Form
-                form={form}
-                layout="vertical"
-                initialValues={{ issue_date: dayjs() }}
-                onValuesChange={() => setFormChangeCount((c) => c + 1)}
-            >
                 {/* ── Cross-branch customer toggle ───────────────────────────────── */}
                 <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "#f5f5f5", borderRadius: 6, border: "1px solid #e8e8e8" }}>
                     <ApartmentOutlined style={{ color: showBranchPicker ? "#1677ff" : "#8c8c8c", fontSize: 15 }} />
@@ -1344,7 +1361,10 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
                         </Form.Item>
                     </Col>
                 </Row>
+            </div>
 
+            {/* ── Sub-step 2: Dates & terms ────────────────────────────────── */}
+            <div style={detailSection(1)}>
                 <Row gutter={16}>
                     <Col span={8}>
                         <Form.Item
@@ -1463,6 +1483,39 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
                     </Col>
                 </Row>
 
+            </div>
+
+            {/* ── Sub-step 3: Line items ───────────────────────────────────── */}
+            <div style={detailSection(2)}>
+                {!vatEnabled ? (
+                    <Alert
+                        type="warning" showIcon
+                        style={{ marginBottom: 12 }}
+                        message="VAT is disabled for this business"
+                        description={
+                            <>
+                                All line items will be VAT-exempt (0%). To enable VAT go to{" "}
+                                <strong>Tenant Settings → VAT Config</strong>.
+                            </>
+                        }
+                    />
+                ) : (
+                    <Alert
+                        type="info" showIcon icon={<InfoCircleOutlined />}
+                        style={{ marginBottom: 12 }}
+                        message={
+                            <Space>
+                                VAT active — standard rate{" "}
+                                <strong>{(standardVatRate * 100).toFixed(0)}%</strong>
+                                <Tag color="blue" style={{ fontSize: 11, margin: 0 }}>
+                                    {vatPricingMode === "INCLUSIVE" ? "Tax Inclusive" : "Tax Exclusive"}
+                                </Tag>
+                            </Space>
+                        }
+                        description="Standard rate is pre-applied to new lines. You can set individual lines to Exempt."
+                    />
+                )}
+
                 <Divider orientation="left" plain style={{ fontSize: 13, fontWeight: 600 }}>
                     Line Items
                 </Divider>
@@ -1481,6 +1534,31 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
                 </Button>
 
                 <TotalsCard />
+            </div>
+
+            {/* ── Sub-step 4: Review, notes & eTIMS ────────────────────────── */}
+            <div style={detailSection(3)}>
+                {detailStep === 3 && (() => {
+                    const v = form.getFieldsValue(true);
+                    const customerLabel = customerOptions.find((o: any) => o.value === v.customer_id)?.label;
+                    return (
+                        <Descriptions size="small" column={3} bordered style={{ marginBottom: 16 }}>
+                            <Descriptions.Item label="Customer" span={3}>{customerLabel || v.counterparty_name || "—"}</Descriptions.Item>
+                            <Descriptions.Item label={docType === "quote" ? "Quote Date" : "Invoice Date"}>
+                                {v.issue_date ? dayjs(v.issue_date).format("DD MMM YYYY") : "—"}
+                            </Descriptions.Item>
+                            <Descriptions.Item label="Terms">{v.terms || "—"}</Descriptions.Item>
+                            <Descriptions.Item label="Due Date">
+                                {v.due_date ? dayjs(v.due_date).format("DD MMM YYYY") : "—"}
+                            </Descriptions.Item>
+                            <Descriptions.Item label="Lines">{lines.length}</Descriptions.Item>
+                            <Descriptions.Item label="VAT">KES {fmt(totalVAT)}</Descriptions.Item>
+                            <Descriptions.Item label="Grand Total">
+                                <Text strong style={{ color: "#1d39c4" }}>KES {fmt(grandTotal)}</Text>
+                            </Descriptions.Item>
+                        </Descriptions>
+                    );
+                })()}
 
                 <Row gutter={16} style={{ marginTop: 16 }}>
                     <Col span={24}>
@@ -1571,8 +1649,8 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
                         )}
                     </div>
                 )}
-            </Form>
-        </>
+            </div>
+        </Form>
     );
 
     // ── Step 1 — review quote before converting ───────────────────────────────
@@ -1869,8 +1947,17 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
 
     // ── Footer buttons ────────────────────────────────────────────────────────
     const renderFooter = () => {
+        // Details sub-steps 1–3: Back / Next
+        if (step === 0 && detailStep < 3) return [
+            <Button key="cancel" onClick={handleClose}>Cancel</Button>,
+            detailStep > 0 && (
+                <Button key="back" onClick={() => setDetailStep((s) => s - 1)}>Back</Button>
+            ),
+            <Button key="next" type="primary" onClick={handleDetailNext}>Next</Button>,
+        ];
         if (isEditMode) return [
             <Button key="cancel" onClick={handleClose}>Cancel</Button>,
+            <Button key="back" onClick={() => setDetailStep((s) => s - 1)}>Back</Button>,
             <Button key="save" type="primary"
                 loading={updateMutation.isPending}
                 icon={<FileDoneOutlined />}
@@ -1880,6 +1967,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
         ];
         if (step === 0) return [
             <Button key="cancel" onClick={handleClose}>Cancel</Button>,
+            <Button key="back" onClick={() => setDetailStep((s) => s - 1)}>Back</Button>,
             <Button key="save" type="primary"
                 loading={saveMutation.isPending}
                 icon={docType === "quote" ? <FileTextOutlined /> : <FileDoneOutlined />}
@@ -1913,65 +2001,64 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
     };
 
     // ── Steps config ──────────────────────────────────────────────────────────
+    const detailSteps = [
+        { title: "Customer", description: "Billed to & address", icon: <UserOutlined /> },
+        { title: "Dates & Terms", description: "Issue date, due date", icon: <CalendarOutlined /> },
+        { title: "Line Items", description: "Items, VAT & discount", icon: <UnorderedListOutlined /> },
+        {
+            title: "Review",
+            description: isEditMode ? "Notes & save" : docType === "quote" ? "Notes & save quote" : "Notes, eTIMS & post",
+            icon: <FileSearchOutlined />,
+        },
+    ];
     const stepsConfig = isEditMode
-        ? [{ title: "Edit Invoice", icon: <FileDoneOutlined /> }]
+        ? detailSteps
         : docType === "quote"
             ? [
-                { title: "Details", icon: <FileTextOutlined /> },
-                { title: "Convert", icon: <ArrowRightOutlined /> },
-                { title: "Payment", icon: <DollarOutlined /> },
+                ...detailSteps,
+                { title: "Convert", description: "Quote → invoice", icon: <ArrowRightOutlined /> },
+                { title: "Payment", description: "Record payment", icon: <DollarOutlined /> },
             ]
             : [
-                { title: "Details", icon: <FileDoneOutlined /> },
-                { title: "Payment", icon: <DollarOutlined /> },
+                ...detailSteps,
+                { title: "Payment", description: "Record payment", icon: <DollarOutlined /> },
             ];
 
-    const stepsIndex = isEditMode ? 0 : docType === "quote" ? step : step === 0 ? 0 : 1;
+    // Post-save steps come after the 4 detail sub-steps
+    const stepsIndex = step === 0
+        ? detailStep
+        : detailSteps.length + (docType === "quote" ? step - 1 : 0);
 
     // ── Render ────────────────────────────────────────────────────────────────
     return (
         <>
-            <Modal
+            <StepperModal
                 open={open}
                 onCancel={handleClose}
-                title={
-                    <Space>
-                        {isEditMode ? <FileDoneOutlined style={{ color: "#1890ff" }} /> : (
-                            <>
-                                {step === 0 && (docType === "quote"
-                                    ? <FileTextOutlined style={{ color: "#faad14" }} />
-                                    : <FileDoneOutlined style={{ color: "#1890ff" }} />)}
-                                {step === 1 && <FileTextOutlined style={{ color: "#faad14" }} />}
-                                {step === 2 && <DollarOutlined style={{ color: "#52c41a" }} />}
-                            </>
-                        )}
-                        {isEditMode
-                            ? `Edit Invoice — ${freshInvoice?.order_no || ""}`
-                            : (
-                                <>
-                                    {step === 0 && (docType === "quote" ? "Create Quote" : "Create Invoice")}
-                                    {step === 1 && "Review & Convert Quote"}
-                                    {step === 2 && "Record Payment"}
-                                </>
-                            )}
-                    </Space>
+                accent={isEditMode ? "#1890ff" : step === 2 ? "#52c41a" : docType === "quote" ? "#faad14" : "#1890ff"}
+                icon={
+                    isEditMode || (step === 0 && docType !== "quote")
+                        ? <FileDoneOutlined />
+                        : step === 2 ? <DollarOutlined /> : <FileTextOutlined />
                 }
+                title={
+                    isEditMode
+                        ? `Edit Invoice — ${freshInvoice?.order_no || ""}`
+                        : step === 0
+                            ? (docType === "quote" ? "Create Quote" : "Create Invoice")
+                            : step === 1 ? "Review & Convert Quote" : "Record Payment"
+                }
+                steps={stepsConfig}
+                current={stepsIndex}
+                // Only the details sub-steps can be revisited — post-save steps can't go back
+                onStepClick={step === 0 ? setDetailStep : undefined}
                 width={1200}
                 footer={renderFooter()}
-                destroyOnClose
             >
-                {!isEditMode && (
-                    <Steps
-                        current={stepsIndex}
-                        size="small"
-                        items={stepsConfig}
-                        style={{ marginBottom: 24 }}
-                    />
-                )}
                 {step === 0 && renderStep0()}
                 {step === 1 && renderStep1()}
                 {step === 2 && renderStep2()}
-            </Modal>
+            </StepperModal>
 
             <AddCustomerModal
                 visible={addCustomerOpen}

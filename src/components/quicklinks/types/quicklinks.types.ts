@@ -7,6 +7,7 @@ export type QuickCreateModal =
   | "invoice"
   | "quote"
   | "income-expense"
+  | "supplier-bill"
   | null;
 
 export interface QuickLinkAction {

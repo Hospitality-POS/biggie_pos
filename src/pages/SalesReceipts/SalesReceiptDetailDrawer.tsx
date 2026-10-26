@@ -45,10 +45,11 @@ interface Props {
     open: boolean;
     setOpen: (open: boolean) => void;
     receiptId: string | null;
+    onEdit?: (id: string) => void;
     onSuccess: () => void;
 }
 
-const SalesReceiptDetailDrawer: React.FC<Props> = ({ open, setOpen, receiptId, onSuccess }) => {
+const SalesReceiptDetailDrawer: React.FC<Props> = ({ open, setOpen, receiptId, onSuccess, onEdit }) => {
     const queryClient = useQueryClient();
     const [linkInvoiceModalOpen, setLinkInvoiceModalOpen] = useState(false);
     const [linkInvoiceForm] = Form.useForm();
@@ -265,7 +266,7 @@ const SalesReceiptDetailDrawer: React.FC<Props> = ({ open, setOpen, receiptId, o
                         </Popconfirm>
                     )}
                     {canEdit && (
-                        <Button icon={<EditOutlined />} onClick={() => {/* Open edit drawer */}}>
+                        <Button icon={<EditOutlined />} onClick={() => receipt && onEdit?.(receipt._id)}>
                             Edit
                         </Button>
                     )}

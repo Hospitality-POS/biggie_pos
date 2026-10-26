@@ -1,16 +1,17 @@
 import React, { useState } from "react";
 import {
     Button, DatePicker, Spin, Table, Typography, Tag, Modal,
-    Form, Input, App, Space, Tooltip, Select,
+    Input, App, Space, Tooltip, Select, Drawer, Descriptions, Divider, Empty,
 } from "antd";
 import {
     ArrowUpOutlined, PlusOutlined, CheckCircleOutlined, StopOutlined, ReloadOutlined, EditOutlined,
+    EyeOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
-import ManualIncomeModal from "./Orders/ManualIncomeModal";
+import ExpenseFormModal from "./Orders/ExpenseFormModal";
 import {
-    getAllExpenses, getExpenseSummary, approveExpense, voidExpense,
+    getAllExpenses, getExpenseSummary, getExpenseById, approveExpense, voidExpense,
     type Expense, type ExpenseStatus,
 } from "@services/accounting/expense";
 import { fetchAllCustomers } from "@services/customers";
@@ -104,12 +105,176 @@ const VoidExpenseModal: React.FC<{
     );
 };
 
+const AccountChip: React.FC<{ acct: any }> = ({ acct }) => acct?.account_code ? (
+    <span style={{
+        fontFamily: "monospace", fontSize: 11,
+        background: C.bg, border: `1px solid ${C.border}`,
+        borderRadius: 4, padding: "1px 6px", color: C.darkText,
+    }}>
+        {acct.account_code} {acct.account_name}
+    </span>
+) : <Text style={{ color: C.subText }}>—</Text>;
+
+// ── View drawer ───────────────────────────────────────────────────────────────
+const ViewExpenseDrawer: React.FC<{
+    expenseId: string | null;
+    onClose: () => void;
+    onEdit: (expense: Expense) => void;
+}> = ({ expenseId, onClose, onEdit }) => {
+    const { data, isLoading } = useQuery({
+        queryKey: ["expense", expenseId],
+        queryFn: () => getExpenseById(expenseId!),
+        enabled: !!expenseId,
+    });
+    const expense = data?.expense;
+    const je = expense?.journal_entry_id as any;
+    const payAcct = expense?.payment_account_id as any;
+    const person = (u: any) => u?.name || u?.username || "—";
+
+    return (
+        <Drawer
+            open={!!expenseId}
+            onClose={onClose}
+            width={640}
+            destroyOnClose
+            title={
+                <Space>
+                    <ArrowUpOutlined style={{ color: C.red }} />
+                    <span>{expense?.expense_no || "Expense"}</span>
+                    {expense && (
+                        <Tag color={STATUS_CFG[expense.status]?.color || "default"} style={{ fontWeight: 600 }}>
+                            {expense.status}
+                        </Tag>
+                    )}
+                </Space>
+            }
+            extra={expense && expense.status !== "Voided" && (
+                <Button icon={<EditOutlined />} onClick={() => onEdit(expense)}>Edit</Button>
+            )}
+        >
+            <Spin spinning={isLoading}>
+                {!expense ? (!isLoading && <Empty description="Expense not found" />) : (
+                    <>
+                        <div style={{
+                            background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8,
+                            padding: "12px 16px", marginBottom: 16,
+                        }}>
+                            <Text style={{ fontSize: 11, color: C.subText, textTransform: "uppercase", fontWeight: 700 }}>
+                                Paid from {payAcct?.account_name || "—"}
+                            </Text>
+                            <div>
+                                <Text strong style={{ fontSize: 22, color: C.red }}>
+                                    {expense.currency} {fmt(expense.grand_total)}
+                                </Text>
+                            </div>
+                            <Text style={{ fontSize: 12, color: C.subText }}>
+                                {expense.expense_lines.length} line{expense.expense_lines.length === 1 ? "" : "s"}
+                                {" · "}Net {fmt(expense.subtotal)} · VAT {fmt(expense.total_vat_amount)}
+                            </Text>
+                        </div>
+
+                        <Descriptions size="small" column={2} bordered labelStyle={{ width: 130 }}>
+                            <Descriptions.Item label="Date">{dayjs(expense.expense_date).format("DD MMM YYYY HH:mm")}</Descriptions.Item>
+                            <Descriptions.Item label="Reference">{expense.reference || "—"}</Descriptions.Item>
+                            <Descriptions.Item label="Payment">{expense.payment_method?.replace("_", " ") || "—"}</Descriptions.Item>
+                            <Descriptions.Item label="Paid From (CR)"><AccountChip acct={payAcct} /></Descriptions.Item>
+                            <Descriptions.Item label="Supplier">{(expense.supplier_id as any)?.name || expense.payee_name || "—"}</Descriptions.Item>
+                            <Descriptions.Item label="Customer">{(expense.customer_id as any)?.customer_name || "—"}</Descriptions.Item>
+                            <Descriptions.Item label="Created by">{person(expense.created_by)}</Descriptions.Item>
+                            <Descriptions.Item label="Approved by">
+                                {person(expense.approved_by)}
+                                {expense.approved_at && <Text type="secondary" style={{ fontSize: 11 }}> · {dayjs(expense.approved_at).format("DD MMM YYYY")}</Text>}
+                            </Descriptions.Item>
+                        </Descriptions>
+
+                        <Divider orientation="left" plain style={{ fontSize: 12 }}>Expense Lines (DR)</Divider>
+                        <Table
+                            rowKey={(_, i) => String(i)}
+                            size="small"
+                            pagination={false}
+                            dataSource={expense.expense_lines}
+                            columns={[
+                                { title: "Account", render: (_: any, l: any) => <AccountChip acct={l.account_id} /> },
+                                { title: "Description", dataIndex: "description", render: (v: string) => v || "—" },
+                                { title: "Net", dataIndex: "amount", align: "right" as const, render: (v: number) => fmt(v) },
+                                { title: "VAT", dataIndex: "vat_amount", align: "right" as const, render: (v: number) => v ? fmt(v) : "—" },
+                                {
+                                    title: "Total", align: "right" as const,
+                                    render: (_: any, l: any) => <Text strong>{fmt((l.amount || 0) + (l.vat_amount || 0))}</Text>,
+                                },
+                            ]}
+                            summary={() => (
+                                <Table.Summary.Row>
+                                    <Table.Summary.Cell index={0} colSpan={2}><Text strong>Total</Text></Table.Summary.Cell>
+                                    <Table.Summary.Cell index={2} align="right">{fmt(expense.subtotal)}</Table.Summary.Cell>
+                                    <Table.Summary.Cell index={3} align="right">{fmt(expense.total_vat_amount)}</Table.Summary.Cell>
+                                    <Table.Summary.Cell index={4} align="right">
+                                        <Text strong style={{ color: C.red }}>{fmt(expense.grand_total)}</Text>
+                                    </Table.Summary.Cell>
+                                </Table.Summary.Row>
+                            )}
+                        />
+
+                        <Divider orientation="left" plain style={{ fontSize: 12 }}>
+                            Journal Entry {je?.entry_no && <Tag style={{ marginLeft: 6 }}>{je.entry_no} · {je.status}</Tag>}
+                        </Divider>
+                        {je?.lines?.length ? (
+                            <Table
+                                rowKey={(_, i) => String(i)}
+                                size="small"
+                                pagination={false}
+                                dataSource={je.lines}
+                                columns={[
+                                    {
+                                        title: "Account",
+                                        render: (_: any, l: any) => <AccountChip acct={{ account_code: l.account_code, account_name: l.account_name }} />,
+                                    },
+                                    { title: "Debit", dataIndex: "debit", align: "right" as const, render: (v: number) => v ? fmt(v) : "—" },
+                                    { title: "Credit", dataIndex: "credit", align: "right" as const, render: (v: number) => v ? fmt(v) : "—" },
+                                ]}
+                            />
+                        ) : (
+                            <Text type="secondary" style={{ fontSize: 12 }}>
+                                Not posted to the books yet{expense.status === "Pending" ? " — approve to post." : "."}
+                            </Text>
+                        )}
+
+                        {(expense.notes || expense.internal_notes) && (
+                            <>
+                                <Divider orientation="left" plain style={{ fontSize: 12 }}>Notes</Divider>
+                                {expense.notes && <Text style={{ display: "block", whiteSpace: "pre-wrap" }}>{expense.notes}</Text>}
+                                {expense.internal_notes && (
+                                    <Text type="secondary" style={{ display: "block", fontSize: 12, marginTop: 6, whiteSpace: "pre-wrap" }}>
+                                        {expense.internal_notes}
+                                    </Text>
+                                )}
+                            </>
+                        )}
+
+                        {!!expense.attachments?.length && (
+                            <>
+                                <Divider orientation="left" plain style={{ fontSize: 12 }}>Attachments</Divider>
+                                <Space direction="vertical" size={4}>
+                                    {expense.attachments.map((a, i) => (
+                                        <a key={i} href={a.url} target="_blank" rel="noreferrer">{a.filename || a.url}</a>
+                                    ))}
+                                </Space>
+                            </>
+                        )}
+                    </>
+                )}
+            </Spin>
+        </Drawer>
+    );
+};
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 function ExpensesPage() {
     const [page, setPage] = useState(1);
     const [modalOpen, setModalOpen] = useState(false);
     const [voidTarget, setVoidTarget] = useState<Expense | null>(null);
     const [editTarget, setEditTarget] = useState<Expense | null>(null);
+    const [viewId, setViewId] = useState<string | null>(null);
     const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
         dayjs().startOf("month"),
         dayjs().endOf("month"),
@@ -200,10 +365,20 @@ function ExpensesPage() {
         {
             title: "Description",
             render: (_: any, row: Expense) => {
-                const desc = row.expense_lines?.[0]?.description || row.notes;
-                return desc
-                    ? <Text style={{ fontSize: 12 }}>{desc}</Text>
-                    : <Text style={{ color: C.subText }}>—</Text>;
+                const lines = row.expense_lines || [];
+                const desc = lines[0]?.description || row.notes;
+                return (
+                    <Space size={4}>
+                        {desc
+                            ? <Text style={{ fontSize: 12 }}>{desc}</Text>
+                            : <Text style={{ color: C.subText }}>—</Text>}
+                        {lines.length > 1 && (
+                            <Tooltip title={lines.map((l) => l.description).filter(Boolean).join(" · ")}>
+                                <Tag color="blue" style={{ fontSize: 10, margin: 0 }}>Split · {lines.length}</Tag>
+                            </Tooltip>
+                        )}
+                    </Space>
+                );
             },
         },
         {
@@ -215,16 +390,14 @@ function ExpensesPage() {
         {
             title: "Expense Account (DR)",
             render: (_: any, row: Expense) => {
-                const acct = row.expense_lines?.[0]?.account_id as any;
-                return acct?.account_code ? (
-                    <span style={{
-                        fontFamily: "monospace", fontSize: 11,
-                        background: C.bg, border: `1px solid ${C.border}`,
-                        borderRadius: 4, padding: "1px 6px", color: C.darkText,
-                    }}>
-                        {acct.account_code} {acct.account_name}
-                    </span>
-                ) : <Text style={{ color: C.subText }}>—</Text>;
+                const lines = row.expense_lines || [];
+                const extra = new Set(lines.map((l: any) => l.account_id?._id || l.account_id)).size - 1;
+                return (
+                    <Space size={4}>
+                        <AccountChip acct={lines[0]?.account_id} />
+                        {extra > 0 && <Text style={{ fontSize: 11, color: C.subText }}>+{extra} more</Text>}
+                    </Space>
+                );
             },
         },
         {
@@ -261,7 +434,7 @@ function ExpensesPage() {
             ) : <span style={{ color: C.subText, fontSize: 12 }}>—</span>,
         },
         {
-            title: "Actions", key: "actions", width: 130, fixed: "right" as const,
+            title: "Actions", key: "actions", width: 160, fixed: "right" as const,
             render: (_: any, row: Expense) => {
                 const isPending = row.status === "Pending" || row.status === "Draft";
                 const isApprovable = row.status === "Pending";
@@ -269,6 +442,9 @@ function ExpensesPage() {
                 const isEditable = row.status === "Draft" || row.status === "Pending" || row.status === "Approved";
                 return (
                     <Space size={4}>
+                        <Tooltip title="View expense">
+                            <Button size="small" icon={<EyeOutlined />} onClick={() => setViewId(row._id)} />
+                        </Tooltip>
                         {isEditable && (
                             <Tooltip title="Edit expense">
                                 <Button
@@ -410,15 +586,24 @@ function ExpensesPage() {
                 </div>
             </div>
 
-            <ManualIncomeModal
+            <ExpenseFormModal
                 open={modalOpen}
                 onClose={() => {
                     setModalOpen(false);
                     setEditTarget(null);
                 }}
                 onSuccess={refresh}
-                defaultTab="expense"
                 expenseToEdit={editTarget}
+            />
+
+            <ViewExpenseDrawer
+                expenseId={viewId}
+                onClose={() => setViewId(null)}
+                onEdit={(exp) => {
+                    setViewId(null);
+                    setEditTarget(exp);
+                    setModalOpen(true);
+                }}
             />
 
             <VoidExpenseModal
