@@ -45,6 +45,7 @@ export interface SalesTarget {
     role_id?: { _id: string; role_type: string; description?: string } | string;
     department_id?: { _id: string; name: string; code?: string } | string;
     team?: string;   // legacy free-text label
+    is_company_wide?: boolean;   // all leads & customers across the company's shops
     // ── Campaign / Budget links ─────────────────────────────────────────────
     campaign_id?: { _id: string; name: string; type?: string; status?: string } | string;
     budget_id?: { _id: string; name: string; status?: string; period_start?: string; period_end?: string } | string;

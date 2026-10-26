@@ -226,7 +226,7 @@ export interface AccountingDashboardResponse {
 // ── Query params ──────────────────────────────────────────────────────────────
 
 export interface GetDashboardParams {
-    shop_id: string;
+    shop_id?: string; // omit for all branches
     fiscal_year?: number;
     fiscal_month?: number;
     start_date?: string;

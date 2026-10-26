@@ -40,6 +40,7 @@ import {
   FilterOutlined,
 } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
+import { BranchSelect, useBranchFilter } from "@components/BranchFilter/BranchFilter";
 import {
   AreaChart,
   Area,
@@ -288,7 +289,10 @@ const CustomPLTooltip = ({ active, payload, label }: any) => {
 
 const AccountingDashboardPage: React.FC = () => {
   const isMobile = useIsMobile();
-  const shopId = getShopId();
+  // Admins can narrow the dashboard to one branch ("" = all branches);
+  // shop users stay on their own shop
+  const { shopId, shops, branchId, setBranchId, showFilter } = useBranchFilter(getShopId());
+  const branchName = shops.find((s) => s._id === branchId)?.name;
   const primaryColor = usePrimaryColor();
 
   const [periodFilter, setPeriodFilter] = useState("month");
@@ -367,7 +371,7 @@ const AccountingDashboardPage: React.FC = () => {
     ],
     queryFn: () =>
       getAccountingDashboard({
-        shop_id: shopId,
+        shop_id: shopId || undefined,
         fiscal_year: fiscalYear,
         fiscal_month: fiscalMonth,
         start_date: startDate.toISOString(),
@@ -552,7 +556,7 @@ const AccountingDashboardPage: React.FC = () => {
       <div style={{ padding: "0 0 24px" }}>
         {/* ── Mobile Filter Drawer ── */}
         <Drawer
-          title="Filter Period"
+          title={showFilter ? "Filter Period & Branch" : "Filter Period"}
           placement="bottom"
           height="auto"
           open={filterDrawerOpen}
@@ -560,6 +564,10 @@ const AccountingDashboardPage: React.FC = () => {
           styles={{ body: { paddingBottom: 32 } }}
         >
           <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+            {showFilter && (
+              <BranchSelect shops={shops} value={branchId} size="middle" block
+                onChange={(v) => { setBranchId(v); setFilterDrawerOpen(false); }} />
+            )}
             <Radio.Group
               value={periodFilter}
               onChange={(e) => handlePeriodChange(e.target.value)}
@@ -616,7 +624,7 @@ const AccountingDashboardPage: React.FC = () => {
                 {PERIOD_LABELS[periodFilter]} · Pesa
               </Title>
               <Text style={{ fontSize: 12, color: "#64748b" }}>
-                {getFormattedDateRange()} · Financial overview & general ledger
+                {getFormattedDateRange()} · {branchName ? `${branchName} · ` : showFilter ? "All branches · " : ""}Financial overview & general ledger
               </Text>
             </div>
           </Space>
@@ -640,6 +648,7 @@ const AccountingDashboardPage: React.FC = () => {
               </>
             ) : (
               <>
+                {showFilter && <BranchSelect shops={shops} value={branchId} onChange={setBranchId} />}
                 <div
                   style={{
                     background: "#f8fafc",

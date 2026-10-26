@@ -23,6 +23,7 @@ import {
   CameraOutlined,
   EditOutlined,
   PlusOutlined,
+  ThunderboltOutlined,
   UserOutlined,
   UsergroupAddOutlined,
 } from "@ant-design/icons";
@@ -181,8 +182,37 @@ const FieldGroup: React.FC<{ title: string; hint?: string; children: React.React
   </div>
 );
 
+// ── How staff sign in ─────────────────────────────────────────────────────────
+// Duka (POS) staff use a 4-digit PIN. When Duka isn't active (Mteja, Pesa,
+// Bandu, Dala only) they sign in with email + password, and the username is
+// their email.
+type LoginMode = "pin" | "password";
+
+// Random credentials from the browser's crypto RNG. The API still rejects a
+// PIN another staff member already uses — generate again if that happens.
+const randomInt = (max: number) => {
+  const buf = new Uint32Array(1);
+  crypto.getRandomValues(buf);
+  return buf[0] % max;
+};
+const randomPin = () => String(randomInt(10000)).padStart(4, "0");
+// No look-alike characters (0/O, 1/l/I) so it's easy to read out or type
+const PASSWORD_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+const randomPassword = (length = 10) =>
+  Array.from({ length }, () => PASSWORD_CHARS[randomInt(PASSWORD_CHARS.length)]).join("");
+const getLoginMode = (): LoginMode => {
+  try {
+    const tenant = JSON.parse(localStorage.getItem("tenant") || "null");
+    return tenant?.pos_integration?.enabled === true ? "pin" : "password";
+  } catch {
+    return "pin";
+  }
+};
+
 // ── All staff fields — used by the desktop modal and the mobile sheet ──────────
 const StaffFields: React.FC<{
+  loginMode: LoginMode;
+  isEdit: boolean;
   isMobile: boolean;
   isAdmin: boolean;
   isProfile: boolean;
@@ -206,6 +236,35 @@ const StaffFields: React.FC<{
   const span = p.isMobile ? 24 : 12;
   const label = (text: string) => <Text style={{ fontSize: 12.5, color: C.darkText }}>{text}</Text>;
   const item = { style: { marginBottom: 14 } };
+
+  // Generated credentials are shown in plain text so they can be shared
+  const form = Form.useFormInstance();
+  const [pinVisible, setPinVisible] = useState(false);
+  const [passwordVisible, setPasswordVisible] = useState(false);
+
+  const generatePin = () => {
+    form.setFieldsValue({ pin: randomPin() });
+    form.validateFields(["pin"]).catch(() => undefined);
+    setPinVisible(true);
+  };
+  const generatePassword = () => {
+    const pwd = randomPassword();
+    form.setFieldsValue({ password: pwd, confirmPassword: pwd });
+    form.validateFields(["password", "confirmPassword"]).catch(() => undefined);
+    setPasswordVisible(true);
+  };
+  const generateButton = (onClick: () => void) => (
+    <Button size="small" type="link" icon={<ThunderboltOutlined />} onClick={onClick} style={{ padding: 0, height: "auto", fontSize: 12 }}>
+      Generate
+    </Button>
+  );
+  // Label with a "Generate" link on the right
+  const labelWithGenerate = (text: string, onClick: () => void) => (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", gap: 8 }}>
+      {label(text)}
+      {generateButton(onClick)}
+    </div>
+  );
 
   return (
     <>
@@ -235,36 +294,101 @@ const StaffFields: React.FC<{
         </Row>
       </FieldGroup>
 
-      <FieldGroup title="Login details" hint="Used to sign in to the POS and the dashboard">
-        <Row gutter={16}>
-          <Col span={span}>
-            <Form.Item name="username" label={label("Username")} rules={[{ required: true, message: "Choose a username" }]} {...item}>
-              <Input placeholder="e.g. mercy" autoComplete="off" />
-            </Form.Item>
-          </Col>
-          <Col span={span}>
-            <Form.Item
-              name="email"
-              label={label("Email")}
-              rules={[{ required: true, pattern: /^\S+@\S+\.\S+$/, message: "Enter a valid email" }]}
-              {...item}
-            >
-              <Input placeholder="name@example.com" autoComplete="off" />
-            </Form.Item>
-          </Col>
-          <Col span={span}>
-            <Form.Item
-              name="pin"
-              label={label("4-digit PIN")}
-              tooltip="Used for quick sign-in on the POS"
-              rules={[{ required: true, pattern: /^[0-9]{4}$/, message: "The PIN must be 4 digits" }]}
-              {...item}
-            >
-              <Input.Password placeholder="••••" maxLength={4} inputMode="numeric" autoComplete="new-password" />
-            </Form.Item>
-          </Col>
-        </Row>
-      </FieldGroup>
+      {p.loginMode === "pin" ? (
+        <FieldGroup title="Login details" hint="Used to sign in to the POS and the dashboard">
+          <Row gutter={16}>
+            <Col span={span}>
+              <Form.Item name="username" label={label("Username")} rules={[{ required: true, message: "Choose a username" }]} {...item}>
+                <Input placeholder="e.g. mercy" autoComplete="off" />
+              </Form.Item>
+            </Col>
+            <Col span={span}>
+              <Form.Item
+                name="email"
+                label={label("Email")}
+                rules={[{ required: true, pattern: /^\S+@\S+\.\S+$/, message: "Enter a valid email" }]}
+                {...item}
+              >
+                <Input placeholder="name@example.com" autoComplete="off" />
+              </Form.Item>
+            </Col>
+            <Col span={span}>
+              <Form.Item
+                name="pin"
+                label={labelWithGenerate("4-digit PIN", generatePin)}
+                tooltip="Used for quick sign-in on the POS"
+                rules={[{ required: true, pattern: /^[0-9]{4}$/, message: "The PIN must be 4 digits" }]}
+                {...item}
+              >
+                <Input.Password
+                  placeholder="••••" maxLength={4} inputMode="numeric" autoComplete="new-password"
+                  visibilityToggle={{ visible: pinVisible, onVisibleChange: setPinVisible }}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+        </FieldGroup>
+      ) : (
+        <FieldGroup title="Login details" hint="They sign in to the dashboard with their email and password">
+          <Row gutter={16}>
+            <Col span={span}>
+              <Form.Item
+                name="email"
+                label={label("Email")}
+                rules={[{ required: true, pattern: /^\S+@\S+\.\S+$/, message: "Enter a valid email" }]}
+                {...item}
+              >
+                <Input placeholder="name@example.com" autoComplete="off" />
+              </Form.Item>
+            </Col>
+            <Col span={span}>
+              {/* Filled from the email — kept in sync by the parent */}
+              <Form.Item name="username" label={label("Username")} tooltip="Same as their email" {...item}>
+                <Input placeholder="Filled from the email" disabled />
+              </Form.Item>
+            </Col>
+            {!p.isEdit && (
+              <>
+                <Col span={span}>
+                  <Form.Item
+                    name="password"
+                    label={labelWithGenerate("Password", generatePassword)}
+                    rules={[{ required: true, min: 6, message: "At least 6 characters" }]}
+                    {...item}
+                  >
+                    <Input.Password
+                      placeholder="At least 6 characters" autoComplete="new-password"
+                      visibilityToggle={{ visible: passwordVisible, onVisibleChange: setPasswordVisible }}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col span={span}>
+                  <Form.Item
+                    name="confirmPassword"
+                    label={label("Confirm password")}
+                    dependencies={["password"]}
+                    rules={[
+                      { required: true, message: "Re-enter the password" },
+                      ({ getFieldValue }) => ({
+                        validator: (_, value) =>
+                          !value || value === getFieldValue("password")
+                            ? Promise.resolve()
+                            : Promise.reject(new Error("The passwords don't match")),
+                      }),
+                    ]}
+                    {...item}
+                  >
+                    <Input.Password
+                      placeholder="Re-enter the password" autoComplete="new-password"
+                      visibilityToggle={{ visible: passwordVisible, onVisibleChange: setPasswordVisible }}
+                    />
+                  </Form.Item>
+                </Col>
+              </>
+            )}
+          </Row>
+        </FieldGroup>
+      )}
 
       {(p.isAdmin || p.showBranch) && (
         <FieldGroup title="Role and branch">
@@ -299,7 +423,8 @@ const StaffFields: React.FC<{
         </FieldGroup>
       )}
 
-      {p.showCategories && (
+      {/* Selling categories only matter for Duka (POS) staff */}
+      {p.showCategories && p.loginMode === "pin" && (
         <FieldGroup title="What they can sell" hint="Leave empty to allow every category in this branch">
           {p.categoriesLoading ? (
             <Skeleton active paragraph={{ rows: 2 }} title={false} />
@@ -368,6 +493,7 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
   const { user } = useAppSelector((state) => state.auth);
   const isAdmin = user?.role === "admin";
   const isEditingOwnProfile = edit && data?._id === userId;
+  const loginMode = getLoginMode();
   const queryClient = useQueryClient();
   const location = useLocation();
 
@@ -531,7 +657,18 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
 
   const buildPayload = (values: any) => {
     const phoneNumber = getPhoneNumber(values?.phoneNumber);
-    const payload: any = { ...values, phone: phoneNumber };
+    const { confirmPassword, ...rest } = values || {};
+    const payload: any = { ...rest, phone: phoneNumber };
+    if (loginMode === "password") {
+      // Email + password sign-in: username mirrors the email, and the API
+      // assigns a hidden PIN since these staff don't use the POS
+      payload.username = values.email;
+      delete payload.pin;
+      if (!edit) {
+        payload.passwordEnabled = true;
+        payload.preferredAuthMethod = "password";
+      }
+    }
     if (uploadedFile) payload.imageFile = uploadedFile;
     if (selectedCategories.length > 0) payload.categories = selectedCategories;
     // Add company code to prevent logout
@@ -633,8 +770,16 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
 
   const watchedName = Form.useWatch("fullname", form);
 
+  // Password sign-in: the username is always the email
+  const watchedEmail = Form.useWatch("email", form);
+  useEffect(() => {
+    if (loginMode === "password" && open) form.setFieldsValue({ username: watchedEmail || "" });
+  }, [loginMode, open, watchedEmail, form]);
+
   const fields = (
     <StaffFields
+      loginMode={loginMode}
+      isEdit={!!edit}
       isMobile={isMobile}
       isAdmin={isAdmin}
       isProfile={!!isProfile}
@@ -681,7 +826,11 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
           {edit ? (isProfile ? "Edit your profile" : `Edit ${data?.fullname || "staff member"}`) : "Add a staff member"}
         </Text>
         <Text style={{ fontSize: 12, color: C.subText, fontWeight: 400 }}>
-          {edit ? "Update their details, login and access" : "They can sign in with their username or PIN"}
+          {edit
+            ? "Update their details, login and access"
+            : loginMode === "pin"
+              ? "They can sign in with their username or PIN"
+              : "They sign in with their email and password"}
         </Text>
       </div>
     </div>
