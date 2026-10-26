@@ -98,3 +98,19 @@ export const fetchSystemPaymentDetails = async () => {
     console.log(error);
   }
 };
+// ── Tourism Catering Levy (business-wide, applies to every branch) ──────────
+export interface CateringLevySetting {
+  enabled: boolean;
+  percentage: number;
+}
+
+export const fetchCateringLevy = async (): Promise<CateringLevySetting> => {
+  const response = await axiosInstance.get(`${BASE_URL}/users/catering-levy`);
+  return response.data;
+};
+
+export const updateCateringLevy = async (data: Partial<CateringLevySetting>): Promise<CateringLevySetting> => {
+  const response = await axiosInstance.put(`${BASE_URL}/users/catering-levy`, data);
+  clearSystemSetupCache();
+  return response.data;
+};
