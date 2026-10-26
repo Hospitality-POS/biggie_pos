@@ -6,7 +6,7 @@ on:
       - dev
 
 env:
-  IMAGE_NAME: basepoint-ui-dev
+  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/basepoint-ui-dev
 
 jobs:
   build-and-push:
