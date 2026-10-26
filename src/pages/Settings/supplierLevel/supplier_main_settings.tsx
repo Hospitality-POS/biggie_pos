@@ -1,19 +1,24 @@
 import React from "react";
 import { ProCard } from "@ant-design/pro-components";
 import SupplierTable from "./Supplier";
+import { useIsCompact } from "@hooks/useIsCompact";
 import { ShopOutlined, AppstoreAddOutlined } from "@ant-design/icons";
 import { Flex, Space, Typography } from "antd";
 
 const { Title } = Typography;
 
 function SupplierMainSettings() {
+  const isCompact = useIsCompact();
+
   return (
     <ProCard
       bordered
+      bodyStyle={isCompact ? { padding: 8 } : undefined}
+      headStyle={isCompact ? { padding: "12px 12px 0" } : undefined}
       title={
-        <Flex gap={4}>
+        <Flex gap={4} align="center">
           <ShopOutlined style={{ color: "var(--primary-color)" }} />
-          <Title level={4} style={{ margin: 0 }}>
+          <Title level={isCompact ? 5 : 4} style={{ margin: 0 }}>
             Supplier Main Settings
           </Title>
         </Flex>
@@ -21,7 +26,7 @@ function SupplierMainSettings() {
       tabs={{
         type: "card",
         defaultActiveKey: "suppliers",
-        size: "large",
+        size: isCompact ? "middle" : "large",
         items: [
           {
             key: "suppliers",

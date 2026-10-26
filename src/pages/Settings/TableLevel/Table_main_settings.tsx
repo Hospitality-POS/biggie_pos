@@ -10,12 +10,14 @@ import {
 import { Space, Typography } from "antd";
 import TableSetting from "./Table_settings";
 import { usePOSMode } from "@context/POSModeContext";
+import { useIsCompact } from "@hooks/useIsCompact";
 
 const { Text } = Typography;
 
 const TableMainSettings: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("locations");
   const { isHotelMode } = usePOSMode();
+  const isCompact = useIsCompact();
 
   const handleTabChange = (key: string) => {
     setActiveTab(key);
@@ -38,9 +40,11 @@ const TableMainSettings: React.FC = () => {
   return (
     <ProCard
       bordered
+      bodyStyle={isCompact ? { padding: 8 } : undefined}
+      headStyle={isCompact ? { padding: "12px 12px 0" } : undefined}
       title={
         <Typography.Title
-          level={4}
+          level={isCompact ? 5 : 4}
           style={{
             display: "flex",
             alignItems: "center",
@@ -55,7 +59,7 @@ const TableMainSettings: React.FC = () => {
         type: "card",
         activeKey: activeTab,
         onChange: handleTabChange,
-        size: "large",
+        size: isCompact ? "middle" : "large",
       }}
     >
       <ProCard.TabPane

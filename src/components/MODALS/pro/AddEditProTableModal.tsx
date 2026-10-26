@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Button, Form, Space } from "antd";
+import { Button, Form, Grid, Space } from "antd";
 import {
   ModalForm,
   ProFormText,
@@ -16,14 +16,19 @@ interface AddEditProTableModalProps {
   actionRef;
   edit?: boolean;
   data?: any;
+  /** Full-width, touch-sized edit trigger (used by the table cards). */
+  block?: boolean;
 }
 
 const AddEditProTableModal: React.FC<AddEditProTableModalProps> = ({
   actionRef,
   edit,
   data,
+  block,
 }) => {
   const [form] = Form.useForm();
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
   const [open, setOpen] = useState(false);
   const { isHotelMode } = usePOSMode();
 
@@ -55,8 +60,10 @@ const AddEditProTableModal: React.FC<AddEditProTableModalProps> = ({
       trigger={
         edit ? (
           <Button
-            size="small"
+            size={block ? "middle" : "small"}
+            block={block}
             key="button"
+            style={block ? { borderRadius: 8 } : undefined}
             icon={
               <EditOutlined
                 style={{ color: "var(--primary-color)" }}
@@ -95,16 +102,18 @@ const AddEditProTableModal: React.FC<AddEditProTableModalProps> = ({
         centered: true,
       }}
     >
-      <ProForm.Group>
+      <ProForm.Group style={isMobile ? { width: "100%" } : undefined}>
         <ProFormText
-          width="md"
+          width={isMobile ? undefined : "md"}
+          formItemProps={isMobile ? { style: { width: "100%" } } : undefined}
           name="name"
           label={isHotelMode ? "Room Name" : "Table Name"}
           rules={[{ required: true, message: isHotelMode ? "Room name is required" : "Table name is required" }]}
           placeholder={isHotelMode ? "Enter room name" : "Enter table name"}
         />
         <ProFormSelect
-          width="md"
+          width={isMobile ? undefined : "md"}
+          formItemProps={isMobile ? { style: { width: "100%" } } : undefined}
           name="locatedAt"
           label={isHotelMode ? "Floor" : "Location"}
           rules={[{ required: true, message: isHotelMode ? "Floor is required" : "Table Location is required" }]}
