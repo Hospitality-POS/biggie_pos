@@ -16,6 +16,7 @@ import {
 } from "@services/accounting/reports";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { getPrimaryColor } from "@utils/getPrimaryColor";
+import { escapeHtml } from "@utils/escapeHtml";
 import useSystemDetails from "@hooks/useSystemDetails";
 import dayjs from "dayjs";
 
@@ -42,20 +43,20 @@ const printSection = (html: string, title: string) => {
     const primaryColor = getPrimaryColor();
     const w = window.open("", "_blank");
     if (!w) return;
-    w.document.write(`<!DOCTYPE html><html><head><title>${title}</title>
+    w.document.write(`<!DOCTYPE html><html><head><title>${escapeHtml(title)}</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11px; color: #1a1a2e; padding: 20px; }
         h1 { font-size: 18px; font-weight: 700; margin-bottom: 2px; color: #1a1a2e; }
-        h2 { font-size: 14px; font-weight: 600; margin: 16px 0 6px; color: #333; border-bottom: 2px solid ${primaryColor}; padding-bottom: 4px; }
+        h2 { font-size: 14px; font-weight: 600; margin: 16px 0 6px; color: #333; border-bottom: 2px solid ${escapeHtml(primaryColor)}; padding-bottom: 4px; }
         .subtitle { font-size: 11px; color: #555; margin-bottom: 16px; }
         table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
-        th { background: ${primaryColor}; color: white; padding: 6px 8px; text-align: left; font-size: 10px; font-weight: 600; }
+        th { background: ${escapeHtml(primaryColor)}; color: white; padding: 6px 8px; text-align: left; font-size: 10px; font-weight: 600; }
         th.num, td.num { text-align: right; }
         td { padding: 5px 8px; border-bottom: 1px solid #e8e8e8; font-size: 10px; }
         tr:nth-child(even) td { background: #f8f8f8; }
-        .total-row td { font-weight: 700; background: #f0f0f0 !important; border-top: 2px solid ${primaryColor}; }
-        .section-header td { font-weight: 700; background: #f5f0f0 !important; color: ${primaryColor}; font-size: 11px; }
+        .total-row td { font-weight: 700; background: #f0f0f0 !important; border-top: 2px solid ${escapeHtml(primaryColor)}; }
+        .section-header td { font-weight: 700; background: #f5f0f0 !important; color: ${escapeHtml(primaryColor)}; font-size: 11px; }
         .summary-box { border: 1px solid #ddd; border-radius: 4px; padding: 10px 14px; margin-bottom: 14px; display: flex; gap: 24px; flex-wrap: wrap; }
         .summary-item { display: flex; flex-direction: column; }
         .summary-label { font-size: 9px; color: #888; text-transform: uppercase; letter-spacing: .5px; }
@@ -63,8 +64,8 @@ const printSection = (html: string, title: string) => {
         .check-row td { font-weight: 700; font-size: 11px; }
         .balanced { color: #389e0d; } .unbalanced { color: #cf1322; }
         .dr { color: #cf1322; } .cr { color: #389e0d; }
-        .header-block { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 3px solid ${primaryColor}; }
-        .company { font-size: 15px; font-weight: 800; color: ${primaryColor}; }
+        .header-block { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 3px solid ${escapeHtml(primaryColor)}; }
+        .company { font-size: 15px; font-weight: 800; color: ${escapeHtml(primaryColor)}; }
         .meta { text-align: right; font-size: 10px; color: #555; }
         @media print { body { padding: 10px; } }
     </style></head><body>${html}<script>window.onload=()=>window.print();</script></body></html>`);
@@ -187,14 +188,14 @@ export const TrialBalanceTable: React.FC<{ data: TrialBalanceResponse }> = ({ da
     const handlePrint = () => {
         const rows = data.rows.map((r) => `
             <tr>
-                <td><code>${r.account_code}</code></td>
-                <td>${r.account_name} <small>[${r.account_type}]</small></td>
+                <td><code>${escapeHtml(r.account_code)}</code></td>
+                <td>${escapeHtml(r.account_name)} <small>[${escapeHtml(r.account_type)}]</small></td>
                 <td class="num dr">${r.closing_debit > 0 ? fmt(r.closing_debit) : "—"}</td>
                 <td class="num cr">${r.closing_credit > 0 ? fmt(r.closing_credit) : "—"}</td>
             </tr>`).join("");
         const html = `
             <div class="header-block">
-                <div><div class="company">Trial Balance</div><div class="subtitle">Period: ${data.period?.from || "all time"} to ${data.period?.to || "all time"}</div></div>
+                <div><div class="company">Trial Balance</div><div class="subtitle">Period: ${escapeHtml(data.period?.from || "all time")} to ${escapeHtml(data.period?.to || "all time")}</div></div>
                 <div class="meta">Generated: ${dayjs().format("DD MMM YYYY HH:mm")}</div>
             </div>
             <div class="summary-box">
@@ -336,8 +337,8 @@ export const ProfitAndLossTable: React.FC<{ data: ProfitAndLossResponse; period?
                     <tr>
                         <td style="padding-left:24px">
                             <span style="font-family:monospace;font-size:10px;background:#f5f5f5;
-                                  padding:1px 5px;border-radius:3px;margin-right:6px">${a.account_code}</span>
-                            ${a.account_name}
+                                  padding:1px 5px;border-radius:3px;margin-right:6px">${escapeHtml(a.account_code)}</span>
+                            ${escapeHtml(a.account_name)}
                         </td>
                         <td class="num">${fmt(a.amount)}</td>
                     </tr>`).join("")
@@ -346,9 +347,9 @@ export const ProfitAndLossTable: React.FC<{ data: ProfitAndLossResponse; period?
         const html = `
             <div class="header-block">
                 <div>
-                    <div class="company" style="font-size:18px;font-weight:700">${companyName}</div>
+                    <div class="company" style="font-size:18px;font-weight:700">${escapeHtml(companyName)}</div>
                     <div style="font-size:15px;font-weight:600;margin:4px 0">Profit and Loss (Beta)</div>
-                    <div class="subtitle">${periodLabel}</div>
+                    <div class="subtitle">${escapeHtml(periodLabel)}</div>
                 </div>
                 <div class="meta">Generated: ${dayjs().format("DD MMM YYYY HH:mm")}</div>
             </div>
@@ -393,7 +394,7 @@ export const ProfitAndLossTable: React.FC<{ data: ProfitAndLossResponse; period?
                     </tr>
 
                     <!-- Operating Profit -->
-                    <tr style="background:${primaryColor}18;border-top:2px solid ${primaryColor}">
+                    <tr style="background:${escapeHtml(primaryColor)}18;border-top:2px solid ${escapeHtml(primaryColor)}">
                         <td style="font-weight:800;font-size:12px;padding:8px 6px">Operating Profit</td>
                         <td class="num" style="font-weight:800;font-size:12px;color:${profitColor(opProfit)};padding:8px 6px">
                             ${profitSign(opProfit)}
@@ -690,13 +691,13 @@ export const BalanceSheetTable: React.FC<{ data: BalanceSheetResponse }> = ({ da
 
     const handlePrint = () => {
         const section = (title: string, rows: any[], total: number, color: string) => `
-            <h2>${title}</h2>
+            <h2>${escapeHtml(title)}</h2>
             <table>
                 <thead><tr><th>Code</th><th>Account</th><th class="num">Balance (KES)</th></tr></thead>
                 <tbody>
-                    ${rows.map((r) => `<tr><td>${r.account_code === "NET-INCOME" ? "AUTO" : `<code>${r.account_code}</code>`}</td><td>${r.is_synthetic ? `<em>${r.account_name}</em>` : r.account_name}</td><td class="num" style="color:${r.balance < 0 ? "#cf1322" : color}">${fmt(r.balance)}</td></tr>`).join("")}
+                    ${rows.map((r) => `<tr><td>${r.account_code === "NET-INCOME" ? "AUTO" : `<code>${escapeHtml(r.account_code)}</code>`}</td><td>${r.is_synthetic ? `<em>${escapeHtml(r.account_name)}</em>` : escapeHtml(r.account_name)}</td><td class="num" style="color:${r.balance < 0 ? "#cf1322" : color}">${fmt(r.balance)}</td></tr>`).join("")}
                 </tbody>
-                <tfoot><tr class="total-row"><td colspan="2">Total ${title}</td><td class="num" style="color:${color}">KES ${fmt(total)}</td></tr></tfoot>
+                <tfoot><tr class="total-row"><td colspan="2">Total ${escapeHtml(title)}</td><td class="num" style="color:${color}">KES ${fmt(total)}</td></tr></tfoot>
             </table>`;
         const html = `
             <div class="header-block">
@@ -715,7 +716,7 @@ export const BalanceSheetTable: React.FC<{ data: BalanceSheetResponse }> = ({ da
             <table>
                 <thead><tr><th>Code</th><th>Account</th><th class="num">Balance (KES)</th></tr></thead>
                 <tbody>
-                    ${data.equity.accounts.map((r) => `<tr><td>${r.account_code === "NET-INCOME" ? "AUTO" : `<code>${r.account_code}</code>`}</td><td>${r.account_name}</td><td class="num" style="color:${r.balance < 0 ? "#cf1322" : "#722ed1"}">${fmt(r.balance)}</td></tr>`).join("")}
+                    ${data.equity.accounts.map((r) => `<tr><td>${r.account_code === "NET-INCOME" ? "AUTO" : `<code>${escapeHtml(r.account_code)}</code>`}</td><td>${escapeHtml(r.account_name)}</td><td class="num" style="color:${r.balance < 0 ? "#cf1322" : "#722ed1"}">${fmt(r.balance)}</td></tr>`).join("")}
                 </tbody>
                 <tfoot><tr class="total-row"><td colspan="2">Total Equity</td><td class="num" style="color:#722ed1">KES ${fmt(data.equity.total_equity)}</td></tr></tfoot>
             </table>
@@ -1388,17 +1389,17 @@ export const ARAgingTable: React.FC<{ data: ARAgingResponse }> = ({ data }) => {
 
     const handlePrint = (mode: "summary" | "detailed") => {
         if (mode === "summary") {
-            const bucketHeads = allBucketLabels.map((l) => `<th class="num">${l}</th>`).join("");
-            const rows = summaryRows.map((r) => `<tr><td>${r.customer_name}</td>${allBucketLabels.map((l) => `<td class="num" style="color:${r[l] > 0 ? "#1890ff" : "#aaa"}">${r[l] > 0 ? "KES" + fmt(r[l]) : "KES0.00"}</td>`).join("")}<td class="num" style="color:#1890ff;font-weight:700">KES${fmt(r.total)}</td></tr>`).join("");
+            const bucketHeads = allBucketLabels.map((l) => `<th class="num">${escapeHtml(l)}</th>`).join("");
+            const rows = summaryRows.map((r) => `<tr><td>${escapeHtml(r.customer_name)}</td>${allBucketLabels.map((l) => `<td class="num" style="color:${r[l] > 0 ? "#1890ff" : "#aaa"}">${r[l] > 0 ? "KES" + fmt(r[l]) : "KES0.00"}</td>`).join("")}<td class="num" style="color:#1890ff;font-weight:700">KES${fmt(r.total)}</td></tr>`).join("");
             const totRow = `<tr class="total-row"><td>TOTALS</td>${allBucketLabels.map((l) => `<td class="num">KES${fmt(summaryTotals[l])}</td>`).join("")}<td class="num">KES${fmt(summaryTotals.total)}</td></tr>`;
             const html = `<div class="header-block"><div><div class="company">AR Aging Summary By Invoice Date</div><div class="subtitle">As of ${dayjs(data.as_of).format("DD/MM/YYYY")}</div></div><div class="meta">Generated: ${dayjs().format("DD MMM YYYY HH:mm")}</div></div>
-            <div class="summary-box"><div class="summary-item"><span class="summary-label">Total AR Outstanding</span><span class="summary-value" style="color:#cf1322">KES ${fmt(data.summary?.grand_total || 0)}</span></div><div class="summary-item"><span class="summary-label">Customers</span><span class="summary-value">${data.total_customers_with_outstanding}</span></div></div>
+            <div class="summary-box"><div class="summary-item"><span class="summary-label">Total AR Outstanding</span><span class="summary-value" style="color:#cf1322">KES ${fmt(data.summary?.grand_total || 0)}</span></div><div class="summary-item"><span class="summary-label">Customers</span><span class="summary-value">${escapeHtml(data.total_customers_with_outstanding)}</span></div></div>
             <table><thead><tr><th>Customer Name</th>${bucketHeads}<th class="num">Total</th></tr></thead><tbody>${rows}</tbody><tfoot>${totRow}</tfoot></table>`;
             printSection(html, "AR Aging Summary");
         } else {
             const rows = data.customers.map((c) => {
-                const invRows = c.invoices.map((inv) => `<tr><td style="padding-left:32px">${dayjs(inv.issue_date).format("DD/MM/YYYY")}</td><td style="padding-left:32px;color:#1890ff">${inv.invoice_no}</td><td>Invoice</td><td><span style="color:${inv.status === "Overdue" ? "#cf1322" : "#666"}">${inv.status}</span></td><td class="num">${inv.days_overdue} Days</td><td class="num" style="color:#1890ff">KES${fmt(inv.grand_total)}</td><td class="num dr">KES${fmt(inv.amount_due)}</td></tr>`).join("");
-                return `<tr class="section-header"><td colspan="7">${c.customer_name} — KES${fmt(c.total)}</td></tr>${invRows}`;
+                const invRows = c.invoices.map((inv) => `<tr><td style="padding-left:32px">${dayjs(inv.issue_date).format("DD/MM/YYYY")}</td><td style="padding-left:32px;color:#1890ff">${escapeHtml(inv.invoice_no)}</td><td>Invoice</td><td><span style="color:${inv.status === "Overdue" ? "#cf1322" : "#666"}">${escapeHtml(inv.status)}</span></td><td class="num">${escapeHtml(inv.days_overdue)} Days</td><td class="num" style="color:#1890ff">KES${fmt(inv.grand_total)}</td><td class="num dr">KES${fmt(inv.amount_due)}</td></tr>`).join("");
+                return `<tr class="section-header"><td colspan="7">${escapeHtml(c.customer_name)} — KES${fmt(c.total)}</td></tr>${invRows}`;
             }).join("");
             const html = `<div class="header-block"><div><div class="company">AR Aging Details By Invoice Due Date</div><div class="subtitle">As of ${dayjs(data.as_of).format("DD/MM/YYYY")}</div></div><div class="meta">Generated: ${dayjs().format("DD MMM YYYY HH:mm")}</div></div>
             <table><thead><tr><th>Date</th><th>Transaction #</th><th>Type</th><th>Status</th><th class="num">Age</th><th class="num">Amount</th><th class="num">Balance Due</th></tr></thead><tbody>${rows}</tbody></table>`;
@@ -1571,15 +1572,15 @@ export const APAgingTable: React.FC<{ data: APAgingResponse }> = ({ data }) => {
 
     const handlePrint = (mode: "summary" | "detailed") => {
         if (mode === "summary") {
-            const bh = allBucketLabels.map((l) => `<th class="num">${l}</th>`).join("");
-            const rows = summaryRows.map((r) => `<tr><td>${r.supplier_name}</td>${allBucketLabels.map((l) => `<td class="num" style="color:${r[l] > 0 ? "#fa8c16" : "#aaa"}">${r[l] > 0 ? "KES" + fmt(r[l]) : "KES0.00"}</td>`).join("")}<td class="num" style="color:#fa8c16;font-weight:700">KES${fmt(r.total)}</td>`).join("");
+            const bh = allBucketLabels.map((l) => `<th class="num">${escapeHtml(l)}</th>`).join("");
+            const rows = summaryRows.map((r) => `<tr><td>${escapeHtml(r.supplier_name)}</td>${allBucketLabels.map((l) => `<td class="num" style="color:${r[l] > 0 ? "#fa8c16" : "#aaa"}">${r[l] > 0 ? "KES" + fmt(r[l]) : "KES0.00"}</td>`).join("")}<td class="num" style="color:#fa8c16;font-weight:700">KES${fmt(r.total)}</td>`).join("");
             const html = `<div class="header-block"><div><div class="company">AP Aging Summary</div><div class="subtitle">As of ${dayjs(data.as_of).format("DD/MM/YYYY")}</div></div><div class="meta">Generated: ${dayjs().format("DD MMM YYYY HH:mm")}</div></div>
             <table><thead><tr><th>Supplier Name</th>${bh}<th class="num">Total</th></tr></thead><tbody>${rows}</tbody></table>`;
             printSection(html, "AP Aging Summary");
         } else {
             const rows = data.suppliers.map((s) => {
-                const billRows = s.bills.map((b) => `<tr><td style="padding-left:32px">${dayjs(b.issue_date).format("DD/MM/YYYY")}</td><td style="padding-left:32px;color:#fa8c16">${b.invoice_no}</td><td>Bill</td><td><span style="color:${b.status === "Overdue" ? "#cf1322" : "#666"}">${b.status}</span></td><td class="num">${b.days_overdue} Days</td><td class="num" style="color:#fa8c16">KES${fmt(b.grand_total)}</td><td class="num" style="color:#fa8c16">KES${fmt(b.amount_due)}</td>`).join("");
-                return `<tr class="section-header"><td colspan="7">${s.supplier_name} — KES${fmt(s.total)}</td></tr>${billRows}`;
+                const billRows = s.bills.map((b) => `<tr><td style="padding-left:32px">${dayjs(b.issue_date).format("DD/MM/YYYY")}</td><td style="padding-left:32px;color:#fa8c16">${escapeHtml(b.invoice_no)}</td><td>Bill</td><td><span style="color:${b.status === "Overdue" ? "#cf1322" : "#666"}">${escapeHtml(b.status)}</span></td><td class="num">${escapeHtml(b.days_overdue)} Days</td><td class="num" style="color:#fa8c16">KES${fmt(b.grand_total)}</td><td class="num" style="color:#fa8c16">KES${fmt(b.amount_due)}</td>`).join("");
+                return `<tr class="section-header"><td colspan="7">${escapeHtml(s.supplier_name)} — KES${fmt(s.total)}</td></tr>${billRows}`;
             }).join("");
             const html = `<div class="header-block"><div><div class="company">AP Aging Details</div><div class="subtitle">As of ${dayjs(data.as_of).format("DD/MM/YYYY")}</div></div><div class="meta">Generated: ${dayjs().format("DD MMM YYYY HH:mm")}</div></div>
             <table><thead><tr><th>Date</th><th>Bill #</th><th>Type</th><th>Status</th><th class="num">Age</th><th class="num">Amount</th><th class="num">Balance Due</th></tr></thead><tbody>${rows}</tbody></table>`;

@@ -7,6 +7,7 @@ import {
     SearchOutlined, DownloadOutlined, FilterOutlined, SwapOutlined,
 } from "@ant-design/icons";
 import dayjs, { Dayjs } from "dayjs";
+import { escapeHtml } from "@utils/escapeHtml";
 
 const { Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -431,7 +432,7 @@ export const exportToPDF = (filename: string, rows: Record<string, any>[], perio
 <!DOCTYPE html>
 <html>
 <head>
-    <title>${filename}</title>
+    <title>${escapeHtml(filename)}</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: Arial, sans-serif; padding: 20px; font-size: 12px; color: #333; }
@@ -452,13 +453,13 @@ export const exportToPDF = (filename: string, rows: Record<string, any>[], perio
     </style>
 </head>
 <body>
-    <h1>${filename.replace(/_/g, ' ').toUpperCase()}</h1>
-    ${periodLabel ? `<div class="period">Report Period: ${periodLabel}</div>` : ''}
+    <h1>${escapeHtml(filename.replace(/_/g, ' ').toUpperCase())}</h1>
+    ${periodLabel ? `<div class="period">Report Period: ${escapeHtml(periodLabel)}</div>` : ''}
     ${summary ? `
     <div class="summary">
-        ${periodLabel ? `<div class="summary-row"><span class="summary-label">Report Period:</span><span class="summary-value">${periodLabel}</span></div>` : ''}
-        ${summary.basis ? `<div class="summary-row"><span class="summary-label">Basis:</span><span class="summary-value">${summary.basis}</span></div>` : ''}
-        ${summary.asOf ? `<div class="summary-row"><span class="summary-label">As Of:</span><span class="summary-value">${summary.asOf}</span></div>` : ''}
+        ${periodLabel ? `<div class="summary-row"><span class="summary-label">Report Period:</span><span class="summary-value">${escapeHtml(periodLabel)}</span></div>` : ''}
+        ${summary.basis ? `<div class="summary-row"><span class="summary-label">Basis:</span><span class="summary-value">${escapeHtml(summary.basis)}</span></div>` : ''}
+        ${summary.asOf ? `<div class="summary-row"><span class="summary-label">As Of:</span><span class="summary-value">${escapeHtml(summary.asOf)}</span></div>` : ''}
         ${summary.revenue !== undefined ? `<div class="summary-row"><span class="summary-label">Revenue:</span><span class="summary-value">KES ${(summary.revenue || 0).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>` : ''}
         ${summary.expenses !== undefined ? `<div class="summary-row"><span class="summary-label">Expenses:</span><span class="summary-value">KES ${(summary.expenses || 0).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>` : ''}
         ${summary.netProfit !== undefined ? `<div class="summary-row"><span class="summary-label">Net Profit:</span><span class="summary-value ${summary.netProfit >= 0 ? 'profit' : 'loss'}">KES ${(summary.netProfit || 0).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>` : ''}
@@ -471,13 +472,13 @@ export const exportToPDF = (filename: string, rows: Record<string, any>[], perio
     <table>
         <thead>
             <tr>
-                ${headers.map(h => `<th>${h.replace(/_/g, ' ')}</th>`).join('')}
+                ${headers.map(h => `<th>${escapeHtml(h.replace(/_/g, ' '))}</th>`).join('')}
             </tr>
         </thead>
         <tbody>
             ${rows.map(row => `
                 <tr>
-                    ${headers.map(h => `<td>${row[h] ?? ''}</td>`).join('')}
+                    ${headers.map(h => `<td>${escapeHtml(row[h])}</td>`).join('')}
                 </tr>
             `).join('')}
         </tbody>
