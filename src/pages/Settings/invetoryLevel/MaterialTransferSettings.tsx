@@ -9,6 +9,7 @@ import {
   rejectTransfer,
 } from "@services/inventory";
 import { getPrimaryColor } from "../../../utils/getPrimaryColor";
+import { escapeHtml } from "@utils/escapeHtml";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Transfer {
@@ -52,7 +53,7 @@ const generatePrintContent = (transfer: Transfer): string => {
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Transfer ${transfer.transfer_code}</title>
+  <title>Transfer ${escapeHtml(transfer.transfer_code)}</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -67,14 +68,14 @@ const generatePrintContent = (transfer: Transfer): string => {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      border-bottom: 3px solid ${primaryColor};
+      border-bottom: 3px solid ${escapeHtml(primaryColor)};
       padding-bottom: 16px;
       margin-bottom: 24px;
     }
     .header-title { font-size: 22px; font-weight: 800; color: #0f172a; }
     .header-sub { font-size: 12px; color: #64748b; margin-top: 3px; }
     .badge {
-      background: ${primaryColor};
+      background: ${escapeHtml(primaryColor)};
       color: #fff;
       padding: 8px 18px;
       border-radius: 6px;
@@ -153,20 +154,20 @@ const generatePrintContent = (transfer: Transfer): string => {
       <div class="header-title">Material Transfer</div>
       <div class="header-sub">Transfer document — keep for records</div>
     </div>
-    <div class="badge">${transfer.transfer_code}</div>
+    <div class="badge">${escapeHtml(transfer.transfer_code)}</div>
   </div>
 
   <div class="route-box">
     <div class="route-shop">
       <div class="route-shop-label">From</div>
-      <div class="route-shop-name">${transfer.from_shop_id?.name || "N/A"}</div>
-      ${transfer.from_shop_id?.location ? `<div class="route-shop-loc">${transfer.from_shop_id.location}</div>` : ""}
+      <div class="route-shop-name">${escapeHtml(transfer.from_shop_id?.name || "N/A")}</div>
+      ${transfer.from_shop_id?.location ? `<div class="route-shop-loc">${escapeHtml(transfer.from_shop_id.location)}</div>` : ""}
     </div>
     <div class="route-arrow">→</div>
     <div class="route-shop">
       <div class="route-shop-label">To</div>
-      <div class="route-shop-name">${transfer.to_shop_id?.name || "N/A"}</div>
-      ${transfer.to_shop_id?.location ? `<div class="route-shop-loc">${transfer.to_shop_id.location}</div>` : ""}
+      <div class="route-shop-name">${escapeHtml(transfer.to_shop_id?.name || "N/A")}</div>
+      ${transfer.to_shop_id?.location ? `<div class="route-shop-loc">${escapeHtml(transfer.to_shop_id.location)}</div>` : ""}
     </div>
   </div>
 
@@ -177,46 +178,46 @@ const generatePrintContent = (transfer: Transfer): string => {
     </div>
     <div class="meta-item">
       <span class="meta-label">Status</span>
-      <span class="meta-value">${transfer.status.replace(/_/g, " ").toUpperCase()}</span>
+      <span class="meta-value">${escapeHtml(transfer.status.replace(/_/g, " ").toUpperCase())}</span>
     </div>
     <div class="meta-item">
       <span class="meta-label">Transfer Date</span>
-      <span class="meta-value">${fmtDate(transfer.transfer_date)}</span>
+      <span class="meta-value">${escapeHtml(fmtDate(transfer.transfer_date))}</span>
     </div>
     <div class="meta-item">
       <span class="meta-label">Expected Delivery</span>
-      <span class="meta-value">${fmtDate(transfer.expected_delivery_date)}</span>
+      <span class="meta-value">${escapeHtml(fmtDate(transfer.expected_delivery_date))}</span>
     </div>
     ${transfer.actual_delivery_date ? `
     <div class="meta-item">
       <span class="meta-label">Actual Delivery</span>
-      <span class="meta-value">${fmtDate(transfer.actual_delivery_date)}</span>
+      <span class="meta-value">${escapeHtml(fmtDate(transfer.actual_delivery_date))}</span>
     </div>` : ""}
     <div class="meta-item">
       <span class="meta-label">Initiated By</span>
-      <span class="meta-value">${transfer.initiated_by?.name || "N/A"}</span>
+      <span class="meta-value">${escapeHtml(transfer.initiated_by?.name || "N/A")}</span>
     </div>
     ${transfer.approved_by ? `
     <div class="meta-item">
       <span class="meta-label">Approved By</span>
-      <span class="meta-value">${transfer.approved_by.name}</span>
+      <span class="meta-value">${escapeHtml(transfer.approved_by.name)}</span>
     </div>` : ""}
     ${transfer.received_by ? `
     <div class="meta-item">
       <span class="meta-label">Received By</span>
-      <span class="meta-value">${transfer.received_by.name}</span>
+      <span class="meta-value">${escapeHtml(transfer.received_by.name)}</span>
     </div>` : ""}
     ${transfer.rejection_reason ? `
     <div class="meta-item">
       <span class="meta-label">Rejection Reason</span>
-      <span class="meta-value" style="color:#ef4444">${transfer.rejection_reason}</span>
+      <span class="meta-value" style="color:#ef4444">${escapeHtml(transfer.rejection_reason)}</span>
     </div>` : ""}
   </div>
 
   ${transfer.notes ? `
   <div class="notes-box">
     <span class="notes-label">Notes</span>
-    ${transfer.notes}
+    ${escapeHtml(transfer.notes)}
   </div>` : ""}
 
   <div class="section-label">Transfer Items</div>
@@ -234,20 +235,20 @@ const generatePrintContent = (transfer: Transfer): string => {
       ${transfer.items?.map((item: any, i: number) => `
       <tr>
         <td>${i + 1}</td>
-        <td>${item.product_id?.name || item.from_product_id?.name || "N/A"}${item.from_variant_name || item.to_variant_name ? `<div style="font-size:10px;color:#64748b">${[item.from_variant_name, item.to_variant_name].filter(Boolean).join(" → ")}</div>` : ""}</td>
-        <td>${item.product_id?.code || item.from_product_id?.code || "—"}</td>
-        <td><strong>${item.quantity}</strong></td>
-        <td>${item.unit_id?.name || "—"}</td>
+        <td>${escapeHtml(item.product_id?.name || item.from_product_id?.name || "N/A")}${item.from_variant_name || item.to_variant_name ? `<div style="font-size:10px;color:#64748b">${escapeHtml([item.from_variant_name, item.to_variant_name].filter(Boolean).join(" → "))}</div>` : ""}</td>
+        <td>${escapeHtml(item.product_id?.code || item.from_product_id?.code || "—")}</td>
+        <td><strong>${escapeHtml(item.quantity)}</strong></td>
+        <td>${escapeHtml(item.unit_id?.name || "—")}</td>
       </tr>`).join("") || "<tr><td colspan='5' style='text-align:center;color:#94a3b8'>No items</td></tr>"}
       <tr class="total-row">
         <td colspan="3" style="text-align:right;padding-right:16px">Total Items:</td>
-        <td colspan="2"><strong>${transfer.total_items}</strong></td>
+        <td colspan="2"><strong>${escapeHtml(transfer.total_items)}</strong></td>
       </tr>
     </tbody>
   </table>
 
   <div class="footer">
-    Generated on ${new Date().toLocaleString()} · ${transfer.transfer_code}
+    Generated on ${new Date().toLocaleString()} · ${escapeHtml(transfer.transfer_code)}
   </div>
 </body>
 </html>`;
