@@ -7,11 +7,10 @@ import { usePermissions } from "@hooks/usePermissions";
 import { fetchPlans, planAudience } from "@services/plans";
 import { audienceConfig, useAudience } from "@pages/FormsPlans/audience";
 import type { PersonLite } from "@pages/FormsPlans/forms/person";
-import { CATEGORY_META } from "@pages/FormsPlans/forms/constants";
-import type { FormCategory } from "@pages/FormsPlans/forms/types";
 import PlanDrawer from "./PlanDrawer";
 import NewPlanModal from "./NewPlanModal";
 import { PLAN_STATUS_META, type PlanStatus, type TreatmentPlan } from "./types";
+import { useCategories } from "../forms/categories";
 
 const { Text } = Typography;
 
@@ -27,7 +26,7 @@ interface Props {
 const PlanCard: React.FC<{ plan: TreatmentPlan; showCustomer?: boolean; onOpen: () => void }> = ({ plan, showCustomer, onOpen }) => {
   const meta = PLAN_STATUS_META[plan.status];
   const step = audienceConfig(planAudience(plan)).stepNoun.toLowerCase();
-  const cat = CATEGORY_META[plan.category as FormCategory] ?? CATEGORY_META.other;
+  const cat = useCategories().meta(plan.category);
   const pct = plan.progress.total ? Math.round((plan.progress.done / plan.progress.total) * 100) : 0;
   const next = plan.progress.next_session;
   const overdue = plan.status === "active" && next?.planned_date && dayjs(next.planned_date).isBefore(dayjs(), "day");

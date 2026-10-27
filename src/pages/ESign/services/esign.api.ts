@@ -1,6 +1,6 @@
 import { message } from "antd";
 import axiosInstance from "@services/request";
-import { BASE_URL } from "@utils/config";
+import { BASE_URL, shareableOrigin } from "@utils/config";
 import type {
     Document,
     LibraryItem,
@@ -218,7 +218,7 @@ export const eSignService = {
 
     buildPublicSignUrl: (token: string): string => {
         const companyCode = localStorage.getItem("companyCode") || "";
-        return `${window.location.origin}/esign/sign/${token}?c=${encodeURIComponent(companyCode)}`;
+        return `${shareableOrigin()}/esign/sign/${token}?c=${encodeURIComponent(companyCode)}`;
     },
 
     downloadSignedDocument: async (documentId: string): Promise<void> => {

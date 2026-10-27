@@ -28,6 +28,8 @@ import {
   UserOutlined,
   CheckCircleFilled,
   CloseCircleOutlined,
+  DownloadOutlined,
+  EyeOutlined,
 } from "@ant-design/icons";
 import dayjs, { type Dayjs } from "dayjs";
 import { useAppSelector } from "src/store";
@@ -42,7 +44,9 @@ import {
   completePlanSession,
   deletePlanSession,
   planError,
+  fetchPlanPdfBlob,
 } from "@services/plans";
+import PdfPreviewModal, { saveBlob, planPdfName } from "@pages/FormsPlans/forms/fill/SignedPdfModal";
 import { PLAN_STATUS_META, SESSION_STATUS_META, type PlanSession, type TreatmentPlan } from "./types";
 import { AudienceContext, audienceConfig, useAudience, type AudienceConfig } from "@pages/FormsPlans/audience";
 
@@ -293,6 +297,33 @@ const PlanDrawer: React.FC<Props> = ({ planId, onClose }) => {
   const pct = plan && plan.progress.total ? Math.round((plan.progress.done / plan.progress.total) * 100) : 0;
   const allDone = !!plan && plan.progress.total > 0 && plan.progress.done === plan.progress.total;
 
+  // Built by the API and saved from memory, so it also works in the desktop app
+  const canPdf = can(a.perms.plansDownload);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const downloadPdf = async () => {
+    if (!plan) return;
+    setPdfBusy(true);
+    try {
+      saveBlob(await fetchPlanPdfBlob(plan._id, planAudience(plan)), planPdfName(plan));
+    } catch {
+      message.error("Couldn't download the plan");
+    } finally {
+      setPdfBusy(false);
+    }
+  };
+  const pdfButton =
+    plan && canPdf ? (
+      <>
+        <Button icon={<EyeOutlined />} onClick={() => setPreviewOpen(true)}>
+          {wide ? "Preview" : null}
+        </Button>
+        <Button icon={<DownloadOutlined />} loading={pdfBusy} onClick={downloadPdf}>
+          {wide ? "PDF" : null}
+        </Button>
+      </>
+    ) : null;
+
   const sessionMenu = (s: PlanSession) => [
     { key: "edit", icon: <EditOutlined />, label: "Edit" },
     ...(s.status === "planned" ? [{ key: "skip", icon: <StopOutlined />, label: "Skip" }] : []),
@@ -363,6 +394,7 @@ const PlanDrawer: React.FC<Props> = ({ planId, onClose }) => {
         plan && can(a.perms.plansManage) ? (
           plan.status === "active" ? (
             <div style={{ display: "flex", gap: 8 }}>
+              {pdfButton}
               {wide && (
                 <Button icon={<CloseCircleOutlined />} onClick={cancelPlan}>
                   Cancel plan
@@ -373,10 +405,15 @@ const PlanDrawer: React.FC<Props> = ({ planId, onClose }) => {
               </Button>
             </div>
           ) : (
-            <Button icon={<UndoOutlined />} onClick={() => savePlan({ status: "active" }, "Plan reopened")}>
-              Reopen
-            </Button>
+            <div style={{ display: "flex", gap: 8 }}>
+              {pdfButton}
+              <Button icon={<UndoOutlined />} onClick={() => savePlan({ status: "active" }, "Plan reopened")}>
+                Reopen
+              </Button>
+            </div>
           )
+        ) : pdfButton ? (
+          <div style={{ display: "flex", gap: 8 }}>{pdfButton}</div>
         ) : null
       }
     >
@@ -646,6 +683,15 @@ const PlanDrawer: React.FC<Props> = ({ planId, onClose }) => {
           if (ok) setCompleting(null);
         }}
       />
+      {plan && canPdf && (
+        <PdfPreviewModal
+          open={previewOpen}
+          title={`${plan.title} · ${plan.subject_snapshot.name}`}
+          fileName={planPdfName(plan)}
+          load={() => fetchPlanPdfBlob(plan._id, planAudience(plan))}
+          onClose={() => setPreviewOpen(false)}
+        />
+      )}
     </Drawer>
     </AudienceContext.Provider>
   );

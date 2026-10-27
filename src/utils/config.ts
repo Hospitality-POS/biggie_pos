@@ -34,3 +34,13 @@ export const POS_API_KEY: string = import.meta.env.VITE_POS_API_KEY
 export const ENTITY_NAME: string = import.meta.env.VITE_ENTITY_NAME;
 export const COOP_NAME: string = import.meta.env.VITE_COOP_NAME;
 export const AI_DUKA_URL: string = import.meta.env.VITE_AI_DUKA_URL || "https://ai-duka.basepointcloud.dev";
+
+// Web address customers open links on. The desktop app runs on
+// tauri.localhost, which only works inside the app itself.
+export const PUBLIC_APP_URL: string = (import.meta.env.VITE_PUBLIC_APP_URL || "https://app.basepoint.co.ke").replace(/\/+$/, "");
+
+/** Origin for links shared with customers: this site in a browser, the web app from the desktop app. */
+export const shareableOrigin = (): string =>
+    typeof window !== "undefined" && !("__TAURI_INTERNALS__" in window) && /^https?:$/.test(window.location.protocol) && !/(^|\.)tauri\.localhost$/i.test(window.location.hostname)
+        ? window.location.origin
+        : PUBLIC_APP_URL;

@@ -5,10 +5,9 @@ import { PlusOutlined, DeleteOutlined, ArrowUpOutlined, ArrowDownOutlined, BulbO
 import { THEME_C } from "@utils/getPrimaryColor";
 import { usePermissions } from "@hooks/usePermissions";
 import { fetchPlanTemplates, savePlanTemplate, deletePlanTemplate, planError } from "@services/plans";
-import { CATEGORY_META } from "@pages/FormsPlans/forms/constants";
 import { useAudience, type AudienceConfig } from "@pages/FormsPlans/audience";
-import type { FormCategory } from "@pages/FormsPlans/forms/types";
 import type { PlanTemplate, TemplateSession } from "./types";
+import { CategorySelect, useCategories } from "../forms/categories";
 
 const { Text } = Typography;
 const C = THEME_C;
@@ -86,7 +85,7 @@ const TemplateModal: React.FC<{ open: boolean; template: Draft | null; onClose: 
           </div>
           <div>
             <Label>{isEmployee ? "Type" : "Treatment"}</Label>
-            <Select value={d.category} onChange={(v) => set("category", v)} options={a.categoryOptions} style={{ width: "100%" }} />
+            <CategorySelect value={d.category} onChange={(v) => set("category", v)} style={{ width: "100%" }} />
           </div>
         </div>
         <div>
@@ -161,11 +160,10 @@ const TemplateModal: React.FC<{ open: boolean; template: Draft | null; onClose: 
             After {isEmployee ? "an employee" : "a client"} signs a form, matching templates are offered first when starting their plan.
           </Text>
           <div style={{ display: "grid", gap: 8 }}>
-            <Select
+            <CategorySelect
               mode="multiple"
               value={d.triggers.form_categories}
               onChange={(v) => set("triggers", { ...d.triggers, form_categories: v })}
-              options={a.categoryOptions}
               placeholder={isEmployee ? "…the signed form is one of these types" : "…the signed form is for one of these treatments"}
               style={{ width: "100%" }}
             />
@@ -190,6 +188,7 @@ const TemplateModal: React.FC<{ open: boolean; template: Draft | null; onClose: 
 };
 
 const PlanTemplates: React.FC = () => {
+  const { meta: categoryMeta } = useCategories();
   const queryClient = useQueryClient();
   const { can } = usePermissions();
   const a = useAudience();
@@ -232,7 +231,7 @@ const PlanTemplates: React.FC = () => {
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
           {templates.map((t) => {
-            const cat = CATEGORY_META[t.category as FormCategory] ?? CATEGORY_META.other;
+            const cat = categoryMeta(t.category);
             return (
               <div key={t._id} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 14, opacity: t.active ? 1 : 0.6, display: "flex", flexDirection: "column", gap: 8 }}>
                 <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
@@ -256,7 +255,7 @@ const PlanTemplates: React.FC = () => {
                 {(t.triggers.form_categories.length > 0 || t.triggers.answer_keywords.length > 0) && (
                   <Text style={{ fontSize: 11.5, color: "#b45309" }}>
                     <BulbOutlined /> Suggested for{" "}
-                    {[...t.triggers.form_categories.map((c) => CATEGORY_META[c as FormCategory]?.label ?? c), ...t.triggers.answer_keywords.map((k) => `“${k}”`)].join(", ")}
+                    {[...t.triggers.form_categories.map((c) => categoryMeta(c).label), ...t.triggers.answer_keywords.map((k) => `“${k}”`)].join(", ")}
                   </Text>
                 )}
                 {canManage && (

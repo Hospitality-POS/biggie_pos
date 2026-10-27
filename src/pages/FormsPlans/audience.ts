@@ -1,5 +1,5 @@
 import { createContext, useContext } from "react";
-import type { Audience, FormCategory, PrefillSource, SignerRole } from "./forms/types";
+import type { Audience, BuiltInCategory, PrefillSource, SignerRole } from "./forms/types";
 import { CATEGORY_META } from "./forms/constants";
 
 /**
@@ -11,7 +11,7 @@ import { CATEGORY_META } from "./forms/constants";
  * lives here; components read it with useAudience().
  */
 
-export type HubTab = "forms" | "filled" | "plans" | "templates";
+export type HubTab = "forms" | "filled" | "analytics" | "plans" | "templates";
 
 export interface AudienceConfig {
   audience: Audience;
@@ -38,8 +38,8 @@ export interface AudienceConfig {
   serviceLabel: string;
   notesLabel: string;
   guidanceLabel: string;
-  categories: FormCategory[];
-  categoryOptions: { value: FormCategory; label: string }[];
+  categories: BuiltInCategory[];
+  categoryOptions: { value: BuiltInCategory; label: string }[];
   prefillOptions: { value: PrefillSource; label: string }[];
   perms: {
     view: string;
@@ -54,6 +54,10 @@ export interface AudienceConfig {
     plansView: string;
     plansManage: string;
     planTemplatesManage: string;
+    analytics: string;
+    download: string;
+    categoriesManage: string;
+    plansDownload: string;
   };
   hubPath: (tab?: HubTab) => string;
   builderPath: (id: string) => string;
@@ -62,10 +66,10 @@ export interface AudienceConfig {
 
 const adminPrefix = () => (window.location.pathname.startsWith("/admin") ? "/admin" : "");
 
-const options = (categories: FormCategory[]) =>
+const options = (categories: BuiltInCategory[]) =>
   categories.map((value) => ({ value, label: `${CATEGORY_META[value].emoji}  ${CATEGORY_META[value].label}` }));
 
-const CLIENT_CATEGORIES: FormCategory[] = [
+const CLIENT_CATEGORIES: BuiltInCategory[] = [
   "consultation",
   "facial",
   "lash_brow",
@@ -78,7 +82,7 @@ const CLIENT_CATEGORIES: FormCategory[] = [
   "other",
 ];
 
-const EMPLOYEE_CATEGORIES: FormCategory[] = ["onboarding", "policy", "nda", "incident", "training", "contract", "other"];
+const EMPLOYEE_CATEGORIES: BuiltInCategory[] = ["onboarding", "policy", "nda", "incident", "training", "contract", "other"];
 
 const COMMON_PREFILL = (who: string): { value: PrefillSource; label: string }[] => [
   { value: "none", label: `${who} types it` },
@@ -128,6 +132,10 @@ export const AUDIENCES: Record<Audience, AudienceConfig> = {
       plansView: "CLIENT_PLANS_VIEW",
       plansManage: "CLIENT_PLANS_MANAGE",
       planTemplatesManage: "CLIENT_PLAN_TEMPLATES_MANAGE",
+      analytics: "CLIENT_FORMS_ANALYTICS",
+      download: "CLIENT_FORMS_DOWNLOAD",
+      categoriesManage: "CLIENT_FORMS_CATEGORIES_MANAGE",
+      plansDownload: "CLIENT_PLANS_DOWNLOAD",
     },
     hubPath: (tab) => `${adminPrefix()}/forms${tab ? `?tab=${tab}` : ""}`,
     builderPath: (id) => `${adminPrefix()}/forms/builder/${id}`,
@@ -175,6 +183,10 @@ export const AUDIENCES: Record<Audience, AudienceConfig> = {
       plansView: "EMPLOYEE_PLANS_VIEW",
       plansManage: "EMPLOYEE_PLANS_MANAGE",
       planTemplatesManage: "EMPLOYEE_PLANS_MANAGE",
+      analytics: "EMPLOYEE_FORMS_ANALYTICS",
+      download: "EMPLOYEE_FORMS_DOWNLOAD",
+      categoriesManage: "EMPLOYEE_FORMS_CATEGORIES_MANAGE",
+      plansDownload: "EMPLOYEE_PLANS_DOWNLOAD",
     },
     hubPath: (tab) => `/hr/forms${tab ? `?tab=${tab}` : ""}`,
     builderPath: (id) => `/hr/forms/builder/${id}`,
