@@ -19,13 +19,13 @@ import {
 } from "@ant-design/icons";
 import type {
   FieldType,
-  FormCategory,
+  BuiltInCategory,
   FormField,
   FormStatus,
   SignerRole,
 } from "./types";
 
-export const CATEGORY_META: Record<FormCategory, { label: string; color: string; bg: string; emoji: string }> = {
+export const CATEGORY_META: Record<BuiltInCategory, { label: string; color: string; bg: string; emoji: string }> = {
   consultation: { label: "Consultation", color: "#0ea5e9", bg: "#f0f9ff", emoji: "📝" },
   facial: { label: "Facial", color: "#ec4899", bg: "#fdf2f8", emoji: "✨" },
   lash_brow: { label: "Lash & Brow", color: "#8b5cf6", bg: "#f5f3ff", emoji: "👁️" },

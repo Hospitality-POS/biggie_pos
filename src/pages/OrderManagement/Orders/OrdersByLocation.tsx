@@ -22,7 +22,9 @@ import {
   ReloadOutlined,
   ShoppingCartOutlined,
   DollarOutlined,
+  StarOutlined,
 } from "@ant-design/icons";
+import OrdersAiDrawer from "./OrdersAiDrawer";
 import {
   BarChart,
   Bar,
@@ -512,6 +514,7 @@ const OrdersByLocation = () => {
   const [loading, setLoading] = useState(false);
   const [data, setData]       = useState<LocationData[]>([]);
   const [reportOpen, setReportOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
   const [tenant, setTenant]   = useState<any>(null);
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -540,8 +543,12 @@ const OrdersByLocation = () => {
   const tenantInitial = businessName.charAt(0).toUpperCase();
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
+  // What the table currently shows, so the AI talks about the same orders
+  const [appliedFilters, setAppliedFilters] = useState(filters);
+
   const fetchData = async () => {
     setLoading(true);
+    setAppliedFilters(filters);
     try {
       const result = await getOrdersByLocation(filters);
       setData(result?.grouped_by_location || []);
@@ -850,6 +857,15 @@ const OrdersByLocation = () => {
         >
           {isCompact ? "Report" : "View Report"}
         </Button>
+        <Button
+          size="small"
+          icon={<StarOutlined />}
+          onClick={() => setAiOpen(true)}
+          style={{ background: "linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)", color: "#fff", border: "none", borderRadius: 7, fontWeight: 600, ...actionBtn }}
+        >
+          AI insights
+        </Button>
+        <OrdersAiDrawer open={aiOpen} onClose={() => setAiOpen(false)} filters={appliedFilters} />
       </div>
 
       {/* ── KPI strip ──────────────────────────────────────────────────────── */}

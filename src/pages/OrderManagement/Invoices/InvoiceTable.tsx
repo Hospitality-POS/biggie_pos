@@ -38,6 +38,16 @@ const { RangePicker } = DatePicker;
 // ── Palette ────────────────────────────────────────────────────────────────
 const C = THEME_C;
 
+/** Round to cents: float subtraction leaves values like 0.009999999776. */
+const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+
+/** "12345.6" → "12,345.6": commas in the whole part only, never in the decimals. */
+const moneyFormatter = (v?: string | number) => {
+  if (v === undefined || v === null || v === "") return "";
+  const [whole, dec] = String(v).split(".");
+  return whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",") + (dec !== undefined ? `.${dec}` : "");
+};
+
 const fmt = (v: number) =>
   (v || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -63,11 +73,25 @@ const STATUS_CFG: Record<string, { bg: string; color: string; border: string; do
   Draft: { bg: "#fffbeb", color: "#d97706", border: "#fde68a", dot: "#f59e0b" },
   Pending: { bg: "#eff6ff", color: "#2563eb", border: "#bfdbfe", dot: "#3b82f6" },
   Partially_Paid: { bg: "#fff7ed", color: "#ea580c", border: "#fed7aa", dot: "#f97316" },
+  // Older partly paid invoices were saved as "Partial"
+  Partial: { bg: "#fff7ed", color: "#ea580c", border: "#fed7aa", dot: "#f97316" },
   Paid: { bg: "#f0fdf4", color: "#059669", border: "#bbf7d0", dot: "#10b981" },
   Overdue: { bg: "#fef2f2", color: "#dc2626", border: "#fecaca", dot: "#ef4444" },
   Voided: { bg: C.bg, color: C.subText, border: C.border, dot: "#94a3b8" },
   Cancelled: { bg: C.bg, color: C.subText, border: C.border, dot: "#94a3b8" },
 };
+
+/** Balance left after payments and sales receipts. */
+const balanceDue = (r: any) => {
+  const paid = (r.payments || r.payment_ids || []).reduce((s: number, p: any) => s + (p.amount || 0), 0);
+  const receipts = (r.salesReceipts || []).reduce((s: number, x: any) => s + (x.grand_total || 0), 0);
+  return round2(Math.max(0, (r.grand_total || 0) - paid - receipts));
+};
+
+/** Open for payment: not a quote, not voided / cancelled, and money still owed. */
+const isPayable = (r: any) =>
+  ["Pending", "Partially_Paid", "Partial", "Overdue"].includes(r.status) ||
+  (!["Draft", "Voided", "Cancelled"].includes(r.status) && balanceDue(r) > 0.001);
 
 const StatusTag = ({ status }: { status?: string }) => {
   if (!status) return null;
@@ -198,10 +222,11 @@ const MobileInvoiceCard: React.FC<{
   onExpand: (r: any) => void;
   onOpenNote: (noteId: string) => void;
   onEtr: (r: any) => void;
+  onPaymentsChanged?: () => void;
   expanded: boolean;
-}> = ({ record, onConvert, onPay, onEdit, onExpand, onOpenNote, onEtr, expanded }) => {
+}> = ({ record, onConvert, onPay, onEdit, onExpand, onOpenNote, onEtr, onPaymentsChanged, expanded }) => {
   const isDraft = record.status === "Draft";
-  const isPayable = ["Pending", "Partially_Paid", "Overdue"].includes(record.status);
+  const payable = isPayable(record);
   const needsEtr = !isDraft && !record.etr_enabled;
 
   const actionItems = [
@@ -209,7 +234,7 @@ const MobileInvoiceCard: React.FC<{
       { key: "print", label: "Print Quote", icon: <PrinterOutlined /> },
       { key: "convert", label: "Convert to Invoice", icon: <FileDoneOutlined /> },
     ] : []),
-    ...(isPayable ? [{ key: "pay", label: "Record Payment", icon: <DollarOutlined /> }] : []),
+    ...(payable ? [{ key: "pay", label: "Make Payment", icon: <DollarOutlined /> }] : []),
     ...(needsEtr ? [{ key: "etr", label: "Submit Etims", icon: <SafetyCertificateOutlined /> }] : []),
     { key: "edit", label: "Edit", icon: <EditOutlined /> },
     ...(isAdmin && !record.etr_enabled ? [{ key: "delete", label: "Delete", icon: <DeleteOutlined />, danger: true }] : []),
@@ -323,7 +348,7 @@ const MobileInvoiceCard: React.FC<{
           style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.border}` }}
           onClick={(e) => e.stopPropagation()}
         >
-          <ExpandedRowContent record={record} onOpenNote={handleOpenNote} />
+          <ExpandedRowContent record={record} onOpenNote={handleOpenNote} onPaymentsChanged={onPaymentsChanged} />
         </div>
       )}
     </div>
@@ -429,7 +454,7 @@ const PaymentModal: React.FC<{
   // Calculate amount due including sales receipts
   const regularPayments = (invoice?.payments || invoice?.payment_ids || []).reduce((s: number, p: any) => s + (p.amount || 0), 0);
   const salesReceiptsTotal = (invoice?.salesReceipts || []).reduce((s: number, r: any) => s + (r.grand_total || 0), 0);
-  const amountDue = Math.max(0, (invoice?.grand_total || 0) - regularPayments - salesReceiptsTotal);
+  const amountDue = round2(Math.max(0, (invoice?.grand_total || 0) - regularPayments - salesReceiptsTotal));
   const mutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => recordInvoicePayment(id, data),
     onSuccess: () => {
@@ -447,6 +472,7 @@ const PaymentModal: React.FC<{
         account_id: v.account_id,
         reference: v.reference, 
         notes: v.notes,
+        payment_date: v.payment_date ? dayjs(v.payment_date).toISOString() : undefined,
       } 
     });
   };
@@ -455,7 +481,7 @@ const PaymentModal: React.FC<{
     <Modal open={open} onCancel={onClose} destroyOnClose
       style={{ top: 20 }} width="min(480px, 96vw)"
       styles={{ body: { padding: "20px 24px" } }}
-      title={modalTitle(<DollarOutlined />, C.green, `Record Payment — ${invoice?.order_no}`)}
+      title={modalTitle(<DollarOutlined />, C.green, `Make Payment — ${invoice?.order_no}`)}
       footer={modalFooter(onClose, handleOk, mutation.isLoading, "Record Payment", C.green)}
     >
       <div style={{
@@ -466,7 +492,7 @@ const PaymentModal: React.FC<{
         <Text style={{ fontSize: 12, color: C.subText }}>Balance Due</Text>
         <Text strong style={{ fontSize: 15, color: C.green }}>KES {fmt(amountDue)}</Text>
       </div>
-      <Form form={form} layout="vertical" initialValues={{ amount: amountDue }}>
+      <Form form={form} layout="vertical" initialValues={{ amount: amountDue, payment_date: dayjs() }}>
         <Form.Item name="method_id" label="Payment Method" rules={[{ required: true }]}>
           <Select showSearch placeholder="M-Pesa / Bank / Cash"
             options={methodOptions} optionFilterProp="label" style={{ borderRadius: 8 }} />
@@ -497,8 +523,21 @@ const PaymentModal: React.FC<{
           rules={[{ required: true }, { type: "number", min: 0.01, max: amountDue }]}>
           <InputNumber style={{ width: "100%", borderRadius: 8 }}
             min={0.01} max={amountDue} precision={2}
-            formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+            formatter={moneyFormatter}
             parser={(v) => v!.replace(/,/g, "") as any} />
+        </Form.Item>
+        <Form.Item
+          name="payment_date"
+          label="Payment Date"
+          rules={[{ required: true, message: "Pick the date the money was received" }]}
+          tooltip="Backdate it if the money came in earlier. The journal entry uses this date."
+        >
+          <DatePicker
+            showTime={{ format: "HH:mm" }}
+            format="DD MMM YYYY HH:mm"
+            disabledDate={(d) => d.isAfter(dayjs(), "day")}
+            style={{ width: "100%", borderRadius: 8 }}
+          />
         </Form.Item>
         <Form.Item name="reference" label="Reference / Transaction Code">
           <Input placeholder="M-Pesa code, cheque no..." style={{ borderRadius: 8 }} />
@@ -757,8 +796,8 @@ const InvoicesTable = ({ quotesOnly = false }: { quotesOnly?: boolean }) => {
     ...(record.status !== "Draft" && record.status !== "Voided" && !record.journal_entry_id ? [
       { key: "post", label: "Post to Accounting", icon: <FileDoneOutlined /> },
     ] : []),
-    ...(["Pending", "Partially_Paid", "Overdue"].includes(record.status) ? [
-      { key: "pay", label: "Record Payment", icon: <DollarOutlined /> },
+    ...(isPayable(record) ? [
+      { key: "pay", label: "Make Payment", icon: <DollarOutlined /> },
     ] : []),
     ...(record.status !== "Draft" && record.status !== "Voided" ? [
       { key: "credit-note", label: "Create Credit Note", icon: <FileTextOutlined /> },
@@ -969,8 +1008,7 @@ const InvoicesTable = ({ quotesOnly = false }: { quotesOnly?: boolean }) => {
         const date = dayjs(text);
         if (!date.isValid()) return <Text style={{ color: C.subText }}>—</Text>;
 
-        const isPayable = ["Pending", "Partially_Paid", "Overdue"].includes(record.status);
-        if (!isPayable || record.amount_due <= 0 || !dayjs().isAfter(date)) {
+        if (!isPayable(record) || record.amount_due <= 0 || !dayjs().isAfter(date)) {
           return <Text style={{ color: C.subText }}>—</Text>;
         }
 
@@ -1097,6 +1135,7 @@ const InvoicesTable = ({ quotesOnly = false }: { quotesOnly?: boolean }) => {
                 onExpand={(r) => setExpandedId(expandedId === r._id ? null : r._id)}
                 onOpenNote={handleOpenNote}
                 onEtr={handleEtrSubmit}
+                onPaymentsChanged={refreshTable}
               />
             ))}
             {mobileData.length < mobileTotal && (
@@ -1227,7 +1266,7 @@ const InvoicesTable = ({ quotesOnly = false }: { quotesOnly?: boolean }) => {
           } else if (quick_filter === "not_posted") {
             apiParams.posted = "false";
           } else if (quick_filter === "due") {
-            apiParams.status = "Pending,Partially_Paid,Overdue";
+            apiParams.status = "Pending,Partially_Paid,Partial,Overdue";
           } else if (["pending", "paid", "overdue"].includes(quick_filter)) {
             apiParams.status = quick_filter === "pending" ? "Pending" : quick_filter === "paid" ? "Paid" : "Overdue";
           }
@@ -1252,7 +1291,7 @@ const InvoicesTable = ({ quotesOnly = false }: { quotesOnly?: boolean }) => {
           // ── Invoice/receipt FIRST, then details ──
           expandedRowRender: (record) => (
             <div onClick={(e) => e.stopPropagation()}>
-              <ExpandedRowContent record={record} defaultTab="receipt" onOpenNote={handleOpenNote} />
+              <ExpandedRowContent record={record} defaultTab="receipt" onOpenNote={handleOpenNote} onPaymentsChanged={refreshTable} />
             </div>
           ),
           defaultExpandAllRows: false,

@@ -24,6 +24,25 @@ export const fetchPlans = async (
   params: { customer_id?: string; employee_id?: string; status?: string } = {}
 ): Promise<TreatmentPlan[]> => unwrap(await axiosInstance.get(plans(), { params: { ...params, audience }, ...as(audience, "plansView") }));
 
+export interface PlanAnalytics {
+  total: number;
+  by_status: Partial<Record<"active" | "completed" | "cancelled", number>>;
+  sessions: { total: number; done: number; skipped: number; overdue: number };
+  per_day: { date: string; count: number }[];
+  by_plan: { key: string; name: string; category?: string; total: number; completed: number }[];
+  by_owner: { name: string; plans: number; active: number }[];
+  avg_days_to_finish: number | null;
+  from_forms: number;
+  people: number;
+}
+
+export const fetchPlanAnalytics = async (audience: Audience, params: { from?: string; to?: string } = {}): Promise<PlanAnalytics> =>
+  unwrap(await axiosInstance.get(plans("/analytics"), { params: { ...params, audience }, ...as(audience, "plansView") }));
+
+/** The plan as a PDF, for saving or printing. */
+export const fetchPlanPdfBlob = async (id: string, audience?: Audience): Promise<Blob> =>
+  (await axiosInstance.get(plans(`/${id}/pdf`), { responseType: "blob", ...as(audience, "plansView") })).data;
+
 export const fetchPlan = async (id: string, audience?: Audience): Promise<TreatmentPlan> =>
   unwrap(await axiosInstance.get(plans(`/${id}`), as(audience, "plansView")));
 

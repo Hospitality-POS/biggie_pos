@@ -8,9 +8,8 @@ import { fetchPlanTemplates, fetchPlanSuggestions, createPlan, planError } from 
 import PersonPicker from "@pages/FormsPlans/forms/components/PersonPicker";
 import { personName, type PersonLite } from "@pages/FormsPlans/forms/person";
 import { useAudience } from "@pages/FormsPlans/audience";
-import { CATEGORY_META } from "@pages/FormsPlans/forms/constants";
-import type { FormCategory } from "@pages/FormsPlans/forms/types";
 import type { TreatmentPlan } from "./types";
+import { useCategories } from "../forms/categories";
 
 const { Text } = Typography;
 const C = THEME_C;
@@ -26,7 +25,6 @@ interface Props {
 }
 
 const BLANK = "__blank";
-const emoji = (category: string) => CATEGORY_META[category as FormCategory]?.emoji ?? "📋";
 
 const Choice: React.FC<{
   active: boolean;
@@ -64,6 +62,7 @@ const Choice: React.FC<{
 );
 
 const NewPlanModal: React.FC<Props> = ({ open, onClose, person, submissionId, onCreated }) => {
+  const emoji = useCategories().meta;
   const a = useAudience();
   const isEmployee = a.audience === "employee";
   const [picked, setPicked] = useState<PersonLite | null>(person ?? null);
@@ -158,7 +157,7 @@ const NewPlanModal: React.FC<Props> = ({ open, onClose, person, submissionId, on
                     key={s._id}
                     active={choice === s._id}
                     onClick={() => setChoice(s._id)}
-                    icon={emoji(s.category)}
+                    icon={emoji(s.category).emoji}
                     title={s.name}
                     sub={`${s.sessions} ${a.stepNoun.toLowerCase()}${s.sessions === 1 ? "" : "s"}`}
                     badge={<span style={{ display: "block", fontSize: 11.5, color: "#b45309", marginTop: 2 }}>{s.reasons.join(" · ")}</span>}
@@ -183,7 +182,7 @@ const NewPlanModal: React.FC<Props> = ({ open, onClose, person, submissionId, on
                   key={t._id}
                   active={choice === t._id}
                   onClick={() => setChoice(t._id)}
-                  icon={emoji(t.category)}
+                  icon={emoji(t.category).emoji}
                   title={t.name}
                   sub={`${t.sessions.length} ${a.stepNoun.toLowerCase()}${t.sessions.length === 1 ? "" : "s"}${t.description ? ` · ${t.description}` : ""}`}
                 />

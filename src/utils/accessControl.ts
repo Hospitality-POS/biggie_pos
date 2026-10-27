@@ -822,21 +822,29 @@ export const PERMISSIONS: Record<string, Permission> = {
     CLIENT_FORMS_DELETE: { key: "CLIENT_FORMS_DELETE", label: "Delete Draft Client Forms", module: MODULES.CLIENT_FORMS, action: "delete", moduleScope: "pos" },
     CLIENT_FORMS_APPROVE: { key: "CLIENT_FORMS_APPROVE", label: "Approve Client Forms", module: MODULES.CLIENT_FORMS, action: "special", moduleScope: "pos" },
     // Filled-in forms hold clients' health information — viewing them is its own permission
-    CLIENT_FORMS_VIEW_FILLED: { key: "CLIENT_FORMS_VIEW_FILLED", label: "View Filled Client Forms & Signed PDFs", module: MODULES.CLIENT_FORMS, action: "read", moduleScope: "pos" },
+    CLIENT_FORMS_VIEW_FILLED: { key: "CLIENT_FORMS_VIEW_FILLED", label: "View Filled Client Forms", module: MODULES.CLIENT_FORMS, action: "read", moduleScope: "pos" },
     CLIENT_FORMS_SEND: { key: "CLIENT_FORMS_SEND", label: "Send Forms to Clients / Fill In Store", module: MODULES.CLIENT_FORMS, action: "create", moduleScope: "pos" },
     CLIENT_FORMS_COUNTERSIGN: { key: "CLIENT_FORMS_COUNTERSIGN", label: "Countersign Client Forms", module: MODULES.CLIENT_FORMS, action: "special", moduleScope: "pos" },
     CLIENT_FORMS_VOID: { key: "CLIENT_FORMS_VOID", label: "Void Filled Client Forms", module: MODULES.CLIENT_FORMS, action: "delete", moduleScope: "pos" },
+    CLIENT_FORMS_DOWNLOAD: { key: "CLIENT_FORMS_DOWNLOAD", label: "Preview & Download Signed Client Form PDFs", module: MODULES.CLIENT_FORMS, action: "special", moduleScope: "pos" },
+    CLIENT_FORMS_CATEGORIES_MANAGE: { key: "CLIENT_FORMS_CATEGORIES_MANAGE", label: "Add Treatments", module: MODULES.CLIENT_FORMS, action: "create", moduleScope: "pos" },
+    CLIENT_FORMS_ANALYTICS: { key: "CLIENT_FORMS_ANALYTICS", label: "View Forms & Plans Analytics", module: MODULES.CLIENT_FORMS, action: "read", moduleScope: "pos" },
 
     CLIENT_PLANS_VIEW: { key: "CLIENT_PLANS_VIEW", label: "View Client Plans", module: MODULES.CLIENT_PLANS, action: "read", moduleScope: "pos" },
     CLIENT_PLANS_MANAGE: { key: "CLIENT_PLANS_MANAGE", label: "Create & Update Client Plans", module: MODULES.CLIENT_PLANS, action: "update", moduleScope: "pos" },
     CLIENT_PLAN_TEMPLATES_MANAGE: { key: "CLIENT_PLAN_TEMPLATES_MANAGE", label: "Manage Client Plan Templates", module: MODULES.CLIENT_PLANS, action: "special", moduleScope: "pos" },
+    CLIENT_PLANS_DOWNLOAD: { key: "CLIENT_PLANS_DOWNLOAD", label: "Preview & Download Client Plan PDFs", module: MODULES.CLIENT_PLANS, action: "special", moduleScope: "pos" },
 
     // Employee forms hold HR information: viewing, managing and approving are separate
-    EMPLOYEE_FORMS_VIEW: { key: "EMPLOYEE_FORMS_VIEW", label: "View Employee Forms & Signed PDFs", module: MODULES.HR_FORMS_PLANS, action: "read", moduleScope: "hr" },
+    EMPLOYEE_FORMS_VIEW: { key: "EMPLOYEE_FORMS_VIEW", label: "View Employee Forms", module: MODULES.HR_FORMS_PLANS, action: "read", moduleScope: "hr" },
     EMPLOYEE_FORMS_MANAGE: { key: "EMPLOYEE_FORMS_MANAGE", label: "Create, Send & Countersign Employee Forms", module: MODULES.HR_FORMS_PLANS, action: "update", moduleScope: "hr" },
     EMPLOYEE_FORMS_APPROVE: { key: "EMPLOYEE_FORMS_APPROVE", label: "Approve Employee Forms", module: MODULES.HR_FORMS_PLANS, action: "special", moduleScope: "hr" },
     EMPLOYEE_PLANS_VIEW: { key: "EMPLOYEE_PLANS_VIEW", label: "View Onboarding & Training Plans", module: MODULES.HR_FORMS_PLANS, action: "read", moduleScope: "hr" },
     EMPLOYEE_PLANS_MANAGE: { key: "EMPLOYEE_PLANS_MANAGE", label: "Manage Onboarding & Training Plans", module: MODULES.HR_FORMS_PLANS, action: "update", moduleScope: "hr" },
+    EMPLOYEE_FORMS_DOWNLOAD: { key: "EMPLOYEE_FORMS_DOWNLOAD", label: "Preview & Download Signed Employee Form PDFs", module: MODULES.HR_FORMS_PLANS, action: "special", moduleScope: "hr" },
+    EMPLOYEE_PLANS_DOWNLOAD: { key: "EMPLOYEE_PLANS_DOWNLOAD", label: "Preview & Download Onboarding & Training Plan PDFs", module: MODULES.HR_FORMS_PLANS, action: "special", moduleScope: "hr" },
+    EMPLOYEE_FORMS_CATEGORIES_MANAGE: { key: "EMPLOYEE_FORMS_CATEGORIES_MANAGE", label: "Add Employee Form Types", module: MODULES.HR_FORMS_PLANS, action: "create", moduleScope: "hr" },
+    EMPLOYEE_FORMS_ANALYTICS: { key: "EMPLOYEE_FORMS_ANALYTICS", label: "View Employee Forms & Plans Analytics", module: MODULES.HR_FORMS_PLANS, action: "read", moduleScope: "hr" },
 
     // ── Reports ───────────────────────────────────────────────────────────────
 

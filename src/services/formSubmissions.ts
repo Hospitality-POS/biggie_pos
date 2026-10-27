@@ -1,5 +1,5 @@
 import axios from "axios";
-import { BASE_URL } from "@utils/config";
+import { BASE_URL, shareableOrigin } from "@utils/config";
 import axiosInstance from "./request";
 import type { FormSubmission, FormSubmissionSummary, PublicFormView, SignatureInput, CustomerAlert } from "@pages/FormsPlans/forms/fill/types";
 import type { Answers } from "@pages/FormsPlans/forms/components/FormRenderer";
@@ -96,13 +96,31 @@ export const createSigningLink = async (id: string, audience?: Audience): Promis
 export const fetchSignedPdfUrl = async (id: string, audience?: Audience): Promise<string> =>
   unwrap<{ url: string }>(await axiosInstance.get(url(`/${id}/pdf`), as(audience, "viewFilled"))).url;
 
+/** The signed PDF itself, through the API, for previewing and saving in the app. */
+export const fetchSignedPdfBlob = async (id: string, audience?: Audience): Promise<Blob> =>
+  (await axiosInstance.get(url(`/${id}/pdf/file`), { responseType: "blob", ...as(audience, "viewFilled") })).data;
+
+export interface FormAnalytics {
+  total: number;
+  by_status: Partial<Record<"pending" | "in_progress" | "awaiting_therapist" | "completed" | "voided", number>>;
+  by_channel: Partial<Record<"in_store" | "link", number>>;
+  by_form: { template_id: string; name: string; category?: string; total: number; completed: number; alerts: number }[];
+  per_day: { date: string; count: number }[];
+  avg_hours_to_sign: number | null;
+  people: number;
+  alerts: number;
+}
+
+export const fetchFormAnalytics = async (audience: Audience, params: { from?: string; to?: string } = {}): Promise<FormAnalytics> =>
+  unwrap(await axiosInstance.get(url("/analytics"), { params: { ...params, audience }, ...as(audience, "viewFilled") }));
+
 export const voidFormSubmission = async (id: string, reason: string, audience?: Audience): Promise<FormSubmission> =>
   unwrap(await axiosInstance.post(url(`/${id}/void`), { reason }, as(audience, "void")));
 
 /** Link the client or employee opens on their phone. */
 export const buildSigningLink = (token: string) => {
   const company = localStorage.getItem("companyCode") || "";
-  return `${window.location.origin}/f/${token}?c=${encodeURIComponent(company)}`;
+  return `${shareableOrigin()}/f/${token}?c=${encodeURIComponent(company)}`;
 };
 
 // ─── Client / employee (public link, no login) ──────────────────────────────────────────

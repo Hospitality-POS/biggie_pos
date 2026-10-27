@@ -13,6 +13,7 @@ import {
   MedicineBoxOutlined,
   SendOutlined,
   ScheduleOutlined,
+  EyeOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -22,20 +23,21 @@ import {
   fetchPersonAlerts,
   createSigningLink,
   buildSigningLink,
-  fetchSignedPdfUrl,
+  fetchSignedPdfBlob,
   voidFormSubmission,
   submissionError,
 } from "@services/formSubmissions";
-import { CATEGORY_META } from "../constants";
 import StartFormModal from "./StartFormModal";
 import type { PersonLite } from "../person";
 import { useAudience } from "../../audience";
 import StaffSignModal from "./StaffSignModal";
+import PdfPreviewModal, { saveBlob, signedPdfName } from "./SignedPdfModal";
 import { SUBMISSION_STATUS_META, type FormSubmissionSummary, type SubmissionStatus } from "./types";
 import { questionLead } from "./utils";
 import { useFormsSettings } from "@hooks/useFormsSettings";
 import NewPlanModal from "@pages/FormsPlans/plans/NewPlanModal";
 import PlanDrawer from "@pages/FormsPlans/plans/PlanDrawer";
+import { useCategories } from "../categories";
 
 dayjs.extend(relativeTime);
 
@@ -79,6 +81,8 @@ const FilledFormsList: React.FC<Props> = ({ person, showCustomer }) => {
   const [voiding, setVoiding] = useState<FormSubmissionSummary | null>(null);
   const [voidReason, setVoidReason] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
+  const { meta: categoryMeta } = useCategories();
+  const [previewing, setPreviewing] = useState<FormSubmissionSummary | null>(null);
   // Start a plan from a signed form
   const settings = useFormsSettings();
   const [planFrom, setPlanFrom] = useState<FormSubmissionSummary | null>(null);
@@ -88,6 +92,7 @@ const FilledFormsList: React.FC<Props> = ({ person, showCustomer }) => {
   const statuses = FILTERS.find((f) => f.key === filter)?.statuses;
   const queryKey = ["form-submissions", a.audience, person?._id ?? "all", filter];
   const canView = can(a.perms.viewFilled);
+  const canDownload = can(a.perms.download);
   const personKey = isEmployee ? "employee_id" : "customer_id";
 
   const { data: rows = [], isLoading } = useQuery({
@@ -134,9 +139,11 @@ const FilledFormsList: React.FC<Props> = ({ person, showCustomer }) => {
       refresh();
     });
 
-  const openPdf = (row: FormSubmissionSummary) =>
+  // Fetched through the API and saved from memory: the desktop app blocks
+  // window.open, so opening the storage link did nothing there
+  const downloadPdf = (row: FormSubmissionSummary) =>
     run(`pdf-${row._id}`, async () => {
-      window.open(await fetchSignedPdfUrl(row._id, a.audience), "_blank", "noopener");
+      saveBlob(await fetchSignedPdfBlob(row._id, a.audience), signedPdfName(row));
     });
 
   const confirmVoid = () =>
@@ -221,7 +228,7 @@ const FilledFormsList: React.FC<Props> = ({ person, showCustomer }) => {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {rows.map((row) => {
-            const cat = CATEGORY_META[row.form.category ?? "other"] ?? CATEGORY_META.other;
+            const cat = categoryMeta(row.form.category);
             const open = row.status === "pending" || row.status === "in_progress";
             const menu = [
               ...(open && row.channel === "link" && can(a.perms.send)
@@ -284,10 +291,17 @@ const FilledFormsList: React.FC<Props> = ({ person, showCustomer }) => {
                     Countersign
                   </Button>
                 )}
-                {row.status === "completed" && (
-                  <Button size="small" icon={<DownloadOutlined />} loading={busy === `pdf-${row._id}`} onClick={() => openPdf(row)}>
-                    PDF
-                  </Button>
+                {row.status === "completed" && canDownload && (
+                  <>
+                    <Button size="small" icon={<EyeOutlined />} onClick={() => setPreviewing(row)}>
+                      Preview
+                    </Button>
+                    <Tooltip title="Download PDF">
+                      <Button size="small" icon={<DownloadOutlined />} loading={busy === `pdf-${row._id}`} onClick={() => downloadPdf(row)}>
+                        PDF
+                      </Button>
+                    </Tooltip>
+                  </>
                 )}
                 {open && row.channel === "in_store" && can(a.perms.send) && (
                   <Button
@@ -338,6 +352,14 @@ const FilledFormsList: React.FC<Props> = ({ person, showCustomer }) => {
           <PlanDrawer planId={openPlanId} onClose={() => setOpenPlanId(null)} />
         </>
       )}
+
+      <PdfPreviewModal
+        open={!!previewing}
+        title={previewing ? `${previewing.form.name} · ${previewing.subject_snapshot.name}` : ""}
+        fileName={previewing ? signedPdfName(previewing) : "form.pdf"}
+        load={() => fetchSignedPdfBlob(previewing!._id, a.audience)}
+        onClose={() => setPreviewing(null)}
+      />
 
       {signing && (
         <StaffSignModal

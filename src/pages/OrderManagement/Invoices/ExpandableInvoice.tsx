@@ -11,7 +11,7 @@ import {
   SafetyCertificateOutlined, WarningOutlined, ReloadOutlined, LinkOutlined, CopyOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getInvoiceById, patchInvoice, verifyDigiTax, duplicateInvoice, recordInvoicePayment } from "@services/accounting/invoice";
+import { getInvoiceById, patchInvoice, verifyDigiTax, duplicateInvoice, recordInvoicePayment, editInvoicePayment } from "@services/accounting/invoice";
 import { fetchAllPaymentMethods } from "@services/paymentMethod";
 import { getAllAccounts } from "@services/accounting/accounts";
 import { refreshInvoiceEtr } from "@services/accounting/digiTax";
@@ -63,8 +63,27 @@ interface PaymentRecord {
   _id: string; amount: number; method?: string;
   method_id?: { _id: string; name: string };
   reference?: string; notes?: string; payment_date?: string;
-  createdAt: string; created_by?: UserRef; payment_status?: string;
+  createdAt: string; created_by?: UserRef & { fullname?: string }; payment_status?: string;
+  journal_entry_id?: { _id: string; created_by?: UserRef & { fullname?: string } } | string;
+  edit_history?: { at: string; changes: string; reason?: string }[];
 }
+
+/** Who recorded a payment; older payments fall back to whoever posted their journal entry. */
+const paymentBy = (p: PaymentRecord) => {
+  const je = typeof p.journal_entry_id === "object" ? p.journal_entry_id : undefined;
+  const u = p.created_by || je?.created_by;
+  return u?.fullname || u?.username || "—";
+};
+
+/** Round to cents: float subtraction leaves values like 0.009999999776. */
+const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+
+/** "12345.6" → "12,345.6": commas in the whole part only, never in the decimals. */
+const moneyFormatter = (v?: string | number) => {
+  if (v === undefined || v === null || v === "") return "";
+  const [whole, dec] = String(v).split(".");
+  return whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",") + (dec !== undefined ? `.${dec}` : "");
+};
 
 interface SalesReceiptRecord {
   _id: string; receipt_no: string; receipt_date: string;
@@ -734,16 +753,19 @@ const DetailsTab = ({
 // TAB 3 — Payments
 // ═══════════════════════════════════════════════════════════════
 const PaymentsTab = ({
-  record, onOpenPrint,
+  record, onOpenPrint, onPaymentsChanged,
 }: {
   record: InvoiceDetailsInterface; onOpenPrint: (payment?: PaymentRecord) => void;
+  /** Lets the invoice list refresh its balance and status */
+  onPaymentsChanged?: () => void;
 }) => {
+  const canEditPayments = !["Voided", "Cancelled", "Draft"].includes(record.status ?? "");
   const payments: PaymentRecord[] = record.payments || record.payment_ids || [];
   const total = payments.reduce((s, p) => s + (p.amount || 0), 0);
   const salesReceiptsTotal = (record.salesReceipts || []).reduce((s, r) => s + (r.grand_total || 0), 0);
   const grandTotal = record.grand_total || 0;
   // Calculate amount due by subtracting both regular payments and sales receipts from grand total
-  const amountDue = Math.max(0, grandTotal - total - salesReceiptsTotal);
+  const amountDue = round2(Math.max(0, grandTotal - total - salesReceiptsTotal));
   const queryClient = useQueryClient();
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [paymentForm] = Form.useForm();
@@ -795,6 +817,7 @@ const PaymentsTab = ({
           account_id: values.account_id,
           reference: values.reference,
           notes: values.notes,
+          payment_date: values.payment_date ? dayjs(values.payment_date).toISOString() : undefined,
         },
       });
     } catch (error) {
@@ -805,8 +828,55 @@ const PaymentsTab = ({
   const handleOpenPaymentModal = () => {
     paymentForm.setFieldsValue({
       amount: amountDue,
+      payment_date: dayjs(),
     });
     setPaymentModalOpen(true);
+  };
+
+  // ── Edit a payment (backdate / change amount) ──────────────────────────
+  const [editing, setEditing] = useState<PaymentRecord | null>(null);
+  const [editForm] = Form.useForm();
+  // Most this payment can be: what's left on the invoice plus its own amount
+  const editMax = editing ? round2(amountDue + (editing.amount || 0)) : 0;
+
+  const editPaymentMutation = useMutation({
+    mutationFn: (data: { amount?: number; payment_date?: string; reason?: string }) =>
+      editInvoicePayment(record._id, editing!._id, data),
+    onSuccess: () => {
+      setEditing(null);
+      editForm.resetFields();
+      queryClient.invalidateQueries({ queryKey: ["invoice", record._id] });
+      queryClient.invalidateQueries({ queryKey: ["invoices-unsettled"] });
+      onPaymentsChanged?.();
+    },
+  });
+
+  const openEdit = (p: PaymentRecord) => {
+    setEditing(p);
+    editForm.setFieldsValue({
+      amount: p.amount,
+      payment_date: dayjs(p.payment_date || p.createdAt),
+      reason: "",
+    });
+  };
+
+  const handleEditPayment = async () => {
+    if (!editing) return;
+    try {
+      const values = await editForm.validateFields();
+      const newDate = values.payment_date ? dayjs(values.payment_date) : null;
+      const oldDate = dayjs(editing.payment_date || editing.createdAt);
+      const data: { amount?: number; payment_date?: string; reason?: string } = { reason: values.reason };
+      if (Math.abs((values.amount || 0) - editing.amount) > 0.001) data.amount = values.amount;
+      if (newDate && !newDate.isSame(oldDate, "minute")) data.payment_date = newDate.toISOString();
+      if (data.amount === undefined && !data.payment_date) {
+        message.info("Nothing changed");
+        return;
+      }
+      editPaymentMutation.mutate(data);
+    } catch {
+      // Validation failed
+    }
   };
 
   // Duplicate mutation
@@ -851,7 +921,7 @@ const PaymentsTab = ({
     },
     {
       title: "By", key: "by",
-      render: (_: any, r: PaymentRecord) => <Text style={{ fontSize: 11 }}>{r.created_by?.username || "—"}</Text>,
+      render: (_: any, r: PaymentRecord) => <Text style={{ fontSize: 11 }}>{paymentBy(r)}</Text>,
     },
     {
       title: "Status", key: "status",
@@ -859,9 +929,11 @@ const PaymentsTab = ({
         if (!r.payment_status) return <Text style={{ color: C.subText }}>—</Text>;
         const color = r.payment_status === "COMPLETED" ? C.green : r.payment_status === "REFUNDED" ? C.red : r.payment_status === "FAILED" ? C.red : C.orange;
         return (
-          <span style={{ fontSize: 10, fontWeight: 700, color, background: `${color}15`, border: `1px solid ${color}40`, borderRadius: 4, padding: "1px 7px" }}>
-            {r.payment_status}
-          </span>
+          <Tooltip title={r.edit_history?.length ? r.edit_history.map((h) => `${dayjs(h.at).format("DD MMM YYYY")}: ${h.changes}${h.reason ? ` (${h.reason})` : ""}`).join("\n") : undefined}>
+            <span style={{ fontSize: 10, fontWeight: 700, color, background: `${color}15`, border: `1px solid ${color}40`, borderRadius: 4, padding: "1px 7px" }}>
+              {r.payment_status}{r.edit_history?.length ? " · edited" : ""}
+            </span>
+          </Tooltip>
         );
       },
     },
@@ -882,6 +954,21 @@ const PaymentsTab = ({
         </Button>
       ),
     },
+    ...(canEditPayments
+      ? [
+          {
+            title: "", key: "edit", align: "center" as const, width: 70,
+            render: (_: any, r: PaymentRecord) =>
+              r.payment_status === "COMPLETED" ? (
+                <Tooltip title="Change amount or backdate">
+                  <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} style={{ borderRadius: 6, fontSize: 11 }}>
+                    Edit
+                  </Button>
+                </Tooltip>
+              ) : null,
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -981,14 +1068,78 @@ const PaymentsTab = ({
             rules={[{ required: true }, { type: "number", min: 0.01, max: amountDue }]}>
             <InputNumber style={{ width: "100%", borderRadius: 8 }}
               min={0.01} max={amountDue} precision={2}
-              formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+              formatter={moneyFormatter}
               parser={(v) => v!.replace(/,/g, "") as any} />
+          </Form.Item>
+          <Form.Item
+            name="payment_date"
+            label="Payment Date"
+            rules={[{ required: true, message: "Pick the date the money was received" }]}
+            tooltip="Backdate it if the money came in earlier. The journal entry uses this date."
+          >
+            <DatePicker
+              showTime={{ format: "HH:mm" }}
+              format="DD MMM YYYY HH:mm"
+              disabledDate={(d) => d.isAfter(dayjs(), "day")}
+              style={{ width: "100%", borderRadius: 8 }}
+            />
           </Form.Item>
           <Form.Item name="reference" label="Reference / Transaction Code">
             <Input placeholder="M-Pesa code, cheque no..." style={{ borderRadius: 8 }} />
           </Form.Item>
           <Form.Item name="notes" label="Notes">
             <Input placeholder="Optional" style={{ borderRadius: 8 }} />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Edit Payment Modal */}
+      <Modal
+        title="Edit Payment"
+        open={!!editing}
+        onCancel={() => setEditing(null)}
+        onOk={handleEditPayment}
+        confirmLoading={editPaymentMutation.isPending}
+        okText="Save changes"
+        width={460}
+        destroyOnClose
+      >
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 14, fontSize: 12 }}
+          message="The old journal entry is voided and a new one is posted for the new amount on the new date. The invoice balance updates."
+        />
+        <Form form={editForm} layout="vertical">
+          <Form.Item
+            name="payment_date"
+            label="Payment Date"
+            rules={[{ required: true, message: "Pick a date" }]}
+          >
+            <DatePicker
+              showTime={{ format: "HH:mm" }}
+              format="DD MMM YYYY HH:mm"
+              disabledDate={(d) => d.isAfter(dayjs(), "day")}
+              style={{ width: "100%", borderRadius: 8 }}
+            />
+          </Form.Item>
+          <Form.Item
+            name="amount"
+            label="Amount (KES)"
+            extra={`Up to KES ${fmt(editMax)}`}
+            rules={[{ required: true }, { type: "number", min: 0.01, max: editMax, message: `Between 0.01 and ${fmt(editMax)}` }]}
+          >
+            <InputNumber
+              style={{ width: "100%", borderRadius: 8 }}
+              min={0.01}
+              max={editMax}
+              precision={2}
+              formatter={moneyFormatter}
+              parser={(v) => v!.replace(/,/g, "") as any}
+            />
+          </Form.Item>
+          <Form.Item name="reason" label="Reason" rules={[{ required: true, message: "Say why it's being changed" }]}>
+            <Input placeholder="e.g. Received on the 3rd, recorded late" style={{ borderRadius: 8 }} maxLength={300} />
           </Form.Item>
         </Form>
       </Modal>
@@ -1005,7 +1156,7 @@ const SalesReceiptsTab = ({ record }: { record: InvoiceDetailsInterface }) => {
   const regularPayments = (record.payments || record.payment_ids || []).reduce((s, p) => s + (p.amount || 0), 0);
   const grandTotal = record.grand_total || 0;
   // Calculate amount due by subtracting both regular payments and sales receipts from grand total
-  const amountDue = Math.max(0, grandTotal - regularPayments - total);
+  const amountDue = round2(Math.max(0, grandTotal - regularPayments - total));
 
   const columns = [
     {
@@ -1720,9 +1871,11 @@ export interface ExpandableInvoiceProps {
   record: InvoiceDetailsInterface;
   onOpenNote?: (noteId: string) => void;
   defaultTab?: string;
+  /** Called after a payment is edited so the list can refresh */
+  onPaymentsChanged?: () => void;
 }
 
-const ExpandableInvoice = ({ record, onOpenNote, defaultTab = "receipt" }: ExpandableInvoiceProps) => {
+const ExpandableInvoice = ({ record, onOpenNote, defaultTab = "receipt", onPaymentsChanged }: ExpandableInvoiceProps) => {
   const isMobile = useIsMobile();
   const sys: SystemDetails = useSystemDetails();
   const [activeTab, setActiveTab] = useState(defaultTab);
@@ -1864,6 +2017,7 @@ const ExpandableInvoice = ({ record, onOpenNote, defaultTab = "receipt" }: Expan
       children: (
         <PaymentsTab 
           record={invoiceData as InvoiceDetailsInterface} 
+          onPaymentsChanged={onPaymentsChanged}
           onOpenPrint={(payment) => {
             setSelectedPayment(payment);
             setReceiptPdfOpen(true);

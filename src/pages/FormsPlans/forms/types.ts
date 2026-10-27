@@ -1,6 +1,7 @@
 export type FormStatus = "draft" | "pending_approval" | "approved" | "archived";
 
-export type FormCategory =
+/** The categories every shop has; shops add their own (useCategories). */
+export type BuiltInCategory =
   | "consultation"
   | "facial"
   | "lash_brow"
@@ -18,6 +19,9 @@ export type FormCategory =
   | "training"
   | "contract"
   | "other";
+
+/** A built-in category or the key of one the shop added. */
+export type FormCategory = BuiltInCategory | (string & {});
 
 /** Who fills the form in: a customer, or an employee (Bandu HR). */
 export type Audience = "client" | "employee";
