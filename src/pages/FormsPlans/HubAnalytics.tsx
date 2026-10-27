@@ -1,13 +1,14 @@
 import React, { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Empty, Grid, Segmented, Spin, Typography } from "antd";
-import { FormOutlined, ScheduleOutlined } from "@ant-design/icons";
+import { Button, Empty, Grid, Segmented, Spin, Typography } from "antd";
+import { FormOutlined, ScheduleOutlined, StarOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { THEME_C } from "@utils/getPrimaryColor";
 import { fetchFormAnalytics } from "@services/formSubmissions";
 import { fetchPlanAnalytics } from "@services/plans";
 import { useAudience } from "./audience";
+import FormsAiDrawer from "./FormsAiDrawer";
 import { CATEGORY_META } from "./forms/constants";
 import { SUBMISSION_STATUS_META, type SubmissionStatus } from "./forms/fill/types";
 
@@ -85,6 +86,7 @@ const HubAnalytics: React.FC<{ showForms: boolean; showPlans: boolean }> = ({ sh
   const isEmployee = a.audience === "employee";
   const plansLabel = isEmployee ? "Onboarding & training plans" : "Treatment plans";
   const [range, setRange] = useState<Range>("30");
+  const [aiOpen, setAiOpen] = useState(false);
 
   const params = useMemo(
     () => (range === "all" ? {} : { from: dayjs().subtract(Number(range) - 1, "day").startOf("day").toISOString() }),
@@ -123,7 +125,23 @@ const HubAnalytics: React.FC<{ showForms: boolean; showPlans: boolean }> = ({ sh
       <Text style={{ fontSize: 12.5, color: C.subText }}>
         {range === "all" ? "Everything so far" : `Forms sent and plans started in the last ${range} days`}
       </Text>
-      <Segmented size="small" options={RANGES} value={range} onChange={(v) => setRange(v as Range)} />
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <Segmented size="small" options={RANGES} value={range} onChange={(v) => setRange(v as Range)} />
+        <Button
+          size="small"
+          icon={<StarOutlined />}
+          onClick={() => setAiOpen(true)}
+          style={{ background: "linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)", color: "#fff", border: "none", fontWeight: 600 }}
+        >
+          AI insights
+        </Button>
+      </div>
+      <FormsAiDrawer
+        open={aiOpen}
+        onClose={() => setAiOpen(false)}
+        params={{ audience: a.audience, ...params }}
+        periodLabel={RANGES.find((r) => r.value === range)?.label === "All time" ? "All time" : `Last ${range} days`}
+      />
     </div>
   );
 
