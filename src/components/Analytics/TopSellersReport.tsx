@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { ProCard } from '@ant-design/pro-components';
 import { Typography, Tabs, Button, Space, Modal, Tag } from 'antd';
-import { BarChartOutlined, TableOutlined, ReloadOutlined, DownloadOutlined } from '@ant-design/icons';
+import { BarChartOutlined, TableOutlined, ReloadOutlined, DownloadOutlined, StarOutlined } from '@ant-design/icons';
+import TopSellersAiDrawer from './TopSellersAiDrawer';
 import { useTopSellersReport } from "../../hooks/useTopSellersReport";
 import FiltersPanel from './FiltersPanel';
 import MetricCards from './MetricCards';
@@ -31,6 +32,7 @@ const TopSellersReport: React.FC<TopSellersReportProps> = ({ shopId }) => {
 
   const [activeTab, setActiveTab] = useState('hierarchy');
   const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [aiOpen, setAiOpen] = useState(false);
 
   const { 
     data, 
@@ -145,13 +147,21 @@ const TopSellersReport: React.FC<TopSellersReportProps> = ({ shopId }) => {
           <div>
             <Title level={5} style={{ margin: 0, color: "#0f172a" }}>Top Sellers Report</Title>
             <Text style={{ fontSize: 12, color: "#64748b" }}>
-              Analyze your best performing inventory items
+              Best-selling stock items (services are not included)
             </Text>
           </div>
         </Space>
       }
       extra={
         <Space>
+          <Button
+            icon={<StarOutlined />}
+            onClick={() => setAiOpen(true)}
+            size="small"
+            style={{ background: "linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)", color: "#fff", border: "none", fontWeight: 600 }}
+          >
+            AI insights
+          </Button>
           <Button 
             icon={<ReloadOutlined />} 
             onClick={handleRefresh}
@@ -193,6 +203,8 @@ const TopSellersReport: React.FC<TopSellersReportProps> = ({ shopId }) => {
         items={tabItems}
         style={{ marginTop: 24 }}
       />
+
+      <TopSellersAiDrawer open={aiOpen} onClose={() => setAiOpen(false)} filters={filters} />
 
       {/* Item Details Modal */}
       <Modal

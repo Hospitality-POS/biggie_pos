@@ -1,5 +1,5 @@
 import React from 'react';
-import { Table, Tag, Button, Badge } from 'antd';
+import { Table, Tag, Button, Badge, Tooltip } from 'antd';
 import { EyeOutlined } from '@ant-design/icons';
 import { formatCurrency, formatNumber } from '../../utils/formatters';
 
@@ -123,11 +123,14 @@ const SellersTable: React.FC<SellersTableProps> = ({
       title: 'Margin',
       dataIndex: ['financial_metrics', 'profit_margin'],
       key: 'margin',
-      render: (margin: number) => (
-        <Tag color={getMarginColor(margin || 0)}>
-          {(margin || 0).toFixed(1)}%
-        </Tag>
-      ),
+      render: (margin: number | null) =>
+        margin === null || margin === undefined ? (
+          <Tooltip title="No buying price on this item, so margin can't be worked out">
+            <span style={{ color: "#94a3b8" }}>—</span>
+          </Tooltip>
+        ) : (
+          <Tag color={getMarginColor(margin)}>{margin.toFixed(1)}%</Tag>
+        ),
     },
   ] : [];
 

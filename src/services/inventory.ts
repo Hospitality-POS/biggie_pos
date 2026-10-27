@@ -690,6 +690,34 @@ export const fetchTopSellersReport = async (filters: {
   }
 };
 
+export interface TopSellersFilters {
+  shop_id: string;
+  start_date?: string;
+  end_date?: string;
+  category?: string;
+  sort_by?: string;
+  limit?: number;
+}
+
+const cleanFilters = (filters: TopSellersFilters) =>
+  Object.fromEntries(Object.entries(filters).filter(([, v]) => v !== "" && v !== null && v !== undefined));
+
+/** AI findings for the Top Sellers report; `fresh` skips the server's one-hour cache. */
+export const fetchTopSellersInsights = async (filters: TopSellersFilters & { fresh?: boolean }) =>
+  (await axiosInstance.post(`${BASE_URL}/inventory/top-sellers/insights`, cleanFilters(filters))).data as {
+    headline: string;
+    insights: { type: "winner" | "stock" | "margin" | "recommendation"; title: string; detail: string; subject: string | null }[];
+    generatedAt: string;
+  };
+
+/** Follow-up question about the same report. */
+export const askTopSellersAssistant = async (
+  filters: TopSellersFilters,
+  question: string,
+  history: { role: "user" | "ai"; text: string }[]
+): Promise<string> =>
+  (await axiosInstance.post(`${BASE_URL}/inventory/top-sellers/ask`, { ...cleanFilters(filters), question, history })).data.answer;
+
 export const fetchInventoryCategories = async (shopId: string) => {
   try {
     const response = await axiosInstance.get(`${BASE_URL}/inventory/categories`, { params: { shop_id: shopId } });
