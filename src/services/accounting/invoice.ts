@@ -190,11 +190,33 @@ export interface RecordInvoicePaymentParams {
     reference?: string;
     notes?: string;
     bank_account_id?: string;
+    account_id?: string;
+    /** ISO date; defaults to now. Can be in the past (backdated), not the future. */
+    payment_date?: string;
 }
 
 // ============================================
 // INVOICE SERVICES
 // ============================================
+
+/**
+ * Edit a payment: change its amount and / or backdate it. The API voids the
+ * old journal entry, posts a new one and recalculates the balance due.
+ */
+export const editInvoicePayment = async (
+    invoiceId: string,
+    paymentId: string,
+    data: { amount?: number; payment_date?: string; reason?: string }
+) => {
+    try {
+        const response = await axiosInstance.patch(`${BASE_URL}/accounting/invoices/${invoiceId}/payments/${paymentId}`, data);
+        message.success("Payment updated");
+        return response.data as { invoice: Invoice };
+    } catch (error: any) {
+        message.error(error?.response?.data?.message || "Error updating payment");
+        throw error;
+    }
+};
 
 /**
  * Get all invoices with filters and pagination.
