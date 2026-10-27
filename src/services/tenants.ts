@@ -3,6 +3,8 @@ import axiosInstance from "./request";
 import { TENANT_BASE_URL, POS_API_KEY } from "@utils/config";
 
 const tenantUrl = `${TENANT_BASE_URL}/api/tenants`;
+// Own-tenant reads/writes go through biggie_api, which forwards them to the admin portal API.
+const selfUrl = "/tenants/self";
 
 interface Tenant {
     _id?: string;
@@ -233,7 +235,7 @@ export const fetchTenantDetails = async (id?: string) => {
             }
         }
 
-        const response = await axiosInstance.get(`${tenantUrl}/${tenantId}`);
+        const response = await axiosInstance.get(selfUrl);
         return response.data;
     } catch (error) {
         console.log(error);
@@ -243,7 +245,7 @@ export const fetchTenantDetails = async (id?: string) => {
 
 export const updateTenant = async (id: string, tenantData: UpdateTenantData | FormData) => {
     try {
-        const response = await axiosInstance.put(`${tenantUrl}/${id}`, tenantData);
+        const response = await axiosInstance.put(selfUrl, tenantData);
 
         try {
             const freshTenantData = await fetchTenantDetails(id);
@@ -300,9 +302,8 @@ export const updateTenant = async (id: string, tenantData: UpdateTenantData | Fo
 export const enableAccounting = async (id: string, data: EnableAccountingData) => {
     try {
         const response = await axiosInstance.post(
-            `${tenantUrl}/${id}/enable-accounting`,
-            data,
-            { headers: getPOSHeaders() }
+            `${selfUrl}/modules/accounting/enable`,
+            data
         );
         await refreshTenantInStorage(id);
         return response.data;
@@ -316,9 +317,8 @@ export const enableAccounting = async (id: string, data: EnableAccountingData) =
 export const disableAccounting = async (id: string) => {
     try {
         const response = await axiosInstance.post(
-            `${tenantUrl}/${id}/disable-accounting`,
-            {},
-            { headers: getPOSHeaders() }
+            `${selfUrl}/modules/accounting/disable`,
+            {}
         );
         await refreshTenantInStorage(id);
         return response.data;
@@ -375,9 +375,8 @@ export const getTenantsWithAccounting = async () => {
 export const enablePosIntegration = async (id: string, config?: any) => {
     try {
         const response = await axiosInstance.post(
-            `${tenantUrl}/${id}/enable-pos-integration`,
-            config || {},
-            { headers: getPOSHeaders() }
+            `${selfUrl}/modules/pos-integration/enable`,
+            config || {}
         );
         await refreshTenantInStorage(id);
         return response.data;
@@ -391,9 +390,8 @@ export const enablePosIntegration = async (id: string, config?: any) => {
 export const disablePosIntegration = async (id: string) => {
     try {
         const response = await axiosInstance.post(
-            `${tenantUrl}/${id}/disable-pos-integration`,
-            {},
-            { headers: getPOSHeaders() }
+            `${selfUrl}/modules/pos-integration/disable`,
+            {}
         );
         await refreshTenantInStorage(id);
         return response.data;
@@ -453,9 +451,8 @@ export const getTenantsWithPosIntegration = async () => {
 export const enableBandu = async (id: string, data: EnableModuleData) => {
     try {
         const response = await axiosInstance.post(
-            `${tenantUrl}/${id}/enable-bandu`,
-            data,
-            { headers: getPOSHeaders() }
+            `${selfUrl}/modules/bandu/enable`,
+            data
         );
         await refreshTenantInStorage(id);
         return response.data;
@@ -469,9 +466,8 @@ export const enableBandu = async (id: string, data: EnableModuleData) => {
 export const disableBandu = async (id: string) => {
     try {
         const response = await axiosInstance.post(
-            `${tenantUrl}/${id}/disable-bandu`,
-            {},
-            { headers: getPOSHeaders() }
+            `${selfUrl}/modules/bandu/disable`,
+            {}
         );
         await refreshTenantInStorage(id);
         return response.data;
@@ -502,9 +498,8 @@ export const getBanduStatus = async (id: string) => {
 export const enableMteja = async (id: string, data: EnableModuleData) => {
     try {
         const response = await axiosInstance.post(
-            `${tenantUrl}/${id}/enable-mteja`,
-            data,
-            { headers: getPOSHeaders() }
+            `${selfUrl}/modules/mteja/enable`,
+            data
         );
         await refreshTenantInStorage(id);
         return response.data;
@@ -518,9 +513,8 @@ export const enableMteja = async (id: string, data: EnableModuleData) => {
 export const disableMteja = async (id: string) => {
     try {
         const response = await axiosInstance.post(
-            `${tenantUrl}/${id}/disable-mteja`,
-            {},
-            { headers: getPOSHeaders() }
+            `${selfUrl}/modules/mteja/disable`,
+            {}
         );
         await refreshTenantInStorage(id);
         return response.data;
@@ -551,9 +545,8 @@ export const getMtejaStatus = async (id: string) => {
 export const enableDala = async (id: string, data: EnableModuleData) => {
     try {
         const response = await axiosInstance.post(
-            `${tenantUrl}/${id}/enable-dala`,
-            data,
-            { headers: getPOSHeaders() }
+            `${selfUrl}/modules/dala/enable`,
+            data
         );
         await refreshTenantInStorage(id);
         return response.data;
@@ -567,9 +560,8 @@ export const enableDala = async (id: string, data: EnableModuleData) => {
 export const disableDala = async (id: string) => {
     try {
         const response = await axiosInstance.post(
-            `${tenantUrl}/${id}/disable-dala`,
-            {},
-            { headers: getPOSHeaders() }
+            `${selfUrl}/modules/dala/disable`,
+            {}
         );
         await refreshTenantInStorage(id);
         return response.data;
@@ -608,9 +600,8 @@ export interface EtimsConfigData {
 export const enableEtims = async (id: string, config: EtimsConfigData) => {
     try {
         const response = await axiosInstance.post(
-            `${tenantUrl}/${id}/enable-etims`,
-            config,
-            { headers: getPOSHeaders() }
+            `${selfUrl}/modules/etims/enable`,
+            config
         );
         await refreshTenantInStorage(id);
         message.success("ETIMS integration enabled successfully!");
@@ -625,9 +616,8 @@ export const enableEtims = async (id: string, config: EtimsConfigData) => {
 export const disableEtims = async (id: string) => {
     try {
         const response = await axiosInstance.post(
-            `${tenantUrl}/${id}/disable-etims`,
-            {},
-            { headers: getPOSHeaders() }
+            `${selfUrl}/modules/etims/disable`,
+            {}
         );
         await refreshTenantInStorage(id);
         message.success("ETIMS integration disabled successfully!");
