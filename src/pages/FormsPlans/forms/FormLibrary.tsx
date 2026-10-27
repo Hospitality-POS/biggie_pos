@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Input, Select, Typography, Grid, Spin, Tooltip, message, Empty } from "antd";
+import { Button, Input, Typography, Grid, Spin, Tooltip, message, Empty } from "antd";
 import {
   CloudUploadOutlined,
   PlusOutlined,
@@ -21,8 +21,10 @@ import { usePermissions } from "@hooks/usePermissions";
 import { fetchFormTemplates, createBlankForm, apiErrorMessage } from "@services/formTemplates";
 import { useAudience } from "../audience";
 import UploadFormModal from "./UploadFormModal";
-import { CATEGORY_META, STATUS_META } from "./constants";
+import { STATUS_META } from "./constants";
 import type { FormStatus, FormTemplateSummary } from "./types";
+import { CategorySelect } from "./categories";
+import { useCategories } from "./categories";
 
 dayjs.extend(relativeTime);
 
@@ -63,7 +65,7 @@ const StatusChip: React.FC<{ status: FormStatus }> = ({ status }) => {
 };
 
 const FormCard: React.FC<{ form: FormTemplateSummary; onOpen: () => void }> = ({ form, onOpen }) => {
-  const cat = CATEGORY_META[form.category] ?? CATEGORY_META.other;
+  const cat = useCategories().meta(form.category);
   const reading = form.extraction?.status === "processing";
   const failed = form.extraction?.status === "failed";
 
@@ -324,12 +326,11 @@ const FormLibrary: React.FC = () => {
             onChange={(e) => setSearch(e.target.value)}
             style={{ width: isMobile ? "100%" : 220 }}
           />
-          <Select
+          <CategorySelect
             allowClear
             placeholder={isEmployee ? "All types" : "All treatments"}
             value={category}
             onChange={setCategory}
-            options={a.categoryOptions}
             style={{ width: isMobile ? 160 : 190 }}
           />
         </div>

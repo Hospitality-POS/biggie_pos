@@ -47,6 +47,8 @@ export interface PaymentRecord {
     createdAt?: string;
     created_by?: { username: string; fullname?: string };
     payment_status?: string;
+    // Older payments: whoever posted the journal entry recorded them
+    journal_entry_id?: { created_by?: { username: string; fullname?: string } } | string;
 }
 
 export interface InvoiceForPrint {
@@ -746,7 +748,10 @@ const PaymentDetailsBlock = ({
                                             {p.notes || "—"}
                                         </td>
                                         <td style={{ padding: "5px 8px", borderBottom: "1px solid #f1f5f9" }}>
-                                            {p.created_by?.username || "—"}
+                                            {(() => {
+                                                const u = p.created_by || (typeof p.journal_entry_id === "object" ? p.journal_entry_id?.created_by : undefined);
+                                                return u?.fullname || u?.username || "—";
+                                            })()}
                                         </td>
                                         <td style={{ padding: "5px 8px", borderBottom: "1px solid #f1f5f9" }}>
                                             {p.payment_status ? (

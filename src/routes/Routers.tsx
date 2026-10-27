@@ -119,8 +119,8 @@ const InStoreFillPage = lazyWithReload(() => import("@pages/FormsPlans/forms/fil
 const PublicFormPage = lazyWithReload(() => import("@pages/FormsPlans/forms/fill/PublicFormPage"));
 const AccountRestrictedPage = lazyWithReload(() => import("@pages/AccountRestricted/AccountRestrictedPage"));
 const EmployeeFormsHubPage = () => <FormsHubPage audience="employee" />;
-const CLIENT_FORMS_HUB_PERMISSIONS = ["CLIENT_FORMS_VIEW", "CLIENT_FORMS_VIEW_FILLED", "CLIENT_PLANS_VIEW"];
-const EMPLOYEE_FORMS_HUB_PERMISSIONS = ["EMPLOYEE_FORMS_VIEW", "EMPLOYEE_PLANS_VIEW"];
+const CLIENT_FORMS_HUB_PERMISSIONS = ["CLIENT_FORMS_VIEW", "CLIENT_FORMS_VIEW_FILLED", "CLIENT_PLANS_VIEW", "CLIENT_FORMS_ANALYTICS"];
+const EMPLOYEE_FORMS_HUB_PERMISSIONS = ["EMPLOYEE_FORMS_VIEW", "EMPLOYEE_PLANS_VIEW", "EMPLOYEE_FORMS_ANALYTICS"];
 
 // ─── Omnichannel Inbox ────────────────────────────────────────────────────────
 const OmnichannelInboxPage = lazyWithReload(() => import("src/pages/OmniChannel/OmnichannelInboxPage"));

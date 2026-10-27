@@ -9,6 +9,7 @@ import {
   AppstoreOutlined,
   RightOutlined,
   TeamOutlined,
+  BarChartOutlined,
 } from "@ant-design/icons";
 import { THEME_C } from "@utils/getPrimaryColor";
 import { usePermissions } from "@hooks/usePermissions";
@@ -17,6 +18,7 @@ import { fetchFormTemplates } from "@services/formTemplates";
 import { fetchFormSubmissions } from "@services/formSubmissions";
 import FormLibrary from "@pages/FormsPlans/forms/FormLibrary";
 import FilledFormsList from "@pages/FormsPlans/forms/fill/FilledFormsList";
+import HubAnalytics from "@pages/FormsPlans/HubAnalytics";
 import PlansList from "@pages/FormsPlans/plans/PlansList";
 import PlanTemplates from "@pages/FormsPlans/plans/PlanTemplates";
 import type { Audience } from "@pages/FormsPlans/forms/types";
@@ -58,6 +60,7 @@ const FormsHubPage: React.FC<{ audience?: Audience }> = ({ audience = "client" }
   const showForms = formsOn && can(a.perms.view);
   const showFilled = formsOn && can(a.perms.viewFilled);
   const showPlans = plansOn && can(a.perms.plansView);
+  const showAnalytics = (formsOn || plansOn) && can(a.perms.analytics);
 
   // Badges: forms waiting for approval, filled forms waiting for a countersign
   const { data: formCounts } = useQuery({
@@ -122,8 +125,20 @@ const FormsHubPage: React.FC<{ audience?: Audience }> = ({ audience = "client" }
           render: () => <PlanTemplates />,
         }
       );
+    // Last: one view across signed forms and plans, for whoever has analytics access
+    if (showAnalytics)
+      list.push({
+        key: "analytics",
+        label: "Analytics",
+        description: "Forms signed, plans & sessions",
+        group: "Insights",
+        icon: <BarChartOutlined />,
+        color: "#2563eb",
+        bg: "#eff6ff",
+        render: () => <HubAnalytics showForms={formsOn} showPlans={plansOn} />,
+      });
     return list;
-  }, [showForms, showFilled, showPlans, formCounts, toCountersign, a, isEmployee]);
+  }, [showForms, showFilled, showPlans, showAnalytics, formsOn, plansOn, formCounts, toCountersign, a, isEmployee]);
 
   const requested = params.get("tab") as HubTab | null;
   const active = sections.find((s) => s.key === requested) ?? sections[0];

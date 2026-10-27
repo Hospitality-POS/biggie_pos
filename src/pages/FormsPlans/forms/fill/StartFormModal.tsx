@@ -14,10 +14,10 @@ import dayjs from "dayjs";
 import { THEME_C } from "@utils/getPrimaryColor";
 import { fetchFormTemplates } from "@services/formTemplates";
 import { createFormSubmission, buildSigningLink, submissionError } from "@services/formSubmissions";
-import { CATEGORY_META } from "../constants";
 import PersonPicker from "../components/PersonPicker";
 import { personName, type PersonLite } from "../person";
 import { useAudience } from "../../audience";
+import { useCategories } from "../categories";
 
 const { Text } = Typography;
 const C = THEME_C;
@@ -98,13 +98,14 @@ const StartFormModal: React.FC<Props> = ({ open, onClose, person, templateId, on
     enabled: open,
   });
 
+  const { meta: categoryMeta } = useCategories();
   const formOptions = useMemo(
     () =>
       (forms?.data ?? []).map((f) => ({
         value: f._id,
-        label: `${CATEGORY_META[f.category]?.emoji ?? "📄"}  ${f.name}`,
+        label: `${categoryMeta(f.category).emoji}  ${f.name}`,
       })),
-    [forms]
+    [forms, categoryMeta]
   );
 
   const selectedForm = forms?.data.find((f) => f._id === formId);

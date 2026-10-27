@@ -8,6 +8,23 @@ import {
   DownloadOutlined,
 } from "@ant-design/icons";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+
+const isTableLine = (line: string) => /^\s*\|.*\|\s*$/.test(line);
+
+/**
+ * Tidy markdown tables from the AI before rendering: models sometimes put a
+ * whole table on one line ("| a | b | |---|---| | 1 | 2 |"), and a table
+ * straight under a sentence needs a blank line to render as a table.
+ */
+const tidyTables = (text: string) => {
+  const lines = text
+    .split("\n")
+    .flatMap((line) => (/\|\s*\|\s*:?-{3,}/.test(line) ? line.replace(/\|\s+\|/g, "|\n|").split("\n") : [line]));
+  return lines
+    .map((line, i) => (isTableLine(line) && i > 0 && lines[i - 1].trim() && !isTableLine(lines[i - 1]) ? `\n${line}` : line))
+    .join("\n");
+};
 import { ThinkingOrb } from "thinking-orbs";
 import { THEME_C } from "@utils/getPrimaryColor";
 import { ChatMessage } from "../types/biasharaAI.types";
@@ -163,7 +180,36 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
         )}
 
         <ReactMarkdown
+          // GFM adds tables (and strikethrough, task lists); without it a
+          // table arrives as one run-on paragraph of pipes
+          remarkPlugins={[remarkGfm]}
           components={{
+            // Wide tables scroll inside the bubble instead of stretching it
+            table: ({ children }) => (
+              <div style={{ overflowX: "auto", margin: "6px 0 10px", border: "1px solid #e2e8f0", borderRadius: 8 }}>
+                <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 12.5 }}>{children}</table>
+              </div>
+            ),
+            thead: ({ children }) => <thead style={{ background: "#f8fafc" }}>{children}</thead>,
+            th: ({ children, style }) => (
+              <th
+                style={{
+                  textAlign: (style?.textAlign as any) || "left",
+                  padding: "6px 10px",
+                  borderBottom: "1px solid #e2e8f0",
+                  fontWeight: 600,
+                  color: "#334155",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {children}
+              </th>
+            ),
+            td: ({ children, style }) => (
+              <td style={{ textAlign: (style?.textAlign as any) || "left", padding: "6px 10px", borderBottom: "1px solid #f1f5f9", verticalAlign: "top" }}>
+                {children}
+              </td>
+            ),
             p: ({ children }) => <p style={{ margin: "0 0 8px 0" }}>{children}</p>,
             ul: ({ children }) => (
               <ul style={{ margin: "4px 0 8px 0", paddingLeft: 18 }}>{children}</ul>
@@ -186,7 +232,7 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
             ),
           }}
         >
-          {m.text}
+          {m.role === "ai" ? tidyTables(m.text) : m.text}
         </ReactMarkdown>
 
         {/* Prominent Retry Button inside error bubble */}

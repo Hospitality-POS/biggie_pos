@@ -4,7 +4,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Button,
   Input,
-  Select,
   Typography,
   Grid,
   Spin,
@@ -69,6 +68,7 @@ import { SourcePanel, HistoryPanel, ExtractingState, ExtractionFailed } from "./
 import StartFormModal from "./fill/StartFormModal";
 import { STATUS_META, newField, newSectionKey } from "./constants";
 import type { EditableForm, FormSection, FormSigner, FormTemplate, SignerRole } from "./types";
+import { CategorySelect } from "./categories";
 
 const { Text } = Typography;
 const C = THEME_C;
@@ -718,11 +718,10 @@ const FormBuilderPage: React.FC = () => {
             {saveIndicator}
           </div>
         </div>
-        <Select
+        <CategorySelect
           value={draft.category}
           disabled={!editable}
           onChange={(category) => update({ category })}
-          options={a.categoryOptions}
           style={{ width: isMobile ? 150 : 190 }}
         />
         {primaryAction}

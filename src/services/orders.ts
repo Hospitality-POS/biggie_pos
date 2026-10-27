@@ -434,6 +434,33 @@ export const getOrdersByLocation = async (params: {
   }
 };
 
+export interface OrdersByLocationFilters {
+  country?: string;
+  county?: string;
+  city?: string;
+  from?: string;
+  to?: string;
+}
+
+const definedOnly = (filters: OrdersByLocationFilters) =>
+  Object.fromEntries(Object.entries(filters).filter(([, v]) => v !== undefined && v !== null && v !== ""));
+
+/** AI findings for the Order Analysis tab; `fresh` skips the server's one-hour cache. */
+export const fetchOrderInsights = async (filters: OrdersByLocationFilters & { fresh?: boolean }) =>
+  (await axiosInstance.post(`${BASE_URL}/orders/by-location/insights`, definedOnly(filters))).data as {
+    headline: string;
+    insights: { type: "location" | "timing" | "staff" | "customers" | "recommendation"; title: string; detail: string; subject: string | null }[];
+    generatedAt: string;
+  };
+
+/** Follow-up question about the same orders. */
+export const askOrdersAssistant = async (
+  filters: OrdersByLocationFilters,
+  question: string,
+  history: { role: "user" | "ai"; text: string }[]
+): Promise<string> =>
+  (await axiosInstance.post(`${BASE_URL}/orders/by-location/ask`, { ...definedOnly(filters), question, history })).data.answer;
+
 interface TopEarnersParams {
   startDate?: string;
   endDate?: string;

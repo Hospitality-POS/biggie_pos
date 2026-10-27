@@ -1,11 +1,12 @@
 import React, { useState } from "react";
-import { Modal, Upload, Input, Select, Typography, message, Space } from "antd";
+import { Modal, Upload, Input, Typography, message, Space } from "antd";
 import type { UploadFile } from "antd";
 import { CloudUploadOutlined, FilePdfOutlined, FileWordOutlined, CameraOutlined } from "@ant-design/icons";
 import { THEME_C } from "@utils/getPrimaryColor";
 import { uploadFormTemplate, apiErrorMessage } from "@services/formTemplates";
 import { useAudience } from "../audience";
 import type { FormCategory, FormTemplate } from "./types";
+import { CategorySelect } from "./categories";
 
 const { Text } = Typography;
 const C = THEME_C;
@@ -139,10 +140,9 @@ const UploadFormModal: React.FC<Props> = ({ open, onClose, onUploaded }) => {
           <Text style={{ fontSize: 12.5, color: C.subText, display: "block", marginBottom: 4 }}>
             {a.audience === "employee" ? "Type" : "Treatment"} <span style={{ color: "#94a3b8" }}>(optional)</span>
           </Text>
-          <Select
+          <CategorySelect
             value={category}
             onChange={setCategory}
-            options={a.categoryOptions}
             placeholder="Detected automatically"
             allowClear
             style={{ width: "100%" }}
