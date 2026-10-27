@@ -1,23 +1,29 @@
-# Use an official Node.js image as the base image
-FROM node:21-alpine
+FROM node:22-alpine AS builder
 
-# Set the working directory in the container
 WORKDIR /app
-
-# Copy package.json and package-lock.json to the container
-COPY package*.json ./
-
-# Install dependencies
-RUN npm install
-
-# Copy the rest of the application code to the container
+COPY package*.json yarn.lock ./
+RUN yarn install --frozen-lockfile
 COPY . .
+RUN yarn run build
 
-# Build the app
-RUN npm run build
+# Step 2: Use a lightweight Nginx container to serve the files
+FROM nginx:alpine
 
-# Expose the port that the app will run on
-EXPOSE 5374
+# Used by env.sh at container start
+ENV APP_PREFIX=APP_PREFIX_ \
+    ASSET_DIR=/var/www/html
 
-# Define the command to run the app
-CMD ["npm", "run", "dev"]
+# Copy Nginx config if you have custom routing
+COPY ./nginx.conf /etc/nginx/nginx.conf
+
+# Copy the built app from the builder stage
+COPY --from=builder /app/dist /var/www/html/
+
+# Copy the runtime injection script into the container
+COPY env.sh /docker-entrypoint.d/env.sh
+RUN sed -i 's/\r$//' /docker-entrypoint.d/env.sh \
+    && chmod +x /docker-entrypoint.d/env.sh
+
+# The nginx image's default ENTRYPOINT already runs /docker-entrypoint.d/*.sh,
+# so no ENTRYPOINT line is needed.
+CMD ["nginx", "-g", "daemon off;"]
