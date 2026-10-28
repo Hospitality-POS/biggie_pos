@@ -408,7 +408,7 @@ const AddEditShopModal: React.FC<ShopModalProps> = ({ actionRef, edit, data }) =
     if (edit && data) {
       form.setFieldsValue({ name: data.name, location: data.location });
       setPosMode(normalisePosMode(data?.pos_mode));
-      setTax({ ...DEFAULT_TAX, ...(data?.tax_settings || {}) });
+      setTax({ ...DEFAULT_TAX, ...data?.tax_settings });
     } else {
       setTax(DEFAULT_TAX);
     }

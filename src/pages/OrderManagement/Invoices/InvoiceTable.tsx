@@ -1161,8 +1161,7 @@ const InvoicesTable = ({ quotesOnly = false }: { quotesOnly?: boolean }) => {
           searchText: "Search", resetText: "Reset",
           optionRender: (_, __, dom) => [...dom],
         }}
-        toolBarRender={() => [
-          ...(quotesOnly || hasPesa ? [
+        toolBarRender={() => (quotesOnly || hasPesa ? [
             <Button
               key="new-invoice"
               type="primary"
@@ -1172,8 +1171,7 @@ const InvoicesTable = ({ quotesOnly = false }: { quotesOnly?: boolean }) => {
             >
               {quotesOnly ? "New Quote" : "New Invoice"}
             </Button>,
-          ] : []),
-        ]}
+          ] : [])}
         pagination={{
           pageSize: queryParams.limit, current: queryParams.page,
           showQuickJumper: true, showSizeChanger: true,
