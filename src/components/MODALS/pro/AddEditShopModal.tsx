@@ -448,7 +448,7 @@ const AddEditShopModal: React.FC<ShopModalProps> = ({ actionRef, edit, data }) =
     if (edit && data) {
       form.setFieldsValue({ name: data.name, location: data.location });
       setPosMode(normalisePosMode(data?.pos_mode));
-      setTax({ ...DEFAULT_TAX, ...(data?.tax_settings || {}) });
+      setTax({ ...DEFAULT_TAX, ...data?.tax_settings });
       // An existing hospital branch: show the facility type it is set up as
       if (data?._id && data?.pos_mode === "hospital") {
         fetchSystemSettingsForShop(data._id)

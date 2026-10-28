@@ -15,11 +15,11 @@ import Private, { AdminRoute } from "@components/layout/private/Private";
 import NotFound from "@routes/NotFound";
 import { Spin } from "antd";
 import NubaLoader from "@components/spinner/NubaLoader";
-import StaffLoginPage from "@pages/Login/login";
 import PaymentCallback from "@components/payment/PaymentCallback";
 import PermissionRoute from "@components/PermissionRoute";
 
 // ─── Lazily Loaded Core & Admin Pages ─────────────────────────────────────────
+const StaffLoginPage = lazyWithReload(() => import("@pages/Login/login"));
 const MainCategory = lazyWithReload(() => import("@pages/main_category/Main_category"));
 const MainOrders = lazyWithReload(() => import("@pages/OrderManagement/MainOrders"));
 const StaffClockTracker = lazyWithReload(() => import("@pages/staff/ClockInTracker"));
