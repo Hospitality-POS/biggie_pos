@@ -124,13 +124,20 @@ const EMPLOYEE_FORMS_HUB_PERMISSIONS = ["EMPLOYEE_FORMS_VIEW", "EMPLOYEE_PLANS_V
 
 // The POS screen. In hospital mode it also holds the Healthcare queue and
 // pharmacy tabs, so clinical staff without cart access can open it too.
-const TABLES_PERMISSIONS = ["CART_VIEW_ITEMS", "HEALTHCARE_VISITS_VIEW", "HEALTHCARE_PRESCRIPTIONS_VIEW"];
+const TABLES_PERMISSIONS = [
+  "CART_VIEW_ITEMS",
+  "HEALTHCARE_VISITS_VIEW",
+  "HEALTHCARE_PRESCRIPTIONS_VIEW",
+  "HEALTHCARE_LAB_VIEW",
+  "HEALTHCARE_CLAIMS_VIEW",
+];
 // Old Healthcare links land on the matching tab of the hospital screen
 const HealthcareRedirect = () => {
   const tab = new URLSearchParams(window.location.search).get("tab");
   const prefix = window.location.pathname.startsWith("/admin") ? "/admin" : "";
   if (tab === "batches") return <Navigate to={`${prefix}/inventory?tab=batches`} replace />;
-  return <Navigate to={`${prefix}/tables${tab === "pharmacy" || tab === "queue" ? `?tab=${tab}` : ""}`} replace />;
+  if (tab === "reports") return <Navigate to={`${prefix}/reports`} replace />;
+  return <Navigate to={`${prefix}/tables${tab ? `?tab=${tab}` : ""}`} replace />;
 };
 
 // ─── Omnichannel Inbox ────────────────────────────────────────────────────────
@@ -509,7 +516,7 @@ const routes = sentryCreateBrowserRouter(
           element={guardedPage(CategoryMainSettings, "CATEGORIES_VIEW")} />
 
         <Route path="reports" errorElement={<NotFound />}
-          element={guardedPage(UnifiedReportsPage, ["REPORTS_ITEM_SALES", "REPORTS_VIEW", "ACCOUNTING_REPORT_PROFIT_LOSS"])} />
+          element={guardedPage(UnifiedReportsPage, ["REPORTS_ITEM_SALES", "REPORTS_VIEW", "ACCOUNTING_REPORT_PROFIT_LOSS", "HEALTHCARE_REPORTS_VIEW"])} />
 
         <Route path="inventory-settings" errorElement={<NotFound />}
           element={guardedPage(InventoryMainSettings, "INVENTORY_VIEW")} />
@@ -756,7 +763,7 @@ const routes = sentryCreateBrowserRouter(
 
         <Route path="reports" errorElement={<NotFound />}
           element={
-            <PermissionRoute permission={["REPORTS_ITEM_SALES", "REPORTS_VIEW", "ACCOUNTING_REPORT_PROFIT_LOSS"]}>
+            <PermissionRoute permission={["REPORTS_ITEM_SALES", "REPORTS_VIEW", "ACCOUNTING_REPORT_PROFIT_LOSS", "HEALTHCARE_REPORTS_VIEW"]}>
               <Suspense fallback={fullscreenSpin}>
                 <AdminRoute><UnifiedReportsPage /></AdminRoute>
               </Suspense>

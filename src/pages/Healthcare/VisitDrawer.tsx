@@ -13,11 +13,12 @@ import {
   Space,
   Spin,
   Steps,
+  Switch,
   Tag,
   Typography,
   message,
 } from "antd";
-import { DeleteOutlined, MedicineBoxOutlined, PlusOutlined } from "@ant-design/icons";
+import { DeleteOutlined, ExperimentOutlined, MedicineBoxOutlined, PlusOutlined } from "@ant-design/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import {
@@ -30,11 +31,17 @@ import {
   type Diagnosis,
   type VisitStage,
   type Vitals,
+  type Visit,
+  updateVisit,
+  fetchPayers,
 } from "@services/healthcare";
 import { useHealthcareSettings } from "@hooks/useHealthcareSettings";
 import { AllergyBanner } from "./AllergyBanner";
 import PrescriptionModal from "./PrescriptionModal";
-import { RX_STATUS, STAGES, STAGE_LABEL, VISIT_TYPE_LABEL, ageOf, bmiOf, patientName, useHealthcareAccess } from "./shared";
+import LabOrderModal from "./LabOrderModal";
+import { LabOrderDrawer } from "./LabTab";
+import { ClaimDrawer } from "./ClaimsTab";
+import { CLAIM_STATUS_TAG, LAB_STATUS_TAG, RX_STATUS, STAGE_LABEL, VISIT_TYPE_LABEL, ageOf, bmiOf, money, patientName, useHealthcareAccess, visibleStages } from "./shared";
 
 const { Text, Title } = Typography;
 
@@ -62,6 +69,10 @@ const VisitDrawer: React.FC<VisitDrawerProps> = ({ visitId, onClose }) => {
   const [vitalsForm] = Form.useForm<Vitals>();
   const [notesForm] = Form.useForm<{ clinical_notes: ClinicalNotes; diagnoses: Diagnosis[] }>();
   const [rxOpen, setRxOpen] = useState(false);
+  const [labOpen, setLabOpen] = useState(false);
+  const [labOrderId, setLabOrderId] = useState<string | null>(null);
+  const [claimId, setClaimId] = useState<string | null>(null);
+  const [claimForVisit, setClaimForVisit] = useState<string | null>(null);
 
   const { data: visit, isLoading } = useQuery({
     queryKey: ["healthcare-visit", visitId],
@@ -128,7 +139,7 @@ const VisitDrawer: React.FC<VisitDrawerProps> = ({ visitId, onClose }) => {
 
   const open = !!visitId;
   const closed = visit?.stage === "completed" || visit?.stage === "cancelled";
-  const stages = STAGES.filter((s) => s.key !== "triage" || settings.triage);
+  const stages = visibleStages(settings, visit ? [visit.stage] : []);
   const stageIndex = stages.findIndex((s) => s.key === visit?.stage);
   const weight = Form.useWatch("weight_kg", vitalsForm);
   const height = Form.useWatch("height_cm", vitalsForm);
@@ -301,6 +312,44 @@ const VisitDrawer: React.FC<VisitDrawerProps> = ({ visitId, onClose }) => {
             </Card>
           )}
 
+          {settings.diagnostics && (access.orderLab || access.viewLab) && (
+            <Card
+              size="small"
+              title="Lab & imaging"
+              extra={
+                access.orderLab &&
+                !closed && (
+                  <Button size="small" icon={<ExperimentOutlined />} onClick={() => setLabOpen(true)}>
+                    Order tests
+                  </Button>
+                )
+              }
+            >
+              {visit.lab_orders.length ? (
+                visit.lab_orders.map((order) => {
+                  const flagged = order.items.flatMap((i) => i.results).filter((r) => r.flag).length;
+                  return (
+                    <div
+                      key={order._id}
+                      onClick={() => setLabOrderId(order._id)}
+                      style={{ borderBottom: "1px solid #f1f5f9", padding: "8px 0", cursor: "pointer" }}
+                    >
+                      <Space style={{ marginBottom: 4 }} wrap>
+                        <Text strong>{order.order_number}</Text>
+                        <Tag color={LAB_STATUS_TAG[order.status].color}>{LAB_STATUS_TAG[order.status].label}</Tag>
+                        {order.priority === "urgent" && <Tag color="red">Urgent</Tag>}
+                        {!!flagged && <Tag color="red">{flagged} abnormal</Tag>}
+                      </Space>
+                      <div style={{ fontSize: 13 }}>{order.items.filter((i) => i.status !== "cancelled").map((i) => i.name).join(", ")}</div>
+                    </div>
+                  );
+                })
+              ) : (
+                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No tests ordered on this visit" />
+              )}
+            </Card>
+          )}
+
           {settings.prescriptions && (
             <Card
               size="small"
@@ -336,8 +385,50 @@ const VisitDrawer: React.FC<VisitDrawerProps> = ({ visitId, onClose }) => {
               )}
             </Card>
           )}
+
+          {settings.insurance && (
+            <PayerCard
+              visit={visit}
+              disabled={closed || !access.manageVisits}
+              onSaved={refresh}
+              claims={visit.claims}
+              canClaim={access.manageClaims}
+              onOpenClaim={setClaimId}
+              onStartClaim={() => setClaimForVisit(visit._id)}
+            />
+          )}
         </Space>
       )}
+
+      {visit && (
+        <LabOrderModal
+          open={labOpen}
+          onClose={() => setLabOpen(false)}
+          customerId={visit.customer_id}
+          visitId={visit._id}
+          onCreated={refresh}
+        />
+      )}
+      <LabOrderDrawer
+        orderId={labOrderId}
+        onClose={() => {
+          setLabOrderId(null);
+          refresh();
+        }}
+      />
+      <ClaimDrawer
+        claimId={claimId}
+        newVisitId={claimForVisit}
+        onClose={() => {
+          setClaimId(null);
+          setClaimForVisit(null);
+          refresh();
+        }}
+        onCreated={(id) => {
+          setClaimForVisit(null);
+          setClaimId(id);
+        }}
+      />
 
       {visit && (
         <PrescriptionModal
@@ -353,6 +444,115 @@ const VisitDrawer: React.FC<VisitDrawerProps> = ({ visitId, onClose }) => {
         />
       )}
     </Drawer>
+  );
+};
+
+/** Who pays for the visit, the member check, and its claim. */
+const PayerCard: React.FC<{
+  visit: Visit;
+  disabled: boolean;
+  onSaved: () => void;
+  claims: { _id: string; claim_number: string; status: keyof typeof CLAIM_STATUS_TAG; claim_amount: number; payer_name: string }[];
+  canClaim: boolean;
+  onOpenClaim: (id: string) => void;
+  onStartClaim: () => void;
+}> = ({ visit, disabled, onSaved, claims, canClaim, onOpenClaim, onStartClaim }) => {
+  const [payer, setPayer] = useState(visit.payer);
+  const [payerId, setPayerId] = useState(visit.payer_id ?? undefined);
+  const [schemeId, setSchemeId] = useState(visit.scheme_id ?? undefined);
+  const [member, setMember] = useState(visit.member_number ?? "");
+  const [verified, setVerified] = useState(!!visit.member_verified);
+  const { data: payers = [] } = useQuery({
+    queryKey: ["healthcare-payers", "active"],
+    queryFn: () => fetchPayers(true, "HEALTHCARE_VISITS_MANAGE"),
+  });
+  const save = useMutation({
+    mutationFn: () =>
+      updateVisit(visit._id, { payer, payer_id: payerId ?? null, scheme_id: schemeId ?? null, member_number: member, member_verified: verified }),
+    onSuccess: () => {
+      message.success("Payer saved");
+      onSaved();
+    },
+    onError: (error) => message.error(healthcareError(error, "Couldn't save the payer")),
+  });
+  const schemes = payers.find((p) => p._id === payerId)?.schemes.filter((s) => s.is_active !== false) ?? [];
+
+  return (
+    <Card
+      size="small"
+      title="Payment"
+      extra={
+        canClaim &&
+        payer !== "cash" &&
+        !claims.some((c) => c.status !== "rejected") && (
+          <Button size="small" onClick={onStartClaim} disabled={!visit.payer_id}>
+            Start claim
+          </Button>
+        )
+      }
+    >
+      <Space wrap>
+        <Select
+          value={payer}
+          disabled={disabled}
+          onChange={setPayer}
+          style={{ width: 130 }}
+          options={[
+            { value: "cash", label: "Cash" },
+            { value: "insurance", label: "Insurance" },
+            { value: "corporate", label: "Corporate" },
+          ]}
+        />
+        {payer !== "cash" && (
+          <>
+            <Select
+              value={payerId}
+              disabled={disabled}
+              placeholder="Payer"
+              style={{ width: 190 }}
+              onChange={(v) => {
+                setPayerId(v);
+                setSchemeId(undefined);
+              }}
+              options={payers.map((p) => ({ value: p._id, label: p.name }))}
+            />
+            <Select
+              value={schemeId}
+              disabled={disabled}
+              allowClear
+              placeholder="Scheme"
+              style={{ width: 160 }}
+              onChange={setSchemeId}
+              options={schemes.map((s) => ({ value: s._id, label: s.name }))}
+            />
+            <Input value={member} disabled={disabled} placeholder="Member no." style={{ width: 150 }} onChange={(e) => setMember(e.target.value)} />
+            <span>
+              <Switch size="small" checked={verified} disabled={disabled} onChange={setVerified} /> <Text>Member verified</Text>
+            </span>
+          </>
+        )}
+        {!disabled && (
+          <Button size="small" type="primary" loading={save.isLoading} onClick={() => save.mutate()}>
+            Save
+          </Button>
+        )}
+      </Space>
+      {!!claims.length && (
+        <div style={{ marginTop: 10 }}>
+          {claims.map((c) => (
+            <div key={c._id} onClick={() => onOpenClaim(c._id)} style={{ cursor: "pointer", padding: "4px 0" }}>
+              <Space>
+                <Text strong>{c.claim_number}</Text>
+                <Tag color={CLAIM_STATUS_TAG[c.status].color}>{CLAIM_STATUS_TAG[c.status].label}</Tag>
+                <Text type="secondary">
+                  {c.payer_name} · {money(c.claim_amount)}
+                </Text>
+              </Space>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
   );
 };
 

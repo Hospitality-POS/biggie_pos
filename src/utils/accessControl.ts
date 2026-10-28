@@ -865,6 +865,14 @@ export const PERMISSIONS: Record<string, Permission> = {
     HEALTHCARE_DISPENSE: { key: "HEALTHCARE_DISPENSE", label: "Dispense Medicine", module: MODULES.HEALTHCARE, action: "special", moduleScope: "pos" },
     HEALTHCARE_BATCHES_VIEW: { key: "HEALTHCARE_BATCHES_VIEW", label: "View Medicine Batches & Expiry", module: MODULES.HEALTHCARE, action: "read", moduleScope: "pos" },
     HEALTHCARE_BATCHES_MANAGE: { key: "HEALTHCARE_BATCHES_MANAGE", label: "Receive Batches & Write Off Stock", module: MODULES.HEALTHCARE, action: "update", moduleScope: "pos" },
+    HEALTHCARE_LAB_ORDER: { key: "HEALTHCARE_LAB_ORDER", label: "Order Lab Tests & Imaging", module: MODULES.HEALTHCARE, action: "special", moduleScope: "pos" },
+    HEALTHCARE_LAB_VIEW: { key: "HEALTHCARE_LAB_VIEW", label: "View Lab & Imaging Worklist", module: MODULES.HEALTHCARE, action: "read", moduleScope: "pos" },
+    HEALTHCARE_LAB_WORK: { key: "HEALTHCARE_LAB_WORK", label: "Collect Samples & Enter Results", module: MODULES.HEALTHCARE, action: "special", moduleScope: "pos" },
+    HEALTHCARE_LAB_SETUP: { key: "HEALTHCARE_LAB_SETUP", label: "Set Up Lab Tests & Reference Ranges", module: MODULES.HEALTHCARE, action: "update", moduleScope: "pos" },
+    HEALTHCARE_CLAIMS_VIEW: { key: "HEALTHCARE_CLAIMS_VIEW", label: "View Insurance Claims", module: MODULES.HEALTHCARE, action: "read", moduleScope: "pos" },
+    HEALTHCARE_CLAIMS_MANAGE: { key: "HEALTHCARE_CLAIMS_MANAGE", label: "Create, Submit & Record Payments on Claims", module: MODULES.HEALTHCARE, action: "special", moduleScope: "pos" },
+    HEALTHCARE_PAYERS_MANAGE: { key: "HEALTHCARE_PAYERS_MANAGE", label: "Set Up Insurers & Schemes", module: MODULES.HEALTHCARE, action: "update", moduleScope: "pos" },
+    HEALTHCARE_REPORTS_VIEW: { key: "HEALTHCARE_REPORTS_VIEW", label: "View Healthcare Reports", module: MODULES.HEALTHCARE, action: "read", moduleScope: "pos" },
 
     // ── Reports ───────────────────────────────────────────────────────────────
 

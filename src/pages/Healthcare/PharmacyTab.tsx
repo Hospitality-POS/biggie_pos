@@ -16,9 +16,9 @@ import {
 } from "@services/healthcare";
 import { fetchShop } from "@services/shops";
 import { AllergyBanner, AllergyWarnings } from "./AllergyBanner";
-import PatientPicker from "./PatientPicker";
+import PatientPickModal from "./PatientPickModal";
 import PrescriptionModal from "./PrescriptionModal";
-import { RX_STATUS, patientName, printDispensingLabels, searchPermissionFor, useAddToBill, useHealthcareAccess, useMedicineOptions } from "./shared";
+import { RX_STATUS, patientName, printDispensingLabels, useAddToBill, useHealthcareAccess, useMedicineOptions } from "./shared";
 
 const { Text } = Typography;
 
@@ -30,6 +30,7 @@ const PharmacyTab: React.FC = () => {
   const [openId, setOpenId] = useState<string | null>(null);
   const [outsidePatient, setOutsidePatient] = useState<string>();
   const [outsideOpen, setOutsideOpen] = useState(false);
+  const [pickOpen, setPickOpen] = useState(false);
   const queryClient = useQueryClient();
 
   const { data = [], isFetching } = useQuery({
@@ -39,8 +40,16 @@ const PharmacyTab: React.FC = () => {
   });
 
   return (
-    <Space direction="vertical" size={16} style={{ width: "100%" }}>
-      <Space wrap style={{ width: "100%", justifyContent: "space-between" }}>
+    <Space direction="vertical" size={14} style={{ width: "100%" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
+        <div style={{ flex: "1 1 220px" }}>
+          <Text strong style={{ fontSize: 16, display: "block" }}>
+            Pharmacy
+          </Text>
+          <Text type="secondary" style={{ fontSize: 12.5 }}>
+            Prescriptions from the doctor or brought in from outside
+          </Text>
+        </div>
         <Segmented<Filter>
           value={filter}
           onChange={setFilter}
@@ -51,16 +60,22 @@ const PharmacyTab: React.FC = () => {
           ]}
         />
         {access.dispense && (
-          <Space.Compact>
-            <div style={{ width: 300 }}>
-              <PatientPicker value={outsidePatient} onChange={setOutsidePatient} permission={searchPermissionFor(access)} canRegister={access.managePatients} />
-            </div>
-            <Button icon={<FileAddOutlined />} disabled={!outsidePatient} onClick={() => setOutsideOpen(true)}>
-              Outside prescription
-            </Button>
-          </Space.Compact>
+          <Button type="primary" icon={<FileAddOutlined />} onClick={() => setPickOpen(true)}>
+            Outside prescription
+          </Button>
         )}
-      </Space>
+      </div>
+      <PatientPickModal
+        open={pickOpen}
+        title="Outside prescription"
+        hint="Who is the prescription for?"
+        onClose={() => setPickOpen(false)}
+        onPicked={(id) => {
+          setPickOpen(false);
+          setOutsidePatient(id);
+          setOutsideOpen(true);
+        }}
+      />
 
       <Table<Prescription>
         rowKey="_id"

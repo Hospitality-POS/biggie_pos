@@ -47,6 +47,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchShop } from "@services/shops";
 import { useTenantModules } from "@hooks/useTenantModules";
 import { useFormsSettings } from "@hooks/useFormsSettings";
+import { useHealthcareSettings } from "@hooks/useHealthcareSettings";
 
 // ─── SVG tile helper ──────────────────────────────────────────────────────────
 export const makeTile = (color: string, pathD: string): string => {
@@ -142,13 +143,13 @@ const POS_ROUTE_PERMISSIONS: Record<string, string> = {
   "/pos/dashboard": "UNIFIED_DASHBOARD_VIEW|ORDERS_VIEW_DASHBOARD",
   "/duka/dashboard": "UNIFIED_DASHBOARD_VIEW|ORDERS_VIEW_DASHBOARD",
   "/dashboard": "UNIFIED_DASHBOARD_VIEW|ORDERS_VIEW_DASHBOARD",
-  "/tables": "CART_VIEW_ITEMS|HEALTHCARE_VISITS_VIEW|HEALTHCARE_PRESCRIPTIONS_VIEW",
+  "/tables": "CART_VIEW_ITEMS|HEALTHCARE_VISITS_VIEW|HEALTHCARE_PRESCRIPTIONS_VIEW|HEALTHCARE_LAB_VIEW|HEALTHCARE_CLAIMS_VIEW",
   "/orders": "ORDERS_VIEW",
   "/store": "PRODUCTS_VIEW",
   "/inventory": "INVENTORY_VIEW",
   "/employee-shift": "SHIFTS_VIEW",
   "/customers": "CUSTOMERS_VIEW",
-  "/reports": "REPORTS_ITEM_SALES|REPORTS_VIEW|ACCOUNTING_REPORT_PROFIT_LOSS",
+  "/reports": "REPORTS_ITEM_SALES|REPORTS_VIEW|ACCOUNTING_REPORT_PROFIT_LOSS|HEALTHCARE_REPORTS_VIEW",
   "/documents": "DOCUMENTS_VIEW",
   "/esign": "SIGNATURE_VIEW",
   "/forms": "CLIENT_FORMS_VIEW|CLIENT_FORMS_VIEW_FILLED|CLIENT_PLANS_VIEW|CLIENT_FORMS_ANALYTICS",
@@ -334,6 +335,8 @@ export const useProLayoutNav = () => {
   const mtejaSellsInChat = whatsappMarketplaceOn && !hasDuka;
   // Forms & Plans add-on — only shops that switched it on in System Setup
   const formsAddOn = useFormsSettings();
+  // Healthcare: a chemist calls them Customers, clinics and hospitals Patients
+  const { words: healthcareWords } = useHealthcareSettings();
 
   const isAdminLayout = window.location.pathname.startsWith("/admin");
   const prefix = isAdminLayout ? "/admin" : "";
@@ -362,7 +365,7 @@ export const useProLayoutNav = () => {
   const homeRouteIcon = isHospitalMode ? <MedicineBoxOutlined /> : <HomeFilled />;
 
   const getCustomerLabel = () => {
-    if (isHospitalMode) return "Patients";
+    if (isHospitalMode) return healthcareWords.people;
     if (activeProduct === "dala") return "Clients";
     return "Customers";
   };

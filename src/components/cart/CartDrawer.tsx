@@ -48,6 +48,7 @@ import ClientPin from "@components/MODALS/ClientPin";
 import DiscountModal from "@components/MODALS/pro/DiscountModal";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { usePOSMode } from "@context/POSModeContext";
+import { useHealthcareSettings } from "@hooks/useHealthcareSettings";
 import { useRetailQueue } from "@context/RetailQueueContext";
 import { usePrintDocument, DocumentType } from "../MODALS/Hooks/usePrintDocument";
 import useSystemDetails from "@hooks/useSystemDetails";
@@ -149,6 +150,8 @@ const CartDrawer: React.FC = () => {
   const navigate = useNavigate();
   const primaryColor = usePrimaryColor();
   const { isRetailMode, isHospitalMode } = usePOSMode();
+  // Healthcare: a hospital has wards and beds; a chemist or clinic just has orders or patients
+  const { words: healthcareWords } = useHealthcareSettings();
   const {
     activeTable,
     allLocations,
@@ -269,15 +272,15 @@ const CartDrawer: React.FC = () => {
   }, [cartDetails?.served_by, cartDetails?.created_by]);
 
   const slotLabel = useMemo(() => {
-    if (isHospitalMode) return activeTable?.name || "No Ward/Bed";
+    if (isHospitalMode) return activeTable?.name || `No ${healthcareWords.slot}`;
     if (isRetailMode) return activeTable?.name || "No Slot";
     return td?.name || "No Table";
-  }, [isHospitalMode, isRetailMode, activeTable?.name, td?.name]);
+  }, [isHospitalMode, isRetailMode, activeTable?.name, td?.name, healthcareWords.slot]);
 
-  const slotSectionLabel = isHospitalMode ? "Active Ward / Bed" : "Active Slot";
-  const addOrderLabel = isHospitalMode ? "Open Another Patient" : "Open Another Order";
+  const slotSectionLabel = isHospitalMode ? `Active ${healthcareWords.slot}` : "Active Slot";
+  const addOrderLabel = isHospitalMode ? healthcareWords.newSlot : "Open Another Order";
   const clearSlotTitle = isHospitalMode
-    ? `Clear "${activeTable?.name}"? This will empty the cart and free this bed/ward.`
+    ? `Clear "${activeTable?.name}"? This will empty the cart and free this ${healthcareWords.slot.toLowerCase()}.`
     : `Clear "${activeTable?.name}"? This will empty the cart and free up this slot.`;
 
   useEffect(() => {

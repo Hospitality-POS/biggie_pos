@@ -86,7 +86,7 @@ const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ open, onClo
     // Forms & Plans add-on: this customer's signed forms and plans
     const { clientForms, clientPlans } = useFormsSettings();
     // Healthcare add-on: the patient's medical details live on the customer
-    const { patientRecords } = useHealthcareSettings();
+    const { patientRecords, words } = useHealthcareSettings();
     const { viewPatients } = useHealthcareAccess();
     const [documentForm] = Form.useForm();
     const [documents, setDocuments] = useState<CustomerDocument[]>([]);
@@ -182,7 +182,7 @@ const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ open, onClo
                         )}
                     </div>
                     <Tag color={entityType === 'company' ? C.blue : C.green} style={{ marginLeft: "auto", borderRadius: 10, fontSize: 11 }}>
-                        {isHospital ? "PATIENT" : entityType.toUpperCase()}
+                        {isHospital ? words.person.toUpperCase() : entityType.toUpperCase()}
                     </Tag>
                 </div>
             }

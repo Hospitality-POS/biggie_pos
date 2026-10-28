@@ -513,7 +513,7 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
 
         // ── Hospital mode: customers are patients ────────────────────────────
         const isHospital = (localStorage.getItem("posMode") ?? "") === "hospital";
-        const { patientRecords } = useHealthcareSettings();
+        const { patientRecords, words } = useHealthcareSettings();
         const { viewPatients } = useHealthcareAccess();
         const showMedical = isHospital && patientRecords && viewPatients;
         const [rowIds, setRowIds] = useState<string[]>([]);
@@ -523,7 +523,7 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
             enabled: showMedical && rowIds.length > 0,
         });
         const profileOf = new Map(profiles.map((p) => [String(p.customer_id), p]));
-        const noun = isHospital ? "Patient" : "Customer";
+        const noun = isHospital ? words.person : "Customer";
 
         const [giftCardOpen, setGiftCardOpen] = useState(false);
         const [newRecipientOpen, setNewRecipientOpen] = useState(false);

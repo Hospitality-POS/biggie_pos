@@ -4,13 +4,16 @@ import {
   CheckCircleFilled, EditOutlined,
   EnvironmentOutlined, HomeOutlined, LoadingOutlined, MedicineBoxOutlined,
   PercentageOutlined, SearchOutlined, ShopOutlined, SolutionOutlined, TagOutlined,
+  ExperimentOutlined, BankOutlined,
 } from "@ant-design/icons";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { createShop, updateShop } from "@services/shops";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { DEFAULT_CATERING_LEVY_RATE, ShopTaxSettings, formatRate } from "@utils/taxConfig";
-import { useQuery } from "@tanstack/react-query";
-import { fetchCateringLevy } from "@services/systemsetup";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { clearSystemSetupCache, fetchCateringLevy, fetchSystemSettingsForShop } from "@services/systemsetup";
+import { FACILITY_PRESETS, type FacilityPreset } from "@utils/healthcareFacility";
+import { HEALTHCARE_SETTINGS_QUERY_KEY } from "@hooks/useHealthcareSettings";
 
 interface ShopModalProps { actionRef: any; edit?: boolean; data?: any; }
 
@@ -362,6 +365,35 @@ const TaxRow: React.FC<{
   </div>
 );
 
+// ── Healthcare facility type (asked when hospital mode is picked) ────────────
+type FacilityChoice = FacilityPreset["type"];
+
+const FACILITY_ICONS: Record<FacilityChoice, React.ReactNode> = {
+  pharmacy: <ShopOutlined />,
+  clinic: <MedicineBoxOutlined />,
+  diagnostic: <ExperimentOutlined />,
+  hospital: <BankOutlined />,
+};
+
+const FacilityCard: React.FC<{ preset: FacilityPreset; active: boolean; onClick: () => void; primaryColor: string }> = ({
+  preset, active, onClick, primaryColor,
+}) => (
+  <div
+    onClick={onClick}
+    style={{
+      border: `2px solid ${active ? primaryColor : "#e2e8f0"}`, borderRadius: 10, padding: "10px 12px",
+      cursor: "pointer", background: active ? `${primaryColor}0d` : "#fff", transition: "all 0.18s", position: "relative",
+    }}
+  >
+    {active && <CheckCircleFilled style={{ position: "absolute", top: 8, right: 8, color: primaryColor, fontSize: 14 }} />}
+    <Space size={8}>
+      <span style={{ fontSize: 18, color: active ? primaryColor : "#94a3b8" }}>{FACILITY_ICONS[preset.type]}</span>
+      <Typography.Text strong style={{ fontSize: 13, color: active ? primaryColor : "#334155" }}>{preset.title}</Typography.Text>
+    </Space>
+    <Typography.Text type="secondary" style={{ fontSize: 11, display: "block", marginTop: 4, lineHeight: 1.4 }}>{preset.description}</Typography.Text>
+  </div>
+);
+
 // ── Normalise legacy "restaurant" → "service" on read ─────────────────────────
 const normalisePosMode = (mode: string | undefined): PosMode => {
   if (mode === "restaurant") return "restaurant";
@@ -378,6 +410,11 @@ const AddEditShopModal: React.FC<ShopModalProps> = ({ actionRef, edit, data }) =
   const [loading, setLoading] = useState(false);
   const [posMode, setPosMode] = useState<PosMode>(normalisePosMode(data?.pos_mode));
   const [tax, setTax] = useState<Required<ShopTaxSettings>>(DEFAULT_TAX);
+  // Hospital mode: what kind of facility (chemist, clinic, lab, hospital)
+  const [facility, setFacility] = useState<FacilityChoice | undefined>();
+  const [savedFacility, setSavedFacility] = useState<FacilityChoice | undefined>();
+  const [facilityError, setFacilityError] = useState(false);
+  const queryClient = useQueryClient();
   const primaryColor = usePrimaryColor();
   // Business-wide levy (system settings) — only to tell the user it already applies
   const { data: businessLevy } = useQuery({
@@ -405,10 +442,25 @@ const AddEditShopModal: React.FC<ShopModalProps> = ({ actionRef, edit, data }) =
   const showPosModeSelector = hasPOS && !(hasMteja && !hasPOS && !hasAccounting);
 
   const handleOpen = () => {
+    setFacility(undefined);
+    setSavedFacility(undefined);
+    setFacilityError(false);
     if (edit && data) {
       form.setFieldsValue({ name: data.name, location: data.location });
       setPosMode(normalisePosMode(data?.pos_mode));
       setTax({ ...DEFAULT_TAX, ...(data?.tax_settings || {}) });
+      // An existing hospital branch: show the facility type it is set up as
+      if (data?._id && data?.pos_mode === "hospital") {
+        fetchSystemSettingsForShop(data._id)
+          .then((s) => {
+            const type = s?.healthcare_settings?.facility_type;
+            if (FACILITY_PRESETS.some((p) => p.type === type)) {
+              setFacility(type);
+              setSavedFacility(type);
+            }
+          })
+          .catch(() => undefined);
+      }
     } else {
       setTax(DEFAULT_TAX);
     }
@@ -420,10 +472,15 @@ const AddEditShopModal: React.FC<ShopModalProps> = ({ actionRef, edit, data }) =
     form.resetFields();
     setPosMode("restaurant");
     setTax(DEFAULT_TAX);
+    setFacility(undefined);
   };
 
   const handleOk = async () => {
     try {
+      if (posMode === "hospital" && !facility) {
+        setFacilityError(true);
+        return;
+      }
       const values = await form.validateFields();
       const confirmed = await ShowConfirm({
         title: `Are you sure you want to ${edit ? "update this" : "add new"} shop?`,
@@ -431,9 +488,17 @@ const AddEditShopModal: React.FC<ShopModalProps> = ({ actionRef, edit, data }) =
       });
       if (!confirmed) return;
       setLoading(true);
+      // Only send the facility type when it changed, so re-saving a branch
+      // doesn't undo features someone adjusted in System Setup
+      const healthcare =
+        posMode === "hospital" && facility && facility !== savedFacility ? { healthcare_facility_type: facility } : {};
       edit
-        ? await updateShop({ ...values, _id: data?._id, pos_mode: posMode, tax_settings: tax })
-        : await createShop({ ...values, pos_mode: posMode, tax_settings: tax });
+        ? await updateShop({ ...values, _id: data?._id, pos_mode: posMode, tax_settings: tax, ...healthcare })
+        : await createShop({ ...values, pos_mode: posMode, tax_settings: tax, ...healthcare });
+      if (healthcare.healthcare_facility_type) {
+        clearSystemSetupCache();
+        queryClient.invalidateQueries({ queryKey: [HEALTHCARE_SETTINGS_QUERY_KEY] });
+      }
       actionRef?.current?.reload?.() || actionRef?.current?.reset?.();
       // Clear localStorage posMode when shop is updated to force refetch
       if (edit) {
@@ -461,7 +526,7 @@ const AddEditShopModal: React.FC<ShopModalProps> = ({ actionRef, edit, data }) =
         okText={edit ? "Save Changes" : "Add Shop"}
         cancelText="Cancel"
         title={<Space><ShopOutlined />{edit ? "Edit Shop" : "Add New Branch"}</Space>}
-        width={520}
+        width="min(760px, 96vw)"
         style={{ top: 40 }}
         destroyOnClose
         maskClosable={false}
@@ -487,7 +552,7 @@ const AddEditShopModal: React.FC<ShopModalProps> = ({ actionRef, edit, data }) =
           {/* POS Mode selector — only shown when POS module is active */}
           {showPosModeSelector && (
             <Form.Item label="POS Mode" style={{ marginBottom: 0 }}>
-              <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 8 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12, paddingBottom: 8 }}>
                 <ModeCard
                   active={posMode === "restaurant"}
                   onClick={() => setPosMode("restaurant")}
@@ -524,7 +589,31 @@ const AddEditShopModal: React.FC<ShopModalProps> = ({ actionRef, edit, data }) =
             </Form.Item>
           )}
 
-          {/* Branch-only taxes — business-wide ones are set in Admin → Settings */}
+          {/* Hospital mode, level 2: what kind of facility — sets up just what it needs */}
+          {showPosModeSelector && posMode === "hospital" && (
+            <Form.Item
+              label="Type of facility"
+              required
+              validateStatus={facilityError && !facility ? "error" : undefined}
+              help={facilityError && !facility ? "Choose the type of facility" : "Switches on only what this kind of branch uses. Adjust later in System Setup → Healthcare."}
+              style={{ marginTop: 8 }}
+            >
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10 }}>
+                {FACILITY_PRESETS.map((preset) => (
+                  <FacilityCard
+                    key={preset.type}
+                    preset={preset}
+                    active={facility === preset.type}
+                    onClick={() => setFacility(preset.type)}
+                    primaryColor={primaryColor}
+                  />
+                ))}
+              </div>
+            </Form.Item>
+          )}
+
+          {/* Branch-only taxes — business-wide ones are set in Admin → Settings. Pesa (accounting) only. */}
+          {hasAccounting && (
           <Form.Item
             label="Taxes & Levies"
             extra="Switching a tax on here applies it to this branch only."
@@ -567,6 +656,7 @@ const AddEditShopModal: React.FC<ShopModalProps> = ({ actionRef, edit, data }) =
               />
             </div>
           </Form.Item>
+          )}
         </Form>
       </Modal>
     </>

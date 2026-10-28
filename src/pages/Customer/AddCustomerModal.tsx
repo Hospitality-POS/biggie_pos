@@ -197,11 +197,11 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
     // person, KRA PIN) give way to gender, date of birth and, with Healthcare
     // patient records on, the medical details clinicians need at check-in.
     const isHospital = (localStorage.getItem("posMode") ?? "") === "hospital";
-    const { patientRecords } = useHealthcareSettings();
+    const { patientRecords, insurance, facilityType, words } = useHealthcareSettings();
     const { managePatients } = useHealthcareAccess();
     const askMedical = isHospital && patientRecords && managePatients;
     const [existingProfile, setExistingProfile] = useState<PatientProfile | null>(null);
-    const noun = isHospital ? "Patient" : "Customer";
+    const noun = isHospital ? words.person : "Customer";
 
     // Editing a patient: load their medical details into the form
     useEffect(() => {
@@ -706,17 +706,25 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                                     <Select mode="tags" placeholder="e.g. Diabetes" tokenSeparators={[","]} />
                                 </Form.Item>
                             </Col>
-                            <Col xs={24} sm={12}>
-                                <Form.Item name={["medical", "insurance", "provider"]} label="Insurance Provider">
-                                    <Input placeholder="e.g. SHA, Jubilee, AAR (blank = cash)" style={{ borderRadius: 8 }} />
-                                </Form.Item>
-                            </Col>
-                            <Col xs={24} sm={12}>
-                                <Form.Item name={["medical", "insurance", "member_number"]} label="Member No.">
-                                    <Input style={{ borderRadius: 8 }} />
-                                </Form.Item>
-                            </Col>
+                            {/* Insurance details only where the branch takes insurance */}
+                            {insurance && (
+                                <>
+                                    <Col xs={24} sm={12}>
+                                        <Form.Item name={["medical", "insurance", "provider"]} label="Insurance Provider">
+                                            <Input placeholder="e.g. SHA, Jubilee, AAR (blank = cash)" style={{ borderRadius: 8 }} />
+                                        </Form.Item>
+                                    </Col>
+                                    <Col xs={24} sm={12}>
+                                        <Form.Item name={["medical", "insurance", "member_number"]} label="Member No.">
+                                            <Input style={{ borderRadius: 8 }} />
+                                        </Form.Item>
+                                    </Col>
+                                </>
+                            )}
                         </Row>
+                        {/* A chemist doesn't need a next of kin for a counter sale */}
+                        {facilityType !== "pharmacy" && (
+                        <>
                         <Text strong style={{ fontSize: 12, color: C.darkText, margin: "4px 0 8px", display: "block" }}>
                             Next of Kin
                         </Text>
@@ -737,6 +745,8 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                                 </Form.Item>
                             </Col>
                         </Row>
+                        </>
+                        )}
                     </div>
                 )}
 

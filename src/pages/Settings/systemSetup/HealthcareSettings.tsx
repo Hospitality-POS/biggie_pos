@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Switch, Space, Typography, Alert, Spin, InputNumber, Input, Button, message } from "antd";
+import { Switch, Space, Typography, Alert, Spin, InputNumber, Input, Button, Modal, message } from "antd";
 import { ProCard } from "@ant-design/pro-components";
 import {
   MedicineBoxOutlined,
@@ -10,10 +10,16 @@ import {
   ExperimentOutlined,
   CalendarOutlined,
   StopOutlined,
+  ShopOutlined,
+  BankOutlined,
+  CheckCircleFilled,
+  ScanOutlined,
+  SafetyCertificateOutlined,
 } from "@ant-design/icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { fetchSystemSetupDetailsById, updateSystemSetup } from "../../../services/systemsetup";
 import { HEALTHCARE_SETTINGS_QUERY_KEY } from "../../../hooks/useHealthcareSettings";
+import { FACILITY_PRESETS, type FacilityPreset, type FacilityType } from "@utils/healthcareFacility";
 import { THEME_C } from "../../../utils/getPrimaryColor";
 
 const { Text } = Typography;
@@ -28,9 +34,13 @@ type HealthcareFlag =
   | "clinical_notes_enabled"
   | "prescriptions_enabled"
   | "batch_tracking_enabled"
+  | "lab_enabled"
+  | "radiology_enabled"
+  | "insurance_enabled"
   | "block_expired_dispensing";
 
 type HealthcareSettingsState = Record<HealthcareFlag, boolean> & {
+  facility_type: FacilityType;
   near_expiry_days: number;
   patient_number_prefix: string;
 };
@@ -45,9 +55,20 @@ const DEFAULTS: HealthcareSettingsState = {
   clinical_notes_enabled: true,
   prescriptions_enabled: true,
   batch_tracking_enabled: false,
+  lab_enabled: false,
+  radiology_enabled: false,
+  insurance_enabled: false,
   block_expired_dispensing: true,
   near_expiry_days: 90,
   patient_number_prefix: "PT",
+  facility_type: "custom",
+};
+
+const FACILITY_ICONS: Record<FacilityPreset["type"], React.ReactNode> = {
+  pharmacy: <ShopOutlined />,
+  clinic: <MedicineBoxOutlined />,
+  diagnostic: <ExperimentOutlined />,
+  hospital: <BankOutlined />,
 };
 
 const SectionLabel: React.FC<{ text: string }> = ({ text }) => (
@@ -179,6 +200,26 @@ const HealthcareSettings: React.FC = () => {
   const handleToggle = (flag: HealthcareFlag, successMsg: (checked: boolean) => string) => (checked: boolean) =>
     save(flag, { [flag]: checked }, successMsg(checked));
 
+  /** Choosing the kind of branch switches on just the features it uses. */
+  const chooseFacility = (preset: FacilityPreset) => {
+    const apply = () =>
+      save(
+        `facility-${preset.type}`,
+        { enabled: true, facility_type: preset.type, ...preset.flags },
+        `Set up as ${preset.title}`
+      );
+    if (!settings.enabled || settings.facility_type === "custom" || settings.facility_type === preset.type) {
+      apply();
+      return;
+    }
+    Modal.confirm({
+      title: `Set this branch up as ${preset.title}?`,
+      content: "The features below change to suit it. Nothing already saved is deleted; switched-off screens are just hidden.",
+      okText: "Change",
+      onOk: apply,
+    });
+  };
+
   if (loading) {
     return (
       <div style={{ display: "flex", justifyContent: "center", padding: 40 }}>
@@ -214,6 +255,43 @@ const HealthcareSettings: React.FC = () => {
             onChange={handleToggle("enabled", (c) => (c ? "Healthcare activated" : "Healthcare turned off"))}
             loading={updating === "enabled"}
           />
+        </div>
+
+        <div>
+          <SectionLabel text="What kind of facility is this branch?" />
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 10 }}>
+            {FACILITY_PRESETS.map((preset) => {
+              const chosen = settings.enabled && settings.facility_type === preset.type;
+              return (
+                <button
+                  key={preset.type}
+                  type="button"
+                  onClick={() => chooseFacility(preset)}
+                  disabled={!!updating}
+                  style={{
+                    textAlign: "left",
+                    background: chosen ? "#f0f9ff" : "#fff",
+                    border: `1.5px solid ${chosen ? "#0ea5e9" : "#e2e8f0"}`,
+                    borderRadius: 10,
+                    padding: "12px 14px",
+                    cursor: updating ? "wait" : "pointer",
+                    font: "inherit",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ color: "#0ea5e9", fontSize: 16 }}>{FACILITY_ICONS[preset.type]}</span>
+                    <Text strong>{preset.title}</Text>
+                    {chosen && <CheckCircleFilled style={{ color: "#0ea5e9", marginLeft: "auto" }} />}
+                  </div>
+                  <Text style={{ fontSize: 12.5, color: C.subText, display: "block", marginTop: 4, lineHeight: 1.5 }}>{preset.description}</Text>
+                </button>
+              );
+            })}
+          </div>
+          <Text type="secondary" style={{ display: "block", fontSize: 12, marginTop: 8 }}>
+            Choosing one switches on only what that kind of branch uses and sets the POS tabs and wording (a chemist sees Customers and Billing first).
+            You can still switch single features on or off below.
+          </Text>
         </div>
 
         <div>
@@ -305,6 +383,49 @@ const HealthcareSettings: React.FC = () => {
               disabled={off || !settings.batch_tracking_enabled}
             />
           </Space>
+        </div>
+
+        <div>
+          <SectionLabel text="Lab & imaging" />
+          <Space direction="vertical" size={10} style={{ width: "100%" }}>
+            <ToggleRow
+              icon={<ExperimentOutlined />}
+              color="#7c3aed"
+              bg="#f5f3ff"
+              title="Laboratory"
+              description="Doctors order lab tests on a visit. The lab collects the sample, enters results, which are flagged against reference ranges, and the patient goes back to the doctor. Adds a Lab tab next to the queue."
+              checked={settings.lab_enabled}
+              onChange={handleToggle("lab_enabled", (c) => (c ? "Laboratory turned on" : "Laboratory turned off"))}
+              loading={updating === "lab_enabled"}
+              disabled={off}
+            />
+            <ToggleRow
+              icon={<ScanOutlined />}
+              color="#0891b2"
+              bg="#ecfeff"
+              title="Imaging (X-ray, ultrasound, scans)"
+              description="Doctors order imaging on a visit and the radiographer writes the report, in the same Lab tab."
+              checked={settings.radiology_enabled}
+              onChange={handleToggle("radiology_enabled", (c) => (c ? "Imaging turned on" : "Imaging turned off"))}
+              loading={updating === "radiology_enabled"}
+              disabled={off}
+            />
+          </Space>
+        </div>
+
+        <div>
+          <SectionLabel text="Insurance" />
+          <ToggleRow
+            icon={<SafetyCertificateOutlined />}
+            color="#2563eb"
+            bg="#eff6ff"
+            title="Insurance & Claims"
+            description="Set up insurers, corporate and government payers with their schemes, co-pay and pre-authorisation rules. Reception picks the payer at check-in, and claims are built from what was given on the visit and tracked until paid."
+            checked={settings.insurance_enabled}
+            onChange={handleToggle("insurance_enabled", (c) => (c ? "Insurance & Claims turned on" : "Insurance & Claims turned off"))}
+            loading={updating === "insurance_enabled"}
+            disabled={off}
+          />
         </div>
 
         <div>

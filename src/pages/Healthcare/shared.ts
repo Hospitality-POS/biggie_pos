@@ -39,6 +39,14 @@ export const useHealthcareAccess = () => {
     dispense: can("HEALTHCARE_DISPENSE"),
     viewBatches: can("HEALTHCARE_BATCHES_VIEW"),
     manageBatches: can("HEALTHCARE_BATCHES_MANAGE"),
+    orderLab: can("HEALTHCARE_LAB_ORDER"),
+    viewLab: can("HEALTHCARE_LAB_VIEW"),
+    labWork: can("HEALTHCARE_LAB_WORK"),
+    labSetup: can("HEALTHCARE_LAB_SETUP"),
+    viewClaims: can("HEALTHCARE_CLAIMS_VIEW"),
+    manageClaims: can("HEALTHCARE_CLAIMS_MANAGE"),
+    managePayers: can("HEALTHCARE_PAYERS_MANAGE"),
+    viewReports: can("HEALTHCARE_REPORTS_VIEW"),
   };
 };
 
@@ -60,6 +68,7 @@ export const STAGES: { key: VisitStage; label: string; color: string }[] = [
   { key: "waiting", label: "Waiting", color: "#64748b" },
   { key: "triage", label: "Triage", color: "#e11d48" },
   { key: "consultation", label: "Doctor", color: "#7c3aed" },
+  { key: "lab", label: "Lab", color: "#0891b2" },
   { key: "pharmacy", label: "Pharmacy", color: "#16a34a" },
   { key: "billing", label: "Billing", color: "#f59e0b" },
 ];
@@ -68,6 +77,7 @@ export const STAGE_LABEL: Record<VisitStage, string> = {
   waiting: "Waiting",
   triage: "Triage",
   consultation: "Doctor",
+  lab: "Lab",
   pharmacy: "Pharmacy",
   billing: "Billing",
   completed: "Completed",
@@ -141,6 +151,8 @@ export interface BillLine {
   name: string;
   quantity: number;
   price: number;
+  /** Medicine is stock (default); lab tests are usually services */
+  product_type?: "Product" | "Product_Inventory";
 }
 
 /**
@@ -174,7 +186,7 @@ export const useAddToBill = () => {
           addItemToCart({
             cart_id: cartId,
             product_id: line.product_id,
-            product_type: "Product_Inventory",
+            product_type: line.product_type ?? "Product_Inventory",
             price: line.price,
             created_by: userId,
             quantity: line.quantity,
@@ -249,3 +261,119 @@ export const printDispensingLabels = (opts: {
     setTimeout(() => frame.remove(), 1000);
   }, 200);
 };
+
+// ─── Lab ─────────────────────────────────────────────────────────────────────
+
+export const LAB_STATUS_TAG = {
+  ordered: { label: "Ordered", color: "blue" },
+  sample_collected: { label: "Sample taken", color: "geekblue" },
+  in_progress: { label: "In progress", color: "orange" },
+  completed: { label: "Results ready", color: "green" },
+  cancelled: { label: "Cancelled", color: "default" },
+} as const;
+
+export const money = (n?: number | null) =>
+  (n ?? 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+
+/** Opens a print dialog for a small HTML document (reports, claim forms). */
+export const printHtml = (title: string, body: string) => {
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title><style>
+    body { font-family: Arial, sans-serif; font-size: 12px; color: #111; margin: 16px; }
+    h1 { font-size: 16px; margin: 0 0 4px; } h2 { font-size: 13px; margin: 16px 0 6px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+    th, td { border: 1px solid #ccc; padding: 4px 6px; text-align: left; vertical-align: top; }
+    th { background: #f3f4f6; } .muted { color: #555; } .flag { font-weight: bold; color: #b91c1c; }
+    .right { text-align: right; } .sign { margin-top: 32px; display: flex; gap: 48px; }
+  </style></head><body>${body}</body></html>`;
+  const frame = document.createElement("iframe");
+  frame.style.position = "fixed";
+  frame.style.width = "0";
+  frame.style.height = "0";
+  frame.style.border = "0";
+  document.body.appendChild(frame);
+  const doc = frame.contentWindow?.document;
+  if (!doc) return;
+  doc.open();
+  doc.write(html);
+  doc.close();
+  setTimeout(() => {
+    frame.contentWindow?.focus();
+    frame.contentWindow?.print();
+    setTimeout(() => frame.remove(), 1000);
+  }, 200);
+};
+
+/** A lab or imaging report for the patient's file. */
+export const printLabReport = (opts: {
+  shopName?: string;
+  order: {
+    order_number: string;
+    department: "lab" | "radiology";
+    ordered_by_name?: string;
+    sample_collected_at?: string | null;
+    completed_at?: string | null;
+    clinical_notes?: string;
+    items: { name: string; status: string; results: { parameter: string; value: string; unit?: string; ref_range?: string; flag?: string }[]; report?: string; completed_by_name?: string }[];
+  };
+  patient: string;
+  patientNumber?: string;
+  ageGender?: string;
+}) => {
+  const { order } = opts;
+  const e = escapeHtml;
+  const tests = order.items
+    .filter((i) => i.status === "completed")
+    .map((i) => {
+      const rows = i.results.length
+        ? `<table><tr><th>Test</th><th>Result</th><th>Unit</th><th>Reference range</th><th></th></tr>${i.results
+            .map(
+              (r) =>
+                `<tr><td>${e(r.parameter)}</td><td class="${r.flag ? "flag" : ""}">${e(r.value)}</td><td>${e(r.unit)}</td><td>${e(r.ref_range)}</td><td class="flag">${e(
+                  r.flag === "high" ? "H" : r.flag === "low" ? "L" : r.flag ? "*" : ""
+                )}</td></tr>`
+            )
+            .join("")}</table>`
+        : "";
+      const report = i.report ? `<p>${e(i.report).replace(/\n/g, "<br>")}</p>` : "";
+      return `<h2>${e(i.name)}</h2>${rows}${report}<div class="muted">Reported by ${e(i.completed_by_name || "—")}</div>`;
+    })
+    .join("");
+  printHtml(
+    `${order.order_number} report`,
+    `<h1>${e(opts.shopName || "")}</h1>
+     <div><b>${order.department === "radiology" ? "Imaging" : "Laboratory"} report</b> · ${e(order.order_number)}</div>
+     <table><tr><td><b>Patient</b> ${e(opts.patient)}${opts.patientNumber ? ` (${e(opts.patientNumber)})` : ""}</td><td>${e(opts.ageGender || "")}</td></tr>
+     <tr><td><b>Requested by</b> ${e(order.ordered_by_name || "—")}</td><td><b>Sample</b> ${e(
+       order.sample_collected_at ? dayjs(order.sample_collected_at).format("DD MMM YYYY HH:mm") : "—"
+     )} · <b>Reported</b> ${e(order.completed_at ? dayjs(order.completed_at).format("DD MMM YYYY HH:mm") : "—")}</td></tr></table>
+     ${order.clinical_notes ? `<p class="muted"><b>Clinical notes:</b> ${e(order.clinical_notes)}</p>` : ""}
+     ${tests}
+     <div class="sign"><div>Verified by: ____________________</div><div>Signature: ____________________</div></div>`
+  );
+};
+
+// ─── Claims ──────────────────────────────────────────────────────────────────
+
+export const CLAIM_STATUS_TAG: Record<"draft" | "submitted" | "approved" | "partially_paid" | "paid" | "rejected", { label: string; color: string }> = {
+  draft: { label: "Draft", color: "default" },
+  submitted: { label: "Submitted", color: "blue" },
+  approved: { label: "Approved", color: "geekblue" },
+  partially_paid: { label: "Part paid", color: "orange" },
+  paid: { label: "Paid", color: "green" },
+  rejected: { label: "Rejected", color: "red" },
+};
+
+/** The visit stages this branch uses (a diagnostic centre has no doctor or pharmacy step). */
+export const visibleStages = (
+  settings: { triage: boolean; clinicalNotes: boolean; prescriptions: boolean; diagnostics: boolean },
+  inUse: string[] = []
+) =>
+  STAGES.filter((s) => {
+    // Keep a column while anyone is still in it after its feature is switched off
+    if (inUse.includes(s.key)) return true;
+    if (s.key === "triage") return settings.triage;
+    if (s.key === "consultation") return settings.clinicalNotes || settings.prescriptions;
+    if (s.key === "lab") return settings.diagnostics;
+    if (s.key === "pharmacy") return settings.prescriptions;
+    return true;
+  });

@@ -48,7 +48,7 @@ export interface PatientRow {
   profile: PatientProfile | null;
 }
 
-export type VisitStage = "waiting" | "triage" | "consultation" | "pharmacy" | "billing" | "completed" | "cancelled";
+export type VisitStage = "waiting" | "triage" | "consultation" | "lab" | "pharmacy" | "billing" | "completed" | "cancelled";
 
 export interface Vitals {
   temperature_c?: number | null;
@@ -86,6 +86,10 @@ export interface Visit {
   stage: VisitStage;
   priority: "normal" | "urgent" | "emergency";
   payer: "cash" | "insurance" | "corporate";
+  payer_id?: string | null;
+  scheme_id?: string | null;
+  member_number?: string;
+  member_verified?: boolean;
   doctor_id?: string | null;
   doctor_name?: string;
   vitals?: Vitals | null;
@@ -103,6 +107,8 @@ export interface Visit {
 export interface VisitDetail extends Visit {
   profile: PatientProfile | null;
   prescriptions: Prescription[];
+  lab_orders: LabOrder[];
+  claims: Pick<Claim, "_id" | "claim_number" | "status" | "claim_amount" | "payer_name">[];
   can_see_notes: boolean;
 }
 
@@ -241,12 +247,19 @@ export const createVisit = async (body: {
   visit_type?: Visit["visit_type"];
   priority?: Visit["priority"];
   payer?: Visit["payer"];
+  payer_id?: string;
+  scheme_id?: string;
+  member_number?: string;
+  member_verified?: boolean;
 }): Promise<Visit> => unwrap(await axiosInstance.post(hc("/visits"), body, as("HEALTHCARE_VISITS_MANAGE")));
 
 export const fetchVisit = async (id: string): Promise<VisitDetail> =>
   unwrap(await axiosInstance.get(hc(`/visits/${id}`), as("HEALTHCARE_VISITS_VIEW")));
 
-export const updateVisit = async (id: string, body: Partial<Pick<Visit, "doctor_id" | "doctor_name" | "priority" | "payer">> & { cart_id?: string }) =>
+export const updateVisit = async (
+  id: string,
+  body: Partial<Pick<Visit, "doctor_id" | "doctor_name" | "priority" | "payer" | "payer_id" | "scheme_id" | "member_number" | "member_verified">> & { cart_id?: string }
+) =>
   unwrap<Visit>(await axiosInstance.patch(hc(`/visits/${id}`), body, as("HEALTHCARE_VISITS_MANAGE")));
 
 export const moveVisitStage = async (id: string, stage: VisitStage, notes = "") =>
@@ -326,3 +339,248 @@ export const updateBatch = async (id: string, body: Partial<Pick<StockBatch, "ba
 
 export const writeOffBatch = async (id: string, quantity: number, reason: string) =>
   unwrap<StockBatch>(await axiosInstance.post(hc(`/batches/${id}/write-off`), { quantity, reason }, as("HEALTHCARE_BATCHES_MANAGE")));
+
+// ─── Laboratory & imaging ────────────────────────────────────────────────────
+
+export type LabDepartment = "lab" | "radiology";
+export type LabStatus = "ordered" | "sample_collected" | "in_progress" | "completed" | "cancelled";
+
+export interface LabParameter {
+  name: string;
+  unit?: string;
+  ref_low?: number | null;
+  ref_high?: number | null;
+  ref_text?: string;
+}
+
+export interface LabTest {
+  _id: string;
+  name: string;
+  code?: string;
+  department: LabDepartment;
+  sample_type?: string;
+  turnaround_minutes?: number | null;
+  product_id: string;
+  product_type: "Product" | "Product_Inventory";
+  parameters: LabParameter[];
+  is_active: boolean;
+  /** Current price of the POS item it bills as */
+  price?: number | null;
+}
+
+export interface LabResult {
+  parameter: string;
+  value: string;
+  unit?: string;
+  ref_range?: string;
+  flag?: "" | "low" | "high" | "abnormal";
+}
+
+export interface LabOrderItem {
+  _id: string;
+  test_id: string;
+  name: string;
+  product_id: string;
+  product_type: "Product" | "Product_Inventory";
+  price: number;
+  status: LabStatus;
+  results: LabResult[];
+  report?: string;
+  completed_by_name?: string;
+  completed_at?: string | null;
+  // On a single order: the test's set-up, for entering results
+  parameters?: LabParameter[];
+  sample_type?: string;
+}
+
+export interface LabOrder {
+  _id: string;
+  order_number: string;
+  customer_id: string;
+  visit_id?: string | null;
+  department: LabDepartment;
+  priority: "routine" | "urgent";
+  clinical_notes?: string;
+  items: LabOrderItem[];
+  status: LabStatus;
+  ordered_by_name?: string;
+  sample_collected_at?: string | null;
+  sample_collected_by_name?: string;
+  completed_at?: string | null;
+  billed_at?: string | null;
+  createdAt: string;
+  customer?: PatientCustomer | null;
+  patient_number?: string;
+}
+
+export const fetchLabTests = async (params: { department?: LabDepartment; active?: boolean } = {}, permission = "HEALTHCARE_LAB_VIEW") =>
+  unwrap<LabTest[]>(
+    await axiosInstance.get(hc("/lab-tests"), {
+      params: { department: params.department, active: params.active ? "true" : undefined },
+      ...as(permission),
+    })
+  );
+
+export const createLabTest = async (body: Partial<LabTest>) =>
+  unwrap<LabTest>(await axiosInstance.post(hc("/lab-tests"), body, as("HEALTHCARE_LAB_SETUP")));
+
+export const updateLabTest = async (id: string, body: Partial<LabTest>) =>
+  unwrap<LabTest>(await axiosInstance.patch(hc(`/lab-tests/${id}`), body, as("HEALTHCARE_LAB_SETUP")));
+
+export const fetchLabOrders = async (
+  params: { department?: LabDepartment; status?: LabStatus | "open"; visit_id?: string; customer_id?: string } = {},
+  permission = "HEALTHCARE_LAB_VIEW"
+) => unwrap<LabOrder[]>(await axiosInstance.get(hc("/lab-orders"), { params, ...as(permission) }));
+
+export const fetchLabOrder = async (id: string, permission = "HEALTHCARE_LAB_VIEW") =>
+  unwrap<LabOrder>(await axiosInstance.get(hc(`/lab-orders/${id}`), as(permission)));
+
+export const createLabOrder = async (body: {
+  customer_id: string;
+  visit_id?: string;
+  test_ids: string[];
+  priority?: LabOrder["priority"];
+  clinical_notes?: string;
+}) => unwrap<LabOrder[]>(await axiosInstance.post(hc("/lab-orders"), body, as("HEALTHCARE_LAB_ORDER")));
+
+export const collectSample = async (id: string) =>
+  unwrap<LabOrder>(await axiosInstance.post(hc(`/lab-orders/${id}/collect`), {}, as("HEALTHCARE_LAB_WORK")));
+
+export const saveLabResults = async (
+  id: string,
+  items: { item_id: string; results?: { parameter: string; value: string }[]; report?: string; complete?: boolean }[]
+) => unwrap<LabOrder>(await axiosInstance.put(hc(`/lab-orders/${id}/results`), { items }, as("HEALTHCARE_LAB_WORK")));
+
+export const markLabOrderBilled = async (id: string) =>
+  unwrap<LabOrder>(await axiosInstance.post(hc(`/lab-orders/${id}/billed`), {}, as("HEALTHCARE_LAB_WORK")));
+
+export const cancelLabOrder = async (id: string, reason: string, permission = "HEALTHCARE_LAB_ORDER") =>
+  unwrap<LabOrder>(await axiosInstance.post(hc(`/lab-orders/${id}/cancel`), { reason }, as(permission)));
+
+// ─── Insurance & claims ──────────────────────────────────────────────────────
+
+export interface Scheme {
+  _id?: string;
+  name: string;
+  copay_type: "none" | "percent" | "fixed";
+  copay_value: number;
+  preauth_above?: number | null;
+  visit_limit?: number | null;
+  is_active?: boolean;
+}
+
+export interface Payer {
+  _id: string;
+  name: string;
+  kind: "insurance" | "corporate" | "government";
+  contact_person?: string;
+  phone?: string;
+  email?: string;
+  payment_terms_days?: number;
+  schemes: Scheme[];
+  is_active: boolean;
+}
+
+export type ClaimStatus = "draft" | "submitted" | "approved" | "partially_paid" | "paid" | "rejected";
+
+export interface ClaimLine {
+  _id?: string;
+  kind: "consultation" | "lab" | "radiology" | "medicine" | "procedure" | "other";
+  description: string;
+  quantity: number;
+  unit_price: number;
+  amount?: number;
+}
+
+export interface Claim {
+  _id: string;
+  claim_number: string;
+  payer_id: string;
+  payer_name: string;
+  scheme_id?: string | null;
+  scheme_name?: string;
+  customer_id: string;
+  visit_id?: string | null;
+  member_number?: string;
+  principal_member?: string;
+  preauth_number?: string;
+  diagnoses?: { code?: string; description: string }[];
+  lines: ClaimLine[];
+  total: number;
+  copay_amount: number;
+  claim_amount: number;
+  approved_amount?: number | null;
+  paid_amount: number;
+  payments: { _id?: string; amount: number; date: string; reference?: string; recorded_by_name?: string }[];
+  status: ClaimStatus;
+  submitted_at?: string | null;
+  rejection_reason?: string;
+  notes?: string;
+  history?: { status: string; by_name?: string; at: string; notes?: string }[];
+  createdAt: string;
+  customer?: PatientCustomer | null;
+  profile?: Pick<PatientProfile, "patient_number" | "national_id"> | null;
+}
+
+export const fetchPayers = async (activeOnly = false, permission = "HEALTHCARE_CLAIMS_VIEW") =>
+  unwrap<Payer[]>(
+    await axiosInstance.get(hc("/payers"), { params: { active: activeOnly ? "true" : undefined }, ...as(permission) })
+  );
+
+export const createPayer = async (body: Partial<Payer>) =>
+  unwrap<Payer>(await axiosInstance.post(hc("/payers"), body, as("HEALTHCARE_PAYERS_MANAGE")));
+
+export const updatePayer = async (id: string, body: Partial<Payer>) =>
+  unwrap<Payer>(await axiosInstance.patch(hc(`/payers/${id}`), body, as("HEALTHCARE_PAYERS_MANAGE")));
+
+export const fetchClaims = async (params: { status?: ClaimStatus | "outstanding"; payer_id?: string; customer_id?: string } = {}) =>
+  unwrap<Claim[]>(await axiosInstance.get(hc("/claims"), { params, ...as("HEALTHCARE_CLAIMS_VIEW") }));
+
+export const fetchClaim = async (id: string) => unwrap<Claim>(await axiosInstance.get(hc(`/claims/${id}`), as("HEALTHCARE_CLAIMS_VIEW")));
+
+export const fetchVisitClaimLines = async (visitId: string) =>
+  unwrap<{
+    lines: ClaimLine[];
+    payer_id?: string | null;
+    scheme_id?: string | null;
+    member_number: string;
+    principal_member: string;
+    diagnoses: { code?: string; description: string }[];
+  }>(await axiosInstance.get(hc("/claims/visit-lines"), { params: { visit_id: visitId }, ...as("HEALTHCARE_CLAIMS_MANAGE") }));
+
+export const createClaim = async (body: {
+  visit_id?: string;
+  customer_id?: string;
+  payer_id: string;
+  scheme_id?: string;
+  member_number?: string;
+  principal_member?: string;
+  preauth_number?: string;
+  lines: ClaimLine[];
+  notes?: string;
+}) => unwrap<Claim>(await axiosInstance.post(hc("/claims"), body, as("HEALTHCARE_CLAIMS_MANAGE")));
+
+export const updateClaim = async (id: string, body: Partial<Pick<Claim, "member_number" | "principal_member" | "preauth_number" | "notes" | "lines">>) =>
+  unwrap<Claim>(await axiosInstance.patch(hc(`/claims/${id}`), body, as("HEALTHCARE_CLAIMS_MANAGE")));
+
+export const submitClaim = async (id: string) =>
+  unwrap<Claim>(await axiosInstance.post(hc(`/claims/${id}/submit`), {}, as("HEALTHCARE_CLAIMS_MANAGE")));
+
+export const approveClaim = async (id: string, approvedAmount?: number) =>
+  unwrap<Claim>(await axiosInstance.post(hc(`/claims/${id}/approve`), { approved_amount: approvedAmount }, as("HEALTHCARE_CLAIMS_MANAGE")));
+
+export const rejectClaim = async (id: string, reason: string) =>
+  unwrap<Claim>(await axiosInstance.post(hc(`/claims/${id}/reject`), { reason }, as("HEALTHCARE_CLAIMS_MANAGE")));
+
+export const recordClaimPayment = async (id: string, body: { amount: number; date?: string; reference?: string }) =>
+  unwrap<Claim>(await axiosInstance.post(hc(`/claims/${id}/payments`), body, as("HEALTHCARE_CLAIMS_MANAGE")));
+
+// ─── Reports ─────────────────────────────────────────────────────────────────
+
+export type HealthcareReportKind = "visits" | "morbidity" | "lab" | "dispensing" | "expiry" | "claims" | "ageing";
+
+/** Rows of a healthcare register or return (Reports page → Healthcare). */
+export const fetchHealthcareReportRows = async (
+  kind: HealthcareReportKind,
+  params: { from?: string; to?: string; department?: LabDepartment; days?: number; payer_id?: string; status?: string } = {}
+) => unwrap<Record<string, unknown>[]>(await axiosInstance.get(hc(`/reports/${kind}`), { params, ...as("HEALTHCARE_REPORTS_VIEW") }));
