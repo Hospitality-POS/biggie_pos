@@ -1,19 +1,21 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
-import tsconfigPaths from 'vite-tsconfig-paths';
 
 export default defineConfig(({ mode }) => {
   const isProduction = mode === 'production';
 
   return {
+    resolve: {
+      tsconfigPaths: true,
+    },
     server: {
       host: '0.0.0.0',
       port: 5374,
       // Tauri (base_desktop) points devUrl at this exact port — never drift
       strictPort: true,
     },
-    esbuild: isProduction
+    oxc: isProduction
       ? {
           drop: ['debugger'],
           pure: ['console.log', 'console.info', 'console.debug'],
@@ -53,6 +55,12 @@ export default defineConfig(({ mode }) => {
             if (id.includes('dexie')) {
               return 'vendor-dexie';
             }
+            if (id.includes('lottie-web') || id.includes('lottie-react')) {
+              return 'vendor-lottie';
+            }
+            if (id.includes('recharts') || id.includes('d3-')) {
+              return 'vendor-recharts';
+            }
           }
         },
       },
@@ -60,7 +68,6 @@ export default defineConfig(({ mode }) => {
   },
   plugins: [
     react(),
-    tsconfigPaths(),
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'auto',

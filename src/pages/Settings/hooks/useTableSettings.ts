@@ -1,4 +1,4 @@
-import { SetStateAction, SetStateAction, useState } from "react";
+import { SetStateAction, useState } from "react";
 import { useAppDispatch } from "../../../store";
 import {
   deleteLocation,

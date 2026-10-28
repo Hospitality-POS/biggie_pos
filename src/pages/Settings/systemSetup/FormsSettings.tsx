@@ -134,7 +134,7 @@ const FormsSettings: React.FC<FormsSettingsProps> = ({ hasClients, hasEmployees 
       try {
         const data = await fetchSystemSetupDetailsById(true);
         setSystemSettingsId(data?._id || null);
-        setSettings({ ...DEFAULTS, ...(data?.forms_settings ?? {}) });
+        setSettings({ ...DEFAULTS, ...data?.forms_settings });
       } catch (error) {
         console.error("Failed to fetch forms settings:", error);
         message.error("Failed to load Forms & Plans settings");

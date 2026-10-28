@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "cross-env NODE_OPTIONS=--max-old-space-size=3072 vite build",
+    "build": "vite build",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "lint:oxlint": "oxlint src",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -52,8 +53,6 @@
     "thinking-orbs": "^0.3.2",
     "tslib": "^2.8.1",
     "typeface-inter": "^3.18.1",
-    "vite-plugin-pwa": "^0.16.4",
-    "vite-tsconfig-paths": "^4.3.1",
     "workbox-sw": "^7.0.0",
     "world_countries_lists": "^2.9.0",
     "xlsx": "^0.18.5",
@@ -64,15 +63,17 @@
     "@types/react-dom": "^18.0.11",
     "@typescript-eslint/eslint-plugin": "^5.59.0",
     "@typescript-eslint/parser": "^5.59.0",
-    "@vitejs/plugin-react": "^4.0.0",
+    "@vitejs/plugin-react": "^6.1.2",
     "cross-env": "^7.0.3",
     "esbuild": "0.18.20",
     "eslint": "^8.38.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.3.4",
+    "oxlint": "^1.90.0",
     "typescript": "^5.0.2",
-    "vite": "^4.3.9",
-    "vite-plugin-mkcert": "^1.17.10"
+    "vite": "^8.3.5",
+    "vite-plugin-mkcert": "^1.17.10",
+    "vite-plugin-pwa": "^2.0.0"
   },
   "resolutions": {
     "tar": "7.5.19"
