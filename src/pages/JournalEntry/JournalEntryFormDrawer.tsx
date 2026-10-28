@@ -17,8 +17,15 @@ import {
     Tag,
     Divider,
     Alert,
+    Tooltip,
 } from "antd";
-import { PlusOutlined, DeleteOutlined, InfoCircleOutlined, ReloadOutlined } from "@ant-design/icons";
+import {
+    PlusOutlined,
+    DeleteOutlined,
+    InfoCircleOutlined,
+    ReloadOutlined,
+    ApartmentOutlined,
+} from "@ant-design/icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
     createManualEntry,
@@ -30,6 +37,7 @@ import {
 } from "@services/accounting/journals";
 import { getAllAccounts, ChartOfAccount } from "@services/accounting/accounts";
 import AccountFormDrawer from "@pages/ChartOfAccounts/AccountFormDrawer";
+import SplitAccountsModal, { SplitRow } from "@components/accounting/SplitAccountsModal";
 import dayjs from "dayjs";
 
 const { Text } = Typography;
@@ -83,6 +91,7 @@ const generateReferenceNumber = (): string => {
     return `JE-${year}${month}${day}-${random}`;
 };
 
+const round2 = (n: number) => Math.round((n || 0) * 100) / 100;
 // ── Component ──────────────────────────────────────────────────────────────────
 
 const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shopId, entryId }) => {
@@ -92,6 +101,7 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
     const [submitting, setSubmitting] = useState(false);
     const [addAccountOpen, setAddAccountOpen] = useState(false);
     const [reference, setReference] = useState<string>("");
+    const [splitLine, setSplitLine] = useState<LineItem | null>(null);
 
     const { data: entryData, isLoading: entryLoading } = useQuery({
         queryKey: ["journal-entry-form", entryId],
@@ -188,6 +198,24 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
         setLines((prev) =>
             prev.map((l) => (l.key === key ? { ...l, [field]: value } : l))
         );
+
+    // Replace a line with its split rows, in place, on the same side. The first
+    // row keeps the original line's id and party so the server keeps its metadata.
+    const applySplit = (original: LineItem, rows: SplitRow[]) => {
+        const isDebit = original.debit > 0;
+        const replacement: LineItem[] = rows.map((r, i) => ({
+            key: i === 0 ? original.key : crypto.randomUUID(),
+            _id: i === 0 ? original._id : undefined,
+            account_id: r.account_id,
+            debit: isDebit ? round2(r.amount) : 0,
+            credit: isDebit ? 0 : round2(r.amount),
+            description: r.description || "",
+            customer_id: i === 0 ? original.customer_id : undefined,
+            supplier_id: i === 0 ? original.supplier_id : undefined,
+        }));
+        setLines((prev) => prev.flatMap((l) => (l.key === original.key ? replacement : [l])));
+        setSplitLine(null);
+    };
 
     // ── Submit ─────────────────────────────────────────────────────────────────
 
@@ -369,16 +397,27 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
         {
             title: "",
             key: "remove",
-            width: 36,
+            width: 68,
             render: (_: any, record: LineItem) => (
-                <Button
-                    icon={<DeleteOutlined />}
-                    size="small"
-                    danger
-                    type="text"
-                    onClick={() => removeLine(record.key)}
-                    disabled={lines.length <= 2}
-                />
+                <Space size={0}>
+                    <Tooltip title="Split across accounts">
+                        <Button
+                            icon={<ApartmentOutlined />}
+                            size="small"
+                            type="text"
+                            onClick={() => setSplitLine(record)}
+                            disabled={!record.account_id || !(record.debit > 0 || record.credit > 0)}
+                        />
+                    </Tooltip>
+                    <Button
+                        icon={<DeleteOutlined />}
+                        size="small"
+                        danger
+                        type="text"
+                        onClick={() => removeLine(record.key)}
+                        disabled={lines.length <= 2}
+                    />
+                </Space>
             ),
         },
     ];
@@ -535,6 +574,25 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
                     </div>
                 </ProForm>
             </Drawer>
+
+            {/* Split one line across accounts, same side, same total */}
+            <SplitAccountsModal
+                open={!!splitLine}
+                total={splitLine ? splitLine.debit || splitLine.credit : 0}
+                title="Split line across accounts"
+                initialRows={
+                    splitLine
+                        ? [
+                            { account_id: splitLine.account_id, amount: splitLine.debit || splitLine.credit, description: splitLine.description },
+                            { account_id: "", amount: 0, description: splitLine.description },
+                        ]
+                        : undefined
+                }
+                defaultDescription={splitLine?.description}
+                accountOptions={accountOptions}
+                onClose={() => setSplitLine(null)}
+                onApply={(rows) => splitLine && applySplit(splitLine, rows)}
+            />
 
             {/* Add Account — triggered from the account dropdown in any line */}
             <AccountFormDrawer
