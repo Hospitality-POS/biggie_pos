@@ -6,13 +6,14 @@ import {
 import {
     Drawer, Divider, Typography, Upload, Alert, Space,
     Tag, Table, Button, Steps, Card, Select, Form, Row, Col,
-    Tabs, Progress, Spin, message, Radio,
+    Tabs, Progress, Spin, message, Radio, Tooltip,
 } from "antd";
 import {
     InboxOutlined, FileExcelOutlined, CheckCircleOutlined,
     ArrowRightOutlined, SettingOutlined, FilePdfOutlined,
-    CloudUploadOutlined, ReloadOutlined, BankOutlined,
+    CloudUploadOutlined, ReloadOutlined, BankOutlined, ApartmentOutlined,
 } from "@ant-design/icons";
+import SplitAccountsModal, { SplitRow } from "@components/accounting/SplitAccountsModal";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import Papa from "papaparse";
@@ -38,6 +39,8 @@ interface ParsedRow {
     credit: number;
     original_amount?: number;
     raw_row?: Record<string, any>;
+    /** Set in the preview: the row imports already categorized across these accounts. */
+    splits?: SplitRow[];
 }
 
 interface Props {
@@ -95,6 +98,7 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
     const [selectedDateFormat, setSelectedDateFormat] = useState<string>("DD/MM/YYYY");
     const [amountColumnType, setAmountColumnType] = useState<"double" | "single">("double");
     const [columnMap, setColumnMap] = useState<Record<string, string>>({});
+    const [splitRowIndex, setSplitRowIndex] = useState<number | null>(null);
 
     const { data: accountsData } = useQuery({
         queryKey: ["chart-of-accounts", shopId],
@@ -105,6 +109,21 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
     const accounts = (accountsData?.accounts || []).filter((a: any) =>
         a.account_subtype === "Cash & Bank" && a.is_bank_account === true
     );
+
+    // Accounts a preview row can be split across — anything but the statement's own bank account
+    const allAccounts: any[] = accountsData?.accounts || [];
+    const accountById = new Map(allAccounts.map((a: any) => [a._id, a]));
+    const splitAccountOptions = allAccounts
+        .filter((a: any) => a._id !== selectedAccountId && a.is_active !== false)
+        .map((a: any) => ({ label: `${a.account_code} — ${a.account_name}`, value: a._id }));
+
+    const rowAmount = (r: ParsedRow) => Math.abs(r.debit) || Math.abs(r.credit);
+    const splitRow = splitRowIndex !== null ? parsedRows[splitRowIndex] : null;
+    const setRowSplits = (index: number, splits: SplitRow[] | undefined) => {
+        setParsedRows((prev) => prev.map((r, i) => (i === index ? { ...r, splits } : r)));
+        setSplitRowIndex(null);
+    };
+    const splitCount = parsedRows.filter((r) => r.splits?.length).length;
 
     const uploadMutation = useMutation({
         mutationFn: (formData: FormData) => uploadAndParseStatement(formData),
@@ -442,6 +461,7 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
                         credit: r.credit,
                         original_amount: r.original_amount,
                         raw_row: r.raw_row,
+                        splits: r.splits?.length ? r.splits : undefined,
                     })),
                     notes: values.notes,
                 };
@@ -466,6 +486,7 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
                         credit: r.credit,
                         original_amount: r.original_amount,
                         raw_row: r.raw_row,
+                        splits: r.splits?.length ? r.splits : undefined,
                     })),
                     notes: values.notes,
                 };
@@ -570,6 +591,38 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
                 return v > 0 ? <Text style={{ color: "#389e0d" }}>{v.toLocaleString("en-KE", { minimumFractionDigits: 2 })}</Text> : <Text type="secondary">—</Text>;
             },
         },
+        {
+            title: "Split",
+            key: "split",
+            width: 220,
+            render: (_: any, record: ParsedRow, index: number) => (
+                <Space size={4} align="start">
+                    <Tooltip title={record.splits?.length ? "Edit split" : "Split across accounts"}>
+                        <Button
+                            size="small"
+                            icon={<ApartmentOutlined />}
+                            type={record.splits?.length ? "primary" : "default"}
+                            ghost={!!record.splits?.length}
+                            onClick={() => setSplitRowIndex(index)}
+                            disabled={!(rowAmount(record) > 0)}
+                        />
+                    </Tooltip>
+                    {record.splits?.length ? (
+                        <Space direction="vertical" size={2}>
+                            {record.splits.map((s, i) => {
+                                const acc = accountById.get(s.account_id);
+                                return (
+                                    <Tag key={i} color="purple" style={{ fontSize: 11, marginInlineEnd: 0 }}>
+                                        {acc ? `${acc.account_code} ${acc.account_name}` : "Account"} ·{" "}
+                                        {s.amount.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
+                                    </Tag>
+                                );
+                            })}
+                        </Space>
+                    ) : null}
+                </Space>
+            ),
+        },
     ];
 
     const accountOptions = accounts.map((a: any) => ({
@@ -590,7 +643,7 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
             }
             open={open}
             onClose={onClose}
-            width={700}
+            width={currentStep === 2 ? 960 : 700}
             destroyOnClose
             footer={
                 <Space style={{ justifyContent: "flex-end", width: "100%", display: "flex" }}>
@@ -932,25 +985,42 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
 
                     {/* Transaction Preview */}
                     <div>
-                        <Text strong style={{ display: "block", marginBottom: 12 }}>
-                            Transaction Preview (first 10)
-                        </Text>
+                        <Space style={{ width: "100%", justifyContent: "space-between", marginBottom: 12 }}>
+                            <Text strong>Transaction Preview ({parsedRows.length})</Text>
+                            <Text type="secondary" style={{ fontSize: 12 }}>
+                                {splitCount > 0
+                                    ? `${splitCount} split row${splitCount === 1 ? "" : "s"} will import categorized`
+                                    : "Use the split button to spread a row across accounts"}
+                            </Text>
+                        </Space>
                         <Table
-                            rowKey={(_, i) => String(i)}
-                            dataSource={parsedRows.slice(0, 10)}
+                            rowKey={(r) => String(parsedRows.indexOf(r))}
+                            dataSource={parsedRows}
                             columns={previewColumns}
                             size="small"
                             pagination={false}
-                            scroll={{ x: 600 }}
+                            scroll={{ x: 820, y: 480 }}
                         />
-                        {parsedRows.length > 10 && (
-                            <Text type="secondary" style={{ fontSize: 12, display: "block", marginTop: 8 }}>
-                                …and {parsedRows.length - 10} more transactions
-                            </Text>
-                        )}
                     </div>
                 </Space>
             )}
+
+            {/* Split a preview row across accounts */}
+            <SplitAccountsModal
+                open={!!splitRow}
+                total={splitRow ? rowAmount(splitRow) : 0}
+                title="Split transaction across accounts"
+                subtitle={
+                    splitRow
+                        ? `${splitRow.description} — ${splitRow.debit > 0 ? "money out" : "money in"} of ${rowAmount(splitRow).toLocaleString("en-KE", { minimumFractionDigits: 2 })}`
+                        : undefined
+                }
+                initialRows={splitRow?.splits}
+                accountOptions={splitAccountOptions}
+                onClose={() => setSplitRowIndex(null)}
+                onApply={(rows) => splitRowIndex !== null && setRowSplits(splitRowIndex, rows)}
+                onRemove={splitRow?.splits?.length ? () => setRowSplits(splitRowIndex!, undefined) : undefined}
+            />
         </Drawer>
     );
 };

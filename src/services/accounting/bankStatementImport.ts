@@ -131,6 +131,16 @@ export interface RawTransaction {
     pushed_to_statement_line_id?: string;
     allocations?: TransactionAllocation[];
     payment_method_id?: string | null;
+    splits?: TransactionSplit[];
+}
+
+/** One account's share of a transaction's (unlinked) category amount. */
+export interface TransactionSplit {
+    account_id: string;
+    account_code?: string;
+    account_name?: string;
+    amount: number;
+    description?: string;
 }
 
 // ── Invoice / bill links ─────────────────────────────────────────────────────
@@ -268,6 +278,8 @@ export interface CategorizeTransactionInput {
     target_account_id?: string;
     target_account_code?: string;
     target_account_name?: string;
+    /** Two or more lines splitting the category amount; [] removes a split. */
+    splits?: Pick<TransactionSplit, "account_id" | "amount" | "description">[];
 }
 
 export interface BulkCategorizeInput extends CategorizeTransactionInput {
@@ -865,6 +877,7 @@ export const linkTransaction = async (
             data
         );
         message.success(response.data.message);
+        if (response.data.warning) message.warning(response.data.warning);
         return response.data as { transaction: RawTransaction; applied: boolean };
     } catch (error: unknown) {
         const axiosError = error as { response?: { data?: { message?: string } } };
