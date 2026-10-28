@@ -130,11 +130,12 @@ const SectionTitle: React.FC<{ children: React.ReactNode; extra?: React.ReactNod
   </div>
 );
 
-const MoneyRow: React.FC<{ label: string; value?: number; strong?: boolean; color?: string }> = ({
+const MoneyRow: React.FC<{ label: string; value?: number; strong?: boolean; color?: string; rounded?: boolean }> = ({
   label,
   value,
   strong,
   color,
+  rounded,
 }) => (
   <div
     style={{
@@ -146,7 +147,7 @@ const MoneyRow: React.FC<{ label: string; value?: number; strong?: boolean; colo
   >
     <Text style={{ color: "#64748b" }}>{label}</Text>
     <Text strong={strong} style={{ color: color || "#0f172a" }}>
-      KES {(value ?? 0).toLocaleString()}
+      KES {(rounded ? Math.round(value ?? 0) : value ?? 0).toLocaleString()}
     </Text>
   </div>
 );
@@ -184,6 +185,11 @@ const PayslipView: React.FC = () => {
   const [emailAttachPdf, setEmailAttachPdf] = useState(false);
   // Email header — "company" shows the company name, "department" shows the payslip's department
   const [emailHeader, setEmailHeader] = useState<"company" | "department">("company");
+  // Rounds every money figure shown on this page (and passed to payslip
+  // exports) to whole shillings — display/export only.
+  const [roundOff, setRoundOff] = useState(false);
+  const fmtMoney = (v: number | undefined | null) =>
+    (roundOff ? Math.round(Number(v || 0)) : Number(v || 0)).toLocaleString();
 
   const user = getUser();
   const isAdmin = user?.role === "admin";
@@ -307,7 +313,7 @@ const PayslipView: React.FC = () => {
         let pdf: string | undefined;
         if (emailAttachPdf) {
           const slip = payslips.find((p: Payslip) => p._id === ids[0]);
-          const doc = slip ? await buildPayslipsPDFDoc([slip]) : null;
+          const doc = slip ? await buildPayslipsPDFDoc([slip], undefined, roundOff) : null;
           pdf = doc?.output("datauristring").split(",")[1];
         }
         await emailMutation.mutateAsync({
@@ -435,7 +441,7 @@ const PayslipView: React.FC = () => {
 
   const handleDownloadPayslip = async () => {
     if (selectedPayslip) {
-      await generatePayslipPDF(selectedPayslip as any, headerOverride);
+      await generatePayslipPDF(selectedPayslip as any, headerOverride, roundOff);
     }
   };
 
@@ -520,7 +526,7 @@ const PayslipView: React.FC = () => {
   // Compact money cell for the flat columns
   const moneyCell = (v?: number | null, color = "#0f172a", strong = false) => (
     <Text strong={strong} style={{ fontSize: 11.5, color, fontVariantNumeric: "tabular-nums" }}>
-      {(v ?? 0).toLocaleString()}
+      {fmtMoney(v)}
     </Text>
   );
   const moneyColumn = (title: string, getter: (p: Payslip) => number | undefined, color?: string, strong = false) => ({
@@ -688,7 +694,7 @@ const PayslipView: React.FC = () => {
       key: "net_pay",
       align: "right" as const,
       render: (amount: number) => (
-        <Text strong style={{ color: C.green }}>KES {(amount ?? 0).toLocaleString()}</Text>
+        <Text strong style={{ color: C.green }}>KES {fmtMoney(amount)}</Text>
       ),
     },
     {
@@ -859,46 +865,53 @@ const PayslipView: React.FC = () => {
             menu={{
               items: [
                 {
+                  key: "roundoff",
+                  label: "Round off amounts (whole KES)",
+                  icon: roundOff ? <CheckCircleOutlined style={{ color: "#10b981" }} /> : <span style={{ display: "inline-block", width: 14 }} />,
+                  onClick: () => setRoundOff((v) => !v),
+                },
+                { type: "divider" },
+                {
                   key: "excel",
-                  label: `Excel (${payslips.length} payslip${payslips.length === 1 ? "" : "s"})`,
+                  label: `Excel${roundOff ? " — rounded" : ""} (${payslips.length} payslip${payslips.length === 1 ? "" : "s"})`,
                   icon: <FileExcelOutlined />,
                   children: [
                     {
                       key: "excel-auto",
                       label: "Default header",
-                      onClick: () => exportPayslipsToExcel(payslips),
+                      onClick: () => exportPayslipsToExcel(payslips, undefined, roundOff),
                     },
                     {
                       key: "excel-company",
                       label: "Company name header",
-                      onClick: () => exportPayslipsToExcel(payslips, "company"),
+                      onClick: () => exportPayslipsToExcel(payslips, "company", roundOff),
                     },
                     {
                       key: "excel-dept",
                       label: "Department name header",
-                      onClick: () => exportPayslipsToExcel(payslips, "department"),
+                      onClick: () => exportPayslipsToExcel(payslips, "department", roundOff),
                     },
                   ],
                 },
                 {
                   key: "pdf",
-                  label: `PDF (${payslips.length} payslip${payslips.length === 1 ? "" : "s"})`,
+                  label: `PDF${roundOff ? " — rounded" : ""} (${payslips.length} payslip${payslips.length === 1 ? "" : "s"})`,
                   icon: <FilePdfOutlined />,
                   children: [
                     {
                       key: "pdf-auto",
                       label: "Default header",
-                      onClick: () => generatePayslipsPDF(payslips),
+                      onClick: () => generatePayslipsPDF(payslips, undefined, roundOff),
                     },
                     {
                       key: "pdf-company",
                       label: "Company name header",
-                      onClick: () => generatePayslipsPDF(payslips, "company"),
+                      onClick: () => generatePayslipsPDF(payslips, "company", roundOff),
                     },
                     {
                       key: "pdf-dept",
                       label: "Department name header",
-                      onClick: () => generatePayslipsPDF(payslips, "department"),
+                      onClick: () => generatePayslipsPDF(payslips, "department", roundOff),
                     },
                   ],
                 },
@@ -932,7 +945,7 @@ const PayslipView: React.FC = () => {
         <Col xs={24} sm={12} md={6}>
           <StatCard
             title="Total Gross"
-            value={`KES ${totalGross.toLocaleString()}`}
+            value={`KES ${fmtMoney(totalGross)}`}
             icon={<DollarOutlined />}
             color="#3b82f6"
           />
@@ -940,7 +953,7 @@ const PayslipView: React.FC = () => {
         <Col xs={24} sm={12} md={6}>
           <StatCard
             title="Total Deductions"
-            value={`KES ${totalDeductions.toLocaleString()}`}
+            value={`KES ${fmtMoney(totalDeductions)}`}
             icon={<DeleteOutlined />}
             color="#ef4444"
           />
@@ -948,7 +961,7 @@ const PayslipView: React.FC = () => {
         <Col xs={24} sm={12} md={6}>
           <StatCard
             title="Total Net Pay"
-            value={`KES ${totalNet.toLocaleString()}`}
+            value={`KES ${fmtMoney(totalNet)}`}
             icon={<CheckCircleOutlined />}
             color="#10b981"
           />
@@ -1004,6 +1017,67 @@ const PayslipView: React.FC = () => {
 
       {/* Payslip table */}
       <div style={{ ...cardStyle, overflow: "hidden" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "8px 12px",
+            borderBottom: "1px solid #f1f5f9",
+          }}
+        >
+          <Text style={{ fontSize: 12, color: "#64748b" }}>
+            {payslips.length} payslip{payslips.length !== 1 ? "s" : ""}
+          </Text>
+          <Tooltip title="Show amounts rounded off to whole shillings — also applies to payslip exports">
+            <div
+              role="switch"
+              aria-checked={roundOff}
+              onClick={() => setRoundOff((v) => !v)}
+              style={{
+                position: "relative",
+                display: "inline-flex",
+                alignItems: "center",
+                height: 26,
+                width: 104,
+                borderRadius: 999,
+                cursor: "pointer",
+                userSelect: "none",
+                background: roundOff ? C.primary : "#e2e8f0",
+                transition: "background 0.25s ease",
+              }}
+            >
+              <span
+                style={{
+                  position: "absolute",
+                  top: 3,
+                  left: 3,
+                  width: 20,
+                  height: 20,
+                  borderRadius: "50%",
+                  background: "#fff",
+                  boxShadow: "0 1px 3px rgba(15, 23, 42, 0.35)",
+                  transform: roundOff ? "translateX(78px)" : "translateX(0)",
+                  transition: "transform 0.25s ease",
+                }}
+              />
+              <span
+                style={{
+                  flex: 1,
+                  textAlign: roundOff ? "left" : "right",
+                  padding: roundOff ? "0 10px 0 12px" : "0 12px 0 10px",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  letterSpacing: 0.2,
+                  color: roundOff ? "#fff" : "#64748b",
+                  transition: "color 0.25s ease",
+                }}
+              >
+                Rounded
+              </span>
+            </div>
+          </Tooltip>
+        </div>
         <Table
           rowSelection={{
             selectedRowKeys,
@@ -1088,7 +1162,7 @@ const PayslipView: React.FC = () => {
             >
               <Text style={{ fontSize: 11, color: "#64748b", display: "block" }}>NET PAY</Text>
               <Text strong style={{ fontSize: 26, color: "#10b981" }}>
-                KES {(selectedPayslip.net_pay ?? 0).toLocaleString()}
+                KES {fmtMoney(selectedPayslip.net_pay)}
               </Text>
             </div>
 
@@ -1097,13 +1171,13 @@ const PayslipView: React.FC = () => {
               <SectionTitle
                 extra={
                   <Text strong style={{ fontSize: 13 }}>
-                    KES {(selectedPayslip.earnings?.gross_salary ?? 0).toLocaleString()}
+                    KES {fmtMoney(selectedPayslip.earnings?.gross_salary)}
                   </Text>
                 }
               >
                 Earnings
               </SectionTitle>
-              <MoneyRow label="Basic Salary" value={selectedPayslip.earnings?.basic_salary} />
+              <MoneyRow rounded={roundOff} label="Basic Salary" value={selectedPayslip.earnings?.basic_salary} />
               {earningItemRows(
                 selectedPayslip.earnings?.allowance_items,
                 (selectedPayslip.employee_id as any)?.allowances,
@@ -1111,7 +1185,7 @@ const PayslipView: React.FC = () => {
                 selectedPayslip.earnings?.allowances,
                 "Allowance"
               ).map((r, i) => (
-                <MoneyRow key={`alw-${i}`} label={r.label} value={r.value} />
+                <MoneyRow rounded={roundOff} key={`alw-${i}`} label={r.label} value={r.value} />
               ))}
               {earningItemRows(
                 selectedPayslip.earnings?.benefit_items,
@@ -1120,11 +1194,11 @@ const PayslipView: React.FC = () => {
                 selectedPayslip.earnings?.benefits,
                 "Benefit"
               ).map((r, i) => (
-                <MoneyRow key={`ben-${i}`} label={r.label} value={r.value} />
+                <MoneyRow rounded={roundOff} key={`ben-${i}`} label={r.label} value={r.value} />
               ))}
-              <MoneyRow label="Overtime Pay" value={selectedPayslip.earnings?.overtime_pay} />
+              <MoneyRow rounded={roundOff} label="Overtime Pay" value={selectedPayslip.earnings?.overtime_pay} />
               <div style={{ borderTop: "1px solid #e2e8f0", marginTop: 6, paddingTop: 6 }}>
-                <MoneyRow label="Gross Salary" value={selectedPayslip.earnings?.gross_salary} strong color="#3b82f6" />
+                <MoneyRow rounded={roundOff} label="Gross Salary" value={selectedPayslip.earnings?.gross_salary} strong color="#3b82f6" />
               </div>
             </div>
 
@@ -1133,26 +1207,27 @@ const PayslipView: React.FC = () => {
               <SectionTitle
                 extra={
                   <Text strong style={{ fontSize: 13, color: "#ef4444" }}>
-                    − KES {(selectedPayslip.deductions?.total ?? 0).toLocaleString()}
+                    − KES {fmtMoney(selectedPayslip.deductions?.total)}
                   </Text>
                 }
               >
                 Deductions
               </SectionTitle>
-              <MoneyRow label="NSSF" value={selectedPayslip.deductions?.nssf} color="#ef4444" />
-              <MoneyRow label="SHIF" value={selectedPayslip.deductions?.nhif} color="#ef4444" />
-              <MoneyRow label="Housing Levy" value={selectedPayslip.deductions?.housing_levy} color="#ef4444" />
+              <MoneyRow rounded={roundOff} label="NSSF" value={selectedPayslip.deductions?.nssf} color="#ef4444" />
+              <MoneyRow rounded={roundOff} label="SHIF" value={selectedPayslip.deductions?.nhif} color="#ef4444" />
+              <MoneyRow rounded={roundOff} label="Housing Levy" value={selectedPayslip.deductions?.housing_levy} color="#ef4444" />
               {((selectedPayslip.deductions as any)?.pension || 0) > 0 && (
-                <MoneyRow label="Pension Contribution" value={(selectedPayslip.deductions as any)?.pension} color="#ef4444" />
+                <MoneyRow rounded={roundOff} label="Pension Contribution" value={(selectedPayslip.deductions as any)?.pension} color="#ef4444" />
               )}
               {showWht(selectedPayslip) && (
-                <MoneyRow label="Withholding Tax" value={(selectedPayslip.deductions as any)?.withholding_tax} color="#ef4444" />
+                <MoneyRow rounded={roundOff} label="Withholding Tax" value={(selectedPayslip.deductions as any)?.withholding_tax} color="#ef4444" />
               )}
               <div style={{ borderTop: "1px dashed #e2e8f0", margin: "6px 0", paddingTop: 6 }}>
-                <MoneyRow label="Taxable Pay" value={(selectedPayslip.deductions as any)?.taxable_pay} strong color="#64748b" />
+                <MoneyRow rounded={roundOff} label="Taxable Pay" value={(selectedPayslip.deductions as any)?.taxable_pay} strong color="#64748b" />
               </div>
-              <MoneyRow label="Income Tax" value={(selectedPayslip.deductions as any)?.income_tax} color="#f59e0b" />
+              <MoneyRow rounded={roundOff} label="Income Tax" value={(selectedPayslip.deductions as any)?.income_tax} color="#f59e0b" />
               <MoneyRow
+                  rounded={roundOff}
                 label="Personal Relief"
                 value={
                   (selectedPayslip.deductions as any)?.personal_relief != null
@@ -1163,14 +1238,16 @@ const PayslipView: React.FC = () => {
               />
               {((selectedPayslip.deductions as any)?.insurance_relief || 0) > 0 && (
                 <MoneyRow
+                  rounded={roundOff}
                   label="Insurance Relief"
                   value={-(selectedPayslip.deductions as any).insurance_relief}
                   color="#10b981"
                 />
               )}
-              <MoneyRow label="P.A.Y.E" value={selectedPayslip.deductions?.paye} strong color="#ef4444" />
+              <MoneyRow rounded={roundOff} label="P.A.Y.E" value={selectedPayslip.deductions?.paye} strong color="#ef4444" />
               <div style={{ borderTop: "1px dashed #e2e8f0", margin: "6px 0", paddingTop: 6 }}>
                 <MoneyRow
+                  rounded={roundOff}
                   label="Pay After Tax"
                   value={
                     ((selectedPayslip.deductions as any)?.taxable_pay ??
@@ -1185,10 +1262,10 @@ const PayslipView: React.FC = () => {
                 />
               </div>
               {(selectedPayslip.deductions?.custom || []).map((d: any, i: number) => (
-                <MoneyRow key={i} label={d.name} value={d.amount} color="#ef4444" />
+                <MoneyRow rounded={roundOff} key={i} label={d.name} value={d.amount} color="#ef4444" />
               ))}
               <div style={{ borderTop: "1px solid #e2e8f0", marginTop: 6, paddingTop: 6 }}>
-                <MoneyRow label="Total Deductions" value={selectedPayslip.deductions?.total} strong color="#ef4444" />
+                <MoneyRow rounded={roundOff} label="Total Deductions" value={selectedPayslip.deductions?.total} strong color="#ef4444" />
               </div>
             </div>
 
@@ -1233,7 +1310,7 @@ const PayslipView: React.FC = () => {
                       key: "excel",
                       label: "Export Excel",
                       icon: <FileExcelOutlined />,
-                      onClick: () => exportPayslipToExcel(selectedPayslip, headerOverride),
+                      onClick: () => exportPayslipToExcel(selectedPayslip, headerOverride, roundOff),
                     },
                     { type: "divider" as const },
                     {
