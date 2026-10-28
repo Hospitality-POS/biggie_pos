@@ -12,6 +12,10 @@ import { THEME_C } from "@utils/getPrimaryColor";
 import { useFormsSettings } from "@hooks/useFormsSettings";
 import FilledFormsList from "@pages/FormsPlans/forms/fill/FilledFormsList";
 import PlansList from "@pages/FormsPlans/plans/PlansList";
+import dayjs from "dayjs";
+import { useHealthcareSettings } from "@hooks/useHealthcareSettings";
+import { useHealthcareAccess } from "@pages/Healthcare/shared";
+import PatientMedicalPanel from "@pages/Healthcare/PatientMedicalPanel";
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -48,6 +52,19 @@ const COMPANY_DOCUMENT_TYPES = [
     { value: 'booking_form', label: 'Booking Form' }
 ];
 
+// Hospital mode: a patient's file holds clinical paperwork, not business documents
+const PATIENT_DOCUMENT_TYPES = [
+    { value: 'id_passport', label: 'ID / Passport / Birth Certificate' },
+    { value: 'insurance_card', label: 'Insurance Card' },
+    { value: 'referral_letter', label: 'Referral Letter' },
+    { value: 'lab_result', label: 'Lab Result' },
+    { value: 'imaging_report', label: 'X-ray / Scan Report' },
+    { value: 'medical_report', label: 'Medical Report' },
+    { value: 'prescription_copy', label: 'Prescription' },
+    { value: 'consent_form', label: 'Consent Form' },
+    { value: 'discharge_summary', label: 'Discharge Summary' },
+];
+
 const InfoRow = ({ icon, label, value }: { icon: React.ReactNode; label: string; value?: React.ReactNode }) => (
     <div style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "7px 0", borderBottom: `1px solid ${C.border}` }}>
         <span style={{ color: C.primary, fontSize: 14, marginTop: 1 }}>{icon}</span>
@@ -68,6 +85,9 @@ interface CustomerDetailDrawerProps {
 const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ open, onClose, customer, onUpdated }) => {
     // Forms & Plans add-on: this customer's signed forms and plans
     const { clientForms, clientPlans } = useFormsSettings();
+    // Healthcare add-on: the patient's medical details live on the customer
+    const { patientRecords } = useHealthcareSettings();
+    const { viewPatients } = useHealthcareAccess();
     const [documentForm] = Form.useForm();
     const [documents, setDocuments] = useState<CustomerDocument[]>([]);
     const [documentsLoading, setDocumentsLoading] = useState(false);
@@ -76,7 +96,10 @@ const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ open, onClo
 
     const shop_id = JSON.parse(localStorage.getItem("shop") || "{}")?._id;
     const entityType = customer?.type || 'individual';
-    const documentTypes = entityType === 'company' ? COMPANY_DOCUMENT_TYPES : INDIVIDUAL_DOCUMENT_TYPES;
+    const isHospital = (localStorage.getItem("posMode") ?? "") === "hospital";
+    const documentTypes = isHospital
+        ? PATIENT_DOCUMENT_TYPES
+        : entityType === 'company' ? COMPANY_DOCUMENT_TYPES : INDIVIDUAL_DOCUMENT_TYPES;
 
     // Fetch documents when drawer opens - documents are embedded in customer object
     useEffect(() => {
@@ -159,7 +182,7 @@ const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ open, onClo
                         )}
                     </div>
                     <Tag color={entityType === 'company' ? C.blue : C.green} style={{ marginLeft: "auto", borderRadius: 10, fontSize: 11 }}>
-                        {entityType.toUpperCase()}
+                        {isHospital ? "PATIENT" : entityType.toUpperCase()}
                     </Tag>
                 </div>
             }
@@ -178,7 +201,14 @@ const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ open, onClo
                                     <InfoRow icon={<PhoneOutlined />} label="Phone" value={customer.phone} />
                                     <InfoRow icon={<MailOutlined />} label="Email" value={customer.email} />
                                     <InfoRow icon={<EnvironmentOutlined />} label="Location" value={customer.location} />
-                                    <InfoRow icon={<IdcardOutlined />} label="KRA PIN" value={customer.kra_pin} />
+                                    {isHospital ? (
+                                        <>
+                                            <InfoRow icon={<UserOutlined />} label="Gender" value={customer.gender} />
+                                            <InfoRow icon={<IdcardOutlined />} label="Date of Birth" value={customer.date_of_birth ? dayjs(customer.date_of_birth).format("DD MMM YYYY") : undefined} />
+                                        </>
+                                    ) : (
+                                        <InfoRow icon={<IdcardOutlined />} label="KRA PIN" value={customer.kra_pin} />
+                                    )}
                                     {customer.payment_terms && (
                                         <InfoRow icon={<UserOutlined />} label="Payment Terms" value={`${customer.payment_terms} days`} />
                                     )}
@@ -342,6 +372,15 @@ const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ open, onClo
                             </>
                         ),
                     },
+                    ...(patientRecords && viewPatients && entityType === 'individual'
+                        ? [
+                              {
+                                  key: 'medical',
+                                  label: 'Medical',
+                                  children: <PatientMedicalPanel customerId={customer._id} />,
+                              },
+                          ]
+                        : []),
                     ...(clientForms
                         ? [
                               {

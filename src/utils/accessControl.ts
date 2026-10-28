@@ -80,6 +80,8 @@ export const MODULES = {
     CLIENT_FORMS: "Client Forms",
     CLIENT_PLANS: "Client Plans",
     HR_FORMS_PLANS: "HR · Employee Forms & Plans",
+    // ── Healthcare add-on (clinics, pharmacies, hospitals) ──
+    HEALTHCARE: "Healthcare",
 } as const;
 
 export type ModuleKey = keyof typeof MODULES;
@@ -845,6 +847,24 @@ export const PERMISSIONS: Record<string, Permission> = {
     EMPLOYEE_PLANS_DOWNLOAD: { key: "EMPLOYEE_PLANS_DOWNLOAD", label: "Preview & Download Onboarding & Training Plan PDFs", module: MODULES.HR_FORMS_PLANS, action: "special", moduleScope: "hr" },
     EMPLOYEE_FORMS_CATEGORIES_MANAGE: { key: "EMPLOYEE_FORMS_CATEGORIES_MANAGE", label: "Add Employee Form Types", module: MODULES.HR_FORMS_PLANS, action: "create", moduleScope: "hr" },
     EMPLOYEE_FORMS_ANALYTICS: { key: "EMPLOYEE_FORMS_ANALYTICS", label: "View Employee Forms & Plans Analytics", module: MODULES.HR_FORMS_PLANS, action: "read", moduleScope: "hr" },
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // HEALTHCARE ADD-ON — patients, visits, prescriptions, medicine batches.
+    // Clinical records are health information: notes, prescribing and
+    // dispensing are separate keys so a cashier never sees them by default.
+    // ══════════════════════════════════════════════════════════════════════════
+
+    HEALTHCARE_PATIENTS_VIEW: { key: "HEALTHCARE_PATIENTS_VIEW", label: "View Patient Medical Profiles", module: MODULES.HEALTHCARE, action: "read", moduleScope: "pos" },
+    HEALTHCARE_PATIENTS_MANAGE: { key: "HEALTHCARE_PATIENTS_MANAGE", label: "Register Patients & Edit Medical Profiles", module: MODULES.HEALTHCARE, action: "update", moduleScope: "pos" },
+    HEALTHCARE_VISITS_VIEW: { key: "HEALTHCARE_VISITS_VIEW", label: "View Patient Queue & Visits", module: MODULES.HEALTHCARE, action: "read", moduleScope: "pos" },
+    HEALTHCARE_VISITS_MANAGE: { key: "HEALTHCARE_VISITS_MANAGE", label: "Check In Patients & Move Them Along", module: MODULES.HEALTHCARE, action: "update", moduleScope: "pos" },
+    HEALTHCARE_TRIAGE: { key: "HEALTHCARE_TRIAGE", label: "Record Vitals (Triage)", module: MODULES.HEALTHCARE, action: "special", moduleScope: "pos" },
+    HEALTHCARE_CLINICAL_NOTES: { key: "HEALTHCARE_CLINICAL_NOTES", label: "View & Write Clinical Notes and Diagnoses", module: MODULES.HEALTHCARE, action: "special", moduleScope: "pos" },
+    HEALTHCARE_PRESCRIBE: { key: "HEALTHCARE_PRESCRIBE", label: "Write Prescriptions", module: MODULES.HEALTHCARE, action: "special", moduleScope: "pos" },
+    HEALTHCARE_PRESCRIPTIONS_VIEW: { key: "HEALTHCARE_PRESCRIPTIONS_VIEW", label: "View Prescriptions", module: MODULES.HEALTHCARE, action: "read", moduleScope: "pos" },
+    HEALTHCARE_DISPENSE: { key: "HEALTHCARE_DISPENSE", label: "Dispense Medicine", module: MODULES.HEALTHCARE, action: "special", moduleScope: "pos" },
+    HEALTHCARE_BATCHES_VIEW: { key: "HEALTHCARE_BATCHES_VIEW", label: "View Medicine Batches & Expiry", module: MODULES.HEALTHCARE, action: "read", moduleScope: "pos" },
+    HEALTHCARE_BATCHES_MANAGE: { key: "HEALTHCARE_BATCHES_MANAGE", label: "Receive Batches & Write Off Stock", module: MODULES.HEALTHCARE, action: "update", moduleScope: "pos" },
 
     // ── Reports ───────────────────────────────────────────────────────────────
 

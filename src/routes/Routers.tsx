@@ -122,6 +122,17 @@ const EmployeeFormsHubPage = () => <FormsHubPage audience="employee" />;
 const CLIENT_FORMS_HUB_PERMISSIONS = ["CLIENT_FORMS_VIEW", "CLIENT_FORMS_VIEW_FILLED", "CLIENT_PLANS_VIEW", "CLIENT_FORMS_ANALYTICS"];
 const EMPLOYEE_FORMS_HUB_PERMISSIONS = ["EMPLOYEE_FORMS_VIEW", "EMPLOYEE_PLANS_VIEW", "EMPLOYEE_FORMS_ANALYTICS"];
 
+// The POS screen. In hospital mode it also holds the Healthcare queue and
+// pharmacy tabs, so clinical staff without cart access can open it too.
+const TABLES_PERMISSIONS = ["CART_VIEW_ITEMS", "HEALTHCARE_VISITS_VIEW", "HEALTHCARE_PRESCRIPTIONS_VIEW"];
+// Old Healthcare links land on the matching tab of the hospital screen
+const HealthcareRedirect = () => {
+  const tab = new URLSearchParams(window.location.search).get("tab");
+  const prefix = window.location.pathname.startsWith("/admin") ? "/admin" : "";
+  if (tab === "batches") return <Navigate to={`${prefix}/inventory?tab=batches`} replace />;
+  return <Navigate to={`${prefix}/tables${tab === "pharmacy" || tab === "queue" ? `?tab=${tab}` : ""}`} replace />;
+};
+
 // ─── Omnichannel Inbox ────────────────────────────────────────────────────────
 const OmnichannelInboxPage = lazyWithReload(() => import("src/pages/OmniChannel/OmnichannelInboxPage"));
 const OAuthCallbackPage = lazyWithReload(() => import("src/pages/OmniChannel/OAuthCallbackPage"));
@@ -418,7 +429,7 @@ const routes = sentryCreateBrowserRouter(
           element={<Suspense fallback={fullscreenSpin}><Notification /></Suspense>} />
 
         <Route path="tables" errorElement={<NotFound />}
-          element={guardedPage(Table, "CART_VIEW_ITEMS")} />
+          element={guardedPage(Table, TABLES_PERMISSIONS)} />
 
         <Route path="main-category" errorElement={<NotFound />}
           element={guardedPage(MainCategory, "CATEGORIES_VIEW")} />
@@ -437,6 +448,9 @@ const routes = sentryCreateBrowserRouter(
 
         <Route path="esign" errorElement={<NotFound />}
           element={guardedPage(ESignPage, "SIGNATURE_VIEW")} />
+
+        <Route path="healthcare" errorElement={<NotFound />}
+          element={<HealthcareRedirect />} />
 
         <Route path="forms" errorElement={<NotFound />}
           element={guardedPage(FormsHubPage, CLIENT_FORMS_HUB_PERMISSIONS)} />
@@ -705,7 +719,7 @@ const routes = sentryCreateBrowserRouter(
           element={<Suspense fallback={fullscreenSpin}><Notification /></Suspense>} />
 
         <Route path="tables" errorElement={<NotFound />}
-          element={guardedAdminPage(Table, "CART_VIEW_ITEMS")} />
+          element={guardedAdminPage(Table, TABLES_PERMISSIONS)} />
 
         <Route path="home-dashboard" errorElement={<NotFound />}
           element={guardedAdminPage(DashboardAdminPage, "UNIFIED_DASHBOARD_VIEW")} />
@@ -817,6 +831,9 @@ const routes = sentryCreateBrowserRouter(
             </PermissionRoute>
           }
         />
+
+        <Route path="healthcare" errorElement={<NotFound />}
+          element={<HealthcareRedirect />} />
 
         <Route path="forms" errorElement={<NotFound />}
           element={guardedAdminPage(FormsHubPage, CLIENT_FORMS_HUB_PERMISSIONS)} />
