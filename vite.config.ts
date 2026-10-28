@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => {
       // Tauri (base_desktop) points devUrl at this exact port — never drift
       strictPort: true,
     },
-    esbuild: isProduction
+    oxc: isProduction
       ? {
           drop: ['debugger'],
           pure: ['console.log', 'console.info', 'console.debug'],
