@@ -212,6 +212,20 @@ export const fetchEmployees = async (params: ParamsType = {}) => {
   }
 };
 
+// Every employee matching the filters — pages through /employees, which
+// otherwise returns only the first page (20 by default)
+export const fetchAllEmployees = async (params: ParamsType = {}) => {
+  const limit = 500;
+  const all: any[] = [];
+  for (let page = 1; ; page++) {
+    const res = await fetchEmployees({ ...params, page, limit });
+    const rows = res?.data || [];
+    all.push(...rows);
+    if (rows.length < limit || all.length >= (res?.pagination?.total ?? 0)) break;
+  }
+  return all;
+};
+
 // Get Single Employee
 export const getEmployeeById = async (employeeId: string) => {
   try {
