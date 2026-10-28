@@ -14,6 +14,7 @@ import {
   SendOutlined,
   ScheduleOutlined,
   EyeOutlined,
+  MailOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -32,6 +33,7 @@ import type { PersonLite } from "../person";
 import { useAudience } from "../../audience";
 import StaffSignModal from "./StaffSignModal";
 import PdfPreviewModal, { saveBlob, signedPdfName } from "./SignedPdfModal";
+import EmailSignedCopyModal from "./EmailSignedCopyModal";
 import { SUBMISSION_STATUS_META, type FormSubmissionSummary, type SubmissionStatus } from "./types";
 import { questionLead } from "./utils";
 import { useFormsSettings } from "@hooks/useFormsSettings";
@@ -83,6 +85,7 @@ const FilledFormsList: React.FC<Props> = ({ person, showCustomer }) => {
   const [busy, setBusy] = useState<string | null>(null);
   const { meta: categoryMeta } = useCategories();
   const [previewing, setPreviewing] = useState<FormSubmissionSummary | null>(null);
+  const [emailing, setEmailing] = useState<FormSubmissionSummary | null>(null);
   // Start a plan from a signed form
   const settings = useFormsSettings();
   const [planFrom, setPlanFrom] = useState<FormSubmissionSummary | null>(null);
@@ -301,6 +304,11 @@ const FilledFormsList: React.FC<Props> = ({ person, showCustomer }) => {
                         PDF
                       </Button>
                     </Tooltip>
+                    <Tooltip title="Email signed copy">
+                      <Button size="small" icon={<MailOutlined />} onClick={() => setEmailing(row)}>
+                        Email
+                      </Button>
+                    </Tooltip>
                   </>
                 )}
                 {open && row.channel === "in_store" && can(a.perms.send) && (
@@ -353,6 +361,7 @@ const FilledFormsList: React.FC<Props> = ({ person, showCustomer }) => {
         </>
       )}
 
+      <EmailSignedCopyModal submission={emailing} audience={a.audience} onClose={() => setEmailing(null)} />
       <PdfPreviewModal
         open={!!previewing}
         title={previewing ? `${previewing.form.name} · ${previewing.subject_snapshot.name}` : ""}
