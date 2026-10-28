@@ -18,7 +18,7 @@ import {
   Typography,
   message,
 } from "antd";
-import { DeleteOutlined, ExperimentOutlined, MedicineBoxOutlined, PlusOutlined } from "@ant-design/icons";
+import { DeleteOutlined, ExperimentOutlined, FileTextOutlined, LoginOutlined, MedicineBoxOutlined, PlusOutlined } from "@ant-design/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import {
@@ -39,6 +39,8 @@ import { useHealthcareSettings } from "@hooks/useHealthcareSettings";
 import { AllergyBanner } from "./AllergyBanner";
 import PrescriptionModal from "./PrescriptionModal";
 import LabOrderModal from "./LabOrderModal";
+import ReferralLetterModal from "./ReferralLetterModal";
+import { AdmitModal } from "./WardsTab";
 import { LabOrderDrawer } from "./LabTab";
 import { ClaimDrawer } from "./ClaimsTab";
 import { CLAIM_STATUS_TAG, LAB_STATUS_TAG, RX_STATUS, STAGE_LABEL, VISIT_TYPE_LABEL, ageOf, bmiOf, money, patientName, useHealthcareAccess, visibleStages } from "./shared";
@@ -73,6 +75,8 @@ const VisitDrawer: React.FC<VisitDrawerProps> = ({ visitId, onClose }) => {
   const [labOrderId, setLabOrderId] = useState<string | null>(null);
   const [claimId, setClaimId] = useState<string | null>(null);
   const [claimForVisit, setClaimForVisit] = useState<string | null>(null);
+  const [admitOpen, setAdmitOpen] = useState(false);
+  const [referralOpen, setReferralOpen] = useState(false);
 
   const { data: visit, isLoading } = useQuery({
     queryKey: ["healthcare-visit", visitId],
@@ -153,12 +157,24 @@ const VisitDrawer: React.FC<VisitDrawerProps> = ({ visitId, onClose }) => {
       title={visit ? `${patientName(visit.customer)} · ${visit.visit_number}` : "Visit"}
       destroyOnClose
       extra={
-        visit &&
-        !closed &&
-        access.manageVisits && (
-          <Button danger type="text" onClick={cancelVisit}>
-            Cancel visit
-          </Button>
+        visit && (
+          <Space>
+            {access.clinicalNotes && (
+              <Button icon={<FileTextOutlined />} onClick={() => setReferralOpen(true)}>
+                Referral letter
+              </Button>
+            )}
+            {!closed && settings.inpatient && access.admit && visit.stage !== "admitted" && (
+              <Button type="primary" icon={<LoginOutlined />} onClick={() => setAdmitOpen(true)}>
+                Admit
+              </Button>
+            )}
+            {!closed && access.manageVisits && visit.stage !== "admitted" && (
+              <Button danger type="text" onClick={cancelVisit}>
+                Cancel visit
+              </Button>
+            )}
+          </Space>
         )
       }
     >
@@ -398,6 +414,36 @@ const VisitDrawer: React.FC<VisitDrawerProps> = ({ visitId, onClose }) => {
             />
           )}
         </Space>
+      )}
+
+      {visit && (
+        <>
+          <AdmitModal
+            open={admitOpen}
+            customerId={visit.customer_id}
+            visitId={visit._id}
+            onClose={() => setAdmitOpen(false)}
+            onAdmitted={() => {
+              setAdmitOpen(false);
+              refresh();
+              onClose();
+            }}
+          />
+          <ReferralLetterModal
+            open={referralOpen}
+            onClose={() => setReferralOpen(false)}
+            patient={{
+              patient: patientName(visit.customer),
+              patientNumber: visit.profile?.patient_number,
+              ageGender: [ageOf(visit.customer?.date_of_birth), visit.customer?.gender].filter(Boolean).join(" · "),
+            }}
+            defaults={{
+              diagnoses: (visit.diagnoses ?? []).map((d) => `${d.code ? `${d.code} ` : ""}${d.description}`).join("; "),
+              summary: [visit.clinical_notes?.chief_complaint, visit.clinical_notes?.examination].filter(Boolean).join("\n"),
+              from: visit.doctor_name,
+            }}
+          />
+        </>
       )}
 
       {visit && (

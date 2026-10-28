@@ -24,6 +24,7 @@ export interface HealthcareSettings {
   /** Lab or imaging — either one makes ordering tests possible */
   diagnostics: boolean;
   insurance: boolean;
+  inpatient: boolean;
   blockExpiredDispensing: boolean;
   nearExpiryDays: number;
   patientNumberPrefix: string;
@@ -45,6 +46,7 @@ const OFF: HealthcareSettings = {
   radiology: false,
   diagnostics: false,
   insurance: false,
+  inpatient: false,
   blockExpiredDispensing: true,
   nearExpiryDays: 90,
   patientNumberPrefix: "PT",
@@ -78,6 +80,7 @@ export function useHealthcareSettings(): HealthcareSettings & { isLoading: boole
         radiology: hs.radiology_enabled === true,
         diagnostics: hs.lab_enabled === true || hs.radiology_enabled === true,
         insurance: hs.insurance_enabled === true,
+        inpatient: hs.inpatient_enabled === true,
         blockExpiredDispensing: hs.block_expired_dispensing !== false,
         nearExpiryDays: hs.near_expiry_days ?? 90,
         patientNumberPrefix: hs.patient_number_prefix || "PT",

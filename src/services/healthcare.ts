@@ -48,7 +48,7 @@ export interface PatientRow {
   profile: PatientProfile | null;
 }
 
-export type VisitStage = "waiting" | "triage" | "consultation" | "lab" | "pharmacy" | "billing" | "completed" | "cancelled";
+export type VisitStage = "waiting" | "triage" | "consultation" | "lab" | "pharmacy" | "billing" | "admitted" | "completed" | "cancelled";
 
 export interface Vitals {
   temperature_c?: number | null;
@@ -577,10 +577,227 @@ export const recordClaimPayment = async (id: string, body: { amount: number; dat
 
 // ─── Reports ─────────────────────────────────────────────────────────────────
 
-export type HealthcareReportKind = "visits" | "morbidity" | "lab" | "dispensing" | "expiry" | "claims" | "ageing";
+export type HealthcareReportKind =
+  | "visits"
+  | "morbidity"
+  | "lab"
+  | "dispensing"
+  | "expiry"
+  | "claims"
+  | "ageing"
+  | "admissions"
+  | "occupancy"
+  | "access-log";
 
-/** Rows of a healthcare register or return (Reports page → Healthcare). */
+/** Rows of a healthcare register or return (the healthcare tabs on the Reports page). */
 export const fetchHealthcareReportRows = async (
   kind: HealthcareReportKind,
   params: { from?: string; to?: string; department?: LabDepartment; days?: number; payer_id?: string; status?: string } = {}
-) => unwrap<Record<string, unknown>[]>(await axiosInstance.get(hc(`/reports/${kind}`), { params, ...as("HEALTHCARE_REPORTS_VIEW") }));
+) =>
+  unwrap<Record<string, unknown>[]>(
+    await axiosInstance.get(hc(`/reports/${kind}`), {
+      params,
+      // The access log has its own permission; the rest share the reports one
+      ...as(kind === "access-log" ? "HEALTHCARE_ACCESS_LOG_VIEW" : "HEALTHCARE_REPORTS_VIEW"),
+    })
+  );
+
+// ─── Inpatient: wards, beds, admissions ──────────────────────────────────────
+
+export type BedStatus = "available" | "occupied" | "cleaning" | "out_of_service";
+export type WardKind = "general" | "maternity" | "paediatric" | "surgical" | "icu" | "private" | "other";
+
+export interface Bed {
+  _id: string;
+  label: string;
+  status: BedStatus;
+  admission_id?: string | null;
+  admission?: {
+    _id: string;
+    admission_number: string;
+    admitted_at: string;
+    doctor_name?: string;
+    customer?: PatientCustomer | null;
+  } | null;
+}
+
+export interface Ward {
+  _id: string;
+  name: string;
+  kind: WardKind;
+  daily_rate: number;
+  bed_product_id?: string | null;
+  bed_product_type?: "Product" | "Product_Inventory";
+  beds: Bed[];
+  is_active: boolean;
+}
+
+export type AdmissionStatus = "admitted" | "discharged" | "cancelled";
+export type DischargeCondition = "recovered" | "improved" | "unchanged" | "referred" | "against_advice" | "died";
+
+export interface BillLineItem {
+  kind: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  amount: number;
+  product_id?: string | null;
+  product_type?: "Product" | "Product_Inventory";
+  charge_id?: string;
+  date?: string;
+}
+
+export interface InpatientBill {
+  lines: BillLineItem[];
+  total: number;
+  deposits: number;
+  balance: number;
+  as_of: string;
+}
+
+export interface Admission {
+  _id: string;
+  admission_number: string;
+  customer_id: string;
+  visit_id?: string | null;
+  status: AdmissionStatus;
+  ward_id: string;
+  bed_id: string;
+  stays: { _id: string; ward_name: string; bed_label: string; daily_rate: number; from: string; to?: string | null }[];
+  admitted_at: string;
+  admitted_by_name?: string;
+  doctor_name?: string;
+  reason?: string;
+  deposits?: { _id: string; amount: number; date: string; method: string; reference?: string; received_by_name?: string }[];
+  notes?: {
+    _id: string;
+    at: string;
+    by_name: string;
+    kind: "nursing" | "doctor";
+    note: string;
+    vitals?: Partial<Record<"temperature_c" | "pulse_bpm" | "bp_systolic" | "bp_diastolic" | "spo2_percent" | "respiratory_rate", number | null>>;
+  }[];
+  discharge?: {
+    at?: string | null;
+    by_name?: string;
+    condition?: DischargeCondition | "";
+    summary?: string;
+    diagnoses?: string;
+    medications?: string;
+    follow_up?: string;
+    instructions?: string;
+  };
+  billed_at?: string | null;
+  customer?: PatientCustomer | null;
+  patient_number?: string;
+  has_allergies?: boolean;
+}
+
+export interface AdmissionDetail extends Admission {
+  profile: PatientProfile | null;
+  bill: InpatientBill;
+}
+
+export const fetchWards = async (permission = "HEALTHCARE_INPATIENT_VIEW") =>
+  unwrap<Ward[]>(await axiosInstance.get(hc("/wards"), as(permission)));
+
+export const createWard = async (body: {
+  name: string;
+  kind?: WardKind;
+  daily_rate?: number;
+  bed_product_id?: string;
+  bed_product_type?: "Product" | "Product_Inventory";
+  bed_count?: number;
+}) => unwrap<Ward>(await axiosInstance.post(hc("/wards"), body, as("HEALTHCARE_WARDS_MANAGE")));
+
+export const updateWard = async (
+  id: string,
+  body: Partial<Pick<Ward, "name" | "kind" | "daily_rate" | "bed_product_id" | "bed_product_type" | "is_active">> & { add_beds?: string[] }
+) => unwrap<Ward>(await axiosInstance.patch(hc(`/wards/${id}`), body, as("HEALTHCARE_WARDS_MANAGE")));
+
+export const updateBed = async (wardId: string, bedId: string, body: { status?: BedStatus; label?: string }, permission = "HEALTHCARE_INPATIENT_CARE") =>
+  unwrap<Ward>(await axiosInstance.patch(hc(`/wards/${wardId}/beds/${bedId}`), body, as(permission)));
+
+export const fetchAdmissions = async (params: { status?: AdmissionStatus; customer_id?: string } = {}) =>
+  unwrap<Admission[]>(await axiosInstance.get(hc("/admissions"), { params, ...as("HEALTHCARE_INPATIENT_VIEW") }));
+
+export const fetchAdmission = async (id: string) =>
+  unwrap<AdmissionDetail>(await axiosInstance.get(hc(`/admissions/${id}`), as("HEALTHCARE_INPATIENT_VIEW")));
+
+export const admitPatient = async (body: { customer_id: string; visit_id?: string; ward_id: string; bed_id: string; reason?: string; doctor_name?: string }) =>
+  unwrap<Admission>(await axiosInstance.post(hc("/admissions"), body, as("HEALTHCARE_ADMIT")));
+
+export const transferPatient = async (id: string, wardId: string, bedId: string) =>
+  unwrap<Admission>(await axiosInstance.post(hc(`/admissions/${id}/transfer`), { ward_id: wardId, bed_id: bedId }, as("HEALTHCARE_ADMIT")));
+
+export const addWardNote = async (id: string, body: { kind?: "nursing" | "doctor"; note?: string; vitals?: Record<string, number | null | undefined> }) =>
+  unwrap(await axiosInstance.post(hc(`/admissions/${id}/notes`), body, as("HEALTHCARE_INPATIENT_CARE")));
+
+export const addAdmissionCharge = async (
+  id: string,
+  body: { product_id: string; product_type: "Product" | "Product_Inventory"; quantity: number; kind?: string; description?: string; unit_price?: number }
+) => unwrap<InpatientBill>(await axiosInstance.post(hc(`/admissions/${id}/charges`), body, as("HEALTHCARE_INPATIENT_CARE")));
+
+export const removeAdmissionCharge = async (id: string, chargeId: string) =>
+  unwrap<InpatientBill>(await axiosInstance.delete(hc(`/admissions/${id}/charges/${chargeId}`), as("HEALTHCARE_INPATIENT_CARE")));
+
+export const addAdmissionDeposit = async (id: string, body: { amount: number; method?: string; reference?: string }) =>
+  unwrap<InpatientBill>(await axiosInstance.post(hc(`/admissions/${id}/deposits`), body, as("HEALTHCARE_DEPOSITS")));
+
+export const dischargePatient = async (
+  id: string,
+  body: { condition: DischargeCondition; summary?: string; diagnoses?: string; medications?: string; follow_up?: string; instructions?: string }
+) => unwrap<Admission>(await axiosInstance.post(hc(`/admissions/${id}/discharge`), body, as("HEALTHCARE_ADMIT")));
+
+export const markAdmissionBilled = async (id: string) =>
+  unwrap<Admission>(await axiosInstance.post(hc(`/admissions/${id}/billed`), {}, as("HEALTHCARE_DEPOSITS")));
+
+export const cancelAdmission = async (id: string, reason: string) =>
+  unwrap<Admission>(await axiosInstance.post(hc(`/admissions/${id}/cancel`), { reason }, as("HEALTHCARE_ADMIT")));
+
+// ─── Dashboard ───────────────────────────────────────────────────────────────
+
+export interface HealthcareDashboard {
+  features: { visits: boolean; diagnostics: boolean; prescriptions: boolean; batches: boolean; insurance: boolean; inpatient: boolean };
+  now: {
+    in_facility: number;
+    stages: Partial<Record<VisitStage, number>>;
+    urgent_waiting: number;
+    lab_open: number;
+    lab_urgent: number;
+    pharmacy_open: number;
+    beds: number;
+    beds_occupied: number;
+    beds_cleaning: number;
+  };
+  today: {
+    visits: number;
+    new_patients: number;
+    tests_done: number;
+    prescriptions_dispensed: number;
+    admitted: number;
+    discharged: number;
+    average_visit_minutes: number | null;
+  };
+  attention: {
+    urgent_waiting: number;
+    urgent_tests: number;
+    abnormal_results_today: number;
+    expired_batches: number;
+    expiring_batches: number;
+    near_expiry_days: number;
+    beds_to_clean: number;
+    claim_drafts: number;
+    owed_by_payers: number;
+    unbilled_discharges: number;
+  };
+  wards: { name: string; beds: number; occupied: number; cleaning: number }[];
+  top_diagnoses: { description: string; code: string; count: number }[];
+}
+
+/**
+ * The facility at a glance (POS dashboard in hospital mode). The API accepts
+ * any healthcare view permission; pass one the user holds.
+ */
+export const fetchHealthcareDashboard = async (from: string, to: string, permission: string) =>
+  unwrap<HealthcareDashboard>(await axiosInstance.get(hc("/dashboard"), { params: { from, to }, ...as(permission) }));

@@ -13,6 +13,7 @@ import {
   ShopOutlined,
   BankOutlined,
   CheckCircleFilled,
+  HomeOutlined,
   ScanOutlined,
   SafetyCertificateOutlined,
 } from "@ant-design/icons";
@@ -37,6 +38,7 @@ type HealthcareFlag =
   | "lab_enabled"
   | "radiology_enabled"
   | "insurance_enabled"
+  | "inpatient_enabled"
   | "block_expired_dispensing";
 
 type HealthcareSettingsState = Record<HealthcareFlag, boolean> & {
@@ -58,6 +60,7 @@ const DEFAULTS: HealthcareSettingsState = {
   lab_enabled: false,
   radiology_enabled: false,
   insurance_enabled: false,
+  inpatient_enabled: false,
   block_expired_dispensing: true,
   near_expiry_days: 90,
   patient_number_prefix: "PT",
@@ -424,6 +427,21 @@ const HealthcareSettings: React.FC = () => {
             checked={settings.insurance_enabled}
             onChange={handleToggle("insurance_enabled", (c) => (c ? "Insurance & Claims turned on" : "Insurance & Claims turned off"))}
             loading={updating === "insurance_enabled"}
+            disabled={off}
+          />
+        </div>
+
+        <div>
+          <SectionLabel text="Inpatient" />
+          <ToggleRow
+            icon={<HomeOutlined />}
+            color="#0f766e"
+            bg="#f0fdfa"
+            title="Wards & Admissions"
+            description="Wards and beds with a live bed board, admitting and transferring patients, ward notes and vitals, a running bill (bed-days, tests, medicine, charges) with deposits, and discharge summaries. Adds a Wards tab on the POS screen."
+            checked={settings.inpatient_enabled}
+            onChange={handleToggle("inpatient_enabled", (c) => (c ? "Wards & Admissions turned on" : "Wards & Admissions turned off"))}
+            loading={updating === "inpatient_enabled"}
             disabled={off}
           />
         </div>

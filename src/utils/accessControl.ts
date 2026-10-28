@@ -873,6 +873,12 @@ export const PERMISSIONS: Record<string, Permission> = {
     HEALTHCARE_CLAIMS_MANAGE: { key: "HEALTHCARE_CLAIMS_MANAGE", label: "Create, Submit & Record Payments on Claims", module: MODULES.HEALTHCARE, action: "special", moduleScope: "pos" },
     HEALTHCARE_PAYERS_MANAGE: { key: "HEALTHCARE_PAYERS_MANAGE", label: "Set Up Insurers & Schemes", module: MODULES.HEALTHCARE, action: "update", moduleScope: "pos" },
     HEALTHCARE_REPORTS_VIEW: { key: "HEALTHCARE_REPORTS_VIEW", label: "View Healthcare Reports", module: MODULES.HEALTHCARE, action: "read", moduleScope: "pos" },
+    HEALTHCARE_INPATIENT_VIEW: { key: "HEALTHCARE_INPATIENT_VIEW", label: "View Wards, Beds & Admissions", module: MODULES.HEALTHCARE, action: "read", moduleScope: "pos" },
+    HEALTHCARE_ADMIT: { key: "HEALTHCARE_ADMIT", label: "Admit, Transfer & Discharge Patients", module: MODULES.HEALTHCARE, action: "special", moduleScope: "pos" },
+    HEALTHCARE_INPATIENT_CARE: { key: "HEALTHCARE_INPATIENT_CARE", label: "Ward Notes, Vitals & Charges", module: MODULES.HEALTHCARE, action: "special", moduleScope: "pos" },
+    HEALTHCARE_WARDS_MANAGE: { key: "HEALTHCARE_WARDS_MANAGE", label: "Set Up Wards & Beds", module: MODULES.HEALTHCARE, action: "update", moduleScope: "pos" },
+    HEALTHCARE_DEPOSITS: { key: "HEALTHCARE_DEPOSITS", label: "Take Inpatient Deposits & Send Bills to the POS", module: MODULES.HEALTHCARE, action: "special", moduleScope: "pos" },
+    HEALTHCARE_ACCESS_LOG_VIEW: { key: "HEALTHCARE_ACCESS_LOG_VIEW", label: "View Who Opened Patient Records", module: MODULES.HEALTHCARE, action: "read", moduleScope: "pos" },
 
     // ── Reports ───────────────────────────────────────────────────────────────
 

@@ -7,12 +7,15 @@ import {
   MedicineBoxOutlined,
   SolutionOutlined,
   WalletOutlined,
+  HomeOutlined,
+  PieChartOutlined,
+  EyeOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import type { HealthcareReportKind } from "@services/healthcare";
 import { useHealthcareSettings } from "@hooks/useHealthcareSettings";
 import { THEME_C } from "@utils/getPrimaryColor";
-import { CLAIM_STATUS_TAG, STAGE_LABEL, VISIT_TYPE_LABEL, money, useHealthcareAccess } from "./shared";
+import { CLAIM_STATUS_TAG, DISCHARGE_CONDITION_LABEL, STAGE_LABEL, VISIT_TYPE_LABEL, money, useHealthcareAccess } from "./shared";
 
 const C = THEME_C;
 
@@ -194,6 +197,68 @@ export const HEALTHCARE_REPORTS: ReportDef[] = [
       { key: "total", title: "Total", kind: "money", total: true },
     ],
   },
+  {
+    key: "admissions",
+    label: "Admissions Register",
+    title: "ADMISSIONS & DISCHARGES REGISTER",
+    icon: createElement(HomeOutlined),
+    iconColor: C.blue,
+    dated: true,
+    emptyText: "No admissions in the selected period",
+    columns: [
+      { key: "admitted", title: "Admitted", kind: "date" },
+      { key: "admission_number", title: "Adm. No." },
+      { key: "patient_number", title: "Patient No." },
+      { key: "patient", title: "Name" },
+      { key: "age", title: "Age" },
+      { key: "sex", title: "Sex" },
+      { key: "ward", title: "Ward / bed" },
+      { key: "reason", title: "Reason" },
+      { key: "doctor", title: "Doctor" },
+      { key: "discharged", title: "Discharged", kind: "date" },
+      { key: "days", title: "Days", kind: "number", total: true },
+      { key: "condition", title: "Outcome", label: (v) => DISCHARGE_CONDITION_LABEL[v as keyof typeof DISCHARGE_CONDITION_LABEL] ?? String(v ?? "") },
+      { key: "bill", title: "Bill", kind: "money", total: true },
+      { key: "deposits", title: "Deposits", kind: "money", total: true },
+      { key: "balance", title: "Balance", kind: "money", total: true },
+    ],
+  },
+  {
+    key: "occupancy",
+    label: "Bed Occupancy",
+    title: "BED OCCUPANCY",
+    icon: createElement(PieChartOutlined),
+    iconColor: C.green,
+    dated: true,
+    emptyText: "No wards set up",
+    columns: [
+      { key: "ward", title: "Ward" },
+      { key: "kind", title: "Type" },
+      { key: "beds", title: "Beds", kind: "number", total: true },
+      { key: "occupied_now", title: "Occupied now", kind: "number", total: true },
+      { key: "bed_days_used", title: "Bed-days used", kind: "number", total: true },
+      { key: "bed_days_available", title: "Bed-days available", kind: "number", total: true },
+      { key: "occupancy_percent", title: "Occupancy %", kind: "number" },
+      { key: "daily_rate", title: "Daily rate", kind: "money" },
+    ],
+  },
+  {
+    key: "access-log",
+    label: "Record Access Log",
+    title: "PATIENT RECORD ACCESS LOG",
+    icon: createElement(EyeOutlined),
+    iconColor: C.red,
+    dated: true,
+    emptyText: "No patient records opened in the selected period",
+    columns: [
+      { key: "at", title: "When", label: (v) => dayjs(String(v)).format("DD MMM YYYY HH:mm") },
+      { key: "user", title: "User" },
+      { key: "action", title: "Action", label: (v) => ({ view: "Opened", update: "Updated", print: "Printed" })[String(v) as "view"] ?? String(v) },
+      { key: "record", title: "Record", label: (v) => ({ profile: "Medical profile", visit: "Visit", admission: "Admission" })[String(v) as "visit"] ?? String(v) },
+      { key: "patient_number", title: "Patient No." },
+      { key: "patient", title: "Patient" },
+    ],
+  },
 ];
 
 export const cellText = (col: ReportColumn, value: unknown): string => {
@@ -211,19 +276,23 @@ export const HC_PREFIX = "hc_";
 /** The healthcare reports this branch and user get, as report tabs. */
 export const useHealthcareReportTabs = () => {
   const settings = useHealthcareSettings();
-  const { viewReports } = useHealthcareAccess();
+  const { viewReports, viewAccessLog } = useHealthcareAccess();
   return useMemo(
     () =>
-      !settings.enabled || !viewReports
+      !settings.enabled
         ? []
         : HEALTHCARE_REPORTS.filter((r) => {
+            // Who opened which record has its own permission
+            if (r.key === "access-log") return viewAccessLog;
+            if (!viewReports) return false;
             if (r.key === "visits" || r.key === "morbidity") return settings.visits;
             if (r.key === "lab") return settings.diagnostics;
             if (r.key === "dispensing") return settings.prescriptions;
             if (r.key === "expiry") return settings.batchTracking;
+            if (r.key === "admissions" || r.key === "occupancy") return settings.inpatient;
             return settings.insurance;
           }).map((r) => ({ key: `${HC_PREFIX}${r.key}`, icon: r.icon, iconColor: r.iconColor, label: r.label })),
-    [settings, viewReports]
+    [settings, viewReports, viewAccessLog]
   );
 };
 

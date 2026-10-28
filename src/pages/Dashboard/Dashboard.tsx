@@ -50,6 +50,9 @@ import {
 } from "src/components/dashboard";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { fmtK } from "@utils/formatters";
+import { useHealthcareSettings } from "@hooks/useHealthcareSettings";
+import { facilityTitle } from "@utils/healthcareFacility";
+import HospitalDashboard from "@pages/Healthcare/HospitalDashboard";
 
 dayjs.extend(quarterOfYear);
 
@@ -103,6 +106,8 @@ const Dashboard: React.FC = () => {
   const isMobile = useIsMobile();
   const hospital = isHospitalMode();
   const hotel = isHotelMode();
+  // Hospital mode with the Healthcare add-on: the facility section and its name
+  const healthcare = useHealthcareSettings();
   const primaryColor = usePrimaryColor() || "#10b981";
   const [messageApi, contextHolder] = message.useMessage();
 
@@ -377,7 +382,7 @@ const Dashboard: React.FC = () => {
             <div>
               <Title level={isMobile ? 5 : 4} style={{ margin: 0, color: "#0f172a", fontWeight: 600 }}>
                 {PERIOD_LABELS[periodFilter]} ·{" "}
-                {hospital ? "Hospital Performance" : hotel ? "Hotel Performance" : "POS Branch Overview"}
+                {hospital ? `${facilityTitle(healthcare.facilityType)} Performance` : hotel ? "Hotel Performance" : "POS Branch Overview"}
               </Title>
               <Text style={{ fontSize: 12, color: "#64748b" }}>
                 {getFormattedDateRange()} · {shopData?.name || "Active Branch"}
@@ -516,6 +521,11 @@ const Dashboard: React.FC = () => {
           }}
           closable
         />
+      )}
+
+      {/* ── Hospital mode: the facility at a glance (queue, lab, pharmacy, wards) ── */}
+      {hospital && healthcare.enabled && (
+        <HospitalDashboard startDate={startDate} endDate={endDate} periodLabel={getFormattedDateRange()} />
       )}
 
       {/* ── Tier 2: Executive KPI Pulse Cards ── */}

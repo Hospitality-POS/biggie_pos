@@ -130,6 +130,7 @@ const TABLES_PERMISSIONS = [
   "HEALTHCARE_PRESCRIPTIONS_VIEW",
   "HEALTHCARE_LAB_VIEW",
   "HEALTHCARE_CLAIMS_VIEW",
+  "HEALTHCARE_INPATIENT_VIEW",
 ];
 // Old Healthcare links land on the matching tab of the hospital screen
 const HealthcareRedirect = () => {
@@ -516,7 +517,7 @@ const routes = sentryCreateBrowserRouter(
           element={guardedPage(CategoryMainSettings, "CATEGORIES_VIEW")} />
 
         <Route path="reports" errorElement={<NotFound />}
-          element={guardedPage(UnifiedReportsPage, ["REPORTS_ITEM_SALES", "REPORTS_VIEW", "ACCOUNTING_REPORT_PROFIT_LOSS", "HEALTHCARE_REPORTS_VIEW"])} />
+          element={guardedPage(UnifiedReportsPage, ["REPORTS_ITEM_SALES", "REPORTS_VIEW", "ACCOUNTING_REPORT_PROFIT_LOSS", "HEALTHCARE_REPORTS_VIEW", "HEALTHCARE_ACCESS_LOG_VIEW"])} />
 
         <Route path="inventory-settings" errorElement={<NotFound />}
           element={guardedPage(InventoryMainSettings, "INVENTORY_VIEW")} />
@@ -763,7 +764,7 @@ const routes = sentryCreateBrowserRouter(
 
         <Route path="reports" errorElement={<NotFound />}
           element={
-            <PermissionRoute permission={["REPORTS_ITEM_SALES", "REPORTS_VIEW", "ACCOUNTING_REPORT_PROFIT_LOSS", "HEALTHCARE_REPORTS_VIEW"]}>
+            <PermissionRoute permission={["REPORTS_ITEM_SALES", "REPORTS_VIEW", "ACCOUNTING_REPORT_PROFIT_LOSS", "HEALTHCARE_REPORTS_VIEW", "HEALTHCARE_ACCESS_LOG_VIEW"]}>
               <Suspense fallback={fullscreenSpin}>
                 <AdminRoute><UnifiedReportsPage /></AdminRoute>
               </Suspense>

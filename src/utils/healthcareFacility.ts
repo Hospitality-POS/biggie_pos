@@ -16,7 +16,8 @@ export type HealthcareFlag =
   | "batch_tracking_enabled"
   | "lab_enabled"
   | "radiology_enabled"
-  | "insurance_enabled";
+  | "insurance_enabled"
+  | "inpatient_enabled";
 
 export interface FacilityPreset {
   type: Exclude<FacilityType, "custom">;
@@ -40,6 +41,7 @@ export const FACILITY_PRESETS: FacilityPreset[] = [
       lab_enabled: false,
       radiology_enabled: false,
       insurance_enabled: false,
+      inpatient_enabled: false,
     },
   },
   {
@@ -56,6 +58,7 @@ export const FACILITY_PRESETS: FacilityPreset[] = [
       lab_enabled: true,
       radiology_enabled: false,
       insurance_enabled: true,
+      inpatient_enabled: false,
     },
   },
   {
@@ -72,12 +75,13 @@ export const FACILITY_PRESETS: FacilityPreset[] = [
       lab_enabled: true,
       radiology_enabled: true,
       insurance_enabled: true,
+      inpatient_enabled: false,
     },
   },
   {
     type: "hospital",
     title: "Hospital / Medical centre",
-    description: "Everything: queue, triage, doctors, lab and imaging, pharmacy with batches, insurance.",
+    description: "Everything: queue, triage, doctors, lab and imaging, pharmacy, wards and admissions, insurance.",
     flags: {
       patient_records_enabled: true,
       visits_enabled: true,
@@ -88,6 +92,7 @@ export const FACILITY_PRESETS: FacilityPreset[] = [
       lab_enabled: true,
       radiology_enabled: true,
       insurance_enabled: true,
+      inpatient_enabled: true,
     },
   },
 ];
@@ -109,9 +114,9 @@ export const facilityWords = (type: FacilityType): FacilityWords => {
 
 /** Tab order on the POS screen: the desk each kind of branch spends its day at comes first. */
 export const facilityTabOrder = (type: FacilityType): string[] => {
-  if (type === "pharmacy") return ["billing", "pharmacy", "claims", "queue", "lab"];
-  if (type === "diagnostic") return ["queue", "lab", "billing", "claims", "pharmacy"];
-  return ["queue", "lab", "pharmacy", "billing", "claims"];
+  if (type === "pharmacy") return ["billing", "pharmacy", "claims", "queue", "lab", "wards"];
+  if (type === "diagnostic") return ["queue", "lab", "billing", "claims", "pharmacy", "wards"];
+  return ["queue", "lab", "pharmacy", "wards", "billing", "claims"];
 };
 
 const STORAGE_KEY = "healthcareFacility";
@@ -133,3 +138,7 @@ export const rememberFacilityType = (type: FacilityType) => {
     // ignore — wording falls back to the hospital defaults
   }
 };
+
+/** What to call the branch on the dashboard: "Pharmacy", "Clinic", "Lab", "Hospital". */
+export const facilityTitle = (type: FacilityType) =>
+  type === "pharmacy" ? "Pharmacy" : type === "clinic" ? "Clinic" : type === "diagnostic" ? "Lab" : "Hospital";

@@ -47,6 +47,12 @@ export const useHealthcareAccess = () => {
     manageClaims: can("HEALTHCARE_CLAIMS_MANAGE"),
     managePayers: can("HEALTHCARE_PAYERS_MANAGE"),
     viewReports: can("HEALTHCARE_REPORTS_VIEW"),
+    viewInpatients: can("HEALTHCARE_INPATIENT_VIEW"),
+    admit: can("HEALTHCARE_ADMIT"),
+    inpatientCare: can("HEALTHCARE_INPATIENT_CARE"),
+    manageWards: can("HEALTHCARE_WARDS_MANAGE"),
+    deposits: can("HEALTHCARE_DEPOSITS"),
+    viewAccessLog: can("HEALTHCARE_ACCESS_LOG_VIEW"),
   };
 };
 
@@ -80,6 +86,7 @@ export const STAGE_LABEL: Record<VisitStage, string> = {
   lab: "Lab",
   pharmacy: "Pharmacy",
   billing: "Billing",
+  admitted: "Admitted",
   completed: "Completed",
   cancelled: "Cancelled",
 };
@@ -377,3 +384,128 @@ export const visibleStages = (
     if (s.key === "pharmacy") return settings.prescriptions;
     return true;
   });
+
+// ─── Inpatient ───────────────────────────────────────────────────────────────
+
+export const BED_STATUS_STYLE = {
+  available: { label: "Free", color: "#16a34a", bg: "#f0fdf4" },
+  occupied: { label: "Occupied", color: "#2563eb", bg: "#eff6ff" },
+  cleaning: { label: "Cleaning", color: "#d97706", bg: "#fffbeb" },
+  out_of_service: { label: "Out of service", color: "#94a3b8", bg: "#f1f5f9" },
+} as const;
+
+export const DISCHARGE_CONDITION_LABEL = {
+  recovered: "Recovered",
+  improved: "Improved",
+  unchanged: "Unchanged",
+  referred: "Referred elsewhere",
+  against_advice: "Left against medical advice",
+  died: "Died",
+} as const;
+
+/** Days since admission, counting a part day as a day (as the bill does). */
+export const daysAdmitted = (from: string, to?: string | null) =>
+  Math.max(1, Math.ceil((dayjs(to ?? undefined).valueOf() - dayjs(from).valueOf()) / 86_400_000));
+
+interface PrintPatient {
+  shopName?: string;
+  patient: string;
+  patientNumber?: string;
+  ageGender?: string;
+}
+
+/** The running (interim) or final inpatient bill. */
+export const printInpatientBill = (
+  opts: PrintPatient & {
+    admissionNumber: string;
+    ward: string;
+    admittedAt: string;
+    dischargedAt?: string | null;
+    lines: { description: string; quantity: number; unit_price: number; amount: number }[];
+    total: number;
+    deposits: number;
+    balance: number;
+  }
+) => {
+  const e = escapeHtml;
+  printHtml(
+    `${opts.admissionNumber} bill`,
+    `<h1>${e(opts.shopName || "")}</h1>
+     <div><b>${opts.dischargedAt ? "Final" : "Interim"} inpatient bill</b> · ${e(opts.admissionNumber)} · ${e(dayjs().format("DD MMM YYYY HH:mm"))}</div>
+     <table>
+       <tr><td><b>Patient</b> ${e(opts.patient)}${opts.patientNumber ? ` (${e(opts.patientNumber)})` : ""}</td><td>${e(opts.ageGender || "")}</td></tr>
+       <tr><td><b>Ward</b> ${e(opts.ward)}</td><td><b>Admitted</b> ${e(dayjs(opts.admittedAt).format("DD MMM YYYY HH:mm"))}${
+         opts.dischargedAt ? ` · <b>Discharged</b> ${e(dayjs(opts.dischargedAt).format("DD MMM YYYY HH:mm"))}` : ""
+       }</td></tr>
+     </table>
+     <h2>Charges</h2>
+     <table><tr><th>Item</th><th class="right">Qty</th><th class="right">Price</th><th class="right">Amount</th></tr>
+     ${opts.lines
+       .map(
+         (l) =>
+           `<tr><td>${e(l.description)}</td><td class="right">${e(l.quantity)}</td><td class="right">${e(money(l.unit_price))}</td><td class="right">${e(money(l.amount))}</td></tr>`
+       )
+       .join("")}
+     <tr><td colspan="3" class="right"><b>Total</b></td><td class="right"><b>${e(money(opts.total))}</b></td></tr>
+     <tr><td colspan="3" class="right">Deposits paid</td><td class="right">${e(money(opts.deposits))}</td></tr>
+     <tr><td colspan="3" class="right"><b>Balance due</b></td><td class="right"><b>${e(money(opts.balance))}</b></td></tr></table>`
+  );
+};
+
+/** The discharge summary for the patient and their next doctor. */
+export const printDischargeSummary = (
+  opts: PrintPatient & {
+    admissionNumber: string;
+    admittedAt: string;
+    dischargedAt?: string | null;
+    ward: string;
+    doctor?: string;
+    reason?: string;
+    discharge: { condition?: string; summary?: string; diagnoses?: string; medications?: string; follow_up?: string; instructions?: string; by_name?: string };
+  }
+) => {
+  const e = escapeHtml;
+  const block = (title: string, text?: string) => (text ? `<h2>${e(title)}</h2><div>${e(text).replace(/\n/g, "<br>")}</div>` : "");
+  const condition = DISCHARGE_CONDITION_LABEL[opts.discharge.condition as keyof typeof DISCHARGE_CONDITION_LABEL] ?? opts.discharge.condition ?? "";
+  printHtml(
+    `${opts.admissionNumber} discharge summary`,
+    `<h1>${e(opts.shopName || "")}</h1>
+     <div><b>Discharge summary</b> · ${e(opts.admissionNumber)}</div>
+     <table>
+       <tr><td><b>Patient</b> ${e(opts.patient)}${opts.patientNumber ? ` (${e(opts.patientNumber)})` : ""}</td><td>${e(opts.ageGender || "")}</td></tr>
+       <tr><td><b>Admitted</b> ${e(dayjs(opts.admittedAt).format("DD MMM YYYY"))}</td><td><b>Discharged</b> ${e(
+         opts.dischargedAt ? dayjs(opts.dischargedAt).format("DD MMM YYYY") : "—"
+       )}</td></tr>
+       <tr><td><b>Ward</b> ${e(opts.ward)}</td><td><b>Doctor</b> ${e(opts.doctor || "—")}</td></tr>
+       <tr><td colspan="2"><b>Condition on discharge</b> ${e(condition)}</td></tr>
+     </table>
+     ${block("Reason for admission", opts.reason)}
+     ${block("Diagnoses", opts.discharge.diagnoses)}
+     ${block("Summary of care", opts.discharge.summary)}
+     ${block("Medicines to continue", opts.discharge.medications)}
+     ${block("Instructions", opts.discharge.instructions)}
+     ${block("Follow-up", opts.discharge.follow_up)}
+     <div class="sign"><div>Discharged by: ${e(opts.discharge.by_name || "")}</div><div>Signature &amp; stamp: ____________________</div></div>`
+  );
+};
+
+/** A referral letter to another doctor or facility. */
+export const printReferralLetter = (
+  opts: PrintPatient & { to: string; reason: string; summary?: string; diagnoses?: string; treatment?: string; from?: string }
+) => {
+  const e = escapeHtml;
+  const block = (title: string, text?: string) => (text ? `<h2>${e(title)}</h2><div>${e(text).replace(/\n/g, "<br>")}</div>` : "");
+  printHtml(
+    "Referral letter",
+    `<h1>${e(opts.shopName || "")}</h1>
+     <div class="muted">${e(dayjs().format("DD MMMM YYYY"))}</div>
+     <p><b>To:</b> ${e(opts.to)}</p>
+     <p><b>Re:</b> ${e(opts.patient)}${opts.patientNumber ? ` (${e(opts.patientNumber)})` : ""}${opts.ageGender ? ` · ${e(opts.ageGender)}` : ""}</p>
+     ${block("Reason for referral", opts.reason)}
+     ${block("Diagnosis", opts.diagnoses)}
+     ${block("Clinical summary", opts.summary)}
+     ${block("Treatment given", opts.treatment)}
+     <p>Thank you for seeing this patient.</p>
+     <div class="sign"><div>${e(opts.from || "")}</div><div>Signature &amp; stamp: ____________________</div></div>`
+  );
+};
