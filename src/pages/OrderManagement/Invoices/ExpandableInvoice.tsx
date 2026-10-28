@@ -64,8 +64,10 @@ interface PaymentRecord {
   method_id?: { _id: string; name: string };
   reference?: string; notes?: string; payment_date?: string;
   createdAt: string; created_by?: UserRef & { fullname?: string }; payment_status?: string;
-  journal_entry_id?: { _id: string; created_by?: UserRef & { fullname?: string } } | string;
+  journal_entry_id?: { _id: string; entry_no?: string; created_by?: UserRef & { fullname?: string } } | string;
   edit_history?: { at: string; changes: string; reason?: string }[];
+  /** "journal" = recorded by linking a bank-statement transaction */
+  recorded_via?: "manual" | "journal";
 }
 
 /** Who recorded a payment; older payments fall back to whoever posted their journal entry. */
@@ -905,10 +907,22 @@ const PaymentsTab = ({
     {
       title: "Method", key: "method",
       render: (_: any, r: PaymentRecord) => (
-        <Tag color="blue" style={{ fontSize: 10 }}>
-          <CreditCardOutlined style={{ marginRight: 3 }} />
-          {r.method_id?.name || r.method || "—"}
-        </Tag>
+        <Space size={2} wrap>
+          <Tag color="blue" style={{ fontSize: 10 }}>
+            <CreditCardOutlined style={{ marginRight: 3 }} />
+            {r.method_id?.name || r.method || "—"}
+          </Tag>
+          {r.recorded_via === "journal" && (
+            <Tooltip title="Recorded from a bank statement transaction linked to this invoice">
+              <Tag color="purple" style={{ fontSize: 10 }}>
+                via Journal
+                {typeof r.journal_entry_id === "object" && r.journal_entry_id.entry_no
+                  ? ` · ${r.journal_entry_id.entry_no}`
+                  : ""}
+              </Tag>
+            </Tooltip>
+          )}
+        </Space>
       ),
     },
     {
@@ -959,7 +973,11 @@ const PaymentsTab = ({
           {
             title: "", key: "edit", align: "center" as const, width: 70,
             render: (_: any, r: PaymentRecord) =>
-              r.payment_status === "COMPLETED" ? (
+              r.recorded_via === "journal" ? (
+                <Tooltip title="Change this from the bank transaction's link in Banking or Journal Entries">
+                  <Text style={{ fontSize: 11, color: C.subText }}>—</Text>
+                </Tooltip>
+              ) : r.payment_status === "COMPLETED" ? (
                 <Tooltip title="Change amount or backdate">
                   <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} style={{ borderRadius: 6, fontSize: 11 }}>
                     Edit

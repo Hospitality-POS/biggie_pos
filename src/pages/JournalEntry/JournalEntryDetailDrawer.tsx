@@ -19,6 +19,7 @@ import {
     StopOutlined,
     EditOutlined,
     SwapOutlined,
+    LinkOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -28,6 +29,8 @@ import {
     JournalEntry,
     JournalLine,
 } from "@services/accounting/journals";
+import { getImportById } from "@services/accounting/bankStatementImport";
+import LinkDocumentsModal from "../Banking/LinkDocumentsModal";
 import dayjs from "dayjs";
 
 const { Text, Title } = Typography;
@@ -86,6 +89,18 @@ const JournalEntryDetailDrawer: React.FC<Props> = ({ open, onClose, entryId, onS
     });
 
     const entry: JournalEntry | undefined = data?.entry;
+
+    // ── Bank statement transaction behind a bank-upload entry ─────────────────
+    // Lets the entry be linked to the invoices / bills it pays.
+    const [linkOpen, setLinkOpen] = useState(false);
+    const isBankTxn = entry?.source_type === "bank_import_transaction" && !!entry?.bank_import_id;
+    const { data: importData } = useQuery({
+        queryKey: ["import-detail", entry?.bank_import_id, "for-entry"],
+        queryFn: () => getImportById(String(entry!.bank_import_id), { limit: 100000 }),
+        enabled: open && isBankTxn,
+    });
+    const bankTxn =
+        (importData?.import?.transactions || []).find((t: any) => String(t._id) === String(entry?.source_id)) || null;
 
     // ── Mutations ──────────────────────────────────────────────────────────────
 
@@ -241,6 +256,11 @@ const JournalEntryDetailDrawer: React.FC<Props> = ({ open, onClose, entryId, onS
                                     Post Entry
                                 </Button>
                             )}
+                            {status === "Posted" && bankTxn && (
+                                <Button icon={<LinkOutlined />} onClick={() => setLinkOpen(true)}>
+                                    {Math.abs(bankTxn.debit || 0) > 0 ? "Link to bills" : "Link to invoices"}
+                                </Button>
+                            )}
                             {status === "Posted" && (
                                 <Button
                                     danger
@@ -329,6 +349,20 @@ const JournalEntryDetailDrawer: React.FC<Props> = ({ open, onClose, entryId, onS
                                     </Text>
                                 </Descriptions.Item>
                             )}
+
+                            {!!bankTxn?.allocations?.length && (
+                                <Descriptions.Item label="Pays" span={2}>
+                                    <Space size={4} wrap>
+                                        {bankTxn.allocations.map((a: any) => (
+                                            <Tag key={a.doc_id} icon={<LinkOutlined />} color={a.payment_id ? "green" : "gold"}>
+                                                {a.doc_no}
+                                                {a.party_name ? ` · ${a.party_name}` : ""} ·{" "}
+                                                {(a.amount || 0).toLocaleString("en-KE", { minimumFractionDigits: 2 })}
+                                            </Tag>
+                                        ))}
+                                    </Space>
+                                </Descriptions.Item>
+                            )}
                         </Descriptions>
 
                         {/* ── Lines ── */}
@@ -383,6 +417,20 @@ const JournalEntryDetailDrawer: React.FC<Props> = ({ open, onClose, entryId, onS
                     </>
                 )}
             </Drawer>
+
+            <LinkDocumentsModal
+                open={linkOpen}
+                importId={entry?.bank_import_id ? String(entry.bank_import_id) : undefined}
+                txn={bankTxn}
+                onClose={() => setLinkOpen(false)}
+                onLinked={() => {
+                    queryClient.invalidateQueries({ queryKey: ["import-detail", entry?.bank_import_id] });
+                    queryClient.invalidateQueries({ queryKey: ["journal-entry", entryId] });
+                    queryClient.invalidateQueries({ queryKey: ["journal-entries"] });
+                    queryClient.invalidateQueries({ queryKey: ["linkable-documents"] });
+                    onSuccess();
+                }}
+            />
 
             {/* ── Void Modal ── */}
             <Modal
