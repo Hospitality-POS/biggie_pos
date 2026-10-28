@@ -129,6 +129,36 @@ export interface RawTransaction {
     journal_entry_id?: string;
     pushed_to_reconciliation_id?: string;
     pushed_to_statement_line_id?: string;
+    allocations?: TransactionAllocation[];
+    payment_method_id?: string | null;
+}
+
+// ── Invoice / bill links ─────────────────────────────────────────────────────
+// Money in links to customer invoices, money out to supplier bills.
+
+export type LinkDocType = "invoice" | "bill";
+
+export interface TransactionAllocation {
+    doc_type: LinkDocType;
+    doc_id: string;
+    doc_no?: string;
+    party_name?: string;
+    amount: number;
+    payment_id?: string | null;
+}
+
+export interface LinkableDocument {
+    doc_type: LinkDocType;
+    doc_id: string;
+    doc_no: string;
+    party_name: string;
+    date?: string;
+    due_date?: string;
+    grand_total: number;
+    amount_paid: number;
+    amount_due: number;
+    status: string;
+    exact_match: boolean;
 }
 
 // ── Bank Statement Import ────────────────────────────────────────────────────
@@ -816,6 +846,33 @@ export const excludeTransaction = async (id: string, txn_id: string, notes?: str
     }
 };
 
+export const getLinkableDocuments = async (params: { type: LinkDocType; search?: string; amount?: number }) => {
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/bank-reconciliations/bank-imports/linkable-documents`,
+        { params }
+    );
+    return (response.data?.documents || []) as LinkableDocument[];
+};
+
+export const linkTransaction = async (
+    id: string,
+    txn_id: string,
+    data: { allocations: Pick<TransactionAllocation, "doc_type" | "doc_id" | "amount">[]; payment_method_id?: string | null }
+) => {
+    try {
+        const response = await axiosInstance.put(
+            `${BASE_URL}/accounting/bank-reconciliations/bank-imports/${id}/transactions/${txn_id}/allocations`,
+            data
+        );
+        message.success(response.data.message);
+        return response.data as { transaction: RawTransaction; applied: boolean };
+    } catch (error: unknown) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        message.error(axiosError?.response?.data?.message || "Error linking transaction");
+        throw error;
+    }
+};
+
 export const uncategorizeTransaction = async (id: string, txn_id: string) => {
     try {
         const response = await axiosInstance.patch(
@@ -846,10 +903,18 @@ export const pushToJournalEntries = async (id: string, data: PushToJournalEntrie
                     `${response.data.pushed_count} journal entries created`
             );
         }
+        const linkErrors: { description: string; reason: string }[] = response.data.link_errors || [];
+        if (linkErrors.length) {
+            message.warning(
+                `Invoice/bill links not applied: ${linkErrors.map((e) => `${e.description} — ${e.reason}`).join("; ")}`,
+                8
+            );
+        }
         return response.data as {
             created_entries: string[];
             pushed_count: number;
             already_posted?: number;
+            link_errors?: { txn_id: string; description: string; reason: string }[];
         };
     } catch (error: unknown) {
         const axiosError = error as { response?: { data?: { message?: string } } };
