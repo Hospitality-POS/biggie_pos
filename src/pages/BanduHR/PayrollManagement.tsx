@@ -80,9 +80,10 @@ import {
   Payroll,
   GeneratePayrollParams,
   PayrollPreviewResult,
-  fetchEmployees,
+  fetchAllEmployees,
   updateEmployee,
 } from "@services/bandu";
+import { fetchAllDepartments } from "@services/crm/departments";
 import dayjs from "dayjs";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { fetchSystemSetupDetailsById } from "@services/systemsetup";
@@ -358,27 +359,32 @@ const PayrollManagement: React.FC = () => {
     return deptFilteredPayrolls.filter((p: Payroll) => statuses.includes(p.status));
   }, [deptFilteredPayrolls, activeTab]);
 
-  // Fetch employees for payroll generation
+  // Fetch every employee for payroll generation (not just the first page)
   const { data: employeesData } = useQuery({
-    queryKey: ["employees"],
-    queryFn: () => fetchEmployees(),
+    queryKey: ["employees", "all"],
+    queryFn: () => fetchAllEmployees(),
   });
 
-  const employees = React.useMemo(
-    () => Array.isArray(employeesData) ? employeesData : employeesData?.data || [],
-    [employeesData]
-  );
+  const employees = React.useMemo(() => employeesData || [], [employeesData]);
 
-  // Extract unique departments from employees
+  // Departments come from the departments list so every active department is
+  // offered, including ones with no employees; departments referenced by an
+  // employee but missing from that list (e.g. inactive) are kept too.
+  const { data: departmentsData } = useQuery({
+    queryKey: ["departments-list"],
+    queryFn: () => fetchAllDepartments({ is_active: true }),
+  });
+
   const departments = React.useMemo(() => {
     const deptMap = new Map();
+    (departmentsData?.departments || []).forEach((d: any) => deptMap.set(d._id, d));
     employees.forEach((emp: any) => {
-      if (emp.department_id && !deptMap.has(emp.department_id._id)) {
+      if (emp.department_id?._id && !deptMap.has(emp.department_id._id)) {
         deptMap.set(emp.department_id._id, emp.department_id);
       }
     });
-    return Array.from(deptMap.values());
-  }, [employees]);
+    return Array.from(deptMap.values()).sort((a: any, b: any) => (a.name || "").localeCompare(b.name || ""));
+  }, [departmentsData, employees]);
 
   // ── Per-employee "Results" breakdown (KRA payslip sequence) ──
   const renderLineResults = (line: any, periodLabel?: string) => {
