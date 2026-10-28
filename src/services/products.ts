@@ -109,7 +109,7 @@ export const addNewProduct = async (params: ParamsType) => {
       };
 
       response = await axiosInstance.post(`${BASE_URL}/product/products`, requestBody, {
-        headers: { ...(companyCode ? { 'companyCode': companyCode } : {}) },
+        headers: (companyCode ? { 'companyCode': companyCode } : {}),
       });
 
       message.success("Product added successfully");
