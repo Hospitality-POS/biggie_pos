@@ -532,6 +532,22 @@ const Dashboard: React.FC = () => {
         />
       )}
 
+      {/* ── Tier 2: Executive KPI Pulse Cards (first, for those who may see sales) ── */}
+      {canSeeSales && (
+        <DashboardKPICards
+          revenue={chartData?.data?.summary?.total_sales || data?.todayRevenue || 0}
+          totalOrders={chartData?.data?.summary?.total_orders || data?.totalOrderCount || 0}
+          growthRate={growthRate}
+          activeOrders={data?.activeOrders || 0}
+          activeShifts={data?.activeShift || 0}
+          loading={isDataLoading}
+          hospital={hospital}
+          hotel={hotel}
+          isAdmin={false}
+          onOrdersClick={() => navigate("/orders")}
+        />
+      )}
+
       {/* ── Hospital mode: the facility at a glance (queue, lab, pharmacy, wards) ── */}
       {hospital && healthcare.enabled && (
         <HospitalDashboard startDate={startDate} endDate={endDate} periodLabel={getFormattedDateRange()} />
@@ -539,20 +555,6 @@ const Dashboard: React.FC = () => {
 
       {canSeeSales && (
       <>
-      {/* ── Tier 2: Executive KPI Pulse Cards ── */}
-      <DashboardKPICards
-        revenue={chartData?.data?.summary?.total_sales || data?.todayRevenue || 0}
-        totalOrders={chartData?.data?.summary?.total_orders || data?.totalOrderCount || 0}
-        growthRate={growthRate}
-        activeOrders={data?.activeOrders || 0}
-        activeShifts={data?.activeShift || 0}
-        loading={isDataLoading}
-        hospital={hospital}
-        hotel={hotel}
-        isAdmin={false}
-        onOrdersClick={() => navigate("/orders")}
-      />
-
       {/* ── Tier 3: Visual Analytics & Charts Hub ── */}
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         {/* Left 60%: Sales & Volume Trend (Area Chart) */}
