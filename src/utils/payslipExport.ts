@@ -15,6 +15,11 @@ import { getPrimaryColor, hexToRgb } from './getPrimaryColor';
 const fmt = (n?: number | null) =>
   Number(n || 0).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+// rounded → whole-shilling figures (display/export only, mirrors the payroll
+// muster roll "Rounded" toggle)
+const moneyFmt = (rounded = false) => (n?: number | null) =>
+  rounded ? Math.round(Number(n || 0)).toLocaleString('en-KE') : fmt(n);
+
 const fmtDate = (d?: string) =>
   d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
 
@@ -29,7 +34,8 @@ const departmentName = (p: any) =>
   p.payroll_id?.department_id?.name || p.department_id?.name || '—';
 
 // ── Shared payslip data model ──────────────────────────────────────────────────
-const payslipRows = (p: any) => {
+const payslipRows = (p: any, rounded = false) => {
+  const fmt = moneyFmt(rounded);
   const e = p.earnings || {};
   const d = p.deductions || {};
   const taxable =
@@ -130,7 +136,7 @@ const payslipRows = (p: any) => {
     ['TOTAL DEDUCTIONS', fmt(d.total)],
   ];
 
-  return { infoRows, earningsRows, payeRows, deductionRows, netPay: p.net_pay };
+  return { infoRows, earningsRows, payeRows, deductionRows, netPay: p.net_pay, fmt };
 };
 
 export type PayslipHeaderMode = 'company' | 'department';
@@ -175,6 +181,7 @@ export const renderPayslipPage = (
     user?: any;
     primary: [number, number, number];
     headerMode?: PayslipHeaderMode;
+    rounded?: boolean;
   },
   isFirstPage = true
 ) => {
@@ -187,7 +194,7 @@ export const renderPayslipPage = (
   // middle of the page instead of stretching edge-to-edge (privacy-friendly)
   const contentWidth = Math.min(pageWidth * 0.48, 300);
   const margin = (pageWidth - contentWidth) / 2;
-  const { infoRows, earningsRows, payeRows, deductionRows, netPay } = payslipRows(payslip);
+  const { infoRows, earningsRows, payeRows, deductionRows, netPay, fmt } = payslipRows(payslip, !!ctx.rounded);
 
   if (!isFirstPage) doc.addPage();
 
@@ -285,9 +292,9 @@ export const renderPayslipPage = (
 
 // Build a payslip PDF document without saving — returns the jsPDF instance
 // (used for email attachments via doc.output('datauristring'))
-export const buildPayslipsPDFDoc = async (payslips: any[], headerMode?: PayslipHeaderMode) => {
+export const buildPayslipsPDFDoc = async (payslips: any[], headerMode?: PayslipHeaderMode, rounded = false) => {
   if (!payslips.length) return null;
-  const ctx = await getExportContext(headerMode);
+  const ctx = { ...(await getExportContext(headerMode)), rounded };
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
 
   let rendered = 0;
@@ -302,19 +309,19 @@ export const buildPayslipsPDFDoc = async (payslips: any[], headerMode?: PayslipH
   return rendered ? doc : null;
 };
 
-export const generatePayslipsPDF = async (payslips: any[], headerMode?: PayslipHeaderMode) => {
+export const generatePayslipsPDF = async (payslips: any[], headerMode?: PayslipHeaderMode, rounded = false) => {
   if (!payslips.length) {
     message.warning('No payslips to export for the current filter');
     return;
   }
-  const doc = await buildPayslipsPDFDoc(payslips, headerMode);
+  const doc = await buildPayslipsPDFDoc(payslips, headerMode, rounded);
   if (!doc) {
     message.error('Export failed — no payslips could be rendered');
     return;
   }
 
   const period = payslips[0]?.period_label?.replace(/\s+/g, '_') || 'export';
-  doc.save(`payslips_${period}.pdf`);
+  doc.save(`payslips_${period}${rounded ? '_rounded' : ''}.pdf`);
   message.success(`Exported ${payslips.length} payslip${payslips.length === 1 ? '' : 's'} to PDF`);
 };
 
@@ -469,8 +476,8 @@ export const exportP9ToExcel = async (payslips: any[], year: number, opts?: { hi
   XLSX.writeFile(wb, `P9_Form_${empNo}_${year}.xlsx`);
 };
 
-const buildPayslipSheet = (p: any, company: string) => {
-  const { infoRows, earningsRows, payeRows, deductionRows, netPay } = payslipRows(p);
+const buildPayslipSheet = (p: any, company: string, rounded = false) => {
+  const { infoRows, earningsRows, payeRows, deductionRows, netPay, fmt } = payslipRows(p, rounded);
   const brand = (getPrimaryColor() || '#0E388A').replace('#', '').toUpperCase().padStart(6, '0');
 
   const aoa: any[][] = [
@@ -582,26 +589,26 @@ const buildPayslipSheet = (p: any, company: string) => {
   const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
   for (let r = 0; r <= range.e.r; r++) {
     const cell = ws[XLSX.utils.encode_cell({ r, c: 1 })];
-    if (cell && cell.t === 'n') cell.z = '#,##0.00';
+    if (cell && cell.t === 'n') cell.z = rounded ? '#,##0' : '#,##0.00';
   }
   return ws;
 };
 
 /** Single-payslip Excel export — the classic payslip layout on one sheet. */
-export const exportPayslipToExcel = async (payslip: any, headerMode?: PayslipHeaderMode) => {
+export const exportPayslipToExcel = async (payslip: any, headerMode?: PayslipHeaderMode, rounded = false) => {
   const ctx = await getExportContext(headerMode);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(
     wb,
-    buildPayslipSheet(payslip, headerName(payslip, ctx)),
+    buildPayslipSheet(payslip, headerName(payslip, ctx), rounded),
     sanitizeSheetName(payslip.employee_id?.employee_number || 'Payslip', 'Payslip')
   );
   const period = (payslip.period_label || 'export').replace(/\s+/g, '_');
   const empNo = payslip.employee_id?.employee_number || 'employee';
-  XLSX.writeFile(wb, `Payslip_${empNo}_${period}.xlsx`);
+  XLSX.writeFile(wb, `Payslip_${empNo}_${period}${rounded ? '_rounded' : ''}.xlsx`);
 };
 
-export const exportPayslipsToExcel = async (payslips: any[], headerMode?: PayslipHeaderMode) => {
+export const exportPayslipsToExcel = async (payslips: any[], headerMode?: PayslipHeaderMode, rounded = false) => {
   if (!payslips.length) {
     message.warning('No payslips to export for the current filter');
     return;
@@ -622,20 +629,21 @@ export const exportPayslipsToExcel = async (payslips: any[], headerMode?: Paysli
     ...(hasWht ? ['WHT'] : []),
     'Other', 'Total Deductions', 'Net Pay', 'Emailed',
   ];
+  const rn = (v: any) => (rounded ? Math.round(Number(v || 0)) : Number(v || 0));
   const summaryBody = payslips.map((p: any) => [
     employeeName(p),
     p.employee_id?.employee_number || '—',
     departmentName(p),
     p.period_label || '—',
-    p.earnings?.gross_salary || 0,
-    p.deductions?.paye || 0,
-    p.deductions?.nssf || 0,
-    p.deductions?.nhif || 0,
-    p.deductions?.housing_levy || 0,
-    ...(hasWht ? [p.deductions?.withholding_tax || 0] : []),
-    (p.deductions?.custom || []).reduce((s: number, c: any) => s + (c.amount || 0), 0),
-    p.deductions?.total || 0,
-    p.net_pay || 0,
+    rn(p.earnings?.gross_salary),
+    rn(p.deductions?.paye),
+    rn(p.deductions?.nssf),
+    rn(p.deductions?.nhif),
+    rn(p.deductions?.housing_levy),
+    ...(hasWht ? [rn(p.deductions?.withholding_tax)] : []),
+    rn((p.deductions?.custom || []).reduce((s: number, c: any) => s + (c.amount || 0), 0)),
+    rn(p.deductions?.total),
+    rn(p.net_pay),
     p.emailed_at ? 'Yes' : 'No',
   ]);
   const summaryWs = XLSX.utils.aoa_to_sheet([summaryHead, ...summaryBody]);
@@ -650,7 +658,7 @@ export const exportPayslipsToExcel = async (payslips: any[], headerMode?: Paysli
   for (let r = 1; r <= sRange.e.r; r++) {
     for (let c = 4; c <= summaryHead.length - 2; c++) {
       const cell = summaryWs[XLSX.utils.encode_cell({ r, c })];
-      if (cell && cell.t === 'n') cell.z = '#,##0.00';
+      if (cell && cell.t === 'n') cell.z = rounded ? '#,##0' : '#,##0.00';
     }
   }
   XLSX.utils.book_append_sheet(wb, summaryWs, 'Summary');
@@ -667,7 +675,7 @@ export const exportPayslipsToExcel = async (payslips: any[], headerMode?: Paysli
       let n = 1;
       while (usedNames.has(name)) name = `${name.slice(0, 28)}_${++n}`;
       usedNames.add(name);
-      XLSX.utils.book_append_sheet(wb, buildPayslipSheet(p, headerName(p, ctx)), name);
+      XLSX.utils.book_append_sheet(wb, buildPayslipSheet(p, headerName(p, ctx), rounded), name);
     } catch (err) {
       console.error(`Failed to render payslip sheet ${p?._id}:`, err);
       failed++;
@@ -675,7 +683,7 @@ export const exportPayslipsToExcel = async (payslips: any[], headerMode?: Paysli
   }
 
   const period = payslips[0]?.period_label?.replace(/\s+/g, '_') || 'export';
-  XLSX.writeFile(wb, `payslips_${period}.xlsx`);
+  XLSX.writeFile(wb, `payslips_${period}${rounded ? '_rounded' : ''}.xlsx`);
   if (failed) {
     message.warning(`Exported ${wb.SheetNames.length - 1} payslip sheets; ${failed} failed`);
   } else {

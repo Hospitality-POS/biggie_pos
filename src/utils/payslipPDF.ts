@@ -4,7 +4,7 @@ import { fetchSystemSetupDetailsById } from '@services/systemsetup';
 import { getPrimaryColor, hexToRgb } from './getPrimaryColor';
 import { renderPayslipPage, type PayslipHeaderMode } from './payslipExport';
 
-export const generatePayslipPDF = async (payslip: any, headerMode?: PayslipHeaderMode) => {
+export const generatePayslipPDF = async (payslip: any, headerMode?: PayslipHeaderMode, rounded = false) => {
   const user = getUser();
   const tenant = JSON.parse(localStorage.getItem('tenant') || '{}');
 
@@ -30,10 +30,11 @@ export const generatePayslipPDF = async (payslip: any, headerMode?: PayslipHeade
     user,
     primary: hexToRgb(getPrimaryColor()),
     headerMode: headerMode || mode,
+    rounded,
   };
   renderPayslipPage(doc, payslip, ctx, true);
 
   const periodLabel = (payslip.period_label || 'unknown_period').replace(/\s+/g, '_');
   const empNo = payslip.employee_id?.employee_number || 'employee';
-  doc.save(`Payslip_${empNo}_${periodLabel}.pdf`);
+  doc.save(`Payslip_${empNo}_${periodLabel}${rounded ? '_rounded' : ''}.pdf`);
 };
