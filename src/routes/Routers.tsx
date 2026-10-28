@@ -132,6 +132,16 @@ const TABLES_PERMISSIONS = [
   "HEALTHCARE_CLAIMS_VIEW",
   "HEALTHCARE_INPATIENT_VIEW",
 ];
+// The POS dashboard: sales for those who may see them; in hospital mode the
+// facility section for clinical staff too (the page hides sales from them)
+const DUKA_DASHBOARD_PERMISSIONS = [
+  "UNIFIED_DASHBOARD_VIEW",
+  "ORDERS_VIEW_DASHBOARD",
+  "HEALTHCARE_VISITS_VIEW",
+  "HEALTHCARE_INPATIENT_VIEW",
+  "HEALTHCARE_PRESCRIPTIONS_VIEW",
+  "HEALTHCARE_LAB_VIEW",
+];
 // Old Healthcare links land on the matching tab of the hospital screen
 const HealthcareRedirect = () => {
   const tab = new URLSearchParams(window.location.search).get("tab");
@@ -609,7 +619,7 @@ const routes = sentryCreateBrowserRouter(
         <Route path="bandu/dashboard" element={<Navigate to="/hr/dashboard" replace />} />
         <Route path="bandu" element={<Navigate to="/hr/dashboard" replace />} />
         <Route path="pos/dashboard" errorElement={<NotFound />}
-          element={guardedPage(DukaDashboardPage, ["UNIFIED_DASHBOARD_VIEW", "ORDERS_VIEW_DASHBOARD"])} />
+          element={guardedPage(DukaDashboardPage, DUKA_DASHBOARD_PERMISSIONS)} />
         <Route path="pos" element={<Navigate to="/pos/dashboard" replace />} />
         <Route path="duka/dashboard" element={<Navigate to="/pos/dashboard" replace />} />
         <Route path="duka" element={<Navigate to="/pos/dashboard" replace />} />

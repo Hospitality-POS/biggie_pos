@@ -276,23 +276,26 @@ export const HC_PREFIX = "hc_";
 /** The healthcare reports this branch and user get, as report tabs. */
 export const useHealthcareReportTabs = () => {
   const settings = useHealthcareSettings();
-  const { viewReports, viewAccessLog } = useHealthcareAccess();
+  const access = useHealthcareAccess();
   return useMemo(
     () =>
       !settings.enabled
         ? []
         : HEALTHCARE_REPORTS.filter((r) => {
             // Who opened which record has its own permission
-            if (r.key === "access-log") return viewAccessLog;
-            if (!viewReports) return false;
-            if (r.key === "visits" || r.key === "morbidity") return settings.visits;
-            if (r.key === "lab") return settings.diagnostics;
-            if (r.key === "dispensing") return settings.prescriptions;
-            if (r.key === "expiry") return settings.batchTracking;
-            if (r.key === "admissions" || r.key === "occupancy") return settings.inpatient;
-            return settings.insurance;
+            if (r.key === "access-log") return access.viewAccessLog;
+            // The rest need the reports permission and the one for their area
+            // (as the API checks), so money and clinical registers stay with
+            // the people who work with them
+            if (!access.viewReports) return false;
+            if (r.key === "visits" || r.key === "morbidity") return settings.visits && access.viewVisits;
+            if (r.key === "lab") return settings.diagnostics && access.viewLab;
+            if (r.key === "dispensing") return settings.prescriptions && access.viewPrescriptions;
+            if (r.key === "expiry") return settings.batchTracking && access.viewBatches;
+            if (r.key === "admissions" || r.key === "occupancy") return settings.inpatient && access.viewInpatients;
+            return settings.insurance && access.viewClaims;
           }).map((r) => ({ key: `${HC_PREFIX}${r.key}`, icon: r.icon, iconColor: r.iconColor, label: r.label })),
-    [settings, viewReports, viewAccessLog]
+    [settings, access]
   );
 };
 

@@ -1019,6 +1019,9 @@ export const makePermissionChecker =
 
 // ─── Preset role templates ────────────────────────────────────────────────────
 
+/** Every healthcare role: their own notifications. Sales and money are added per role. */
+const HC_BASE = ["NOTIFICATIONS_VIEW_MY", "NOTIFICATIONS_MARK_READ", "NOTIFICATIONS_MARK_ALL_READ"];
+
 export const ROLE_PRESETS: Record<string, string[]> = {
 
     /** ADMIN — owns everything */
@@ -1341,6 +1344,110 @@ DIGITAX_MANAGER: [
     "ACCOUNTING_INVOICE_VIEW", "ACCOUNTING_INVOICE_VIEW_ONE",
     "DOCUMENTS_VIEW", "DOCUMENTS_VIEW_ONE",
     "NOTIFICATIONS_VIEW_MY", "NOTIFICATIONS_MARK_READ",
+],
+
+// ── Healthcare (hospital mode) ────────────────────────────────────────────────
+// Each desk gets what it needs and no more. Clinical notes, prescribing,
+// money and the record access log are kept to the roles that need them.
+
+/** HC_RECEPTIONIST — registers and checks in patients, sees the queue; no clinical notes */
+HC_RECEPTIONIST: [
+    ...HC_BASE,
+    "CUSTOMERS_VIEW", "CUSTOMERS_VIEW_ONE", "CUSTOMERS_CREATE", "CUSTOMERS_UPDATE",
+    "HEALTHCARE_PATIENTS_VIEW", "HEALTHCARE_PATIENTS_MANAGE",
+    "HEALTHCARE_VISITS_VIEW", "HEALTHCARE_VISITS_MANAGE",
+],
+
+/** HC_TRIAGE_NURSE — takes vitals and moves patients along */
+HC_TRIAGE_NURSE: [
+    ...HC_BASE,
+    "CUSTOMERS_VIEW", "CUSTOMERS_VIEW_ONE",
+    "HEALTHCARE_PATIENTS_VIEW",
+    "HEALTHCARE_VISITS_VIEW", "HEALTHCARE_VISITS_MANAGE",
+    "HEALTHCARE_TRIAGE",
+],
+
+/** HC_DOCTOR — consults: notes, diagnoses, prescribing, ordering tests, admitting, referrals */
+HC_DOCTOR: [
+    ...HC_BASE,
+    "CUSTOMERS_VIEW", "CUSTOMERS_VIEW_ONE",
+    "HEALTHCARE_PATIENTS_VIEW", "HEALTHCARE_PATIENTS_MANAGE",
+    "HEALTHCARE_VISITS_VIEW", "HEALTHCARE_VISITS_MANAGE",
+    "HEALTHCARE_TRIAGE", "HEALTHCARE_CLINICAL_NOTES",
+    "HEALTHCARE_PRESCRIBE", "HEALTHCARE_PRESCRIPTIONS_VIEW",
+    "HEALTHCARE_LAB_ORDER", "HEALTHCARE_LAB_VIEW",
+    "HEALTHCARE_INPATIENT_VIEW", "HEALTHCARE_ADMIT", "HEALTHCARE_INPATIENT_CARE",
+],
+
+/** HC_WARD_NURSE — cares for admitted patients: notes, vitals, ward charges, beds */
+HC_WARD_NURSE: [
+    ...HC_BASE,
+    "CUSTOMERS_VIEW", "CUSTOMERS_VIEW_ONE",
+    "HEALTHCARE_PATIENTS_VIEW",
+    "HEALTHCARE_VISITS_VIEW",
+    "HEALTHCARE_TRIAGE",
+    "HEALTHCARE_PRESCRIPTIONS_VIEW",
+    "HEALTHCARE_INPATIENT_VIEW", "HEALTHCARE_INPATIENT_CARE",
+],
+
+/** HC_LAB_TECHNICIAN — the lab and imaging worklist and results; no notes or money */
+HC_LAB_TECHNICIAN: [
+    ...HC_BASE,
+    "CUSTOMERS_VIEW", "CUSTOMERS_VIEW_ONE",
+    "HEALTHCARE_LAB_VIEW", "HEALTHCARE_LAB_WORK", "HEALTHCARE_LAB_ORDER",
+],
+
+/** HC_PHARMACIST — dispensing, outside prescriptions, stock, batches and expiry */
+HC_PHARMACIST: [
+    ...HC_BASE,
+    "CUSTOMERS_VIEW", "CUSTOMERS_VIEW_ONE", "CUSTOMERS_CREATE",
+    "HEALTHCARE_PATIENTS_VIEW",
+    "HEALTHCARE_PRESCRIPTIONS_VIEW", "HEALTHCARE_DISPENSE",
+    "HEALTHCARE_BATCHES_VIEW", "HEALTHCARE_BATCHES_MANAGE",
+    "PRODUCTS_VIEW", "INVENTORY_VIEW",
+    "CART_VIEW_ITEMS", "CART_CREATE", "CART_UPDATE", "CART_GET", "CART_ADD_ITEM", "CART_UPDATE_ITEM",
+],
+
+/** HC_BILLING_CASHIER — takes payment at Billing, inpatient deposits; no clinical records */
+HC_BILLING_CASHIER: [
+    ...HC_BASE,
+    "CART_VIEW_ITEMS", "CART_CREATE", "CART_UPDATE", "CART_GET",
+    "CART_ADD_ITEM", "CART_UPDATE_ITEM", "CART_DELETE_ITEM", "CART_DELETE_ALL_ITEMS",
+    "CART_PRINT_INVOICE", "CART_VIEW_INVOICES", "CART_REPRINT_INVOICE",
+    "ORDERS_VIEW", "ORDERS_VIEW_DASHBOARD",
+    "PRODUCTS_VIEW", "PAYMENT_METHODS_VIEW",
+    "TABLES_VIEW", "TABLES_CREATE_AUTO_SLOT",
+    "CUSTOMERS_VIEW", "CUSTOMERS_VIEW_ONE",
+    "HEALTHCARE_VISITS_VIEW",
+    "HEALTHCARE_INPATIENT_VIEW", "HEALTHCARE_DEPOSITS",
+],
+
+/** HC_CLAIMS_OFFICER — insurers, schemes and claims, and their reports */
+HC_CLAIMS_OFFICER: [
+    ...HC_BASE,
+    "CUSTOMERS_VIEW", "CUSTOMERS_VIEW_ONE",
+    "HEALTHCARE_VISITS_VIEW",
+    "HEALTHCARE_CLAIMS_VIEW", "HEALTHCARE_CLAIMS_MANAGE", "HEALTHCARE_PAYERS_MANAGE",
+    "HEALTHCARE_REPORTS_VIEW", "REPORTS_VIEW",
+],
+
+/** HC_WARD_MANAGER — runs the wards: beds, admissions, discharges, deposits, occupancy */
+HC_WARD_MANAGER: [
+    ...HC_BASE,
+    "CUSTOMERS_VIEW", "CUSTOMERS_VIEW_ONE",
+    "HEALTHCARE_PATIENTS_VIEW",
+    "HEALTHCARE_VISITS_VIEW",
+    "HEALTHCARE_INPATIENT_VIEW", "HEALTHCARE_ADMIT", "HEALTHCARE_INPATIENT_CARE",
+    "HEALTHCARE_WARDS_MANAGE", "HEALTHCARE_DEPOSITS",
+    "HEALTHCARE_REPORTS_VIEW", "REPORTS_VIEW",
+],
+
+/** HC_MEDICAL_DIRECTOR — sees everything clinical, the reports and who opened which record */
+HC_MEDICAL_DIRECTOR: [
+    ...HC_BASE,
+    "CUSTOMERS_VIEW", "CUSTOMERS_VIEW_ONE",
+    ...ALL_PERMISSION_KEYS.filter((k) => k.startsWith("HEALTHCARE_")),
+    "REPORTS_VIEW",
 ],
 
 };

@@ -148,9 +148,9 @@ const HospitalDashboard: React.FC<{ startDate: Dayjs; endDate: Dayjs; periodLabe
     a.expired_batches > 0 && { color: "#dc2626", icon: <CalendarOutlined />, text: `${a.expired_batches} expired medicine ${a.expired_batches === 1 ? "batch" : "batches"} still on the shelf`, onClick: () => navigate("/inventory?tab=batches") },
     a.expiring_batches > 0 && { color: "#d97706", icon: <CalendarOutlined />, text: `${a.expiring_batches} ${a.expiring_batches === 1 ? "batch expires" : "batches expire"} within ${a.near_expiry_days} days`, onClick: () => navigate("/inventory?tab=batches") },
     a.beds_to_clean > 0 && { color: "#d97706", icon: <HomeOutlined />, text: `${a.beds_to_clean} ${a.beds_to_clean === 1 ? "bed needs" : "beds need"} cleaning`, onClick: go("wards") },
-    a.unbilled_discharges > 0 && { color: "#2563eb", icon: <HomeOutlined />, text: `${a.unbilled_discharges} discharged ${a.unbilled_discharges === 1 ? "patient's bill" : "patients' bills"} not sent to the POS`, onClick: go("wards") },
-    a.claim_drafts > 0 && { color: "#2563eb", icon: <FileProtectOutlined />, text: `${a.claim_drafts} draft ${a.claim_drafts === 1 ? "claim" : "claims"} to submit`, onClick: go("claims") },
-    a.owed_by_payers > 0 && { color: "#475569", icon: <FileProtectOutlined />, text: `${money(a.owed_by_payers)} owed by insurers`, onClick: go("claims") },
+    access.deposits && a.unbilled_discharges > 0 && { color: "#2563eb", icon: <HomeOutlined />, text: `${a.unbilled_discharges} discharged ${a.unbilled_discharges === 1 ? "patient's bill" : "patients' bills"} not sent to the POS`, onClick: go("wards") },
+    access.viewClaims && a.claim_drafts > 0 && { color: "#2563eb", icon: <FileProtectOutlined />, text: `${a.claim_drafts} draft ${a.claim_drafts === 1 ? "claim" : "claims"} to submit`, onClick: go("claims") },
+    access.viewClaims && a.owed_by_payers > 0 && { color: "#475569", icon: <FileProtectOutlined />, text: `${money(a.owed_by_payers)} owed by insurers`, onClick: go("claims") },
   ].filter(Boolean) as { color: string; icon: React.ReactNode; text: string; onClick: () => void }[];
 
   // The same steps the queue board shows for this branch

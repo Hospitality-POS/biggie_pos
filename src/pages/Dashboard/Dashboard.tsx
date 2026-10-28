@@ -53,6 +53,7 @@ import { fmtK } from "@utils/formatters";
 import { useHealthcareSettings } from "@hooks/useHealthcareSettings";
 import { facilityTitle } from "@utils/healthcareFacility";
 import HospitalDashboard from "@pages/Healthcare/HospitalDashboard";
+import { getPermissionChecker } from "@utils/getPermissionChecker";
 
 dayjs.extend(quarterOfYear);
 
@@ -168,11 +169,17 @@ const Dashboard: React.FC = () => {
 
   const { startDate, endDate } = getDateRange();
 
+  // Sales figures are for people with a sales dashboard permission. In hospital
+  // mode clinical staff open this page for the facility section only.
+  const canSee = getPermissionChecker();
+  const canSeeSales = canSee("ORDERS_VIEW_DASHBOARD") || canSee("UNIFIED_DASHBOARD_VIEW");
+
   // 1. Dashboard summary analysis
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["dashBoardAnalysis", startDate.format(), endDate.format(), shopId],
     queryFn: () => getDashboardAnalysis(startDate.format("YYYY-MM-DD"), endDate.format("YYYY-MM-DD")),
     networkMode: "always",
+    enabled: canSeeSales,
     refetchOnWindowFocus: false,
     staleTime: 30000,
     retry: 1,
@@ -196,6 +203,7 @@ const Dashboard: React.FC = () => {
         shop_id: shopId ?? undefined,
       }),
     networkMode: "always",
+    enabled: canSeeSales,
     refetchOnWindowFocus: false,
     staleTime: 30000,
     retry: 1,
@@ -212,6 +220,7 @@ const Dashboard: React.FC = () => {
         limit: 10,
       }),
     networkMode: "always",
+    enabled: canSeeSales,
     refetchOnWindowFocus: false,
     staleTime: 30000,
     retry: 1,
@@ -472,7 +481,7 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* ── Conditional Urgent Stock Notice ── */}
-      {lowStockCount > 0 && (
+      {canSeeSales && lowStockCount > 0 && (
         <Alert
           message={
             <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 4 : 2 }}>
@@ -528,6 +537,8 @@ const Dashboard: React.FC = () => {
         <HospitalDashboard startDate={startDate} endDate={endDate} periodLabel={getFormattedDateRange()} />
       )}
 
+      {canSeeSales && (
+      <>
       {/* ── Tier 2: Executive KPI Pulse Cards ── */}
       <DashboardKPICards
         revenue={chartData?.data?.summary?.total_sales || data?.todayRevenue || 0}
@@ -583,6 +594,8 @@ const Dashboard: React.FC = () => {
           />
         </Col>
       </Row>
+      </>
+      )}
     </div>
   );
 };
