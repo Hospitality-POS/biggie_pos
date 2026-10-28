@@ -1,10 +1,11 @@
 FROM node:22-alpine AS builder
 
 WORKDIR /app
-COPY package*.json yarn.lock ./
-RUN yarn install --frozen-lockfile
+RUN npm install -g pnpm@10
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 COPY . .
-RUN yarn run build
+RUN pnpm run build
 
 # Step 2: Use a lightweight Nginx container to serve the files
 FROM nginx:alpine
