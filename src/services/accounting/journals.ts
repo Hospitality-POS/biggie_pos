@@ -62,6 +62,7 @@ export interface JournalEntry {
     source: JournalEntrySource;
     source_id?: string;
     source_type?: string;
+    bank_import_id?: string;
     fiscal_year?: number;
     fiscal_month?: number;
     shop_id: string;

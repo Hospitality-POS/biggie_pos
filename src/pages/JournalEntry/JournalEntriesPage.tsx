@@ -137,6 +137,39 @@ const sourceLinkKey = (e: JournalEntry): string | null => {
     return `link|${e.source_type || e.source}|${e.source_id}|${lineSignature(e)}`;
 };
 
+interface DupGroup {
+    entries: JournalEntry[];
+    exact: boolean;
+}
+
+// Groups entries that are duplicates by either detector. A group is "exact"
+// (double-posted) only when two entries share the SAME source link — entries
+// that merely look alike but come from different source documents (e.g. two
+// separate payments of the same amount on the same day) stay lookalikes.
+const groupDuplicates = (list: JournalEntry[]): DupGroup[] => {
+    const groups: DupGroup[] = [];
+    const keyToGroup = new Map<string, number>();
+    for (const e of list) {
+        const fuzzyKey = duplicateKey(e);
+        const linkKey = sourceLinkKey(e);
+        if (!fuzzyKey && !linkKey) continue;
+        let gi: number | undefined;
+        if (linkKey && keyToGroup.has(linkKey)) {
+            gi = keyToGroup.get(linkKey)!;
+            groups[gi].exact = true;
+        } else if (fuzzyKey && keyToGroup.has(fuzzyKey)) {
+            gi = keyToGroup.get(fuzzyKey)!;
+        } else {
+            gi = groups.length;
+            groups.push({ entries: [], exact: false });
+        }
+        groups[gi].entries.push(e);
+        if (fuzzyKey) keyToGroup.set(fuzzyKey, gi);
+        if (linkKey) keyToGroup.set(linkKey, gi);
+    }
+    return groups.filter((g) => g.entries.filter(isDeletable).length > 1);
+};
+
 // Exact (source-linked) groups keep the NEWEST copy — denormalized pointers on
 // the source document (e.g. the import transaction's journal_entry_id) hold
 // the id of the last entry written.
@@ -247,36 +280,7 @@ const JournalEntriesPage: React.FC = () => {
     //   - fuzzy: same source + date + description + reference + amounts
     //   - exact: same (source_type, source_id) link AND identical lines —
     //     the signature of one source document pushed to the journal twice.
-    interface DupGroup {
-        entries: JournalEntry[];
-        exact: boolean;
-    }
-
-    const duplicateGroups = useMemo<DupGroup[]>(() => {
-        const groups: DupGroup[] = [];
-        const keyToGroup = new Map<string, number>();
-        for (const e of allEntries) {
-            const fuzzyKey = duplicateKey(e);
-            const linkKey = sourceLinkKey(e);
-            if (!fuzzyKey && !linkKey) continue;
-            let gi: number | undefined;
-            for (const k of [fuzzyKey, linkKey]) {
-                if (k && keyToGroup.has(k)) {
-                    gi = keyToGroup.get(k);
-                    break;
-                }
-            }
-            if (gi === undefined) {
-                gi = groups.length;
-                groups.push({ entries: [], exact: false });
-            }
-            if (linkKey) groups[gi].exact = true;
-            groups[gi].entries.push(e);
-            if (fuzzyKey) keyToGroup.set(fuzzyKey, gi);
-            if (linkKey) keyToGroup.set(linkKey, gi);
-        }
-        return groups.filter((g) => g.entries.filter(isDeletable).length > 1);
-    }, [allEntries]);
+    const duplicateGroups = useMemo<DupGroup[]>(() => groupDuplicates(allEntries), [allEntries]);
 
     // Exact (source-linked) groups keep the NEWEST copy — the source document's
     // stored journal_entry_id points at the last entry written. Fuzzy groups
@@ -329,31 +333,8 @@ const JournalEntriesPage: React.FC = () => {
     const selectedDuplicateGroups = useMemo<DupGroup[]>(() => {
         if (!selectedRowKeys.length) return [];
         const byId = new Map(allEntries.map((e) => [e._id, e]));
-        const groups: DupGroup[] = [];
-        const keyToGroup = new Map<string, number>();
-        for (const key of selectedRowKeys) {
-            const e = byId.get(String(key));
-            if (!e) continue;
-            const fuzzyKey = duplicateKey(e);
-            const linkKey = sourceLinkKey(e);
-            if (!fuzzyKey && !linkKey) continue;
-            let gi: number | undefined;
-            for (const k of [fuzzyKey, linkKey]) {
-                if (k && keyToGroup.has(k)) {
-                    gi = keyToGroup.get(k);
-                    break;
-                }
-            }
-            if (gi === undefined) {
-                gi = groups.length;
-                groups.push({ entries: [], exact: false });
-            }
-            if (linkKey) groups[gi].exact = true;
-            groups[gi].entries.push(e);
-            if (fuzzyKey) keyToGroup.set(fuzzyKey, gi);
-            if (linkKey) keyToGroup.set(linkKey, gi);
-        }
-        return groups.filter((g) => g.entries.filter(isDeletable).length > 1);
+        const selected = selectedRowKeys.map((k) => byId.get(String(k))).filter(Boolean) as JournalEntry[];
+        return groupDuplicates(selected);
     }, [selectedRowKeys, allEntries]);
 
     const selectedDuplicateCount = useMemo(
@@ -400,6 +381,9 @@ const JournalEntriesPage: React.FC = () => {
 
     const onFormSuccess = useCallback(() => {
         queryClient.invalidateQueries({ queryKey: ["journal-entries"] });
+        // The unpaginated set behind duplicate / double-post detection has its
+        // own key — without this the banner keeps showing deleted copies.
+        queryClient.invalidateQueries({ queryKey: ["journal-entries-all"] });
         queryClient.invalidateQueries({ queryKey: ["journal-entry-summary"] });
     }, [queryClient]);
 

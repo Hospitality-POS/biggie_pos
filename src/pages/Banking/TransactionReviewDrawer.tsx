@@ -6,8 +6,9 @@ import {
 } from "antd";
 import {
     CheckCircleOutlined, StopOutlined,
-    SendOutlined, ReloadOutlined, TagOutlined, DeleteOutlined,
+    SendOutlined, ReloadOutlined, TagOutlined, DeleteOutlined, LinkOutlined,
 } from "@ant-design/icons";
+import LinkDocumentsModal from "./LinkDocumentsModal";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
     getImportById,
@@ -265,6 +266,7 @@ const TransactionReviewDrawer: React.FC<Props> = ({
     const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
     const [categorizeModal, setCategorizeModal] = useState(false);
     const [activeTxn, setActiveTxn] = useState<RawTransaction | null>(null);
+    const [linkTxn, setLinkTxn] = useState<RawTransaction | null>(null);
     const [categorizingBulk, setCategorizingBulk] = useState(false);
     const [bulkAccountId, setBulkAccountId] = useState<string | null>(null);
     const [pushModalOpen, setPushModalOpen] = useState(false);
@@ -480,13 +482,32 @@ const TransactionReviewDrawer: React.FC<Props> = ({
             key: "account",
             width: 200,
             render: (_: any, r: RawTransaction) => {
-                if (!r.account_name) {
+                const links = r.allocations || [];
+                if (!r.account_name && !links.length) {
                     return <Text type="secondary" style={{ fontSize: 12 }}>—</Text>;
                 }
                 return (
-                    <Tag icon={<TagOutlined />} color="blue" style={{ fontSize: 11 }}>
-                        {r.account_code} {r.account_name}
-                    </Tag>
+                    <Space direction="vertical" size={2}>
+                        {r.account_name && (
+                            <Tag icon={<TagOutlined />} color="blue" style={{ fontSize: 11 }}>
+                                {r.account_code} {r.account_name}
+                            </Tag>
+                        )}
+                        {links.map((a) => (
+                            <Tooltip
+                                key={a.doc_id}
+                                title={
+                                    a.payment_id
+                                        ? "Payment recorded on the " + a.doc_type
+                                        : "Payment is recorded when the journal is posted"
+                                }
+                            >
+                                <Tag icon={<LinkOutlined />} color={a.payment_id ? "green" : "gold"} style={{ fontSize: 11 }}>
+                                    {a.doc_no} · {a.amount.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
+                                </Tag>
+                            </Tooltip>
+                        ))}
+                    </Space>
                 );
             },
         },
@@ -542,9 +563,22 @@ const TransactionReviewDrawer: React.FC<Props> = ({
             width: 180,
             fixed: "right" as const,
             render: (_: any, r: RawTransaction) => {
-                if (r.status === "Pushed" || r.journal_entry_id) return null;
+                const linkButton = (
+                    <Tooltip title={Math.abs(r.debit || 0) > 0 ? "Link to bills" : "Link to invoices"}>
+                        <Button
+                            icon={<LinkOutlined />}
+                            size="small"
+                            type={r.allocations?.length ? "primary" : "default"}
+                            ghost={!!r.allocations?.length}
+                            onClick={() => setLinkTxn(r)}
+                            disabled={r.status === "Excluded" || importDetail?.status === "Voided"}
+                        />
+                    </Tooltip>
+                );
+                if (r.status === "Pushed" || r.journal_entry_id) return linkButton;
                 return (
                     <Space size={4}>
+                        {linkButton}
                         <Tooltip title="Categorize">
                             <Button
                                 icon={<TagOutlined />}
@@ -819,6 +853,19 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                 accounts={accounts}
                 suppliers={suppliers}
                 loading={categorizeMutation.isLoading}
+            />
+
+            {/* ── Link to invoices / bills ── */}
+            <LinkDocumentsModal
+                open={!!linkTxn}
+                importId={importId}
+                txn={linkTxn}
+                onClose={() => setLinkTxn(null)}
+                onLinked={() => {
+                    queryClient.invalidateQueries({ queryKey: ["import-detail", importId] });
+                    queryClient.invalidateQueries({ queryKey: ["linkable-documents"] });
+                    onSuccess();
+                }}
             />
 
             {/* ── Push Modal ── */}
