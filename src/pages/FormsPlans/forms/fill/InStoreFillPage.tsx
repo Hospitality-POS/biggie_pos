@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Button, Modal, Result, Spin, Typography, message } from "antd";
-import { CloseOutlined, DownloadOutlined, EditOutlined, CheckOutlined } from "@ant-design/icons";
+import { CloseOutlined, DownloadOutlined, EditOutlined, CheckOutlined, MailOutlined } from "@ant-design/icons";
 import { usePermissions } from "@hooks/usePermissions";
 import {
   fetchFormSubmission,
@@ -15,6 +15,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchShop } from "@services/shops";
 import FillFlow from "./FillFlow";
 import StaffSignModal from "./StaffSignModal";
+import EmailSignedCopyModal from "./EmailSignedCopyModal";
 import { SubmitError, questionLead } from "./utils";
 import type { FormSubmission } from "./types";
 import type { Answers } from "../components/FormRenderer";
@@ -39,6 +40,7 @@ const InStoreFillPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [countersignOpen, setCountersignOpen] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [emailOpen, setEmailOpen] = useState(false);
 
   const shopId = localStorage.getItem("shopId") || "";
   const { data: shop } = useQuery({ queryKey: ["shop", shopId], queryFn: () => fetchShop(shopId), enabled: !!shopId });
@@ -109,6 +111,11 @@ const InStoreFillPage: React.FC = () => {
             Signed PDF
           </Button>
         )}
+        {submission.status === "completed" && can(a.perms.viewFilled) && (
+          <Button size="large" icon={<MailOutlined />} onClick={() => setEmailOpen(true)}>
+            Email signed copy
+          </Button>
+        )}
         <Button size="large" icon={<CheckOutlined />} onClick={leave}>
           {needsCountersign ? "Countersign later" : "Done"}
         </Button>
@@ -123,6 +130,7 @@ const InStoreFillPage: React.FC = () => {
           ))}
         </div>
       )}
+      <EmailSignedCopyModal submission={emailOpen ? submission : null} audience={aud} onClose={() => setEmailOpen(false)} />
       <StaffSignModal
         open={countersignOpen}
         submission={submission}

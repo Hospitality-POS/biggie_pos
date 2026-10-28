@@ -96,6 +96,26 @@ export const createSigningLink = async (id: string, audience?: Audience): Promis
 export const fetchSignedPdfUrl = async (id: string, audience?: Audience): Promise<string> =>
   unwrap<{ url: string }>(await axiosInstance.get(url(`/${id}/pdf`), as(audience, "viewFilled"))).url;
 
+/** Email the signing link; `email` defaults to the person's address on file. */
+export const emailSigningLink = async (
+  id: string,
+  audience: Audience | undefined,
+  input: { token: string; link_url: string; email?: string }
+): Promise<{ message: string; email: string }> => {
+  const res = await axiosInstance.post(url(`/${id}/email-link`), input, as(audience, "send"));
+  return { message: res.data.message, email: res.data.data?.email };
+};
+
+/** Email the signed copy with the PDF attached; `email` defaults to the person's address on file. */
+export const emailSignedPdf = async (
+  id: string,
+  audience: Audience | undefined,
+  input: { email?: string } = {}
+): Promise<{ message: string; email: string }> => {
+  const res = await axiosInstance.post(url(`/${id}/email-pdf`), input, as(audience, "viewFilled"));
+  return { message: res.data.message, email: res.data.data?.email };
+};
+
 /** The signed PDF itself, through the API, for previewing and saving in the app. */
 export const fetchSignedPdfBlob = async (id: string, audience?: Audience): Promise<Blob> =>
   (await axiosInstance.get(url(`/${id}/pdf/file`), { responseType: "blob", ...as(audience, "viewFilled") })).data;

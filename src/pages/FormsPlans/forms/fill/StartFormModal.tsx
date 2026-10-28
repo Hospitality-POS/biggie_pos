@@ -9,11 +9,12 @@ import {
   WhatsAppOutlined,
   MessageOutlined,
   CheckCircleFilled,
+  MailOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { THEME_C } from "@utils/getPrimaryColor";
 import { fetchFormTemplates } from "@services/formTemplates";
-import { createFormSubmission, buildSigningLink, submissionError } from "@services/formSubmissions";
+import { createFormSubmission, buildSigningLink, submissionError, emailSigningLink } from "@services/formSubmissions";
 import PersonPicker from "../components/PersonPicker";
 import { personName, type PersonLite } from "../person";
 import { useAudience } from "../../audience";
@@ -81,7 +82,11 @@ const StartFormModal: React.FC<Props> = ({ open, onClose, person, templateId, on
   const [picked, setPicked] = useState<PersonLite | null>(person ?? null);
   const [method, setMethod] = useState<"in_store" | "link">("in_store");
   const [busy, setBusy] = useState(false);
-  const [link, setLink] = useState<{ url: string; expires: string } | null>(null);
+  const [link, setLink] = useState<{ url: string; expires: string; id: string; token: string; fileEmail: string } | null>(null);
+  // Email row: pre-filled from the person's email on file, editable
+  const [email, setEmail] = useState("");
+  const [emailing, setEmailing] = useState(false);
+  const [emailedTo, setEmailedTo] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -89,6 +94,8 @@ const StartFormModal: React.FC<Props> = ({ open, onClose, person, templateId, on
       setPicked(person ?? null);
       setLink(null);
       setMethod("in_store");
+      setEmail("");
+      setEmailedTo(null);
     }
   }, [open, templateId, person]);
 
@@ -123,13 +130,35 @@ const StartFormModal: React.FC<Props> = ({ open, onClose, person, templateId, on
         onClose();
         navigate(a.fillPath(submission._id), { state: { returnTo: location.pathname + location.search } });
       } else if (token) {
-        setLink({ url: buildSigningLink(token), expires: submission.public_link?.expires_at ?? "" });
+        const fileEmail = submission.subject_snapshot?.email || "";
+        setLink({ url: buildSigningLink(token), expires: submission.public_link?.expires_at ?? "", id: submission._id, token, fileEmail });
+        setEmail(fileEmail);
       }
     } catch (e) {
       const err = submissionError(e, "Couldn't prepare the form");
       if (!err.alreadyShown) message.error(err.message);
     } finally {
       setBusy(false);
+    }
+  };
+
+  const sendEmail = async () => {
+    if (!link) return;
+    const to = email.trim();
+    if (!/^[^s@]+@[^s@]+.[^s@]+$/.test(to)) {
+      message.warning("Enter a valid email address");
+      return;
+    }
+    setEmailing(true);
+    try {
+      const res = await emailSigningLink(link.id, a.audience, { token: link.token, link_url: link.url, email: to });
+      setEmailedTo(res.email || to);
+      message.success(res.message || `Link emailed to ${to}`);
+    } catch (e) {
+      const err = submissionError(e, "Couldn't send the email");
+      if (!err.alreadyShown) message.error(err.message);
+    } finally {
+      setEmailing(false);
     }
   };
 
@@ -197,6 +226,37 @@ const StartFormModal: React.FC<Props> = ({ open, onClose, person, templateId, on
             <Button icon={<MessageOutlined />} href={`sms:${picked?.phone ? `0${String(picked.phone).replace(/^0/, "")}` : ""}?body=${encodeURIComponent(shareText)}`}>
               SMS
             </Button>
+          </div>
+          <div style={{ marginTop: 16 }}>
+            <Text style={{ fontSize: 12.5, color: C.subText, display: "block", marginBottom: 4 }}>
+              <MailOutlined /> Send by email
+            </Text>
+            <Space.Compact style={{ display: "flex" }}>
+              <Input
+                type="email"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setEmailedTo(null);
+                }}
+                onPressEnter={sendEmail}
+                placeholder="name@example.com"
+                style={{ flex: 1 }}
+                allowClear
+              />
+              <Button type="primary" icon={<MailOutlined />} loading={emailing} onClick={sendEmail} disabled={!email.trim()}>
+                {emailedTo && emailedTo === email.trim().toLowerCase() ? "Send again" : "Send email"}
+              </Button>
+            </Space.Compact>
+            <Text style={{ fontSize: 12, color: emailedTo ? "#10b981" : "#94a3b8", display: "block", marginTop: 4 }}>
+              {emailedTo
+                ? `Sent to ${emailedTo}`
+                : !link.fileEmail
+                  ? "No email on file — type the address to send the link to."
+                  : email.trim().toLowerCase() === link.fileEmail.toLowerCase()
+                    ? `${personName(picked).split(" ")[0] || "Their"}'s email on file — change it to send somewhere else.`
+                    : `Sending to a different address than the one on file (${link.fileEmail}).`}
+            </Text>
           </div>
           <Text style={{ fontSize: 12, color: "#94a3b8", display: "block", marginTop: 14 }}>
             You'll find the form under {isEmployee ? "Signed by employees" : "the customer's Forms tab"} — it updates when they sign.
