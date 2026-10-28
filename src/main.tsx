@@ -9,6 +9,7 @@ import "./index.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ConfigProvider } from "antd";
 import enUS from "antd/locale/en_US";
+import { ProConfigProvider, enUSIntl } from "@ant-design/pro-components";
 import { PrimaryColorProvider, usePrimaryColor } from "./context/PrimaryColorContext";
 import { POSModeProvider } from "./context/POSModeContext";
 import { RetailQueueProvider } from "./context/RetailQueueContext";
@@ -75,7 +76,9 @@ const AppWithColor = () => {
         },
       }}
     >
-      <App />
+      <ProConfigProvider intl={enUSIntl}>
+        <App />
+      </ProConfigProvider>
     </ConfigProvider>
   );
 };

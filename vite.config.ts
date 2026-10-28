@@ -8,6 +8,7 @@ export default defineConfig(({ mode }) => {
   return {
     resolve: {
       tsconfigPaths: true,
+      dedupe: ['antd', '@ant-design/pro-components', '@ant-design/pro-provider', 'react', 'react-dom'],
     },
     server: {
       host: '0.0.0.0',
