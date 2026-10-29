@@ -19,7 +19,7 @@ import {
   FileTextOutlined,
 } from "@ant-design/icons";
 import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
+import autoTable from "@utils/autoTable";
 import { useReactToPrint } from "react-to-print";
 import dayjs from "dayjs";
 import useSystemDetails from "@hooks/useSystemDetails";
