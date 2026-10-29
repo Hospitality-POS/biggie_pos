@@ -24,7 +24,11 @@ import {
   ZoomOutOutlined,
   DownloadOutlined,
   WarningOutlined,
+  CreditCardOutlined,
+  CalendarOutlined,
+  UserOutlined,
 } from "@ant-design/icons";
+import dayjs, { type Dayjs } from "dayjs";
 import {
   Button,
   Space,
@@ -37,6 +41,8 @@ import {
   Segmented,
   Slider as AntSlider,
   Switch,
+  DatePicker,
+  Input,
 } from "antd";
 import { ModalForm } from "@ant-design/pro-form";
 import { useAppSelector } from "src/store";
@@ -125,6 +131,12 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
   const [showDiscount, setShowDiscount] = useState(true);
   const [showVat, setShowVat] = useState(true);
   const [showWarranty, setShowWarranty] = useState(true);
+  const [showPaymentDetails, setShowPaymentDetails] = useState(true);
+  const [showKraPin, setShowKraPin] = useState(true);
+  // null = use the current time when the document renders
+  const [printDateOverride, setPrintDateOverride] = useState<Dayjs | null>(null);
+  // empty = use the cashier recorded on the cart
+  const [cashierNameOverride, setCashierNameOverride] = useState("");
   const [documentType, setDocumentType] = useState<DocumentType>("bill");
   const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [reasonModalOpen, setReasonModalOpen] = useState(false);
@@ -650,9 +662,12 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
   const pdfTD = { padding: "10px 8px", fontSize: "14px", color: "#333", borderBottom: "1px solid #eee" };
   const pdfWarranty = { textAlign: "center" as const, border: "3px solid #000", padding: "15px", margin: "20px 0", backgroundColor: "#fff9e6", fontWeight: 700, fontSize: "18px", borderRadius: "8px" };
 
-  const printDate = new Date();
+  const printDate = printDateOverride ? printDateOverride.toDate() : new Date();
   const printDateStr = printDate.toLocaleDateString("en-KE", { day: "2-digit", month: "short", year: "numeric" });
   const printTimeStr = `${String(printDate.getHours()).padStart(2, "0")}:${String(printDate.getMinutes()).padStart(2, "0")}`;
+
+  const defaultCashierName = cartDetails?.served_by?.username || cartDetails?.created_by?.username || "Staff";
+  const cashierName = cashierNameOverride.trim() || defaultCashierName;
 
   // Customer details with KRA PIN
   const customerName =
@@ -988,6 +1003,69 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
                 />
               </div>
             </Tooltip>
+
+            <div style={{ width: 1, height: 20, background: "#e5e7eb" }} />
+
+            <Tooltip title="Toggle Paybill / Till / Bank details on printed document">
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <CreditCardOutlined style={{ fontSize: 15, color: showPaymentDetails ? C.primary : "#9ca3af" }} />
+                <span style={{ fontSize: 13, color: "#374151" }}>Payment Details</span>
+                <Switch
+                  size="small"
+                  checked={showPaymentDetails}
+                  onChange={setShowPaymentDetails}
+                  style={{ background: showPaymentDetails ? C.primary : undefined }}
+                />
+              </div>
+            </Tooltip>
+
+            <div style={{ width: 1, height: 20, background: "#e5e7eb" }} />
+
+            <Tooltip title="Toggle shop PIN and customer KRA PIN on printed document">
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <IdcardOutlined style={{ fontSize: 15, color: showKraPin ? C.primary : "#9ca3af" }} />
+                <span style={{ fontSize: 13, color: "#374151" }}>KRA PIN</span>
+                <Switch
+                  size="small"
+                  checked={showKraPin}
+                  onChange={setShowKraPin}
+                  style={{ background: showKraPin ? C.primary : undefined }}
+                />
+              </div>
+            </Tooltip>
+          </div>
+
+          {/* Row 4: Printed date & cashier name overrides */}
+          <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <CalendarOutlined style={{ fontSize: 15, color: "#6b7280" }} />
+              <span style={{ fontSize: 13, color: "#374151", whiteSpace: "nowrap" }}>Printed Date:</span>
+              <DatePicker
+                size="small"
+                showTime={{ format: "HH:mm" }}
+                format="DD MMM YYYY HH:mm"
+                value={printDateOverride}
+                onChange={(v) => setPrintDateOverride(v)}
+                placeholder={`Now (${dayjs().format("DD MMM YYYY HH:mm")})`}
+                style={{ width: 210 }}
+              />
+            </div>
+
+            <div style={{ width: 1, height: 20, background: "#e5e7eb" }} />
+
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <UserOutlined style={{ fontSize: 15, color: "#6b7280" }} />
+              <span style={{ fontSize: 13, color: "#374151", whiteSpace: "nowrap" }}>Cashier:</span>
+              <Input
+                size="small"
+                allowClear
+                value={cashierNameOverride}
+                onChange={(e) => setCashierNameOverride(e.target.value)}
+                placeholder={defaultCashierName}
+                maxLength={40}
+                style={{ width: 180 }}
+              />
+            </div>
           </div>
         </div>
 
@@ -1020,7 +1098,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
           <div style={{ marginBottom: 8 }}>
             <div style={{ textAlign: "center", marginBottom: 4 }}>
               <div style={S.shopName}>{BRAND_NAME1}</div>
-              {PIN && <div style={S.meta}>PIN: {PIN}</div>}
+              {showKraPin && PIN && <div style={S.meta}>PIN: {PIN}</div>}
               <div style={S.meta}>Tel: {PHONE_NO}</div>
               <div style={S.meta}>{EMAIL_URL}</div>
             </div>
@@ -1063,7 +1141,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
               {customerPhone && <div style={S.meta}>Tel: {customerPhone}</div>}
               {customerEmail && <div style={S.meta}>Email: {customerEmail}</div>}
               {customerAddress && <div style={S.meta}>Addr: {customerAddress}</div>}
-              {customerKraPin && (
+              {showKraPin && customerKraPin && (
                 <div style={{ ...S.meta, marginTop: 2, display: "flex", alignItems: "center", gap: 4 }}>
                   <IdcardOutlined style={{ fontSize: fontSize - 2 }} /> KRA PIN: {customerKraPin}
                 </div>
@@ -1076,7 +1154,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
           {/* ── ORDER META ───────────────────────────────────────────── */}
           <MetaRow left={<span style={S.meta}>Order: {cartDetails?.order_no}</span>} />
           <MetaRow
-            left={<span style={S.meta}>Cashier: {cartDetails?.served_by?.username || cartDetails?.created_by?.username || "Staff"}</span>}
+            left={<span style={S.meta}>Cashier: {cashierName}</span>}
             right={cartDetails?.table_id?.name ? <span style={S.meta}>Table: {cartDetails.table_id.name}</span> : undefined}
           />
           <MetaRow
@@ -1214,7 +1292,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
           </table>
 
           {/* ── PAYMENT INFO ─────────────────────────────────────────── */}
-          {(Paybill_bs || TILL_NO) && (
+          {showPaymentDetails && (Paybill_bs || TILL_NO) && (
             <>
               <DashedLine />
               <div style={{ textAlign: "center" }}>
@@ -1333,7 +1411,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
                   )}
                   <div>
                     <div style={pdfHdr}>{BRAND_NAME1}</div>
-                    <div style={pdfNorm}>PIN: {PIN || "N/A"}</div>
+                    {showKraPin && <div style={pdfNorm}>PIN: {PIN || "N/A"}</div>}
                     <div style={pdfNorm}>P.O. Box {PO_BOX || "N/A"}</div>
                     <div style={pdfNorm}>Tel: {PHONE_NO}</div>
                     <div style={pdfNorm}>Email: {EMAIL_URL}</div>
@@ -1384,7 +1462,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
               {customerPhone && <div style={pdfNorm}>Phone: {customerPhone}</div>}
               {customerEmail && <div style={pdfNorm}>Email: {customerEmail}</div>}
               {customerAddress && <div style={pdfNorm}>Address: {customerAddress}</div>}
-              {customerKraPin && (
+              {showKraPin && customerKraPin && (
                 <div style={pdfNorm}>
                   <IdcardOutlined style={{ marginRight: 4 }} /> KRA PIN: {customerKraPin}
                 </div>
@@ -1400,7 +1478,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
               <div style={{ textAlign: "right" }}>
                 <div style={pdfNorm}>Date: {printDateStr}</div>
                 <div style={pdfNorm}>Time: {printTimeStr}</div>
-                <div style={pdfNorm}>Cashier: {cartDetails?.served_by?.username || cartDetails?.created_by?.username || "Staff"}</div>
+                <div style={pdfNorm}>Cashier: {cashierName}</div>
               </div>
             </div>
 
@@ -1498,8 +1576,8 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
               </div>
             </div>
 
-            {/* Payment Details — PDF: always show if Paybill or Till No exists */}
-            {(Paybill_bs || TILL_NO) && (
+            {/* Payment Details — PDF: show if Paybill or Till No exists, unless hidden */}
+            {showPaymentDetails && (Paybill_bs || TILL_NO) && (
               <div style={{ marginTop: 16, marginBottom: 12, backgroundColor: "#f0f9ff", borderRadius: 6, padding: 12, border: "1px solid #bae6fd" }}>
                 <div style={{ ...pdfSub, textAlign: "center" }}>Payment Details</div>
                 {Paybill_bs && (
@@ -1516,7 +1594,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
             )}
 
             {/* Bank Details */}
-            {bank_details && (bank_details.bank_name || bank_details.account_no) && (
+            {showPaymentDetails && bank_details && (bank_details.bank_name || bank_details.account_no) && (
               <div style={{ marginTop: 16, marginBottom: 12, backgroundColor: "#fef3c7", borderRadius: 6, padding: 12, border: "1px solid #fde68a" }}>
                 <div style={{ ...pdfSub, textAlign: "center" }}>Bank Details</div>
                 {bank_details.account_no && <div style={{ ...pdfNorm, textAlign: "center" }}>Account: {bank_details.account_no}</div>}
