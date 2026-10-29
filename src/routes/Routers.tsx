@@ -295,6 +295,31 @@ const banduHRAdminPage = (Component: React.ComponentType, permission: string | s
   </AdminBanduHRRoute>
 );
 
+// ─── E-Sign guard (Dynamic SaaS License Gate) ─────────────────────────────────
+const ESignRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  return <ModuleGate moduleId="esign">{children}</ModuleGate>;
+};
+
+const AdminESignRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  return <ModuleGate moduleId="esign">{children}</ModuleGate>;
+};
+
+const esignPage = (Component: React.ComponentType, permission: string | string[]) => (
+  <ESignRoute>
+    <PermissionRoute permission={permission}>
+      {privatePage(Component)}
+    </PermissionRoute>
+  </ESignRoute>
+);
+
+const esignAdminPage = (Component: React.ComponentType, permission: string | string[]) => (
+  <AdminESignRoute>
+    <PermissionRoute permission={permission}>
+      {adminPage(Component)}
+    </PermissionRoute>
+  </AdminESignRoute>
+);
+
 // ─── Accounting layout wrapper ────────────────────────────────────────────────
 const AccountingLayout = () => <Outlet />;
 
@@ -427,7 +452,7 @@ const routes = sentryCreateBrowserRouter(
           element={guardedPage(UnifiedShopDashboardPage, "UNIFIED_DASHBOARD_VIEW")} />
 
         <Route path="esign" errorElement={<NotFound />}
-          element={guardedPage(ESignPage, "SIGNATURE_VIEW")} />
+          element={esignPage(ESignPage, "SIGNATURE_VIEW")} />
 
         <Route path="forms" errorElement={<NotFound />}
           element={guardedPage(FormsHubPage, CLIENT_FORMS_HUB_PERMISSIONS)} />
@@ -513,7 +538,7 @@ const routes = sentryCreateBrowserRouter(
           element={guardedPage(EmployeeShift, "SHIFTS_VIEW")} />
 
         <Route path="documents" errorElement={<NotFound />}
-          element={guardedPage(DocumentCenter, "DOCUMENTS_VIEW")} />
+          element={esignPage(DocumentCenter, "DOCUMENTS_VIEW")} />
 
         <Route path="help-center" errorElement={<NotFound />}
           element={<Suspense fallback={fullscreenSpin}><HelpCenter /></Suspense>} />
@@ -800,14 +825,7 @@ const routes = sentryCreateBrowserRouter(
           element={<Suspense fallback={fullscreenSpin}><AdminRoute><AuditTrailPage /></AdminRoute></Suspense>} />
 
         <Route path="esign" errorElement={<NotFound />}
-          element={
-            <PermissionRoute permission="SIGNATURE_VIEW">
-              <Suspense fallback={fullscreenSpin}>
-                <AdminRoute><ESignPage /></AdminRoute>
-              </Suspense>
-            </PermissionRoute>
-          }
-        />
+          element={esignAdminPage(ESignPage, "SIGNATURE_VIEW")} />
 
         <Route path="forms" errorElement={<NotFound />}
           element={guardedAdminPage(FormsHubPage, CLIENT_FORMS_HUB_PERMISSIONS)} />
@@ -842,7 +860,7 @@ const routes = sentryCreateBrowserRouter(
           element={guardedAdminPage(Website, "GALLERY_VIEW")} />
 
         <Route path="documents" errorElement={<NotFound />}
-          element={guardedAdminPage(DocumentCenter, "DOCUMENTS_VIEW")} />
+          element={esignAdminPage(DocumentCenter, "DOCUMENTS_VIEW")} />
 
         <Route path="omnichannel" errorElement={<NotFound />}
           element={guardedAdminPage(OmnichannelInboxPage, "OMNICHANNEL_VIEW")} />
