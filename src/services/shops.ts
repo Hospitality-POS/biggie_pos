@@ -2,7 +2,7 @@ import { ParamsType } from "@ant-design/pro-components";
 import { BASE_URL } from "@utils/config";
 import { message } from "antd";
 import axiosInstance from "./request";
-import type { ShopTaxSettings } from "@utils/taxConfig";
+import { cacheShopTaxSettings, type ShopTaxSettings } from "@utils/taxConfig";
 
 const url = `${BASE_URL}/shops`;
 
@@ -143,6 +143,11 @@ export const deleteShop = async (id: string) => {
 export const fetchShop = async (id: string) => {
   try {
     const response = await axiosInstance.get(`${url}/${id}`);
+    // Keep the current branch's VAT settings available to synchronous
+    // cart/print totals (see utils/taxConfig.ts getCurrentVatConfig).
+    if (id === localStorage.getItem("shopId")) {
+      cacheShopTaxSettings(id, response.data?.tax_settings);
+    }
     return response.data;
   } catch (error: any) {
     console.error('Error fetching shop:', error);
@@ -218,5 +223,8 @@ export const updateShopHotelSettings = async (shopId: string, hotelSettings: any
 // (VAT) and system settings (levy). See utils/taxConfig.ts.
 export const updateShopTaxSettings = async (shopId: string, taxSettings: ShopTaxSettings) => {
   const response = await axiosInstance.patch(`${url}/${shopId}`, { tax_settings: taxSettings });
+  if (shopId === localStorage.getItem("shopId")) {
+    cacheShopTaxSettings(shopId, response.data?.tax_settings || taxSettings);
+  }
   return response.data;
 };

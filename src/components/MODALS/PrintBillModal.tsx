@@ -53,6 +53,7 @@ import {
 } from "@services/printAgent";
 import { fetchMainCategories } from "@services/categories";
 import { fetchShop } from "@services/shops";
+import { getCurrentVatConfig } from "@utils/taxConfig";
 
 import {
   C,
@@ -218,9 +219,10 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
   const digitax = cartDetails?.digitax;
   const shopKraPin = cartDetails?.shop_kra_pin || tenant?.kra_pin;
 
-  // Get VAT mode and rate from tenant settings (normalize to uppercase)
-  const rawVatMode = (tenant?.vat_pricing_mode || "EXCLUSIVE").toString().toUpperCase();
-  const VAT_RATE = (tenant?.is_vat_enabled ?? true) ? (tenant?.vat_standard_rate || 0.16) : 0;
+  // VAT mode and rate — the branch's own VAT takes priority over the tenant's
+  const vatConfig = getCurrentVatConfig();
+  const rawVatMode = vatConfig.mode;
+  const VAT_RATE = vatConfig.rate;
 
   // Detect effective VAT mode: prefer tenant setting, but also detect from
   // actual store values when the setting is missing or doesn't match reality.
