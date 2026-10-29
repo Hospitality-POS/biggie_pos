@@ -15,6 +15,7 @@ import {
   removeQtyCart,
   updateCartItemQty,
 } from "./CartActions";
+import { getCurrentVatConfig } from "@utils/taxConfig";
 
 interface CartDetails {
   _id: string;
@@ -98,12 +99,11 @@ export const computeCartTotals = (
   items: Array<Pick<CartItem, "price" | "quantity" | "vat_type">>,
   cartDetails: Pick<CartDetails, "discount" | "discount_type" | "tip_amount" | "tip_type">
 ) => {
-  const storedTenant = localStorage.getItem("tenant");
-  const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-
-  const VAT_ENABLED = tenant?.is_vat_enabled ?? true;
-  const VAT_MODE = tenant?.vat_pricing_mode || "EXCLUSIVE";
-  const VAT_RATE = VAT_ENABLED ? (tenant?.vat_standard_rate || 0.16) : 0;
+  // Branch VAT takes priority over the business-wide (tenant) VAT
+  const vat = getCurrentVatConfig();
+  const VAT_ENABLED = vat.enabled;
+  const VAT_MODE = vat.mode;
+  const VAT_RATE = vat.rate;
 
   let subtotal = 0;
   let totalVatAmount = 0;
@@ -222,6 +222,11 @@ const cartSlice = createSlice({
       state.cartItems = state.cartItems.filter(
         (item) => item.productId !== action.payload
       );
+      calculateTotals(state);
+    },
+    // Re-run totals with the current VAT settings (e.g. once the branch's
+    // tax settings have loaded).
+    recalculateTotals(state) {
       calculateTotals(state);
     },
     clearcart(state) {
@@ -348,6 +353,6 @@ const cartSlice = createSlice({
   },
 });
 
-export const { removeCartItem, addItem, subtractItem, clearcart } = cartSlice.actions;
+export const { removeCartItem, addItem, subtractItem, clearcart, recalculateTotals } = cartSlice.actions;
 
 export default cartSlice.reducer;
