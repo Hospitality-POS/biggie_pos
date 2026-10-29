@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Card, Button, Typography, Tag, Row, Col, Space, Spin, Alert, Modal } from 'antd';
+import { Card, Button, Typography, Tag, Row, Col, Space, Spin, Alert, Modal, Segmented } from 'antd';
 import {
   CheckCircleOutlined,
   CrownOutlined,
@@ -84,6 +84,8 @@ export const ModuleGate: React.FC<ModuleGateProps> = ({
   const { isMobile } = useResponsive();
   const [selectedPlan, setSelectedPlan] = useState<SaaSSubscriptionPlan | null>(null);
 
+  const [billingCycle, setBillingCycle] = useState<'Monthly' | 'Yearly'>('Monthly');
+
   if (isLicensed) {
     return <>{children}</>;
   }
@@ -124,7 +126,7 @@ export const ModuleGate: React.FC<ModuleGateProps> = ({
           borderRadius: 16,
           background: `linear-gradient(135deg, ${meta.color}15, #ffffff)`,
           border: `1px solid ${meta.color}30`,
-          marginBottom: 32,
+          marginBottom: 24,
         }}
       >
         <Space direction="vertical" size={12} style={{ width: '100%' }}>
@@ -151,14 +153,47 @@ export const ModuleGate: React.FC<ModuleGateProps> = ({
         </Space>
       </Card>
 
-      {/* Pricing Tiers Section */}
-      <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ marginBottom: 4 }}>
-          Choose a Plan to Get Started
-        </Title>
-        <Text type="secondary">
-          Activate instant access to {meta.name} with transparent, scalable pricing.
-        </Text>
+      {/* Pricing Header & Billing Toggle */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: isMobile ? 'column' : 'row',
+          justifyContent: 'space-between',
+          alignItems: isMobile ? 'flex-start' : 'center',
+          gap: 16,
+          marginBottom: 24,
+        }}
+      >
+        <div>
+          <Title level={3} style={{ marginBottom: 4 }}>
+            Choose a Plan to Get Started
+          </Title>
+          <Space size={8} wrap>
+            <Tag color="green">🎁 1-Month Free Trial on All Plans</Tag>
+            <Tag color="blue">10% Off Annual Billing</Tag>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              Prices in KES, exclude 16% VAT
+            </Text>
+          </Space>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Segmented
+            value={billingCycle}
+            onChange={(val) => setBillingCycle(val as 'Monthly' | 'Yearly')}
+            options={[
+              { label: 'Monthly', value: 'Monthly' },
+              {
+                label: (
+                  <span>
+                    Annual <Tag color="success" style={{ margin: 0, marginLeft: 4, fontSize: 10 }}>SAVE 10%</Tag>
+                  </span>
+                ),
+                value: 'Yearly',
+              },
+            ]}
+          />
+        </div>
       </div>
 
       {isLoading ? (
@@ -172,6 +207,19 @@ export const ModuleGate: React.FC<ModuleGateProps> = ({
         <Row gutter={[24, 24]}>
           {plans.map((plan) => {
             const isRec = plan.is_recommended;
+            const isFree = plan.price === 0;
+            const isYearly = billingCycle === 'Yearly';
+            const priceAmount = isYearly
+              ? plan.pricing?.yearly || Math.round(plan.price * 12 * 0.9)
+              : plan.price;
+            const billingPeriodLabel = isFree
+              ? 'forever'
+              : isYearly
+              ? 'year (10% off)'
+              : plan.charging_model === 'per_shop'
+              ? 'branch / month'
+              : 'business / month';
+
             return (
               <Col xs={24} sm={12} lg={8} key={plan._id}>
                 <Card
@@ -221,13 +269,26 @@ export const ModuleGate: React.FC<ModuleGateProps> = ({
                     {plan.description || `${plan.charging_model.replace('_', ' ')} plan`}
                   </Text>
 
-                  <div style={{ margin: '20px 0' }}>
-                    <span style={{ fontSize: 32, fontWeight: 700, color: '#111827' }}>
-                      {plan.currency || 'KES'} {plan.price.toLocaleString()}
-                    </span>
-                    <Text type="secondary" style={{ fontSize: 13, marginLeft: 6 }}>
-                      / {plan.billing_cycle.toLowerCase()}
-                    </Text>
+                  <div style={{ margin: '16px 0 20px 0' }}>
+                    {isFree ? (
+                      <span style={{ fontSize: 32, fontWeight: 700, color: '#10b981' }}>
+                        FREE
+                      </span>
+                    ) : (
+                      <>
+                        <span style={{ fontSize: 32, fontWeight: 700, color: '#111827' }}>
+                          KES {priceAmount.toLocaleString()}
+                        </span>
+                        <Text type="secondary" style={{ fontSize: 13, marginLeft: 6 }}>
+                          / {billingPeriodLabel}
+                        </Text>
+                        {isYearly && (
+                          <div style={{ fontSize: 12, color: '#059669', marginTop: 4 }}>
+                            ≈ KES {Math.round(priceAmount / 12).toLocaleString()} / month
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
 
                   {/* Feature list */}
@@ -237,7 +298,7 @@ export const ModuleGate: React.FC<ModuleGateProps> = ({
                     </Text>
                     <div style={{ marginTop: 12 }}>
                       {Array.isArray(plan.features) &&
-                        plan.features.slice(0, 6).map((f, idx) => {
+                        plan.features.slice(0, 8).map((f, idx) => {
                           const featureName = typeof f === 'string' ? f : f.name;
                           return (
                             <div
@@ -269,7 +330,7 @@ export const ModuleGate: React.FC<ModuleGateProps> = ({
                       ...(isRec && { backgroundColor: meta.color, borderColor: meta.color }),
                     }}
                   >
-                    Activate {plan.name}
+                    {isFree ? 'Start Free Forever' : 'Start 1-Month Free Trial'}
                   </Button>
                 </Card>
               </Col>

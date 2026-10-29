@@ -2,25 +2,30 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { message } from 'antd';
 import { TENANT_BASE_URL } from '@utils/config';
-import { BaseModuleKey, SaaSSubscriptionPlan, SaasFeature } from '../types/pricing';
+import { BaseModuleKey, SaaSSubscriptionPlan, SaasFeature, DEFAULT_BASE_PLANS } from '../types/pricing';
 import { getCurrentTenantId } from '@services/tenants';
 
 /**
  * Fetch active subscription plans for a given module from admin_portal_api
  */
 export const fetchModulePlans = async (moduleKey: BaseModuleKey): Promise<SaaSSubscriptionPlan[]> => {
-  if (!TENANT_BASE_URL) return [];
+  const fallbackPlans = DEFAULT_BASE_PLANS[moduleKey] || [];
+  if (!TENANT_BASE_URL) return fallbackPlans;
   try {
     const res = await axios.get(`${TENANT_BASE_URL}/api/subscriptions`, {
       params: { module: moduleKey, status: 'active' },
     });
     const data = res.data?.data || res.data || [];
-    return Array.isArray(data) ? data : [];
+    if (Array.isArray(data) && data.length > 0) {
+      return data;
+    }
+    return fallbackPlans;
   } catch (err) {
-    console.warn(`Failed to fetch pricing plans for ${moduleKey}:`, err);
-    return [];
+    console.warn(`Failed to fetch pricing plans for ${moduleKey}, using defaults:`, err);
+    return fallbackPlans;
   }
 };
+
 
 /**
  * Fetch available features for a given module
