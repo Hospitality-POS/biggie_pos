@@ -15,5 +15,18 @@ export const getVisibleSheetRows = (workbook: XLSX.WorkBook): any[][] => {
     const rowMeta = sheet["!rows"] || [];
     const rows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "", blankrows: true });
 
-    return rows.filter((row, i) => !rowMeta[startRow + i]?.hidden && row.some((c) => c !== ""));
+    return rows
+        .filter((row, i) => !rowMeta[startRow + i]?.hidden && row.some((c) => c !== ""))
+        .map((row) => row.map(fixSheetDate));
 };
+
+/**
+ * With `cellDates: true` the xlsx reader returns date cells a few seconds
+ * before local midnight in some time zones (28-Sep-26 → 27 Sep 23:59:44 in
+ * Nairobi), which puts every row on the previous day. Rounding to the nearest
+ * minute restores the date the sheet shows.
+ */
+const fixSheetDate = (cell: unknown) =>
+    cell instanceof Date && !isNaN(cell.getTime())
+        ? new Date(Math.round(cell.getTime() / 60_000) * 60_000)
+        : cell;

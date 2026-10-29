@@ -13,6 +13,7 @@ import * as XLSX from "xlsx";
 import Papa from "papaparse";
 import { getVisibleSheetRows } from "@utils/visibleSheetRows";
 import dayjs, { Dayjs } from "dayjs";
+import customParseFormat from "dayjs/plugin/customParseFormat";
 import {
     compareStatement,
     importStatement,
@@ -25,6 +26,9 @@ import {
 } from "@services/accounting/accounts";
 import LedgerStatementResult from "./LedgerStatementResult";
 
+// Statement dates are parsed against the chosen format
+dayjs.extend(customParseFormat);
+
 const { Text } = Typography;
 const { Dragger } = Upload;
 
@@ -36,6 +40,8 @@ interface ParsedRow {
     credit: number;
     /** Running balance after the row, when the statement has one */
     balance?: number;
+    /** Bank fee charged with the row, when the statement shows fees in their own column */
+    fee?: number;
 }
 
 interface Props {
@@ -80,19 +86,52 @@ const balancesFromRows = (rows: ParsedRow[]) => {
     const oldest = ordered[0];
     const newest = ordered[ordered.length - 1];
     return {
-        opening: Math.round(((oldest.balance as number) - oldest.credit + oldest.debit) * 100) / 100,
+        opening: Math.round(((oldest.balance as number) - oldest.credit + oldest.debit + (oldest.fee || 0)) * 100) / 100,
         closing: newest.balance as number,
     };
 };
 
 const HEADER_PATTERNS: Record<string, string[]> = {
     date: ["transaction date", "date", "value date", "posting date"],
-    description: ["description", "narrative", "details", "particulars", "transaction description"],
+    description: ["description", "narrative", "details", "particulars", "transaction description", "recipient", "payee"],
     reference: ["reference", "ref", "cheque no", "cheque", "check no", "transaction id"],
     debit: ["debits", "debit", "dr", "withdrawal", "money out", "amount out", "paid out"],
     credit: ["credits", "credit", "cr", "deposit", "money in", "amount in", "paid in"],
     amount: ["amount", "transaction amount", "amount (kes)", "amt"],
     balance: ["balance", "running balance", "book balance", "ledger balance", "closing balance"],
+    fee: ["fee", "fees", "transaction fee", "charges"],
+};
+
+/**
+ * A statement date as a dayjs, or null when it doesn't fit the format.
+ * Excel date cells are already Dates. Text must fit the format exactly —
+ * with or without leading zeros — so 3/17/2026 is rejected for DD/MM/YYYY
+ * instead of rolling over into another month.
+ */
+const parseStatementDate = (raw: unknown, format: string) => {
+    if (raw instanceof Date) return isNaN(raw.getTime()) ? null : dayjs(raw);
+    const text = String(raw ?? "").trim();
+    if (!text) return null;
+    const loose = format.replace(/DD/g, "D").replace(/MM(?!M)/g, "M");
+    const d = [format, loose].map((f) => dayjs(text, f, true)).find((x) => x.isValid());
+    return d || null;
+};
+
+/** The listed date format most of the column's text dates fit; `current` when none fits better. */
+const detectDateFormat = (values: unknown[], current: string) => {
+    const texts = values.filter((v) => !(v instanceof Date) && String(v ?? "").trim() !== "").slice(0, 300);
+    if (!texts.length) return current;
+    const fits = (f: string) => texts.filter((v) => parseStatementDate(v, f)).length;
+    let best = current;
+    let bestFits = fits(current);
+    DATE_FORMATS.forEach(({ value }) => {
+        const n = fits(value);
+        if (n > bestFits) {
+            best = value;
+            bestFits = n;
+        }
+    });
+    return best;
 };
 
 const DATE_FORMATS = [
@@ -306,6 +345,9 @@ const ReconcileStatementDrawer: React.FC<Props> = ({
                 const inferredMap = inferColumnMap(headers);
                 setColumnMap(inferredMap);
                 setAmountColumnType(inferredMap.debit && inferredMap.credit ? "double" : "single");
+                if (inferredMap.date) {
+                    setSelectedDateFormat((f) => detectDateFormat(rows.map((r) => r[inferredMap.date]), f));
+                }
 
                 setCurrentStep(1);
             } else {
@@ -344,7 +386,9 @@ const ReconcileStatementDrawer: React.FC<Props> = ({
         const amtKey = columnMap["amount"];
         const refKey = columnMap["reference"];
         const balKey = columnMap["balance"];
+        const feeKey = columnMap["fee"];
 
+        let badDates = 0;
         const parsed: ParsedRow[] = rawRows
             .map((row) => {
                 const description = row[descKey] || "";
@@ -364,24 +408,28 @@ const ReconcileStatementDrawer: React.FC<Props> = ({
                     credit = Math.abs(parseFloat(String(row[creditKey] || 0).replace(/,/g, "")) || 0);
                 }
 
-                const rawDate = row[dateKey];
-                let transaction_date = "";
-                if (rawDate) {
-                    const d = dayjs(rawDate, selectedDateFormat);
-                    transaction_date = d.isValid() ? d.toISOString() : rawDate;
+                const d = parseStatementDate(row[dateKey], selectedDateFormat);
+                if (!d) {
+                    // A date that doesn't fit lands on the wrong day — leave the row out
+                    badDates++;
+                    return null;
                 }
 
                 return {
-                    transaction_date,
+                    transaction_date: d.toISOString(),
                     description: String(description).trim(),
                     reference: refKey ? String(row[refKey] || "").trim() : undefined,
                     debit,
                     credit,
                     balance: balKey && row[balKey] !== undefined && row[balKey] !== "" ? toNumber(row[balKey]) : undefined,
+                    fee: feeKey ? Math.abs(toNumber(row[feeKey]) || 0) : undefined,
                 };
             })
             .filter(Boolean) as ParsedRow[];
 
+        if (badDates) {
+            message.warning(`${badDates} row${badDates === 1 ? "" : "s"} left out — the date doesn't fit ${selectedDateFormat}`);
+        }
         setParsedRows(parsed);
         if (!ledgerMode) {
             compareMutation.mutate();
@@ -393,8 +441,22 @@ const ReconcileStatementDrawer: React.FC<Props> = ({
         const closing = stmtClosing ?? fromColumn?.closing ?? null;
         setStmtOpening(opening);
         setStmtClosing(closing);
-        verifyMutation.mutate({ rows: parsed, opening, closing });
+        // A fee shown beside a payment is a separate charge in the books — its own money-out row
+        const withFees = parsed.flatMap((r) =>
+            r.fee && r.fee > 0
+                ? [r, { transaction_date: r.transaction_date, description: `Fee — ${r.description}`, reference: r.reference, debit: r.fee, credit: 0 }]
+                : [r]
+        );
+        verifyMutation.mutate({ rows: withFees, opening, closing });
     };
+
+    // Text dates that don't fit the chosen format — shown before checking
+    const dateCheck = (() => {
+        const dateKey = columnMap["date"];
+        if (!dateKey || !rawRows.length) return { bad: 0, sample: "" };
+        const bad = rawRows.filter((r) => r[dateKey] !== undefined && r[dateKey] !== "" && !parseStatementDate(r[dateKey], selectedDateFormat));
+        return { bad: bad.length, sample: bad.length ? String(bad[0][dateKey]) : "" };
+    })();
 
     const headerOptions = fileHeaders.map((h) => ({ label: h, value: h }));
     const isMappingValid = columnMap["date"] && columnMap["description"] &&
@@ -691,6 +753,26 @@ const ReconcileStatementDrawer: React.FC<Props> = ({
                                     </Space>
                                 </Col>
                             )}
+                            {ledgerMode && (
+                                <Col span={12}>
+                                    <Space direction="vertical" size={6} style={{ width: "100%" }}>
+                                        <Text style={{ fontSize: 13 }}>Fee (optional)</Text>
+                                        <Select
+                                            placeholder="Select column"
+                                            options={headerOptions}
+                                            value={columnMap["fee"]}
+                                            onChange={(v) => setColumnMap((prev) => ({ ...prev, fee: v }))}
+                                            style={{ width: "100%" }}
+                                            allowClear
+                                            showSearch
+                                            size="large"
+                                        />
+                                        <Text type="secondary" style={{ fontSize: 11 }}>
+                                            Each fee is checked as its own money-out transaction, like a separate bank charge in the books
+                                        </Text>
+                                    </Space>
+                                </Col>
+                            )}
                         </Row>
                     </div>
 
@@ -756,6 +838,14 @@ const ReconcileStatementDrawer: React.FC<Props> = ({
 
                     {!isMappingValid && (
                         <Alert type="warning" showIcon message="Date, Description, and an amount column are required" />
+                    )}
+                    {dateCheck.bad > 0 && (
+                        <Alert
+                            type="error"
+                            showIcon
+                            message={`${dateCheck.bad} date${dateCheck.bad === 1 ? "" : "s"} don't fit ${selectedDateFormat} — e.g. "${dateCheck.sample}"`}
+                            description="Those rows would be left out. Pick the format the file uses — e.g. MM/DD/YYYY when the month comes first (3/17/2026)."
+                        />
                     )}
                 </Space>
             )}

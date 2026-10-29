@@ -350,7 +350,8 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
                 const rawDate = row[dateKey];
                 let transaction_date = "";
                 if (rawDate) {
-                    const parsed = dayjs(rawDate, selectedDateFormat);
+                    // Excel date cells arrive as Dates; only text needs the date format
+                    const parsed = rawDate instanceof Date ? dayjs(rawDate) : dayjs(rawDate, selectedDateFormat);
                     transaction_date = parsed.isValid() ? parsed.toISOString() : rawDate;
                 }
 
