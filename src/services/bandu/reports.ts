@@ -1,77 +1,8 @@
-import axiosInstance from "../request";
-import { BASE_URL } from "@utils/config";
-
-const banduUrl = `${BASE_URL}/bandu/reports`;
-
-// ── Report Types ────────────────────────────────────────────────────────────────
-
-export interface ReportParams {
-  shop_id?: string;
-  startDate?: string;
-  endDate?: string;
-  department_id?: string;
-  employee_id?: string;
-  status?: string;
-  year?: number;
-  employment_status?: string;
-  employment_type?: string;
-  limit?: number;
-}
-
-// ── Bandu HR Reports ─────────────────────────────────────────────────────────
-
 /**
- * Employee Master List
- * Complete employee directory with contact, banking, and employment details
+ * Legacy Bandu Reports adapter
+ * Forwards to canonical feature-sliced Bandu reports services
  */
-const unwrap = (response: any) => response.data?.data ?? response.data;
 
-export const fetchEmployeeMasterList = async (params: ReportParams = {}) => {
-  const response = await axiosInstance.get(`${banduUrl}/employee-master-list`, { params });
-  return unwrap(response);
-};
-
-/**
- * Payroll Register
- * Detailed payroll records with deduction breakdown (PAYE, NSSF, NHIF, Housing Levy)
- */
-export const fetchPayrollRegister = async (params: ReportParams = {}) => {
-  const response = await axiosInstance.get(`${banduUrl}/payroll-register`, { params });
-  return unwrap(response);
-};
-
-/**
- * Leave Balance Report
- * Annual leave balances, sick/maternity/paternity/compassionate leave, year-based reporting
- */
-export const fetchLeaveBalanceReport = async (params: ReportParams = {}) => {
-  const response = await axiosInstance.get(`${banduUrl}/leave-balance`, { params });
-  return unwrap(response);
-};
-
-/**
- * Leave History Report
- * Complete leave application history with status and approval tracking
- */
-export const fetchLeaveHistoryReport = async (params: ReportParams = {}) => {
-  const response = await axiosInstance.get(`${banduUrl}/leave-history`, { params });
-  return unwrap(response);
-};
-
-/**
- * Department Staffing Report
- * Department-wise employee distribution, salary analysis, active/inactive breakdown
- */
-export const fetchDepartmentStaffingReport = async (params: ReportParams = {}) => {
-  const response = await axiosInstance.get(`${banduUrl}/department-staffing`, { params });
-  return unwrap(response);
-};
-
-/**
- * Employee Contact Directory
- * Contact information for all employees with emergency contacts
- */
-export const fetchContactDirectory = async (params: ReportParams = {}) => {
-  const response = await axiosInstance.get(`${banduUrl}/contact-directory`, { params });
-  return unwrap(response);
-};
+export * from '@modules/bandu/pages/reports/services';
+import * as reportsApi from '@modules/bandu/pages/reports/services';
+export default reportsApi;

@@ -235,13 +235,14 @@ const getBanduHREnabled = (): boolean => {
 
 const BanduHRRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   if (!getBanduHREnabled()) return <Navigate to="/home-dashboard" replace />;
-  return <>{children}</>;
+  return <ModuleGate moduleId="bandu">{children}</ModuleGate>;
 };
 
 const AdminBanduHRRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   if (!getBanduHREnabled()) return <Navigate to="/admin/dashboard" replace />;
-  return <>{children}</>;
+  return <ModuleGate moduleId="bandu">{children}</ModuleGate>;
 };
+
 
 // ─── CRM page wrapper — private + Mteja guard ────────────────────────────────
 const mtejaPage = (Component: React.ComponentType, permission: string | string[]) => (
