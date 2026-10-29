@@ -194,11 +194,11 @@ const AttendanceTracking = lazyWithReload(() => import("src/pages/BanduHR/Attend
 const PayslipView = lazyWithReload(() => import("src/pages/BanduHR/PayslipView"));
 const LeaveApprovals = lazyWithReload(() => import("src/pages/BanduHR/LeaveApprovals"));
 
-// ─── Mteja guard ─────────────────────────────────────────────────────────────
+// ─── Mteja guard (Dynamic SaaS License Gate) ─────────────────────────────────
 const getMtejaEnabled = (): boolean => {
   try {
     const tenant = JSON.parse(localStorage.getItem("tenant") || "{}");
-    return tenant?.modules?.crm === true;
+    return tenant?.modules?.crm === true || tenant?.modules?.mteja === true;
   } catch {
     return false;
   }
@@ -206,12 +206,12 @@ const getMtejaEnabled = (): boolean => {
 
 const MtejaRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   if (!getMtejaEnabled()) return <Navigate to="/customers" replace />;
-  return <>{children}</>;
+  return <ModuleGate moduleId="mteja">{children}</ModuleGate>;
 };
 
 const AdminMtejaRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   if (!getMtejaEnabled()) return <Navigate to="/admin/customers" replace />;
-  return <>{children}</>;
+  return <ModuleGate moduleId="mteja">{children}</ModuleGate>;
 };
 
 // ─── Dala guard (Dynamic SaaS License Gate) ──────────────────────────────────
