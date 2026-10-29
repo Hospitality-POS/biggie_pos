@@ -13,11 +13,27 @@ export const fetchModulePlans = async (moduleKey: BaseModuleKey): Promise<SaaSSu
   if (!TENANT_BASE_URL) return fallbackPlans;
   try {
     const res = await axios.get(`${TENANT_BASE_URL}/api/subscriptions`, {
-      params: { module: moduleKey, status: 'active' },
+      params: { module: moduleKey, is_active: 'true', status: 'active' },
     });
     const data = res.data?.data || res.data || [];
     if (Array.isArray(data) && data.length > 0) {
-      return data;
+      // Validate that returned plans strictly match this module or its legacy solution_type
+      const validPlans = data.filter((p: any) => {
+        if (!p) return false;
+        if (p.module) return p.module.toLowerCase() === moduleKey.toLowerCase();
+        const sol = (p.solution_type || '').toLowerCase();
+        if (moduleKey === 'duka' && (sol.includes('pos') || sol.includes('retail') || sol.includes('duka'))) return true;
+        if (moduleKey === 'pesa' && (sol.includes('account') || sol.includes('pesa'))) return true;
+        if (moduleKey === 'bandu' && (sol.includes('payroll') || sol.includes('bandu') || sol.includes('hr'))) return true;
+        if (moduleKey === 'dala' && (sol.includes('prop') || sol.includes('dala') || sol.includes('estate'))) return true;
+        if (moduleKey === 'mteja' && (sol.includes('crm') || sol.includes('mteja') || sol.includes('chat'))) return true;
+        if (moduleKey === 'esign' && (sol.includes('sign') || sol.includes('esign') || sol.includes('doc'))) return true;
+        return false;
+      });
+
+      if (validPlans.length > 0) {
+        return validPlans;
+      }
     }
     return fallbackPlans;
   } catch (err) {
