@@ -6,7 +6,7 @@ import {
 } from "@ant-design/icons";
 import { utils as XLSXUtils, writeFile } from "xlsx";
 import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import autoTable from "@utils/autoTable";
 
 const { Title, Text } = Typography;
 
