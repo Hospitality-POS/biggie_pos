@@ -320,8 +320,12 @@ const esignAdminPage = (Component: React.ComponentType, permission: string | str
   </AdminESignRoute>
 );
 
-// ─── Accounting layout wrapper ────────────────────────────────────────────────
-const AccountingLayout = () => <Outlet />;
+// ─── Accounting layout wrapper (Dynamic SaaS License Gate) ───────────────────
+const AccountingLayout = () => (
+  <ModuleGate moduleId="pesa">
+    <Outlet />
+  </ModuleGate>
+);
 
 // ─── CRM layout wrapper ───────────────────────────────────────────────────────
 const CrmLayout = () => <Outlet />;
@@ -330,8 +334,8 @@ const CrmLayout = () => <Outlet />;
 const SmartShopRouter = () => {
   const tenant = (() => { try { return JSON.parse(localStorage.getItem("tenant") || "{}"); } catch { return {}; } })();
   const hasPOS = !!(tenant?.pos_integration?.enabled ?? true);
-  const hasAccounting = !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting);
-  const hasMteja = tenant?.modules?.crm === true;
+  const hasAccounting = !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting || tenant?.modules?.pesa);
+  const hasMteja = tenant?.modules?.crm === true || tenant?.modules?.mteja === true;
   const hasDala = tenant?.modules?.dala === true;
 
   if (hasDala && !hasPOS && !hasAccounting && !hasMteja) return <Navigate to="/dala" replace />;
@@ -347,8 +351,8 @@ const SmartDashboardRouter = () => {
   if (!user?.role) return <Navigate to="/login" replace />;
 
   const hasPOS = !!(tenant?.pos_integration?.enabled ?? true);
-  const hasAccounting = !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting);
-  const hasMteja = tenant?.modules?.crm === true;
+  const hasAccounting = !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting || tenant?.modules?.pesa);
+  const hasMteja = tenant?.modules?.crm === true || tenant?.modules?.mteja === true;
   const hasDala = tenant?.modules?.dala === true;
 
   if (hasMteja && !hasPOS && !hasAccounting && !hasDala) return <Navigate to="/admin/dashboard?tab=mteja" replace />;
