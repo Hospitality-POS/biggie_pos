@@ -14,10 +14,34 @@ export interface TenantModules {
     hasDala: boolean;  // tenant.modules.dala === true  →  Dala Property Management module
     hasPOS: boolean;   // tenant.pos_integration?.enabled === true  →  Duka by Base POS module
     hasSignature: boolean;  // tenant.modules.signature === true  →  E-Signature module
+    // Canonical branded properties
+    hasDuka: boolean;
+    hasPesa: boolean;
+    hasBandu: boolean;
+    duka: boolean;
+    pesa: boolean;
+    bandu: boolean;
+    dala: boolean;
+    mteja: boolean;
+    esign: boolean;
 }
 
 export const NO_TENANT_MODULES: TenantModules = {
-    hasHR: false, hasAccounting: false, hasMteja: false, hasDala: false, hasPOS: false, hasSignature: false,
+    hasHR: false,
+    hasAccounting: false,
+    hasMteja: false,
+    hasDala: false,
+    hasPOS: false,
+    hasSignature: false,
+    hasDuka: false,
+    hasPesa: false,
+    hasBandu: false,
+    duka: false,
+    pesa: false,
+    bandu: false,
+    dala: false,
+    mteja: false,
+    esign: false,
 };
 
 // ── Normalise a single flag value ─────────────────────────────────────────────
@@ -34,51 +58,102 @@ const isEnabled = (v: any): boolean => {
 // (e.g. modules.hr) must not hide a `true` on another (e.g. modules.bandu_hr).
 const anyEnabled = (...values: any[]): boolean => values.some(isEnabled);
 
+// ── Check canonical module licensing ──────────────────────────────────────────
+export function isModuleEnabled(
+    modules: TenantModules | null | undefined,
+    moduleKey: string
+): boolean {
+    if (!modules) return false;
+    switch (moduleKey.toLowerCase()) {
+        case "duka":
+        case "pos":
+            return modules.hasDuka || modules.hasPOS || modules.duka;
+        case "pesa":
+        case "accounting":
+            return modules.hasPesa || modules.hasAccounting || modules.pesa;
+        case "bandu":
+        case "hr":
+        case "payroll":
+            return modules.hasBandu || modules.hasHR || modules.bandu;
+        case "dala":
+        case "real_estate":
+        case "properties":
+            return modules.hasDala || modules.dala;
+        case "mteja":
+        case "crm":
+            return modules.hasMteja || modules.mteja;
+        case "esign":
+        case "signature":
+            return modules.hasSignature || modules.esign;
+        default:
+            return false;
+    }
+}
+
 // ── Parse module flags from a raw tenant object ───────────────────────────────
 export function parseTenantModules(tenant: any): TenantModules {
     if (!tenant) return NO_TENANT_MODULES;
 
     const mods = tenant.modules ?? tenant.module_flags ?? tenant.features ?? {};
 
+    const hasHR = anyEnabled(
+        mods.bandu,
+        mods.bandu_hr,
+        mods.payroll,
+        mods.hr,
+        mods.HR,
+        mods.hrm,
+        mods.human_resources
+    );
+    const hasAccounting = anyEnabled(
+        mods.pesa,
+        mods.accounting,
+        mods.ACCOUNTING,
+        mods.finance,
+        mods.accounts,
+        mods.financial,
+        tenant?.accounting_database?.enabled
+    );
+    const hasMteja = anyEnabled(
+        mods.mteja,
+        mods.crm,
+        mods.CRM,
+        mods.customer_engagement
+    );
+    const hasDala = anyEnabled(
+        mods.dala,
+        mods.DALA,
+        mods.property_management,
+        mods.real_estate
+    );
+    const hasPOS =
+        tenant?.pos_integration?.enabled === true ||
+        isEnabled(mods.duka) ||
+        isEnabled(mods.pos);
+    const hasSignature = anyEnabled(
+        mods.esign,
+        mods.signature,
+        mods.SIGNATURE,
+        mods.esignature,
+        mods.e_signature
+    );
+
     return {
-        hasHR: anyEnabled(
-            mods.hr,
-            mods.HR,
-            mods.hrm,
-            mods.bandu_hr,  // Bandu by Base — same flag the HR routes check
-            mods.payroll,
-            mods.human_resources
-        ),
-        hasAccounting: anyEnabled(
-            mods.accounting,
-            mods.ACCOUNTING,
-            mods.finance,
-            mods.accounts,
-            mods.financial,
-            tenant?.accounting_database?.enabled // legacy shape
-        ),
-        hasMteja: anyEnabled(
-            mods.crm,  // canonical key — tenant.modules.crm
-            mods.CRM,
-            mods.mteja,
-            mods.customer_engagement
-        ),
-        hasDala: anyEnabled(
-            mods.dala,
-            mods.DALA,
-            mods.property_management,
-            mods.real_estate
-        ),
-        // pos_integration.enabled is the only Duka switch. modules.pos can stay
-        // true after Duka is turned off, so it must not re-enable it here.
-        hasPOS: tenant?.pos_integration?.enabled === true,
-        hasSignature: anyEnabled(
-            mods.signature,
-            mods.SIGNATURE,
-            mods.esignature,
-            mods.e_signature,
-            mods.esign
-        ),
+        hasHR,
+        hasAccounting,
+        hasMteja,
+        hasDala,
+        hasPOS,
+        hasSignature,
+        hasDuka: hasPOS,
+        hasPesa: hasAccounting,
+        hasBandu: hasHR,
+        duka: hasPOS,
+        pesa: hasAccounting,
+        bandu: hasHR,
+        dala: hasDala,
+        mteja: hasMteja,
+        esign: hasSignature,
     };
 }
 

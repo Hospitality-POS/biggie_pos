@@ -17,6 +17,7 @@ import { Spin } from "antd";
 import NubaLoader from "@components/spinner/NubaLoader";
 import PaymentCallback from "@components/payment/PaymentCallback";
 import PermissionRoute from "@components/PermissionRoute";
+import { ModuleGate } from "@shared/licensing/ModuleGate";
 
 // ─── Lazily Loaded Core & Admin Pages ─────────────────────────────────────────
 const StaffLoginPage = lazyWithReload(() => import("@pages/Login/login"));
@@ -166,21 +167,21 @@ const MtejaDashboard = lazyWithReload(() => import("src/pages/Dashboard/MtejaDas
 const AccountingDashboardPage = lazyWithReload(() => import("src/pages/AccountingDashboard/AccountingDashboardPage"));
 
 // ─── Dala Real Estate Module ───────────────────────────────────────────────────
-// All Dala pages are lazy-loaded and only reachable when hasDala === true.
-const DalaDashboard = lazyWithReload(() => import("src/pages/dala/Dashboard"));
-const UnifiedDalaDashboard = lazyWithReload(() => import("src/pages/dala/UnifiedDalaDashboard"));
-const PropertiesList = lazyWithReload(() => import("src/pages/dala/properties/PropertiesList"));
-const PropertyDetail = lazyWithReload(() => import("src/pages/dala/properties/PropertyDetail"));
-const PropertyTypesList = lazyWithReload(() => import("src/pages/dala/property-types/PropertyTypesList"));
-const UnitsList = lazyWithReload(() => import("src/pages/dala/units/UnitsList"));
-const UnitDetail = lazyWithReload(() => import("src/pages/dala/units/UnitDetail"));
-const SalesManagement = lazyWithReload(() => import("src/pages/dala/sales/SalesManagement"));
-const SaleDetail = lazyWithReload(() => import("src/pages/dala/sales/SaleDetail"));
-const CommissionManagement = lazyWithReload(() => import("src/pages/dala/commissions/CommissionManagement"));
-const LeaseManagement = lazyWithReload(() => import("src/pages/dala/leases/LeaseManagement"));
-const LeaseDetail = lazyWithReload(() => import("src/pages/dala/leases/LeaseDetail"));
-const RentCollection = lazyWithReload(() => import("src/pages/dala/rent/RentCollection"));
-const MaintenanceManagement = lazyWithReload(() => import("src/pages/dala/maintenance/MaintenanceManagement"));
+// All Dala pages are lazy-loaded and gated via ModuleGate (moduleId="dala").
+const DalaDashboard = lazyWithReload(() => import("src/modules/dala/pages/Dashboard"));
+const UnifiedDalaDashboard = lazyWithReload(() => import("src/modules/dala/pages/UnifiedDalaDashboard"));
+const PropertiesList = lazyWithReload(() => import("src/modules/dala/pages/properties/PropertiesList"));
+const PropertyDetail = lazyWithReload(() => import("src/modules/dala/pages/properties/PropertyDetail"));
+const PropertyTypesList = lazyWithReload(() => import("src/modules/dala/pages/property-types/PropertyTypesList"));
+const UnitsList = lazyWithReload(() => import("src/modules/dala/pages/units/UnitsList"));
+const UnitDetail = lazyWithReload(() => import("src/modules/dala/pages/units/UnitDetail"));
+const SalesManagement = lazyWithReload(() => import("src/modules/dala/pages/sales/SalesManagement"));
+const SaleDetail = lazyWithReload(() => import("src/modules/dala/pages/sales/SaleDetail"));
+const CommissionManagement = lazyWithReload(() => import("src/modules/dala/pages/commissions/CommissionManagement"));
+const LeaseManagement = lazyWithReload(() => import("src/modules/dala/pages/leases/LeaseManagement"));
+const LeaseDetail = lazyWithReload(() => import("src/modules/dala/pages/leases/LeaseDetail"));
+const RentCollection = lazyWithReload(() => import("src/modules/dala/pages/rent/RentCollection"));
+const MaintenanceManagement = lazyWithReload(() => import("src/modules/dala/pages/maintenance/MaintenanceManagement"));
 
 // ─── Bandu HR Module ───────────────────────────────────────────────────────────
 const BanduHRDashboard = lazyWithReload(() => import("src/pages/BanduHR/BanduHRDashboard"));
@@ -213,24 +214,13 @@ const AdminMtejaRoute: React.FC<{ children: React.ReactNode }> = ({ children }) 
   return <>{children}</>;
 };
 
-// ─── Dala guard ─────────────────────────────────────────────────────────────
-const getDalaEnabled = (): boolean => {
-  try {
-    const tenant = JSON.parse(localStorage.getItem("tenant") || "{}");
-    return tenant?.modules?.dala === true;
-  } catch {
-    return false;
-  }
-};
-
+// ─── Dala guard (Dynamic SaaS License Gate) ──────────────────────────────────
 const DalaRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  if (!getDalaEnabled()) return <Navigate to="/customers" replace />;
-  return <>{children}</>;
+  return <ModuleGate moduleId="dala">{children}</ModuleGate>;
 };
 
 const AdminDalaRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  if (!getDalaEnabled()) return <Navigate to="/admin/customers" replace />;
-  return <>{children}</>;
+  return <ModuleGate moduleId="dala">{children}</ModuleGate>;
 };
 
 // ─── Bandu HR guard ─────────────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-import { Sale, DateRange, PropertyAnalysis, PortfolioProperty, Property } from '../pages/dala/types';
+import { Sale, DateRange, PropertyAnalysis, PortfolioProperty, Property } from '../modules/dala/pages/types';
 
 export interface DateRange {
   startDate: Date | null;

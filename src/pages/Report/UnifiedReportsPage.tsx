@@ -10,7 +10,7 @@ import AdminReports from "src/AdminDashboard/ReportsPage/Reports";
 import AccountingReportsPage from "./AccountingReportsPage";
 import MtejaReports from "./MtejaReports";
 import BanduReports from "./BanduReports";
-import DalaReports from "../dala/reports/Reports";
+import DalaReports from "src/modules/dala/pages/reports/Reports";
 
 const { Text } = Typography;
 
