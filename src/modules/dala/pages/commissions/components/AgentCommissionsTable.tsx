@@ -1,7 +1,7 @@
 import React from 'react';
 import { Table, Space, Button, Dropdown, Menu, Typography, Tooltip, Progress } from 'antd';
 import { DownloadOutlined, DownOutlined, FileExcelOutlined, FilePdfOutlined } from '@ant-design/icons';
-import { AgentCommissionReport, Sale } from '../types';
+import { AgentCommissionReport, Sale } from '../../types';
 import { formatCurrency } from '@utils/formatters';
 import { exportToExcel, exportToCSV, exportToPDF } from '@utils/exportUtils';
 import AgentExpandedRow from './AgentExpandedRow';

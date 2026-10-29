@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, Row, Col, Empty, Spin, Typography, Tabs } from 'antd';
 import { Pie, Column } from '@ant-design/charts';
 import { useFilters } from '@context/FiltersContext';
-import { Sale, PropertyAnalysis } from '../types';
+import { Sale, PropertyAnalysis } from '../../types';
 import { generateSalesAnalysisReport } from '@utils/dataProcessors';
 import SalesAnalysisSummary from './SalesAnalysisSummary';
 import PropertyDistributionTable from './PropertyDistributionTable';

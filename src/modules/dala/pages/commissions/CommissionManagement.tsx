@@ -3,8 +3,8 @@ import { Card, Typography, Button, Space, DatePicker, Select, Spin, message } fr
 import { ReloadOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
 import { FiltersProvider, useFilters } from '@context/FiltersContext';
-import AgentCommissionsTab from './AgentCommissionsTab';
-import CommissionPaymentModal from './CommissionPaymentModal';
+import AgentCommissionsTab from './components/AgentCommissionsTab';
+import CommissionPaymentModal from './components/CommissionPaymentModal';
 import { Sale, User } from '../types';
 import { fetchPropertySales } from '@services/dala';
 import { useQuery } from '@tanstack/react-query';

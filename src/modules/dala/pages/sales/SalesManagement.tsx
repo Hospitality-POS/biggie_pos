@@ -56,10 +56,10 @@ import { generateOfferLetterPDF } from '@utils/offerLetterPDF';
 import dayjs from 'dayjs';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import AddEditSaleModal from './AddEditSaleModal';
+import AddEditSaleModal from './components/AddEditSaleModal';
 import SalesPaymentsTab from '../payments/SalesPaymentsTab';
 import PaymentModal from '../payments/PaymentModal';
-import PaymentPlansDueTab from './PaymentPlansDueTab';
+import PaymentPlansDueTab from './components/PaymentPlansDueTab';
 import { THEME_C } from '@utils/getPrimaryColor';
 
 const { Search } = Input;

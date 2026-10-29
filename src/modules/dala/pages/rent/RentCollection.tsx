@@ -35,7 +35,7 @@ import {
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { fetchRentPayments, recordRentPayment, fetchRentInvoices } from '@services/dala';
 import dayjs from 'dayjs';
-import AddEditRentPaymentModal from './AddEditRentPaymentModal';
+import AddEditRentPaymentModal from './components/AddEditRentPaymentModal';
 
 const { Search } = Input;
 const { Option } = Select;

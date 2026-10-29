@@ -1,6 +1,6 @@
 import React from 'react';
 import { Table, Typography, Progress } from 'antd';
-import { PortfolioProperty } from '../types';
+import { PortfolioProperty } from '../../types';
 import { formatCurrency } from '@utils/formatters';
 import ExpandedPortfolioRow from './ExpandedPortfolioRow';
 

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Table, Typography, Tag, Progress, Empty } from 'antd';
-import { PortfolioProperty, PortfolioUnit, UnitSale } from '../types';
+import { PortfolioProperty, PortfolioUnit, UnitSale } from '../../types';
 import { formatCurrency, formatDate } from '@utils/formatters';
 
 const { Title } = Typography;

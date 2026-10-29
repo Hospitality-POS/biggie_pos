@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, Row, Col, Empty, Spin, Typography, Progress } from 'antd';
 import { Pie, Column, Gauge } from '@ant-design/charts';
 import { useFilters } from '@context/FiltersContext';
-import { Sale, Property, PortfolioProperty } from '../types';
+import { Sale, Property, PortfolioProperty } from '../../types';
 import { generatePortfolioProgressReport } from '@utils/dataProcessors';
 import PortfolioSummary from './PortfolioSummary';
 import PortfolioProgressTable from './PortfolioProgressTable';

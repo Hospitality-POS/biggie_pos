@@ -2,7 +2,7 @@ import React from 'react';
 import { Table, Typography, Tag, Progress, Button, Tooltip, Space, Row, Col } from 'antd';
 import { PlusOutlined, InfoCircleOutlined, FilePdfOutlined } from '@ant-design/icons';
 import { formatCurrency, formatDate } from '@utils/formatters';
-import { AgentCommissionReport, AgentSaleDetails, Sale } from '../types';
+import { AgentCommissionReport, AgentSaleDetails, Sale } from '../../types';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 

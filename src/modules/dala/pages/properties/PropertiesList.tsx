@@ -31,8 +31,8 @@ import {
   Tabs,
 } from 'antd';
 import { useRef, useState } from 'react';
-import AddEditPropertyModal from './AddEditPropertyModal';
-import ImportPropertiesModal, { ImportPropertiesTrigger } from './ImportPropertiesModal';
+import AddEditPropertyModal from './components/AddEditPropertyModal';
+import ImportPropertiesModal, { ImportPropertiesTrigger } from './components/ImportPropertiesModal';
 
 interface Property {
   _id: string;

@@ -31,7 +31,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient, useMutation, useQuery } from '@tanstack/react-query';
 import { useDalaProperties } from '@dala/hooks/useDalaQueries';
 import dayjs from 'dayjs';
-import AddEditLeaseModal from './AddEditLeaseModal';
+import AddEditLeaseModal from './components/AddEditLeaseModal';
 import { createLease, updateLease, fetchLeases, generateBulkInvoices } from '@services/dala';
 
 const { Search } = Input;

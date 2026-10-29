@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Table, Typography, Tag, Space, Button, Tooltip } from 'antd';
 import { BarChartOutlined } from '@ant-design/icons';
 import { formatCurrency } from '@utils/formatters';
-import { PropertyAnalysis } from '../types';
+import { PropertyAnalysis } from '../../types';
 import { exportToExcel } from '@utils/exportUtils';
 
 const { Title, Text } = Typography;

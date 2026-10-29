@@ -1,7 +1,7 @@
 import React from 'react';
 import { Row, Col, Card, Statistic } from 'antd';
 import { HomeOutlined, BarChartOutlined, DollarOutlined } from '@ant-design/icons';
-import { PortfolioProperty } from '../types';
+import { PortfolioProperty } from '../../types';
 import { formatCurrency } from '@utils/formatters';
 
 interface PortfolioSummaryProps {

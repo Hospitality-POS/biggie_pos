@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Row, Col, Empty, Spin, message } from 'antd';
 import { useFilters } from '@context/FiltersContext';
-import { Sale, User, AgentCommissionReport } from '../types';
+import { Sale, User, AgentCommissionReport } from '../../types';
 import { generateAgentCommissionsReport } from '@utils/dataProcessors';
 import AgentCommissionsSummary from './AgentCommissionsSummary';
 import AgentCommissionsTable from './AgentCommissionsTable';
