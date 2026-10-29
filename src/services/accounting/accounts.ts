@@ -65,6 +65,7 @@ export interface AccountTree {
 }
 
 export interface LedgerLine {
+    entry_id: string;
     entry_no: string;
     entry_date: string;
     description: string;
@@ -360,4 +361,113 @@ export const getAccountLedger = async (id: string, params: GetLedgerParams) => {
         }
     );
     return response.data as AccountLedgerResponse;
+};
+
+// ── Ledger vs bank statement verification ────────────────────────────────────
+
+/** Why a statement row isn't in the books. */
+export type StatementGapReason =
+    | "not_imported"
+    | "imported_not_completed"
+    | "excluded"
+    | "completed_entry_elsewhere";
+
+/** Why a ledger entry isn't on the statement. */
+export type LedgerGapReason = "possible_duplicate" | "not_on_this_statement" | "booked_directly";
+
+export interface StatementVerifyInput {
+    shop_id?: string;
+    statement_opening_balance?: number | null;
+    statement_closing_balance?: number | null;
+    transactions: {
+        transaction_date: string;
+        description: string;
+        reference?: string;
+        /** Money out */
+        debit: number;
+        /** Money in */
+        credit: number;
+    }[];
+}
+
+export interface StatementVerifyResult {
+    account: { _id: string; account_code: string; account_name: string; account_type: AccountType };
+    period: { from: string; to: string };
+    date_tolerance_days: number;
+    counts: {
+        statement: number;
+        ledger_in_period: number;
+        matched: number;
+        matched_date_shifted: number;
+        missing_in_ledger: number;
+        missing_in_statement: number;
+    };
+    balances: {
+        ledger_opening: number;
+        ledger_closing: number;
+        statement_opening: number | null;
+        statement_closing: number | null;
+        opening_difference: number | null;
+        closing_difference: number | null;
+    };
+    explanation: {
+        opening_difference: number | null;
+        missing_in_ledger_net: number;
+        missing_in_statement_net: number;
+        period_boundary_net: number;
+        unexplained: number | null;
+    };
+    missing_in_ledger: {
+        row_index: number;
+        transaction_date: string;
+        description: string;
+        reference?: string;
+        debit: number;
+        credit: number;
+        reason: StatementGapReason;
+        import_id: string | null;
+        import_no: string | null;
+        txn_id: string | null;
+    }[];
+    missing_in_statement: {
+        entry_id: string;
+        entry_no: string;
+        entry_date: string;
+        description: string;
+        reference?: string;
+        source: string;
+        money_in: number;
+        money_out: number;
+        reason: LedgerGapReason;
+        twin_entry_no: string | null;
+    }[];
+    date_shifted: {
+        transaction_date: string;
+        description: string;
+        debit: number;
+        credit: number;
+        entry_id: string;
+        entry_no: string;
+        entry_date: string;
+        date_shift_days: number;
+        outside_period: boolean;
+    }[];
+}
+
+/**
+ * Compare an account's posted ledger with a parsed bank statement and explain
+ * the balance difference.
+ */
+export const verifyAccountAgainstStatement = async (id: string, data: StatementVerifyInput) => {
+    try {
+        const response = await axiosInstance.post(
+            `${BASE_URL}/accounting/chart-of-accounts/${id}/verify-statement`,
+            data
+        );
+        return response.data as StatementVerifyResult;
+    } catch (error) {
+        const err = error as ApiError;
+        message.error(err.response?.data?.message || "Error verifying against the statement");
+        throw error;
+    }
 };

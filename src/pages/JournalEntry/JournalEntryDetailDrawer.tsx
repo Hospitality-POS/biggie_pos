@@ -28,14 +28,12 @@ import {
     getJournalEntryById,
     postJournalEntry,
     voidJournalEntry,
-    updateJournalEntry,
     JournalEntry,
     JournalLine,
 } from "@services/accounting/journals";
-import { getAllAccounts, ChartOfAccount } from "@services/accounting/accounts";
 import { getImportById } from "@services/accounting/bankStatementImport";
 import LinkDocumentsModal from "../Banking/LinkDocumentsModal";
-import SplitAccountsModal, { SplitRow } from "@components/accounting/SplitAccountsModal";
+import SplitJournalLineModal from "@components/accounting/SplitJournalLineModal";
 import dayjs from "dayjs";
 
 const { Text, Title } = Typography;
@@ -131,66 +129,9 @@ const JournalEntryDetailDrawer: React.FC<Props> = ({ open, onClose, entryId, onS
     });
 
     // ── Split a line across accounts ───────────────────────────────────────────
-    // Replaces one line with several on the same side and saves the entry, so
-    // it stays balanced. Ledger only — a source document isn't changed.
 
     const [splitIndex, setSplitIndex] = useState<number | null>(null);
     const canSplit = !!entry && entry.status !== "Voided" && !entry.period_locked;
-
-    const { data: accountsData } = useQuery({
-        queryKey: ["chart-of-accounts-je"],
-        queryFn: () => getAllAccounts({ is_active: true } as any),
-        enabled: open && canSplit,
-        staleTime: 60_000,
-    });
-    const splitAccountOptions = ((accountsData?.accounts || []) as ChartOfAccount[])
-        .filter((a) => a.is_active && a.allows_direct_posting !== false)
-        .map((a) => ({ label: `${a.account_code} — ${a.account_name}`, value: a._id }));
-
-    const lineAccountId = (l: JournalLine) => (typeof l.account_id === "object" ? l.account_id._id : l.account_id);
-    const splitLine = splitIndex !== null ? entry?.lines[splitIndex] || null : null;
-
-    const splitMutation = useMutation({
-        mutationFn: ({ index, rows }: { index: number; rows: SplitRow[] }) => {
-            const e = entry!;
-            const lines = e.lines.flatMap((l, i) => {
-                const base = {
-                    _id: l._id,
-                    account_id: lineAccountId(l),
-                    debit: l.debit || 0,
-                    credit: l.credit || 0,
-                    description: l.description || undefined,
-                    customer_id: l.customer_id,
-                    supplier_id: l.supplier_id,
-                };
-                if (i !== index) return [base];
-                const isDebit = (l.debit || 0) > 0;
-                // The first split row keeps the original line's id and party
-                return rows.map((r, j) => ({
-                    _id: j === 0 ? l._id : undefined,
-                    account_id: r.account_id,
-                    debit: isDebit ? r.amount : 0,
-                    credit: isDebit ? 0 : r.amount,
-                    description: r.description || undefined,
-                    customer_id: j === 0 ? l.customer_id : undefined,
-                    supplier_id: j === 0 ? l.supplier_id : undefined,
-                }));
-            });
-            return updateJournalEntry(e._id, {
-                entry_date: e.entry_date,
-                description: e.description,
-                reference: e.reference,
-                lines,
-            });
-        },
-        onSuccess: () => {
-            setSplitIndex(null);
-            queryClient.invalidateQueries({ queryKey: ["journal-entries"] });
-            queryClient.invalidateQueries({ queryKey: ["journal-entry", entryId] });
-            queryClient.invalidateQueries({ queryKey: ["journal-entry-form", entryId] });
-            onSuccess();
-        },
-    });
 
     const handleVoidConfirm = () => {
         if (!voidReason.trim() || !entryId) return;
@@ -521,27 +462,11 @@ const JournalEntryDetailDrawer: React.FC<Props> = ({ open, onClose, entryId, onS
             />
 
             {/* ── Split a line across accounts ── */}
-            <SplitAccountsModal
-                open={!!splitLine}
-                total={splitLine ? splitLine.debit || splitLine.credit : 0}
-                title="Split line across accounts"
-                subtitle={
-                    splitLine
-                        ? `${(splitLine.debit || 0) > 0 ? "Debit" : "Credit"} of ${(splitLine.debit || splitLine.credit).toLocaleString("en-KE", { minimumFractionDigits: 2 })} — saved to the entry straight away`
-                        : undefined
-                }
-                initialRows={
-                    splitLine
-                        ? [
-                            { account_id: lineAccountId(splitLine), amount: splitLine.debit || splitLine.credit, description: splitLine.description },
-                            { account_id: "", amount: 0, description: splitLine.description },
-                        ]
-                        : undefined
-                }
-                defaultDescription={splitLine?.description}
-                accountOptions={splitAccountOptions}
+            <SplitJournalLineModal
+                entryId={splitIndex !== null ? entryId : null}
+                lineIndex={splitIndex ?? undefined}
                 onClose={() => setSplitIndex(null)}
-                onApply={(rows) => splitIndex !== null && !splitMutation.isPending && splitMutation.mutate({ index: splitIndex, rows })}
+                onSaved={onSuccess}
             />
 
             {/* ── Void Modal ── */}
