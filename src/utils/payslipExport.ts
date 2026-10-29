@@ -33,8 +33,73 @@ const employeeName = (p: any) =>
 const departmentName = (p: any) =>
   p.payroll_id?.department_id?.name || p.department_id?.name || '—';
 
+// ── Hideable payslip lines ─────────────────────────────────────────────────────
+// Lines a user can leave off a payslip. Hiding is display-only: totals, PAYE
+// and net pay keep the stored figures, nothing is recalculated.
+export const PAYSLIP_HIDEABLE_LINES = [
+  { key: 'nssf', label: 'NSSF' },
+  { key: 'shif', label: 'SHIF' },
+  { key: 'housing_levy', label: 'Housing Levy' },
+  { key: 'pension', label: 'Pension Contribution' },
+  { key: 'withholding_tax', label: 'Withholding Tax' },
+  { key: 'overtime', label: 'Overtime Pay' },
+  { key: 'taxable_pay', label: 'Taxable Pay' },
+  { key: 'income_tax', label: 'Income Tax' },
+  { key: 'personal_relief', label: 'Personal Relief' },
+  { key: 'insurance_relief', label: 'Insurance Relief' },
+] as const;
+export type PayslipLineKey = (typeof PAYSLIP_HIDEABLE_LINES)[number]['key'];
+
+// Export row label → the hideable line it shows
+const LINE_KEY_BY_LABEL: Record<string, PayslipLineKey> = {
+  'Overtime Pay': 'overtime',
+  'Less Pension (NSSF)': 'nssf',
+  'N.S.S.F.': 'nssf',
+  'Less SHIF': 'shif',
+  'SHIF (NHIF)': 'shif',
+  'Less Housing Levy (AHL)': 'housing_levy',
+  'Housing Levy': 'housing_levy',
+  'Less Pension Contribution': 'pension',
+  Pension: 'pension',
+  'Withholding Tax': 'withholding_tax',
+  'CHARGEABLE AMOUNT': 'taxable_pay',
+  'Tax Charged': 'income_tax',
+  'Personal Relief': 'personal_relief',
+  'Insurance Relief': 'insurance_relief',
+};
+
+// ── Download file names ────────────────────────────────────────────────────────
+const fileSafe = (s: string) => s.replace(/[\\/:*?"<>|]/g, ' ').trim().replace(/\s+/g, '_');
+
+/** "<Department>_<what>_<period>" when the export covers exactly one department, else "<Client>_<what>_<period>". */
+export const exportFileName = (parts: { client?: string; departments?: (string | undefined)[]; what: string; period?: string }) => {
+  const depts = [...new Set((parts.departments || []).filter((d): d is string => !!d && d !== '—'))];
+  return [depts.length === 1 ? depts[0] : parts.client, parts.what, parts.period || 'export']
+    .filter((s): s is string => !!s)
+    .map(fileSafe)
+    .join('_');
+};
+
+/** "Payslip_<Employee Name>_<period>" for a single employee's payslip. */
+const singlePayslipFileName = (p: any) =>
+  ['Payslip', employeeName(p), p.period_label || 'period'].map(fileSafe).join('_');
+
 // ── Shared payslip data model ──────────────────────────────────────────────────
-const payslipRows = (p: any, rounded = false) => {
+const payslipRows = (p: any, rounded = false, hidden: PayslipLineKey[] = []) => {
+  const rows = payslipRowsAll(p, rounded);
+  // Blank details (no NSSF / NHIF number, job title, overtime…) are left off
+  const filled = ([, value]: [string, string]) => value !== '—';
+  const keep = (row: [string, string]) => filled(row) && !hidden.includes(LINE_KEY_BY_LABEL[row[0]]);
+  return {
+    ...rows,
+    infoRows: rows.infoRows.filter(filled),
+    earningsRows: rows.earningsRows.filter(keep),
+    payeRows: rows.payeRows.filter(keep),
+    deductionRows: rows.deductionRows.filter(keep),
+  };
+};
+
+const payslipRowsAll = (p: any, rounded = false) => {
   const fmt = moneyFmt(rounded);
   const e = p.earnings || {};
   const d = p.deductions || {};
@@ -182,6 +247,7 @@ export const renderPayslipPage = (
     primary: [number, number, number];
     headerMode?: PayslipHeaderMode;
     rounded?: boolean;
+    hidden?: PayslipLineKey[];
   },
   isFirstPage = true
 ) => {
@@ -194,7 +260,7 @@ export const renderPayslipPage = (
   // middle of the page instead of stretching edge-to-edge (privacy-friendly)
   const contentWidth = Math.min(pageWidth * 0.48, 300);
   const margin = (pageWidth - contentWidth) / 2;
-  const { infoRows, earningsRows, payeRows, deductionRows, netPay, fmt } = payslipRows(payslip, !!ctx.rounded);
+  const { infoRows, earningsRows, payeRows, deductionRows, netPay, fmt } = payslipRows(payslip, !!ctx.rounded, ctx.hidden);
 
   if (!isFirstPage) doc.addPage();
 
@@ -320,8 +386,12 @@ export const generatePayslipsPDF = async (payslips: any[], headerMode?: PayslipH
     return;
   }
 
-  const period = payslips[0]?.period_label?.replace(/\s+/g, '_') || 'export';
-  doc.save(`payslips_${period}${rounded ? '_rounded' : ''}.pdf`);
+  const { company } = await getExportContext(headerMode);
+  doc.save(
+    payslips.length === 1
+      ? `${singlePayslipFileName(payslips[0])}.pdf`
+      : `${exportFileName({ client: company, departments: payslips.map(departmentName), what: 'Payslips', period: payslips[0]?.period_label })}.pdf`
+  );
   message.success(`Exported ${payslips.length} payslip${payslips.length === 1 ? '' : 's'} to PDF`);
 };
 
@@ -476,8 +546,8 @@ export const exportP9ToExcel = async (payslips: any[], year: number, opts?: { hi
   XLSX.writeFile(wb, `P9_Form_${empNo}_${year}.xlsx`);
 };
 
-const buildPayslipSheet = (p: any, company: string, rounded = false) => {
-  const { infoRows, earningsRows, payeRows, deductionRows, netPay, fmt } = payslipRows(p, rounded);
+const buildPayslipSheet = (p: any, company: string, rounded = false, hidden: PayslipLineKey[] = []) => {
+  const { infoRows, earningsRows, payeRows, deductionRows, netPay, fmt } = payslipRows(p, rounded, hidden);
   const brand = (getPrimaryColor() || '#0E388A').replace('#', '').toUpperCase().padStart(6, '0');
 
   const aoa: any[][] = [
@@ -595,17 +665,33 @@ const buildPayslipSheet = (p: any, company: string, rounded = false) => {
 };
 
 /** Single-payslip Excel export — the classic payslip layout on one sheet. */
-export const exportPayslipToExcel = async (payslip: any, headerMode?: PayslipHeaderMode, rounded = false) => {
+export const exportPayslipToExcel = async (
+  payslip: any,
+  headerMode?: PayslipHeaderMode,
+  rounded = false,
+  hidden: PayslipLineKey[] = []
+) => {
   const ctx = await getExportContext(headerMode);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(
     wb,
-    buildPayslipSheet(payslip, headerName(payslip, ctx), rounded),
+    buildPayslipSheet(payslip, headerName(payslip, ctx), rounded, hidden),
     sanitizeSheetName(payslip.employee_id?.employee_number || 'Payslip', 'Payslip')
   );
-  const period = (payslip.period_label || 'export').replace(/\s+/g, '_');
-  const empNo = payslip.employee_id?.employee_number || 'employee';
-  XLSX.writeFile(wb, `Payslip_${empNo}_${period}${rounded ? '_rounded' : ''}.xlsx`);
+  XLSX.writeFile(wb, `${singlePayslipFileName(payslip)}.xlsx`);
+};
+
+/** Single-payslip PDF — same layout and file name rules as the Excel export. */
+export const exportPayslipToPDF = async (
+  payslip: any,
+  headerMode?: PayslipHeaderMode,
+  rounded = false,
+  hidden: PayslipLineKey[] = []
+) => {
+  const ctx = { ...(await getExportContext(headerMode)), rounded, hidden };
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  renderPayslipPage(doc, payslip, ctx, true);
+  doc.save(`${singlePayslipFileName(payslip)}.pdf`);
 };
 
 export const exportPayslipsToExcel = async (payslips: any[], headerMode?: PayslipHeaderMode, rounded = false) => {
@@ -682,8 +768,12 @@ export const exportPayslipsToExcel = async (payslips: any[], headerMode?: Paysli
     }
   }
 
-  const period = payslips[0]?.period_label?.replace(/\s+/g, '_') || 'export';
-  XLSX.writeFile(wb, `payslips_${period}${rounded ? '_rounded' : ''}.xlsx`);
+  XLSX.writeFile(
+    wb,
+    payslips.length === 1
+      ? `${singlePayslipFileName(payslips[0])}.xlsx`
+      : `${exportFileName({ client: ctx.company, departments: payslips.map(departmentName), what: 'Payslips', period: payslips[0]?.period_label })}.xlsx`
+  );
   if (failed) {
     message.warning(`Exported ${wb.SheetNames.length - 1} payslip sheets; ${failed} failed`);
   } else {

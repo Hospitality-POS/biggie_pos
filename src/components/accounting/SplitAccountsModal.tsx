@@ -32,6 +32,10 @@ interface Props {
     onApply: (rows: SplitRow[]) => void;
     /** Shown as a "Remove split" button when set. */
     onRemove?: () => void;
+    /** Shown above the rows. */
+    header?: React.ReactNode;
+    /** Changing this while open starts the rows over from initialRows. */
+    resetKey?: string | number;
 }
 
 const round2 = (n: number) => Math.round((n || 0) * 100) / 100;
@@ -40,7 +44,7 @@ const newKey = () => crypto.randomUUID();
 
 const SplitAccountsModal: React.FC<Props> = ({
     open, total, title, subtitle, initialRows, defaultDescription = "",
-    accountOptions, onClose, onApply, onRemove,
+    accountOptions, onClose, onApply, onRemove, header, resetKey,
 }) => {
     const [rows, setRows] = useState<EditableRow[]>([]);
     const target = round2(total);
@@ -54,9 +58,9 @@ const SplitAccountsModal: React.FC<Props> = ({
                 { account_id: "", amount: 0, description: defaultDescription },
             ];
         setRows(start.map((r) => ({ ...r, key: newKey() })));
-        // Only reset when the modal opens, not on every parent render
+        // Only reset when the modal opens (or resetKey changes), not on every parent render
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open]);
+    }, [open, resetKey]);
 
     const sum = round2(rows.reduce((s, r) => s + (r.amount || 0), 0));
     const left = round2(target - sum);
@@ -105,6 +109,7 @@ const SplitAccountsModal: React.FC<Props> = ({
             }
         >
             <Space direction="vertical" style={{ width: "100%", marginTop: 12 }} size={8}>
+                {header}
                 {rows.map((r) => (
                     <Space key={r.key} style={{ width: "100%" }} align="start">
                         <Select
