@@ -29,6 +29,7 @@ import {
     FilterOutlined,
     DeleteOutlined,
     ClearOutlined,
+    ApartmentOutlined,
 } from "@ant-design/icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -42,6 +43,7 @@ import {
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import JournalEntryFormDrawer from "./JournalEntryFormDrawer";
 import JournalEntryDetailDrawer from "./JournalEntryDetailDrawer";
+import SplitJournalLineModal from "@components/accounting/SplitJournalLineModal";
 import dayjs, { Dayjs } from "dayjs";
 import quarterOfYear from "dayjs/plugin/quarterOfYear";
 
@@ -208,6 +210,7 @@ const JournalEntriesPage: React.FC = () => {
     const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
     const [detailOpen, setDetailOpen] = useState(false);
     const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
+    const [splitEntryId, setSplitEntryId] = useState<string | null>(null);
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(20);
     const [sourceFilter, setSourceFilter] = useState<JournalEntrySource | undefined>();
@@ -678,7 +681,7 @@ const JournalEntriesPage: React.FC = () => {
         {
             title: "Actions",
             key: "actions",
-            width: 100,
+            width: 130,
             fixed: "right" as const,
             render: (_: any, record: JournalEntry) => (
                 <Space size="small">
@@ -690,13 +693,22 @@ const JournalEntriesPage: React.FC = () => {
                         />
                     </Tooltip>
                     {!record.period_locked && record.status !== "Voided" && (
-                        <Tooltip title="Edit">
-                            <Button
-                                icon={<EditOutlined />}
-                                size="small"
-                                onClick={() => openEdit(record._id)}
-                            />
-                        </Tooltip>
+                        <>
+                            <Tooltip title="Edit">
+                                <Button
+                                    icon={<EditOutlined />}
+                                    size="small"
+                                    onClick={() => openEdit(record._id)}
+                                />
+                            </Tooltip>
+                            <Tooltip title="Split across accounts">
+                                <Button
+                                    icon={<ApartmentOutlined />}
+                                    size="small"
+                                    onClick={() => setSplitEntryId(record._id)}
+                                />
+                            </Tooltip>
+                        </>
                     )}
                 </Space>
             ),
@@ -1019,6 +1031,13 @@ const JournalEntriesPage: React.FC = () => {
                 entryId={selectedEntryId}
                 onSuccess={onFormSuccess}
                 onEdit={openEdit}
+            />
+
+            {/* ── Split a line straight from the list ── */}
+            <SplitJournalLineModal
+                entryId={splitEntryId}
+                onClose={() => setSplitEntryId(null)}
+                onSaved={onFormSuccess}
             />
         </App>
     );

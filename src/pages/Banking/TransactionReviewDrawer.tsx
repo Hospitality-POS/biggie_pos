@@ -8,10 +8,13 @@ import {
 import {
     CheckCircleOutlined, StopOutlined, PlusOutlined, MinusCircleOutlined,
     SendOutlined, ReloadOutlined, TagOutlined, DeleteOutlined, LinkOutlined,
-    ApartmentOutlined,
+    ApartmentOutlined, FileSearchOutlined, EyeOutlined,
 } from "@ant-design/icons";
 import LinkDocumentsModal from "./LinkDocumentsModal";
+import JournalEntryDetailDrawer from "../JournalEntry/JournalEntryDetailDrawer";
+import JournalEntryFormDrawer from "../JournalEntry/JournalEntryFormDrawer";
 import SplitAccountsModal, { SplitRow } from "@components/accounting/SplitAccountsModal";
+import SplitJournalLineModal from "@components/accounting/SplitJournalLineModal";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
     getImportById,
@@ -23,10 +26,14 @@ import {
     pushToJournalEntries,
     deleteImport,
     deleteTransactions,
+    verifyPosting,
     RawTransaction,
     TransactionStatus,
     BankStatementImport,
     CategorizeTransactionInput,
+    UnpostedTransaction,
+    REPOSTABLE_REASONS,
+    UNPOSTED_REASON_LABELS,
 } from "@services/accounting/bankStatementImport";
 import { getAllAccounts } from "@services/accounting/accounts";
 import { fetchAllSuppliers } from "@services/supplier";
@@ -389,26 +396,51 @@ const TransactionReviewDrawer: React.FC<Props> = ({
     const [activeTxn, setActiveTxn] = useState<RawTransaction | null>(null);
     const [linkTxn, setLinkTxn] = useState<RawTransaction | null>(null);
     const [splitTxn, setSplitTxn] = useState<RawTransaction | null>(null);
+    const [splitPostedTxn, setSplitPostedTxn] = useState<RawTransaction | null>(null);
     const [categorizingBulk, setCategorizingBulk] = useState(false);
     const [bulkAccountId, setBulkAccountId] = useState<string | null>(null);
     const [pushModalOpen, setPushModalOpen] = useState(false);
     const [pushTarget, setPushTarget] = useState<string>("");
     const [dateRange, setDateRange] = useState<[string, string] | null>(null);
+    // Journal entry check — which transactions don't show in the bank's ledger
+    const [entryCheckOn, setEntryCheckOn] = useState(false);
+    const [issuesOnly, setIssuesOnly] = useState(false);
+    const [viewEntryId, setViewEntryId] = useState<string | null>(null);
+    const [editEntryId, setEditEntryId] = useState<string | null>(null);
 
     const importId = importRecord?._id;
+    // The issue filter works client-side, so it needs every row like the date filter
+    const loadAll = !!dateRange || issuesOnly;
 
     const { data, isLoading } = useQuery({
-        queryKey: ["import-detail", importId, statusFilter, page, dateRange],
+        queryKey: ["import-detail", importId, issuesOnly ? "ALL" : statusFilter, loadAll ? 1 : page, dateRange, loadAll],
         queryFn: () =>
             getImportById(importId!, {
-                status_filter: statusFilter === "ALL" ? undefined : statusFilter,
-                page: dateRange ? 1 : page,
-                limit: dateRange ? 10000 : 50,
+                status_filter: issuesOnly || statusFilter === "ALL" ? undefined : statusFilter,
+                page: loadAll ? 1 : page,
+                limit: loadAll ? 10000 : 50,
             }),
         enabled: open && !!importId,
         keepPreviousData: true,
         refetchOnWindowFocus: false,
     });
+
+    const { data: entryCheck, isFetching: entryCheckLoading, refetch: recheckEntries } = useQuery({
+        queryKey: ["verify-posting", importId],
+        queryFn: () => verifyPosting(importId!),
+        enabled: open && !!importId && entryCheckOn,
+        refetchOnWindowFocus: false,
+    });
+    const issueById = new Map<string, UnpostedTransaction>(
+        (entryCheck?.unposted || []).map((t) => [String(t._id), t])
+    );
+    const issueCounts = (entryCheck?.unposted || []).reduce<Record<string, number>>((acc, t) => {
+        acc[t.reason] = (acc[t.reason] || 0) + 1;
+        return acc;
+    }, {});
+    const repostableIds = (entryCheck?.unposted || [])
+        .filter((t) => !!t.account_id && REPOSTABLE_REASONS.includes(t.reason))
+        .map((t) => String(t._id));
 
     const { data: accountsData } = useQuery({
         queryKey: ["chart-of-accounts", shopId],
@@ -438,13 +470,13 @@ const TransactionReviewDrawer: React.FC<Props> = ({
     const totalTxns = data?.transaction_total || 0;
     const totalPages = data?.totalPages || 1;
 
-    // Client-side date filtering
-    const transactions = dateRange
-        ? allTransactions.filter((txn: RawTransaction) => {
-            const txnDate = dayjs(txn.transaction_date).format('YYYY-MM-DD');
-            return txnDate >= dateRange[0] && txnDate <= dateRange[1];
-        })
-        : allTransactions;
+    // Client-side date / journal-entry-issue filtering
+    const transactions = allTransactions.filter((txn: RawTransaction) => {
+        if (issuesOnly && !issueById.has(String(txn._id))) return false;
+        if (!dateRange) return true;
+        const txnDate = dayjs(txn.transaction_date).format('YYYY-MM-DD');
+        return txnDate >= dateRange[0] && txnDate <= dateRange[1];
+    });
 
     useEffect(() => {
         if (!open) {
@@ -452,8 +484,24 @@ const TransactionReviewDrawer: React.FC<Props> = ({
             setSelectedRowKeys([]);
             setStatusFilter("ALL");
             setDateRange(null);
+            setEntryCheckOn(false);
+            setIssuesOnly(false);
         }
     }, [open]);
+
+    const refreshAfterEntryFix = () => {
+        queryClient.invalidateQueries({ queryKey: ["import-detail", importId] });
+        queryClient.invalidateQueries({ queryKey: ["verify-posting", importId] });
+        onSuccess();
+    };
+
+    // Re-post transactions whose journal entry is missing, deleted or voided
+    const bankAccountId = String((importDetail?.account_id as any)?._id || importDetail?.account_id || "");
+    const repostMutation = useMutation({
+        mutationFn: (txnIds: string[]) =>
+            pushToJournalEntries(importId!, { bank_account_id: bankAccountId, txn_ids: txnIds }),
+        onSuccess: refreshAfterEntryFix,
+    });
 
     const reApplyMutation = useMutation({
         mutationFn: () => reApplyRules(importId!, { reset_categorized: false }),
@@ -689,14 +737,25 @@ const TransactionReviewDrawer: React.FC<Props> = ({
         {
             title: "Status",
             dataIndex: "status",
-            width: 120,
-            render: (s: TransactionStatus) => (
-                <Badge
-                    status={STATUS_COLORS[s] as any}
-                    text={s === "Pushed" ? "Completed" : s}
-                    style={{ fontSize: 12 }}
-                />
-            ),
+            width: 140,
+            render: (s: TransactionStatus, r: RawTransaction) => {
+                const issue = issueById.get(String(r._id));
+                const cfg = issue ? UNPOSTED_REASON_LABELS[issue.reason] : null;
+                return (
+                    <Space direction="vertical" size={2}>
+                        <Badge
+                            status={STATUS_COLORS[s] as any}
+                            text={s === "Pushed" ? "Completed" : s}
+                            style={{ fontSize: 12 }}
+                        />
+                        {cfg && (
+                            <Tooltip title={`${cfg.hint}${issue?.journal_entry_no ? ` (${issue.journal_entry_no})` : ""}`}>
+                                <Tag color={cfg.color} style={{ fontSize: 11, margin: 0 }}>{cfg.label}</Tag>
+                            </Tooltip>
+                        )}
+                    </Space>
+                );
+            },
         },
         {
             title: "Actions",
@@ -716,7 +775,48 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                         />
                     </Tooltip>
                 );
-                if (r.status === "Pushed" || r.journal_entry_id) return linkButton;
+                if (r.status === "Pushed" || r.journal_entry_id) {
+                    // Already posted — a split edits the journal entry it posted
+                    const issue = issueById.get(String(r._id));
+                    const entryId = issue?.journal_entry_id || r.journal_entry_id;
+                    const canRepost = !!issue && repostableIds.includes(String(r._id));
+                    return (
+                        <Space size={4}>
+                            {linkButton}
+                            {canRepost && (
+                                <Tooltip title="Re-post its journal entry">
+                                    <Button
+                                        icon={<SendOutlined />}
+                                        size="small"
+                                        type="primary"
+                                        loading={repostMutation.isLoading}
+                                        onClick={() => repostMutation.mutate([String(r._id)])}
+                                    />
+                                </Tooltip>
+                            )}
+                            {!canRepost && entryId && (
+                                <Tooltip title="View journal entry">
+                                    <Button
+                                        icon={<EyeOutlined />}
+                                        size="small"
+                                        type={issue ? "primary" : "default"}
+                                        ghost={!!issue}
+                                        onClick={() => setViewEntryId(String(entryId))}
+                                    />
+                                </Tooltip>
+                            )}
+                            {r.journal_entry_id && importDetail?.status !== "Voided" && (
+                                <Tooltip title="Split across accounts">
+                                    <Button
+                                        icon={<ApartmentOutlined />}
+                                        size="small"
+                                        onClick={() => setSplitPostedTxn(r)}
+                                    />
+                                </Tooltip>
+                            )}
+                        </Space>
+                    );
+                }
                 return (
                     <Space size={4}>
                         {linkButton}
@@ -805,6 +905,16 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                         >
                             Delete Import
                         </Button>
+                        <Tooltip title="Find completed or categorized transactions whose journal entry is missing, or won't show in this bank's ledger">
+                            <Button
+                                icon={<FileSearchOutlined />}
+                                onClick={() => (entryCheckOn ? recheckEntries() : setEntryCheckOn(true))}
+                                loading={entryCheckLoading}
+                                size="large"
+                            >
+                                Check Journal Entries
+                            </Button>
+                        </Tooltip>
                         <Button
                             icon={<ReloadOutlined />}
                             onClick={() => reApplyMutation.mutate()}
@@ -884,6 +994,67 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                         </Card>
                     </Col>
                 </Row>
+
+                {/* ── Journal entry check result ── */}
+                {entryCheckOn && entryCheck && (
+                    entryCheck.all_posted ? (
+                        <Alert
+                            type="success"
+                            showIcon
+                            closable
+                            onClose={() => { setEntryCheckOn(false); setIssuesOnly(false); }}
+                            style={{ marginBottom: 16 }}
+                            message={`All ${entryCheck.total_checked} transactions have a posted journal entry on this bank account`}
+                            description="If the bank's ledger still shows fewer, check its date range and branch filter."
+                        />
+                    ) : (
+                        <Alert
+                            type="warning"
+                            showIcon
+                            closable
+                            onClose={() => { setEntryCheckOn(false); setIssuesOnly(false); }}
+                            style={{ marginBottom: 16 }}
+                            message={`${entryCheck.unposted_count} of ${entryCheck.total_checked} transactions are missing from this bank's ledger or not posted yet`}
+                            description={
+                                <Space direction="vertical" size={8} style={{ width: "100%" }}>
+                                    <Space wrap size={4}>
+                                        {Object.entries(issueCounts).map(([reason, n]) => {
+                                            const cfg = UNPOSTED_REASON_LABELS[reason as keyof typeof UNPOSTED_REASON_LABELS];
+                                            return (
+                                                <Tooltip key={reason} title={cfg?.hint}>
+                                                    <Tag color={cfg?.color}>{cfg?.label || reason}: {n}</Tag>
+                                                </Tooltip>
+                                            );
+                                        })}
+                                    </Space>
+                                    <Space wrap>
+                                        <Switch
+                                            checked={issuesOnly}
+                                            onChange={(v) => { setIssuesOnly(v); setStatusFilter("ALL"); setPage(1); }}
+                                            checkedChildren="Showing only these"
+                                            unCheckedChildren="Show only these"
+                                        />
+                                        {repostableIds.length > 0 && (
+                                            <Popconfirm
+                                                title={`Re-post ${repostableIds.length} transaction${repostableIds.length === 1 ? "" : "s"}?`}
+                                                description="Creates a journal entry on this statement's bank account for each one."
+                                                onConfirm={() => repostMutation.mutateAsync(repostableIds)}
+                                                okText="Re-post"
+                                            >
+                                                <Button size="small" type="primary" icon={<SendOutlined />} loading={repostMutation.isLoading}>
+                                                    Re-post {repostableIds.length} missing
+                                                </Button>
+                                            </Popconfirm>
+                                        )}
+                                        <Button size="small" icon={<ReloadOutlined />} onClick={() => recheckEntries()} loading={entryCheckLoading}>
+                                            Re-check
+                                        </Button>
+                                    </Space>
+                                </Space>
+                            }
+                        />
+                    )
+                )}
 
                 {/* ── Bulk Actions (when rows selected) ── */}
                 {selectedRowKeys.length > 0 && (
@@ -982,14 +1153,18 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                             disabled: r.status === "Pushed" || !!r.journal_entry_id,
                         }),
                     }}
-                    pagination={{
-                        current: page,
-                        total: totalTxns,
-                        pageSize: 50,
-                        onChange: (p) => setPage(p),
-                        showTotal: (t) => `${t} transactions`,
-                        showSizeChanger: false,
-                    }}
+                    pagination={
+                        loadAll
+                            ? { pageSize: 50, showTotal: (t) => `${t} transactions`, showSizeChanger: false }
+                            : {
+                                current: page,
+                                total: totalTxns,
+                                pageSize: 50,
+                                onChange: (p) => setPage(p),
+                                showTotal: (t) => `${t} transactions`,
+                                showSizeChanger: false,
+                            }
+                    }
                     rowClassName={(r: RawTransaction) =>
                         r.status === "Excluded" ? "opacity-50" : ""
                     }
@@ -1042,6 +1217,33 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                         })
                         : undefined
                 }
+            />
+
+            {/* ── Journal entry behind a flagged transaction ── */}
+            <JournalEntryDetailDrawer
+                open={!!viewEntryId}
+                entryId={viewEntryId}
+                onClose={() => setViewEntryId(null)}
+                onSuccess={refreshAfterEntryFix}
+                onEdit={(id) => setEditEntryId(id)}
+            />
+            <JournalEntryFormDrawer
+                open={!!editEntryId}
+                entryId={editEntryId}
+                shopId={shopId}
+                onClose={() => setEditEntryId(null)}
+                onSuccess={() => {
+                    setEditEntryId(null);
+                    refreshAfterEntryFix();
+                }}
+            />
+
+            {/* ── Split a completed transaction's posted entry ── */}
+            <SplitJournalLineModal
+                entryId={splitPostedTxn?.journal_entry_id || null}
+                accountId={splitPostedTxn?.account_id}
+                onClose={() => setSplitPostedTxn(null)}
+                onSaved={() => queryClient.invalidateQueries({ queryKey: ["import-detail", importId] })}
             />
 
             {/* ── Link to invoices / bills ── */}

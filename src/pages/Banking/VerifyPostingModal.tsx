@@ -14,6 +14,8 @@ import {
     UnpostedTransaction,
     UnpostedReason,
     BankStatementImport,
+    REPOSTABLE_REASONS,
+    UNPOSTED_REASON_LABELS,
 } from "@services/accounting/bankStatementImport";
 import { getAllAccounts } from "@services/accounting/accounts";
 import dayjs from "dayjs";
@@ -22,13 +24,6 @@ const { Text } = Typography;
 
 const BATCH_SIZE = 20;
 
-const REASON_LABELS: Record<UnpostedReason, { label: string; color: string }> = {
-    not_categorized: { label: "Not Categorized", color: "warning" },
-    not_posted: { label: "Not Posted", color: "warning" },
-    missing_journal_entry: { label: "Missing Journal Entry", color: "error" },
-    journal_entry_deleted: { label: "Journal Entry Deleted", color: "error" },
-    journal_entry_voided: { label: "Journal Entry Voided", color: "error" },
-};
 
 interface Props {
     open: boolean;
@@ -79,7 +74,11 @@ const VerifyPostingModal: React.FC<Props> = ({
     // Only transactions that have an account assigned can actually be posted
     // (ones that are still Uncategorized need categorizing first in the
     // Review Transactions drawer before they're postable here).
-    const postableKeys = unposted.filter((t) => !!t.account_id).map((t) => String(t._id));
+    // Transactions whose entry exists but is wrong (draft, other bank…) aren't
+    // re-postable either — the push skips them; the entry needs fixing instead.
+    const postableKeys = unposted
+        .filter((t) => !!t.account_id && REPOSTABLE_REASONS.includes(t.reason))
+        .map((t) => String(t._id));
 
     const postMutation = useMutation({
         mutationFn: async () => {
@@ -174,8 +173,12 @@ const VerifyPostingModal: React.FC<Props> = ({
             dataIndex: "reason",
             width: 180,
             render: (r: UnpostedReason) => {
-                const cfg = REASON_LABELS[r] || { label: r, color: "default" };
-                return <Tag color={cfg.color}>{cfg.label}</Tag>;
+                const cfg = UNPOSTED_REASON_LABELS[r] || { label: r, color: "default", hint: "" };
+                return (
+                    <Tooltip title={cfg.hint}>
+                        <Tag color={cfg.color}>{cfg.label}</Tag>
+                    </Tooltip>
+                );
             },
         },
     ];
