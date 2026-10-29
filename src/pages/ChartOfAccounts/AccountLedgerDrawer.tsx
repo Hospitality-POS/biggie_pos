@@ -615,6 +615,8 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId, 
                 // Imports need a branch — use the current one when the report spans all
                 shopId={shopId || localStorage.getItem("shopId") || ""}
                 ledgerShopId={shopId}
+                defaultFrom={dateRange[0]}
+                defaultTo={dateRange[1]}
                 presetAccountId={account?._id}
                 presetAccountName={account ? `${account.account_code} — ${account.account_name}` : undefined}
             />

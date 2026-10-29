@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import {
     Drawer, Typography, Upload, Alert, Space,
     Table, Button, Steps, Select, Row, Col, Radio, message, Statistic, Card, Tag,
-    InputNumber,
+    InputNumber, DatePicker,
 } from "antd";
 import {
     InboxOutlined, CheckCircleOutlined,
@@ -12,7 +12,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import Papa from "papaparse";
 import { getVisibleSheetRows } from "@utils/visibleSheetRows";
-import dayjs from "dayjs";
+import dayjs, { Dayjs } from "dayjs";
 import {
     compareStatement,
     importStatement,
@@ -56,6 +56,9 @@ interface Props {
     mode?: "imports" | "ledger";
     /** Ledger mode: branch the ledger is read for ("" = all branches). Defaults to shopId. */
     ledgerShopId?: string;
+    /** Ledger mode: the period to check, e.g. the one the ledger is showing */
+    defaultFrom?: Dayjs | null;
+    defaultTo?: Dayjs | null;
 }
 
 const STEP_LABELS = ["Upload File", "Map Columns", "Reconciliation Result"];
@@ -121,6 +124,7 @@ const fmt = (v: number) => (v || 0).toLocaleString("en-KE", { minimumFractionDig
 
 const ReconcileStatementDrawer: React.FC<Props> = ({
     open, onClose, onSuccess, shopId, presetAccountId, presetAccountName, mode = "imports", ledgerShopId,
+    defaultFrom, defaultTo,
 }) => {
     const ledgerMode = mode === "ledger";
     const [currentStep, setCurrentStep] = useState(0);
@@ -137,6 +141,13 @@ const ReconcileStatementDrawer: React.FC<Props> = ({
     const [stmtOpening, setStmtOpening] = useState<number | null>(null);
     const [stmtClosing, setStmtClosing] = useState<number | null>(null);
     const [verifyResult, setVerifyResult] = useState<StatementVerifyResult | null>(null);
+    // Only statement rows and ledger entries in this period are compared
+    const [period, setPeriod] = useState<[Dayjs | null, Dayjs | null]>([null, null]);
+    useEffect(() => {
+        if (open && ledgerMode) setPeriod([defaultFrom ?? null, defaultTo ?? null]);
+        // Start from the ledger's period each time the drawer opens
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open]);
 
     const { data: accountsData } = useQuery({
         queryKey: ["chart-of-accounts", shopId],
@@ -169,6 +180,8 @@ const ReconcileStatementDrawer: React.FC<Props> = ({
         mutationFn: (input: { rows: ParsedRow[]; opening: number | null; closing: number | null }) =>
             verifyAccountAgainstStatement(selectedAccountId as string, {
                 shop_id: (ledgerShopId ?? shopId) || undefined,
+                from: period[0]?.format("YYYY-MM-DD"),
+                to: period[1]?.format("YYYY-MM-DD"),
                 statement_opening_balance: input.opening,
                 statement_closing_balance: input.closing,
                 transactions: input.rows.map((r) => ({
@@ -468,7 +481,7 @@ const ReconcileStatementDrawer: React.FC<Props> = ({
                 message="What this does"
                 description={
                     ledgerMode
-                        ? "Upload the bank statement for this account. Each row is matched to a posted journal entry on the account — the figures the balance sheet uses — by amount and direction, on the same day or a few days apart. You'll see what's on the statement but not in the books (and why), what's in the books but not on the statement, and how that adds up to the balance difference."
+                        ? "Upload the bank statement for this account and pick the period. For every day, the statement's transactions are compared with the account's posted ledger — the figures the balance sheet uses — so you see how many each side has, to the cent, and exactly which ones are missing from the ledger or not on the statement."
                         : "Re-upload the same (or updated) bank excel/CSV. It's compared against everything already imported for the selected account by matching date + debit + credit, so you can see exactly which transactions are missing from the system, or which system transactions no longer appear on the statement."
                 }
             />
@@ -680,6 +693,28 @@ const ReconcileStatementDrawer: React.FC<Props> = ({
                             )}
                         </Row>
                     </div>
+
+                    {ledgerMode && (
+                        <div>
+                            <Text strong style={{ display: "block", marginBottom: 4 }}>Period to Check</Text>
+                            <Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 8 }}>
+                                Only statement rows and ledger entries in this period are compared, day by day.
+                                Leave empty to use the statement's own dates.
+                            </Text>
+                            <DatePicker.RangePicker
+                                value={period}
+                                onChange={(v) => setPeriod((v as [Dayjs | null, Dayjs | null]) || [null, null])}
+                                format="DD MMM YYYY"
+                                size="large"
+                                style={{ width: "100%" }}
+                                allowEmpty={[true, true]}
+                                presets={[
+                                    { label: "This Month", value: [dayjs().startOf("month"), dayjs().endOf("month")] },
+                                    { label: "Last Month", value: [dayjs().subtract(1, "month").startOf("month"), dayjs().subtract(1, "month").endOf("month")] },
+                                ]}
+                            />
+                        </div>
+                    )}
 
                     {ledgerMode && (
                         <div>

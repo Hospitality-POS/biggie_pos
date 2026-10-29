@@ -370,13 +370,21 @@ export type StatementGapReason =
     | "not_imported"
     | "imported_not_completed"
     | "excluded"
-    | "completed_entry_elsewhere";
+    | "completed_entry_elsewhere"
+    | "booked_other_day";
 
 /** Why a ledger entry isn't on the statement. */
-export type LedgerGapReason = "possible_duplicate" | "not_on_this_statement" | "booked_directly";
+export type LedgerGapReason =
+    | "possible_duplicate"
+    | "not_on_this_statement"
+    | "booked_directly"
+    | "on_statement_other_day";
 
 export interface StatementVerifyInput {
     shop_id?: string;
+    /** Period to check, YYYY-MM-DD; statement rows outside it are ignored */
+    from?: string;
+    to?: string;
     statement_opening_balance?: number | null;
     statement_closing_balance?: number | null;
     transactions: {
@@ -390,18 +398,37 @@ export interface StatementVerifyInput {
     }[];
 }
 
+/** Count and amounts of a set of transactions */
+export interface StatementTally {
+    count: number;
+    money_in: number;
+    money_out: number;
+    net: number;
+}
+
+export interface StatementVerifyDay {
+    day: string;
+    statement: StatementTally;
+    ledger: StatementTally;
+    matched: number;
+    missing_in_ledger: number;
+    missing_in_statement: number;
+    count_difference: number;
+    net_difference: number;
+}
+
 export interface StatementVerifyResult {
     account: { _id: string; account_code: string; account_name: string; account_type: AccountType };
     period: { from: string; to: string };
-    date_tolerance_days: number;
-    counts: {
-        statement: number;
-        ledger_in_period: number;
+    statement_rows_outside_period: number;
+    totals: {
+        statement: StatementTally;
+        ledger: StatementTally;
         matched: number;
-        matched_date_shifted: number;
-        missing_in_ledger: number;
-        missing_in_statement: number;
+        missing_in_ledger: StatementTally;
+        missing_in_statement: StatementTally;
     };
+    by_day: StatementVerifyDay[];
     balances: {
         ledger_opening: number;
         ledger_closing: number;
@@ -414,17 +441,19 @@ export interface StatementVerifyResult {
         opening_difference: number | null;
         missing_in_ledger_net: number;
         missing_in_statement_net: number;
-        period_boundary_net: number;
         unexplained: number | null;
     };
     missing_in_ledger: {
         row_index: number;
+        day: string;
         transaction_date: string;
         description: string;
         reference?: string;
         debit: number;
         credit: number;
         reason: StatementGapReason;
+        other_day: string | null;
+        other_entry_no: string | null;
         import_id: string | null;
         import_no: string | null;
         txn_id: string | null;
@@ -432,6 +461,7 @@ export interface StatementVerifyResult {
     missing_in_statement: {
         entry_id: string;
         entry_no: string;
+        day: string;
         entry_date: string;
         description: string;
         reference?: string;
@@ -439,18 +469,8 @@ export interface StatementVerifyResult {
         money_in: number;
         money_out: number;
         reason: LedgerGapReason;
+        other_day: string | null;
         twin_entry_no: string | null;
-    }[];
-    date_shifted: {
-        transaction_date: string;
-        description: string;
-        debit: number;
-        credit: number;
-        entry_id: string;
-        entry_no: string;
-        entry_date: string;
-        date_shift_days: number;
-        outside_period: boolean;
     }[];
 }
 
