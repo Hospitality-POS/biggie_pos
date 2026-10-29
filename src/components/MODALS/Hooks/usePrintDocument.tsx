@@ -3,6 +3,7 @@ import { message } from "antd";
 import axiosInstance from "@services/request";
 import { BASE_URL } from "@utils/config";
 import { useAppSelector } from "src/store";
+import { getCurrentVatConfig } from "@utils/taxConfig";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 export type DocumentType = "bill" | "receipt" | "invoice" | "quotation";
@@ -227,9 +228,8 @@ export function usePrintDocument({
         finalGrandTotal,
     });
 
-    const storedTenant = localStorage.getItem("tenant");
-    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-    const vatMode: "INCLUSIVE" | "EXCLUSIVE" = tenant?.vat_pricing_mode || "EXCLUSIVE";
+    // Branch VAT pricing mode takes priority over the tenant's
+    const vatMode: "INCLUSIVE" | "EXCLUSIVE" = getCurrentVatConfig().mode;
 
     const shopId: string | undefined =
         cartDetails?.shop_id?._id ||
