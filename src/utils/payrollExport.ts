@@ -1,9 +1,10 @@
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import autoTable from '@utils/autoTable';
 import * as XLSX from 'xlsx-js-style';
 import { message } from 'antd';
 import { fetchSystemSetupDetailsById } from '@services/systemsetup';
 import { getPrimaryColor, hexToRgb } from './getPrimaryColor';
+import { exportFileName } from './payslipExport';
 
 /**
  * Payroll "Muster Roll" export — Excel + PDF.
@@ -237,7 +238,11 @@ export type MusterRollHeaderMode = 'company' | 'department';
 // Title shown at the top of a muster roll — company name, or the payroll's
 // department name when department mode is chosen/persisted (same setting as
 // payslips: payroll_settings.payslip_export_header).
-const getHeaderName = async (payroll: any, override?: MusterRollHeaderMode): Promise<string> => {
+// The document title (company or department) plus the client name for file names
+const getHeaderName = async (
+  payroll: any,
+  override?: MusterRollHeaderMode
+): Promise<{ header: string; client: string }> => {
   let company = payroll?.shop_id?.name || 'Company';
   let mode: MusterRollHeaderMode = 'company';
   try {
@@ -248,8 +253,17 @@ const getHeaderName = async (payroll: any, override?: MusterRollHeaderMode): Pro
     /* keep fallbacks */
   }
   if (override) mode = override;
-  return mode === 'department' ? payroll?.department_id?.name || company : company;
+  return { header: mode === 'department' ? payroll?.department_id?.name || company : company, client: company };
 };
+
+// "<Department>_Muster_Roll_<period>" when every payroll shares one department, else "<Client>_Muster_Roll_<period>"
+const musterRollFileName = (client: string, payrolls: any[]) =>
+  exportFileName({
+    client,
+    departments: payrolls.map((p) => p?.department_id?.name),
+    what: 'Muster_Roll',
+    period: payrolls[0]?.period_label,
+  });
 
 // ═════════════════════════════════════════════════════════════════════════════
 // EXCEL
@@ -402,14 +416,14 @@ const sanitizeSheetName = (name: string, fallback: string) =>
   (name || fallback).replace(/[\\/?*[\]:]/g, ' ').trim().slice(0, 31) || fallback;
 
 export const exportPayrollToExcel = async (payroll: any, opts: { rounded?: boolean; headerMode?: MusterRollHeaderMode } = {}) => {
-  const company = await getHeaderName(payroll, opts.headerMode);
+  const { header: company, client } = await getHeaderName(payroll, opts.headerMode);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(
     wb,
     buildMusterRollSheet(payroll, company, payroll.lines || [], false, !!opts.rounded),
     'Muster Roll'
   );
-  XLSX.writeFile(wb, `${payroll.payroll_id || 'payroll'}_muster_roll${opts.rounded ? '_rounded' : ''}.xlsx`);
+  XLSX.writeFile(wb, `${musterRollFileName(client, [payroll])}.xlsx`);
 };
 
 /**
@@ -425,7 +439,7 @@ export const exportPayrollsToExcel = async (payrolls: any[], opts: { rounded?: b
   const merged = payrolls.length > 1;
   // A single payroll in department mode shows its department as the title;
   // merged exports have no single department → company name.
-  const company = await getHeaderName(merged ? null : payrolls[0], opts.headerMode);
+  const { header: company, client } = await getHeaderName(merged ? null : payrolls[0], opts.headerMode);
   const wb = XLSX.utils.book_new();
 
   try {
@@ -445,8 +459,7 @@ export const exportPayrollsToExcel = async (payrolls: any[], opts: { rounded?: b
     return;
   }
 
-  const firstPeriod = payrolls[0].period_label?.replace(/\s+/g, '_') || 'export';
-  XLSX.writeFile(wb, `payroll_muster_rolls_${firstPeriod}${opts.rounded ? '_rounded' : ''}.xlsx`);
+  XLSX.writeFile(wb, `${musterRollFileName(client, payrolls)}.xlsx`);
   message.success(
     merged
       ? `Exported ${payrolls.length} merged payrolls (${mergedLines(payrolls).length} employees) to Excel`
@@ -605,14 +618,14 @@ const addPageFooters = (doc: jsPDF, primary: [number, number, number]) => {
 };
 
 export const exportPayrollToPDF = async (payroll: any, opts: { rounded?: boolean; headerMode?: MusterRollHeaderMode } = {}) => {
-  const company = await getHeaderName(payroll, opts.headerMode);
+  const { header: company, client } = await getHeaderName(payroll, opts.headerMode);
   // A3 landscape — the muster roll has ~17 columns; a wider page keeps every
   // column readable and lets the viewer scroll sideways if needed
   const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a3' });
   const primary = hexToRgb(getPrimaryColor());
   renderPayrollPage(doc, payroll, company, primary, payroll.lines || [], false, !!opts.rounded);
   addPageFooters(doc, primary);
-  doc.save(`${payroll.payroll_id || 'payroll'}_muster_roll${opts.rounded ? '_rounded' : ''}.pdf`);
+  doc.save(`${musterRollFileName(client, [payroll])}.pdf`);
 };
 
 /**
@@ -626,7 +639,7 @@ export const exportPayrollsToPDF = async (payrolls: any[], opts: { rounded?: boo
   }
   console.info('[payroll-export] exporting payrolls:', payrolls.map((p) => p.payroll_id || p._id));
   const merged = payrolls.length > 1;
-  const company = await getHeaderName(merged ? null : payrolls[0], opts.headerMode);
+  const { header: company, client } = await getHeaderName(merged ? null : payrolls[0], opts.headerMode);
   // A3 landscape — keeps all muster-roll columns readable on a merged export
   const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a3' });
   const primary = hexToRgb(getPrimaryColor());
@@ -644,8 +657,7 @@ export const exportPayrollsToPDF = async (payrolls: any[], opts: { rounded?: boo
   }
 
   addPageFooters(doc, primary);
-  const firstPeriod = payrolls[0].period_label?.replace(/\s+/g, '_') || 'export';
-  doc.save(`payroll_muster_rolls_${firstPeriod}${opts.rounded ? '_rounded' : ''}.pdf`);
+  doc.save(`${musterRollFileName(client, payrolls)}.pdf`);
   message.success(
     merged
       ? `Exported ${payrolls.length} merged payrolls (${lines.length} employees) to PDF`

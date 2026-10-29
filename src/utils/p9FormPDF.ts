@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import autoTable from '@utils/autoTable';
 import { getUser } from '@services/tenants';
 import { fetchSystemSetupDetailsById } from '@services/systemsetup';
 

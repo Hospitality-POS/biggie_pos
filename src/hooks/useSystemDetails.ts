@@ -43,6 +43,15 @@ function useSystemDetails() {
     networkMode: "always",
   });
 
+  // Only the payment method selected in System Profile is printed. Older
+  // profiles may still hold both a till and a paybill — the selected method
+  // wins; with none selected, paybill is preferred.
+  const paymentDetailName = (data?.paymentDetails?.name || "") as string;
+  const hasPaybill = !!data?.business_no;
+  const usePaybill = paymentDetailName
+    ? /paybill/i.test(paymentDetailName)
+    : hasPaybill;
+
   return {
     BRAND_NAME1: `${data?.name || ""} ${data?.location || ""}`.trim(),
     PHONE_NO: data?.phone,
@@ -50,9 +59,9 @@ function useSystemDetails() {
     PIN: data?.kra_pin,
     location: data?.location,
     EMAIL_URL: data?.email,
-    TILL_NO: withLeadingZero(data?.till_no),
-    Paybill_ac: data?.account_no,
-    Paybill_bs: data?.business_no,
+    TILL_NO: usePaybill ? "" : withLeadingZero(data?.till_no),
+    Paybill_ac: usePaybill ? data?.account_no : undefined,
+    Paybill_bs: usePaybill ? data?.business_no : undefined,
     PO_BOX: data?.po_box,
     bank_details: data?.bank_details,
     // Name of the payment detail selected in System Profile (e.g. "Pochi",

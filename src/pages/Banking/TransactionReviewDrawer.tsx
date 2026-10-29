@@ -3,12 +3,18 @@ import {
     Drawer, Table, Typography, Space, Tag, Button, Tooltip,
     Select, Popconfirm, Badge, Alert, Row, Col, Statistic,
     Tabs, Progress, App, Modal, Form, Input, DatePicker, Card,
+    Switch, InputNumber,
 } from "antd";
 import {
-    CheckCircleOutlined, StopOutlined,
+    CheckCircleOutlined, StopOutlined, PlusOutlined, MinusCircleOutlined,
     SendOutlined, ReloadOutlined, TagOutlined, DeleteOutlined, LinkOutlined,
+    ApartmentOutlined, FileSearchOutlined, EyeOutlined,
 } from "@ant-design/icons";
 import LinkDocumentsModal from "./LinkDocumentsModal";
+import JournalEntryDetailDrawer from "../JournalEntry/JournalEntryDetailDrawer";
+import JournalEntryFormDrawer from "../JournalEntry/JournalEntryFormDrawer";
+import SplitAccountsModal, { SplitRow } from "@components/accounting/SplitAccountsModal";
+import SplitJournalLineModal from "@components/accounting/SplitJournalLineModal";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
     getImportById,
@@ -20,10 +26,14 @@ import {
     pushToJournalEntries,
     deleteImport,
     deleteTransactions,
+    verifyPosting,
     RawTransaction,
     TransactionStatus,
     BankStatementImport,
     CategorizeTransactionInput,
+    UnpostedTransaction,
+    REPOSTABLE_REASONS,
+    UNPOSTED_REASON_LABELS,
 } from "@services/accounting/bankStatementImport";
 import { getAllAccounts } from "@services/accounting/accounts";
 import { fetchAllSuppliers } from "@services/supplier";
@@ -59,14 +69,34 @@ interface CategorizeTxnModalProps {
     loading: boolean;
 }
 
+const fmtAmount = (n: number) => n.toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const round2 = (n: number) => Math.round((n || 0) * 100) / 100;
+
+/** The part of a transaction left for its category account(s) after invoice / bill links. */
+const categoryAmount = (t: RawTransaction) =>
+    round2(
+        (Math.abs(t.debit || 0) || Math.abs(t.credit || 0)) -
+        (t.allocations || []).reduce((s, a) => s + (a.amount || 0), 0)
+    );
+
 const CategorizeTxnModal: React.FC<CategorizeTxnModalProps> = ({
     open, onClose, onConfirm, transaction, accounts, suppliers, loading,
 }) => {
     const [form] = Form.useForm();
+    const splitMode: boolean = Form.useWatch("split_mode", form);
+    const splitLines: { amount?: number }[] = Form.useWatch("splits", form) || [];
+    const target = transaction ? categoryAmount(transaction) : 0;
+    const splitTotal = round2(splitLines.reduce((s, l) => s + (l?.amount || 0), 0));
+    const splitLeft = round2(target - splitTotal);
 
     useEffect(() => {
         if (open && transaction) {
+            const existingSplits = transaction.splits || [];
             form.setFieldsValue({
+                split_mode: existingSplits.length > 0,
+                splits: existingSplits.length
+                    ? existingSplits.map((s) => ({ account_id: s.account_id, amount: s.amount, description: s.description }))
+                    : [{ account_id: transaction.account_id || undefined, amount: target || undefined }, {}],
                 account_id: transaction.account_id || undefined,
                 record_type: transaction.record_type || undefined,
                 target_account_id: transaction.target_account_id || undefined,
@@ -94,8 +124,18 @@ const CategorizeTxnModal: React.FC<CategorizeTxnModalProps> = ({
     }));
 
     const handleOk = async () => {
-        const values = await form.validateFields();
-        onConfirm(values);
+        const { split_mode, splits, ...values } = await form.validateFields();
+        if (split_mode) {
+            if (Math.abs(splitLeft) > 0.01) return;
+            const lines = (splits || []).map((s: any) => ({
+                account_id: s.account_id,
+                amount: s.amount,
+                description: s.description || undefined,
+            }));
+            onConfirm({ ...values, account_id: lines[0].account_id, splits: lines });
+        } else {
+            onConfirm({ ...values, splits: [] });
+        }
     };
 
     return (
@@ -113,24 +153,112 @@ const CategorizeTxnModal: React.FC<CategorizeTxnModalProps> = ({
             onOk={handleOk}
             confirmLoading={loading}
             okText="Save"
-            width={600}
+            okButtonProps={{ disabled: splitMode && Math.abs(splitLeft) > 0.01 }}
+            width={splitMode ? 760 : 600}
             destroyOnClose
         >
             <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
-                <Form.Item
-                    name="account_id"
-                    label="Account"
-                    rules={[{ required: true, message: "Please select an account" }]}
-                >
-                    <Select
-                        placeholder="Select account..."
-                        options={accountOptions}
-                        showSearch
-                        optionFilterProp="label"
-                        allowClear
-                        size="large"
-                    />
-                </Form.Item>
+                <Space style={{ marginBottom: 12 }} align="center">
+                    <Form.Item name="split_mode" valuePropName="checked" noStyle>
+                        <Switch size="small" />
+                    </Form.Item>
+                    <Text>Split across several accounts</Text>
+                    {transaction && (
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                            (amount to categorize: {fmtAmount(target)})
+                        </Text>
+                    )}
+                </Space>
+
+                {splitMode ? (
+                    <div style={{ marginBottom: 16 }}>
+                        <Form.List name="splits">
+                            {(fields, { add, remove }) => (
+                                <>
+                                    {fields.map(({ key, name }) => (
+                                        <Row gutter={8} key={key} align="top">
+                                            <Col flex="auto">
+                                                <Form.Item
+                                                    name={[name, "account_id"]}
+                                                    rules={[{ required: true, message: "Pick an account" }]}
+                                                    style={{ marginBottom: 8 }}
+                                                >
+                                                    <Select
+                                                        placeholder="Account..."
+                                                        options={accountOptions}
+                                                        showSearch
+                                                        optionFilterProp="label"
+                                                    />
+                                                </Form.Item>
+                                            </Col>
+                                            <Col flex="140px">
+                                                <Form.Item
+                                                    name={[name, "amount"]}
+                                                    rules={[{ required: true, message: "Amount" }]}
+                                                    style={{ marginBottom: 8 }}
+                                                >
+                                                    <InputNumber
+                                                        min={0.01}
+                                                        precision={2}
+                                                        placeholder="0.00"
+                                                        style={{ width: "100%" }}
+                                                        formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                                                        parser={(v) => v!.replace(/,/g, "") as any}
+                                                    />
+                                                </Form.Item>
+                                            </Col>
+                                            <Col flex="180px">
+                                                <Form.Item name={[name, "description"]} style={{ marginBottom: 8 }}>
+                                                    <Input placeholder="Memo (optional)" />
+                                                </Form.Item>
+                                            </Col>
+                                            <Col flex="32px">
+                                                <Button
+                                                    type="text"
+                                                    danger
+                                                    icon={<MinusCircleOutlined />}
+                                                    onClick={() => remove(name)}
+                                                    disabled={fields.length <= 2}
+                                                />
+                                            </Col>
+                                        </Row>
+                                    ))}
+                                    <Space style={{ width: "100%", justifyContent: "space-between" }}>
+                                        <Button
+                                            type="dashed"
+                                            icon={<PlusOutlined />}
+                                            onClick={() => add({ amount: splitLeft > 0 ? splitLeft : undefined })}
+                                        >
+                                            Add account
+                                        </Button>
+                                        <Text type={Math.abs(splitLeft) > 0.01 ? "danger" : "success"}>
+                                            {fmtAmount(splitTotal)} of {fmtAmount(target)}
+                                            {Math.abs(splitLeft) > 0.01 &&
+                                                (splitLeft > 0
+                                                    ? ` — ${fmtAmount(splitLeft)} left`
+                                                    : ` — ${fmtAmount(-splitLeft)} over`)}
+                                        </Text>
+                                    </Space>
+                                </>
+                            )}
+                        </Form.List>
+                    </div>
+                ) : (
+                    <Form.Item
+                        name="account_id"
+                        label="Account"
+                        rules={[{ required: true, message: "Please select an account" }]}
+                    >
+                        <Select
+                            placeholder="Select account..."
+                            options={accountOptions}
+                            showSearch
+                            optionFilterProp="label"
+                            allowClear
+                            size="large"
+                        />
+                    </Form.Item>
+                )}
                 <Row gutter={12}>
                     <Col span={12}>
                         <Form.Item name="record_type" label="Record Type">
@@ -267,26 +395,52 @@ const TransactionReviewDrawer: React.FC<Props> = ({
     const [categorizeModal, setCategorizeModal] = useState(false);
     const [activeTxn, setActiveTxn] = useState<RawTransaction | null>(null);
     const [linkTxn, setLinkTxn] = useState<RawTransaction | null>(null);
+    const [splitTxn, setSplitTxn] = useState<RawTransaction | null>(null);
+    const [splitPostedTxn, setSplitPostedTxn] = useState<RawTransaction | null>(null);
     const [categorizingBulk, setCategorizingBulk] = useState(false);
     const [bulkAccountId, setBulkAccountId] = useState<string | null>(null);
     const [pushModalOpen, setPushModalOpen] = useState(false);
     const [pushTarget, setPushTarget] = useState<string>("");
     const [dateRange, setDateRange] = useState<[string, string] | null>(null);
+    // Journal entry check — which transactions don't show in the bank's ledger
+    const [entryCheckOn, setEntryCheckOn] = useState(false);
+    const [issuesOnly, setIssuesOnly] = useState(false);
+    const [viewEntryId, setViewEntryId] = useState<string | null>(null);
+    const [editEntryId, setEditEntryId] = useState<string | null>(null);
 
     const importId = importRecord?._id;
+    // The issue filter works client-side, so it needs every row like the date filter
+    const loadAll = !!dateRange || issuesOnly;
 
     const { data, isLoading } = useQuery({
-        queryKey: ["import-detail", importId, statusFilter, page, dateRange],
+        queryKey: ["import-detail", importId, issuesOnly ? "ALL" : statusFilter, loadAll ? 1 : page, dateRange, loadAll],
         queryFn: () =>
             getImportById(importId!, {
-                status_filter: statusFilter === "ALL" ? undefined : statusFilter,
-                page: dateRange ? 1 : page,
-                limit: dateRange ? 10000 : 50,
+                status_filter: issuesOnly || statusFilter === "ALL" ? undefined : statusFilter,
+                page: loadAll ? 1 : page,
+                limit: loadAll ? 10000 : 50,
             }),
         enabled: open && !!importId,
         keepPreviousData: true,
         refetchOnWindowFocus: false,
     });
+
+    const { data: entryCheck, isFetching: entryCheckLoading, refetch: recheckEntries } = useQuery({
+        queryKey: ["verify-posting", importId],
+        queryFn: () => verifyPosting(importId!),
+        enabled: open && !!importId && entryCheckOn,
+        refetchOnWindowFocus: false,
+    });
+    const issueById = new Map<string, UnpostedTransaction>(
+        (entryCheck?.unposted || []).map((t) => [String(t._id), t])
+    );
+    const issueCounts = (entryCheck?.unposted || []).reduce<Record<string, number>>((acc, t) => {
+        acc[t.reason] = (acc[t.reason] || 0) + 1;
+        return acc;
+    }, {});
+    const repostableIds = (entryCheck?.unposted || [])
+        .filter((t) => !!t.account_id && REPOSTABLE_REASONS.includes(t.reason))
+        .map((t) => String(t._id));
 
     const { data: accountsData } = useQuery({
         queryKey: ["chart-of-accounts", shopId],
@@ -316,13 +470,13 @@ const TransactionReviewDrawer: React.FC<Props> = ({
     const totalTxns = data?.transaction_total || 0;
     const totalPages = data?.totalPages || 1;
 
-    // Client-side date filtering
-    const transactions = dateRange
-        ? allTransactions.filter((txn: RawTransaction) => {
-            const txnDate = dayjs(txn.transaction_date).format('YYYY-MM-DD');
-            return txnDate >= dateRange[0] && txnDate <= dateRange[1];
-        })
-        : allTransactions;
+    // Client-side date / journal-entry-issue filtering
+    const transactions = allTransactions.filter((txn: RawTransaction) => {
+        if (issuesOnly && !issueById.has(String(txn._id))) return false;
+        if (!dateRange) return true;
+        const txnDate = dayjs(txn.transaction_date).format('YYYY-MM-DD');
+        return txnDate >= dateRange[0] && txnDate <= dateRange[1];
+    });
 
     useEffect(() => {
         if (!open) {
@@ -330,8 +484,24 @@ const TransactionReviewDrawer: React.FC<Props> = ({
             setSelectedRowKeys([]);
             setStatusFilter("ALL");
             setDateRange(null);
+            setEntryCheckOn(false);
+            setIssuesOnly(false);
         }
     }, [open]);
+
+    const refreshAfterEntryFix = () => {
+        queryClient.invalidateQueries({ queryKey: ["import-detail", importId] });
+        queryClient.invalidateQueries({ queryKey: ["verify-posting", importId] });
+        onSuccess();
+    };
+
+    // Re-post transactions whose journal entry is missing, deleted or voided
+    const bankAccountId = String((importDetail?.account_id as any)?._id || importDetail?.account_id || "");
+    const repostMutation = useMutation({
+        mutationFn: (txnIds: string[]) =>
+            pushToJournalEntries(importId!, { bank_account_id: bankAccountId, txn_ids: txnIds }),
+        onSuccess: refreshAfterEntryFix,
+    });
 
     const reApplyMutation = useMutation({
         mutationFn: () => reApplyRules(importId!, { reset_categorized: false }),
@@ -348,8 +518,16 @@ const TransactionReviewDrawer: React.FC<Props> = ({
             queryClient.invalidateQueries({ queryKey: ["import-detail", importId] });
             setCategorizeModal(false);
             setActiveTxn(null);
+            setSplitTxn(null);
         },
     });
+
+    // Quick split from the row: only the split changes, the rest of the categorization stays
+    const saveSplit = (txn: RawTransaction, splits: SplitRow[]) =>
+        categorizeMutation.mutate({
+            txnId: txn._id,
+            data: { account_id: splits[0]?.account_id || txn.account_id!, splits },
+        });
 
     const excludeMutation = useMutation({
         mutationFn: (txnId: string) => excludeTransaction(importId!, txnId),
@@ -483,12 +661,23 @@ const TransactionReviewDrawer: React.FC<Props> = ({
             width: 200,
             render: (_: any, r: RawTransaction) => {
                 const links = r.allocations || [];
-                if (!r.account_name && !links.length) {
+                const splits = r.splits || [];
+                if (!r.account_name && !links.length && !splits.length) {
                     return <Text type="secondary" style={{ fontSize: 12 }}>—</Text>;
                 }
                 return (
                     <Space direction="vertical" size={2}>
-                        {r.account_name && (
+                        {splits.length > 0 ? (
+                            <Tooltip title={`Split across ${splits.length} accounts`}>
+                                <Space direction="vertical" size={2}>
+                                    {splits.map((s, i) => (
+                                        <Tag key={i} icon={<ApartmentOutlined />} color="purple" style={{ fontSize: 11 }}>
+                                            {s.account_code} {s.account_name} · {fmtAmount(s.amount)}
+                                        </Tag>
+                                    ))}
+                                </Space>
+                            </Tooltip>
+                        ) : r.account_name && (
                             <Tag icon={<TagOutlined />} color="blue" style={{ fontSize: 11 }}>
                                 {r.account_code} {r.account_name}
                             </Tag>
@@ -548,14 +737,25 @@ const TransactionReviewDrawer: React.FC<Props> = ({
         {
             title: "Status",
             dataIndex: "status",
-            width: 120,
-            render: (s: TransactionStatus) => (
-                <Badge
-                    status={STATUS_COLORS[s] as any}
-                    text={s === "Pushed" ? "Completed" : s}
-                    style={{ fontSize: 12 }}
-                />
-            ),
+            width: 140,
+            render: (s: TransactionStatus, r: RawTransaction) => {
+                const issue = issueById.get(String(r._id));
+                const cfg = issue ? UNPOSTED_REASON_LABELS[issue.reason] : null;
+                return (
+                    <Space direction="vertical" size={2}>
+                        <Badge
+                            status={STATUS_COLORS[s] as any}
+                            text={s === "Pushed" ? "Completed" : s}
+                            style={{ fontSize: 12 }}
+                        />
+                        {cfg && (
+                            <Tooltip title={`${cfg.hint}${issue?.journal_entry_no ? ` (${issue.journal_entry_no})` : ""}`}>
+                                <Tag color={cfg.color} style={{ fontSize: 11, margin: 0 }}>{cfg.label}</Tag>
+                            </Tooltip>
+                        )}
+                    </Space>
+                );
+            },
         },
         {
             title: "Actions",
@@ -575,7 +775,48 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                         />
                     </Tooltip>
                 );
-                if (r.status === "Pushed" || r.journal_entry_id) return linkButton;
+                if (r.status === "Pushed" || r.journal_entry_id) {
+                    // Already posted — a split edits the journal entry it posted
+                    const issue = issueById.get(String(r._id));
+                    const entryId = issue?.journal_entry_id || r.journal_entry_id;
+                    const canRepost = !!issue && repostableIds.includes(String(r._id));
+                    return (
+                        <Space size={4}>
+                            {linkButton}
+                            {canRepost && (
+                                <Tooltip title="Re-post its journal entry">
+                                    <Button
+                                        icon={<SendOutlined />}
+                                        size="small"
+                                        type="primary"
+                                        loading={repostMutation.isLoading}
+                                        onClick={() => repostMutation.mutate([String(r._id)])}
+                                    />
+                                </Tooltip>
+                            )}
+                            {!canRepost && entryId && (
+                                <Tooltip title="View journal entry">
+                                    <Button
+                                        icon={<EyeOutlined />}
+                                        size="small"
+                                        type={issue ? "primary" : "default"}
+                                        ghost={!!issue}
+                                        onClick={() => setViewEntryId(String(entryId))}
+                                    />
+                                </Tooltip>
+                            )}
+                            {r.journal_entry_id && importDetail?.status !== "Voided" && (
+                                <Tooltip title="Split across accounts">
+                                    <Button
+                                        icon={<ApartmentOutlined />}
+                                        size="small"
+                                        onClick={() => setSplitPostedTxn(r)}
+                                    />
+                                </Tooltip>
+                            )}
+                        </Space>
+                    );
+                }
                 return (
                     <Space size={4}>
                         {linkButton}
@@ -587,6 +828,17 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                                 disabled={r.status === "Excluded"}
                             />
                         </Tooltip>
+                        {r.status === "Categorized" && categoryAmount(r) > 0 && (
+                            <Tooltip title={r.splits?.length ? "Edit split" : "Split across accounts"}>
+                                <Button
+                                    icon={<ApartmentOutlined />}
+                                    size="small"
+                                    type={r.splits?.length ? "primary" : "default"}
+                                    ghost={!!r.splits?.length}
+                                    onClick={() => setSplitTxn(r)}
+                                />
+                            </Tooltip>
+                        )}
                         {r.status === "Categorized" && (
                             <Tooltip title="Uncategorize">
                                 <Button
@@ -653,6 +905,16 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                         >
                             Delete Import
                         </Button>
+                        <Tooltip title="Find completed or categorized transactions whose journal entry is missing, or won't show in this bank's ledger">
+                            <Button
+                                icon={<FileSearchOutlined />}
+                                onClick={() => (entryCheckOn ? recheckEntries() : setEntryCheckOn(true))}
+                                loading={entryCheckLoading}
+                                size="large"
+                            >
+                                Check Journal Entries
+                            </Button>
+                        </Tooltip>
                         <Button
                             icon={<ReloadOutlined />}
                             onClick={() => reApplyMutation.mutate()}
@@ -732,6 +994,67 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                         </Card>
                     </Col>
                 </Row>
+
+                {/* ── Journal entry check result ── */}
+                {entryCheckOn && entryCheck && (
+                    entryCheck.all_posted ? (
+                        <Alert
+                            type="success"
+                            showIcon
+                            closable
+                            onClose={() => { setEntryCheckOn(false); setIssuesOnly(false); }}
+                            style={{ marginBottom: 16 }}
+                            message={`All ${entryCheck.total_checked} transactions have a posted journal entry on this bank account`}
+                            description="If the bank's ledger still shows fewer, check its date range and branch filter."
+                        />
+                    ) : (
+                        <Alert
+                            type="warning"
+                            showIcon
+                            closable
+                            onClose={() => { setEntryCheckOn(false); setIssuesOnly(false); }}
+                            style={{ marginBottom: 16 }}
+                            message={`${entryCheck.unposted_count} of ${entryCheck.total_checked} transactions are missing from this bank's ledger or not posted yet`}
+                            description={
+                                <Space direction="vertical" size={8} style={{ width: "100%" }}>
+                                    <Space wrap size={4}>
+                                        {Object.entries(issueCounts).map(([reason, n]) => {
+                                            const cfg = UNPOSTED_REASON_LABELS[reason as keyof typeof UNPOSTED_REASON_LABELS];
+                                            return (
+                                                <Tooltip key={reason} title={cfg?.hint}>
+                                                    <Tag color={cfg?.color}>{cfg?.label || reason}: {n}</Tag>
+                                                </Tooltip>
+                                            );
+                                        })}
+                                    </Space>
+                                    <Space wrap>
+                                        <Switch
+                                            checked={issuesOnly}
+                                            onChange={(v) => { setIssuesOnly(v); setStatusFilter("ALL"); setPage(1); }}
+                                            checkedChildren="Showing only these"
+                                            unCheckedChildren="Show only these"
+                                        />
+                                        {repostableIds.length > 0 && (
+                                            <Popconfirm
+                                                title={`Re-post ${repostableIds.length} transaction${repostableIds.length === 1 ? "" : "s"}?`}
+                                                description="Creates a journal entry on this statement's bank account for each one."
+                                                onConfirm={() => repostMutation.mutateAsync(repostableIds)}
+                                                okText="Re-post"
+                                            >
+                                                <Button size="small" type="primary" icon={<SendOutlined />} loading={repostMutation.isLoading}>
+                                                    Re-post {repostableIds.length} missing
+                                                </Button>
+                                            </Popconfirm>
+                                        )}
+                                        <Button size="small" icon={<ReloadOutlined />} onClick={() => recheckEntries()} loading={entryCheckLoading}>
+                                            Re-check
+                                        </Button>
+                                    </Space>
+                                </Space>
+                            }
+                        />
+                    )
+                )}
 
                 {/* ── Bulk Actions (when rows selected) ── */}
                 {selectedRowKeys.length > 0 && (
@@ -830,14 +1153,18 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                             disabled: r.status === "Pushed" || !!r.journal_entry_id,
                         }),
                     }}
-                    pagination={{
-                        current: page,
-                        total: totalTxns,
-                        pageSize: 50,
-                        onChange: (p) => setPage(p),
-                        showTotal: (t) => `${t} transactions`,
-                        showSizeChanger: false,
-                    }}
+                    pagination={
+                        loadAll
+                            ? { pageSize: 50, showTotal: (t) => `${t} transactions`, showSizeChanger: false }
+                            : {
+                                current: page,
+                                total: totalTxns,
+                                pageSize: 50,
+                                onChange: (p) => setPage(p),
+                                showTotal: (t) => `${t} transactions`,
+                                showSizeChanger: false,
+                            }
+                    }
                     rowClassName={(r: RawTransaction) =>
                         r.status === "Excluded" ? "opacity-50" : ""
                     }
@@ -853,6 +1180,70 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                 accounts={accounts}
                 suppliers={suppliers}
                 loading={categorizeMutation.isLoading}
+            />
+
+            {/* ── Split a categorized transaction across accounts ── */}
+            <SplitAccountsModal
+                open={!!splitTxn}
+                total={splitTxn ? categoryAmount(splitTxn) : 0}
+                title="Split transaction across accounts"
+                subtitle={
+                    splitTxn
+                        ? `${splitTxn.description} — ${fmtAmount(categoryAmount(splitTxn))} to split${
+                            splitTxn.allocations?.length ? " (after linked invoices / bills)" : ""
+                        }`
+                        : undefined
+                }
+                initialRows={
+                    splitTxn?.splits?.length
+                        ? splitTxn.splits
+                        : splitTxn
+                            ? [
+                                { account_id: splitTxn.account_id || "", amount: categoryAmount(splitTxn) },
+                                { account_id: "", amount: 0 },
+                            ]
+                            : undefined
+                }
+                accountOptions={accountOptions.filter(
+                    (o: { value: string }) => o.value !== (importDetail?.account_id as any)?._id && o.value !== importDetail?.account_id
+                )}
+                onClose={() => setSplitTxn(null)}
+                onApply={(rows) => splitTxn && saveSplit(splitTxn, rows)}
+                onRemove={
+                    splitTxn?.splits?.length
+                        ? () => categorizeMutation.mutate({
+                            txnId: splitTxn._id,
+                            data: { account_id: splitTxn.account_id!, splits: [] },
+                        })
+                        : undefined
+                }
+            />
+
+            {/* ── Journal entry behind a flagged transaction ── */}
+            <JournalEntryDetailDrawer
+                open={!!viewEntryId}
+                entryId={viewEntryId}
+                onClose={() => setViewEntryId(null)}
+                onSuccess={refreshAfterEntryFix}
+                onEdit={(id) => setEditEntryId(id)}
+            />
+            <JournalEntryFormDrawer
+                open={!!editEntryId}
+                entryId={editEntryId}
+                shopId={shopId}
+                onClose={() => setEditEntryId(null)}
+                onSuccess={() => {
+                    setEditEntryId(null);
+                    refreshAfterEntryFix();
+                }}
+            />
+
+            {/* ── Split a completed transaction's posted entry ── */}
+            <SplitJournalLineModal
+                entryId={splitPostedTxn?.journal_entry_id || null}
+                accountId={splitPostedTxn?.account_id}
+                onClose={() => setSplitPostedTxn(null)}
+                onSaved={() => queryClient.invalidateQueries({ queryKey: ["import-detail", importId] })}
             />
 
             {/* ── Link to invoices / bills ── */}

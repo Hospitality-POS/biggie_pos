@@ -1,18 +1,22 @@
 import React, { useState, useEffect } from "react";
 import {
-    Drawer, Table, Typography, Space, Tag,
+    Drawer, Table, Typography, Space, Tag, Tooltip,
     Statistic, Row, Col, DatePicker, Button, Dropdown, MenuProps,
 } from "antd";
 import {
     ArrowUpOutlined, ArrowDownOutlined,
     DownloadOutlined, FileExcelOutlined, FilePdfOutlined,
+    EditOutlined, ApartmentOutlined, AuditOutlined,
 } from "@ant-design/icons";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
     getAccountLedger,
     ChartOfAccount,
     LedgerLine,
 } from "@services/accounting/accounts";
+import JournalEntryFormDrawer from "../JournalEntry/JournalEntryFormDrawer";
+import SplitJournalLineModal from "@components/accounting/SplitJournalLineModal";
+import ReconcileStatementDrawer from "../Banking/ReconcileStatementDrawer";
 import dayjs, { Dayjs } from "dayjs";
 
 const { Text, Title } = Typography;
@@ -118,7 +122,7 @@ const exportLedgerToPdf = async (
     totals: { totalDebit: number; totalCredit: number; closing: number }
 ) => {
     const { default: jsPDF } = await import("jspdf");
-    const { default: autoTable } = await import("jspdf-autotable");
+    const { default: autoTable } = await import("@utils/autoTable");
 
     const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
     const period = `${dateRange[0]?.format("DD/MM/YYYY")} – ${dateRange[1]?.format("DD/MM/YYYY")}`;
@@ -203,6 +207,10 @@ const exportLedgerToPdf = async (
 // ─────────────────────────────────────────────────────────────────────────────
 
 const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId, initialFrom, initialTo }) => {
+    const queryClient = useQueryClient();
+    const [editEntryId, setEditEntryId] = useState<string | null>(null);
+    const [splitEntryId, setSplitEntryId] = useState<string | null>(null);
+    const [verifyOpen, setVerifyOpen] = useState(false);
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(25);
     const [exporting, setExporting] = useState(false);
@@ -277,6 +285,15 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId, 
     const pageTotalDebit = ledger.reduce((s, l) => s + (l.debit || 0), 0);
     const pageTotalCredit = ledger.reduce((s, l) => s + (l.credit || 0), 0);
     const pageClosing = ledger.length > 0 ? ledger[ledger.length - 1].balance : 0;
+
+    // An edit or split moves amounts between accounts — refresh this ledger
+    // and the reports / balances behind it
+    const refreshBooks = () => {
+        queryClient.invalidateQueries({ queryKey: ["account-ledger"] });
+        queryClient.invalidateQueries({ queryKey: ["account-ledger-all"] });
+        queryClient.invalidateQueries({ queryKey: ["chart-of-accounts"] });
+        queryClient.invalidateQueries({ predicate: (q) => String(q.queryKey[0]).startsWith("rpt-") });
+    };
 
     const handleExport = async (type: "excel" | "pdf") => {
         if (!account) return;
@@ -412,6 +429,22 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId, 
                 </Text>
             ),
         },
+        {
+            title: "",
+            key: "actions",
+            width: 72,
+            render: (_: unknown, l: LedgerLine) =>
+                l.entry_id ? (
+                    <Space size={2}>
+                        <Tooltip title="Edit transaction">
+                            <Button icon={<EditOutlined />} size="small" type="text" onClick={() => setEditEntryId(l.entry_id)} />
+                        </Tooltip>
+                        <Tooltip title="Split across accounts">
+                            <Button icon={<ApartmentOutlined />} size="small" type="text" onClick={() => setSplitEntryId(l.entry_id)} />
+                        </Tooltip>
+                    </Space>
+                ) : null,
+        },
     ];
 
     return (
@@ -431,11 +464,18 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId, 
             width={860}
             destroyOnClose
             extra={
-                <Dropdown menu={{ items: exportMenuItems }} placement="bottomRight" disabled={exporting || ledger.length === 0}>
-                    <Button icon={<DownloadOutlined />} loading={exporting} size="small">
-                        Export
-                    </Button>
-                </Dropdown>
+                <Space>
+                    <Tooltip title="Upload this account's bank statement to see why the ledger doesn't match it">
+                        <Button icon={<AuditOutlined />} size="small" onClick={() => setVerifyOpen(true)} disabled={!account}>
+                            Verify vs Statement
+                        </Button>
+                    </Tooltip>
+                    <Dropdown menu={{ items: exportMenuItems }} placement="bottomRight" disabled={exporting || ledger.length === 0}>
+                        <Button icon={<DownloadOutlined />} loading={exporting} size="small">
+                            Export
+                        </Button>
+                    </Dropdown>
+                </Space>
             }
         >
             {/* ── Date Range Filter ── */}
@@ -529,7 +569,7 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId, 
                     ledger.length > 0 ? (
                         <Table.Summary fixed>
                             <Table.Summary.Row style={{ background: "#fafafa" }}>
-                                <Table.Summary.Cell index={0} colSpan={4}>
+                                <Table.Summary.Cell index={0} colSpan={5}>
                                     <Text strong>Page Total</Text>
                                 </Table.Summary.Cell>
                                 <Table.Summary.Cell index={4} align="right">
@@ -547,10 +587,44 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId, 
                                         {Math.abs(pageClosing).toLocaleString("en-KE", { minimumFractionDigits: 2 })}
                                     </Text>
                                 </Table.Summary.Cell>
+                                <Table.Summary.Cell index={7} />
                             </Table.Summary.Row>
                         </Table.Summary>
                     ) : null
                 }
+            />
+
+            {/* ── Edit the whole entry behind a ledger row ── */}
+            <JournalEntryFormDrawer
+                open={!!editEntryId}
+                entryId={editEntryId}
+                shopId={shopId}
+                onClose={() => setEditEntryId(null)}
+                onSuccess={() => {
+                    setEditEntryId(null);
+                    refreshBooks();
+                }}
+            />
+
+            {/* ── Verify the ledger against an uploaded bank statement ── */}
+            <ReconcileStatementDrawer
+                mode="ledger"
+                open={verifyOpen}
+                onClose={() => setVerifyOpen(false)}
+                onSuccess={refreshBooks}
+                // Imports need a branch — use the current one when the report spans all
+                shopId={shopId || localStorage.getItem("shopId") || ""}
+                ledgerShopId={shopId}
+                presetAccountId={account?._id}
+                presetAccountName={account ? `${account.account_code} — ${account.account_name}` : undefined}
+            />
+
+            {/* ── Split this account's line across accounts ── */}
+            <SplitJournalLineModal
+                entryId={splitEntryId}
+                accountId={account?._id}
+                onClose={() => setSplitEntryId(null)}
+                onSaved={refreshBooks}
             />
         </Drawer>
     );

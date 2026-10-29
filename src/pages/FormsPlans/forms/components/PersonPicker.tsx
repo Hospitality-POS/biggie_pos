@@ -22,7 +22,11 @@ const EmployeePicker: React.FC<Props> = ({ value, onChange, size = "middle" }) =
 
   const { data: employees = [], isFetching } = useQuery({
     queryKey: ["employee-picker", debounced],
-    queryFn: async () => ((await fetchEmployees({ search: debounced || undefined, limit: 30 }))?.employees ?? []) as PersonLite[],
+    queryFn: async () => {
+      // /employees returns the list under `data` (same as the Employees page reads it)
+      const res = await fetchEmployees({ search: debounced || undefined, limit: 30 });
+      return (Array.isArray(res) ? res : res?.data ?? res?.employees ?? []) as PersonLite[];
+    },
   });
 
   // Keep the chosen employee in the list so the Select can show their name

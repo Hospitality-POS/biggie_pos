@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import autoTable from '@utils/autoTable';
 import dayjs from 'dayjs';
 
 interface ClientStatementData {

@@ -131,6 +131,16 @@ export interface RawTransaction {
     pushed_to_statement_line_id?: string;
     allocations?: TransactionAllocation[];
     payment_method_id?: string | null;
+    splits?: TransactionSplit[];
+}
+
+/** One account's share of a transaction's (unlinked) category amount. */
+export interface TransactionSplit {
+    account_id: string;
+    account_code?: string;
+    account_name?: string;
+    amount: number;
+    description?: string;
 }
 
 // ── Invoice / bill links ─────────────────────────────────────────────────────
@@ -268,6 +278,8 @@ export interface CategorizeTransactionInput {
     target_account_id?: string;
     target_account_code?: string;
     target_account_name?: string;
+    /** Two or more lines splitting the category amount; [] removes a split. */
+    splits?: Pick<TransactionSplit, "account_id" | "amount" | "description">[];
 }
 
 export interface BulkCategorizeInput extends CategorizeTransactionInput {
@@ -284,7 +296,34 @@ export type UnpostedReason =
     | "not_posted"
     | "missing_journal_entry"
     | "journal_entry_deleted"
-    | "journal_entry_voided";
+    | "journal_entry_voided"
+    // The entry exists but won't show in this bank account's ledger as expected
+    | "journal_entry_draft"
+    | "not_on_bank_account"
+    | "amount_mismatch"
+    | "different_branch"
+    | "date_differs";
+
+/** Reasons a re-post fixes — the others need the existing entry corrected. */
+export const REPOSTABLE_REASONS: UnpostedReason[] = [
+    "not_posted",
+    "missing_journal_entry",
+    "journal_entry_deleted",
+    "journal_entry_voided",
+];
+
+export const UNPOSTED_REASON_LABELS: Record<UnpostedReason, { label: string; color: string; hint: string }> = {
+    not_categorized: { label: "Not Categorized", color: "warning", hint: "Pick an account, then complete it" },
+    not_posted: { label: "Not Posted", color: "warning", hint: "Categorized but never completed" },
+    missing_journal_entry: { label: "Missing Journal Entry", color: "error", hint: "Marked completed, but no journal entry exists — re-post it" },
+    journal_entry_deleted: { label: "Journal Entry Deleted", color: "error", hint: "Its journal entry was deleted — re-post it" },
+    journal_entry_voided: { label: "Journal Entry Voided", color: "error", hint: "Its journal entry was voided — re-post it" },
+    journal_entry_draft: { label: "Entry Still Draft", color: "orange", hint: "Draft entries don't show in the ledger — post the entry" },
+    not_on_bank_account: { label: "Not On This Bank", color: "orange", hint: "The entry has no line on this statement's bank account" },
+    amount_mismatch: { label: "Amount Differs", color: "orange", hint: "The entry's bank line doesn't match the statement amount" },
+    different_branch: { label: "Other Branch", color: "orange", hint: "The entry belongs to a different branch, so a branch-filtered ledger hides it" },
+    date_differs: { label: "Date Differs", color: "gold", hint: "The entry date differs from the statement date and may fall outside the ledger period" },
+};
 
 export interface UnpostedTransaction {
     _id: string;
@@ -298,6 +337,8 @@ export interface UnpostedTransaction {
     account_code?: string;
     account_name?: string;
     journal_entry_id?: string | null;
+    journal_entry_no?: string | null;
+    entry_date?: string | null;
     reason: UnpostedReason;
 }
 
@@ -865,6 +906,7 @@ export const linkTransaction = async (
             data
         );
         message.success(response.data.message);
+        if (response.data.warning) message.warning(response.data.warning);
         return response.data as { transaction: RawTransaction; applied: boolean };
     } catch (error: unknown) {
         const axiosError = error as { response?: { data?: { message?: string } } };

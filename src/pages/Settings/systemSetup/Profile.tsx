@@ -141,6 +141,15 @@ function SystemSetup() {
       }
     });
 
+    // Only one payment method is kept — clear the other method's numbers so
+    // a till and a paybill never end up saved (and printed) together.
+    if (showPaybillDetails) {
+      formData.till_no = null;
+    } else {
+      formData.account_no = null;
+      formData.business_no = null;
+    }
+
     const confirmed = await ShowConfirm({
       title: `Are you sure you want to ${data ? "Update" : "Add new"} system setup details?`,
       position: true,

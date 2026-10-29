@@ -4,7 +4,7 @@ import { PlusOutlined, InfoCircleOutlined, FilePdfOutlined } from '@ant-design/i
 import { formatCurrency, formatDate } from '@utils/formatters';
 import { AgentCommissionReport, AgentSaleDetails, Sale } from '../../types';
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import autoTable from '@utils/autoTable';
 
 const { Title, Text } = Typography;
 

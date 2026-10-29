@@ -129,7 +129,7 @@ const exportToPdf = async (
     head: string[], body: (string | number | object)[][]
 ) => {
     const { default: jsPDF } = await import("jspdf");
-    const { default: autoTable } = await import("jspdf-autotable");
+    const { default: autoTable } = await import("@utils/autoTable");
     const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
     doc.setFont("helvetica", "bold"); doc.setFontSize(13);
     doc.text(title, 14, 14);

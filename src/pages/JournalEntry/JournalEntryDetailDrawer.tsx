@@ -13,6 +13,7 @@ import {
     Badge,
     Alert,
     Spin,
+    Tooltip,
 } from "antd";
 import {
     CheckCircleOutlined,
@@ -20,6 +21,7 @@ import {
     EditOutlined,
     SwapOutlined,
     LinkOutlined,
+    ApartmentOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -31,6 +33,7 @@ import {
 } from "@services/accounting/journals";
 import { getImportById } from "@services/accounting/bankStatementImport";
 import LinkDocumentsModal from "../Banking/LinkDocumentsModal";
+import SplitJournalLineModal from "@components/accounting/SplitJournalLineModal";
 import dayjs from "dayjs";
 
 const { Text, Title } = Typography;
@@ -125,6 +128,11 @@ const JournalEntryDetailDrawer: React.FC<Props> = ({ open, onClose, entryId, onS
         },
     });
 
+    // ── Split a line across accounts ───────────────────────────────────────────
+
+    const [splitIndex, setSplitIndex] = useState<number | null>(null);
+    const canSplit = !!entry && entry.status !== "Voided" && !entry.period_locked;
+
     const handleVoidConfirm = () => {
         if (!voidReason.trim() || !entryId) return;
         voidMutation.mutate({ id: entryId, reason: voidReason });
@@ -198,6 +206,26 @@ const JournalEntryDetailDrawer: React.FC<Props> = ({ open, onClose, entryId, onS
                     <Text type="secondary">—</Text>
                 ),
         },
+        ...(canSplit
+            ? [
+                {
+                    title: "",
+                    key: "split",
+                    width: 44,
+                    render: (_: any, line: JournalLine, index: number) => (
+                        <Tooltip title="Split across accounts">
+                            <Button
+                                icon={<ApartmentOutlined />}
+                                size="small"
+                                type="text"
+                                onClick={() => setSplitIndex(index)}
+                                disabled={!((line.debit || 0) > 0 || (line.credit || 0) > 0)}
+                            />
+                        </Tooltip>
+                    ),
+                },
+            ]
+            : []),
     ];
 
     const lines = entry?.lines || [];
@@ -393,6 +421,7 @@ const JournalEntryDetailDrawer: React.FC<Props> = ({ open, onClose, entryId, onS
                                                 {(entry.total_credit || 0).toLocaleString("en-KE", { minimumFractionDigits: 2 })}
                                             </Text>
                                         </Table.Summary.Cell>
+                                        {canSplit && <Table.Summary.Cell index={4} />}
                                     </Table.Summary.Row>
                                 </Table.Summary>
                             )}
@@ -430,6 +459,14 @@ const JournalEntryDetailDrawer: React.FC<Props> = ({ open, onClose, entryId, onS
                     queryClient.invalidateQueries({ queryKey: ["linkable-documents"] });
                     onSuccess();
                 }}
+            />
+
+            {/* ── Split a line across accounts ── */}
+            <SplitJournalLineModal
+                entryId={splitIndex !== null ? entryId : null}
+                lineIndex={splitIndex ?? undefined}
+                onClose={() => setSplitIndex(null)}
+                onSaved={onSuccess}
             />
 
             {/* ── Void Modal ── */}

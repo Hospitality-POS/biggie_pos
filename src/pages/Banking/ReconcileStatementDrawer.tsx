@@ -2,10 +2,11 @@ import React, { useState, useEffect } from "react";
 import {
     Drawer, Typography, Upload, Alert, Space,
     Table, Button, Steps, Select, Row, Col, Radio, message, Statistic, Card, Tag,
+    InputNumber,
 } from "antd";
 import {
     InboxOutlined, CheckCircleOutlined,
-    BankOutlined, DiffOutlined, WarningOutlined, CloudUploadOutlined,
+    BankOutlined, DiffOutlined, WarningOutlined, CloudUploadOutlined, AuditOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
@@ -17,7 +18,12 @@ import {
     importStatement,
     CompareStatementResult,
 } from "@services/accounting/bankStatementImport";
-import { getAllAccounts } from "@services/accounting/accounts";
+import {
+    getAllAccounts,
+    verifyAccountAgainstStatement,
+    StatementVerifyResult,
+} from "@services/accounting/accounts";
+import LedgerStatementResult from "./LedgerStatementResult";
 
 const { Text } = Typography;
 const { Dragger } = Upload;
@@ -28,6 +34,8 @@ interface ParsedRow {
     reference?: string;
     debit: number;
     credit: number;
+    /** Running balance after the row, when the statement has one */
+    balance?: number;
 }
 
 interface Props {
@@ -40,9 +48,39 @@ interface Props {
     // account's transactions directly.
     presetAccountId?: string;
     presetAccountName?: string;
+    /**
+     * "imports" (default) compares the file with earlier bank imports.
+     * "ledger" compares it with the account's posted ledger — what the
+     * balance sheet shows — and explains the balance difference.
+     */
+    mode?: "imports" | "ledger";
+    /** Ledger mode: branch the ledger is read for ("" = all branches). Defaults to shopId. */
+    ledgerShopId?: string;
 }
 
 const STEP_LABELS = ["Upload File", "Map Columns", "Reconciliation Result"];
+const LEDGER_STEP_LABELS = ["Upload Statement", "Map Columns", "Verification"];
+
+const toNumber = (v: unknown) => parseFloat(String(v ?? "").replace(/,/g, ""));
+
+/**
+ * Opening / closing balance from a running-balance column. Statements list
+ * oldest-first or newest-first; either way the oldest row's balance less its
+ * own movement is the opening, and the newest row's balance is the closing.
+ */
+const balancesFromRows = (rows: ParsedRow[]) => {
+    const withBal = rows.filter((r) => r.balance !== undefined && !isNaN(r.balance));
+    if (!withBal.length) return null;
+    const first = dayjs(withBal[0].transaction_date);
+    const last = dayjs(withBal[withBal.length - 1].transaction_date);
+    const ordered = first.isValid() && last.isValid() && first.isAfter(last) ? [...withBal].reverse() : withBal;
+    const oldest = ordered[0];
+    const newest = ordered[ordered.length - 1];
+    return {
+        opening: Math.round(((oldest.balance as number) - oldest.credit + oldest.debit) * 100) / 100,
+        closing: newest.balance as number,
+    };
+};
 
 const HEADER_PATTERNS: Record<string, string[]> = {
     date: ["transaction date", "date", "value date", "posting date"],
@@ -51,6 +89,7 @@ const HEADER_PATTERNS: Record<string, string[]> = {
     debit: ["debits", "debit", "dr", "withdrawal", "money out", "amount out", "paid out"],
     credit: ["credits", "credit", "cr", "deposit", "money in", "amount in", "paid in"],
     amount: ["amount", "transaction amount", "amount (kes)", "amt"],
+    balance: ["balance", "running balance", "book balance", "ledger balance", "closing balance"],
 };
 
 const DATE_FORMATS = [
@@ -81,8 +120,9 @@ const inferColumnMap = (headers: string[]): Record<string, string> => {
 const fmt = (v: number) => (v || 0).toLocaleString("en-KE", { minimumFractionDigits: 2 });
 
 const ReconcileStatementDrawer: React.FC<Props> = ({
-    open, onClose, onSuccess, shopId, presetAccountId, presetAccountName,
+    open, onClose, onSuccess, shopId, presetAccountId, presetAccountName, mode = "imports", ledgerShopId,
 }) => {
+    const ledgerMode = mode === "ledger";
     const [currentStep, setCurrentStep] = useState(0);
     const [selectedAccountId, setSelectedAccountId] = useState<string | undefined>(undefined);
     const [fileName, setFileName] = useState("");
@@ -93,6 +133,10 @@ const ReconcileStatementDrawer: React.FC<Props> = ({
     const [selectedDateFormat, setSelectedDateFormat] = useState("DD/MM/YYYY");
     const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
     const [result, setResult] = useState<CompareStatementResult | null>(null);
+    // Ledger mode
+    const [stmtOpening, setStmtOpening] = useState<number | null>(null);
+    const [stmtClosing, setStmtClosing] = useState<number | null>(null);
+    const [verifyResult, setVerifyResult] = useState<StatementVerifyResult | null>(null);
 
     const { data: accountsData } = useQuery({
         queryKey: ["chart-of-accounts", shopId],
@@ -121,9 +165,32 @@ const ReconcileStatementDrawer: React.FC<Props> = ({
         },
     });
 
+    const verifyMutation = useMutation({
+        mutationFn: (input: { rows: ParsedRow[]; opening: number | null; closing: number | null }) =>
+            verifyAccountAgainstStatement(selectedAccountId as string, {
+                shop_id: (ledgerShopId ?? shopId) || undefined,
+                statement_opening_balance: input.opening,
+                statement_closing_balance: input.closing,
+                transactions: input.rows.map((r) => ({
+                    transaction_date: r.transaction_date,
+                    description: r.description,
+                    reference: r.reference,
+                    debit: r.debit,
+                    credit: r.credit,
+                })),
+            }),
+        onSuccess: (data) => {
+            setVerifyResult(data);
+            setCurrentStep(2);
+        },
+    });
+
+    // Statement rows the books don't have and that were never imported
+    const ledgerRowsToImport = (verifyResult?.missing_in_ledger || []).filter((r) => r.reason === "not_imported");
+
     const importMissingMutation = useMutation({
         mutationFn: () => {
-            const rows = result?.missing_in_system || [];
+            const rows: Omit<ParsedRow, "balance">[] = ledgerMode ? ledgerRowsToImport : result?.missing_in_system || [];
             const dates = rows
                 .map((r) => dayjs(r.transaction_date))
                 .filter((d) => d.isValid())
@@ -148,6 +215,9 @@ const ReconcileStatementDrawer: React.FC<Props> = ({
             });
         },
         onSuccess: () => {
+            if (ledgerMode) {
+                message.success("Imported — categorize and complete them in Bank Statements → Review Transactions to post them to the ledger");
+            }
             onSuccess();
             resetState();
             onClose();
@@ -173,6 +243,9 @@ const ReconcileStatementDrawer: React.FC<Props> = ({
         setSelectedDateFormat("DD/MM/YYYY");
         setParsedRows([]);
         setResult(null);
+        setStmtOpening(null);
+        setStmtClosing(null);
+        setVerifyResult(null);
     };
 
     const parseFile = (file: File) => {
@@ -257,6 +330,7 @@ const ReconcileStatementDrawer: React.FC<Props> = ({
         const creditKey = columnMap["credit"];
         const amtKey = columnMap["amount"];
         const refKey = columnMap["reference"];
+        const balKey = columnMap["balance"];
 
         const parsed: ParsedRow[] = rawRows
             .map((row) => {
@@ -290,12 +364,23 @@ const ReconcileStatementDrawer: React.FC<Props> = ({
                     reference: refKey ? String(row[refKey] || "").trim() : undefined,
                     debit,
                     credit,
+                    balance: balKey && row[balKey] !== undefined && row[balKey] !== "" ? toNumber(row[balKey]) : undefined,
                 };
             })
             .filter(Boolean) as ParsedRow[];
 
         setParsedRows(parsed);
-        compareMutation.mutate();
+        if (!ledgerMode) {
+            compareMutation.mutate();
+            return;
+        }
+        // Balances typed in win; otherwise read them off the balance column
+        const fromColumn = balancesFromRows(parsed);
+        const opening = stmtOpening ?? fromColumn?.opening ?? null;
+        const closing = stmtClosing ?? fromColumn?.closing ?? null;
+        setStmtOpening(opening);
+        setStmtClosing(closing);
+        verifyMutation.mutate({ rows: parsed, opening, closing });
     };
 
     const headerOptions = fileHeaders.map((h) => ({ label: h, value: h }));
@@ -315,23 +400,31 @@ const ReconcileStatementDrawer: React.FC<Props> = ({
         { title: "Import No.", dataIndex: "import_no", width: 150, render: (v: string) => <Text code style={{ fontSize: 11 }}>{v}</Text> },
     ];
 
-    const isComparing = compareMutation.isPending;
+    const isComparing = compareMutation.isLoading || verifyMutation.isLoading;
 
     return (
         <Drawer
             title={
                 <Space>
-                    <DiffOutlined style={{ fontSize: 20 }} />
-                    <Text strong style={{ fontSize: 16 }}>Reconcile Bank Statement</Text>
+                    {ledgerMode ? <AuditOutlined style={{ fontSize: 20 }} /> : <DiffOutlined style={{ fontSize: 20 }} />}
+                    <Text strong style={{ fontSize: 16 }}>
+                        {ledgerMode ? "Verify Against Bank Statement" : "Reconcile Bank Statement"}
+                    </Text>
+                    {ledgerMode && presetAccountName && <Tag color="blue">{presetAccountName}</Tag>}
                 </Space>
             }
             open={open}
             onClose={onClose}
-            width={820}
+            width={ledgerMode ? 960 : 820}
             destroyOnClose
             footer={
                 <Space style={{ justifyContent: "flex-end", width: "100%", display: "flex" }}>
                     <Button onClick={onClose}>Close</Button>
+                    {ledgerMode && currentStep === 2 && (
+                        <Button onClick={() => setCurrentStep(1)} size="large">
+                            Back to Columns
+                        </Button>
+                    )}
                     {currentStep === 1 && (
                         <Button
                             type="primary"
@@ -340,15 +433,26 @@ const ReconcileStatementDrawer: React.FC<Props> = ({
                             loading={isComparing}
                             size="large"
                         >
-                            Compare Against System
+                            {ledgerMode ? "Verify Against Ledger" : "Compare Against System"}
                         </Button>
                     )}
-                    {currentStep === 2 && (result?.missing_in_system_count || 0) > 0 && (
+                    {ledgerMode && currentStep === 2 && ledgerRowsToImport.length > 0 && (
                         <Button
                             type="primary"
                             icon={<CloudUploadOutlined />}
                             onClick={() => importMissingMutation.mutate()}
-                            loading={importMissingMutation.isPending}
+                            loading={importMissingMutation.isLoading}
+                            size="large"
+                        >
+                            Import {ledgerRowsToImport.length} Statement Row{ledgerRowsToImport.length === 1 ? "" : "s"} Not Imported
+                        </Button>
+                    )}
+                    {!ledgerMode && currentStep === 2 && (result?.missing_in_system_count || 0) > 0 && (
+                        <Button
+                            type="primary"
+                            icon={<CloudUploadOutlined />}
+                            onClick={() => importMissingMutation.mutate()}
+                            loading={importMissingMutation.isLoading}
                             size="large"
                         >
                             Import {result?.missing_in_system_count} Missing Transactions
@@ -362,12 +466,16 @@ const ReconcileStatementDrawer: React.FC<Props> = ({
                 showIcon
                 style={{ marginBottom: 20 }}
                 message="What this does"
-                description="Re-upload the same (or updated) bank excel/CSV. It's compared against everything already imported for the selected account by matching date + debit + credit, so you can see exactly which transactions are missing from the system, or which system transactions no longer appear on the statement."
+                description={
+                    ledgerMode
+                        ? "Upload the bank statement for this account. Each row is matched to a posted journal entry on the account — the figures the balance sheet uses — by amount and direction, on the same day or a few days apart. You'll see what's on the statement but not in the books (and why), what's in the books but not on the statement, and how that adds up to the balance difference."
+                        : "Re-upload the same (or updated) bank excel/CSV. It's compared against everything already imported for the selected account by matching date + debit + credit, so you can see exactly which transactions are missing from the system, or which system transactions no longer appear on the statement."
+                }
             />
 
             <Steps
                 current={currentStep}
-                items={STEP_LABELS.map((t) => ({ title: t }))}
+                items={(ledgerMode ? LEDGER_STEP_LABELS : STEP_LABELS).map((t) => ({ title: t }))}
                 style={{ marginBottom: 32 }}
                 size="small"
             />
@@ -382,8 +490,12 @@ const ReconcileStatementDrawer: React.FC<Props> = ({
                             <Alert
                                 type="info"
                                 showIcon
-                                message={`Reconciling against: ${presetAccountName || "selected account"}`}
-                                description="Opened from an import row — the account is locked to that import's account."
+                                message={`${ledgerMode ? "Verifying" : "Reconciling against"}: ${presetAccountName || "selected account"}`}
+                                description={
+                                    ledgerMode
+                                        ? "Opened from this account's ledger."
+                                        : "Opened from an import row — the account is locked to that import's account."
+                                }
                             />
                         ) : (
                             <Select
@@ -549,8 +661,63 @@ const ReconcileStatementDrawer: React.FC<Props> = ({
                                     />
                                 </Space>
                             </Col>
+                            {ledgerMode && (
+                                <Col span={12}>
+                                    <Space direction="vertical" size={6} style={{ width: "100%" }}>
+                                        <Text style={{ fontSize: 13 }}>Running Balance (optional)</Text>
+                                        <Select
+                                            placeholder="Select column"
+                                            options={headerOptions}
+                                            value={columnMap["balance"]}
+                                            onChange={(v) => setColumnMap((prev) => ({ ...prev, balance: v }))}
+                                            style={{ width: "100%" }}
+                                            allowClear
+                                            showSearch
+                                            size="large"
+                                        />
+                                    </Space>
+                                </Col>
+                            )}
                         </Row>
                     </div>
+
+                    {ledgerMode && (
+                        <div>
+                            <Text strong style={{ display: "block", marginBottom: 4 }}>Statement Balances</Text>
+                            <Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 12 }}>
+                                Read from the running balance column when it's mapped — or type them from the statement.
+                                They let the check explain the balance difference, not just the missing rows.
+                            </Text>
+                            <Row gutter={16}>
+                                <Col span={12}>
+                                    <Text style={{ fontSize: 13 }}>Opening balance</Text>
+                                    <InputNumber
+                                        value={stmtOpening}
+                                        onChange={(v) => setStmtOpening(v ?? null)}
+                                        style={{ width: "100%" }}
+                                        precision={2}
+                                        size="large"
+                                        placeholder="From the statement"
+                                        formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                                        parser={(v) => (v || "").replace(/,/g, "") as any}
+                                    />
+                                </Col>
+                                <Col span={12}>
+                                    <Text style={{ fontSize: 13 }}>Closing balance</Text>
+                                    <InputNumber
+                                        value={stmtClosing}
+                                        onChange={(v) => setStmtClosing(v ?? null)}
+                                        style={{ width: "100%" }}
+                                        precision={2}
+                                        size="large"
+                                        placeholder="From the statement"
+                                        formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                                        parser={(v) => (v || "").replace(/,/g, "") as any}
+                                    />
+                                </Col>
+                            </Row>
+                        </div>
+                    )}
 
                     {!isMappingValid && (
                         <Alert type="warning" showIcon message="Date, Description, and an amount column are required" />
@@ -558,7 +725,11 @@ const ReconcileStatementDrawer: React.FC<Props> = ({
                 </Space>
             )}
 
-            {currentStep === 2 && result && (
+            {ledgerMode && currentStep === 2 && verifyResult && (
+                <LedgerStatementResult result={verifyResult} onChanged={onSuccess} />
+            )}
+
+            {!ledgerMode && currentStep === 2 && result && (
                 <Space direction="vertical" style={{ width: "100%" }} size={20}>
                     <Row gutter={16}>
                         <Col span={6}>
