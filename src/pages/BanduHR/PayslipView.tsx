@@ -35,6 +35,7 @@ import {
   CheckCircleOutlined,
   DeleteOutlined,
   DownOutlined,
+  EyeInvisibleOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -54,13 +55,20 @@ import { fetchAllDepartments } from "@services/crm/departments";
 import { getPermissionChecker } from "@utils/getPermissionChecker";
 import { fetchSystemSetupDetailsById } from "@services/systemsetup";
 import { generatePayslipPDF } from "@utils/payslipPDF";
-import { exportPayslipsToExcel, exportPayslipToExcel, generatePayslipsPDF, buildPayslipsPDFDoc, exportP9ToExcel } from "@utils/payslipExport";
+import {
+  exportPayslipsToExcel,
+  exportPayslipToExcel,
+  generatePayslipsPDF,
+  buildPayslipsPDFDoc,
+  exportP9ToExcel,
+  PAYSLIP_HIDEABLE_LINES,
+  type PayslipLineKey,
+} from "@utils/payslipExport";
 import { generateP9FormPDF, buildP9FormDoc } from "@utils/p9FormPDF";
 import dayjs from "dayjs";
 import { THEME_C } from "@utils/getPrimaryColor";
 
 const { Title, Text } = Typography;
-const { Option } = Select;
 
 const C = THEME_C;
 
@@ -450,9 +458,14 @@ const PayslipView: React.FC = () => {
   const [exportHeader, setExportHeader] = useState<"auto" | "company" | "department">("auto");
   const headerOverride = exportHeader === "auto" ? undefined : exportHeader;
 
+  // Lines left off the drawer and its downloads. Display only — totals,
+  // PAYE and net pay keep the stored figures.
+  const [hiddenLines, setHiddenLines] = useState<PayslipLineKey[]>([]);
+  const shown = (k: PayslipLineKey) => !hiddenLines.includes(k);
+
   const handleDownloadPayslip = async () => {
     if (selectedPayslip) {
-      await generatePayslipPDF(selectedPayslip as any, headerOverride, roundOff);
+      await generatePayslipPDF(selectedPayslip as any, headerOverride, roundOff, hiddenLines);
     }
   };
 
@@ -802,16 +815,15 @@ const PayslipView: React.FC = () => {
               value={selectedDepartmentId}
               onChange={setSelectedDepartmentId}
               allowClear
-              style={{ width: 180 }}
+              style={{ width: 220 }}
               showSearch
-              optionFilterProp="children"
-            >
-              {payslipDepartments.map((dept: any) => (
-                <Option key={dept._id} value={dept._id}>
-                  {dept.name}{dept.code ? ` (${dept.code})` : ""}
-                </Option>
-              ))}
-            </Select>
+              // Plain-text labels so typing matches the name or code anywhere in it
+              optionFilterProp="label"
+              options={payslipDepartments.map((dept: any) => ({
+                value: dept._id,
+                label: `${dept.name}${dept.code ? ` (${dept.code})` : ""}`,
+              }))}
+            />
           )}
           {canViewAllPayslips && (
             <Select
@@ -821,14 +833,12 @@ const PayslipView: React.FC = () => {
               allowClear
               style={{ width: 220 }}
               showSearch
-              optionFilterProp="children"
-            >
-              {employees.map((emp: any) => (
-                <Option key={emp._id} value={emp._id}>
-                  {employeeLabel(emp)} ({emp.employee_number})
-                </Option>
-              ))}
-            </Select>
+              optionFilterProp="label"
+              options={employees.map((emp: any) => ({
+                value: emp._id,
+                label: `${employeeLabel(emp)} (${emp.employee_number})`,
+              }))}
+            />
           )}
           <Select
             value={selectedMonth}
@@ -1160,6 +1170,23 @@ const PayslipView: React.FC = () => {
               )}
             </div>
 
+            {/* Hide lines — display only, nothing is recalculated */}
+            <div style={{ ...cardStyle, padding: "10px 16px", marginBottom: 14 }}>
+              <Text style={{ fontSize: 12, color: "#64748b", display: "block", marginBottom: 6 }}>
+                <EyeInvisibleOutlined /> Hide lines on this payslip and its downloads — totals stay as calculated
+              </Text>
+              <Select
+                mode="multiple"
+                allowClear
+                style={{ width: "100%" }}
+                placeholder="e.g. NSSF, SHIF"
+                value={hiddenLines}
+                onChange={setHiddenLines}
+                options={PAYSLIP_HIDEABLE_LINES.map((l) => ({ label: l.label, value: l.key }))}
+                maxTagCount="responsive"
+              />
+            </div>
+
             {/* Net pay highlight */}
             <div
               style={{
@@ -1207,7 +1234,9 @@ const PayslipView: React.FC = () => {
               ).map((r, i) => (
                 <MoneyRow rounded={roundOff} key={`ben-${i}`} label={r.label} value={r.value} />
               ))}
-              <MoneyRow rounded={roundOff} label="Overtime Pay" value={selectedPayslip.earnings?.overtime_pay} />
+              {shown("overtime") && (
+                <MoneyRow rounded={roundOff} label="Overtime Pay" value={selectedPayslip.earnings?.overtime_pay} />
+              )}
               <div style={{ borderTop: "1px solid #e2e8f0", marginTop: 6, paddingTop: 6 }}>
                 <MoneyRow rounded={roundOff} label="Gross Salary" value={selectedPayslip.earnings?.gross_salary} strong color="#3b82f6" />
               </div>
@@ -1224,30 +1253,42 @@ const PayslipView: React.FC = () => {
               >
                 Deductions
               </SectionTitle>
-              <MoneyRow rounded={roundOff} label="NSSF" value={selectedPayslip.deductions?.nssf} color="#ef4444" />
-              <MoneyRow rounded={roundOff} label="SHIF" value={selectedPayslip.deductions?.nhif} color="#ef4444" />
-              <MoneyRow rounded={roundOff} label="Housing Levy" value={selectedPayslip.deductions?.housing_levy} color="#ef4444" />
-              {((selectedPayslip.deductions as any)?.pension || 0) > 0 && (
+              {shown("nssf") && (
+                <MoneyRow rounded={roundOff} label="NSSF" value={selectedPayslip.deductions?.nssf} color="#ef4444" />
+              )}
+              {shown("shif") && (
+                <MoneyRow rounded={roundOff} label="SHIF" value={selectedPayslip.deductions?.nhif} color="#ef4444" />
+              )}
+              {shown("housing_levy") && (
+                <MoneyRow rounded={roundOff} label="Housing Levy" value={selectedPayslip.deductions?.housing_levy} color="#ef4444" />
+              )}
+              {shown("pension") && ((selectedPayslip.deductions as any)?.pension || 0) > 0 && (
                 <MoneyRow rounded={roundOff} label="Pension Contribution" value={(selectedPayslip.deductions as any)?.pension} color="#ef4444" />
               )}
-              {showWht(selectedPayslip) && (
+              {shown("withholding_tax") && showWht(selectedPayslip) && (
                 <MoneyRow rounded={roundOff} label="Withholding Tax" value={(selectedPayslip.deductions as any)?.withholding_tax} color="#ef4444" />
               )}
-              <div style={{ borderTop: "1px dashed #e2e8f0", margin: "6px 0", paddingTop: 6 }}>
-                <MoneyRow rounded={roundOff} label="Taxable Pay" value={(selectedPayslip.deductions as any)?.taxable_pay} strong color="#64748b" />
-              </div>
-              <MoneyRow rounded={roundOff} label="Income Tax" value={(selectedPayslip.deductions as any)?.income_tax} color="#f59e0b" />
-              <MoneyRow
+              {shown("taxable_pay") && (
+                <div style={{ borderTop: "1px dashed #e2e8f0", margin: "6px 0", paddingTop: 6 }}>
+                  <MoneyRow rounded={roundOff} label="Taxable Pay" value={(selectedPayslip.deductions as any)?.taxable_pay} strong color="#64748b" />
+                </div>
+              )}
+              {shown("income_tax") && (
+                <MoneyRow rounded={roundOff} label="Income Tax" value={(selectedPayslip.deductions as any)?.income_tax} color="#f59e0b" />
+              )}
+              {shown("personal_relief") && (
+                <MoneyRow
                   rounded={roundOff}
-                label="Personal Relief"
-                value={
-                  (selectedPayslip.deductions as any)?.personal_relief != null
-                    ? -(selectedPayslip.deductions as any).personal_relief
-                    : undefined
-                }
-                color="#10b981"
-              />
-              {((selectedPayslip.deductions as any)?.insurance_relief || 0) > 0 && (
+                  label="Personal Relief"
+                  value={
+                    (selectedPayslip.deductions as any)?.personal_relief != null
+                      ? -(selectedPayslip.deductions as any).personal_relief
+                      : undefined
+                  }
+                  color="#10b981"
+                />
+              )}
+              {shown("insurance_relief") && ((selectedPayslip.deductions as any)?.insurance_relief || 0) > 0 && (
                 <MoneyRow
                   rounded={roundOff}
                   label="Insurance Relief"
@@ -1321,7 +1362,7 @@ const PayslipView: React.FC = () => {
                       key: "excel",
                       label: "Export Excel",
                       icon: <FileExcelOutlined />,
-                      onClick: () => exportPayslipToExcel(selectedPayslip, headerOverride, roundOff),
+                      onClick: () => exportPayslipToExcel(selectedPayslip, headerOverride, roundOff, hiddenLines),
                     },
                     { type: "divider" as const },
                     {
