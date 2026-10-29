@@ -118,7 +118,7 @@ const exportLedgerToPdf = async (
     totals: { totalDebit: number; totalCredit: number; closing: number }
 ) => {
     const { default: jsPDF } = await import("jspdf");
-    const { default: autoTable } = await import("jspdf-autotable");
+    const { default: autoTable } = await import("@utils/autoTable");
 
     const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
     const period = `${dateRange[0]?.format("DD/MM/YYYY")} – ${dateRange[1]?.format("DD/MM/YYYY")}`;

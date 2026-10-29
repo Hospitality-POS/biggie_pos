@@ -55,7 +55,7 @@ import { useDalaSales, useDalaProperties } from '../../../stores/dalaStore';
 import { generateOfferLetterPDF } from '@utils/offerLetterPDF';
 import dayjs from 'dayjs';
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import autoTable from '@utils/autoTable';
 import AddEditSaleModal from './AddEditSaleModal';
 import SalesPaymentsTab from '../payments/SalesPaymentsTab';
 import PaymentModal from '../payments/PaymentModal';

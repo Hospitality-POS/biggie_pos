@@ -63,7 +63,7 @@ const exportToExcel = async (accounts: ChartOfAccount[], activeType: AccountType
 
 const exportToPdf = async (accounts: ChartOfAccount[], activeType: AccountType | "ALL") => {
     const { default: jsPDF } = await import("jspdf");
-    const { default: autoTable } = await import("jspdf-autotable");
+    const { default: autoTable } = await import("@utils/autoTable");
     const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
     doc.setFont("helvetica", "bold");
     doc.setFontSize(14);

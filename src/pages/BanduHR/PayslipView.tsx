@@ -50,6 +50,7 @@ import {
   type Payslip,
 } from "@services/bandu";
 import { getUser } from "@services/tenants";
+import { fetchAllDepartments } from "@services/crm/departments";
 import { getPermissionChecker } from "@utils/getPermissionChecker";
 import { fetchSystemSetupDetailsById } from "@services/systemsetup";
 import { generatePayslipPDF } from "@utils/payslipPDF";
@@ -210,16 +211,26 @@ const PayslipView: React.FC = () => {
 
   const employees = Array.isArray(employeesData) ? employeesData : employeesData?.data || [];
 
-  // Unique departments from employees (for the admin department filter)
+  // Departments come from the departments list so every active department is
+  // offered (the employees list is paginated, so deriving them from employees
+  // only showed a few); departments referenced by an employee but missing
+  // from that list (e.g. inactive) are kept too.
+  const { data: departmentsData } = useQuery({
+    queryKey: ["departments-list"],
+    queryFn: () => fetchAllDepartments({ is_active: true }),
+    enabled: canViewAllPayslips,
+  });
+
   const payslipDepartments = React.useMemo(() => {
     const deptMap = new Map<string, any>();
+    (departmentsData?.departments || []).forEach((d: any) => deptMap.set(d._id, d));
     (employees as any[]).forEach((emp: any) => {
       if (emp.department_id?._id && !deptMap.has(emp.department_id._id)) {
         deptMap.set(emp.department_id._id, emp.department_id);
       }
     });
     return Array.from(deptMap.values());
-  }, [employees]);
+  }, [departmentsData, employees]);
 
   // Fetch payslips based on user role and employee/department filters
   const { data: payslipsData, isLoading } = useQuery({
