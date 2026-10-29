@@ -320,6 +320,32 @@ const esignAdminPage = (Component: React.ComponentType, permission: string | str
   </AdminESignRoute>
 );
 
+// ─── Duka guard (Dynamic SaaS License Gate) ──────────────────────────────────
+const DukaRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  return <ModuleGate moduleId="duka">{children}</ModuleGate>;
+};
+
+const AdminDukaRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  return <ModuleGate moduleId="duka">{children}</ModuleGate>;
+};
+
+const dukaPage = (Component: React.ComponentType, permission: string | string[]) => (
+  <DukaRoute>
+    <PermissionRoute permission={permission}>
+      {privatePage(Component)}
+    </PermissionRoute>
+  </DukaRoute>
+);
+
+const dukaAdminPage = (Component: React.ComponentType, permission: string | string[]) => (
+  <AdminDukaRoute>
+    <PermissionRoute permission={permission}>
+      {adminPage(Component)}
+    </PermissionRoute>
+  </AdminDukaRoute>
+);
+
+
 // ─── Accounting layout wrapper (Dynamic SaaS License Gate) ───────────────────
 const AccountingLayout = () => (
   <ModuleGate moduleId="pesa">
@@ -340,8 +366,7 @@ const SmartShopRouter = () => {
 
   if (hasDala && !hasPOS && !hasAccounting && !hasMteja) return <Navigate to="/dala" replace />;
   if (hasMteja && !hasPOS && !hasAccounting) return <Navigate to="/home-dashboard?tab=mteja" replace />;
-  if (hasAccounting && !hasPOS) return <Navigate to="/home-dashboard?tab=accounting" replace />;
-  return privatePage(Table);
+  return <DukaRoute>{privatePage(Table)}</DukaRoute>;
 };
 
 const SmartDashboardRouter = () => {
@@ -438,19 +463,19 @@ const routes = sentryCreateBrowserRouter(
           element={<Suspense fallback={fullscreenSpin}><Notification /></Suspense>} />
 
         <Route path="tables" errorElement={<NotFound />}
-          element={guardedPage(Table, "CART_VIEW_ITEMS")} />
+          element={dukaPage(Table, "CART_VIEW_ITEMS")} />
 
         <Route path="main-category" errorElement={<NotFound />}
-          element={guardedPage(MainCategory, "CATEGORIES_VIEW")} />
+          element={dukaPage(MainCategory, "CATEGORIES_VIEW")} />
 
         <Route path="dashboard/:id" errorElement={<NotFound />}
-          element={guardedPage(RestaurantPage, "ORDERS_VIEW_DASHBOARD")} />
+          element={dukaPage(RestaurantPage, "ORDERS_VIEW_DASHBOARD")} />
 
         <Route path="dashboard" errorElement={<NotFound />}
           element={<Navigate to="/pos/dashboard" replace />} />
 
         <Route path="cart/cart/:cartId" errorElement={<NotFound />}
-          element={guardedPage(RestaurantPage, "ORDERS_VIEW_DASHBOARD")} />
+          element={dukaPage(RestaurantPage, "ORDERS_VIEW_DASHBOARD")} />
 
         <Route path="home-dashboard" errorElement={<NotFound />}
           element={guardedPage(UnifiedShopDashboardPage, "UNIFIED_DASHBOARD_VIEW")} />
@@ -471,10 +496,10 @@ const routes = sentryCreateBrowserRouter(
         <Route path="client-forms/:id" element={<RedirectWithParams to="/forms/builder/:id" />} />
 
         <Route path="store" errorElement={<NotFound />}
-          element={guardedPage(MainStore, "PRODUCTS_VIEW")} />
+          element={dukaPage(MainStore, "PRODUCTS_VIEW")} />
 
         <Route path="store/:id" errorElement={<NotFound />}
-          element={guardedPage(MainStore, "PRODUCTS_VIEW")} />
+          element={dukaPage(MainStore, "PRODUCTS_VIEW")} />
 
         <Route path="payment/callback" errorElement={<NotFound />}
           element={<Suspense fallback={fullscreenSpin}><PaymentCallback /></Suspense>} />
@@ -506,28 +531,28 @@ const routes = sentryCreateBrowserRouter(
           element={guardedPage(SupplierMainSettings, "SUPPLIERS_VIEW")} />
 
         <Route path="table-settings" errorElement={<NotFound />}
-          element={guardedPage(TableMainSettings, "TABLES_VIEW")} />
+          element={dukaPage(TableMainSettings, "TABLES_VIEW")} />
 
         <Route path="Category-settings" errorElement={<NotFound />}
-          element={guardedPage(CategoryMainSettings, "CATEGORIES_VIEW")} />
+          element={dukaPage(CategoryMainSettings, "CATEGORIES_VIEW")} />
 
         <Route path="category-settings" errorElement={<NotFound />}
-          element={guardedPage(CategoryMainSettings, "CATEGORIES_VIEW")} />
+          element={dukaPage(CategoryMainSettings, "CATEGORIES_VIEW")} />
 
         <Route path="reports" errorElement={<NotFound />}
           element={guardedPage(UnifiedReportsPage, ["REPORTS_ITEM_SALES", "REPORTS_VIEW", "ACCOUNTING_REPORT_PROFIT_LOSS"])} />
 
         <Route path="inventory-settings" errorElement={<NotFound />}
-          element={guardedPage(InventoryMainSettings, "INVENTORY_VIEW")} />
+          element={dukaPage(InventoryMainSettings, "INVENTORY_VIEW")} />
 
         <Route path="inventory" errorElement={<NotFound />}
-          element={guardedPage(InventoryMainSettings, "INVENTORY_VIEW")} />
+          element={dukaPage(InventoryMainSettings, "INVENTORY_VIEW")} />
 
         <Route path="profile/:id" errorElement={<NotFound />}
           element={privatePage(Profile)} />
 
         <Route path="orders" errorElement={<NotFound />}
-          element={guardedPage(MainOrders, ["ORDERS_VIEW", "ACCOUNTING_INVOICE_VIEW"])} />
+          element={dukaPage(MainOrders, ["ORDERS_VIEW", "ACCOUNTING_INVOICE_VIEW"])} />
 
         <Route path="customers" errorElement={<NotFound />}
           element={guardedPage(Customer, "CUSTOMERS_VIEW")} />
@@ -549,9 +574,9 @@ const routes = sentryCreateBrowserRouter(
 
         {/* Petty Cash & Refunds (Duka Only) */}
         <Route path="petty-cash" errorElement={<NotFound />}
-          element={guardedPage(PettyCashListPage, "ORDERS_VIEW_DASHBOARD")} />
+          element={dukaPage(PettyCashListPage, "ORDERS_VIEW_DASHBOARD")} />
         <Route path="refunds" errorElement={<NotFound />}
-          element={guardedPage(RefundsListPage, "ORDERS_VIEW_DASHBOARD")} />
+          element={dukaPage(RefundsListPage, "ORDERS_VIEW_DASHBOARD")} />
 
         <Route path="omnichannel" errorElement={<NotFound />}
           element={guardedPage(OmnichannelInboxPage, "OMNICHANNEL_VIEW")} />
@@ -607,7 +632,7 @@ const routes = sentryCreateBrowserRouter(
         <Route path="bandu/dashboard" element={<Navigate to="/hr/dashboard" replace />} />
         <Route path="bandu" element={<Navigate to="/hr/dashboard" replace />} />
         <Route path="pos/dashboard" errorElement={<NotFound />}
-          element={guardedPage(DukaDashboardPage, ["UNIFIED_DASHBOARD_VIEW", "ORDERS_VIEW_DASHBOARD"])} />
+          element={dukaPage(DukaDashboardPage, ["UNIFIED_DASHBOARD_VIEW", "ORDERS_VIEW_DASHBOARD"])} />
         <Route path="pos" element={<Navigate to="/pos/dashboard" replace />} />
         <Route path="duka/dashboard" element={<Navigate to="/pos/dashboard" replace />} />
         <Route path="duka" element={<Navigate to="/pos/dashboard" replace />} />
@@ -725,25 +750,25 @@ const routes = sentryCreateBrowserRouter(
           element={<Suspense fallback={fullscreenSpin}><Notification /></Suspense>} />
 
         <Route path="tables" errorElement={<NotFound />}
-          element={guardedAdminPage(Table, "CART_VIEW_ITEMS")} />
+          element={dukaAdminPage(Table, "CART_VIEW_ITEMS")} />
 
         <Route path="home-dashboard" errorElement={<NotFound />}
           element={guardedAdminPage(DashboardAdminPage, "UNIFIED_DASHBOARD_VIEW")} />
 
         <Route path="orders" errorElement={<NotFound />}
-          element={guardedAdminPage(MainOrders, ["ORDERS_VIEW", "ACCOUNTING_INVOICE_VIEW"])} />
+          element={dukaAdminPage(MainOrders, ["ORDERS_VIEW", "ACCOUNTING_INVOICE_VIEW"])} />
 
         <Route path="store" errorElement={<NotFound />}
-          element={guardedAdminPage(MainStore, "PRODUCTS_VIEW")} />
+          element={dukaAdminPage(MainStore, "PRODUCTS_VIEW")} />
 
         <Route path="store/:id" errorElement={<NotFound />}
-          element={guardedAdminPage(MainStore, "PRODUCTS_VIEW")} />
+          element={dukaAdminPage(MainStore, "PRODUCTS_VIEW")} />
 
         <Route path="inventory" errorElement={<NotFound />}
-          element={guardedAdminPage(InventoryMainSettings, "INVENTORY_VIEW")} />
+          element={dukaAdminPage(InventoryMainSettings, "INVENTORY_VIEW")} />
 
         <Route path="inventory-settings" errorElement={<NotFound />}
-          element={guardedAdminPage(InventoryMainSettings, "INVENTORY_VIEW")} />
+          element={dukaAdminPage(InventoryMainSettings, "INVENTORY_VIEW")} />
 
         <Route path="customers" errorElement={<NotFound />}
           element={guardedAdminPage(Customer, "CUSTOMERS_VIEW")} />
@@ -849,13 +874,13 @@ const routes = sentryCreateBrowserRouter(
           element={<Suspense fallback={fullscreenSpin}><AdminRoute><TenantSettings /></AdminRoute></Suspense>} />
 
         <Route path="Category-settings" errorElement={<NotFound />}
-          element={guardedAdminPage(CategoryMainSettings, "CATEGORIES_VIEW")} />
+          element={dukaAdminPage(CategoryMainSettings, "CATEGORIES_VIEW")} />
 
         <Route path="category-settings" errorElement={<NotFound />}
-          element={guardedAdminPage(CategoryMainSettings, "CATEGORIES_VIEW")} />
+          element={dukaAdminPage(CategoryMainSettings, "CATEGORIES_VIEW")} />
 
         <Route path="table-settings" errorElement={<NotFound />}
-          element={guardedAdminPage(TableMainSettings, "TABLES_VIEW")} />
+          element={dukaAdminPage(TableMainSettings, "TABLES_VIEW")} />
 
         <Route path="fss-faqs" errorElement={<NotFound />}
           element={guardedAdminPage(Faqs, "FAQ_VIEW")} />
@@ -886,7 +911,7 @@ const routes = sentryCreateBrowserRouter(
         <Route path="bandu/dashboard" element={<Navigate to="/admin/hr/dashboard" replace />} />
         <Route path="bandu" element={<Navigate to="/admin/hr/dashboard" replace />} />
         <Route path="pos/dashboard" errorElement={<NotFound />}
-          element={guardedAdminPage(AdminDukaDashboardPage, ["UNIFIED_DASHBOARD_VIEW", "ORDERS_VIEW_DASHBOARD"])} />
+          element={dukaAdminPage(AdminDukaDashboardPage, ["UNIFIED_DASHBOARD_VIEW", "ORDERS_VIEW_DASHBOARD"])} />
         <Route path="pos" element={<Navigate to="/admin/pos/dashboard" replace />} />
         <Route path="duka/dashboard" element={<Navigate to="/admin/pos/dashboard" replace />} />
         <Route path="duka" element={<Navigate to="/admin/pos/dashboard" replace />} />
