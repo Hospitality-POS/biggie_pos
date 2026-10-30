@@ -1,4 +1,4 @@
-export { default as DeductionSettings } from 'src/pages/BanduHR/DeductionSettings';
+export { default as DeductionSettings } from './DeductionSettings';
 export * from './services';
 export * from './components';
-export { default } from 'src/pages/BanduHR/DeductionSettings';
+export { default } from './DeductionSettings';

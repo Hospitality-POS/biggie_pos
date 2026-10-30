@@ -1,1 +1,1 @@
-export { default as DocumentCenter } from 'src/pages/Documents/DocumentCenter';
+export { default as DocumentCenter } from '../DocumentCenter';

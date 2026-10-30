@@ -22,12 +22,12 @@ import { ModuleGate } from "@shared/licensing/ModuleGate";
 // ─── Lazily Loaded Core & Admin Pages ─────────────────────────────────────────
 const StaffLoginPage = lazyWithReload(() => import("@pages/Login/login"));
 const MainCategory = lazyWithReload(() => import("@pages/main_category/Main_category"));
-const MainOrders = lazyWithReload(() => import("@pages/OrderManagement/MainOrders"));
+const MainOrders = lazyWithReload(() => import("@modules/duka/pages/orders/MainOrders"));
 const StaffClockTracker = lazyWithReload(() => import("@pages/staff/ClockInTracker"));
 const HelpCenter = lazyWithReload(() => import("src/AdminDashboard/HelpCenter/HelpCenterPage"));
 const AuditTrailPage = lazyWithReload(() => import("src/AdminDashboard/AuditTrail/AuditTrailPage"));
 const DashboardAdminPage = lazyWithReload(() => import("src/AdminDashboard/DashboardPage/DashboardPage"));
-const DukaDashboardPage = lazyWithReload(() => import("src/pages/Dashboard/DukaDashboardPage"));
+const DukaDashboardPage = lazyWithReload(() => import("@modules/duka/pages/dashboard/DukaDashboardPage"));
 const AdminDukaDashboardPage = lazyWithReload(() => import("src/AdminDashboard/DashboardPage/AdminDukaDashboardPage"));
 const UnifiedDashboardPage = lazyWithReload(() => import("src/pages/Report/UnifiedDashboardPage"));
 const UnifiedShopDashboardPage = lazyWithReload(() => import("src/pages/Report/UnifiedShopDashboardPage"));
@@ -87,9 +87,9 @@ const WagesList = lazyWithReload(() => import("src/AdminDashboard/Wages/WageList
 
 // ─── Core App ─────────────────────────────────────────────────────────────────
 const Layout = lazyWithReload(() => import("@components/layout/Layout"));
-const RestaurantPage = lazyWithReload(() => import("@pages/Restaurant/Restuarant"));
-const MainStore = lazyWithReload(() => import("@pages/store/MainStore"));
-const Table = lazyWithReload(() => import("@pages/Tables/TablePro"));
+const RestaurantPage = lazyWithReload(() => import("@modules/duka/pages/pos/Restuarant"));
+const MainStore = lazyWithReload(() => import("@modules/duka/pages/inventory/MainStore"));
+const Table = lazyWithReload(() => import("@modules/duka/pages/tables/TablePro"));
 const Faqs = lazyWithReload(() => import("@pages/Faqs/Faqs"));
 const Website = lazyWithReload(() => import("@pages/Website/website"));
 
@@ -103,15 +103,13 @@ const SystemSetup = lazyWithReload(() => import("@pages/Settings/systemSetup/Sys
 const CategoryMainSettings = lazyWithReload(() => import("@pages/Settings/categoryLevel/Category_main_settings"));
 const Profile = lazyWithReload(() => import("@pages/Profile/Profile"));
 const AdminProfile = lazyWithReload(() => import("src/AdminDashboard/Profile/AdminProfile"));
-const EmployeeShift = lazyWithReload(() => import("@pages/EmployeeShift/Employee"));
+const EmployeeShift = lazyWithReload(() => import("@modules/bandu/pages/shifts/Employee"));
 const Notification = lazyWithReload(() => import("@pages/Notification/NotificationPage"));
 
-// ─── Document Center ──────────────────────────────────────────────────────────
-const DocumentCenter = lazyWithReload(() => import("@pages/Documents/DocumentCenter"));
-
-// ─── E-Signature ───────────────────────────────────────────────────────────────
-const ESignPage = lazyWithReload(() => import("@pages/ESign/ESignPage"));
-const PublicSignPage = lazyWithReload(() => import("@pages/ESign/PublicSignPage"));
+// ─── E-Sign & Document Center (Modular Feature Slice) ─────────────────────────
+const DocumentCenter = lazyWithReload(() => import("@modules/esign/pages/documents/DocumentCenter"));
+const ESignPage = lazyWithReload(() => import("@modules/esign/pages/signatures/ESignPage"));
+const PublicSignPage = lazyWithReload(() => import("@modules/esign/pages/signatures/PublicSignPage"));
 
 // ─── Forms & Plans: client forms / plans (Duka) and employee forms / plans (Bandu) ──
 const FormsHubPage = lazyWithReload(() => import("@pages/FormsPlans/FormsHubPage"));
@@ -123,22 +121,22 @@ const EmployeeFormsHubPage = () => <FormsHubPage audience="employee" />;
 const CLIENT_FORMS_HUB_PERMISSIONS = ["CLIENT_FORMS_VIEW", "CLIENT_FORMS_VIEW_FILLED", "CLIENT_PLANS_VIEW", "CLIENT_FORMS_ANALYTICS"];
 const EMPLOYEE_FORMS_HUB_PERMISSIONS = ["EMPLOYEE_FORMS_VIEW", "EMPLOYEE_PLANS_VIEW", "EMPLOYEE_FORMS_ANALYTICS"];
 
-// ─── Omnichannel Inbox ────────────────────────────────────────────────────────
-const OmnichannelInboxPage = lazyWithReload(() => import("src/pages/OmniChannel/OmnichannelInboxPage"));
-const OAuthCallbackPage = lazyWithReload(() => import("src/pages/OmniChannel/OAuthCallbackPage"));
+// ─── Omnichannel Inbox (Mteja Module Slice) ───────────────────────────────────
+const OmnichannelInboxPage = lazyWithReload(() => import("@modules/mteja/pages/omnichannel/OmnichannelInboxPage"));
+const OAuthCallbackPage = lazyWithReload(() => import("@modules/mteja/pages/omnichannel/OAuthCallbackPage"));
 
-// ─── Accounting Module ────────────────────────────────────────────────────────
-const ChartOfAccountsPage = lazyWithReload(() => import("src/pages/ChartOfAccounts/ChartOfAccountsPage"));
-const JournalEntriesPage = lazyWithReload(() => import("src/pages/JournalEntry/JournalEntriesPage"));
-const SalesReceiptsPage = lazyWithReload(() => import("src/pages/SalesReceipts/SalesReceiptsPage"));
-const NotesPage = lazyWithReload(() => import("src/pages/Notes/NotesPage"));
-const BankStatementPage = lazyWithReload(() => import("src/pages/Banking/BankStatementPage"));
-const BankReconciliationPage = lazyWithReload(() => import("src/pages/Reconciliation/BankReconciliationPage"));
+// ─── Pesa / Financial Accounting (Modular Feature Slice) ──────────────────────
+const ChartOfAccountsPage = lazyWithReload(() => import("@modules/pesa/pages/accounts/ChartOfAccountsPage"));
+const JournalEntriesPage = lazyWithReload(() => import("@modules/pesa/pages/journals/JournalEntriesPage"));
+const SalesReceiptsPage = lazyWithReload(() => import("@modules/pesa/pages/invoices/SalesReceiptsPage"));
+const NotesPage = lazyWithReload(() => import("@modules/pesa/pages/invoices/NotesPage"));
+const BankStatementPage = lazyWithReload(() => import("@modules/pesa/pages/banking/BankStatementPage"));
+const BankReconciliationPage = lazyWithReload(() => import("@modules/pesa/pages/banking/BankReconciliationPage"));
 const UnifiedReportsPage = lazyWithReload(() => import("src/pages/Report/UnifiedReportsPage"));
 
 // Petty Cash & Refunds (Duka Only)
-const PettyCashListPage = lazyWithReload(() => import("src/pages/PettyCash/PettyCashListPage"));
-const RefundsListPage = lazyWithReload(() => import("src/pages/Refunds/RefundsListPage"));
+const PettyCashListPage = lazyWithReload(() => import("@modules/duka/pages/orders/PettyCashListPage"));
+const RefundsListPage = lazyWithReload(() => import("@modules/duka/pages/orders/RefundsListPage"));
 
 // ─── Expenses / Bills / Income ────────────────────────────────────────────────
 const ExpensesPage = lazyWithReload(() => import("@pages/OrderManagement/ExpensesPage"));
@@ -148,23 +146,23 @@ const IncomePage = lazyWithReload(() => import("@pages/OrderManagement/IncomePag
 // ─── Currency ─────────────────────────────────────────────────────────────────
 const CurrencyPage = lazyWithReload(() => import("src/pages/Currency/CurrencyPage"));
 
-// ─── Asset Management ─────────────────────────────────────────────────────────
-const AssetRegisterPage = lazyWithReload(() => import("src/pages/AssetManagement/AssetRegisterPage"));
-const AssetRequestsPage = lazyWithReload(() => import("src/pages/AssetManagement/AssetRequestsPage"));
-const AssetMaintenancePage = lazyWithReload(() => import("src/pages/AssetManagement/AssetMaintenancePage"));
-const AssetReportsPage = lazyWithReload(() => import("src/pages/AssetManagement/AssetReportsPage"));
+// ─── Asset Management (Pesa Slice) ───────────────────────────────────────────
+const AssetRegisterPage = lazyWithReload(() => import("@modules/pesa/pages/assets/AssetRegisterPage"));
+const AssetRequestsPage = lazyWithReload(() => import("@modules/pesa/pages/assets/AssetRequestsPage"));
+const AssetMaintenancePage = lazyWithReload(() => import("@modules/pesa/pages/assets/AssetMaintenancePage"));
+const AssetReportsPage = lazyWithReload(() => import("@modules/pesa/pages/assets/AssetReportsPage"));
 
 // ─── CRM / Mteja Module ───────────────────────────────────────────────────────
 // All CRM pages are lazy-loaded and only reachable when hasMteja === true.
 // The MtejaRoute guard below enforces this at runtime.
-const LeadsPage = lazyWithReload(() => import("src/pages/Lead/Leads"));
-const CampaignsPage = lazyWithReload(() => import("src/pages/Campaign/Campaigns"));
-const SalesTargetsPage = lazyWithReload(() => import("src/pages/SalesTargets/SalesTargets"));
-const SalesBudgetsPage = lazyWithReload(() => import("src/pages/Salesbudgets/Salesbudgets"));
-const QuotesPage = lazyWithReload(() => import("src/pages/Quotes/QuotesPage"));
-const ActivityCalendarPage = lazyWithReload(() => import("src/pages/ActivityCalendar/ActivityCalendarPage"));
-const MtejaDashboard = lazyWithReload(() => import("src/pages/Dashboard/MtejaDashboard"));
-const AccountingDashboardPage = lazyWithReload(() => import("src/pages/AccountingDashboard/AccountingDashboardPage"));
+const LeadsPage = lazyWithReload(() => import("@modules/mteja/pages/leads/Leads"));
+const CampaignsPage = lazyWithReload(() => import("@modules/mteja/pages/campaigns/Campaigns"));
+const SalesTargetsPage = lazyWithReload(() => import("@modules/mteja/pages/targets/SalesTargets"));
+const SalesBudgetsPage = lazyWithReload(() => import("@modules/mteja/pages/targets/Salesbudgets"));
+const QuotesPage = lazyWithReload(() => import("@modules/mteja/pages/quotes/QuotesPage"));
+const ActivityCalendarPage = lazyWithReload(() => import("@modules/mteja/pages/calendar/ActivityCalendarPage"));
+const MtejaDashboard = lazyWithReload(() => import("@modules/mteja/pages/dashboard/MtejaDashboard"));
+const AccountingDashboardPage = lazyWithReload(() => import("@modules/pesa/pages/dashboard/AccountingDashboardPage"));
 
 // ─── Dala Real Estate Module ───────────────────────────────────────────────────
 // All Dala pages are lazy-loaded and gated via ModuleGate (moduleId="dala").
@@ -183,16 +181,16 @@ const LeaseDetail = lazyWithReload(() => import("src/modules/dala/pages/leases/L
 const RentCollection = lazyWithReload(() => import("src/modules/dala/pages/rent/RentCollection"));
 const MaintenanceManagement = lazyWithReload(() => import("src/modules/dala/pages/maintenance/MaintenanceManagement"));
 
-// ─── Bandu HR Module ───────────────────────────────────────────────────────────
-const BanduHRDashboard = lazyWithReload(() => import("src/pages/BanduHR/BanduHRDashboard"));
-const EmployeeManagement = lazyWithReload(() => import("src/pages/BanduHR/EmployeeManagement"));
-const LeaveApplication = lazyWithReload(() => import("src/pages/BanduHR/LeaveApplication"));
-const LeavePolicies = lazyWithReload(() => import("src/pages/BanduHR/LeavePolicies"));
-const LeaveCalendar = lazyWithReload(() => import("src/pages/BanduHR/LeaveCalendar"));
-const PayrollManagement = lazyWithReload(() => import("src/pages/BanduHR/PayrollManagement"));
-const AttendanceTracking = lazyWithReload(() => import("src/pages/BanduHR/AttendanceTracking"));
-const PayslipView = lazyWithReload(() => import("src/pages/BanduHR/PayslipView"));
-const LeaveApprovals = lazyWithReload(() => import("src/pages/BanduHR/LeaveApprovals"));
+// ─── Bandu HR Module (Modular Feature Slice) ──────────────────────────────────
+const BanduHRDashboard = lazyWithReload(() => import("@modules/bandu/pages/dashboard/BanduHRDashboard"));
+const EmployeeManagement = lazyWithReload(() => import("@modules/bandu/pages/employees/EmployeeManagement"));
+const LeaveApplication = lazyWithReload(() => import("@modules/bandu/pages/leave/LeaveApplication"));
+const LeavePolicies = lazyWithReload(() => import("@modules/bandu/pages/leave/LeavePolicies"));
+const LeaveCalendar = lazyWithReload(() => import("@modules/bandu/pages/leave/LeaveCalendar"));
+const PayrollManagement = lazyWithReload(() => import("@modules/bandu/pages/payroll/PayrollManagement"));
+const AttendanceTracking = lazyWithReload(() => import("@modules/bandu/pages/attendance/AttendanceTracking"));
+const PayslipView = lazyWithReload(() => import("@modules/bandu/pages/payslips/PayslipView"));
+const LeaveApprovals = lazyWithReload(() => import("@modules/bandu/pages/leave/LeaveApprovals"));
 
 // ─── Mteja guard (Dynamic SaaS License Gate) ─────────────────────────────────
 const getMtejaEnabled = (): boolean => {

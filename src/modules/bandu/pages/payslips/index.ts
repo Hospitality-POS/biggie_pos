@@ -1,4 +1,4 @@
-export { default as PayslipView } from 'src/pages/BanduHR/PayslipView';
+export { default as PayslipView } from './PayslipView';
 export * from './services';
 export * from './components';
-export { default } from 'src/pages/BanduHR/PayslipView';
+export { default } from './PayslipView';

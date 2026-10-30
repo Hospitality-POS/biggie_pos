@@ -1,4 +1,4 @@
-export { default as PayrollManagement } from 'src/pages/BanduHR/PayrollManagement';
+export { default as PayrollManagement } from './PayrollManagement';
 export * from './services';
 export * from './components';
-export { default } from 'src/pages/BanduHR/PayrollManagement';
+export { default } from './PayrollManagement';

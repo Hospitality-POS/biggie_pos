@@ -1,4 +1,4 @@
-export { default as BanduHRDashboard } from 'src/pages/BanduHR/BanduHRDashboard';
+export { default as BanduHRDashboard } from './BanduHRDashboard';
 export * from './services';
 export * from './components';
-export { default } from 'src/pages/BanduHR/BanduHRDashboard';
+export { default } from './BanduHRDashboard';

@@ -1,1 +1,2 @@
-export { default as DukaDashboardPage } from 'src/pages/Dashboard/DukaDashboardPage';
+export { default as DukaDashboardPage } from '../DukaDashboardPage';
+export { default as Dashboard } from '../Dashboard';

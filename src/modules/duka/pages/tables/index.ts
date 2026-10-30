@@ -1,4 +1,5 @@
+export { default as TablePro } from './TablePro';
+export { default as TableStats } from './TableStats';
 export * from './services';
 export * from './components';
-export { default as TablePro } from 'src/pages/Tables/TablePro';
-export { default } from 'src/pages/Tables/TablePro';
+export { default } from './TablePro';

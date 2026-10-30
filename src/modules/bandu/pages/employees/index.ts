@@ -1,4 +1,4 @@
-export { default as EmployeeManagement } from 'src/pages/BanduHR/EmployeeManagement';
+export { default as EmployeeManagement } from './EmployeeManagement';
 export * from './services';
 export * from './components';
-export { default } from 'src/pages/BanduHR/EmployeeManagement';
+export { default } from './EmployeeManagement';

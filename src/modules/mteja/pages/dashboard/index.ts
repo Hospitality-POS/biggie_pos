@@ -1,4 +1,4 @@
-export { default as MtejaDashboard } from 'src/pages/Dashboard/MtejaDashboard';
+export { default as MtejaDashboard } from './MtejaDashboard';
 export * from './services';
 export * from './components';
-export { default } from 'src/pages/Dashboard/MtejaDashboard';
+export { default } from './MtejaDashboard';

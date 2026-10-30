@@ -1,4 +1,9 @@
+export { default as SalesReceiptsPage } from './SalesReceiptsPage';
+export { default as NotesPage } from './NotesPage';
+export { default as NoteDetailDrawer } from './NoteDetailDrawer';
+export { default as NoteFormDrawer } from './NoteFormDrawer';
+export { default as SalesReceiptDetailDrawer } from './SalesReceiptDetailDrawer';
+export { default as SalesReceiptFormModal } from './SalesReceiptFormModal';
 export * from './services';
 export * from './components';
-export { default as InvoiceTable } from 'src/pages/OrderManagement/Invoices/InvoiceTable';
-export { default } from 'src/pages/OrderManagement/Invoices/InvoiceTable';
+export { default } from './SalesReceiptsPage';
