@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from "react";
 import {
     Drawer, Table, Typography, Space, Tag, Button, Tooltip,
-    Select, Popconfirm, Badge, Alert, Row, Col, Statistic,
-    Tabs, Progress, App, Modal, Form, Input, DatePicker, Card,
-    Switch, InputNumber,
+    Select, Popconfirm, Badge, Alert, Row, Col,
+    Tabs, Progress, App, Modal, Form, Input, DatePicker,
+    Switch, InputNumber, Dropdown,
 } from "antd";
 import {
     CheckCircleOutlined, StopOutlined, PlusOutlined, MinusCircleOutlined,
     SendOutlined, ReloadOutlined, TagOutlined, DeleteOutlined, LinkOutlined,
-    ApartmentOutlined, FileSearchOutlined, EyeOutlined,
+    ApartmentOutlined, FileSearchOutlined, EyeOutlined, MoreOutlined,
 } from "@ant-design/icons";
 import LinkDocumentsModal from "./LinkDocumentsModal";
 import JournalEntryDetailDrawer from "../JournalEntry/JournalEntryDetailDrawer";
@@ -623,9 +623,19 @@ const TransactionReviewDrawer: React.FC<Props> = ({
 
     const totalDebits = importDetail?.total_debits || 0;
     const totalCredits = importDetail?.total_credits || 0;
+    // Reviewed = categorized or already completed (completed rows are no
+    // longer "categorized", so counting only those showed 0% when all done)
+    const reviewedCount = (importDetail?.categorized_count || 0) + (importDetail?.pushed_count || 0);
     const catPct = (importDetail?.imported_rows || 0) > 0
-        ? Math.round(((importDetail?.categorized_count || 0) / (importDetail?.imported_rows || 1)) * 100)
+        ? Math.min(100, Math.round((reviewedCount / (importDetail?.imported_rows || 1)) * 100))
         : 0;
+    const fmtKes = (n: number) => n.toLocaleString("en-KE", { minimumFractionDigits: 2 });
+    const tabCounts: Partial<Record<TransactionStatus | "ALL", number | undefined>> = {
+        ALL: importDetail?.imported_rows,
+        Uncategorized: importDetail?.uncategorized_count,
+        Categorized: importDetail?.categorized_count,
+        Pushed: importDetail?.pushed_count,
+    };
 
     const STATUS_TABS: (TransactionStatus | "ALL")[] = [
         "ALL", "Uncategorized", "Categorized", "Excluded", "Pushed",
@@ -635,9 +645,9 @@ const TransactionReviewDrawer: React.FC<Props> = ({
         {
             title: "Date",
             dataIndex: "transaction_date",
-            width: 110,
+            width: 100,
             render: (v: string) => (
-                <Text style={{ fontSize: 12 }}>
+                <Text style={{ fontSize: 12, whiteSpace: "nowrap" }}>
                     {dayjs(v).isValid() ? dayjs(v).format("DD MMM YYYY") : v}
                 </Text>
             ),
@@ -645,20 +655,28 @@ const TransactionReviewDrawer: React.FC<Props> = ({
         {
             title: "Description",
             dataIndex: "description",
-            width: 240,
+            width: 230,
+            // Long bank narrations are capped at two lines; full text on hover
             render: (v: string, r: RawTransaction) => (
-                <Space direction="vertical" size={0}>
-                    <Text style={{ fontSize: 13, whiteSpace: "normal" }}>{v}</Text>
+                <div style={{ minWidth: 0 }}>
+                    <Typography.Paragraph
+                        ellipsis={{ rows: 2, tooltip: v }}
+                        style={{ fontSize: 13, marginBottom: 0 }}
+                    >
+                        {v}
+                    </Typography.Paragraph>
                     {r.reference && (
-                        <Text type="secondary" style={{ fontSize: 11 }}>{r.reference}</Text>
+                        <Text type="secondary" ellipsis={{ tooltip: r.reference }} style={{ fontSize: 11, display: "block" }}>
+                            {r.reference}
+                        </Text>
                     )}
-                </Space>
+                </div>
             ),
         },
         {
             title: "Account",
             key: "account",
-            width: 200,
+            width: 180,
             render: (_: any, r: RawTransaction) => {
                 const links = r.allocations || [];
                 const splits = r.splits || [];
@@ -701,43 +719,35 @@ const TransactionReviewDrawer: React.FC<Props> = ({
             },
         },
         {
-            title: "Debit",
-            dataIndex: "debit",
-            width: 110,
+            // Debit (money out, red, −) and credit (money in, green, +) in one
+            // column — two separate columns didn't fit the drawer.
+            title: "Amount",
+            key: "amount",
+            width: 120,
             align: "right" as const,
-            render: (v: number, r: RawTransaction) => {
+            render: (_: any, r: RawTransaction) => {
+                let out = 0;
+                let inn = 0;
                 if (importDetail?.amount_column_type === "single" && r.original_amount !== undefined) {
-                    if (r.original_amount < 0) {
-                        return <Text style={{ color: "#cf1322", fontSize: 12 }}>{r.original_amount.toLocaleString("en-KE", { minimumFractionDigits: 2 })}</Text>;
-                    }
-                    return <Text type="secondary">—</Text>;
+                    if (r.original_amount < 0) out = Math.abs(r.original_amount);
+                    else if (r.original_amount > 0) inn = r.original_amount;
+                } else {
+                    out = r.debit > 0 ? r.debit : 0;
+                    inn = r.credit > 0 ? r.credit : 0;
                 }
-                return v > 0 ? (
-                    <Text style={{ color: "#cf1322", fontSize: 12 }}>{v.toLocaleString("en-KE", { minimumFractionDigits: 2 })}</Text>
-                ) : <Text type="secondary">—</Text>;
-            },
-        },
-        {
-            title: "Credit",
-            dataIndex: "credit",
-            width: 110,
-            align: "right" as const,
-            render: (v: number, r: RawTransaction) => {
-                if (importDetail?.amount_column_type === "single" && r.original_amount !== undefined) {
-                    if (r.original_amount > 0) {
-                        return <Text style={{ color: "#389e0d", fontSize: 12 }}>{r.original_amount.toLocaleString("en-KE", { minimumFractionDigits: 2 })}</Text>;
-                    }
-                    return <Text type="secondary">—</Text>;
+                if (out > 0) {
+                    return <Text style={{ color: "#cf1322", fontSize: 12, whiteSpace: "nowrap" }}>−{fmtKes(out)}</Text>;
                 }
-                return v > 0 ? (
-                    <Text style={{ color: "#389e0d", fontSize: 12 }}>{v.toLocaleString("en-KE", { minimumFractionDigits: 2 })}</Text>
-                ) : <Text type="secondary">—</Text>;
+                if (inn > 0) {
+                    return <Text style={{ color: "#389e0d", fontSize: 12, whiteSpace: "nowrap" }}>+{fmtKes(inn)}</Text>;
+                }
+                return <Text type="secondary">—</Text>;
             },
         },
         {
             title: "Status",
             dataIndex: "status",
-            width: 140,
+            width: 120,
             render: (s: TransactionStatus, r: RawTransaction) => {
                 const issue = issueById.get(String(r._id));
                 const cfg = issue ? UNPOSTED_REASON_LABELS[issue.reason] : null;
@@ -760,7 +770,7 @@ const TransactionReviewDrawer: React.FC<Props> = ({
         {
             title: "Actions",
             key: "actions",
-            width: 180,
+            width: 165,
             fixed: "right" as const,
             render: (_: any, r: RawTransaction) => {
                 const linkButton = (
@@ -879,47 +889,24 @@ const TransactionReviewDrawer: React.FC<Props> = ({
     return (
         <>
             <Drawer
+                // Title and actions share one wrapping row: when the buttons
+                // don't fit beside the title they drop to their own line
+                // instead of squeezing the title to one letter per line.
                 title={
-                    <Space>
+                    <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                    <Space size={8} style={{ whiteSpace: "nowrap" }}>
                         <Text strong style={{ fontSize: 18 }}>Review Transactions</Text>
                         {importRecord && (
-                            <Tag color="blue" style={{ marginLeft: 8 }}>
+                            <Tag color="blue" style={{ margin: 0 }}>
                                 {importRecord.import_no}
                             </Tag>
                         )}
                     </Space>
-                }
-                open={open}
-                onClose={onClose}
-                width={950}
-                destroyOnClose
-                extra={
-                    <Space>
-                        <Button
-                            icon={<DeleteOutlined />}
-                            danger
-                            onClick={handleDeleteImport}
-                            disabled={!importDetail || (importDetail.pushed_count || 0) > 0}
-                            loading={deleteImportMutation.isLoading}
-                            size="large"
-                        >
-                            Delete Import
-                        </Button>
-                        <Tooltip title="Find completed or categorized transactions whose journal entry is missing, or won't show in this bank's ledger">
-                            <Button
-                                icon={<FileSearchOutlined />}
-                                onClick={() => (entryCheckOn ? recheckEntries() : setEntryCheckOn(true))}
-                                loading={entryCheckLoading}
-                                size="large"
-                            >
-                                Check Journal Entries
-                            </Button>
-                        </Tooltip>
+                    <Space wrap size={8} style={{ fontWeight: "normal" }}>
                         <Button
                             icon={<ReloadOutlined />}
                             onClick={() => reApplyMutation.mutate()}
                             loading={reApplyMutation.isLoading}
-                            size="large"
                         >
                             Re-apply Rules
                         </Button>
@@ -928,72 +915,87 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                             icon={<SendOutlined />}
                             onClick={() => setPushModalOpen(true)}
                             disabled={!importDetail?.categorized_count}
-                            size="large"
                         >
                             Mark Complete
                         </Button>
+                        <Dropdown
+                            trigger={["click"]}
+                            placement="bottomRight"
+                            menu={{
+                                items: [
+                                    {
+                                        key: "check",
+                                        icon: <FileSearchOutlined />,
+                                        label: (
+                                            <Tooltip placement="left" title="Find completed or categorized transactions whose journal entry is missing, or won't show in this bank's ledger">
+                                                Check Journal Entries
+                                            </Tooltip>
+                                        ),
+                                    },
+                                    { type: "divider" },
+                                    {
+                                        key: "delete",
+                                        icon: <DeleteOutlined />,
+                                        danger: true,
+                                        label: "Delete Import",
+                                        disabled: !importDetail || (importDetail.pushed_count || 0) > 0,
+                                    },
+                                ],
+                                onClick: ({ key }) => {
+                                    if (key === "check") {
+                                        if (entryCheckOn) recheckEntries();
+                                        else setEntryCheckOn(true);
+                                    }
+                                    if (key === "delete") handleDeleteImport();
+                                },
+                            }}
+                        >
+                            <Button
+                                icon={<MoreOutlined />}
+                                loading={entryCheckLoading || deleteImportMutation.isLoading}
+                                aria-label="More actions"
+                            />
+                        </Dropdown>
                     </Space>
+                    </div>
                 }
+                open={open}
+                onClose={onClose}
+                width={1000}
+                destroyOnClose
             >
-                {/* ── Summary Stats ── */}
-                <Row gutter={16} style={{ marginBottom: 20 }}>
-                    <Col span={4}>
-                        <Card size="small" bordered>
-                            <Statistic
-                                title="Total"
-                                value={importDetail?.imported_rows || 0}
-                                valueStyle={{ fontSize: 18 }}
-                            />
-                        </Card>
-                    </Col>
-                    <Col span={4}>
-                        <Card size="small" bordered>
-                            <Statistic
-                                title="Categorized"
-                                value={importDetail?.categorized_count || 0}
-                                valueStyle={{ fontSize: 18, color: "#52c41a" }}
-                            />
-                        </Card>
-                    </Col>
-                    <Col span={4}>
-                        <Card size="small" bordered>
-                            <Statistic
-                                title="Uncategorized"
-                                value={importDetail?.uncategorized_count || 0}
-                                valueStyle={{ fontSize: 18, color: "#faad14" }}
-                            />
-                        </Card>
-                    </Col>
-                    <Col span={4}>
-                        <Card size="small" bordered>
-                            <Statistic
-                                title="Completed"
-                                value={importDetail?.pushed_count || 0}
-                                valueStyle={{ fontSize: 18, color: "#1890ff" }}
-                            />
-                        </Card>
-                    </Col>
-                    <Col span={4}>
-                        <Card size="small" bordered>
-                            <Space direction="vertical" size={4} style={{ width: "100%" }}>
-                                <Text type="secondary" style={{ fontSize: 12 }}>Progress</Text>
-                                <Progress percent={catPct} size="small" strokeColor="#52c41a" />
-                            </Space>
-                        </Card>
-                    </Col>
-                    <Col span={4}>
-                        <Card size="small" bordered>
-                            <Space direction="vertical" size={4} style={{ width: "100%" }}>
-                                <Text type="secondary" style={{ fontSize: 12 }}>Amounts</Text>
-                                <Text style={{ fontSize: 13 }}>
-                                    <Text type="danger">DR {totalDebits.toLocaleString("en-KE", { minimumFractionDigits: 2 })}</Text>
-                                    {" / "}
-                                    <Text type="success">CR {totalCredits.toLocaleString("en-KE", { minimumFractionDigits: 2 })}</Text>
-                                </Text>
-                            </Space>
-                        </Card>
-                    </Col>
-                </Row>
+                {/* ── Summary strip ── */}
+                <div
+                    style={{
+                        display: "flex", flexWrap: "wrap", alignItems: "center", gap: "12px 28px",
+                        padding: "12px 16px", marginBottom: 16,
+                        border: "1px solid #f0f0f0", borderRadius: 8, background: "#fafafa",
+                    }}
+                >
+                    {[
+                        { label: "Total", value: importDetail?.imported_rows || 0 },
+                        { label: "Uncategorized", value: importDetail?.uncategorized_count || 0, color: "#d48806" },
+                        { label: "Categorized", value: importDetail?.categorized_count || 0, color: "#389e0d" },
+                        { label: "Completed", value: importDetail?.pushed_count || 0, color: "#1677ff" },
+                    ].map((s) => (
+                        <div key={s.label}>
+                            <Text type="secondary" style={{ fontSize: 12, display: "block" }}>{s.label}</Text>
+                            <Text strong style={{ fontSize: 18, color: s.color }}>{s.value}</Text>
+                        </div>
+                    ))}
+                    <div style={{ flex: "1 1 140px", minWidth: 140 }}>
+                        <Text type="secondary" style={{ fontSize: 12, display: "block" }}>Reviewed</Text>
+                        <Progress percent={catPct} size="small" strokeColor="#52c41a" style={{ margin: 0 }} />
+                    </div>
+                    <div style={{ textAlign: "right", marginLeft: "auto" }}>
+                        <Text type="secondary" style={{ fontSize: 12, display: "block" }}>Money out / in (KES)</Text>
+                        <Text style={{ fontSize: 13, whiteSpace: "nowrap" }}>
+                            <Text type="danger">−{fmtKes(totalDebits)}</Text>
+                            <Text type="secondary">{"  /  "}</Text>
+                            <Text type="success">+{fmtKes(totalCredits)}</Text>
+                        </Text>
+                    </div>
+                </div>
 
                 {/* ── Journal entry check result ── */}
                 {entryCheckOn && entryCheck && (
@@ -1070,7 +1072,6 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                                 showSearch
                                 optionFilterProp="label"
                                 allowClear
-                                size="large"
                             />
                             <Button
                                 type="primary"
@@ -1078,7 +1079,6 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                                 onClick={handleBulkCategorize}
                                 disabled={!bulkAccountId}
                                 loading={bulkCategorizeMutation.isLoading}
-                                size="large"
                             >
                                 Apply
                             </Button>
@@ -1087,11 +1087,10 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                                 icon={<DeleteOutlined />}
                                 onClick={handleBulkDelete}
                                 loading={deleteTxnsMutation.isLoading}
-                                size="large"
                             >
                                 Delete
                             </Button>
-                            <Button onClick={() => setSelectedRowKeys([])} size="large">Clear</Button>
+                            <Button onClick={() => setSelectedRowKeys([])}>Clear</Button>
                         </Space>
                     </div>
                 )}
@@ -1100,16 +1099,23 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                 <Tabs
                     activeKey={statusFilter}
                     onChange={(k) => { setStatusFilter(k as any); setPage(1); }}
-                    size="large"
-                    style={{ marginBottom: 16 }}
-                    items={STATUS_TABS.map((s) => ({
-                        key: s,
-                        label: s === "ALL" ? "All" : s === "Pushed" ? "Completed" : s,
-                    }))}
+                    style={{ marginBottom: 8 }}
+                    items={STATUS_TABS.map((s) => {
+                        const n = tabCounts[s];
+                        const name = s === "ALL" ? "All" : s === "Pushed" ? "Completed" : s;
+                        return {
+                            key: s,
+                            label: (
+                                <span>
+                                    {name}
+                                    {n !== undefined && <Text type="secondary" style={{ marginLeft: 6, fontSize: 12 }}>{n}</Text>}
+                                </span>
+                            ),
+                        };
+                    })}
                     tabBarExtraContent={
                         <DatePicker.RangePicker
-                            size="large"
-                            style={{ width: 280 }}
+                            style={{ width: 250 }}
                             presets={[
                                 { label: "Today", value: [dayjs().startOf("day"), dayjs().endOf("day")] },
                                 { label: "This Week", value: [dayjs().startOf("week"), dayjs().endOf("week")] },
@@ -1144,8 +1150,8 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                     dataSource={transactions}
                     columns={columns}
                     loading={isLoading}
-                    size="middle"
-                    scroll={{ x: 850 }}
+                    size="small"
+                    scroll={{ x: 930 }}
                     rowSelection={{
                         selectedRowKeys,
                         onChange: setSelectedRowKeys,
