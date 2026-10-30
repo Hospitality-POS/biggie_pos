@@ -291,8 +291,11 @@ export const ProfitAndLossTable: React.FC<{ data: ProfitAndLossResponse; period?
     const revenueRows = data.revenue.accounts.map((a) => ({ ...a }));
     const expenseRows = data.expenses.accounts.map((a) => ({ ...a }));
 
-    // Treat any Cost of Sales / COGS / Purchases accounts as COGS, not operating expenses
+    // Treat any Cost of Sales / COGS / Purchases accounts as COGS, not operating expenses.
+    // The account's Detail Type (account_subtype) decides first, so a COGS
+    // account with any name (e.g. "Stock") lands under Cost of Goods Sold.
     const isCogsAccount = (a: any) =>
+      /cost of goods sold/i.test(a.account_subtype || "") ||
       (a.account_type || "").toLowerCase().includes("cogs") ||
       /cost of (sales|goods)|purchases/i.test(a.account_name || "");
 
