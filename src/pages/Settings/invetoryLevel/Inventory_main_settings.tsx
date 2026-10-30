@@ -12,7 +12,10 @@ import {
   MedicineBoxOutlined,
   LockOutlined,
   BarChartOutlined,
+  CalendarOutlined,
 } from "@ant-design/icons";
+import BatchesTab from "@pages/Healthcare/BatchesTab";
+import { useHealthcareSettings } from "@hooks/useHealthcareSettings";
 import InventorySettings from "./InventorySettings";
 import DeliverySettings from "./DeliverySettings";
 import UomSettings from "./UomSettings";
@@ -42,7 +45,7 @@ const useIsMobile = () => {
 };
 
 // ── Tab config ────────────────────────────────────────────────────────────────
-const getTabConfig = (hospital: boolean) => [
+const getTabConfig = (hospital: boolean, batches: boolean) => [
   {
     key: "uom",
     label: "Units of Measure",
@@ -63,6 +66,21 @@ const getTabConfig = (hospital: boolean) => [
     component: <InventorySettings />,
     permissionKey: "INVENTORY_VIEW",
   },
+  // Healthcare add-on: batch numbers and expiry dates next to the medicine stock
+  ...(batches
+    ? [
+        {
+          key: "batches",
+          label: "Batches & Expiry",
+          shortLabel: "Expiry",
+          icon: <CalendarOutlined />,
+          color: "#f59e0b",
+          bg: "#fffbeb",
+          component: <div style={{ padding: 16 }}><BatchesTab /></div>,
+          permissionKey: "HEALTHCARE_BATCHES_VIEW",
+        },
+      ]
+    : []),
   {
     key: "purchase-orders",
     label: hospital ? "Pharmacy Purchase Orders" : "Purchase Orders",
@@ -128,10 +146,11 @@ function InventoryMainSettings() {
   const isMobile = useIsMobile();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const hospital = isHospitalMode();
+  const { batchTracking } = useHealthcareSettings();
 
   // Admin users get can() === true for every key via makePermissionChecker
   const can = useMemo(() => getPermissionChecker(), []);
-  const TAB_CONFIG = useMemo(() => getTabConfig(hospital), [hospital]);
+  const TAB_CONFIG = useMemo(() => getTabConfig(hospital, hospital && batchTracking), [hospital, batchTracking]);
 
   const rawTab = searchParams.get("tab") || "uom";
   const activeTab = useMemo(() => {

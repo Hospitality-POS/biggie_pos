@@ -1,5 +1,10 @@
 import { useEffect, useState, useCallback } from "react";
-import { Button, Form, Input, Modal, Typography, message, Row, Col, AutoComplete, Radio } from "antd";
+import { Button, Form, Input, Modal, Typography, message, Row, Col, AutoComplete, Radio, Select, DatePicker } from "antd";
+import dayjs, { type Dayjs } from "dayjs";
+import { useQueryClient } from "@tanstack/react-query";
+import { useHealthcareSettings } from "@hooks/useHealthcareSettings";
+import { useHealthcareAccess } from "@pages/Healthcare/shared";
+import { fetchPatient, savePatientProfile, type Allergy, type PatientProfile } from "@services/healthcare";
 import {
     EditOutlined, EnvironmentOutlined, IdcardOutlined,
     MailOutlined, SaveOutlined, UserAddOutlined, UserOutlined, ShopOutlined,
@@ -36,6 +41,16 @@ interface AddCustomerModalProps {
     };
     /** Plain "add" mode with a name or phone already filled in (e.g. from a search box) */
     prefill?: { customer_name?: string; phone?: string };
+}
+
+/** The Medical section of the form (hospital mode) */
+interface MedicalValues {
+    national_id?: string;
+    blood_group?: string;
+    allergies?: string[];
+    chronic_conditions?: string[];
+    insurance?: { provider?: string; member_number?: string };
+    next_of_kin?: { name?: string; relationship?: string; phone?: string };
 }
 
 /** Parse a raw phone string into the { code, phone, short } shape PhoneInput expects */
@@ -171,10 +186,71 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
     const [loading, setLoading] = useState(false);
     const [entityType, setEntityType] = useState<'individual' | 'company'>('individual');
     const { options, loading: placesLoading, getPlacePredictions, getPlaceDetails } = useGooglePlacesAutocomplete();
+    const queryClient = useQueryClient();
 
     // leadPrefill always forces create mode regardless of mode prop
     const isFromLead = !!leadPrefill;
     const isEdit = mode === "edit" && !isFromLead;
+
+    // ── Hospital mode: the customer is a patient ──────────────────────────────
+    // Patients are always individuals; business fields (company, contact
+    // person, KRA PIN) give way to gender, date of birth and, with Healthcare
+    // patient records on, the medical details clinicians need at check-in.
+    const isHospital = (localStorage.getItem("posMode") ?? "") === "hospital";
+    const { patientRecords, insurance, facilityType, words } = useHealthcareSettings();
+    const { managePatients } = useHealthcareAccess();
+    const askMedical = isHospital && patientRecords && managePatients;
+    const [existingProfile, setExistingProfile] = useState<PatientProfile | null>(null);
+    const noun = isHospital ? words.person : "Customer";
+
+    // Editing a patient: load their medical details into the form
+    useEffect(() => {
+        setExistingProfile(null);
+        if (!visible || !isEdit || !customer?._id || !askMedical) return;
+        let cancelled = false;
+        fetchPatient(customer._id)
+            .then(({ profile }) => {
+                if (cancelled || !profile) return;
+                setExistingProfile(profile);
+                form.setFieldsValue({
+                    medical: {
+                        national_id: profile.national_id,
+                        blood_group: profile.blood_group ?? "unknown",
+                        allergies: (profile.allergies ?? []).map((a) => a.substance),
+                        chronic_conditions: profile.chronic_conditions ?? [],
+                        insurance: { provider: profile.insurance?.provider, member_number: profile.insurance?.member_number },
+                        next_of_kin: profile.next_of_kin,
+                    },
+                });
+            })
+            .catch(() => undefined);
+        return () => {
+            cancelled = true;
+        };
+    }, [visible, isEdit, customer?._id, askMedical, form]);
+
+    /** Saves the medical section; keeps reaction/severity already recorded for an allergy. */
+    const saveMedical = async (customerId: string | undefined, medical: MedicalValues | undefined) => {
+        if (!askMedical || !customerId || !medical) return;
+        const known = new Map((existingProfile?.allergies ?? []).map((a) => [a.substance.toLowerCase(), a]));
+        const allergies: Allergy[] = (medical.allergies ?? []).map(
+            (s) => known.get(String(s).toLowerCase()) ?? { substance: String(s).trim(), severity: "moderate" as const }
+        );
+        try {
+            await savePatientProfile(customerId, {
+                national_id: medical.national_id?.trim() || "",
+                blood_group: medical.blood_group || "unknown",
+                allergies,
+                chronic_conditions: medical.chronic_conditions ?? [],
+                insurance: { ...existingProfile?.insurance, ...medical.insurance },
+                next_of_kin: medical.next_of_kin,
+            });
+            queryClient.invalidateQueries({ queryKey: ["healthcare-patient", customerId] });
+            queryClient.invalidateQueries({ queryKey: ["healthcare-patient-profiles"] });
+        } catch {
+            message.warning("Patient saved, but the medical details couldn't be saved — add them on the Medical tab");
+        }
+    };
 
     useEffect(() => {
         if (!visible) return;
@@ -209,6 +285,8 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                 credit_limit: customer.credit_limit,
                 assigned_to: customer.assigned_to || "",
                 notes: customer.notes || "",
+                gender: customer.gender,
+                date_of_birth: customer.date_of_birth ? dayjs(customer.date_of_birth) : undefined,
             });
         } else {
             form.resetFields();
@@ -256,6 +334,10 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                 credit_limit: values.credit_limit ? parseFloat(values.credit_limit) : undefined,
                 assigned_to: values.assigned_to || undefined,
                 notes: values.notes || undefined,
+                ...(isHospital ? {
+                    gender: values.gender || undefined,
+                    date_of_birth: (values.date_of_birth as Dayjs | undefined)?.toISOString(),
+                } : {}),
             };
 
             // Remove undefined fields to keep payload clean
@@ -270,14 +352,16 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                 : await addNewCustomer(payload);
 
             if (response?.status === 200 || response?.status === 201) {
+                const saved = response?.data?.customer ?? response?.data;
+                await saveMedical(isEdit ? customer?._id : saved?._id, values.medical);
                 message.success(
                     isFromLead ? "Customer created from lead successfully!"
-                        : isEdit ? "Customer updated successfully!"
-                            : "Customer added successfully!"
+                        : isEdit ? `${noun} updated successfully!`
+                            : `${noun} added successfully!`
                 );
                 form.resetFields();
                 onClose();
-                onSuccess?.(response?.data?.customer ?? response?.data);
+                onSuccess?.(saved);
             }
         } catch (error: any) {
             message.error(
@@ -299,8 +383,8 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
     const accentColor = isFromLead ? C.green : isEdit ? C.blue : C.primary;
     const accentBg = isFromLead ? "#f0fdf4" : isEdit ? "#eff6ff" : C.primaryLight;
     const titleText = isFromLead ? "Convert Lead to Customer"
-        : isEdit ? "Edit Customer"
-            : "Add New Customer";
+        : isEdit ? `Edit ${noun}`
+            : `Add New ${noun}`;
 
     return (
         <Modal
@@ -348,9 +432,9 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                         Basic Information
                     </Text>
                     
-                    {/* Entity Type */}
-                    <Form.Item name="entity_type" label="Entity Type" initialValue="individual">
-                        <Radio.Group 
+                    {/* Entity Type — patients are always individuals */}
+                    <Form.Item name="entity_type" label="Entity Type" initialValue="individual" hidden={isHospital}>
+                        <Radio.Group
                             onChange={(e) => setEntityType(e.target.value)}
                             style={{ width: '100%' }}
                         >
@@ -366,15 +450,15 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                     {/* Name fields based on entity type */}
                     {entityType === 'individual' ? (
                         <Form.Item
-                            name="customer_name" label="Customer Name"
+                            name="customer_name" label={`${noun} Name`}
                             rules={[
-                                { required: true, message: "Customer name is required for individual customers" },
+                                { required: true, message: `${noun} name is required` },
                                 { min: 2, message: "Name must be at least 2 characters" },
                             ]}
                         >
                             <Input
                                 prefix={<UserOutlined style={{ color: C.subText }} />}
-                                placeholder="Enter customer full name"
+                                placeholder={`Enter ${noun.toLowerCase()} full name`}
                                 style={{ borderRadius: 8 }}
                                 autoFocus
                             />
@@ -395,14 +479,39 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                         </Form.Item>
                     )}
 
-                    {/* Contact Person (optional for both, recommended for company) */}
-                    <Form.Item name="contact_person" label="Contact Person">
-                        <Input 
-                            prefix={<UserOutlined style={{ color: C.subText }} />}
-                            placeholder={entityType === 'company' ? "Primary contact person" : "Contact person (optional)"}
-                            style={{ borderRadius: 8 }} 
-                        />
-                    </Form.Item>
+                    {/* Contact Person (optional for both, recommended for company) — next of kin covers this for patients */}
+                    {!isHospital && (
+                        <Form.Item name="contact_person" label="Contact Person">
+                            <Input
+                                prefix={<UserOutlined style={{ color: C.subText }} />}
+                                placeholder={entityType === 'company' ? "Primary contact person" : "Contact person (optional)"}
+                                style={{ borderRadius: 8 }}
+                            />
+                        </Form.Item>
+                    )}
+
+                    {isHospital && (
+                        <Row gutter={12}>
+                            <Col xs={24} sm={12}>
+                                <Form.Item name="gender" label="Gender">
+                                    <Select
+                                        allowClear
+                                        placeholder="Select"
+                                        options={[
+                                            { value: "male", label: "Male" },
+                                            { value: "female", label: "Female" },
+                                            { value: "other", label: "Other" },
+                                        ]}
+                                    />
+                                </Form.Item>
+                            </Col>
+                            <Col xs={24} sm={12}>
+                                <Form.Item name="date_of_birth" label="Date of Birth">
+                                    <DatePicker format="DD/MM/YYYY" style={{ width: "100%" }} disabledDate={(d) => d.isAfter(dayjs())} />
+                                </Form.Item>
+                            </Col>
+                        </Row>
+                    )}
 
                     <PhoneInput
                         label="Phone Number"
@@ -429,7 +538,7 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                     padding: 16, marginBottom: 16
                 }}>
                     <Text strong style={{ fontSize: 13, color: C.darkText, marginBottom: 12, display: "block" }}>
-                        Address Information
+                        {isHospital ? "Residence" : "Address Information"}
                     </Text>
                     
                     <Row gutter={[12, 8]}>
@@ -567,7 +676,82 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                     </Row>
                 </div> */}
 
-                {/* Tax Information Section */}
+                {/* Medical Section — hospital mode with Healthcare patient records on */}
+                {askMedical && (
+                    <div style={{
+                        background: "#fafafa", border: "1px solid #e8e8e8", borderRadius: 8,
+                        padding: 16, marginBottom: 16
+                    }}>
+                        <Text strong style={{ fontSize: 13, color: C.darkText, marginBottom: 12, display: "block" }}>
+                            Medical
+                        </Text>
+                        <Row gutter={[12, 0]}>
+                            <Col xs={24} sm={12}>
+                                <Form.Item name={["medical", "national_id"]} label="ID / Birth Cert. No.">
+                                    <Input prefix={<IdcardOutlined style={{ color: C.subText }} />} style={{ borderRadius: 8 }} />
+                                </Form.Item>
+                            </Col>
+                            <Col xs={24} sm={12}>
+                                <Form.Item name={["medical", "blood_group"]} label="Blood Group" initialValue="unknown">
+                                    <Select options={["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "unknown"].map((b) => ({ value: b, label: b === "unknown" ? "Unknown" : b }))} />
+                                </Form.Item>
+                            </Col>
+                            <Col xs={24} sm={12}>
+                                <Form.Item name={["medical", "allergies"]} label="Allergies" extra="Type and press Enter. Add reactions on the Medical tab.">
+                                    <Select mode="tags" placeholder="e.g. Penicillin" tokenSeparators={[","]} />
+                                </Form.Item>
+                            </Col>
+                            <Col xs={24} sm={12}>
+                                <Form.Item name={["medical", "chronic_conditions"]} label="Chronic Conditions">
+                                    <Select mode="tags" placeholder="e.g. Diabetes" tokenSeparators={[","]} />
+                                </Form.Item>
+                            </Col>
+                            {/* Insurance details only where the branch takes insurance */}
+                            {insurance && (
+                                <>
+                                    <Col xs={24} sm={12}>
+                                        <Form.Item name={["medical", "insurance", "provider"]} label="Insurance Provider">
+                                            <Input placeholder="e.g. SHA, Jubilee, AAR (blank = cash)" style={{ borderRadius: 8 }} />
+                                        </Form.Item>
+                                    </Col>
+                                    <Col xs={24} sm={12}>
+                                        <Form.Item name={["medical", "insurance", "member_number"]} label="Member No.">
+                                            <Input style={{ borderRadius: 8 }} />
+                                        </Form.Item>
+                                    </Col>
+                                </>
+                            )}
+                        </Row>
+                        {/* A chemist doesn't need a next of kin for a counter sale */}
+                        {facilityType !== "pharmacy" && (
+                        <>
+                        <Text strong style={{ fontSize: 12, color: C.darkText, margin: "4px 0 8px", display: "block" }}>
+                            Next of Kin
+                        </Text>
+                        <Row gutter={[12, 0]}>
+                            <Col xs={24} sm={10}>
+                                <Form.Item name={["medical", "next_of_kin", "name"]} label="Name">
+                                    <Input style={{ borderRadius: 8 }} />
+                                </Form.Item>
+                            </Col>
+                            <Col xs={12} sm={6}>
+                                <Form.Item name={["medical", "next_of_kin", "relationship"]} label="Relationship">
+                                    <Input placeholder="e.g. Mother" style={{ borderRadius: 8 }} />
+                                </Form.Item>
+                            </Col>
+                            <Col xs={12} sm={8}>
+                                <Form.Item name={["medical", "next_of_kin", "phone"]} label="Phone">
+                                    <Input inputMode="tel" style={{ borderRadius: 8 }} />
+                                </Form.Item>
+                            </Col>
+                        </Row>
+                        </>
+                        )}
+                    </div>
+                )}
+
+                {/* Tax Information Section — not asked of patients */}
+                {!isHospital && (
                 <div style={{
                     background: "#fafafa", border: "1px solid #e8e8e8", borderRadius: 8,
                     padding: 16, marginBottom: 16
@@ -575,7 +759,7 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                     <Text strong style={{ fontSize: 13, color: C.darkText, marginBottom: 12, display: "block" }}>
                         Tax Information
                     </Text>
-                    
+
                     <Form.Item
                         name="kra_pin" label="KRA PIN"
                         rules={[{
@@ -591,6 +775,7 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                         />
                     </Form.Item>
                 </div>
+                )}
 
                 {/* Notes Section */}
                 <div style={{
@@ -600,10 +785,12 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                     <Text strong style={{ fontSize: 13, color: C.darkText, marginBottom: 12, display: "block" }}>
                         Notes
                     </Text>
-                    
-                    <Form.Item name="notes" label="Customer Notes" style={{ marginBottom: 8 }}>
-                        <Input.TextArea 
-                            placeholder="Add any notes about customer preferences, special requirements, etc."
+
+                    <Form.Item name="notes" label={`${noun} Notes`} style={{ marginBottom: 8 }}>
+                        <Input.TextArea
+                            placeholder={isHospital
+                                ? "Anything staff should know, e.g. prefers Swahili, needs a wheelchair"
+                                : "Add any notes about customer preferences, special requirements, etc."}
                             rows={3}
                             style={{ borderRadius: 8 }}
                         />
@@ -611,7 +798,9 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                 </div>
 
                 <Text style={{ fontSize: 11, color: C.subText, display: "block", marginBottom: 20, marginTop: -8 }}>
-                    Email, address and KRA PIN are optional.
+                    {isHospital
+                        ? `Only the name and phone are required.${askMedical ? " A patient number is given when the patient is saved." : ""}`
+                        : "Email, address and KRA PIN are optional."}
                 </Text>
 
                 <div style={{ display: "flex", gap: 10 }}>
@@ -627,7 +816,7 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                             borderRadius: 8, height: 38, fontWeight: 500,
                         }}
                     >
-                        {isFromLead ? "Create Customer from Lead" : isEdit ? "Update Customer" : "Add Customer"}
+                        {isFromLead ? "Create Customer from Lead" : isEdit ? `Update ${noun}` : `Add ${noun}`}
                     </Button>
                 </div>
             </Form>

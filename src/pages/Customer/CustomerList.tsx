@@ -1,3 +1,4 @@
+import { facilityWords, getFacilityType } from "@utils/healthcareFacility";
 import { useEffect, useRef, useState, useMemo } from "react";
 import { App, Button, message, Typography } from "antd";
 import {
@@ -68,7 +69,7 @@ const getTabConfig = (): TabItem[] => {
 
     if (isHospital) {
         return [
-            { key: "customers", label: "Patients", icon: <UserOutlined />, permissionKey: "CUSTOMERS_VIEW" },
+            { key: "customers", label: facilityWords(getFacilityType()).people, icon: <UserOutlined />, permissionKey: "CUSTOMERS_VIEW" },
             { key: "schedule", label: "Appointments", icon: <CalendarOutlined />, permissionKey: "CONSULTATIONS_VIEW_SLOTS" },
             { key: "packages", label: "Packages", icon: <CreditCardOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
             { key: "subscriptions", label: "Subscriptions", icon: <WalletOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
@@ -324,15 +325,15 @@ function Customers() {
                 </div>
                 <div>
                     <Text strong style={{ fontSize: isMobile ? 15 : 17, color: colors.darkText, display: "block", lineHeight: 1.3 }}>
-                        {isHospital ? "Patient Management" : (hasDala ? "Client Management" : "Customer Management")}
+                        {isHospital ? `${facilityWords(getFacilityType()).person} Management` : (hasDala ? "Client Management" : "Customer Management")}
                     </Text>
                     <Text style={{ fontSize: 11, color: colors.subText, lineHeight: 1.3 }}>
                         {showOnlyCustomers
-                            ? `Manage your ${isHospital ? "patients" : (hasDala ? "clients" : "customers")}` 
+                            ? `Manage your ${isHospital ? facilityWords(getFacilityType()).people.toLowerCase() : (hasDala ? "clients" : "customers")}` 
                             : hasMteja
                                 ? `${hasDala ? "Clients" : "Customers"}, leads & bookings`
                                 : isHospital
-                                    ? "Patients, appointments, services & more"
+                                    ? `${facilityWords(getFacilityType()).people}, appointments, services & more`
                                     : `${hasDala ? "Clients" : "Customers"}, subscriptions, bookings & more`}
                     </Text>
                 </div>
