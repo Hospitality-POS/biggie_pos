@@ -36,7 +36,7 @@ import {
     JournalEntry,
 } from "@services/accounting/journals";
 import { getAllAccounts, ChartOfAccount } from "@services/accounting/accounts";
-import AccountFormDrawer from "@pages/ChartOfAccounts/AccountFormDrawer";
+import AccountFormDrawer from "../accounts/AccountFormDrawer";
 import SplitAccountsModal, { SplitRow } from "@components/accounting/SplitAccountsModal";
 import dayjs from "dayjs";
 

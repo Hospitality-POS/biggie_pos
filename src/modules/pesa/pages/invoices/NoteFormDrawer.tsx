@@ -43,7 +43,7 @@ import { fetchAllSuppliers } from "@services/supplier";
 import { getAllInvoices } from "@services/accounting/invoice";
 import AddCustomerModal from "@pages/Customer/AddCustomerModal";
 import AddProSupplierModal from "@components/MODALS/pro/AddProSupplierModal";
-import AccountFormDrawer from "@pages/ChartOfAccounts/AccountFormDrawer";
+import AccountFormDrawer from "../accounts/AccountFormDrawer";
 
 const { Text } = Typography;
 

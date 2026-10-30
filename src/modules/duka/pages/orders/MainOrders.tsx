@@ -1,14 +1,14 @@
 import React, { useState, useMemo } from "react";
 import { Typography } from "antd";
 import { OrderedListOutlined, ShoppingCartOutlined, FileDoneOutlined , LockOutlined, CheckCircleOutlined } from "@ant-design/icons";
-import OrdersTable from "@pages/OrderManagement/Orders/OrdersTable";
-import OrdersByLocation from "@pages/OrderManagement/Orders/OrdersByLocation";
-import InvoiceTable from "@pages/OrderManagement/Invoices/InvoiceTable";
-import ManualInvoiceModal from "@pages/OrderManagement/Invoices/ManualInvoiceModal";
+import OrdersTable from "./components/OrdersTable";
+import OrdersByLocation from "./components/OrdersByLocation";
+import InvoiceTable from "@modules/pesa/pages/invoices/components/InvoiceTable";
+import ManualInvoiceModal from "@modules/pesa/pages/invoices/components/ManualInvoiceModal";
 import { getPermissionChecker } from "@utils/getPermissionChecker";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { THEME_C } from "@utils/getPrimaryColor";
-import { getStoredShopId, useMarketplace } from "@pages/OmniChannel/shared/ui";
+import { getStoredShopId, useMarketplace } from "@modules/mteja/pages/omnichannel/shared/ui";
 import { useTenantModules } from "@hooks/useTenantModules";
 import { useIsCompact } from "@hooks/useIsCompact";
 

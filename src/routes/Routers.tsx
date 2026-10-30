@@ -139,9 +139,9 @@ const PettyCashListPage = lazyWithReload(() => import("@modules/duka/pages/order
 const RefundsListPage = lazyWithReload(() => import("@modules/duka/pages/orders/RefundsListPage"));
 
 // ─── Expenses / Bills / Income ────────────────────────────────────────────────
-const ExpensesPage = lazyWithReload(() => import("@pages/OrderManagement/ExpensesPage"));
-const BillsPage = lazyWithReload(() => import("@pages/OrderManagement/BillsPage"));
-const IncomePage = lazyWithReload(() => import("@pages/OrderManagement/IncomePage"));
+const ExpensesPage = lazyWithReload(() => import("@modules/pesa/pages/invoices/ExpensesPage"));
+const BillsPage = lazyWithReload(() => import("@modules/pesa/pages/invoices/BillsPage"));
+const IncomePage = lazyWithReload(() => import("@modules/pesa/pages/invoices/IncomePage"));
 
 // ─── Currency ─────────────────────────────────────────────────────────────────
 const CurrencyPage = lazyWithReload(() => import("src/pages/Currency/CurrencyPage"));

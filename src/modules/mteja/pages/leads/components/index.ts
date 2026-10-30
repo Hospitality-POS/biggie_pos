@@ -1,4 +1,4 @@
-export { default as LeadTable } from 'src/pages/Lead/LeadTable';
-export { default as LeadFormModal } from 'src/pages/Lead/LeadFormModal';
-export { default as LeadDetailDrawer } from 'src/pages/Lead/LeadDetailDrawer';
-export { default as ImportLeadsModal } from 'src/pages/Lead/ImportLeadsModal';
+export { default as LeadTable } from '../LeadTable';
+export { default as LeadFormModal } from '../LeadFormModal';
+export { default as LeadDetailDrawer } from '../LeadDetailDrawer';
+export { default as ImportLeadsModal } from '../ImportLeadsModal';

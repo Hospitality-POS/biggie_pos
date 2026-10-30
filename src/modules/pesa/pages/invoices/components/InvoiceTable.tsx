@@ -1,0 +1,1455 @@
+import { useEffect, useRef, useState } from "react";
+import {
+  ActionType,
+  ProFormInstance,
+  ProTable,
+} from "@ant-design/pro-components";
+import ExpandedRowContent from "./ExpandableInvoice";
+import {
+  Button, DatePicker, Drawer, Form, Input, InputNumber,
+  Modal, Select, App, Tooltip, Typography, Dropdown, Tag, Divider,
+} from "antd";
+import {
+  DollarOutlined, EditOutlined, FileDoneOutlined,
+  FileTextOutlined, FilePdfOutlined, FilterOutlined, MoreOutlined,
+  PrinterOutlined, UserOutlined, SafetyCertificateOutlined,
+  DeleteOutlined, PlusOutlined, CopyOutlined, StopOutlined,
+} from "@ant-design/icons";
+import { getAllInvoices } from "@services/cart";
+import { fetchAllCustomers } from "@services/customers";
+import { convertQuoteToInvoice, recordInvoicePayment, deleteInvoice, duplicateInvoice, voidInvoice, postInvoice } from "@services/accounting/invoice";
+import { fetchAllPaymentMethods } from "@services/paymentMethod";
+import { getAllAccounts } from "@services/accounting/accounts";
+import { generateTaxInvoice } from "@services/accounting/digiTax";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import useSystemDetails from "@hooks/useSystemDetails";
+import { useTenantModules } from "@hooks/useTenantModules";
+import { Template6Clean } from "./InvoiceTemplates";
+import ManualInvoiceModal from "./ManualInvoiceModal";
+import NoteDetailDrawer from "../NoteDetailDrawer";
+import NoteFormDrawer from "../NoteFormDrawer";
+import AccountFormDrawer from "@pages/ChartOfAccounts/AccountFormDrawer";
+import dayjs from "dayjs";
+import { THEME_C } from "@utils/getPrimaryColor";
+
+const { Text } = Typography;
+const { RangePicker } = DatePicker;
+
+// ── Palette ────────────────────────────────────────────────────────────────
+const C = THEME_C;
+
+/** Round to cents: float subtraction leaves values like 0.009999999776. */
+const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+
+/** "12345.6" → "12,345.6": commas in the whole part only, never in the decimals. */
+const moneyFormatter = (v?: string | number) => {
+  if (v === undefined || v === null || v === "") return "";
+  const [whole, dec] = String(v).split(".");
+  return whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",") + (dec !== undefined ? `.${dec}` : "");
+};
+
+const fmt = (v: number) =>
+  (v || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+// ── Mobile hook ────────────────────────────────────────────────────────────
+const useIsMobile = () => {
+  const [v, setV] = useState(window.innerWidth < 768);
+  useEffect(() => {
+    const h = () => setV(window.innerWidth < 768);
+    window.addEventListener("resize", h);
+    return () => window.removeEventListener("resize", h);
+  }, []);
+  return v;
+};
+
+// ── Payment terms ──────────────────────────────────────────────────────────
+const PAYMENT_TERMS = [
+  "Due on Receipt", "Net 7", "Net 14", "Net 30",
+  "Net 60", "Net 90", "50% Upfront", "Cash on Delivery",
+].map((v) => ({ label: v, value: v }));
+
+// ── Status tags ────────────────────────────────────────────────────────────
+const STATUS_CFG: Record<string, { bg: string; color: string; border: string; dot: string }> = {
+  Draft: { bg: "#fffbeb", color: "#d97706", border: "#fde68a", dot: "#f59e0b" },
+  Pending: { bg: "#eff6ff", color: "#2563eb", border: "#bfdbfe", dot: "#3b82f6" },
+  Partially_Paid: { bg: "#fff7ed", color: "#ea580c", border: "#fed7aa", dot: "#f97316" },
+  // Older partly paid invoices were saved as "Partial"
+  Partial: { bg: "#fff7ed", color: "#ea580c", border: "#fed7aa", dot: "#f97316" },
+  Paid: { bg: "#f0fdf4", color: "#059669", border: "#bbf7d0", dot: "#10b981" },
+  Overdue: { bg: "#fef2f2", color: "#dc2626", border: "#fecaca", dot: "#ef4444" },
+  Voided: { bg: C.bg, color: C.subText, border: C.border, dot: "#94a3b8" },
+  Cancelled: { bg: C.bg, color: C.subText, border: C.border, dot: "#94a3b8" },
+};
+
+/** Balance left after payments and sales receipts. */
+const balanceDue = (r: any) => {
+  const paid = (r.payments || r.payment_ids || []).reduce((s: number, p: any) => s + (p.amount || 0), 0);
+  const receipts = (r.salesReceipts || []).reduce((s: number, x: any) => s + (x.grand_total || 0), 0);
+  return round2(Math.max(0, (r.grand_total || 0) - paid - receipts));
+};
+
+/** Open for payment: not a quote, not voided / cancelled, and money still owed. */
+const isPayable = (r: any) =>
+  ["Pending", "Partially_Paid", "Partial", "Overdue"].includes(r.status) ||
+  (!["Draft", "Voided", "Cancelled"].includes(r.status) && balanceDue(r) > 0.001);
+
+const StatusTag = ({ status }: { status?: string }) => {
+  if (!status) return null;
+  const s = STATUS_CFG[status] ?? STATUS_CFG.Voided;
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 5,
+      borderRadius: 20, padding: "3px 10px",
+      fontSize: 11, fontWeight: 600, letterSpacing: "0.2px",
+      background: s.bg, color: s.color, border: `1px solid ${s.border}`,
+    }}>
+      <span style={{
+        width: 6, height: 6, borderRadius: "50%", background: s.dot, flexShrink: 0,
+      }} />
+      {status === "Draft" ? "Quote" : status.replace("_", " ")}
+    </span>
+  );
+};
+
+const ClosedByTag = ({ username }: { username?: string }) =>
+  username ? (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 4,
+      borderRadius: 20, padding: "3px 10px",
+      fontSize: 11, fontWeight: 600, background: "#f0fdf4",
+      color: C.green, border: "1px solid #bbf7d0",
+    }}>
+      <UserOutlined style={{ fontSize: 10 }} />{username}
+    </span>
+  ) : (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 4,
+      borderRadius: 20, padding: "3px 10px",
+      fontSize: 11, fontWeight: 600, background: "#fef2f2",
+      color: C.red, border: "1px solid #fecaca",
+    }}>
+      Deleted
+    </span>
+  );
+
+// ── Modal helpers ──────────────────────────────────────────────────────────
+const modalTitle = (icon: React.ReactNode, iconColor: string, label: string) => (
+  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+    <div style={{
+      background: C.primaryLight, borderRadius: 7,
+      padding: "4px 6px", color: iconColor, fontSize: 14, lineHeight: 1,
+    }}>
+      {icon}
+    </div>
+    <Text strong style={{ fontSize: 14, color: C.darkText }}>{label}</Text>
+  </div>
+);
+
+const modalFooter = (
+  onCancel: () => void, onOk: () => void,
+  loading: boolean, okLabel: string, okColor = C.primary,
+) => [
+    <Button key="cancel" onClick={onCancel} style={{ borderRadius: 8 }}>Cancel</Button>,
+    <Button key="submit" type="primary" loading={loading} onClick={onOk}
+      style={{ background: okColor, borderColor: okColor, borderRadius: 8 }}>
+      {okLabel}
+    </Button>,
+  ];
+
+// ── Mobile filter drawer ───────────────────────────────────────────────────
+const MobileFilterDrawer: React.FC<{
+  open: boolean; onClose: () => void; onSearch: (params: any) => void;
+}> = ({ open, onClose, onSearch }) => {
+  const [form] = Form.useForm();
+  const handleApply = async () => {
+    const v = await form.validateFields();
+    onSearch(v); onClose();
+  };
+  return (
+    <Drawer open={open} onClose={onClose} placement="bottom" height="auto"
+      title={modalTitle(<FilterOutlined />, C.primary, "Filter Invoices")}
+      destroyOnClose
+      styles={{
+        body: { padding: "16px 16px 0" },
+        footer: { padding: "12px 16px", borderTop: `1px solid ${C.border}` },
+      }}
+      footer={
+        <div style={{ display: "flex", gap: 8 }}>
+          <Button block onClick={() => { form.resetFields(); onSearch({}); onClose(); }}
+            style={{ borderRadius: 8 }}>Reset</Button>
+          <Button block type="primary" onClick={handleApply}
+            style={{ background: C.primary, borderColor: C.primary, borderRadius: 8 }}>
+            Apply Filters
+          </Button>
+        </div>
+      }
+    >
+      <Form form={form} layout="vertical">
+        <Form.Item name="dateRange" label="Date Range">
+          <RangePicker style={{ width: "100%", borderRadius: 8 }}
+            presets={[
+              { label: "Today", value: [dayjs().startOf("day"), dayjs().endOf("day")] },
+              { label: "Yesterday", value: [dayjs().subtract(1, "days").startOf("day"), dayjs().subtract(1, "days").endOf("day")] },
+              { label: "This Week", value: [dayjs().startOf("week"), dayjs().endOf("week")] },
+              { label: "This Month", value: [dayjs().startOf("month"), dayjs().endOf("month")] },
+              { label: "Last Month", value: [dayjs().subtract(1, "month").startOf("month"), dayjs().subtract(1, "month").endOf("month")] },
+              { label: "This Quarter", value: [dayjs().startOf("quarter"), dayjs().endOf("quarter")] },
+              { label: "This Year", value: [dayjs().startOf("year"), dayjs().endOf("year")] },
+            ]} />
+        </Form.Item>
+        <Form.Item name="order_no" label="Order / Quote No.">
+          <Input placeholder="Enter order number" style={{ borderRadius: 8 }} />
+        </Form.Item>
+        <Form.Item name="invoice_no" label="Invoice No.">
+          <Input placeholder="Enter invoice number" style={{ borderRadius: 8 }} />
+        </Form.Item>
+        {hasPOS && (
+          <Form.Item name="name" label="Table Name">
+            <Input placeholder="Enter table name" style={{ borderRadius: 8 }} />
+          </Form.Item>
+        )}
+      </Form>
+    </Drawer>
+  );
+};
+
+// ── Zoho-style Mobile Invoice Card (entire card clickable) ─────────────────
+const MobileInvoiceCard: React.FC<{
+  record: any;
+  onConvert: (r: any) => void;
+  onPay: (r: any) => void;
+  onEdit: (r: any) => void;
+  onExpand: (r: any) => void;
+  onOpenNote: (noteId: string) => void;
+  onEtr: (r: any) => void;
+  onPaymentsChanged?: () => void;
+  expanded: boolean;
+}> = ({ record, onConvert, onPay, onEdit, onExpand, onOpenNote, onEtr, onPaymentsChanged, expanded }) => {
+  const isDraft = record.status === "Draft";
+  const payable = isPayable(record);
+  const needsEtr = !isDraft && !record.etr_enabled;
+
+  const actionItems = [
+    ...(isDraft ? [
+      { key: "print", label: "Print Quote", icon: <PrinterOutlined /> },
+      { key: "convert", label: "Convert to Invoice", icon: <FileDoneOutlined /> },
+    ] : []),
+    ...(payable ? [{ key: "pay", label: "Make Payment", icon: <DollarOutlined /> }] : []),
+    ...(needsEtr ? [{ key: "etr", label: "Submit Etims", icon: <SafetyCertificateOutlined /> }] : []),
+    { key: "edit", label: "Edit", icon: <EditOutlined /> },
+    ...(isAdmin && !record.etr_enabled ? [{ key: "delete", label: "Delete", icon: <DeleteOutlined />, danger: true }] : []),
+  ];
+
+  const handleMenuClick = ({ key }: { key: string }) => {
+    if (key === "print") printQuote(record);
+    if (key === "convert") onConvert(record);
+    if (key === "pay") onPay(record);
+    if (key === "edit") onEdit(record);
+    if (key === "etr") onEtr(record);
+    if (key === "delete") setDeleteTarget(record);
+  };
+
+  return (
+    <div
+      onClick={() => onExpand(record)}
+      style={{
+        background: "#fff",
+        border: `1px solid ${expanded ? C.primary : C.border}`,
+        borderLeft: `3px solid ${expanded ? C.primary : STATUS_CFG[record.status]?.dot || "#94a3b8"}`,
+        borderRadius: 10,
+        padding: "12px 14px",
+        marginBottom: 8,
+        cursor: "pointer",
+        transition: "all 0.15s ease",
+        boxShadow: expanded ? `0 2px 12px rgba(108,28,44,0.08)` : "none",
+      }}
+    >
+      {/* Top row */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {isDraft
+            ? <FileTextOutlined style={{ color: C.orange, fontSize: 13 }} />
+            : <FileDoneOutlined style={{ color: C.blue, fontSize: 13 }} />}
+          <Text strong style={{ fontSize: 13, color: C.darkText }}>{record.order_no}</Text>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <StatusTag status={record.status} />
+          {record.status !== "Draft" && record.status !== "Voided" && (
+            record.journal_entry_id ? (
+              <Tag color="green" style={{ fontSize: 9, borderRadius: 4 }}>
+                Posted
+              </Tag>
+            ) : (
+              <Tag color="red" style={{ fontSize: 9, borderRadius: 4 }}>
+                Not Posted
+              </Tag>
+            )
+          )}
+          {record.status !== "Draft" && (
+            record.etr_enabled ? (
+              <Tag color="green" style={{ fontSize: 9, borderRadius: 4 }}>
+                ETR
+              </Tag>
+            ) : (
+              <Tag color="orange" style={{ fontSize: 9, borderRadius: 4 }}>
+                No ETR
+              </Tag>
+            )
+          )}
+          <Dropdown
+            menu={{ items: actionItems, onClick: handleMenuClick }}
+            trigger={["click"]}
+          >
+            <Button
+              size="small"
+              icon={<MoreOutlined />}
+              style={{ borderRadius: 6, border: `1px solid ${C.border}` }}
+              onClick={(e) => e.stopPropagation()}
+            />
+          </Dropdown>
+        </div>
+      </div>
+
+      {/* Customer & amount */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+        <Text style={{ fontSize: 12, color: C.darkText, fontWeight: 500 }}>
+          {record.customer_id?.company_name || record.customer_id?.customer_name || record.customer_id?.name || record.counterparty_name || "—"}
+        </Text>
+        <Text strong style={{ fontSize: 13, color: C.primary }}>
+          {record.grand_total ? `KES ${fmt(record.grand_total)}` : "—"}
+        </Text>
+      </div>
+
+      {/* Meta row */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <Text style={{ fontSize: 11, color: C.subText }}>
+          {record.createdAt ? dayjs(record.createdAt).format("DD MMM YYYY") : "—"}
+          {record.table_id?.name ? ` · ${record.table_id.name}` : ""}
+        </Text>
+        {record.status !== "Draft" && (() => {
+          // Calculate amount due including sales receipts
+          const regularPayments = (record.payments || record.payment_ids || []).reduce((s: number, p: any) => s + (p.amount || 0), 0);
+          const salesReceiptsTotal = (record.salesReceipts || []).reduce((s: number, r: any) => s + (r.grand_total || 0), 0);
+          const calculatedAmountDue = Math.max(0, (record.grand_total || 0) - regularPayments - salesReceiptsTotal);
+          if (calculatedAmountDue > 0) {
+            return (
+              <Text style={{ fontSize: 11, color: C.orange, fontWeight: 600 }}>
+                Due: KES {fmt(calculatedAmountDue)}
+              </Text>
+            );
+          }
+          return null;
+        })()}
+      </div>
+
+      {/* Expanded details */}
+      {expanded && (
+        <div
+          style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.border}` }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <ExpandedRowContent record={record} onOpenNote={handleOpenNote} onPaymentsChanged={onPaymentsChanged} />
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── Convert modal ──────────────────────────────────────────────────────────
+const ConvertModal: React.FC<{
+  invoice: any; open: boolean; onClose: () => void; onSuccess: () => void;
+}> = ({ invoice, open, onClose, onSuccess }) => {
+  const [form] = Form.useForm();
+  const { message } = App.useApp();
+  const mutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => convertQuoteToInvoice(id, data),
+    onSuccess: () => {
+      message.success("Quote converted to invoice");
+      form.resetFields(); onSuccess(); onClose();
+    },
+  });
+  const handleOk = async () => {
+    const v = await form.validateFields();
+    mutation.mutate({ id: invoice._id, data: { due_date: v.due_date?.toISOString(), notes: v.notes, terms: v.terms } });
+  };
+  return (
+    <Modal open={open} onCancel={onClose} destroyOnClose
+      style={{ top: 20 }} width="min(480px, 96vw)"
+      styles={{ body: { padding: "20px 24px" } }}
+      title={modalTitle(<FileDoneOutlined />, C.blue, `Convert Quote — ${invoice?.order_no}`)}
+      footer={modalFooter(onClose, handleOk, mutation.isPending, "Convert to Invoice", C.blue)}
+    >
+      <Form form={form} layout="vertical">
+        <Form.Item name="due_date" label="Due Date" rules={[{ required: true, message: "Due date required" }]}>
+          <DatePicker style={{ width: "100%", borderRadius: 8 }} format="DD MMM YYYY" />
+        </Form.Item>
+        <Form.Item name="terms" label="Payment Terms">
+          <Select placeholder="Select payment terms" allowClear options={PAYMENT_TERMS} style={{ borderRadius: 8 }} />
+        </Form.Item>
+        <Form.Item name="notes" label="Notes">
+          <Input.TextArea rows={2} style={{ borderRadius: 8 }} />
+        </Form.Item>
+      </Form>
+    </Modal>
+  );
+};
+
+// ── Payment modal ──────────────────────────────────────────────────────────
+const PaymentModal: React.FC<{
+  invoice: any; open: boolean; onClose: () => void; onSuccess: () => void;
+}> = ({ invoice, open, onClose, onSuccess }) => {
+  const [form] = Form.useForm();
+  const { message } = App.useApp();
+  const queryClient = useQueryClient();
+  const [addDepositAccountOpen, setAddDepositAccountOpen] = useState(false);
+  
+  const storedTenant = localStorage.getItem("tenant");
+  const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+  const shopId = tenant?.shop_id || "";
+  
+  const { data: methodsData } = useQuery({
+    queryKey: ["payment-methods"], queryFn: () => fetchAllPaymentMethods({}), enabled: open,
+  });
+  
+     const { data: accountsData } = useQuery({
+         queryKey: ["chart-of-accounts"],
+         queryFn: () => getAllAccounts({}),
+         enabled: open,
+     });
+     
+  const allAccounts = accountsData?.accounts || [];
+
+     const assetAccounts = allAccounts.filter(
+        (a: any) => a.account_type === "ASSET" && a.is_active
+    );
+  const assetAccountOptions = assetAccounts.map((a: any) => ({
+    label: `${a.account_code} — ${a.account_name}`,
+    value: a._id,
+  }));
+  
+  const methodOptions = (methodsData || []).map((m: any) => ({ label: m.name, value: m._id }));
+  
+  // ── Helper: dropdown footer factory ─────────────────────────────────────────
+  const dropdownFooter = (label: string, onAdd: () => void) => (
+    <>
+      <Divider style={{ margin: "4px 0" }} />
+      <Button
+        type="link"
+        icon={<PlusOutlined />}
+        style={{ width: "100%", textAlign: "left", padding: "4px 8px" }}
+        onMouseDown={(e) => {
+          e.preventDefault();
+          onAdd();
+        }}
+      >
+        {label}
+      </Button>
+    </>
+  );
+  
+  const handleAccountAdded = () => {
+    queryClient.invalidateQueries({ queryKey: ["chart-of-accounts"] });
+  };
+  
+  // Calculate amount due including sales receipts
+  const regularPayments = (invoice?.payments || invoice?.payment_ids || []).reduce((s: number, p: any) => s + (p.amount || 0), 0);
+  const salesReceiptsTotal = (invoice?.salesReceipts || []).reduce((s: number, r: any) => s + (r.grand_total || 0), 0);
+  const amountDue = round2(Math.max(0, (invoice?.grand_total || 0) - regularPayments - salesReceiptsTotal));
+  const mutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => recordInvoicePayment(id, data),
+    onSuccess: () => {
+      message.success("Payment recorded successfully");
+      form.resetFields(); onSuccess(); onClose();
+    },
+  });
+  const handleOk = async () => {
+    const v = await form.validateFields();
+    mutation.mutate({ 
+      id: invoice._id, 
+      data: { 
+        amount: v.amount, 
+        method_id: v.method_id, 
+        account_id: v.account_id,
+        reference: v.reference, 
+        notes: v.notes,
+        payment_date: v.payment_date ? dayjs(v.payment_date).toISOString() : undefined,
+      } 
+    });
+  };
+  return (
+    <>
+    <Modal open={open} onCancel={onClose} destroyOnClose
+      style={{ top: 20 }} width="min(480px, 96vw)"
+      styles={{ body: { padding: "20px 24px" } }}
+      title={modalTitle(<DollarOutlined />, C.green, `Make Payment — ${invoice?.order_no}`)}
+      footer={modalFooter(onClose, handleOk, mutation.isLoading, "Record Payment", C.green)}
+    >
+      <div style={{
+        background: "#f0fdf4", border: "1px solid #bbf7d0",
+        borderRadius: 8, padding: "10px 14px", marginBottom: 16,
+        display: "flex", justifyContent: "space-between", alignItems: "center",
+      }}>
+        <Text style={{ fontSize: 12, color: C.subText }}>Balance Due</Text>
+        <Text strong style={{ fontSize: 15, color: C.green }}>KES {fmt(amountDue)}</Text>
+      </div>
+      <Form form={form} layout="vertical" initialValues={{ amount: amountDue, payment_date: dayjs() }}>
+        <Form.Item name="method_id" label="Payment Method" rules={[{ required: true }]}>
+          <Select showSearch placeholder="M-Pesa / Bank / Cash"
+            options={methodOptions} optionFilterProp="label" style={{ borderRadius: 8 }} />
+        </Form.Item>
+        <Form.Item 
+          name="account_id" 
+          label="Deposit Account"
+          rules={[{ required: true, message: "Select the account receiving payment" }]}
+          tooltip="Choose the cash or bank account where this payment is deposited."
+        >
+          <Select 
+            showSearch 
+            placeholder="e.g. Cash on Hand, Bank, M-Pesa Float"
+            optionFilterProp="label"
+            options={assetAccountOptions}
+            notFoundContent="No asset accounts found — add them in Chart of Accounts"
+            allowClear
+            style={{ borderRadius: 8 }} 
+            dropdownRender={(menu) => (
+              <>
+                {menu}
+                {dropdownFooter("Add Asset Account", () => setAddDepositAccountOpen(true))}
+              </>
+            )}
+          />
+        </Form.Item>
+        <Form.Item name="amount" label="Amount (KES)"
+          rules={[{ required: true }, { type: "number", min: 0.01, max: amountDue }]}>
+          <InputNumber style={{ width: "100%", borderRadius: 8 }}
+            min={0.01} max={amountDue} precision={2}
+            formatter={moneyFormatter}
+            parser={(v) => v!.replace(/,/g, "") as any} />
+        </Form.Item>
+        <Form.Item
+          name="payment_date"
+          label="Payment Date"
+          rules={[{ required: true, message: "Pick the date the money was received" }]}
+          tooltip="Backdate it if the money came in earlier. The journal entry uses this date."
+        >
+          <DatePicker
+            showTime={{ format: "HH:mm" }}
+            format="DD MMM YYYY HH:mm"
+            disabledDate={(d) => d.isAfter(dayjs(), "day")}
+            style={{ width: "100%", borderRadius: 8 }}
+          />
+        </Form.Item>
+        <Form.Item name="reference" label="Reference / Transaction Code">
+          <Input placeholder="M-Pesa code, cheque no..." style={{ borderRadius: 8 }} />
+        </Form.Item>
+        <Form.Item name="notes" label="Notes">
+          <Input placeholder="Optional" style={{ borderRadius: 8 }} />
+        </Form.Item>
+      </Form>
+    </Modal>
+
+    <AccountFormDrawer
+      open={addDepositAccountOpen}
+      onClose={() => setAddDepositAccountOpen(false)}
+      onSuccess={() => {
+        setAddDepositAccountOpen(false);
+        handleAccountAdded();
+      }}
+      accounts={allAccounts}
+      shopId={shopId}
+    />
+    </>
+  );
+};
+
+// ── Print quote ────────────────────────────────────────────────────────────
+const printQuote = (record: any) => {
+  const lines = record.items || [];
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+  <title>Quote ${record.order_no}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; padding: 32px; font-size: 13px; color: #222; }
+    h2 { font-size: 22px; margin-bottom: 2px; letter-spacing: 1px; }
+    .badge { display: inline-block; background: #f59e0b; color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 4px; margin-bottom: 16px; }
+    .meta { color: #555; margin-bottom: 24px; line-height: 1.8; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+    th { background: #f5f5f5; text-align: left; padding: 8px 10px; border-bottom: 2px solid #ddd; font-size: 12px; }
+    td { padding: 8px 10px; border-bottom: 1px solid #eee; }
+    .totals-wrap { display: flex; justify-content: flex-end; }
+    .totals { width: 280px; }
+    .totals tr td { border: none; padding: 4px 6px; }
+    .totals tr td:first-child { color: #555; }
+    .totals tr td:last-child { text-align: right; font-weight: 500; }
+    .grand td { font-weight: bold; font-size: 15px; border-top: 2px solid #222; padding-top: 8px !important; }
+    .footer { margin-top: 40px; color: #aaa; font-size: 11px; border-top: 1px solid #eee; padding-top: 12px; }
+  </style>
+</head>
+<body>
+  <h2>QUOTE</h2>
+  <div class="badge">Draft — Not a Tax Invoice</div>
+  <div class="meta">
+    <strong>Quote No:</strong> ${record.order_no || "—"}<br/>
+    <strong>Date:</strong> ${record.issue_date ? new Date(record.issue_date).toLocaleDateString("en-KE", { day: "2-digit", month: "short", year: "numeric" }) : "—"}<br/>
+    <strong>Customer:</strong> ${record.counterparty_name || record.customer_id?.customer_name || "—"}<br/>
+    ${record.notes ? `<strong>Notes:</strong> ${record.notes}<br/>` : ""}
+    ${record.terms ? `<strong>Terms:</strong> ${record.terms}` : ""}
+  </div>
+  <table>
+    <thead>
+      <tr><th>#</th><th>Description</th><th>Qty</th><th>Unit Price (KES)</th><th>VAT (KES)</th><th>Total (KES)</th></tr>
+    </thead>
+    <tbody>
+      ${lines.length
+      ? lines.map((l: any, i: number) => `<tr>
+            <td>${i + 1}</td><td>${l.description || "—"}</td><td>${l.quantity}</td>
+            <td style="text-align:right">${fmt(l.price || 0)}</td>
+            <td style="text-align:right">${fmt(l.vat_amount || 0)}</td>
+            <td style="text-align:right">${fmt((l.price * l.quantity) + (l.vat_amount || 0))}</td>
+          </tr>`).join("")
+      : `<tr><td colspan="6" style="text-align:center;color:#999;padding:16px">No line items</td></tr>`}
+    </tbody>
+  </table>
+  <div class="totals-wrap">
+    <table class="totals">
+      <tr><td>Subtotal</td><td>KES ${fmt(record.subtotal || 0)}</td></tr>
+      <tr><td>VAT</td><td>KES ${fmt(record.total_vat_amount || 0)}</td></tr>
+      <tr class="grand"><td>Grand Total</td><td>KES ${fmt(record.grand_total || 0)}</td></tr>
+    </table>
+  </div>
+  <div class="footer">This is a quotation only and does not constitute a tax invoice.</div>
+</body>
+</html>`;
+  const iframe = document.createElement("iframe");
+  iframe.style.cssText = "position:fixed;top:0;left:0;width:0;height:0;border:none;opacity:0;";
+  document.body.appendChild(iframe);
+  const doc = iframe.contentDocument || iframe.contentWindow?.document;
+  if (!doc) return;
+  doc.open(); doc.write(html); doc.close();
+  iframe.onload = () => {
+    iframe.contentWindow?.focus();
+    iframe.contentWindow?.print();
+    setTimeout(() => document.body.removeChild(iframe), 1000);
+  };
+};
+
+// ── Main ───────────────────────────────────────────────────────────────────
+const InvoicesTable = ({ quotesOnly = false }: { quotesOnly?: boolean }) => {
+  const isMobile = useIsMobile();
+  const actionRef = useRef<ActionType>();
+  const formRef = useRef<ProFormInstance>();
+  const queryClient = useQueryClient();
+  const { message } = App.useApp();
+
+  // Check if Pesa (accounting) is enabled
+  const storedTenant = localStorage.getItem("tenant");
+  const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+  const hasPesa = !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting);
+  const shopId = tenant?.shop_id || "";
+
+  // Check if user is admin
+  const storedUser = localStorage.getItem("user");
+  const user = storedUser ? JSON.parse(storedUser) : null;
+  const isAdmin = user?.role === "admin";
+
+  const [convertTarget, setConvertTarget] = useState<any>(null);
+  const [payTarget, setPayTarget] = useState<any>(null);
+  const [editTarget, setEditTarget] = useState<any>(null);
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [voidTarget, setVoidTarget] = useState<any>(null);
+  const [voidReason, setVoidReason] = useState("");
+  const [creditNoteTarget, setCreditNoteTarget] = useState<any>(null);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedRowKeys, setExpandedRowKeys] = useState<React.Key[]>([]);
+  const [mobileData, setMobileData] = useState<any[]>([]);
+  const [mobileLoading, setMobileLoading] = useState(false);
+  const [mobilePage, setMobilePage] = useState(1);
+  const [mobileTotal, setMobileTotal] = useState(0);
+  const [mobileFilters, setMobileFilters] = useState<any>({});
+  const [manualModalOpen, setManualModalOpen] = useState(false);
+  const [noteDetailOpen, setNoteDetailOpen] = useState(false);
+  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
+  const [etrSubmitting, setEtrSubmitting] = useState<string | null>(null);
+  const [pdfRecord, setPdfRecord] = useState<any>(null);
+  const pdfRef = useRef<HTMLDivElement>(null);
+  const sys = useSystemDetails();
+  const { hasPOS } = useTenantModules();
+
+  useEffect(() => {
+    if (!pdfRecord || !pdfRef.current) return;
+    const capture = async () => {
+      try {
+        const html2canvas = (await import("html2canvas")).default;
+        const { default: jsPDF } = await import("jspdf");
+        const canvas = await html2canvas(pdfRef.current!, { scale: 2, useCORS: true, allowTaint: true });
+        const imgData = canvas.toDataURL("image/png");
+        const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+        const pageWidth = 210;
+        const imgWidth = pageWidth;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        let heightLeft = imgHeight;
+        let position = 0;
+        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+        heightLeft -= 297;
+        while (heightLeft > 0) {
+          position = heightLeft - imgHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+          heightLeft -= 297;
+        }
+        pdf.save(`Invoice-${pdfRecord.order_no || pdfRecord.invoice_no}_${dayjs().format("YYYYMMDD")}.pdf`);
+      } catch (e) {
+        console.error("PDF download failed", e);
+        message.error("Failed to download PDF");
+      } finally {
+        setPdfRecord(null);
+      }
+    };
+    const timer = setTimeout(capture, 250);
+    return () => clearTimeout(timer);
+  }, [pdfRecord]);
+
+  const [queryParams, setQueryParams] = useState({
+    page: 1, limit: 10,
+    start_date: dayjs().startOf("day").toISOString(),
+    end_date: dayjs().endOf("day").toISOString(),
+  });
+
+  const handleOpenNote = (noteId: string) => {
+    setSelectedNoteId(noteId);
+    setNoteDetailOpen(true);
+  };
+
+  const refreshTable = () => {
+    queryClient.invalidateQueries({ queryKey: ["invoices-unsettled"] });
+    if (isMobile) {
+      setMobilePage(1);
+      loadMobileData(1, mobileFilters);
+    } else {
+      actionRef.current?.reload();
+    }
+  };
+
+  const loadMobileData = async (page: number, filters: any = {}) => {
+    setMobileLoading(true);
+    try {
+      const { dateRange, ...rest } = filters;
+      const data = await getAllInvoices({
+        ...rest, page, limit: 10, shop_id: shopId,
+        ...(quotesOnly ? { status: "Draft" } : {}),
+        start_date: dateRange?.[0] ? dayjs(dateRange[0]).startOf("day").toISOString() : dayjs().startOf("day").toISOString(),
+        end_date: dateRange?.[1] ? dayjs(dateRange[1]).endOf("day").toISOString() : dayjs().endOf("day").toISOString(),
+      });
+      setMobileData(page === 1 ? (data || []) : (prev) => [...prev, ...(data || [])]);
+      setMobileTotal(data.pagination?.total || 0);
+    } finally {
+      setMobileLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isMobile) loadMobileData(1, mobileFilters);
+  }, [isMobile]);
+
+  const handleMobileFilter = (filters: any) => {
+    setMobileFilters(filters);
+    setMobilePage(1);
+    loadMobileData(1, filters);
+  };
+
+  const handleLoadMore = () => {
+    const next = mobilePage + 1;
+    setMobilePage(next);
+    loadMobileData(next, mobileFilters);
+  };
+
+  const handleEtrSubmit = async (record: any) => {
+    setEtrSubmitting(record._id);
+    try {
+      const result = await generateTaxInvoice(record._id, true);
+      if (result.success) {
+        message.success(`ETR submitted successfully! Receipt: ${result.taxReceiptNumber}`);
+        refreshTable();
+        // Invalidate specific invoice query to refresh expanded view
+        queryClient.invalidateQueries({ queryKey: ["invoice", record._id] });
+      } else {
+        message.error(result.error || 'Failed to submit Etims');
+      }
+    } catch (error) {
+      message.error('Failed to submit Etims to KRA');
+    } finally {
+      setEtrSubmitting(null);
+    }
+  };
+
+  // Row action menu for desktop
+  const getRowActionItems = (record: any) => [
+    { key: "edit", label: "Edit", icon: <EditOutlined /> },
+    ...(record.status !== "Voided" ? [{ key: "duplicate", label: "Duplicate", icon: <CopyOutlined /> }] : []),
+    ...(record.status === "Draft" ? [
+      { key: "print", label: "Print Quote", icon: <PrinterOutlined /> },
+      { key: "convert", label: "Convert to Invoice", icon: <FileDoneOutlined /> },
+    ] : []),
+    ...(record.status !== "Draft" && record.status !== "Voided" && !record.journal_entry_id ? [
+      { key: "post", label: "Post to Accounting", icon: <FileDoneOutlined /> },
+    ] : []),
+    ...(isPayable(record) ? [
+      { key: "pay", label: "Make Payment", icon: <DollarOutlined /> },
+    ] : []),
+    ...(record.status !== "Draft" && record.status !== "Voided" ? [
+      { key: "credit-note", label: "Create Credit Note", icon: <FileTextOutlined /> },
+      { key: "download-pdf", label: "Download PDF", icon: <FilePdfOutlined /> },
+    ] : []),
+    ...(record.status !== "Draft" && record.status !== "Voided" && !record.etr_enabled ? [
+      { key: "void", label: "Void Invoice", icon: <StopOutlined />, danger: true },
+    ] : []),
+    ...(record.status !== "Draft" && record.status !== "Voided" && !record.etr_enabled ? [
+      { key: "etr", label: "Submit Etims", icon: <SafetyCertificateOutlined /> },
+    ] : []),
+    ...(isAdmin && !record.etr_enabled ? [{ key: "delete", label: "Delete", icon: <DeleteOutlined />, danger: true }] : []),
+  ];
+
+  const handleRowMenuClick = (key: any, record: any) => {
+    if (key === "edit") setEditTarget(record);
+    if (key === "duplicate") handleDuplicate(record);
+    if (key === "print") printQuote(record);
+    if (key === "convert") setConvertTarget(record);
+    if (key === "post") handlePostToAccounting(record);
+    if (key === "pay") setPayTarget(record);
+    if (key === "credit-note") setCreditNoteTarget(record);
+    if (key === "download-pdf") setPdfRecord(record);
+    if (key === "void") setVoidTarget(record);
+    if (key === "etr") handleEtrSubmit(record);
+    if (key === "delete") setDeleteTarget(record);
+  };
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteInvoice(id),
+    onSuccess: () => {
+      message.success("Invoice deleted successfully");
+      setDeleteTarget(null);
+      refreshTable();
+    },
+  });
+
+  // Void mutation
+  const voidMutation = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => voidInvoice(id, reason),
+    onSuccess: () => {
+      message.success("Invoice voided successfully");
+      setVoidTarget(null);
+      setVoidReason("");
+      refreshTable();
+    },
+  });
+
+  // Duplicate mutation
+  const duplicateMutation = useMutation({
+    mutationFn: (id: string) => duplicateInvoice(id),
+    onSuccess: (data) => {
+      refreshTable();
+    },
+  });
+
+  const handleDuplicate = (record: any) => {
+    duplicateMutation.mutate(record._id);
+  };
+
+  // Post to accounting mutation
+  const postMutation = useMutation({
+    mutationFn: (id: string) => postInvoice(id),
+    onSuccess: () => {
+      message.success("Invoice posted to accounting");
+      refreshTable();
+    },
+  });
+
+  const handlePostToAccounting = (record: any) => {
+    postMutation.mutate(record._id);
+  };
+
+  const desktopColumns = [
+    {
+      title: "Order / Quote No.", dataIndex: "order_no",
+      hideInSearch: false, copyable: true,
+      render: (text: any, record: any) => (
+        <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+          {record.status === "Draft"
+            ? <FileTextOutlined style={{ color: C.orange, fontSize: 13 }} />
+            : <FileDoneOutlined style={{ color: C.blue, fontSize: 13 }} />}
+          <Text style={{ fontSize: 12, color: C.primary, fontWeight: 600 }}>{text}</Text>
+        </div>
+      ),
+    },
+    {
+      title: "Status", dataIndex: "status", hideInSearch: true,
+      render: (status: any, record: any) => (
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+          <StatusTag status={status} />
+          {record.status !== "Draft" && record.status !== "Voided" && (
+            record.journal_entry_id ? (
+              <Tag color="green" style={{ fontSize: 10, borderRadius: 4 }}>
+                Posted
+              </Tag>
+            ) : (
+              <Tag color="red" style={{ fontSize: 10, borderRadius: 4 }}>
+                Not Posted
+              </Tag>
+            )
+          )}
+          {record.status !== "Draft" && (
+            record.etr_enabled ? (
+              <Tag color="green" style={{ fontSize: 10, borderRadius: 4 }}>
+                ETR
+              </Tag>
+            ) : (
+              <Tag color="orange" style={{ fontSize: 10, borderRadius: 4 }}>
+                No ETR
+              </Tag>
+            )
+          )}
+        </div>
+      ),
+    },
+    {
+      title: "Customer", dataIndex: ["customer_id", "customer_name"], hideInSearch: true,
+      render: (name: any, record: any) => {
+        const customerName = record.customer_id?.company_name || record.customer_id?.customer_name || record.customer_id?.name || record.counterparty_name || name;
+        return customerName
+          ? <Text style={{ fontSize: 12, fontWeight: 500 }}>{customerName}</Text>
+          : <Text style={{ color: C.subText }}>—</Text>;
+      },
+    },
+    {
+      title: "Customer", dataIndex: "customer_id", hideInTable: true,
+      valueType: "select",
+      fieldProps: {
+        showSearch: true,
+        placeholder: "Type to search customer",
+        allowClear: true,
+        optionFilterProp: "label",
+      },
+      request: async () => {
+        try {
+          const res = await fetchAllCustomers({ limit: 1000 });
+          const customers = Array.isArray(res) ? res : res?.data || [];
+          return customers.map((c: any) => ({
+            label: c.company_name || c.customer_name || c.name || c.code || c._id,
+            value: c._id,
+          }));
+        } catch {
+          return [];
+        }
+      },
+    },
+    {
+      title: "Address", dataIndex: ["customer_id", "address"], hideInSearch: true,
+      render: (address: any, record: any) => {
+        const addr = address || record.customer_id?.address;
+        if (!addr) return <Text style={{ color: C.subText }}>—</Text>;
+        
+        return (
+          <div style={{ fontSize: 12 }}>
+            <div style={{ color: C.darkText }}>{addr.street || "—"}</div>
+            <div style={{ color: C.subText, fontSize: 11 }}>
+              {addr.city || ""}{addr.city && addr.county ? ", " : ""}{addr.county || ""}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      title: "Issue Date", dataIndex: "issue_date", hideInSearch: true, valueType: "dateTime",
+      render: (_, record: any) => {
+        const text = record.issue_date;
+        console.log('Issue Date text:', text, 'type:', typeof text);
+        if (!text) return <Text style={{ fontSize: 12, color: C.subText }}>—</Text>;
+        
+        const date = dayjs(text);
+        console.log('Issue Date parsed:', date, 'isValid:', date.isValid());
+        return (
+          <Text style={{ fontSize: 12, color: C.subText }}>
+            {date.isValid() ? date.format("DD MMM YYYY") : "Invalid date"}
+          </Text>
+        );
+      },
+      sorter: (a: any, b: any) => new Date(a.issue_date || 0).getTime() - new Date(b.issue_date || 0).getTime(),
+    },
+    {
+      title: "Due Date", dataIndex: "due_date", hideInSearch: true, valueType: "dateTime",
+      render: (_, record: any) => {
+        const text = record.due_date;
+        console.log('Due Date text:', text, 'type:', typeof text);
+        if (!text) return <Text style={{ color: C.subText }}>—</Text>;
+        
+        const date = dayjs(text);
+        console.log('Due Date parsed:', date, 'isValid:', date.isValid());
+        if (!date.isValid()) return <Text style={{ fontSize: 12, color: C.subText }}>Invalid date</Text>;
+        
+        const isOverdue = dayjs().isAfter(date) && record.status !== "Draft" && record.amount_due > 0;
+        return (
+          <Text style={{ fontSize: 12, color: isOverdue ? C.red : C.subText }}>
+            {date.format("DD MMM YYYY")}
+          </Text>
+        );
+      },
+      sorter: (a: any, b: any) => new Date(a.due_date || 0).getTime() - new Date(b.due_date || 0).getTime(),
+    },
+    {
+      title: "Overdue (Days)", dataIndex: "due_date", hideInSearch: true, align: "right" as const, width: 120,
+      render: (_, record: any) => {
+        const text = record.due_date;
+        if (!text) return <Text style={{ color: C.subText }}>—</Text>;
+
+        const date = dayjs(text);
+        if (!date.isValid()) return <Text style={{ color: C.subText }}>—</Text>;
+
+        if (!isPayable(record) || record.amount_due <= 0 || !dayjs().isAfter(date)) {
+          return <Text style={{ color: C.subText }}>—</Text>;
+        }
+
+        const days = dayjs().diff(date, "day");
+        return (
+          <Text style={{ fontSize: 12, color: C.red, fontWeight: 600 }}>
+            {days} {days === 1 ? "day" : "days"}
+          </Text>
+        );
+      },
+    },
+    {
+      title: "Table", dataIndex: ["table_id", "name"], key: "table",
+      hideInTable: !hasPOS, hideInSearch: !hasPOS, fieldProps: { placeholder: "Enter table name" },
+      render: (text: string) => <Text style={{ fontSize: 12 }}>{text || "—"}</Text>,
+    },
+    {
+      title: "ETR Status", dataIndex: "etr_enabled", key: "etr_status",
+      hideInTable: true, valueEnum: {
+        true: { text: "With ETR" },
+        false: { text: "Without ETR" },
+      },
+    },
+    {
+      title: "Closed By", dataIndex: ["served_by", "username"], key: "closed-by", hideInSearch: true,
+      render: (text: string) => <ClosedByTag username={text} />,
+    },
+    {
+      title: "Amount (KES)", dataIndex: "grand_total", hideInSearch: true, align: "right" as const,
+      render: (v: number) => <Text strong style={{ fontSize: 12 }}>{v ? `KES ${fmt(v)}` : "—"}</Text>,
+    },
+    {
+      title: "Balance Due", dataIndex: "amount_due", hideInSearch: true, align: "right" as const,
+      render: (v: number, record: any) => {
+        if (record.status === "Draft") return <Text style={{ color: C.subText }}>—</Text>;
+        // Calculate amount due including sales receipts
+        const regularPayments = (record.payments || record.payment_ids || []).reduce((s: number, p: any) => s + (p.amount || 0), 0);
+        const salesReceiptsTotal = (record.salesReceipts || []).reduce((s: number, r: any) => s + (r.grand_total || 0), 0);
+        const calculatedAmountDue = Math.max(0, (record.grand_total || 0) - regularPayments - salesReceiptsTotal);
+        return <Text strong style={{ fontSize: 12, color: calculatedAmountDue > 0 ? C.orange : C.green }}>KES {fmt(calculatedAmountDue)}</Text>;
+      },
+    },
+    {
+      title: "Time Closed", dataIndex: "createdAt", hideInSearch: true, valueType: "dateTime",
+      render: (_, record: any) => {
+        const text = record.createdAt;
+        console.log('Time Closed text:', text, 'type:', typeof text);
+        if (!text) return <Text style={{ fontSize: 12, color: C.subText }}>—</Text>;
+        
+        const date = dayjs(text);
+        console.log('Time Closed parsed:', date, 'isValid:', date.isValid());
+        return (
+          <Text style={{ fontSize: 12, color: C.subText }}>
+            {date.isValid() ? date.format("DD MMM YYYY HH:mm") : "Invalid date"}
+          </Text>
+        );
+      },
+      sorter: (a: any, b: any) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime(),
+    },
+    {
+      title: "Actions", hideInSearch: true, key: "action", width: 60,
+      render: (_: any, record: any) => (
+        <div onClick={(e) => e.stopPropagation()}>
+          <Dropdown
+            menu={{
+              items: getRowActionItems(record),
+              onClick: ({ key }) => handleRowMenuClick(key, record),
+            }}
+            trigger={["click"]}
+          >
+            <Button
+              size="small"
+              icon={<MoreOutlined />}
+              style={{ borderRadius: 6, border: `1px solid ${C.border}` }}
+              onClick={(e) => e.stopPropagation()}
+            />
+          </Dropdown>
+        </div>
+      ),
+    },
+  ];
+
+  // ── Mobile render ──────────────────────────────────────────────────────
+  if (isMobile) {
+    return (
+      <>
+        <div style={{
+          background: "#fff", border: `1px solid ${C.border}`, borderRadius: 12,
+          overflow: "hidden", marginBottom: 12,
+        }}>
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "12px 14px", background: C.bg, borderBottom: `1px solid ${C.border}`,
+          }}>
+            <Text strong style={{ fontSize: 14, color: C.darkText }}>{quotesOnly ? "Quotes" : "Invoices & Quotes"}</Text>
+            <div style={{ display: "flex", gap: 8 }}>
+                            <Button size="small" icon={<FilterOutlined />} onClick={() => setFilterOpen(true)}
+                style={{ borderRadius: 8, borderColor: C.border }}>
+                Filter
+              </Button>
+            </div>
+          </div>
+          <div style={{ padding: "8px 14px", borderBottom: `1px solid ${C.border}` }}>
+            <Text style={{ fontSize: 11, color: C.subText }}>
+              {mobileTotal} {quotesOnly ? "quote" : "invoice"}{mobileTotal !== 1 ? "s" : ""} found
+            </Text>
+          </div>
+        </div>
+
+        {mobileLoading && mobilePage === 1 ? (
+          <div style={{ textAlign: "center", padding: "40px 0", color: C.subText }}>Loading…</div>
+        ) : mobileData.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "40px 0", color: C.subText }}>{quotesOnly ? "No quotes found." : "No invoices found."}</div>
+        ) : (
+          <>
+            {mobileData.map((record) => (
+              <MobileInvoiceCard
+                key={record._id}
+                record={record}
+                onConvert={setConvertTarget}
+                onPay={setPayTarget}
+                onEdit={setEditTarget}
+                expanded={expandedId === record._id}
+                onExpand={(r) => setExpandedId(expandedId === r._id ? null : r._id)}
+                onOpenNote={handleOpenNote}
+                onEtr={handleEtrSubmit}
+                onPaymentsChanged={refreshTable}
+              />
+            ))}
+            {mobileData.length < mobileTotal && (
+              <Button block onClick={handleLoadMore} loading={mobileLoading}
+                style={{ borderRadius: 8, marginBottom: 16 }}>
+                Load More ({mobileData.length} / {mobileTotal})
+              </Button>
+            )}
+          </>
+        )}
+
+        <MobileFilterDrawer open={filterOpen} onClose={() => setFilterOpen(false)} onSearch={handleMobileFilter} />
+
+        {convertTarget && (
+          <ConvertModal invoice={convertTarget} open={!!convertTarget}
+            onClose={() => setConvertTarget(null)} onSuccess={refreshTable} />
+        )}
+        {payTarget && (
+          <PaymentModal invoice={payTarget} open={!!payTarget}
+            onClose={() => setPayTarget(null)} onSuccess={refreshTable} />
+        )}
+        <ManualInvoiceModal open={manualModalOpen} onClose={() => setManualModalOpen(false)} onSuccess={refreshTable} quoteOnly={quotesOnly} />
+      </>
+    );
+  }
+
+  // ── Desktop render ─────────────────────────────────────────────────────
+  return (
+    <>
+      <style>{`
+        .invoice-row { cursor: pointer; transition: background 0.12s; }
+        .invoice-row:hover td { background: #fdf8f9 !important; }
+        .invoice-row.row-quote:hover td { background: #fffcf0 !important; }
+        .ant-pro-table-search { background: #fff; border-radius: 10px; border: 1px solid ${C.border}; margin-bottom: 12px; }
+      `}</style>
+      {pdfRecord && (
+        <div ref={pdfRef} style={{ position: "fixed", top: -9999, left: -9999, width: 730 }}>
+          <Template6Clean inv={pdfRecord} sys={sys} />
+        </div>
+      )}
+      <ProTable
+        rowKey="_id"
+        cardBordered
+        formRef={formRef}
+        actionRef={actionRef}
+        form={{
+          onFinish: async (values) => {
+            const { dateRange, ...rest } = values;
+            setQueryParams({ 
+              ...rest, 
+              page: 1, 
+              limit: queryParams.limit,
+              start_date: dateRange?.[0] ? dayjs(dateRange[0]).startOf("day").toISOString() : queryParams.start_date,
+              end_date: dateRange?.[1] ? dayjs(dateRange[1]).endOf("day").toISOString() : queryParams.end_date
+            });
+            return true;
+          },
+          initialValues: { dateRange: [dayjs().startOf("day"), dayjs().endOf("day")] },
+        }}
+        search={{
+          labelWidth: "auto", defaultCollapsed: false,
+          searchText: "Search", resetText: "Reset",
+          optionRender: (_, __, dom) => [...dom],
+        }}
+        toolBarRender={() => (quotesOnly || hasPesa ? [
+            <Button
+              key="new-invoice"
+              type="primary"
+              icon={<FileDoneOutlined />}
+              onClick={() => setManualModalOpen(true)}
+              style={{ background: C.primary, borderColor: C.primary, borderRadius: 8 }}
+            >
+              {quotesOnly ? "New Quote" : "New Invoice"}
+            </Button>,
+          ] : [])}
+        pagination={{
+          pageSize: queryParams.limit, current: queryParams.page,
+          showQuickJumper: true, showSizeChanger: true,
+          onChange: (page, pageSize) => setQueryParams((prev) => ({ ...prev, page, limit: pageSize, start_date: prev.start_date, end_date: prev.end_date })),
+        }}
+        columns={[
+          {
+            title: "Date Range", dataIndex: "dateRange",
+            valueType: "dateRange", hideInTable: true,
+            initialValue: [dayjs().startOf("day"), dayjs().endOf("day")],
+            fieldProps: {
+              ranges: {
+                Today: [dayjs().startOf("day"), dayjs().endOf("day")],
+                Yesterday: [dayjs().subtract(1, "days").startOf("day"), dayjs().subtract(1, "days").endOf("day")],
+                "This Week": [dayjs().startOf("week"), dayjs().endOf("week")],
+                "Last Week": [dayjs().subtract(1, "week").startOf("week"), dayjs().subtract(1, "week").endOf("week")],
+                "This Month": [dayjs().startOf("month"), dayjs().endOf("month")],
+                "Last Month": [dayjs().subtract(1, "month").startOf("month"), dayjs().subtract(1, "month").endOf("month")],
+                "This Quarter": [dayjs().startOf("quarter"), dayjs().endOf("quarter")],
+                "This Year": [dayjs().startOf("year"), dayjs().endOf("year")],
+              },
+            },
+          },
+          {
+            title: "Invoice No", dataIndex: "invoice_no",
+            hideInTable: true,
+            valueType: "text",
+          },
+          ...(!quotesOnly ? [{
+            title: "Quick Filter", dataIndex: "quick_filter",
+            hideInTable: true,
+            valueType: "select" as const,
+            valueEnum: {
+              all: { text: "All" },
+              not_posted: { text: "Not Posted" },
+              due: { text: "Due (Pending / Partial / Overdue)" },
+              pending: { text: "Pending" },
+              paid: { text: "Paid" },
+              overdue: { text: "Overdue" },
+            },
+            initialValue: "all",
+          }] : []),
+          ...desktopColumns,
+        ]}
+        request={async (params) => {
+          const { current, pageSize, dateRange, _timestamp, quick_filter, ...rest } = params;
+          const apiParams: any = { ...rest, page: current, limit: pageSize, shop_id: shopId };
+
+          if (quotesOnly) {
+            apiParams.status = "Draft";
+          } else if (quick_filter === "not_posted") {
+            apiParams.posted = "false";
+          } else if (quick_filter === "due") {
+            apiParams.status = "Pending,Partially_Paid,Partial,Overdue";
+          } else if (["pending", "paid", "overdue"].includes(quick_filter)) {
+            apiParams.status = quick_filter === "pending" ? "Pending" : quick_filter === "paid" ? "Paid" : "Overdue";
+          }
+
+          try {
+            const data = await getAllInvoices({
+              ...apiParams,
+              start_date: dateRange?.[0] ? dayjs(dateRange[0]).startOf("day").toISOString() : dayjs().startOf("day").toISOString(),
+              end_date: dateRange?.[1] ? dayjs(dateRange[1]).endOf("day").toISOString() : dayjs().endOf("day").toISOString(),
+            });
+            return { data: data || [], success: true, total: data.pagination?.total || 0 };
+          } catch {
+            return { data: [], success: false, total: 0 };
+          }
+        }}
+        tableAlertRender={({ selectedRowKeys }) => <p>You have selected {selectedRowKeys?.length}</p>}
+        rowSelection={{ alwaysShowAlert: false, selections: false }}
+        scroll={{ x: "inherit" }}
+        toolbar={{ title: quotesOnly ? "Quotes" : "Invoices & Quotes", tooltip: quotesOnly ? "Quote Management" : "Invoice Management" }}
+        options={{ fullScreen: true }}
+        expandable={{
+          // ── Invoice/receipt FIRST, then details ──
+          expandedRowRender: (record) => (
+            <div onClick={(e) => e.stopPropagation()}>
+              <ExpandedRowContent record={record} defaultTab="receipt" onOpenNote={handleOpenNote} onPaymentsChanged={refreshTable} />
+            </div>
+          ),
+          defaultExpandAllRows: false,
+          expandIconColumnIndex: 1,
+          columnTitle: " ",
+          expandedRowKeys: expandedRowKeys,
+          onExpandedRowsChange: (keys) => setExpandedRowKeys(keys),
+        }}
+        onRow={(record) => ({
+          onClick: (e) => {
+            // Don't expand if the click came from an action or interactive element
+            const target = e.target as HTMLElement;
+            const interactive = target.closest(
+              '.ant-dropdown-trigger, .ant-dropdown-menu, .ant-btn, button, a, input, textarea, .ant-picker, .ant-select, .ant-select-dropdown, .ant-table-row-expand-icon'
+            );
+            if (interactive) return;
+            // Toggle expansion
+            setExpandedRowKeys((prev) =>
+              prev.includes(record._id)
+                ? prev.filter((k) => k !== record._id)
+                : [...prev, record._id]
+            );
+          },
+          style: { cursor: 'pointer' },
+        })}
+        dateFormatter="string"
+        rowClassName={(record) => record.status === "Draft" ? "row-quote" : ""}
+      />
+
+      {convertTarget && (
+        <ConvertModal invoice={convertTarget} open={!!convertTarget}
+          onClose={() => setConvertTarget(null)} onSuccess={refreshTable} />
+      )}
+      {payTarget && (
+        <PaymentModal invoice={payTarget} open={!!payTarget}
+          onClose={() => setPayTarget(null)} onSuccess={refreshTable} />
+      )}
+      <ManualInvoiceModal
+        open={manualModalOpen}
+        onClose={() => setManualModalOpen(false)}
+        onSuccess={refreshTable}
+        quoteOnly={quotesOnly}
+      />
+
+      {editTarget && (
+        <ManualInvoiceModal
+          open={!!editTarget}
+          onClose={() => setEditTarget(null)}
+          onSuccess={refreshTable}
+          invoiceToEdit={editTarget}
+        />
+      )}
+
+      <NoteDetailDrawer
+        open={noteDetailOpen}
+        onClose={() => { setNoteDetailOpen(false); setSelectedNoteId(null); }}
+        noteId={selectedNoteId}
+        onSuccess={() => undefined} // No refresh needed for notes from invoice view
+        onOpenInvoice={() => undefined} // No need to navigate back to invoice from here
+      />
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        open={!!deleteTarget}
+        onCancel={() => setDeleteTarget(null)}
+        title={modalTitle(<DeleteOutlined />, C.red, "Delete Invoice")}
+        okText="Delete"
+        okButtonProps={{ danger: true, style: { background: C.red, borderColor: C.red } }}
+        onOk={() => deleteTarget && deleteMutation.mutate(deleteTarget._id)}
+        confirmLoading={deleteMutation.isLoading}
+        destroyOnClose
+      >
+        <div style={{ padding: "16px 0" }}>
+          <p style={{ marginBottom: 12 }}>
+            Are you sure you want to delete invoice <strong>{deleteTarget?.order_no}</strong>?
+          </p>
+          <p style={{ fontSize: 12, color: C.subText, marginBottom: 8 }}>
+            This action will:
+          </p>
+          <ul style={{ fontSize: 12, color: C.subText, paddingLeft: 20, marginBottom: 12 }}>
+            <li>Delete all invoice items</li>
+            <li>Reverse stock updates</li>
+            <li>Delete the journal entry</li>
+            <li>Delete associated payments</li>
+            <li>Delete the invoice record</li>
+          </ul>
+          <p style={{ fontSize: 12, color: C.red, fontWeight: 500 }}>
+            This action cannot be undone.
+          </p>
+        </div>
+      </Modal>
+
+      {/* Void Invoice Modal */}
+      <Modal
+        open={!!voidTarget}
+        onCancel={() => { setVoidTarget(null); setVoidReason(""); }}
+        title={modalTitle(<StopOutlined />, C.red, "Void Invoice")}
+        okText="Void Invoice"
+        okButtonProps={{ danger: true, style: { background: C.red, borderColor: C.red } }}
+        onOk={() => voidTarget && voidMutation.mutate({ id: voidTarget._id, reason: voidReason })}
+        confirmLoading={voidMutation.isLoading}
+        destroyOnClose
+      >
+        <div style={{ padding: "16px 0" }}>
+          <p style={{ marginBottom: 12 }}>
+            Are you sure you want to void invoice <strong>{voidTarget?.order_no}</strong>?
+          </p>
+          <p style={{ fontSize: 12, color: C.subText, marginBottom: 8 }}>
+            This action will:
+          </p>
+          <ul style={{ fontSize: 12, color: C.subText, paddingLeft: 20, marginBottom: 12 }}>
+            <li>Set invoice status to "Voided"</li>
+            <li>Void the associated journal entry</li>
+            <li>Add void reason to internal notes</li>
+          </ul>
+          <div style={{ marginTop: 16 }}>
+            <label style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>
+              Void Reason <span style={{ color: C.red }}>*</span>
+            </label>
+            <Input.TextArea
+              placeholder="Enter the reason for voiding this invoice..."
+              value={voidReason}
+              onChange={(e) => setVoidReason(e.target.value)}
+              rows={4}
+              maxLength={500}
+              showCount
+            />
+          </div>
+        </div>
+      </Modal>
+
+      <NoteFormDrawer
+        open={!!creditNoteTarget}
+        onClose={() => setCreditNoteTarget(null)}
+        onSuccess={refreshTable}
+        shopId={shopId}
+        noteType="CREDIT_NOTE"
+        readonlyFields={true}
+        editingNote={creditNoteTarget ? {
+          _id: "",
+          note_no: "",
+          note_type: "CREDIT_NOTE",
+          direction: creditNoteTarget.direction === "supplier" ? "supplier" : "customer",
+          original_invoice_id: creditNoteTarget._id,
+          original_invoice_no: creditNoteTarget.order_no,
+          customer_id: creditNoteTarget.customer_id,
+          supplier_id: creditNoteTarget.supplier_id,
+          issue_date: new Date().toISOString(),
+          lines: [],
+          subtotal: 0,
+          total_vat: 0,
+          total_discount: 0,
+          grand_total: 0,
+          status: "Draft",
+          reason: "",
+          shop_id: shopId,
+        } as any : undefined}
+      />
+    </>
+  );
+};
+
+export default InvoicesTable;

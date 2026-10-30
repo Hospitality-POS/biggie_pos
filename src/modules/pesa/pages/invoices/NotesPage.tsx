@@ -42,7 +42,7 @@ import { getSupplierById } from "@services/supplier";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import NoteFormDrawer from "./NoteFormDrawer";
 import NoteDetailDrawer from "./NoteDetailDrawer";
-import InvoiceDetailDrawer from "@pages/OrderManagement/Invoices/InvoiceDetailDrawer";
+import InvoiceDetailDrawer from "./components/InvoiceDetailDrawer";
 import dayjs, { Dayjs } from "dayjs";
 
 const { Text } = Typography;

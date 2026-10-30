@@ -1,1 +1,1 @@
-export { default as AccountingDashboardPage } from 'src/pages/AccountingDashboard/AccountingDashboardPage';
+export { default as AccountingDashboardPage } from '../AccountingDashboardPage';

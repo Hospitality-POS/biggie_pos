@@ -1,6 +1,6 @@
-export { default as DocumentList } from 'src/pages/ESign/components/DocumentList';
-export { default as DocumentPreviewModal } from 'src/pages/ESign/components/DocumentPreviewModal';
-export { default as ESignModals } from 'src/pages/ESign/components/ESignModals';
-export { default as SignatureCaptureModal } from 'src/pages/ESign/components/SignatureCaptureModal';
-export { default as PdfCanvasViewer } from 'src/pages/ESign/components/PdfCanvasViewer';
-export * from 'src/pages/ESign/components/SigningWorkflowModals';
+export { default as DocumentList } from './DocumentList';
+export { default as DocumentPreviewModal } from './DocumentPreviewModal';
+export { default as ESignModals } from './ESignModals';
+export { default as SignatureCaptureModal } from './SignatureCaptureModal';
+export { default as PdfCanvasViewer } from './PdfCanvasViewer';
+export * from './SigningWorkflowModals';

@@ -1,1 +1,1 @@
-export { default as LibraryModal } from 'src/pages/ESign/components/LibraryModal';
+export { default as LibraryModal } from '../../signatures/components/LibraryModal';

@@ -16,8 +16,8 @@ import { EyeOutlined, EditOutlined, ArrowRightOutlined } from "@ant-design/icons
 import { useQuery } from "@tanstack/react-query";
 import { getNoteById, Note } from "@services/accounting/notes";
 import NoteFormDrawer from "./NoteFormDrawer";
-import InvoiceDetailDrawer from "@pages/OrderManagement/Invoices/InvoiceDetailDrawer";
-import BillDetailDrawer from "@pages/OrderManagement/BillDetailDrawer";
+import InvoiceDetailDrawer from "./components/InvoiceDetailDrawer";
+import BillDetailDrawer from "./components/BillDetailDrawer";
 import dayjs, { Dayjs } from "dayjs";
 
 const { Text, Title } = Typography;

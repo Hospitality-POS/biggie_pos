@@ -40,7 +40,7 @@ import quarterOfYear from "dayjs/plugin/quarterOfYear";
 import { THEME_C } from "@utils/getPrimaryColor";
 import { fetchShop } from "@services/shops";
 import { useTenantModules } from "@hooks/useTenantModules";
-import { getStoredShopId } from "@pages/OmniChannel/shared/ui";
+import { getStoredShopId } from "@modules/mteja/pages/omnichannel/shared/ui";
 import { useAppDispatch } from "src/store";
 import { generateInventoryUsageReport } from "src/features/Report/reportActions";
 import InventoryUsageReportModal from "@components/Reports/InventoryUsageReport";

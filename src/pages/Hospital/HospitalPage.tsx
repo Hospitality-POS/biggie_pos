@@ -16,7 +16,7 @@ import SkeletonProductCard from "../../components/product/skeletonProductCard";
 import CategoryCard from "../../components/category/categoryCard";
 import CartDrawer from "../../components/cart/CartDrawer";
 import HospitalSidebar from "./HospitalSidebar";
-import BarcodeScanPanel from "../Restaurant/Barcodescanner";
+import BarcodeScanPanel from "@modules/duka/pages/pos/Barcodescanner";
 import PurchasePackageModal from "../../components/MODALS/pro/PurchasePackageModal";
 
 import { useAppDispatch, useAppSelector } from "../../store";

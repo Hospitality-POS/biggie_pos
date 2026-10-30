@@ -1,6 +1,6 @@
-export { default as MainOrders } from 'src/pages/OrderManagement/MainOrders';
-export { default as OrdersTable } from 'src/pages/OrderManagement/Orders/OrdersTable';
-export { default as OrdersByLocation } from 'src/pages/OrderManagement/Orders/OrdersByLocation';
-export { default as AddOrderModal } from 'src/pages/OrderManagement/Orders/AddOrderModal';
-export { default as ExpandableOrderDetails } from 'src/pages/OrderManagement/Orders/ExpandableOrderDetails';
-export { default as OrdersAiDrawer } from 'src/pages/OrderManagement/Orders/OrdersAiDrawer';
+export { default as MainOrders } from '../MainOrders';
+export { default as OrdersTable } from './OrdersTable';
+export { default as OrdersByLocation } from './OrdersByLocation';
+export { default as AddOrderModal } from './AddOrderModal';
+export { default as ExpandableOrderDetails } from './ExpandableOrderDetails';
+export { default as OrdersAiDrawer } from './OrdersAiDrawer';

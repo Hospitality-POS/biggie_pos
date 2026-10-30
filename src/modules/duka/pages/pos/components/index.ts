@@ -1,2 +1,2 @@
-export { default as RestaurantPage } from 'src/pages/Restaurant/Restuarant';
-export { default as Sidetabs } from 'src/pages/Restaurant/Sidetabs';
+export { default as RestaurantPage } from '../Restuarant';
+export { default as Sidetabs } from '../Sidetabs';
