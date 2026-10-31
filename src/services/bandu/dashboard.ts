@@ -27,6 +27,9 @@ export interface AttendanceStats {
   absent_today: number;
   late_today: number;
   average_attendance_rate: number;
+  clocked_in_now: number;
+  tracked_staff: number;
+  average_hours: number;
 }
 
 export interface PayrollStats {
@@ -34,6 +37,9 @@ export interface PayrollStats {
   total_deductions: number;
   net_pay: number;
   pending_payroll: number;
+  pending_runs: number;
+  salary_bill: number;
+  average_basic_salary: number;
 }
 
 export interface PayrollTrendMonth {
@@ -48,6 +54,7 @@ export interface LeaveByType {
   count: number;
   approved: number;
   pending: number;
+  days?: number;
 }
 
 export interface EmployeeByDepartment {
@@ -55,6 +62,58 @@ export interface EmployeeByDepartment {
   count: number;
   active: number;
   on_leave: number;
+}
+
+export interface StatutoryDeductions {
+  paye: number;
+  nssf: number;
+  shif: number;
+  housing_levy: number;
+  nita: number;
+  withholding_tax: number;
+  other: number;
+}
+
+export interface PayrollPipelineStage {
+  status: "draft" | "pending_approval" | "approved" | "processed" | "paid";
+  count: number;
+  amount: number;
+}
+
+export interface LeaveEntry {
+  leave_id: string;
+  employee_name: string;
+  job_title?: string;
+  leave_type: string;
+  start_date: string;
+  end_date: string;
+  days_requested: number;
+  reason?: string;
+}
+
+export interface WorkforceStats {
+  hires_in_period: number;
+  exits_in_period: number;
+  turnover_rate: number;
+  average_tenure_years: number;
+  headcount_trend: Array<{ label: string; hires: number; exits: number; headcount: number }>;
+  tenure_bands: Array<{ band: string; count: number }>;
+  employment_types: Array<{ type: string; count: number }>;
+  upcoming_anniversaries: Array<{
+    employee_id: string;
+    employee_name: string;
+    job_title?: string;
+    hire_date: string;
+    years: number;
+    days_until: number;
+  }>;
+}
+
+export interface LeaveBalanceSummary {
+  entitled: number;
+  used: number;
+  pending: number;
+  remaining: number;
 }
 
 export interface HRDashboardData {
@@ -84,6 +143,7 @@ export interface HRDashboardData {
     employee_id: string;
     fullname: string;
     document_name: string;
+    document_type?: string;
     expiration_date: string;
     days_until: number;
   }>;
@@ -93,6 +153,14 @@ export interface HRDashboardData {
     timestamp: string;
     employee_name?: string;
   }>;
+  statutory: StatutoryDeductions;
+  payroll_pipeline: PayrollPipelineStage[];
+  on_leave_today: LeaveEntry[];
+  pending_leave_requests: LeaveEntry[];
+  attendance_trend: Array<{ date: string; label: string; present: number }>;
+  workforce: WorkforceStats;
+  leave_balance: LeaveBalanceSummary;
+  departments_total: number;
 }
 
 export interface HRDashboardParams {
@@ -114,6 +182,7 @@ export interface APIHRDashboardResponse {
       total: number;
       active: number;
       inactive: number;
+      new_hires?: number;
       gender_breakdown?: {
         male: number;
         female: number;
@@ -129,17 +198,21 @@ export interface APIHRDashboardResponse {
       pending: number;
       approved: number;
       rejected: number;
-      balance: {
-        entitled: number;
-        used: number;
-        pending: number;
-        remaining: number;
-      };
+      balance: LeaveBalanceSummary;
     };
     payroll: {
       total_payrolls: number;
       total_net: number;
       total_gross: number;
+      // Newer API versions also send the fields below
+      total_deductions?: number;
+      statutory?: StatutoryDeductions;
+      trend?: PayrollTrendMonth[];
+      pipeline?: PayrollPipelineStage[];
+      pending_amount?: number;
+      pending_runs?: number;
+      salary_bill?: number;
+      average_basic_salary?: number;
     };
     birthdays?: {
       upcoming: Array<{
@@ -152,16 +225,50 @@ export interface APIHRDashboardResponse {
       }>;
       count: number;
     };
+    leave_by_type?: LeaveByType[];
+    on_leave_today?: LeaveEntry[];
+    pending_leave_requests?: LeaveEntry[];
+    attendance?: {
+      tracked_staff: number;
+      present_today: number;
+      clocked_in_now: number;
+      absent_today: number;
+      attendance_rate: number;
+      average_hours: number;
+      trend: Array<{ date: string; label: string; present: number }>;
+    };
+    workforce?: WorkforceStats;
+    expiring_documents?: HRDashboardData["expiring_documents"];
+    recent_activities?: HRDashboardData["recent_activities"];
   };
 }
+
+const EMPTY_STATUTORY: StatutoryDeductions = {
+  paye: 0,
+  nssf: 0,
+  shif: 0,
+  housing_levy: 0,
+  nita: 0,
+  withholding_tax: 0,
+  other: 0,
+};
+
+const EMPTY_WORKFORCE: WorkforceStats = {
+  hires_in_period: 0,
+  exits_in_period: 0,
+  turnover_rate: 0,
+  average_tenure_years: 0,
+  headcount_trend: [],
+  tenure_bands: [],
+  employment_types: [],
+  upcoming_anniversaries: [],
+};
 
 // ── Fetch HR Dashboard ───────────────────────────────────────────────────────
 
 export const fetchHRDashboard = async (params: HRDashboardParams): Promise<HRDashboardData> => {
   try {
-    console.log("Fetching HR dashboard with params:", params);
     const response = await axiosInstance.get<APIHRDashboardResponse>("/bandu/hr/dashboard", { params });
-    console.log("HR dashboard response:", response.data);
     const apiData = response.data.data;
 
     // Fetch employees to build department breakdown and per-status counts
@@ -189,6 +296,9 @@ export const fetchHRDashboard = async (params: HRDashboardParams): Promise<HRDas
         if (emp.employment_status === "active") {
           deptMap[deptName].active++;
         }
+        if (emp.employment_status === "on_leave") {
+          deptMap[deptName].on_leave++;
+        }
         const status = String(emp.employment_status || "");
         if (status in counts) counts[status]++;
       });
@@ -213,8 +323,11 @@ export const fetchHRDashboard = async (params: HRDashboardParams): Promise<HRDas
       not_specified: 0,
     };
 
+    const attendance = apiData.attendance;
+    const onLeaveToday = apiData.on_leave_today || [];
+
     // Map API response to expected dashboard structure
-    const mappedData = {
+    return {
       employee_stats: {
         total_employees: apiData.employees.total,
         active_employees: statusCounts ? statusCounts.active : apiData.employees.active,
@@ -222,29 +335,35 @@ export const fetchHRDashboard = async (params: HRDashboardParams): Promise<HRDas
         suspended: statusCounts?.suspended || 0,
         terminated: statusCounts?.terminated || 0,
         resigned: statusCounts?.resigned || 0,
-        new_hires_this_month: 0, // Not provided by API
+        new_hires_this_month: apiData.employees.new_hires || 0,
       },
       leave_stats: {
         total_requests: apiData.leave.pending + apiData.leave.approved + apiData.leave.rejected,
         pending: apiData.leave.pending,
         approved: apiData.leave.approved,
         rejected: apiData.leave.rejected,
-        on_leave_today: 0, // Not provided by API
+        on_leave_today: onLeaveToday.length,
       },
       attendance_stats: {
-        present_today: 0, // Not provided by API
-        absent_today: 0, // Not provided by API
+        present_today: attendance?.present_today || 0,
+        absent_today: attendance?.absent_today || 0,
         late_today: 0, // Not provided by API
-        average_attendance_rate: 0, // Not provided by API
+        average_attendance_rate: attendance?.attendance_rate || 0,
+        clocked_in_now: attendance?.clocked_in_now || 0,
+        tracked_staff: attendance?.tracked_staff || 0,
+        average_hours: attendance?.average_hours || 0,
       },
       payroll_stats: {
         total_payroll_this_month: apiData.payroll.total_gross,
-        total_deductions: apiData.payroll.total_gross - apiData.payroll.total_net,
+        total_deductions: apiData.payroll.total_deductions ?? apiData.payroll.total_gross - apiData.payroll.total_net,
         net_pay: apiData.payroll.total_net,
-        pending_payroll: 0, // Not provided by API
+        pending_payroll: apiData.payroll.pending_amount || 0,
+        pending_runs: apiData.payroll.pending_runs || 0,
+        salary_bill: apiData.payroll.salary_bill || 0,
+        average_basic_salary: apiData.payroll.average_basic_salary || 0,
       },
-      payroll_trend: [], // Not provided by API
-      leave_by_type: [], // Not provided by API
+      payroll_trend: apiData.payroll.trend || [],
+      leave_by_type: apiData.leave_by_type || [],
       employees_by_department: employeesByDepartment,
       gender_breakdown: genderBreakdown,
       upcoming_birthdays: apiData.birthdays?.upcoming?.map((b) => ({
@@ -255,11 +374,17 @@ export const fetchHRDashboard = async (params: HRDashboardParams): Promise<HRDas
         birthday: b.date_of_birth,
         days_until: b.days_until,
       })) || [],
-      expiring_documents: [], // Not provided by API
-      recent_activities: [], // Not provided by API
+      expiring_documents: apiData.expiring_documents || [],
+      recent_activities: apiData.recent_activities || [],
+      statutory: apiData.payroll.statutory || EMPTY_STATUTORY,
+      payroll_pipeline: apiData.payroll.pipeline || [],
+      on_leave_today: onLeaveToday,
+      pending_leave_requests: apiData.pending_leave_requests || [],
+      attendance_trend: attendance?.trend || [],
+      workforce: apiData.workforce || EMPTY_WORKFORCE,
+      leave_balance: apiData.leave.balance || { entitled: 0, used: 0, pending: 0, remaining: 0 },
+      departments_total: apiData.departments?.total || 0,
     };
-    console.log("Mapped dashboard data:", mappedData);
-    return mappedData;
   } catch (error: any) {
     console.error("Error fetching HR dashboard:", error);
     const errorMessage = error?.response?.data?.message || error?.message || "Failed to fetch HR dashboard";
