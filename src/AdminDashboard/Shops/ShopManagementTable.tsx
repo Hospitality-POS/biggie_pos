@@ -147,95 +147,160 @@ const MapView: React.FC<{ shops: any[]; height?: number }> = ({ shops, height = 
 
   const shopKey = withCoords.map(s => s._id).join(",");
 
+  // Helper to ensure Map and Marker classes are imported/available
+  const checkAndImportMaps = useCallback(async (): Promise<boolean> => {
+    const g = (window as any).google?.maps;
+    if (typeof g?.Map === "function") {
+      return true;
+    }
+    if (typeof g?.importLibrary === "function") {
+      try {
+        await Promise.all([
+          g.importLibrary("maps"),
+          g.importLibrary("marker"),
+        ]);
+        return typeof (window as any).google?.maps?.Map === "function";
+      } catch (err) {
+        console.warn("Failed to dynamically import Google Maps libraries:", err);
+        return false;
+      }
+    }
+    return false;
+  }, []);
+
   // Load Google Maps SDK
   useEffect(() => {
-    const loadGoogleMaps = () => {
-      if ((window as any).google?.maps) {
-        setSdkLoaded(true);
+    let active = true;
+
+    const loadGoogleMaps = async () => {
+      // 1. If already available or importable
+      const alreadyReady = await checkAndImportMaps();
+      if (alreadyReady) {
+        if (active) setSdkLoaded(true);
         return;
       }
+
+      // 2. If script already exists in the DOM, wait and check
       if (document.getElementById("gmap-script")) {
-        const check = setInterval(() => {
-          if ((window as any).google?.maps) {
+        let attempts = 0;
+        const check = setInterval(async () => {
+          attempts++;
+          const ready = await checkAndImportMaps();
+          if (ready) {
             clearInterval(check);
-            setSdkLoaded(true);
+            if (active) setSdkLoaded(true);
+            return;
+          }
+          if (attempts > 50) {
+            clearInterval(check);
+            if (active) setSdkLoaded(false);
           }
         }, 100);
         return;
       }
+
+      // 3. Inject script
       const key = GOOGLE_MAPS_API_KEY;
       if (!key) {
-        setSdkLoaded(false);
+        if (active) setSdkLoaded(false);
         return;
       }
+
       const script = document.createElement("script");
       script.id = "gmap-script";
       script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places&loading=async`;
       script.async = true;
       script.defer = true;
-      script.onload = () => setSdkLoaded(true);
-      script.onerror = () => setSdkLoaded(false);
+      script.onload = async () => {
+        const ready = await checkAndImportMaps();
+        if (active) setSdkLoaded(ready);
+      };
+      script.onerror = () => {
+        if (active) setSdkLoaded(false);
+      };
       document.head.appendChild(script);
     };
+
     loadGoogleMaps();
-  }, []);
+
+    return () => {
+      active = false;
+    };
+  }, [checkAndImportMaps]);
 
   useEffect(() => {
     const g = (window as any).google?.maps;
-    if (!g || !mapRef.current || withCoords.length === 0 || !sdkLoaded) return;
+    if (!sdkLoaded || !g || typeof g.Map !== "function" || !mapRef.current || withCoords.length === 0) return;
 
-    if (!mapObjRef.current) {
-      mapObjRef.current = new g.Map(mapRef.current, {
-        zoom: 12,
-        center: { lat: withCoords[0].location.lat, lng: withCoords[0].location.lng },
-        mapTypeControl: false, streetViewControl: false, fullscreenControl: true,
-        styles: [{ featureType: "poi", elementType: "labels", stylers: [{ visibility: "off" }] }],
+    try {
+      if (!mapObjRef.current) {
+        mapObjRef.current = new g.Map(mapRef.current, {
+          zoom: 12,
+          center: { lat: withCoords[0].location.lat, lng: withCoords[0].location.lng },
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: true,
+          styles: [{ featureType: "poi", elementType: "labels", stylers: [{ visibility: "off" }] }],
+        });
+      }
+
+      if (!infoWinRef.current && typeof g.InfoWindow === "function") {
+        infoWinRef.current = new g.InfoWindow();
+      }
+
+      markersRef.current.forEach(m => {
+        try {
+          m.setMap(null);
+        } catch (_) {}
       });
-    }
+      markersRef.current = [];
 
-    if (!infoWinRef.current) infoWinRef.current = new g.InfoWindow();
+      if (typeof g.Marker === "function") {
+        withCoords.forEach((shop, idx) => {
+          const cfg = POS_MODE_CONFIG[shop.pos_mode] ?? POS_MODE_CONFIG.restaurant;
+          const marker = new g.Marker({
+            position: { lat: shop.location.lat, lng: shop.location.lng },
+            map: mapObjRef.current,
+            title: shop.name,
+            label: { 
+              text: String(idx + 1), 
+              color: "#fff", 
+              fontSize: "12px", 
+              fontWeight: "700",
+              className: "map-marker-label"
+            },
+            icon: {
+              path: g.SymbolPath?.CIRCLE ?? 0,
+              scale: 18, 
+              fillColor: cfg.color, 
+              fillOpacity: 1,
+              strokeColor: "#fff", 
+              strokeWeight: 3,
+            },
+            animation: g.Animation?.DROP,
+          });
 
-    markersRef.current.forEach(m => m.setMap(null));
-    markersRef.current = [];
+          marker.addListener("click", () => {
+            openInfo(g, shop, marker);
+          });
 
-    withCoords.forEach((shop, idx) => {
-      const cfg = POS_MODE_CONFIG[shop.pos_mode] ?? POS_MODE_CONFIG.restaurant;
-      const marker = new g.Marker({
-        position: { lat: shop.location.lat, lng: shop.location.lng },
-        map: mapObjRef.current,
-        title: shop.name,
-        label: { 
-          text: String(idx + 1), 
-          color: "#fff", 
-          fontSize: "12px", 
-          fontWeight: "700",
-          className: "map-marker-label"
-        },
-        icon: {
-          path: g.SymbolPath.CIRCLE,
-          scale: 18, 
-          fillColor: cfg.color, 
-          fillOpacity: 1,
-          strokeColor: "#fff", 
-          strokeWeight: 3,
-        },
-        animation: g.Animation.DROP,
-      });
+          markersRef.current.push(marker);
+        });
+      }
 
-      marker.addListener("click", () => {
-        openInfo(g, shop, marker);
-      });
-
-      markersRef.current.push(marker);
-    });
-
-    if (withCoords.length > 1) {
-      const bounds = new g.LatLngBounds();
-      withCoords.forEach(s => bounds.extend({ lat: s.location.lat, lng: s.location.lng }));
-      mapObjRef.current.fitBounds(bounds, { top: 60, right: 40, bottom: 60, left: 40 });
-    } else {
-      mapObjRef.current.setCenter({ lat: withCoords[0].location.lat, lng: withCoords[0].location.lng });
-      mapObjRef.current.setZoom(15);
+      if (typeof g.LatLngBounds === "function") {
+        if (withCoords.length > 1) {
+          const bounds = new g.LatLngBounds();
+          withCoords.forEach(s => bounds.extend({ lat: s.location.lat, lng: s.location.lng }));
+          mapObjRef.current.fitBounds(bounds, { top: 60, right: 40, bottom: 60, left: 40 });
+        } else {
+          mapObjRef.current.setCenter({ lat: withCoords[0].location.lat, lng: withCoords[0].location.lng });
+          mapObjRef.current.setZoom(15);
+        }
+      }
+    } catch (err) {
+      console.warn("Error initializing Google Maps in MapView:", err);
+      setSdkLoaded(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shopKey, sdkLoaded]);
@@ -258,7 +323,7 @@ const MapView: React.FC<{ shops: any[]; height?: number }> = ({ shops, height = 
     );
   }
 
-  const hasGoogleSDK = !!(window as any).google?.maps;
+  const hasGoogleSDK = sdkLoaded && typeof (window as any).google?.maps?.Map === "function";
   if (!hasGoogleSDK || withCoords.length === 0) {
     const q = encodeURIComponent(getLocationDisplay(located[0].location));
     const embedUrl = GOOGLE_MAPS_API_KEY
