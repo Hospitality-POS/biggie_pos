@@ -64,6 +64,8 @@ import {
   PAYSLIP_HIDEABLE_LINES,
   type PayslipLineKey,
 } from "@utils/payslipExport";
+import { useExportTemplate } from "@utils/exportTemplates";
+import { exportTemplateMenuItem } from "@components/ExportTemplate/exportTemplateMenu";
 import { generateP9FormPDF, buildP9FormDoc } from "@utils/p9FormPDF";
 import dayjs from "dayjs";
 import { THEME_C } from "@utils/getPrimaryColor";
@@ -197,6 +199,7 @@ const PayslipView: React.FC = () => {
   // Rounds every money figure shown on this page (and passed to payslip
   // exports) to whole shillings — display/export only.
   const [roundOff, setRoundOff] = useState(false);
+  const [exportTemplate, setExportTemplate] = useExportTemplate();
   const fmtMoney = (v: number | undefined | null) =>
     (roundOff ? Math.round(Number(v || 0)) : Number(v || 0)).toLocaleString();
 
@@ -891,6 +894,7 @@ const PayslipView: React.FC = () => {
                   icon: roundOff ? <CheckCircleOutlined style={{ color: "#10b981" }} /> : <span style={{ display: "inline-block", width: 14 }} />,
                   onClick: () => setRoundOff((v) => !v),
                 },
+                exportTemplateMenuItem(exportTemplate, setExportTemplate),
                 { type: "divider" },
                 {
                   key: "excel",
@@ -1364,6 +1368,8 @@ const PayslipView: React.FC = () => {
                       icon: <FileExcelOutlined />,
                       onClick: () => exportPayslipToExcel(selectedPayslip, headerOverride, roundOff, hiddenLines),
                     },
+                    { type: "divider" as const },
+                    exportTemplateMenuItem(exportTemplate, setExportTemplate),
                     { type: "divider" as const },
                     {
                       key: "hdr",

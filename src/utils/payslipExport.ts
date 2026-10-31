@@ -5,6 +5,7 @@ import { message } from 'antd';
 import { fetchSystemSetupDetailsById } from '@services/systemsetup';
 import { getUser } from '@services/tenants';
 import { getPrimaryColor, hexToRgb } from './getPrimaryColor';
+import { getExportTheme, argb, xlsxFill, type ExportTheme } from './exportTemplates';
 
 /**
  * Payslip export — PDF (one page per payslip) and Excel (one sheet per
@@ -248,12 +249,13 @@ export const renderPayslipPage = (
     headerMode?: PayslipHeaderMode;
     rounded?: boolean;
     hidden?: PayslipLineKey[];
+    theme?: ExportTheme;
   },
   isFirstPage = true
 ) => {
-  const { kraPin, address, user, primary } = ctx;
+  const { kraPin, address, user } = ctx;
+  const theme = ctx.theme || getExportTheme();
   const company = headerName(payslip, { company: ctx.company, headerMode: ctx.headerMode || 'company' });
-  const [pr, pg, pb] = primary;
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   // Squeeze the payslip into a centered column — figures stay compact in the
@@ -267,7 +269,7 @@ export const renderPayslipPage = (
   // ── Company header ──
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
-  doc.setTextColor(pr, pg, pb);
+  doc.setTextColor(...theme.title);
   doc.text(company.toUpperCase(), pageWidth / 2, margin + 2, { align: 'center' });
   doc.setFontSize(9.5);
   doc.setTextColor(100, 116, 139);
@@ -281,7 +283,7 @@ export const renderPayslipPage = (
     if (bits) doc.text(bits, pageWidth / 2, margin + 28, { align: 'center' });
   }
 
-  doc.setDrawColor(pr, pg, pb);
+  doc.setDrawColor(...theme.rule);
   doc.setLineWidth(1);
   doc.line(margin, margin + 34, pageWidth - margin, margin + 34);
 
@@ -296,9 +298,9 @@ export const renderPayslipPage = (
     theme: 'grid',
     styles: { fontSize: 8, cellPadding: 2.5, lineColor: [203, 213, 225], lineWidth: 0.4 },
     columnStyles: {
-      0: { fontStyle: 'bold', cellWidth: 62, textColor: [71, 85, 105] },
+      0: { fontStyle: 'bold', cellWidth: 62, textColor: [71, 85, 105], ...(theme.labelFill && { fillColor: theme.labelFill }) },
       1: { cellWidth: 68 },
-      2: { fontStyle: 'bold', cellWidth: 62, textColor: [71, 85, 105] },
+      2: { fontStyle: 'bold', cellWidth: 62, textColor: [71, 85, 105], ...(theme.labelFill && { fillColor: theme.labelFill }) },
       3: {},
     },
     margin: { left: margin, right: margin },
@@ -308,10 +310,17 @@ export const renderPayslipPage = (
   const sectionTable = (title: string, rows: [string, string][], highlightLast = true) => {
     autoTable(doc, {
       startY: y,
-      head: [[{ content: title, styles: { fillColor: [pr, pg, pb] } }, 'KSH']],
+      head: [[title, { content: 'KSH', styles: { halign: 'right' } }]],
       body: rows,
       theme: 'grid',
-      headStyles: { fillColor: [pr, pg, pb], textColor: 255, fontSize: 8.5, fontStyle: 'bold' },
+      headStyles: {
+        fillColor: theme.headFill,
+        textColor: theme.headText,
+        lineColor: theme.headLine,
+        lineWidth: 0.6,
+        fontSize: 8.5,
+        fontStyle: 'bold',
+      },
       styles: { fontSize: 8.5, cellPadding: 3, lineColor: [203, 213, 225], lineWidth: 0.4 },
       columnStyles: {
         0: { fontStyle: 'bold', cellWidth: 190, textColor: [51, 65, 85] },
@@ -321,8 +330,8 @@ export const renderPayslipPage = (
       didParseCell: (data) => {
         if (highlightLast && data.section === 'body' && data.row.index === rows.length - 1) {
           data.cell.styles.fontStyle = 'bold';
-          data.cell.styles.fillColor = [pr, pg, pb];
-          data.cell.styles.textColor = [255, 255, 255];
+          data.cell.styles.textColor = theme.totalText;
+          if (theme.totalFill) data.cell.styles.fillColor = theme.totalFill;
         }
       },
     });
@@ -333,12 +342,18 @@ export const renderPayslipPage = (
   sectionTable('PAYE COMPUTATION', payeRows);
   sectionTable('DEDUCTIONS', deductionRows);
 
-  // ── Net pay banner — same brand color as the highlighted totals rows ──
-  doc.setFillColor(pr, pg, pb);
-  doc.roundedRect(margin, y, contentWidth, 26, 4, 4, 'F');
+  // ── Net pay banner — filled, or an outlined box on the lighter templates ──
+  if (theme.netFill) {
+    doc.setFillColor(...theme.netFill);
+    doc.roundedRect(margin, y, contentWidth, 26, 4, 4, 'F');
+  } else {
+    doc.setDrawColor(...theme.netBorder);
+    doc.setLineWidth(1.2);
+    doc.roundedRect(margin, y, contentWidth, 26, 4, 4, 'S');
+  }
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(255, 255, 255);
+  doc.setTextColor(...theme.netText);
   doc.text('NET PAY', margin + 12, y + 17);
   doc.setFontSize(15);
   doc.text(`KES ${fmt(netPay)}`, pageWidth - margin - 12, y + 18, { align: 'right' });
@@ -548,7 +563,7 @@ export const exportP9ToExcel = async (payslips: any[], year: number, opts?: { hi
 
 const buildPayslipSheet = (p: any, company: string, rounded = false, hidden: PayslipLineKey[] = []) => {
   const { infoRows, earningsRows, payeRows, deductionRows, netPay, fmt } = payslipRows(p, rounded, hidden);
-  const brand = (getPrimaryColor() || '#0E388A').replace('#', '').toUpperCase().padStart(6, '0');
+  const theme = getExportTheme();
 
   const aoa: any[][] = [
     [company.toUpperCase()],
@@ -587,8 +602,9 @@ const buildPayslipSheet = (p: any, company: string, rounded = false, hidden: Pay
   // ── Cell styles (written by xlsx-js-style) ──
   const thin = { style: 'thin', color: { rgb: 'FFCBD5E1' } };
   const border = { top: thin, bottom: thin, left: thin, right: thin };
+  const headLine = { style: 'thin', color: { rgb: argb(theme.headLine) } };
   const companyStyle: any = {
-    font: { bold: true, sz: 14, color: { rgb: `FF${brand}` } },
+    font: { bold: true, sz: 14, color: { rgb: argb(theme.title) } },
     alignment: { horizontal: 'center', vertical: 'center' },
   };
   const titleStyle: any = {
@@ -598,30 +614,31 @@ const buildPayslipSheet = (p: any, company: string, rounded = false, hidden: Pay
   const periodStyle: any = {
     font: { sz: 9, color: { rgb: 'FF94A3B8' } },
     alignment: { horizontal: 'center' },
-    border: { bottom: { style: 'medium', color: { rgb: `FF${brand}` } } },
+    border: { bottom: { style: 'medium', color: { rgb: argb(theme.rule) } } },
   };
   const infoLabel: any = {
     font: { bold: true, sz: 9, color: { rgb: 'FF475569' } },
-    fill: { fgColor: { rgb: 'FFF1F5F9' } },
+    ...xlsxFill(theme.labelFill),
     border,
   };
   const infoValue: any = { font: { sz: 9 }, border };
   const sectionLabel: any = {
-    font: { bold: true, sz: 9.5, color: { rgb: 'FFFFFFFF' } },
-    fill: { fgColor: { rgb: `FF${brand}` } },
-    border,
+    font: { bold: true, sz: 9.5, color: { rgb: argb(theme.headText) } },
+    ...xlsxFill(theme.headFill),
+    border: { top: headLine, bottom: headLine, left: headLine, right: headLine },
   };
   const bodyLabel: any = { font: { sz: 9, color: { rgb: 'FF334155' } }, border };
   const bodyValue: any = { font: { sz: 9 }, border, alignment: { horizontal: 'right' } };
   const totalLabel: any = {
-    font: { bold: true, sz: 9.5, color: { rgb: 'FFFFFFFF' } },
-    fill: { fgColor: { rgb: `FF${brand}` } },
+    font: { bold: true, sz: 9.5, color: { rgb: argb(theme.totalText) } },
+    ...xlsxFill(theme.totalFill),
     border,
   };
+  const netBorder = { style: 'medium', color: { rgb: argb(theme.netBorder) } };
   const netPayLabel: any = {
-    font: { bold: true, sz: 11, color: { rgb: 'FFFFFFFF' } },
-    fill: { fgColor: { rgb: `FF${brand}` } },
-    border,
+    font: { bold: true, sz: 11, color: { rgb: argb(theme.netText) } },
+    ...xlsxFill(theme.netFill),
+    border: { top: netBorder, bottom: netBorder, left: netBorder, right: netBorder },
   };
 
   const setCell = (r: number, c: number, s: any) => {
