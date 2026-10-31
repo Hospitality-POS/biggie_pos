@@ -1269,6 +1269,21 @@ export const markPayrollPaid = async (
   return response.data;
 };
 
+// Mark a paid payroll as unpaid — reverses the salary payment journal entry
+// (when one was posted) and returns the payroll to processed / approved.
+// The accrual entry is kept, so the net pay shows as owed again.
+export const markPayrollUnpaid = async (payrollId: string, payload: { reason?: string } = {}) => {
+  try {
+    const response = await axiosInstance.patch(`${bandu_url}/payroll/${payrollId}/unpay`, payload);
+    message.success(response.data?.message || "Payroll marked as unpaid");
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.message || error?.message || "Failed to mark payroll as unpaid";
+    message.error(errorMessage);
+    throw new Error(errorMessage);
+  }
+};
+
 // Initialize default statutory deduction configs (Kenya)
 export const initializeDeductionSettings = async () => {
   try {

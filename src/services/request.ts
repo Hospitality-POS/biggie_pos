@@ -6,7 +6,40 @@ import { getCache, setCache } from "@utils/cache";
 import { isPermissionOfferedForTenant, makePermissionChecker, PERMISSIONS } from "@utils/accessControl";
 import { parseTenantModules, readStoredTenant } from "@utils/parseTenantModules";
 
+// Set by the API-triggered logout below, which reloads the page (resetting it)
 let isLoggingOut = false;
+
+// ── Signing out inside the app (navbar / admin Log out — no page reload) ─────
+// Pages still on screen keep fetching for a moment after the session is
+// cleared, and requests already on their way come back 401. Those failures
+// are the logout itself, not real errors, so they are dropped silently
+// instead of every service toasting "Failed to fetch …".
+const LOGOUT_GRACE_MS = 2000;
+let logoutEpoch = 0;
+let logoutAt = 0;
+
+export const beginLogout = () => {
+    logoutEpoch += 1;
+    logoutAt = Date.now();
+    queryClient.cancelQueries();
+};
+
+type StampedConfig = { _logoutEpoch?: number; _sentDuringLogout?: boolean };
+
+/** A failure caused by signing out: sent by the old session, or sent in the
+ *  moments after it ended and refused for lack of a login. */
+const isLogoutFallout = (error: any) => {
+    const config = error?.config as (StampedConfig & { url?: string }) | undefined;
+    if (!config || config._logoutEpoch === undefined) return false;
+    // Signing in again must still report a wrong password
+    if (/\/(login|auth)\b/.test(config.url || "")) return false;
+    if (config._logoutEpoch !== logoutEpoch) return true;
+    return !!config._sentDuringLogout && (!error.response || error.response.status === 401);
+};
+
+// A request that never settles: nothing downstream sees an error to report.
+// The pages that made it are unmounting, so nothing waits on it.
+const dropSilently = () => new Promise<never>(() => {});
 
 const handleError = (errorMessage: string) => {
     message.error(`${errorMessage}`);
@@ -202,6 +235,9 @@ axiosInstance.interceptors.request.use(
         if (isLoggingOut) {
             return Promise.reject(new axios.Cancel("Request cancelled due to logout"));
         }
+        // Stamp the session so a failure caused by signing out can be told apart
+        (config as StampedConfig)._logoutEpoch = logoutEpoch;
+        (config as StampedConfig)._sentDuringLogout = !!logoutAt && Date.now() - logoutAt < LOGOUT_GRACE_MS;
 
         const raw = localStorage.getItem("user");
         const shopId = getValidShopId();
@@ -306,6 +342,8 @@ axiosInstance.interceptors.response.use(
     async (error) => {
         // Permission errors are already handled above — don't double-toast
         if (error?.isPermissionError) return Promise.reject(error);
+        // Fallout from signing out (see beginLogout) — not an error to report
+        if (isLogoutFallout(error)) return dropSilently();
         if (isLoggingOut || axios.isCancel(error)) return Promise.reject(error);
 
         // ── Offline Fallback: If network failed or device offline, resolve from IndexedDB ──

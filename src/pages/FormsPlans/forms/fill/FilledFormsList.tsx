@@ -90,13 +90,13 @@ const FilledFormsList: React.FC<Props> = ({ person, showCustomer }) => {
   const settings = useFormsSettings();
   const [planFrom, setPlanFrom] = useState<FormSubmissionSummary | null>(null);
   const [openPlanId, setOpenPlanId] = useState<string | null>(null);
-  const canStartPlan = (isEmployee ? settings.employeePlans : settings.clientPlans) && can(a.perms.plansManage);
+  const canStartPlan = a.hasPlans && !!settings[a.plansFlag] && can(a.perms.plansManage);
 
   const statuses = FILTERS.find((f) => f.key === filter)?.statuses;
   const queryKey = ["form-submissions", a.audience, person?._id ?? "all", filter];
   const canView = can(a.perms.viewFilled);
   const canDownload = can(a.perms.download);
-  const personKey = isEmployee ? "employee_id" : "customer_id";
+  const personKey = a.personKey;
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey,
@@ -281,7 +281,7 @@ const FilledFormsList: React.FC<Props> = ({ person, showCustomer }) => {
                     {row.alerts?.length > 0 && (
                       <Tooltip title={row.alerts.map((al) => `${questionLead(al.question)} ${al.answer}`).join("\n")}>
                         <span style={{ fontSize: 11.5, color: "#dc2626" }}>
-                          <MedicineBoxOutlined /> {row.alerts.length} {isEmployee ? "flag" : "alert"}{row.alerts.length === 1 ? "" : "s"}
+                          <MedicineBoxOutlined /> {row.alerts.length} {a.alertShort}{row.alerts.length === 1 ? "" : "s"}
                         </span>
                       </Tooltip>
                     )}
@@ -400,7 +400,7 @@ const FilledFormsList: React.FC<Props> = ({ person, showCustomer }) => {
         <Input.TextArea
           value={voidReason}
           onChange={(e) => setVoidReason(e.target.value)}
-          placeholder={isEmployee ? "Reason, e.g. sent the wrong policy version" : "Reason, e.g. filled for the wrong treatment"}
+          placeholder={a.voidPlaceholder}
           autoSize={{ minRows: 2 }}
         />
       </Modal>

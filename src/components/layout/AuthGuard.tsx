@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import jwtDecode from 'jwt-decode'; 
 import { useNavigate } from 'react-router-dom';
 import { logoutUser } from '../../features/Auth/AuthActions'; // Import your actions and types
+import { beginLogout } from '../../services/request';
 import { useAppDispatch, useAppSelector } from 'src/store';
 
 // interface User {
@@ -20,7 +21,8 @@ const ProtectedPage: React.FC = ({ children }) => {
       const decodedToken = jwtDecode<{ exp: number }>(token);
 
       if (decodedToken.exp * 1000 < Date.now()) {
-        dispatch(logoutUser()); 
+        beginLogout();
+        dispatch(logoutUser());
         navigate('/tables');
       }
     } else {

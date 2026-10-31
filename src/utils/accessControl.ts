@@ -80,6 +80,7 @@ export const MODULES = {
     CLIENT_FORMS: "Client Forms",
     CLIENT_PLANS: "Client Plans",
     HR_FORMS_PLANS: "HR · Employee Forms & Plans",
+    CRM_FORMS: "CRM · Contact Forms",
 } as const;
 
 export type ModuleKey = keyof typeof MODULES;
@@ -845,6 +846,14 @@ export const PERMISSIONS: Record<string, Permission> = {
     EMPLOYEE_PLANS_DOWNLOAD: { key: "EMPLOYEE_PLANS_DOWNLOAD", label: "Preview & Download Onboarding & Training Plan PDFs", module: MODULES.HR_FORMS_PLANS, action: "special", moduleScope: "hr" },
     EMPLOYEE_FORMS_CATEGORIES_MANAGE: { key: "EMPLOYEE_FORMS_CATEGORIES_MANAGE", label: "Add Employee Form Types", module: MODULES.HR_FORMS_PLANS, action: "create", moduleScope: "hr" },
     EMPLOYEE_FORMS_ANALYTICS: { key: "EMPLOYEE_FORMS_ANALYTICS", label: "View Employee Forms & Plans Analytics", module: MODULES.HR_FORMS_PLANS, action: "read", moduleScope: "hr" },
+
+    // Mteja contact forms: consent, privacy, media release, waivers… for leads
+    // and people who aren't customers
+    MTEJA_FORMS_VIEW: { key: "MTEJA_FORMS_VIEW", label: "View Contact Forms", module: MODULES.CRM_FORMS, action: "read", moduleScope: "crm" },
+    MTEJA_FORMS_MANAGE: { key: "MTEJA_FORMS_MANAGE", label: "Create, Edit & Void Contact Forms", module: MODULES.CRM_FORMS, action: "update", moduleScope: "crm" },
+    MTEJA_FORMS_APPROVE: { key: "MTEJA_FORMS_APPROVE", label: "Approve Contact Forms", module: MODULES.CRM_FORMS, action: "special", moduleScope: "crm" },
+    MTEJA_FORMS_SEND: { key: "MTEJA_FORMS_SEND", label: "Send Contact Forms for Signing", module: MODULES.CRM_FORMS, action: "create", moduleScope: "crm" },
+    MTEJA_FORMS_VIEW_FILLED: { key: "MTEJA_FORMS_VIEW_FILLED", label: "View, Download & Analyse Signed Contact Forms", module: MODULES.CRM_FORMS, action: "read", moduleScope: "crm" },
 
     // ── Reports ───────────────────────────────────────────────────────────────
 

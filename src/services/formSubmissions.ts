@@ -7,28 +7,44 @@ import type { Audience } from "@pages/FormsPlans/forms/types";
 import { audienceConfig, type AudienceConfig } from "@pages/FormsPlans/audience";
 
 const url = (path = "") => `${BASE_URL}/form-submissions${path}`;
-// Client and employee forms need different permission keys
+// Client, employee and contact forms need different permission keys
 const as = (audience: Audience | undefined, action: keyof AudienceConfig["perms"]) => ({
   headers: { "x-permission": audienceConfig(audience).perms[action] },
 });
 const unwrap = <T>(res: { data: { data: T } }) => res.data.data;
 
+/** Someone with no customer, employee or lead record (Mteja contact forms). */
+export interface NewContact {
+  name: string;
+  phone?: string;
+  email?: string;
+  id_number?: string;
+  address?: string;
+}
+
 // ─── Staff (logged in) ───────────────────────────────────────────────────────
 
-/** Prepare a form for a customer (customer_id) or an employee (employee_id). */
+/**
+ * Prepare a form for a customer (customer_id), an employee (employee_id) or a
+ * contact — a lead (lead_id), or, with `contact`, someone who has no record.
+ */
 export const createFormSubmission = async (
   audience: Audience,
-  input: { template_id: string; person_id: string; channel: "in_store" | "link" }
+  input: { template_id: string; person_id?: string; contact?: NewContact; channel: "in_store" | "link" }
 ): Promise<{ submission: FormSubmission; token?: string }> => {
-  const { person_id, ...rest } = input;
-  const body = { ...rest, [audience === "employee" ? "employee_id" : "customer_id"]: person_id };
+  const { person_id, contact, ...rest } = input;
+  const body = {
+    ...rest,
+    ...(person_id ? { [audienceConfig(audience).personKey]: person_id } : {}),
+    ...(contact ? { contact } : {}),
+  };
   const res = await axiosInstance.post(url(), body, as(audience, "send"));
   return { submission: res.data.data, token: res.data.token };
 };
 
 export const fetchFormSubmissions = async (
   audience: Audience,
-  params: { customer_id?: string; employee_id?: string; status?: string; limit?: number } = {}
+  params: { customer_id?: string; employee_id?: string; lead_id?: string; status?: string; limit?: number } = {}
 ): Promise<FormSubmissionSummary[]> =>
   unwrap(await axiosInstance.get(url(), { params: { ...params, audience }, ...as(audience, "viewFilled") }));
 
@@ -40,7 +56,7 @@ export const fetchFormSubmission = async (id: string, purpose: "fill" | "view" =
 export const fetchPersonAlerts = async (audience: Audience, personId: string): Promise<CustomerAlert[]> =>
   unwrap(
     await axiosInstance.get(url("/alerts"), {
-      params: { [audience === "employee" ? "employee_id" : "customer_id"]: personId },
+      params: { [audienceConfig(audience).personKey]: personId },
       ...as(audience, "viewFilled"),
     })
   );
