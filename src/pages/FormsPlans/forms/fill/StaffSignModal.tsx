@@ -6,7 +6,7 @@ import { staffCountersign, submissionError, fetchMySignatures, saveMySignature }
 import SignaturePad, { type SignaturePadHandle } from "./SignaturePad";
 import { questionLead } from "./utils";
 import type { FormSubmission, FormSubmissionSummary, SavedSignatureOption } from "./types";
-import { audienceConfig } from "../../audience";
+import { audienceConfig, audienceOfSubject } from "../../audience";
 
 const { Text } = Typography;
 
@@ -31,7 +31,7 @@ const StaffSignModal: React.FC<Props> = ({ open, submission, role = "therapist",
   const [ready, setReady] = useState(false);
   const [saving, setSaving] = useState(false);
   const pad = useRef<SignaturePadHandle>(null);
-  const a = audienceConfig(submission.subject_type === "employee" ? "employee" : "client");
+  const a = audienceConfig(audienceOfSubject(submission.subject_type));
   const label = submission.form.signers?.find((s) => s.role === role)?.label ?? a.signerLabels[role];
 
   const { data: library = [] } = useQuery({

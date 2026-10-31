@@ -5,8 +5,10 @@ import { fetchSystemSetupDetailsById } from "@services/systemsetup";
  * The shop's Forms & Plans add-on switches (System Setup → Forms & Plans).
  * Feature flags only count while the add-on itself is on, so callers can
  * use them directly:
- *  - clientForms / clientPlans     → customers (Duka, Pesa, Mteja)
+ *  - clientForms / clientPlans     → customers (Duka, Pesa)
  *  - employeeForms / employeePlans → Bandu HR
+ *  - contactForms                  → Mteja leads and people who aren't customers
+ *  - contactPlans                  → always off: contacts have forms only
  */
 export interface FormsSettings {
   enabled: boolean;
@@ -14,6 +16,8 @@ export interface FormsSettings {
   clientPlans: boolean;
   employeeForms: boolean;
   employeePlans: boolean;
+  contactForms: boolean;
+  contactPlans: boolean;
   requireFormBeforeCheckout: boolean;
 }
 
@@ -25,6 +29,8 @@ const OFF: FormsSettings = {
   clientPlans: false,
   employeeForms: false,
   employeePlans: false,
+  contactForms: false,
+  contactPlans: false,
   requireFormBeforeCheckout: false,
 };
 
@@ -38,13 +44,15 @@ export function useFormsSettings(): FormsSettings & { isLoading: boolean } {
       const settings = await fetchSystemSetupDetailsById();
       const fs = settings?.forms_settings ?? {};
       if (!fs.enabled) return OFF;
-      // Client flags default on, employee flags off (matches the API defaults)
+      // Client and contact flags default on, employee flags off (matches the API defaults)
       return {
         enabled: true,
         clientForms: fs.client_forms_enabled !== false,
         clientPlans: fs.client_plans_enabled !== false,
         employeeForms: fs.employee_forms_enabled === true,
         employeePlans: fs.employee_plans_enabled === true,
+        contactForms: fs.contact_forms_enabled !== false,
+        contactPlans: false,
         requireFormBeforeCheckout: fs.client_forms_enabled !== false && fs.require_form_before_checkout === true,
       };
     },
