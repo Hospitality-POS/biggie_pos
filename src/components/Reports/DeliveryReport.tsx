@@ -11,8 +11,7 @@ import {
   TagOutlined,
 } from "@ant-design/icons";
 import { useReactToPrint } from "react-to-print";
-import dayjs from "dayjs";
-import { useAppSelector } from "../../store";
+import { useDeliveryReportQuery } from "@hooks/queries";
 import useSystemDetails from "@hooks/useSystemDetails";
 import { useThermalAgentPrint } from "@hooks/useThermalAgentPrint";
 import ThermalPrintControls from "./ThermalPrintControls";
@@ -250,16 +249,23 @@ interface DeliveryReportProps {
   onCloseM: () => void;
   startDate: string;
   endDate: string;
+  data?: any[];
 }
 
-const DeliveryReportModal: React.FC<DeliveryReportProps> = ({ openM, onCloseM, startDate, endDate }) => {
+const DeliveryReportModal: React.FC<DeliveryReportProps> = ({ openM, onCloseM, startDate, endDate, data: propData }) => {
   const { BRAND_NAME1 } = useSystemDetails();
   const [printMode, setPrintMode] = useState<PrintMode>("thermal");
 
   const thermalRef = useRef<HTMLDivElement>(null);
   const a4Ref = useRef<HTMLDivElement>(null);
 
-  const { deliveryReport: rawData, loading } = useAppSelector((state) => state.Report);
+  const { data: queryData, isLoading } = useDeliveryReportQuery(
+    { startDate, endDate },
+    { enabled: openM && !propData && !!startDate && !!endDate }
+  );
+
+  const rawData = propData || queryData;
+  const loading = !propData && isLoading;
   const data = useMemo(() => (Array.isArray(rawData) ? rawData : []), [rawData]);
   const totalCost = useMemo(() => calcTotalCost(data), [data]);
   const hasData = data.length > 0;

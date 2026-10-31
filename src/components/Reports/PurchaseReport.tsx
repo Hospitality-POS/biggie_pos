@@ -16,8 +16,7 @@ import {
   UserOutlined,
 } from "@ant-design/icons";
 import { useReactToPrint } from "react-to-print";
-import dayjs from "dayjs";
-import { useAppSelector } from "../../store";
+import { usePurchaseReportQuery } from "@hooks/queries";
 import useSystemDetails from "@hooks/useSystemDetails";
 import { useThermalAgentPrint } from "@hooks/useThermalAgentPrint";
 import ThermalPrintControls from "./ThermalPrintControls";
@@ -406,9 +405,10 @@ interface PurchaseReportProps {
   onCloseM: () => void;
   startDate: string;
   endDate: string;
+  data?: any;
 }
 
-const PurchaseReportModal: React.FC<PurchaseReportProps> = ({ openM, onCloseM, startDate, endDate }) => {
+const PurchaseReportModal: React.FC<PurchaseReportProps> = ({ openM, onCloseM, startDate, endDate, data: propData }) => {
   const { BRAND_NAME1 } = useSystemDetails();
   const [printMode, setPrintMode] = useState<PrintMode>("thermal");
   const [emailModalOpen, setEmailModalOpen] = useState(false);
@@ -417,7 +417,13 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({ openM, onCloseM, s
   const thermalRef = useRef<HTMLDivElement>(null);
   const a4Ref = useRef<HTMLDivElement>(null);
 
-  const { purchaseReport: data, loading } = useAppSelector((state) => state.Report);
+  const { data: queryData, isLoading } = usePurchaseReportQuery(
+    { startDate, endDate },
+    { enabled: openM && !propData && !!startDate && !!endDate }
+  );
+
+  const data = propData || queryData;
+  const loading = !propData && isLoading;
 
   const tableData = useMemo(() => {
     const raw: { name: string; amount: number }[] = (data?.payment_methods || []).map((item: any) => ({

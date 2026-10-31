@@ -4,7 +4,6 @@ import CartSlice from "./features/Cart/CartSlice";
 import OrderSlice from "./features/Order/OrderSlice";
 import ProductSlice from "./features/Product/ProductSlice";
 import TableSlice from "./features/Table/TableSlice";
-import reportSlice from "./features/Report/ReportSlice";
 import pendingPrintReducer from "./features/PendingPrint/PendingPrintSlice";
 import { TypedUseSelectorHook, useDispatch, useSelector } from "react-redux";
 import * as Sentry from "@sentry/react";
@@ -15,7 +14,6 @@ const rootReducer = combineReducers({
   order: OrderSlice,
   product: ProductSlice,
   Tables: TableSlice,
-  Report: reportSlice,
   pendingPrint: pendingPrintReducer,
 });
 

@@ -11,8 +11,7 @@ import {
     UnorderedListOutlined,
 } from "@ant-design/icons";
 import { useReactToPrint } from "react-to-print";
-import dayjs from "dayjs";
-import { useAppSelector } from "../../store";
+import { useInventoryUsageReportQuery } from "@hooks/queries";
 import useSystemDetails from "@hooks/useSystemDetails";
 import { useThermalAgentPrint } from "@hooks/useThermalAgentPrint";
 import ThermalPrintControls from "./ThermalPrintControls";
@@ -242,10 +241,11 @@ interface InventoryUsageReportProps {
     onCloseM: () => void;
     startDate: string;
     endDate: string;
+    data?: any[];
 }
 
 const InventoryUsageReportModal: React.FC<InventoryUsageReportProps> = ({
-    openM, onCloseM, startDate, endDate,
+    openM, onCloseM, startDate, endDate, data: propData,
 }) => {
     const { BRAND_NAME1 } = useSystemDetails();
     const [printMode, setPrintMode] = useState<PrintMode>("thermal");
@@ -253,7 +253,13 @@ const InventoryUsageReportModal: React.FC<InventoryUsageReportProps> = ({
     const thermalRef = useRef<HTMLDivElement>(null);
     const a4Ref = useRef<HTMLDivElement>(null);
 
-    const { inventoryUsageReport: rawData, loading } = useAppSelector((state) => state.Report);
+    const { data: queryData, isLoading } = useInventoryUsageReportQuery(
+        { startDate, endDate },
+        { enabled: openM && !propData && !!startDate && !!endDate }
+    );
+
+    const rawData = propData || queryData;
+    const loading = !propData && isLoading;
     const data = useMemo(() => (Array.isArray(rawData) ? rawData : []), [rawData]);
     const totalQty = useMemo(() => data.reduce((s: number, i: any) => s + Number(i.quantity || 0), 0), [data]);
     const hasData = data.length > 0;

@@ -11,7 +11,7 @@ import {
 } from "@ant-design/icons";
 import { useReactToPrint } from "react-to-print";
 import dayjs from "dayjs";
-import { useAppSelector } from "../../store";
+import { useSalesReportQuery } from "@hooks/queries";
 import useSystemDetails from "@hooks/useSystemDetails";
 import { useThermalAgentPrint } from "@hooks/useThermalAgentPrint";
 import ThermalPrintControls from "./ThermalPrintControls";
@@ -303,16 +303,23 @@ interface SalesReportProps {
   onCloseM: () => void;
   startDate: string;
   endDate: string;
+  data?: any[];
 }
 
-const SalesReportModal: React.FC<SalesReportProps> = ({ openM, onCloseM, startDate, endDate }) => {
+const SalesReportModal: React.FC<SalesReportProps> = ({ openM, onCloseM, startDate, endDate, data: propData }) => {
   const { BRAND_NAME1 } = useSystemDetails();
   const [printMode, setPrintMode] = useState<PrintMode>("thermal");
 
   const thermalRef = useRef<HTMLDivElement>(null);
   const a4Ref = useRef<HTMLDivElement>(null);
 
-  const { salesReport: rawData, loading } = useAppSelector((state) => state.Report);
+  const { data: queryData, isLoading } = useSalesReportQuery(
+    { startDate, endDate },
+    { enabled: openM && !propData && !!startDate && !!endDate }
+  );
+
+  const rawData = propData || queryData;
+  const loading = !propData && isLoading;
   const data = useMemo(() => (Array.isArray(rawData) ? rawData : []), [rawData]);
   const overallTotal = useMemo(() => data.reduce((s, item) => s + getCategoryTotal(item.orderItems), 0), [data]);
   const hasData = data.length > 0;

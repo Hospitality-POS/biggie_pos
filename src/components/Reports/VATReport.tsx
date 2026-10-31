@@ -12,8 +12,7 @@ import {
   TagOutlined,
 } from "@ant-design/icons";
 import { useReactToPrint } from "react-to-print";
-import dayjs from "dayjs";
-import { useAppSelector } from "../../store";
+import { useVATReportQuery } from "@hooks/queries";
 import { COOP_NAME } from "@utils/config";
 import useSystemDetails from "@hooks/useSystemDetails";
 import { useThermalAgentPrint } from "@hooks/useThermalAgentPrint";
@@ -353,16 +352,23 @@ interface VATReportProps {
   onCloseM: () => void;
   startDate: string;
   endDate: string;
+  data?: any;
 }
 
-const VATReportModal: React.FC<VATReportProps> = ({ openM, onCloseM, startDate, endDate }) => {
+const VATReportModal: React.FC<VATReportProps> = ({ openM, onCloseM, startDate, endDate, data: propData }) => {
   const { BRAND_NAME1 } = useSystemDetails();
   const [printMode, setPrintMode] = useState<PrintMode>("thermal");
 
   const thermalRef = useRef<HTMLDivElement>(null);
   const a4Ref = useRef<HTMLDivElement>(null);
 
-  const { vatReport: data, loading } = useAppSelector((state: any) => state.Report);
+  const { data: queryData, isLoading } = useVATReportQuery(
+    { startDate, endDate },
+    { enabled: openM && !propData && !!startDate && !!endDate }
+  );
+
+  const data = propData || queryData;
+  const loading = !propData && isLoading;
   const { summary, vat_by_type } = data || {};
   const hasData = !!(summary || vat_by_type?.length);
 

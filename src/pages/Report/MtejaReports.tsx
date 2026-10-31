@@ -41,8 +41,6 @@ import { THEME_C } from "@utils/getPrimaryColor";
 import { fetchShop } from "@services/shops";
 import { useTenantModules } from "@hooks/useTenantModules";
 import { getStoredShopId } from "@modules/mteja/pages/omnichannel/shared/ui";
-import { useAppDispatch } from "src/store";
-import { generateInventoryUsageReport } from "src/features/Report/reportActions";
 import InventoryUsageReportModal from "@components/Reports/InventoryUsageReport";
 
 dayjs.extend(weekOfYear);
@@ -322,7 +320,6 @@ const MtejaReports: React.FC<MtejaReportsProps> = ({ onReportGenerated }) => {
   const { hasPOS: hasDuka } = useTenantModules();
   const showInventoryUsage = !!(shopData as any)?.whatsapp_marketplace?.enabled && !hasDuka;
 
-  const dispatch = useAppDispatch();
   const [usageRange, setUsageRange] = useState<[string, string]>(["", ""]);
   const [usageOpen, setUsageOpen] = useState(false);
 
@@ -1080,7 +1077,6 @@ const MtejaReports: React.FC<MtejaReportsProps> = ({ onReportGenerated }) => {
               const end = values.dateRange?.[1]?.format("YYYY-MM-DD HH:mm") || "";
               if (!start || !end) return;
               setUsageRange([start, end]);
-              dispatch(generateInventoryUsageReport({ startDate: start, endDate: end, shop_id: shopId || undefined }));
               setUsageOpen(true);
             }}
           >
