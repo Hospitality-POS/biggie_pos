@@ -9,7 +9,7 @@ import {
     UserOutlined,
 } from "@ant-design/icons";
 import {
-    TrialBalanceResponse, ProfitAndLossResponse, BalanceSheetResponse,
+    TrialBalanceResponse, ProfitAndLossResponse, BalanceSheetResponse, BalanceSheetRow,
     GeneralLedgerResponse, VATReportResponse, CashFlowResponse,
     AccountBalancesResponse, CustomerStatementResponse, SupplierStatementResponse,
     ARAgingResponse, APAgingResponse, TrialBalanceRow, GeneralLedgerAccount,
@@ -658,23 +658,101 @@ export const ProfitAndLossTable: React.FC<{ data: ProfitAndLossResponse; period?
 };
 
 // ── 3. Balance Sheet — Print-ready layout ─────────────────────────────────────
+
+type BsAccount = BalanceSheetRow & { _id?: string; is_synthetic?: boolean };
+
+interface BsSubtypeGroup {
+    subtype: string;
+    accounts: BsAccount[];
+    total: number;
+}
+
+/**
+ * Accounts of one account type (Assets, Liabilities, Equity) grouped by their
+ * account subtype — e.g. Cash & Bank, Accounts Receivable, Inventory under
+ * Assets — in the order the subtypes first appear. Accounts without a
+ * subtype go under "Other <type>".
+ */
+const groupBySubtype = (accounts: BsAccount[], typeLabel: string): BsSubtypeGroup[] => {
+    const groups = new Map<string, BsSubtypeGroup>();
+    for (const a of accounts) {
+        const subtype = a.account_subtype?.trim() || `Other ${typeLabel}`;
+        const g = groups.get(subtype) ?? { subtype, accounts: [], total: 0 };
+        g.accounts.push(a);
+        g.total += a.balance || 0;
+        groups.set(subtype, g);
+    }
+    return [...groups.values()].map((g) => ({ ...g, total: parseFloat(g.total.toFixed(2)) }));
+};
+
+/** Table rows for one section: subtype heading, its accounts, then its subtotal. */
+type BsDisplayRow =
+    | { key: string; kind: "group"; label: string }
+    | { key: string; kind: "account"; account: BsAccount }
+    | { key: string; kind: "subtotal"; label: string; total: number };
+
+const bsDisplayRows = (groups: BsSubtypeGroup[]): BsDisplayRow[] =>
+    groups.flatMap((g) => [
+        { key: `group-${g.subtype}`, kind: "group" as const, label: g.subtype },
+        ...g.accounts.map((a, i) => ({ key: `acct-${a._id ?? a.account_code}-${i}`, kind: "account" as const, account: a })),
+        { key: `subtotal-${g.subtype}`, kind: "subtotal" as const, label: `Total ${g.subtype}`, total: g.total },
+    ]);
+
 export const BalanceSheetTable: React.FC<{ data: BalanceSheetResponse }> = ({ data }) => {
     const { openLedger } = useLedger();
-    const onAccountRow = (record: any) =>
-        record?._id ? { onClick: () => openLedger(record._id), style: { cursor: "pointer" } } : {};
+    const onAccountRow = (record: BsDisplayRow) =>
+        record.kind === "account" && record.account._id
+            ? { onClick: () => openLedger(record.account._id!), style: { cursor: "pointer" } }
+            : record.kind === "group"
+                ? { style: { background: "#fafafa" } }
+                : {};
     const primaryColor = usePrimaryColor();
+
+    const assetGroups = groupBySubtype(data.assets.accounts, "Assets");
+    const liabilityGroups = groupBySubtype(data.liabilities.accounts, "Liabilities");
+    const equityGroups = groupBySubtype(data.equity.accounts, "Equity");
+
+    // Subtype headings span the whole row; subtotals span Code + Account
     const bsCols = (color: string) => [
-        { title: "Code", dataIndex: "account_code", width: 90, render: (v: string) => v === "NET-INCOME" ? <Tag color="purple" style={{ fontSize: 10 }}>AUTO</Tag> : <Text code style={{ fontSize: 11 }}>{v}</Text> },
-        { title: "Account", dataIndex: "account_name", render: (v: string, r: any) => r.is_synthetic ? <Text italic style={{ color: "#722ed1" }}>{v}</Text> : <Text>{v}</Text> },
-        { title: "Balance (KES)", dataIndex: "balance", align: "right" as const, width: 160, render: (v: number) => <Text style={{ color: v < 0 ? "#cf1322" : color, fontWeight: 600 }}>{fmt(v)}</Text> },
+        {
+            title: "Code", key: "code", width: 90,
+            onCell: (r: BsDisplayRow) => ({ colSpan: r.kind === "group" ? 3 : r.kind === "subtotal" ? 2 : 1 }),
+            render: (_: unknown, r: BsDisplayRow) => {
+                if (r.kind === "group") return <Text strong style={{ fontSize: 12, color: "#434343" }}>{r.label}</Text>;
+                if (r.kind === "subtotal") return <Text strong style={{ fontSize: 12, color: "#595959", paddingLeft: 16 }}>{r.label}</Text>;
+                return r.account.account_code === "NET-INCOME"
+                    ? <Tag color="purple" style={{ fontSize: 10 }}>AUTO</Tag>
+                    : <Text code style={{ fontSize: 11, marginLeft: 12 }}>{r.account.account_code}</Text>;
+            },
+        },
+        {
+            title: "Account", key: "account",
+            onCell: (r: BsDisplayRow) => ({ colSpan: r.kind === "account" ? 1 : 0 }),
+            render: (_: unknown, r: BsDisplayRow) =>
+                r.kind !== "account" ? null : r.account.is_synthetic
+                    ? <Text italic style={{ color: "#722ed1" }}>{r.account.account_name}</Text>
+                    : <Text>{r.account.account_name}</Text>,
+        },
+        {
+            title: "Balance (KES)", key: "balance", align: "right" as const, width: 160,
+            onCell: (r: BsDisplayRow) => ({ colSpan: r.kind === "group" ? 0 : 1 }),
+            render: (_: unknown, r: BsDisplayRow) => {
+                if (r.kind === "subtotal") {
+                    return <Text strong style={{ color: r.total < 0 ? "#cf1322" : color, borderTop: "1px solid #d9d9d9", paddingTop: 2 }}>{fmt(r.total)}</Text>;
+                }
+                if (r.kind !== "account") return null;
+                const v = r.account.balance;
+                return <Text style={{ color: v < 0 ? "#cf1322" : color, fontWeight: 600 }}>{fmt(v)}</Text>;
+            },
+        },
     ];
 
-    const sectionTable = (title: string, rows: any[], total: number, color: string) => (
+    const sectionTable = (title: string, groups: BsSubtypeGroup[], total: number, color: string) => (
         <div style={{ marginBottom: 24 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, padding: "6px 12px", background: `${color}12`, borderLeft: `4px solid ${color}`, borderRadius: "0 6px 6px 0" }}>
                 <Text strong style={{ fontSize: 13, color }}>{title}</Text>
             </div>
-            <Table rowKey="account_code" dataSource={rows} pagination={false} size="small" columns={bsCols(color)} onRow={onAccountRow}
+            <Table<BsDisplayRow> rowKey="key" dataSource={bsDisplayRows(groups)} pagination={false} size="small" columns={bsCols(color)} onRow={onAccountRow}
                 summary={() => (
                     <Table.Summary.Row style={{ background: `${color}08` }}>
                         <Table.Summary.Cell index={0} colSpan={2}>
@@ -690,13 +768,20 @@ export const BalanceSheetTable: React.FC<{ data: BalanceSheetResponse }> = ({ da
     );
 
     const handlePrint = () => {
-        const section = (title: string, rows: any[], total: number, color: string) => `
+        const groupRows = (groups: BsSubtypeGroup[], color: string) =>
+            groups
+                .map(
+                    (g) => `
+                    <tr><td colspan="3" style="background:#fafafa;font-weight:600">${escapeHtml(g.subtype)}</td></tr>
+                    ${g.accounts.map((r) => `<tr><td style="padding-left:18px">${r.account_code === "NET-INCOME" ? "AUTO" : `<code>${escapeHtml(r.account_code)}</code>`}</td><td>${r.is_synthetic ? `<em>${escapeHtml(r.account_name)}</em>` : escapeHtml(r.account_name)}</td><td class="num" style="color:${r.balance < 0 ? "#cf1322" : color}">${fmt(r.balance)}</td></tr>`).join("")}
+                    <tr><td colspan="2" style="padding-left:18px;font-weight:600;color:#595959">Total ${escapeHtml(g.subtype)}</td><td class="num" style="font-weight:600;border-top:1px solid #d9d9d9;color:${g.total < 0 ? "#cf1322" : color}">${fmt(g.total)}</td></tr>`
+                )
+                .join("");
+        const section = (title: string, groups: BsSubtypeGroup[], total: number, color: string) => `
             <h2>${escapeHtml(title)}</h2>
             <table>
                 <thead><tr><th>Code</th><th>Account</th><th class="num">Balance (KES)</th></tr></thead>
-                <tbody>
-                    ${rows.map((r) => `<tr><td>${r.account_code === "NET-INCOME" ? "AUTO" : `<code>${escapeHtml(r.account_code)}</code>`}</td><td>${r.is_synthetic ? `<em>${escapeHtml(r.account_name)}</em>` : escapeHtml(r.account_name)}</td><td class="num" style="color:${r.balance < 0 ? "#cf1322" : color}">${fmt(r.balance)}</td></tr>`).join("")}
-                </tbody>
+                <tbody>${groupRows(groups, color)}</tbody>
                 <tfoot><tr class="total-row"><td colspan="2">Total ${escapeHtml(title)}</td><td class="num" style="color:${color}">KES ${fmt(total)}</td></tr></tfoot>
             </table>`;
         const html = `
@@ -710,14 +795,12 @@ export const BalanceSheetTable: React.FC<{ data: BalanceSheetResponse }> = ({ da
                 <div class="summary-item"><span class="summary-label">Status</span><span class="summary-value ${data.is_balanced ? "balanced" : "unbalanced"}">${data.is_balanced ? "" : "✗ Diff: KES " + fmt(data.totals.difference)}</span></div>
                 ${data.current_net_income !== undefined ? `<div class="summary-item"><span class="summary-label">Net Income</span><span class="summary-value" style="color:#722ed1">KES ${fmt(data.current_net_income)}</span></div>` : ""}
             </div>
-            ${section("Assets", data.assets.accounts, data.assets.total_assets, "#1d39c4")}
-            ${section("Liabilities", data.liabilities.accounts, data.liabilities.total_liabilities, "#cf1322")}
+            ${section("Assets", assetGroups, data.assets.total_assets, "#1d39c4")}
+            ${section("Liabilities", liabilityGroups, data.liabilities.total_liabilities, "#cf1322")}
             <h2>Equity</h2>
             <table>
                 <thead><tr><th>Code</th><th>Account</th><th class="num">Balance (KES)</th></tr></thead>
-                <tbody>
-                    ${data.equity.accounts.map((r) => `<tr><td>${r.account_code === "NET-INCOME" ? "AUTO" : `<code>${escapeHtml(r.account_code)}</code>`}</td><td>${escapeHtml(r.account_name)}</td><td class="num" style="color:${r.balance < 0 ? "#cf1322" : "#722ed1"}">${fmt(r.balance)}</td></tr>`).join("")}
-                </tbody>
+                <tbody>${groupRows(equityGroups, "#722ed1")}</tbody>
                 <tfoot><tr class="total-row"><td colspan="2">Total Equity</td><td class="num" style="color:#722ed1">KES ${fmt(data.equity.total_equity)}</td></tr></tfoot>
             </table>
             <table><tbody>
@@ -730,54 +813,35 @@ export const BalanceSheetTable: React.FC<{ data: BalanceSheetResponse }> = ({ da
 
     const BS_COLS = ["Section", "Code", "Account", "Balance (KES)"];
     const handleExcel = () => {
-        const rows = [
-            // Assets section header
-            { Section: "Assets", Code: "Code", Account: "Account", "Balance (KES)": "Balance (KES)" },
-            ...data.assets.accounts.map((a) => ({ Section: "", Code: a.account_code, Account: a.account_name, "Balance (KES)": a.balance })),
-            { Section: "", Code: "", Account: "Total Assets", "Balance (KES)": data.assets.total_assets },
-            BLANK_ROW(BS_COLS),
-            // Liabilities section header
-            { Section: "Liabilities", Code: "Code", Account: "Account", "Balance (KES)": "Balance (KES)" },
-            ...data.liabilities.accounts.map((a) => ({ Section: "", Code: a.account_code, Account: a.account_name, "Balance (KES)": a.balance })),
-            { Section: "", Code: "", Account: "Total Liabilities", "Balance (KES)": data.liabilities.total_liabilities },
-            BLANK_ROW(BS_COLS),
-            // Equity section header
-            { Section: "Equity", Code: "Code", Account: "Account", "Balance (KES)": "Balance (KES)" },
-            ...data.equity.accounts.map((a) => ({ Section: "", Code: a.account_code, Account: a.account_name, "Balance (KES)": a.balance })),
-            { Section: "", Code: "", Account: "Total Equity", "Balance (KES)": data.equity.total_equity },
-            { Section: "", Code: "", Account: "Total Liabilities + Equity", "Balance (KES)": data.totals.total_liabilities_and_equity },
-            BLANK_ROW(BS_COLS),
-            // Final summary
-            { Section: "", Code: "", Account: "Total Assets:", "Balance (KES)": `KES ${fmt(data.totals.total_assets)}` },
-        ];
-        
-        // Calculate indices for bold rows (matching UI structure)
-        const boldRows = [];
-        let currentIndex = 0;
-        
-        // Section headers
-        boldRows.push(currentIndex); // Assets header
-        currentIndex += 1;
-        
-        // Total Assets
-        currentIndex += data.assets.accounts.length;
-        boldRows.push(currentIndex);
-        currentIndex += 3; // Skip blank row and Liabilities header
-        
-        // Total Liabilities
-        currentIndex += data.liabilities.accounts.length;
-        boldRows.push(currentIndex);
-        currentIndex += 3; // Skip blank row and Equity header
-        
-        // Total Equity + Total Liabilities + Equity (both in Equity section)
-        currentIndex += data.equity.accounts.length;
-        boldRows.push(currentIndex); // Total Equity
-        boldRows.push(currentIndex + 1); // Total Liabilities + Equity
-        currentIndex += 3; // Skip blank row
-        
-        // Final Total Assets summary
-        boldRows.push(currentIndex);
-        
+        type XlsRow = Record<(typeof BS_COLS)[number], string | number>;
+        const rows: XlsRow[] = [];
+        // Section headers, subtype headings and every total row are bold
+        const boldRows: number[] = [];
+        const push = (row: XlsRow, bold = false) => {
+            if (bold) boldRows.push(rows.length);
+            rows.push(row);
+        };
+        const section = (title: string, groups: BsSubtypeGroup[]) => {
+            push({ Section: title, Code: "Code", Account: "Account", "Balance (KES)": "Balance (KES)" }, true);
+            for (const g of groups) {
+                push({ Section: "", Code: "", Account: g.subtype, "Balance (KES)": "" }, true);
+                g.accounts.forEach((a) => push({ Section: "", Code: a.account_code, Account: `   ${a.account_name}`, "Balance (KES)": a.balance }));
+                push({ Section: "", Code: "", Account: `Total ${g.subtype}`, "Balance (KES)": g.total }, true);
+            }
+        };
+
+        section("Assets", assetGroups);
+        push({ Section: "", Code: "", Account: "Total Assets", "Balance (KES)": data.assets.total_assets }, true);
+        push(BLANK_ROW(BS_COLS) as XlsRow);
+        section("Liabilities", liabilityGroups);
+        push({ Section: "", Code: "", Account: "Total Liabilities", "Balance (KES)": data.liabilities.total_liabilities }, true);
+        push(BLANK_ROW(BS_COLS) as XlsRow);
+        section("Equity", equityGroups);
+        push({ Section: "", Code: "", Account: "Total Equity", "Balance (KES)": data.equity.total_equity }, true);
+        push({ Section: "", Code: "", Account: "Total Liabilities + Equity", "Balance (KES)": data.totals.total_liabilities_and_equity }, true);
+        push(BLANK_ROW(BS_COLS) as XlsRow);
+        push({ Section: "", Code: "", Account: "Total Assets:", "Balance (KES)": `KES ${fmt(data.totals.total_assets)}` }, true);
+
         exportToExcel("balance_sheet", rows, {
             title: "Balance Sheet",
             period: `As of ${dayjs(data.as_of).format("DD MMM YYYY")}`,
@@ -796,7 +860,22 @@ export const BalanceSheetTable: React.FC<{ data: BalanceSheetResponse }> = ({ da
         };
         
         const primaryRgb = hexToRgb(primaryColor);
-        
+
+        // Subtype heading, its accounts (indented), then the subtype subtotal
+        const pdfGroupRows = (groups: BsSubtypeGroup[]) =>
+            groups.flatMap((g) => [
+                [{ content: g.subtype, colSpan: 3, styles: { fontStyle: "bold", fillColor: [245, 245, 245] } }],
+                ...g.accounts.map((a) => [
+                    { content: a.account_code === "NET-INCOME" ? "AUTO" : a.account_code, styles: { cellPadding: { left: 10, top: 2, bottom: 2, right: 2 } } },
+                    a.account_name,
+                    { content: fmt(a.balance), styles: { halign: "right" } },
+                ]),
+                [
+                    { content: `Total ${g.subtype}`, colSpan: 2, styles: { fontStyle: "bold", textColor: [89, 89, 89] } },
+                    { content: fmt(g.total), styles: { fontStyle: "bold", halign: "right" } },
+                ],
+            ]);
+
         exportToPdf("balance_sheet", "Balance Sheet",
             `As of: ${dayjs(data.as_of).format("DD MMM YYYY")}${data.is_balanced ? "" : "  |  UNBALANCED — Diff: KES " + fmt(data.totals.difference)}`,
             ["Code", "Account", "Balance (KES)"],
@@ -808,7 +887,7 @@ export const BalanceSheetTable: React.FC<{ data: BalanceSheetResponse }> = ({ da
                  { content: "Account", styles: { fontStyle: "bold", fillColor: primaryRgb, textColor: 255 } }, 
                  { content: "Balance (KES)", styles: { fontStyle: "bold", fillColor: primaryRgb, textColor: 255, halign: "right" } }],
                 // Assets data
-                ...data.assets.accounts.map((a) => [a.account_code, a.account_name, { content: fmt(a.balance), styles: { halign: "right" } }]),
+                ...pdfGroupRows(assetGroups),
                 // Assets total
                 [{ content: "Total Assets", colSpan: 2, styles: { fontStyle: "bold" } }, { content: fmt(data.assets.total_assets), styles: { fontStyle: "bold", textColor: primaryRgb, halign: "right" } }],
                 // Empty row separator
@@ -820,7 +899,7 @@ export const BalanceSheetTable: React.FC<{ data: BalanceSheetResponse }> = ({ da
                  { content: "Account", styles: { fontStyle: "bold", fillColor: primaryRgb, textColor: 255 } }, 
                  { content: "Balance (KES)", styles: { fontStyle: "bold", fillColor: primaryRgb, textColor: 255, halign: "right" } }],
                 // Liabilities data
-                ...data.liabilities.accounts.map((a) => [a.account_code, a.account_name, { content: fmt(a.balance), styles: { halign: "right" } }]),
+                ...pdfGroupRows(liabilityGroups),
                 // Liabilities total
                 [{ content: "Total Liabilities", colSpan: 2, styles: { fontStyle: "bold" } }, { content: fmt(data.liabilities.total_liabilities), styles: { fontStyle: "bold", textColor: primaryRgb, halign: "right" } }],
                 // Empty row separator
@@ -832,7 +911,7 @@ export const BalanceSheetTable: React.FC<{ data: BalanceSheetResponse }> = ({ da
                  { content: "Account", styles: { fontStyle: "bold", fillColor: primaryRgb, textColor: 255 } }, 
                  { content: "Balance (KES)", styles: { fontStyle: "bold", fillColor: primaryRgb, textColor: 255, halign: "right" } }],
                 // Equity data
-                ...data.equity.accounts.map((a) => [a.account_code, a.account_name, { content: fmt(a.balance), styles: { halign: "right" } }]),
+                ...pdfGroupRows(equityGroups),
                 // Equity totals
                 [{ content: "Total Equity", colSpan: 2, styles: { fontStyle: "bold" } }, { content: fmt(data.equity.total_equity), styles: { fontStyle: "bold", textColor: primaryRgb, halign: "right" } }],
                 [{ content: "Total Liabilities + Equity", colSpan: 2, styles: { fontStyle: "bold" } }, { content: fmt(data.totals.total_liabilities_and_equity), styles: { fontStyle: "bold", textColor: primaryRgb, halign: "right" } }],
@@ -865,13 +944,13 @@ export const BalanceSheetTable: React.FC<{ data: BalanceSheetResponse }> = ({ da
                     description={`Difference of KES ${fmt(data.totals.difference)}. Check for uncategorised accounts or missing journal entries.`}
                 />
             )}
-            {sectionTable("Assets", data.assets.accounts, data.assets.total_assets, "#1d39c4")}
-            {sectionTable("Liabilities", data.liabilities.accounts, data.liabilities.total_liabilities, "#cf1322")}
+            {sectionTable("Assets", assetGroups, data.assets.total_assets, "#1d39c4")}
+            {sectionTable("Liabilities", liabilityGroups, data.liabilities.total_liabilities, "#cf1322")}
             <div style={{ marginBottom: 24 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, padding: "6px 12px", background: "#722ed112", borderLeft: "4px solid #722ed1", borderRadius: "0 6px 6px 0" }}>
                     <Text strong style={{ fontSize: 13, color: "#722ed1" }}>Equity</Text>
                 </div>
-                <Table rowKey="account_code" dataSource={data.equity.accounts} pagination={false} size="small" columns={bsCols("#722ed1")} onRow={onAccountRow}
+                <Table<BsDisplayRow> rowKey="key" dataSource={bsDisplayRows(equityGroups)} pagination={false} size="small" columns={bsCols("#722ed1")} onRow={onAccountRow}
                     summary={() => (
                         <Table.Summary fixed>
                             <Table.Summary.Row style={{ background: "#722ed108" }}>
