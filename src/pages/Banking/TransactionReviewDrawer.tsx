@@ -9,8 +9,12 @@ import {
     CheckCircleOutlined, StopOutlined, PlusOutlined, MinusCircleOutlined,
     SendOutlined, ReloadOutlined, TagOutlined, DeleteOutlined, LinkOutlined,
     ApartmentOutlined, FileSearchOutlined, EyeOutlined, MoreOutlined,
+    ThunderboltOutlined, BulbOutlined,
 } from "@ant-design/icons";
 import LinkDocumentsModal from "./LinkDocumentsModal";
+import SmartAssistDrawer from "./SmartAssistDrawer";
+import SmartAssistBar, { type AssistTab } from "./SmartAssistBar";
+import { similarUncategorized, ruleFor } from "./smartAssistMatch";
 import JournalEntryDetailDrawer from "../JournalEntry/JournalEntryDetailDrawer";
 import JournalEntryFormDrawer from "../JournalEntry/JournalEntryFormDrawer";
 import SplitAccountsModal, { SplitRow } from "@components/accounting/SplitAccountsModal";
@@ -26,7 +30,14 @@ import {
     pushToJournalEntries,
     deleteImport,
     deleteTransactions,
+    addTransaction,
+    AddTransactionInput,
     verifyPosting,
+    getImportAssist,
+    createCategorizationRule,
+    AssistSuggestion,
+    AssistPattern,
+    AssistWatchout,
     RawTransaction,
     TransactionStatus,
     BankStatementImport,
@@ -383,10 +394,124 @@ const CategorizeTxnModal: React.FC<CategorizeTxnModalProps> = ({
     );
 };
 
+interface AddManualTxnModalProps {
+    open: boolean;
+    onClose: () => void;
+    onConfirm: (data: AddTransactionInput) => void;
+    accountOptions: { label: string; value: string }[];
+    loading: boolean;
+}
+
+/** A transaction the statement file missed, entered by hand. */
+const AddManualTxnModal: React.FC<AddManualTxnModalProps> = ({
+    open, onClose, onConfirm, accountOptions, loading,
+}) => {
+    const [form] = Form.useForm();
+
+    useEffect(() => {
+        if (open) form.setFieldsValue({ transaction_date: dayjs(), direction: "out" });
+        else form.resetFields();
+    }, [open, form]);
+
+    const handleOk = async () => {
+        const { transaction_date, ...values } = await form.validateFields();
+        onConfirm({
+            ...values,
+            transaction_date: transaction_date.format("YYYY-MM-DD"),
+            reference: values.reference || undefined,
+            account_id: values.account_id || undefined,
+            notes: values.notes || undefined,
+        });
+    };
+
+    return (
+        <Modal
+            open={open}
+            title="Add Manual Transaction"
+            onCancel={onClose}
+            onOk={handleOk}
+            confirmLoading={loading}
+            okText="Add"
+            width={560}
+            destroyOnClose
+        >
+            <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+                <Row gutter={12}>
+                    <Col span={12}>
+                        <Form.Item
+                            name="transaction_date"
+                            label="Date"
+                            rules={[{ required: true, message: "Pick a date" }]}
+                        >
+                            <DatePicker style={{ width: "100%" }} format="DD MMM YYYY" />
+                        </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                        <Form.Item name="reference" label="Reference">
+                            <Input placeholder="Optional" />
+                        </Form.Item>
+                    </Col>
+                </Row>
+                <Form.Item
+                    name="description"
+                    label="Description"
+                    rules={[{ required: true, whitespace: true, message: "Enter a description" }]}
+                >
+                    <Input placeholder="e.g. Bank charges" />
+                </Form.Item>
+                <Row gutter={12}>
+                    <Col span={12}>
+                        <Form.Item name="direction" label="Type" rules={[{ required: true }]}>
+                            <Select
+                                options={[
+                                    { label: "Money out (debit)", value: "out" },
+                                    { label: "Money in (credit)", value: "in" },
+                                ]}
+                            />
+                        </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                        <Form.Item
+                            name="amount"
+                            label="Amount (KES)"
+                            rules={[{ required: true, message: "Enter an amount" }]}
+                        >
+                            <InputNumber
+                                min={0.01}
+                                precision={2}
+                                placeholder="0.00"
+                                style={{ width: "100%" }}
+                                formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                                parser={(v) => v!.replace(/,/g, "") as any}
+                            />
+                        </Form.Item>
+                    </Col>
+                </Row>
+                <Form.Item
+                    name="account_id"
+                    label="Account"
+                    extra="Optional — picking one categorizes the transaction straight away"
+                >
+                    <Select
+                        placeholder="Select account..."
+                        options={accountOptions}
+                        showSearch
+                        optionFilterProp="label"
+                        allowClear
+                    />
+                </Form.Item>
+                <Form.Item name="notes" label="Notes">
+                    <Input.TextArea rows={2} placeholder="Optional" />
+                </Form.Item>
+            </Form>
+        </Modal>
+    );
+};
+
 const TransactionReviewDrawer: React.FC<Props> = ({
     open, onClose, onSuccess, importRecord, shopId,
 }) => {
-    const { modal } = App.useApp();
+    const { modal, notification } = App.useApp();
     const queryClient = useQueryClient();
 
     const [statusFilter, setStatusFilter] = useState<TransactionStatus | "ALL">("ALL");
@@ -400,6 +525,14 @@ const TransactionReviewDrawer: React.FC<Props> = ({
     const [categorizingBulk, setCategorizingBulk] = useState(false);
     const [bulkAccountId, setBulkAccountId] = useState<string | null>(null);
     const [pushModalOpen, setPushModalOpen] = useState(false);
+    const [addTxnOpen, setAddTxnOpen] = useState(false);
+    const [assistOpen, setAssistOpen] = useState(false);
+    const [assistTab, setAssistTab] = useState<AssistTab>("suggestions");
+    const [assistBusy, setAssistBusy] = useState<string | null>(null);
+    const openAssist = (tab: AssistTab) => {
+        setAssistTab(tab);
+        setAssistOpen(true);
+    };
     const [pushTarget, setPushTarget] = useState<string>("");
     const [dateRange, setDateRange] = useState<[string, string] | null>(null);
     // Journal entry check — which transactions don't show in the bank's ledger
@@ -441,6 +574,24 @@ const TransactionReviewDrawer: React.FC<Props> = ({
     const repostableIds = (entryCheck?.unposted || [])
         .filter((t) => !!t.account_id && REPOSTABLE_REASONS.includes(t.reason))
         .map((t) => String(t._id));
+
+    // Smart Assist suggestions (history only — the AI runs from the drawer on
+    // request) shown inline on uncategorized rows. Shares its cache with the drawer.
+    const { data: assist } = useQuery({
+        queryKey: ["import-assist", importId, false],
+        queryFn: () => getImportAssist(importId!),
+        enabled: open && !!importId,
+        refetchOnWindowFocus: false,
+        staleTime: 30_000,
+    });
+    const suggestionByTxn = new Map<string, AssistSuggestion>(
+        (assist?.suggestions ?? []).map((s) => [s.txn_id, s])
+    );
+    // Duplicates / unusual amounts, flagged on their rows
+    const watchoutsByTxn = new Map<string, AssistWatchout[]>();
+    for (const w of assist?.watchouts ?? []) {
+        if (w.txn_id) watchoutsByTxn.set(w.txn_id, [...(watchoutsByTxn.get(w.txn_id) ?? []), w]);
+    }
 
     const { data: accountsData } = useQuery({
         queryKey: ["chart-of-accounts", shopId],
@@ -514,8 +665,12 @@ const TransactionReviewDrawer: React.FC<Props> = ({
     const categorizeMutation = useMutation({
         mutationFn: ({ txnId, data }: { txnId: string; data: CategorizeTransactionInput }) =>
             categorizeTransaction(importId!, txnId, data),
-        onSuccess: () => {
+        onSuccess: (_res, { txnId, data }) => {
             queryClient.invalidateQueries({ queryKey: ["import-detail", importId] });
+            // Each decision teaches Smart Assist — refresh its suggestions
+            queryClient.invalidateQueries({ queryKey: ["import-assist", importId] });
+            // …and offers to repeat it for look-alike lines (splits are one-offs)
+            if (!data.splits?.length) offerFollowUp(txnId, data);
             setCategorizeModal(false);
             setActiveTxn(null);
             setSplitTxn(null);
@@ -575,6 +730,15 @@ const TransactionReviewDrawer: React.FC<Props> = ({
         },
     });
 
+    const addTxnMutation = useMutation({
+        mutationFn: (data: AddTransactionInput) => addTransaction(importId!, data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["import-detail", importId] });
+            setAddTxnOpen(false);
+            onSuccess();
+        },
+    });
+
     const deleteImportMutation = useMutation({
         mutationFn: () => deleteImport(importId!),
         onSuccess: () => {
@@ -582,6 +746,150 @@ const TransactionReviewDrawer: React.FC<Props> = ({
             onClose();
         },
     });
+
+    // ── Smart Assist actions ────────────────────────────────────────────────
+    const refreshAssist = () => {
+        queryClient.invalidateQueries({ queryKey: ["import-detail", importId] });
+        queryClient.invalidateQueries({ queryKey: ["import-assist", importId] });
+        onSuccess();
+    };
+
+    /** A rule for this bank account that categorizes matching lines from now on, then applied here. */
+    const saveRule = async (
+        rule: { name: string; conditions: any[]; apply_to: "deposits" | "withdrawals" },
+        account: { account_id: string; account_code?: string; account_name?: string }
+    ) => {
+        await createCategorizationRule({
+            shop_id: shopId,
+            name: rule.name,
+            is_active: true,
+            match_type: "all",
+            conditions: rule.conditions,
+            actions: account,
+            apply_to: rule.apply_to,
+            transaction_handling: "recognized",
+            auto_categorize: true,
+            associate_accounts: "custom",
+            associated_account_id: [bankAccountId],
+        });
+        await reApplyRules(importId!, { reset_categorized: false });
+        refreshAssist();
+    };
+
+    // Every suggestion that is 80%+ sure, one bulk call per account
+    const acceptSureSuggestions = async () => {
+        const sure = (assist?.suggestions ?? []).filter((s) => s.confidence >= 80);
+        if (!sure.length) return;
+        setAssistBusy("sure");
+        try {
+            const byAccount = new Map<string, AssistSuggestion[]>();
+            for (const s of sure) byAccount.set(s.account_id, [...(byAccount.get(s.account_id) ?? []), s]);
+            for (const [account_id, list] of byAccount) {
+                await bulkCategorize(importId!, {
+                    account_id,
+                    account_code: list[0].account_code,
+                    account_name: list[0].account_name,
+                    txn_ids: list.map((s) => s.txn_id),
+                });
+            }
+            refreshAssist();
+        } finally {
+            setAssistBusy(null);
+        }
+    };
+
+    const createRuleFromPattern = async (p: AssistPattern) => {
+        if (!p.suggested_rule) return;
+        setAssistBusy(`rule-${p.key}`);
+        try {
+            await saveRule(p.suggested_rule, p.suggested_rule.actions as any);
+        } finally {
+            setAssistBusy(null);
+        }
+    };
+
+    /**
+     * Right after someone categorizes a line: if other uncategorized lines
+     * look like it, offer to do the same for them — and to make it a rule so
+     * future statements are done automatically.
+     */
+    const offerFollowUp = (txnId: string, data: CategorizeTransactionInput) => {
+        const line = allTransactions.find((t: RawTransaction) => String(t._id) === String(txnId));
+        if (!line || !data.account_id) return;
+        const similar = similarUncategorized(line, allTransactions);
+        const account = {
+            account_id: data.account_id,
+            account_code: data.account_code ?? accounts.find((a: any) => a._id === data.account_id)?.account_code,
+            account_name: data.account_name ?? accounts.find((a: any) => a._id === data.account_id)?.account_name,
+        };
+        const rule = ruleFor([line, ...similar], account);
+        // Nothing to repeat and only one line seen so far — not worth a prompt
+        if (!similar.length && !(rule && (assist?.patterns ?? []).some((p) => !p.covered_by_rule && p.sample_descriptions.some((d) => d === line.description)))) return;
+
+        const key = `assist-follow-${txnId}`;
+        const accountLabel = `${account.account_code ?? ""} ${account.account_name ?? ""}`.trim();
+        notification.open({
+            key,
+            placement: "bottomRight",
+            duration: 15,
+            icon: <BulbOutlined style={{ color: "#722ed1" }} />,
+            message: similar.length
+                ? `${similar.length} more line${similar.length === 1 ? " looks" : "s look"} like this`
+                : "Make this automatic?",
+            description: (
+                <div style={{ fontSize: 12.5 }}>
+                    {similar.length ? (
+                        <>
+                            Categorize {similar.length === 1 ? "it" : "them"} to <strong>{accountLabel}</strong> too?
+                            <div style={{ color: "#8c8c8c", marginTop: 4 }}>
+                                {similar.slice(0, 3).map((s) => (
+                                    <div key={s._id} style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                        · {s.description}
+                                    </div>
+                                ))}
+                                {similar.length > 3 && <div>· and {similar.length - 3} more</div>}
+                            </div>
+                        </>
+                    ) : (
+                        <>This payee comes up regularly. Always categorize it to <strong>{accountLabel}</strong>?</>
+                    )}
+                    {rule && (
+                        <div style={{ color: "#8c8c8c", marginTop: 6 }}>
+                            A rule catches narrations containing “{rule.phrase}” on future statements too.
+                        </div>
+                    )}
+                </div>
+            ),
+            btn: (
+                <Space>
+                    {rule && (
+                        <Button
+                            size="small"
+                            onClick={async () => {
+                                notification.destroy(key);
+                                await saveRule(rule, account);
+                            }}
+                        >
+                            Always do this
+                        </Button>
+                    )}
+                    {similar.length > 0 && (
+                        <Button
+                            size="small"
+                            type="primary"
+                            onClick={async () => {
+                                notification.destroy(key);
+                                await bulkCategorize(importId!, { ...account, txn_ids: similar.map((s) => s._id) });
+                                refreshAssist();
+                            }}
+                        >
+                            Apply to {similar.length}
+                        </Button>
+                    )}
+                </Space>
+            ),
+        });
+    };
 
     const handleBulkDelete = () => {
         if (selectedRowKeys.length === 0) return;
@@ -670,6 +978,11 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                             {r.reference}
                         </Text>
                     )}
+                    {r.is_manual && (
+                        <Tooltip title="Added by hand, not from the statement file">
+                            <Tag style={{ fontSize: 10, marginTop: 2 }}>Manual</Tag>
+                        </Tooltip>
+                    )}
                 </div>
             ),
         },
@@ -681,7 +994,29 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                 const links = r.allocations || [];
                 const splits = r.splits || [];
                 if (!r.account_name && !links.length && !splits.length) {
-                    return <Text type="secondary" style={{ fontSize: 12 }}>—</Text>;
+                    // Smart Assist: the account similar lines went to, one click to accept
+                    const s = r.status === "Uncategorized" ? suggestionByTxn.get(String(r._id)) : undefined;
+                    if (!s) return <Text type="secondary" style={{ fontSize: 12 }}>—</Text>;
+                    return (
+                        <Tooltip
+                            title={`Suggested — ${s.confidence}% sure, from ${s.based_on} similar line${s.based_on === 1 ? "" : "s"}. Click to accept.`}
+                        >
+                            <Tag
+                                icon={<BulbOutlined />}
+                                color={s.confidence >= 80 ? "green" : "gold"}
+                                style={{ fontSize: 11, cursor: "pointer", borderStyle: "dashed" }}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    categorizeMutation.mutate({
+                                        txnId: r._id,
+                                        data: { account_id: s.account_id, account_code: s.account_code, account_name: s.account_name },
+                                    });
+                                }}
+                            >
+                                {s.account_code} {s.account_name} · {s.confidence}%
+                            </Tag>
+                        </Tooltip>
+                    );
                 }
                 return (
                     <Space direction="vertical" size={2}>
@@ -751,6 +1086,7 @@ const TransactionReviewDrawer: React.FC<Props> = ({
             render: (s: TransactionStatus, r: RawTransaction) => {
                 const issue = issueById.get(String(r._id));
                 const cfg = issue ? UNPOSTED_REASON_LABELS[issue.reason] : null;
+                const flags = s === "Excluded" ? [] : watchoutsByTxn.get(String(r._id)) ?? [];
                 return (
                     <Space direction="vertical" size={2}>
                         <Badge
@@ -763,6 +1099,17 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                                 <Tag color={cfg.color} style={{ fontSize: 11, margin: 0 }}>{cfg.label}</Tag>
                             </Tooltip>
                         )}
+                        {flags.map((w, i) => (
+                            <Tooltip key={i} title={w.detail}>
+                                <Tag
+                                    color={w.severity === "high" ? "red" : "orange"}
+                                    style={{ fontSize: 11, margin: 0, cursor: "pointer" }}
+                                    onClick={() => openAssist("watchouts")}
+                                >
+                                    {w.type === "duplicate" ? "Duplicate?" : "Unusual amount"}
+                                </Tag>
+                            </Tooltip>
+                        ))}
                     </Space>
                 );
             },
@@ -903,6 +1250,29 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                         )}
                     </Space>
                     <Space wrap size={8} style={{ fontWeight: "normal" }}>
+                        <Tooltip title="Suggestions from your history, recurring payees and things that look off">
+                            <Badge
+                                count={(assist?.summary.suggested ?? 0) + (assist?.summary.watchouts ?? 0)}
+                                size="small"
+                                color="#722ed1"
+                            >
+                                <Button
+                                    icon={<ThunderboltOutlined />}
+                                    onClick={() => openAssist("suggestions")}
+                                    disabled={!importDetail}
+                                    style={{ borderColor: "#d3adf7", color: "#722ed1" }}
+                                >
+                                    Smart Assist
+                                </Button>
+                            </Badge>
+                        </Tooltip>
+                        <Button
+                            icon={<PlusOutlined />}
+                            onClick={() => setAddTxnOpen(true)}
+                            disabled={!importDetail || importDetail.status === "Voided"}
+                        >
+                            Add Transaction
+                        </Button>
                         <Button
                             icon={<ReloadOutlined />}
                             onClick={() => reApplyMutation.mutate()}
@@ -996,6 +1366,16 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                         </Text>
                     </div>
                 </div>
+
+                {/* ── Smart Assist nudges: suggestions, rules, watch-outs ── */}
+                <SmartAssistBar
+                    assist={assist}
+                    readOnly={importDetail?.status === "Voided" || importDetail?.status === "Fully Pushed"}
+                    busy={assistBusy}
+                    onAcceptSure={acceptSureSuggestions}
+                    onCreateRule={createRuleFromPattern}
+                    onOpen={openAssist}
+                />
 
                 {/* ── Journal entry check result ── */}
                 {entryCheckOn && entryCheck && (
@@ -1186,6 +1566,29 @@ const TransactionReviewDrawer: React.FC<Props> = ({
                 accounts={accounts}
                 suppliers={suppliers}
                 loading={categorizeMutation.isLoading}
+            />
+
+            {/* ── Smart Assist: suggestions, recurring payees, watch-outs ── */}
+            <SmartAssistDrawer
+                open={assistOpen}
+                initialTab={assistTab}
+                onClose={() => setAssistOpen(false)}
+                importId={importId}
+                shopId={shopId}
+                bankAccountId={bankAccountId}
+                readOnly={importDetail?.status === "Voided" || importDetail?.status === "Fully Pushed"}
+                onChanged={onSuccess}
+            />
+
+            {/* ── Add a transaction by hand ── */}
+            <AddManualTxnModal
+                open={addTxnOpen}
+                onClose={() => setAddTxnOpen(false)}
+                onConfirm={(d) => addTxnMutation.mutate(d)}
+                accountOptions={accountOptions.filter(
+                    (o: { value: string }) => o.value !== bankAccountId
+                )}
+                loading={addTxnMutation.isLoading}
             />
 
             {/* ── Split a categorized transaction across accounts ── */}

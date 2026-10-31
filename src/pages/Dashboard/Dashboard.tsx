@@ -50,6 +50,10 @@ import {
 } from "src/components/dashboard";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { fmtK } from "@utils/formatters";
+import { useHealthcareSettings } from "@hooks/useHealthcareSettings";
+import { facilityTitle } from "@utils/healthcareFacility";
+import HospitalDashboard from "@pages/Healthcare/HospitalDashboard";
+import { getPermissionChecker } from "@utils/getPermissionChecker";
 
 dayjs.extend(quarterOfYear);
 
@@ -103,6 +107,8 @@ const Dashboard: React.FC = () => {
   const isMobile = useIsMobile();
   const hospital = isHospitalMode();
   const hotel = isHotelMode();
+  // Hospital mode with the Healthcare add-on: the facility section and its name
+  const healthcare = useHealthcareSettings();
   const primaryColor = usePrimaryColor() || "#10b981";
   const [messageApi, contextHolder] = message.useMessage();
 
@@ -163,11 +169,17 @@ const Dashboard: React.FC = () => {
 
   const { startDate, endDate } = getDateRange();
 
+  // Sales figures are for people with a sales dashboard permission. In hospital
+  // mode clinical staff open this page for the facility section only.
+  const canSee = getPermissionChecker();
+  const canSeeSales = canSee("ORDERS_VIEW_DASHBOARD") || canSee("UNIFIED_DASHBOARD_VIEW");
+
   // 1. Dashboard summary analysis
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["dashBoardAnalysis", startDate.format(), endDate.format(), shopId],
     queryFn: () => getDashboardAnalysis(startDate.format("YYYY-MM-DD"), endDate.format("YYYY-MM-DD")),
     networkMode: "always",
+    enabled: canSeeSales,
     refetchOnWindowFocus: false,
     staleTime: 30000,
     retry: 1,
@@ -191,6 +203,7 @@ const Dashboard: React.FC = () => {
         shop_id: shopId ?? undefined,
       }),
     networkMode: "always",
+    enabled: canSeeSales,
     refetchOnWindowFocus: false,
     staleTime: 30000,
     retry: 1,
@@ -207,6 +220,7 @@ const Dashboard: React.FC = () => {
         limit: 10,
       }),
     networkMode: "always",
+    enabled: canSeeSales,
     refetchOnWindowFocus: false,
     staleTime: 30000,
     retry: 1,
@@ -377,7 +391,7 @@ const Dashboard: React.FC = () => {
             <div>
               <Title level={isMobile ? 5 : 4} style={{ margin: 0, color: "#0f172a", fontWeight: 600 }}>
                 {PERIOD_LABELS[periodFilter]} ·{" "}
-                {hospital ? "Hospital Performance" : hotel ? "Hotel Performance" : "POS Branch Overview"}
+                {hospital ? `${facilityTitle(healthcare.facilityType)} Performance` : hotel ? "Hotel Performance" : "POS Branch Overview"}
               </Title>
               <Text style={{ fontSize: 12, color: "#64748b" }}>
                 {getFormattedDateRange()} · {shopData?.name || "Active Branch"}
@@ -467,7 +481,7 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* ── Conditional Urgent Stock Notice ── */}
-      {lowStockCount > 0 && (
+      {canSeeSales && lowStockCount > 0 && (
         <Alert
           message={
             <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 4 : 2 }}>
@@ -518,20 +532,29 @@ const Dashboard: React.FC = () => {
         />
       )}
 
-      {/* ── Tier 2: Executive KPI Pulse Cards ── */}
-      <DashboardKPICards
-        revenue={chartData?.data?.summary?.total_sales || data?.todayRevenue || 0}
-        totalOrders={chartData?.data?.summary?.total_orders || data?.totalOrderCount || 0}
-        growthRate={growthRate}
-        activeOrders={data?.activeOrders || 0}
-        activeShifts={data?.activeShift || 0}
-        loading={isDataLoading}
-        hospital={hospital}
-        hotel={hotel}
-        isAdmin={false}
-        onOrdersClick={() => navigate("/orders")}
-      />
+      {/* ── Tier 2: Executive KPI Pulse Cards (first, for those who may see sales) ── */}
+      {canSeeSales && (
+        <DashboardKPICards
+          revenue={chartData?.data?.summary?.total_sales || data?.todayRevenue || 0}
+          totalOrders={chartData?.data?.summary?.total_orders || data?.totalOrderCount || 0}
+          growthRate={growthRate}
+          activeOrders={data?.activeOrders || 0}
+          activeShifts={data?.activeShift || 0}
+          loading={isDataLoading}
+          hospital={hospital}
+          hotel={hotel}
+          isAdmin={false}
+          onOrdersClick={() => navigate("/orders")}
+        />
+      )}
 
+      {/* ── Hospital mode: the facility at a glance (queue, lab, pharmacy, wards) ── */}
+      {hospital && healthcare.enabled && (
+        <HospitalDashboard startDate={startDate} endDate={endDate} periodLabel={getFormattedDateRange()} />
+      )}
+
+      {canSeeSales && (
+      <>
       {/* ── Tier 3: Visual Analytics & Charts Hub ── */}
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         {/* Left 60%: Sales & Volume Trend (Area Chart) */}
@@ -573,6 +596,8 @@ const Dashboard: React.FC = () => {
           />
         </Col>
       </Row>
+      </>
+      )}
     </div>
   );
 };

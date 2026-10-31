@@ -601,9 +601,9 @@ const FormBuilderPage: React.FC = () => {
           onChange={(e) => update({ declaration: e.target.value })}
           autoSize={{ minRows: 2, maxRows: 6 }}
           placeholder={
-            aud === "employee"
-              ? "I confirm I have read and understood this document and agree to its terms."
-              : "I confirm the information above is true and I consent to the treatment."
+            aud === "client"
+              ? "I confirm the information above is true and I consent to the treatment."
+              : "I confirm I have read and understood this document and agree to its terms."
           }
           style={{ marginBottom: 14 }}
         />

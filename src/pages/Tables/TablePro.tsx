@@ -40,6 +40,7 @@ import QuickAddTableModal from "@components/MODALS/pro/QuickAddTableModal";
 import TableStatsPanel from "./TableStats";
 
 const HospitalPage = lazy(() => import("@pages/Hospital/HospitalPage"));
+const HospitalWorkspace = lazy(() => import("@pages/Hospital/HospitalWorkspace"));
 const HotelPage = lazy(() => import("@pages/Hotel/HotelPage"));
 
 const { Text, Title } = Typography;
@@ -707,7 +708,7 @@ export default function TablePro() {
           </div>
         }
       >
-        <HospitalPage />
+        <HospitalWorkspace />
         {selectedProductId && (
           <StaffModal setOpen={setOpen} open={open} tbl={selectedProductId} showButton={true} />
         )}

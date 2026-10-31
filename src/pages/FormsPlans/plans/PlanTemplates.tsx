@@ -21,7 +21,8 @@ const emptyDraft = (a: AudienceConfig): Draft => ({
   goals: "",
   sessions: [{ title: `${a.stepNoun} 1`, service_name: "", interval_days: 0, notes: "" }],
   guidance: "",
-  audience: a.audience,
+  // Plans are for clients and employees only — contacts have forms, not plans
+  audience: a.audience === "employee" ? "employee" : "client",
   active: true,
   triggers: { form_categories: [], answer_keywords: [] },
 });

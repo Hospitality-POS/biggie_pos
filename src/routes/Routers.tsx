@@ -119,8 +119,40 @@ const InStoreFillPage = lazyWithReload(() => import("@pages/FormsPlans/forms/fil
 const PublicFormPage = lazyWithReload(() => import("@pages/FormsPlans/forms/fill/PublicFormPage"));
 const AccountRestrictedPage = lazyWithReload(() => import("@pages/AccountRestricted/AccountRestrictedPage"));
 const EmployeeFormsHubPage = () => <FormsHubPage audience="employee" />;
+// Mteja: consent, privacy, waivers… for leads and people who aren't customers
+const ContactFormsHubPage = () => <FormsHubPage audience="contact" />;
 const CLIENT_FORMS_HUB_PERMISSIONS = ["CLIENT_FORMS_VIEW", "CLIENT_FORMS_VIEW_FILLED", "CLIENT_PLANS_VIEW", "CLIENT_FORMS_ANALYTICS"];
 const EMPLOYEE_FORMS_HUB_PERMISSIONS = ["EMPLOYEE_FORMS_VIEW", "EMPLOYEE_PLANS_VIEW", "EMPLOYEE_FORMS_ANALYTICS"];
+const CONTACT_FORMS_HUB_PERMISSIONS = ["MTEJA_FORMS_VIEW", "MTEJA_FORMS_VIEW_FILLED"];
+
+// The POS screen. In hospital mode it also holds the Healthcare queue and
+// pharmacy tabs, so clinical staff without cart access can open it too.
+const TABLES_PERMISSIONS = [
+  "CART_VIEW_ITEMS",
+  "HEALTHCARE_VISITS_VIEW",
+  "HEALTHCARE_PRESCRIPTIONS_VIEW",
+  "HEALTHCARE_LAB_VIEW",
+  "HEALTHCARE_CLAIMS_VIEW",
+  "HEALTHCARE_INPATIENT_VIEW",
+];
+// The POS dashboard: sales for those who may see them; in hospital mode the
+// facility section for clinical staff too (the page hides sales from them)
+const DUKA_DASHBOARD_PERMISSIONS = [
+  "UNIFIED_DASHBOARD_VIEW",
+  "ORDERS_VIEW_DASHBOARD",
+  "HEALTHCARE_VISITS_VIEW",
+  "HEALTHCARE_INPATIENT_VIEW",
+  "HEALTHCARE_PRESCRIPTIONS_VIEW",
+  "HEALTHCARE_LAB_VIEW",
+];
+// Old Healthcare links land on the matching tab of the hospital screen
+const HealthcareRedirect = () => {
+  const tab = new URLSearchParams(window.location.search).get("tab");
+  const prefix = window.location.pathname.startsWith("/admin") ? "/admin" : "";
+  if (tab === "batches") return <Navigate to={`${prefix}/inventory?tab=batches`} replace />;
+  if (tab === "reports") return <Navigate to={`${prefix}/reports`} replace />;
+  return <Navigate to={`${prefix}/tables${tab ? `?tab=${tab}` : ""}`} replace />;
+};
 
 // ─── Omnichannel Inbox ────────────────────────────────────────────────────────
 const OmnichannelInboxPage = lazyWithReload(() => import("src/pages/OmniChannel/OmnichannelInboxPage"));
@@ -403,6 +435,11 @@ const routes = sentryCreateBrowserRouter(
         errorElement={<NotFound />}
         element={banduHRPage(InStoreFillPage, "EMPLOYEE_FORMS_MANAGE")}
       />
+      <Route
+        path="/crm/forms/fill/:id"
+        errorElement={<NotFound />}
+        element={mtejaPage(InStoreFillPage, "MTEJA_FORMS_SEND")}
+      />
       <Route path="/client-forms/fill/:id" element={<RedirectWithParams to="/forms/fill/:id" />} />
 
       {/* ══════════════════════════════════════════════════════════════════
@@ -418,7 +455,7 @@ const routes = sentryCreateBrowserRouter(
           element={<Suspense fallback={fullscreenSpin}><Notification /></Suspense>} />
 
         <Route path="tables" errorElement={<NotFound />}
-          element={guardedPage(Table, "CART_VIEW_ITEMS")} />
+          element={guardedPage(Table, TABLES_PERMISSIONS)} />
 
         <Route path="main-category" errorElement={<NotFound />}
           element={guardedPage(MainCategory, "CATEGORIES_VIEW")} />
@@ -437,6 +474,9 @@ const routes = sentryCreateBrowserRouter(
 
         <Route path="esign" errorElement={<NotFound />}
           element={guardedPage(ESignPage, "SIGNATURE_VIEW")} />
+
+        <Route path="healthcare" errorElement={<NotFound />}
+          element={<HealthcareRedirect />} />
 
         <Route path="forms" errorElement={<NotFound />}
           element={guardedPage(FormsHubPage, CLIENT_FORMS_HUB_PERMISSIONS)} />
@@ -495,7 +535,7 @@ const routes = sentryCreateBrowserRouter(
           element={guardedPage(CategoryMainSettings, "CATEGORIES_VIEW")} />
 
         <Route path="reports" errorElement={<NotFound />}
-          element={guardedPage(UnifiedReportsPage, ["REPORTS_ITEM_SALES", "REPORTS_VIEW", "ACCOUNTING_REPORT_PROFIT_LOSS"])} />
+          element={guardedPage(UnifiedReportsPage, ["REPORTS_ITEM_SALES", "REPORTS_VIEW", "ACCOUNTING_REPORT_PROFIT_LOSS", "HEALTHCARE_REPORTS_VIEW", "HEALTHCARE_ACCESS_LOG_VIEW"])} />
 
         <Route path="inventory-settings" errorElement={<NotFound />}
           element={guardedPage(InventoryMainSettings, "INVENTORY_VIEW")} />
@@ -587,7 +627,7 @@ const routes = sentryCreateBrowserRouter(
         <Route path="bandu/dashboard" element={<Navigate to="/hr/dashboard" replace />} />
         <Route path="bandu" element={<Navigate to="/hr/dashboard" replace />} />
         <Route path="pos/dashboard" errorElement={<NotFound />}
-          element={guardedPage(DukaDashboardPage, ["UNIFIED_DASHBOARD_VIEW", "ORDERS_VIEW_DASHBOARD"])} />
+          element={guardedPage(DukaDashboardPage, DUKA_DASHBOARD_PERMISSIONS)} />
         <Route path="pos" element={<Navigate to="/pos/dashboard" replace />} />
         <Route path="duka/dashboard" element={<Navigate to="/pos/dashboard" replace />} />
         <Route path="duka" element={<Navigate to="/pos/dashboard" replace />} />
@@ -623,6 +663,11 @@ const routes = sentryCreateBrowserRouter(
               tenants selling through the WhatsApp Marketplace. */}
           <Route path="orders" errorElement={<NotFound />}
             element={mtejaPage(MainOrders, "ORDERS_VIEW")} />
+          {/* Contact forms — consent, privacy, waivers… for leads and non-customers */}
+          <Route path="forms" errorElement={<NotFound />}
+            element={mtejaPage(ContactFormsHubPage, CONTACT_FORMS_HUB_PERMISSIONS)} />
+          <Route path="forms/builder/:id" errorElement={<NotFound />}
+            element={mtejaPage(FormBuilderPage, "MTEJA_FORMS_VIEW")} />
         </Route>
 
         {/* ── Dala Real Estate — shop level (/dala/...) ───────────────────────
@@ -705,7 +750,7 @@ const routes = sentryCreateBrowserRouter(
           element={<Suspense fallback={fullscreenSpin}><Notification /></Suspense>} />
 
         <Route path="tables" errorElement={<NotFound />}
-          element={guardedAdminPage(Table, "CART_VIEW_ITEMS")} />
+          element={guardedAdminPage(Table, TABLES_PERMISSIONS)} />
 
         <Route path="home-dashboard" errorElement={<NotFound />}
           element={guardedAdminPage(DashboardAdminPage, "UNIFIED_DASHBOARD_VIEW")} />
@@ -742,7 +787,7 @@ const routes = sentryCreateBrowserRouter(
 
         <Route path="reports" errorElement={<NotFound />}
           element={
-            <PermissionRoute permission={["REPORTS_ITEM_SALES", "REPORTS_VIEW", "ACCOUNTING_REPORT_PROFIT_LOSS"]}>
+            <PermissionRoute permission={["REPORTS_ITEM_SALES", "REPORTS_VIEW", "ACCOUNTING_REPORT_PROFIT_LOSS", "HEALTHCARE_REPORTS_VIEW", "HEALTHCARE_ACCESS_LOG_VIEW"]}>
               <Suspense fallback={fullscreenSpin}>
                 <AdminRoute><UnifiedReportsPage /></AdminRoute>
               </Suspense>
@@ -817,6 +862,9 @@ const routes = sentryCreateBrowserRouter(
             </PermissionRoute>
           }
         />
+
+        <Route path="healthcare" errorElement={<NotFound />}
+          element={<HealthcareRedirect />} />
 
         <Route path="forms" errorElement={<NotFound />}
           element={guardedAdminPage(FormsHubPage, CLIENT_FORMS_HUB_PERMISSIONS)} />
@@ -931,6 +979,10 @@ const routes = sentryCreateBrowserRouter(
             element={mtejaAdminPage(InventoryMainSettings, "INVENTORY_VIEW")} />
           <Route path="orders" errorElement={<NotFound />}
             element={mtejaAdminPage(MainOrders, "ORDERS_VIEW")} />
+          <Route path="forms" errorElement={<NotFound />}
+            element={mtejaAdminPage(ContactFormsHubPage, CONTACT_FORMS_HUB_PERMISSIONS)} />
+          <Route path="forms/builder/:id" errorElement={<NotFound />}
+            element={mtejaAdminPage(FormBuilderPage, "MTEJA_FORMS_VIEW")} />
         </Route>
 
         {/* ── Dala Real Estate — admin level (/admin/dala/...) ───────────────

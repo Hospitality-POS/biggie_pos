@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { Button, DatePicker, Form, InputNumber, Select, Spin, Typography } from "antd";
 import {
@@ -44,6 +44,8 @@ import { useAppSelector } from "src/store";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { THEME_C } from "@utils/getPrimaryColor";
 import dayjs from "dayjs";
+import HealthcareReportPanel from "@pages/Healthcare/HealthcareReportPanel";
+import { HC_PREFIX, useHealthcareReportTabs } from "@pages/Healthcare/healthcareReportDefs";
 
 const { RangePicker } = DatePicker;
 const { Text } = Typography;
@@ -87,7 +89,7 @@ const TAB_CFG = [
 
 // ── Custom tab nav ────────────────────────────────────────────────────────────
 const TabNav: React.FC<{
-  tabs: typeof TAB_CFG;
+  tabs: { key: string; icon: React.ReactNode; iconColor: string; label: string }[];
   active: string;
   onChange: (k: string) => void;
   primaryColor: string;
@@ -215,7 +217,17 @@ const GenerateButton: React.FC<{
 
 // ── Main component ────────────────────────────────────────────────────────────
 const AdminReports: React.FC = () => {
+  // Hospital mode: the healthcare registers come first, beside the store reports
+  const healthcareTabs = useHealthcareReportTabs();
+  const tabs = useMemo(() => [...healthcareTabs, ...TAB_CFG], [healthcareTabs]);
   const [activeTab, setActiveTab] = useState<string>("sale");
+  // Open on the first healthcare register once, when they load
+  const defaultedToHealthcare = useRef(false);
+  useEffect(() => {
+    if (defaultedToHealthcare.current || !healthcareTabs.length) return;
+    defaultedToHealthcare.current = true;
+    setActiveTab((current) => (current === "sale" ? healthcareTabs[0].key : current));
+  }, [healthcareTabs]);
   const [form] = Form.useForm();
   const [queryKey, setQueryKey] = useState<any>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -1089,11 +1101,13 @@ const AdminReports: React.FC = () => {
         );
 
       default:
+        // Healthcare registers (hospital mode) bring their own filters
+        if (activeTab.startsWith(HC_PREFIX)) return <HealthcareReportPanel key={activeTab} tabKey={activeTab} />;
         return null;
     }
   };
 
-  const activeCfg = TAB_CFG.find((t) => t.key === activeTab);
+  const activeCfg = tabs.find((t) => t.key === activeTab);
 
   return (
     <div style={{ border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
@@ -1123,7 +1137,7 @@ const AdminReports: React.FC = () => {
 
       {/* ── Body ───────────────────────────────────────────────────────── */}
       <div style={{ padding: "18px 18px 20px" }}>
-        <TabNav tabs={TAB_CFG} active={activeTab} onChange={handleTabChange} primaryColor={primaryColor} />
+        <TabNav tabs={tabs} active={activeTab} onChange={handleTabChange} primaryColor={primaryColor} />
 
         <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "16px 16px 10px" }}>
           <SectionLabel>Report Filters</SectionLabel>

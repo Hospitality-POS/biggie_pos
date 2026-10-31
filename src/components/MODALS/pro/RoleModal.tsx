@@ -224,12 +224,17 @@ const StepBasicInfo: React.FC<{
       if ((name === "ACCOUNTANT" || name === "ACCOUNTING_VIEWER") && !hasAccounting) return false;
       // Hide CRM presets when Mteja not enabled
       if ((name.startsWith("CRM_")) && !hasMteja) return false;
+      // Healthcare roles only for hospital-mode branches
+      if (name.startsWith("HC_") && (localStorage.getItem("posMode") ?? "") !== "hospital") return false;
       // Hide Dala presets when Dala not enabled
       if ((name.startsWith("DALA_")) && !hasDala) return false;
       return true;
     })
     .map(([name, keys]) => ({
-      label: name.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()),
+      label: (name.startsWith("HC_") ? `Healthcare · ${name.slice(3)}` : name)
+        .replace(/_/g, " ")
+        .toLowerCase()
+        .replace(/\b\w/g, (c) => c.toUpperCase()),
       value: name,
       keys: keys as string[],
     }));
