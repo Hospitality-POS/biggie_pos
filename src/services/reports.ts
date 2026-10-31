@@ -12,7 +12,8 @@ export const fetchItemSalesReport = async (data: ParamsType) => {
     );
     return response.data;
   } catch (error) {
-    console.log(error);
+    console.error("Error fetching item sales report:", error);
+    throw error;
   }
 };
 
@@ -26,21 +27,23 @@ export const fetchProductTypeSalesReport = async (data: ParamsType) => {
     );
     return response.data;
   } catch (error) {
-    console.log(error);
+    console.error("Error fetching product type sales report:", error);
+    throw error;
   }
 };
 
 export const fetchPurchaseReport = async (data: ParamsType) => {
   try {
     const response = await axiosInstance.get(
-      `${BASE_URL}/order-payment-methods/summary`,
+      `${BASE_URL}/orders/order-payment-methods/summary`,
       {
         params: data,
       }
     );
     return response.data;
   } catch (error) {
-    console.log(error);
+    console.error("Error fetching purchase report:", error);
+    throw error;
   }
 };
 
@@ -56,7 +59,8 @@ export const fetchVATSummary = async (data: ParamsType) => {
     );
     return response.data;
   } catch (error) {
-    console.log(error);
+    console.error("Error fetching VAT summary:", error);
+    throw error;
   }
 };
 

@@ -26,7 +26,7 @@ export function useSalesReportQuery(
     queryKey: REPORT_QUERY_KEYS.sales(params),
     queryFn: async () => {
       const res = await fetchItemSalesReport(params ?? {});
-      return Array.isArray(res) ? res : res?.data || [];
+      return Array.isArray(res) ? res : (res?.data ?? res ?? []);
     },
     staleTime: 5 * 60 * 1000,
     networkMode: "always",
@@ -42,7 +42,7 @@ export function usePurchaseReportQuery(
     queryKey: REPORT_QUERY_KEYS.purchase(params),
     queryFn: async () => {
       const res = await fetchPurchaseReport(params ?? {});
-      return Array.isArray(res) ? res : res?.data || res;
+      return Array.isArray(res) ? res : (res?.data ?? res ?? null);
     },
     staleTime: 5 * 60 * 1000,
     networkMode: "always",
@@ -58,7 +58,7 @@ export function useVATReportQuery(
     queryKey: REPORT_QUERY_KEYS.vat(params),
     queryFn: async () => {
       const res = await fetchVATSummary(params ?? {});
-      return res?.data || res;
+      return res?.data ?? res ?? null;
     },
     staleTime: 5 * 60 * 1000,
     networkMode: "always",
