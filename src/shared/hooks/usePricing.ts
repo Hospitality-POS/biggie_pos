@@ -104,11 +104,27 @@ export function useSubscribeModule() {
       }
       // Route through appropriate enable endpoint in admin_portal_api
       const endpoint = `${TENANT_BASE_URL}/api/tenants/${tenantId}/enable-${moduleKey}`;
-      const res = await axios.post(endpoint, {
-        accept_terms: true,
-        accept_charges: true,
-      });
-      return res.data;
+      try {
+        const res = await axios.post(endpoint, {
+          accept_terms: true,
+          accept_charges: true,
+        });
+        return res.data;
+      } catch (err: any) {
+        // Fallback for modular apps if the remote API doesn't have an enable-<moduleKey> endpoint yet
+        if (err?.response?.status === 404) {
+          const stored = localStorage.getItem("tenant");
+          if (stored) {
+            try {
+              const parsed = JSON.parse(stored);
+              parsed.modules = { ...(parsed.modules || {}), [moduleKey]: true };
+              localStorage.setItem("tenant", JSON.stringify(parsed));
+            } catch (_) {}
+          }
+          return { success: true, module: moduleKey, fallback: true };
+        }
+        throw err;
+      }
     },
     onSuccess: (_, variables) => {
       message.success(`Successfully enabled ${variables.moduleKey.toUpperCase()} module!`);

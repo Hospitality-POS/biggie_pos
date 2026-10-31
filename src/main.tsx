@@ -7,7 +7,7 @@ import App from "./App.tsx";
 import "typeface-inter";
 import "./index.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ConfigProvider } from "antd";
+import { ConfigProvider, App as AntdApp } from "antd";
 import enUS from "antd/locale/en_US";
 import { ProConfigProvider, enUSIntl } from "@ant-design/pro-components";
 import { PrimaryColorProvider, usePrimaryColor } from "./context/PrimaryColorContext";
@@ -76,9 +76,11 @@ const AppWithColor = () => {
         },
       }}
     >
-      <ProConfigProvider intl={enUSIntl}>
-        <App />
-      </ProConfigProvider>
+      <AntdApp>
+        <ProConfigProvider intl={enUSIntl}>
+          <App />
+        </ProConfigProvider>
+      </AntdApp>
     </ConfigProvider>
   );
 };

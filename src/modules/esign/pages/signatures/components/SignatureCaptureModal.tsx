@@ -630,7 +630,7 @@ export const SignatureCaptureModal: React.FC<SignatureCaptureModalProps> = ({
             }
             submitter={false}
             modalProps={{
-                destroyOnClose: true,
+                destroyOnHidden: true,
                 centered: true,
                 footer: null,
                 onCancel: () => handleOpenChange(false),

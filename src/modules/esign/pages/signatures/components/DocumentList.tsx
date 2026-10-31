@@ -90,9 +90,11 @@ export const DocumentList: React.FC<DocumentListProps> = ({
                                 background: s.bg,
                                 border: `1.5px solid ${s.color}33`,
                                 borderRadius: 12,
-                                padding: "10px 18px",
+                                padding: "8px 16px",
                                 cursor: "pointer",
                                 transition: "box-shadow .15s",
+                                flex: "1 1 120px",
+                                minWidth: 100,
                             }}
                         >
                             <span style={{ fontSize: 22, fontWeight: 800, color: s.color, lineHeight: 1 }}>{s.value}</span>
@@ -103,67 +105,69 @@ export const DocumentList: React.FC<DocumentListProps> = ({
             )}
 
             {/* ── Search + filter + view toggle ──────────── */}
-            <div style={{ display: "flex", gap: 10, marginBottom: 20, alignItems: "center" }}>
+            <div style={{ display: "flex", gap: 10, marginBottom: 20, alignItems: "center", flexWrap: "wrap" }}>
                 <Input
                     placeholder="Search documents…"
                     value={searchText}
                     onChange={(e) => onSearchChange(e.target.value)}
                     allowClear
                     prefix={<SearchOutlined style={{ color: "#9ca3af", marginRight: 2 }} />}
-                    style={{ flex: 1, borderRadius: 8, height: 40 }}
+                    style={{ flex: "1 1 200px", minWidth: 160, borderRadius: 8, height: 40 }}
                 />
-                <Select
-                    value={statusFilter}
-                    onChange={onStatusFilterChange}
-                    style={{ width: 190, height: 40 }}
-                    options={[
-                        { value: "all", label: "All Status" },
-                        { value: "draft", label: "Draft" },
-                        { value: "pending_signature", label: "Pending Signature" },
-                        { value: "partially_signed", label: "Partially Signed" },
-                        { value: "signed", label: "Signed" },
-                        { value: "declined", label: "Declined" },
-                    ]}
-                />
-                {/* View mode toggle */}
-                <div style={{ display: "flex", border: "1px solid #e5e7eb", borderRadius: 8, overflow: "hidden", height: 40 }}>
-                    <button
-                        onClick={() => onViewModeChange("grid")}
-                        title="Card view"
-                        style={{
-                            width: 40,
-                            height: 40,
-                            border: "none",
-                            cursor: "pointer",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            background: viewMode === "grid" ? "#1677ff" : "#fff",
-                            color: viewMode === "grid" ? "#fff" : "#6b7280",
-                            transition: "background .15s",
-                        }}
-                    >
-                        <AppstoreOutlined style={{ fontSize: 16 }} />
-                    </button>
-                    <button
-                        onClick={() => onViewModeChange("list")}
-                        title="List view"
-                        style={{
-                            width: 40,
-                            height: 40,
-                            border: "none",
-                            borderLeft: "1px solid #e5e7eb",
-                            cursor: "pointer",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            background: viewMode === "list" ? "#1677ff" : "#fff",
-                            color: viewMode === "list" ? "#fff" : "#6b7280",
-                            transition: "background .15s",
-                        }}
-                    >
-                        <UnorderedListOutlined style={{ fontSize: 16 }} />
-                    </button>
+                <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "nowrap" }}>
+                    <Select
+                        value={statusFilter}
+                        onChange={onStatusFilterChange}
+                        style={{ width: 170, height: 40 }}
+                        options={[
+                            { value: "all", label: "All Status" },
+                            { value: "draft", label: "Draft" },
+                            { value: "pending_signature", label: "Pending Signature" },
+                            { value: "partially_signed", label: "Partially Signed" },
+                            { value: "signed", label: "Signed" },
+                            { value: "declined", label: "Declined" },
+                        ]}
+                    />
+                    {/* View mode toggle */}
+                    <div style={{ display: "flex", border: "1px solid #e5e7eb", borderRadius: 8, overflow: "hidden", height: 40, flexShrink: 0 }}>
+                        <button
+                            onClick={() => onViewModeChange("grid")}
+                            title="Card view"
+                            style={{
+                                width: 40,
+                                height: 40,
+                                border: "none",
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                background: viewMode === "grid" ? "#1677ff" : "#fff",
+                                color: viewMode === "grid" ? "#fff" : "#6b7280",
+                                transition: "background .15s",
+                            }}
+                        >
+                            <AppstoreOutlined style={{ fontSize: 16 }} />
+                        </button>
+                        <button
+                            onClick={() => onViewModeChange("list")}
+                            title="List view"
+                            style={{
+                                width: 40,
+                                height: 40,
+                                border: "none",
+                                borderLeft: "1px solid #e5e7eb",
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                background: viewMode === "list" ? "#1677ff" : "#fff",
+                                color: viewMode === "list" ? "#fff" : "#6b7280",
+                                transition: "background .15s",
+                            }}
+                        >
+                            <UnorderedListOutlined style={{ fontSize: 16 }} />
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -300,8 +304,9 @@ export const DocumentList: React.FC<DocumentListProps> = ({
                 </div>
             ) : (
                 /* List View */
-                <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", overflow: "hidden" }}>
-                    <div style={{ display: "grid", gridTemplateColumns: "40px 1fr 130px 120px 200px", gap: 0, padding: "10px 16px", background: "#f9fafb", borderBottom: "1px solid #e5e7eb" }}>
+                <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", overflowX: "auto" }}>
+                    <div style={{ minWidth: 640 }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "40px 1fr 130px 120px 200px", gap: 0, padding: "10px 16px", background: "#f9fafb", borderBottom: "1px solid #e5e7eb" }}>
                         {["Type", "Document Name", "Status", "Workflow", "Actions"].map((h, i) => (
                             <div key={h} style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", textTransform: "uppercase", letterSpacing: 0.5, gridColumn: i === 4 ? "5 / 6" : undefined, textAlign: i === 4 ? "right" : "left" }}>
                                 {h}
@@ -399,6 +404,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({
                             </div>
                         );
                     })}
+                    </div>
                 </div>
             )}
         </div>

@@ -24,11 +24,11 @@ const ESignContainer: React.FC = () => {
     const activeDoc = selectedDoc ? signatures.documents?.find((d) => d._id === selectedDoc._id) || selectedDoc : null;
 
     return (
-        <div style={{ padding: "28px 36px" }}>
+        <div style={{ padding: "clamp(14px, 3vw, 36px)" }}>
             {/* Header */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16, marginBottom: 24 }}>
                 <div>
-                    <Title level={2} style={{ margin: 0, fontWeight: 700, letterSpacing: -0.5 }}>E-Signature</Title>
+                    <Title level={2} style={{ margin: 0, fontWeight: 700, letterSpacing: -0.5, fontSize: "clamp(20px, 4vw, 30px)" }}>E-Signature</Title>
                     <Text type="secondary" style={{ fontSize: 14 }}>Upload, manage and sign documents electronically</Text>
                 </div>
                 <PermissionButton permission="SIGNATURE_CREATE">
@@ -39,7 +39,7 @@ const ESignContainer: React.FC = () => {
                                 type="primary"
                                 icon={<UploadOutlined />}
                                 size="large"
-                                style={{ borderRadius: 8, height: 42, paddingInline: 20, fontWeight: 600 }}
+                                style={{ borderRadius: 8, height: 40, paddingInline: 18, fontWeight: 600 }}
                             >
                                 Upload Document
                             </Button>

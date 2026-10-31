@@ -124,7 +124,7 @@ export const InitiateSigningModal: React.FC<InitiateSigningModalProps> = ({
             onOpenChange={handleOpenChange}
             onFinish={handleSubmit}
             modalProps={{
-                destroyOnClose: true,
+                destroyOnHidden: true,
                 centered: true,
                 confirmLoading: loading,
                 onCancel: () => handleOpenChange(false),
@@ -271,7 +271,7 @@ export const ShareDocumentModal: React.FC<ShareDocumentModalProps> = ({
             onOpenChange={handleOpenChange}
             onFinish={handleShareSubmit}
             modalProps={{
-                destroyOnClose: true,
+                destroyOnHidden: true,
                 centered: true,
                 onCancel: () => handleOpenChange(false),
             }}
@@ -382,7 +382,7 @@ export const PublicLinkModal: React.FC<PublicLinkModalProps> = ({
             open={modalOpen}
             onOpenChange={handleOpenChange}
             modalProps={{
-                destroyOnClose: true,
+                destroyOnHidden: true,
                 centered: true,
                 footer: null,
                 onCancel: () => handleOpenChange(false),
@@ -594,7 +594,7 @@ export const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({
             open={modalOpen}
             onOpenChange={handleOpenChange}
             modalProps={{
-                destroyOnClose: true,
+                destroyOnHidden: true,
                 centered: true,
                 footer: null,
                 onCancel: handleClose,

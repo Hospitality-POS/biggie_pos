@@ -872,7 +872,7 @@ const PublicSignPage: React.FC = () => {
                     if (!v) pendingFieldRef.current = null;
                 }}
                 modalProps={{
-                    destroyOnClose: true,
+                    destroyOnHidden: true,
                     centered: true,
                     footer: null,
                     style: { maxWidth: "94vw" },

@@ -626,7 +626,7 @@ const DocumentFormDrawer: React.FC<{
     return (
         <Drawer
             title={isEdit ? `Edit — ${editingDoc?.name}` : isFolder ? "New Folder" : "New Document"}
-            open={open} onClose={onClose} width={560} destroyOnClose footer={null}
+            open={open} onClose={onClose} width={560} destroyOnHidden footer={null}
         >
             <ProForm
                 form={form}

@@ -775,7 +775,7 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
             title="Document Preview"
             submitter={false}
             modalProps={{
-                destroyOnClose: true,
+                destroyOnHidden: true,
                 centered: true,
                 footer: null,
                 style: { paddingBottom: 0, maxWidth: 1600 },
