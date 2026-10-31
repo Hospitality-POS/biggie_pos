@@ -18,7 +18,7 @@ import {
   SnippetsOutlined,
 } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
-import { fetchAllSuppliers } from "@services/supplier";
+import { useSuppliersQuery } from "@hooks/queries";
 import { fetchAllUsersList } from "@services/users";
 import { fetchAllInventory } from "@services/inventory";
 import { fetchAllUnits } from "@services/products";
@@ -63,13 +63,7 @@ const AcceptDeliveryModal: React.FC<AcceptDeliveryModalProps> = ({
     }
   };
 
-  const { data: supplier } = useQuery({
-    queryKey: ["supplier"],
-    queryFn: fetchAllSuppliers,
-    retry: 1,
-    refetchInterval: 5000,
-    networkMode: "always",
-  });
+  const { data: supplier } = useSuppliersQuery();
 
   const SupplierRequest = async () => {
     const data = supplier?.map((e: { name: string; _id: string }) => {

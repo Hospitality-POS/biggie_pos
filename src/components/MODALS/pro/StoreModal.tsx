@@ -18,7 +18,7 @@ import {
 } from "@ant-design/icons";
 import { ProFormMoney, ProFormTextArea } from "@ant-design/pro-components";
 import ShowConfirm from "@utils/ConfirmUtil";
-import { fetchAllCategories } from "@services/categories";
+import { useCategoriesQuery } from "@hooks/queries";
 import { addNewProduct, editProduct } from "@services/products";
 import { getAllModifierAddons } from "@services/modifierAddons";
 import { useQuery } from "@tanstack/react-query";
@@ -67,11 +67,7 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data, onSuccess, trigger:
     networkMode: "always",
   });
 
-  const { data: categoryData } = useQuery({
-    queryKey: ["store-category"],
-    queryFn: () => fetchAllCategories({}),
-    networkMode: "always",
-  });
+  const { data: categoryData } = useCategoriesQuery();
 
   const { user } = useAppSelector((state) => state.auth);
   const isAdmin = user?.role === "admin";

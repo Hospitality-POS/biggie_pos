@@ -18,7 +18,7 @@ import {
 import { getAllInvoices } from "@services/cart";
 import { fetchAllCustomers } from "@services/customers";
 import { convertQuoteToInvoice, recordInvoicePayment, deleteInvoice, duplicateInvoice, voidInvoice, postInvoice } from "@services/accounting/invoice";
-import { fetchAllPaymentMethods } from "@services/paymentMethod";
+import { usePaymentMethodsQuery } from "@hooks/queries";
 import { getAllAccounts } from "@services/accounting/accounts";
 import { generateTaxInvoice } from "@services/accounting/digiTax";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -407,9 +407,7 @@ const PaymentModal: React.FC<{
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
   const shopId = tenant?.shop_id || "";
   
-  const { data: methodsData } = useQuery({
-    queryKey: ["payment-methods"], queryFn: () => fetchAllPaymentMethods({}), enabled: open,
-  });
+  const { data: methodsData } = usePaymentMethodsQuery({}, { enabled: open });
   
      const { data: accountsData } = useQuery({
          queryKey: ["chart-of-accounts"],

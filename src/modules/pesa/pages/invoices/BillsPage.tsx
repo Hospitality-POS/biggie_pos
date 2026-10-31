@@ -16,7 +16,7 @@ import {
 } from "@services/accounting/bill";
 import BillDetailDrawer from "./components/BillDetailDrawer";
 import NoteDetailDrawer from "./NoteDetailDrawer";
-import { fetchAllPaymentMethods } from "@services/paymentMethod";
+import { usePaymentMethodsQuery } from "@hooks/queries";
 import { getAllAccounts } from "@services/accounting/accounts";
 import { THEME_C } from "@utils/getPrimaryColor";
 
@@ -69,11 +69,7 @@ const BillPaymentModal: React.FC<{
     const { message } = App.useApp();
     const queryClient = useQueryClient();
 
-    const { data: methodsData } = useQuery({
-        queryKey: ["payment-methods"],
-        queryFn: () => fetchAllPaymentMethods({}),
-        enabled: open,
-    });
+    const { data: methodsData } = usePaymentMethodsQuery({}, { enabled: open });
     const { data: accountsData } = useQuery({
         queryKey: ["chart-of-accounts"],
         queryFn: () => getAllAccounts({}),
