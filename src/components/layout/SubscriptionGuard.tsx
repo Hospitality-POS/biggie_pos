@@ -4,6 +4,7 @@ import { Space, Button, Alert } from "antd";
 import { CreditCardOutlined, LogoutOutlined } from "@ant-design/icons";
 import { ProCard } from "@ant-design/pro-components";
 import { clearBusinessHealthCache } from "src/services/healthScore";
+import { beginLogout } from "src/services/request";
 
 const SubscriptionGuard: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -40,6 +41,7 @@ const SubscriptionGuard: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const handleLogout = () => {
+    beginLogout();
     localStorage.removeItem("tenant");
     localStorage.removeItem("companyCode");
     localStorage.removeItem("shopId");

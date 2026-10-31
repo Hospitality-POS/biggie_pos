@@ -3,8 +3,8 @@ import autoTable from '@utils/autoTable';
 import * as XLSX from 'xlsx-js-style';
 import { message } from 'antd';
 import { fetchSystemSetupDetailsById } from '@services/systemsetup';
-import { getPrimaryColor, hexToRgb } from './getPrimaryColor';
 import { exportFileName } from './payslipExport';
+import { getExportTheme, argb, xlsxFill, type ExportTheme } from './exportTemplates';
 
 /**
  * Payroll "Muster Roll" export — Excel + PDF.
@@ -276,7 +276,7 @@ const buildMusterRollSheet = (
   rounded = false
 ) => {
   const { headers, bodyNums, totalsNums, summary } = buildMusterRoll(lines, withDepartment, rounded);
-  const brand = (getPrimaryColor() || '#0E388A').replace('#', '').toUpperCase().padStart(6, '0');
+  const theme = getExportTheme();
   const moneyFmt = rounded ? '#,##0' : '#,##0.00';
   const nCols = headers.length;
   const firstMoneyCol = withDepartment ? 2 : 1;
@@ -315,8 +315,10 @@ const buildMusterRollSheet = (
   // ── Cell styles (xlsx-js-style) — mirrors the payslip sheet styling ──
   const thin = { style: 'thin', color: { rgb: 'FFCBD5E1' } };
   const border = { top: thin, bottom: thin, left: thin, right: thin };
+  const headLine = { style: 'thin', color: { rgb: argb(theme.headLine) } };
+  const headBorder = { top: headLine, bottom: headLine, left: headLine, right: headLine };
   const companyStyle: any = {
-    font: { bold: true, sz: 15, color: { rgb: `FF${brand}` } },
+    font: { bold: true, sz: 15, color: { rgb: argb(theme.title) } },
     alignment: { horizontal: 'center', vertical: 'center' },
   };
   const titleStyle: any = {
@@ -326,39 +328,41 @@ const buildMusterRollSheet = (
   const metaStyle: any = {
     font: { sz: 8.5, color: { rgb: 'FF94A3B8' } },
     alignment: { horizontal: 'center' },
-    border: { bottom: { style: 'medium', color: { rgb: `FF${brand}` } } },
+    border: { bottom: { style: 'medium', color: { rgb: argb(theme.rule) } } },
   };
   const headerStyle: any = {
-    font: { bold: true, sz: 9, color: { rgb: 'FFFFFFFF' } },
-    fill: { fgColor: { rgb: `FF${brand}` } },
-    border,
+    font: { bold: true, sz: 9, color: { rgb: argb(theme.headText) } },
+    ...xlsxFill(theme.headFill),
+    border: headBorder,
     alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
   };
   const textCell: any = { font: { sz: 9, color: { rgb: 'FF334155' } }, border, alignment: { horizontal: 'left' } };
   const moneyCell: any = { font: { sz: 9 }, border, alignment: { horizontal: 'right' } };
-  const zebraText: any = { ...textCell, fill: { fgColor: { rgb: 'FFF8FAFC' } } };
-  const zebraMoney: any = { ...moneyCell, fill: { fgColor: { rgb: 'FFF8FAFC' } } };
+  const zebraText: any = { ...textCell, ...xlsxFill(theme.zebra) };
+  const zebraMoney: any = { ...moneyCell, ...xlsxFill(theme.zebra) };
+  // Totals sit above a heavier rule so they read as totals even without a fill
+  const totalTop = { style: 'medium', color: { rgb: argb(theme.headLine) } };
   const totalsText: any = {
-    font: { bold: true, sz: 9.5, color: { rgb: 'FFFFFFFF' } },
-    fill: { fgColor: { rgb: `FF${brand}` } },
-    border,
+    font: { bold: true, sz: 9.5, color: { rgb: argb(theme.totalText) } },
+    ...xlsxFill(theme.totalFill),
+    border: { ...border, top: totalTop },
     alignment: { horizontal: 'left' },
   };
   const totalsMoney: any = { ...totalsText, alignment: { horizontal: 'right' } };
   const summaryHead: any = {
-    font: { bold: true, sz: 10, color: { rgb: 'FFFFFFFF' } },
-    fill: { fgColor: { rgb: `FF${brand}` } },
-    border,
+    font: { bold: true, sz: 10, color: { rgb: argb(theme.headText) } },
+    ...xlsxFill(theme.headFill),
+    border: headBorder,
   };
   const summaryLabel: any = {
     font: { bold: true, sz: 9, color: { rgb: 'FF475569' } },
-    fill: { fgColor: { rgb: 'FFF1F5F9' } },
+    ...xlsxFill(theme.labelFill),
     border,
   };
   const summaryValue: any = { font: { sz: 9 }, border, alignment: { horizontal: 'right' } };
   const summaryLabelHot: any = {
-    font: { bold: true, sz: 9, color: { rgb: 'FFFFFFFF' } },
-    fill: { fgColor: { rgb: `FF${brand}` } },
+    font: { bold: true, sz: 9, color: { rgb: argb(theme.totalText) } },
+    ...xlsxFill(theme.totalFill),
     border,
   };
   const summaryValueHot: any = { ...summaryLabelHot, alignment: { horizontal: 'right' } };
@@ -474,7 +478,7 @@ const renderPayrollPage = (
   doc: jsPDF,
   payroll: any,
   company: string,
-  primary: [number, number, number],
+  theme: ExportTheme,
   lines: any[],
   withDepartment: boolean,
   rounded = false
@@ -482,18 +486,25 @@ const renderPayrollPage = (
   const { headers, bodyText, totalsText, summary } = buildMusterRoll(lines, withDepartment, rounded);
   const fmtV = (v: any) =>
     rounded ? Math.round(num(v)).toLocaleString('en-KE') : fmt(v);
-  const [pr, pg, pb] = primary;
   const margin = 24;
   const pageWidth = doc.internal.pageSize.getWidth();
 
-  // ── Header band ──
-  doc.setFillColor(pr, pg, pb);
-  doc.rect(0, 0, pageWidth, 52, 'F');
-  doc.setTextColor(255, 255, 255);
+  // ── Header: coloured band (Branded) or plain title over a rule ──
+  if (theme.headerBand) {
+    doc.setFillColor(...theme.title);
+    doc.rect(0, 0, pageWidth, 52, 'F');
+    doc.setTextColor(255, 255, 255);
+  } else {
+    doc.setDrawColor(...theme.rule);
+    doc.setLineWidth(1);
+    doc.line(margin, 50, pageWidth - margin, 50);
+    doc.setTextColor(...theme.title);
+  }
   doc.setFontSize(15);
   doc.setFont('helvetica', 'bold');
   doc.text(company.toUpperCase(), pageWidth / 2, 22, { align: 'center' });
   doc.setFontSize(10);
+  if (!theme.headerBand) doc.setTextColor(100, 116, 139);
   doc.text(`MUSTER ROLL — ${payroll.period_label || ''}`, pageWidth / 2, 37, { align: 'center' });
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
@@ -543,19 +554,22 @@ const renderPayrollPage = (
       lineWidth: 0.4,
     },
     headStyles: {
-      fillColor: [pr, pg, pb],
-      textColor: 255,
+      fillColor: theme.headFill,
+      textColor: theme.headText,
       fontSize: 7.5,
       fontStyle: 'bold',
-      lineColor: [pr, pg, pb],
+      lineColor: theme.headLine,
+      lineWidth: 0.6,
     },
     footStyles: {
-      fillColor: [pr, pg, pb],
-      textColor: 255,
+      fillColor: theme.totalFill || [255, 255, 255],
+      textColor: theme.totalText,
       fontStyle: 'bold',
       fontSize: 7.8,
+      lineColor: theme.headLine,
+      lineWidth: 0.6,
     },
-    alternateRowStyles: { fillColor: [248, 250, 252] },
+    ...(theme.zebra && { alternateRowStyles: { fillColor: theme.zebra } }),
     columnStyles: Object.fromEntries([
       [0, { cellWidth: 110, halign: 'left' as const }],
       ...(withDepartment ? [[1, { cellWidth: 80, halign: 'left' as const }]] : []),
@@ -593,14 +607,14 @@ const renderPayrollPage = (
       const label = String((data.row.raw as any)?.[0] ?? '');
       if (/Total|Net Salaries/i.test(label)) {
         data.cell.styles.fontStyle = 'bold';
-        data.cell.styles.fillColor = [241, 245, 249];
+        data.cell.styles.textColor = theme.totalText;
+        data.cell.styles.fillColor = theme.totalFill || theme.labelFill || [255, 255, 255];
       }
     },
   });
 };
 
-const addPageFooters = (doc: jsPDF, primary: [number, number, number]) => {
-  const [pr, pg, pb] = primary;
+const addPageFooters = (doc: jsPDF, theme: ExportTheme) => {
   const pageCount = doc.getNumberOfPages();
   const margin = 24;
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -612,7 +626,7 @@ const addPageFooters = (doc: jsPDF, primary: [number, number, number]) => {
     doc.setTextColor(148, 163, 184);
     doc.setFont('helvetica', 'normal');
     doc.text(`Generated ${new Date().toLocaleString()}`, margin, pageHeight - 12);
-    doc.setTextColor(pr, pg, pb);
+    doc.setTextColor(...theme.title);
     doc.text(`Page ${i} of ${pageCount}`, pageWidth - margin - 40, pageHeight - 12);
   }
 };
@@ -622,9 +636,9 @@ export const exportPayrollToPDF = async (payroll: any, opts: { rounded?: boolean
   // A3 landscape — the muster roll has ~17 columns; a wider page keeps every
   // column readable and lets the viewer scroll sideways if needed
   const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a3' });
-  const primary = hexToRgb(getPrimaryColor());
-  renderPayrollPage(doc, payroll, company, primary, payroll.lines || [], false, !!opts.rounded);
-  addPageFooters(doc, primary);
+  const theme = getExportTheme();
+  renderPayrollPage(doc, payroll, company, theme, payroll.lines || [], false, !!opts.rounded);
+  addPageFooters(doc, theme);
   doc.save(`${musterRollFileName(client, [payroll])}.pdf`);
 };
 
@@ -642,21 +656,21 @@ export const exportPayrollsToPDF = async (payrolls: any[], opts: { rounded?: boo
   const { header: company, client } = await getHeaderName(merged ? null : payrolls[0], opts.headerMode);
   // A3 landscape — keeps all muster-roll columns readable on a merged export
   const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a3' });
-  const primary = hexToRgb(getPrimaryColor());
+  const theme = getExportTheme();
   const lines = merged ? mergedLines(payrolls) : payrolls[0].lines || [];
 
   try {
     const display = merged
       ? { ...payrolls[0], payroll_id: `${payrolls.length} payrolls`, department_id: null }
       : payrolls[0];
-    renderPayrollPage(doc, display, company, primary, lines, merged, !!opts.rounded);
+    renderPayrollPage(doc, display, company, theme, lines, merged, !!opts.rounded);
   } catch (err) {
     console.error('Failed to render muster roll page:', err);
     message.error('Export failed — could not render payrolls');
     return;
   }
 
-  addPageFooters(doc, primary);
+  addPageFooters(doc, theme);
   doc.save(`${musterRollFileName(client, payrolls)}.pdf`);
   message.success(
     merged

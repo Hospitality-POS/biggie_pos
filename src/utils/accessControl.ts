@@ -80,6 +80,9 @@ export const MODULES = {
     CLIENT_FORMS: "Client Forms",
     CLIENT_PLANS: "Client Plans",
     HR_FORMS_PLANS: "HR · Employee Forms & Plans",
+    // ── Healthcare add-on (clinics, pharmacies, hospitals) ──
+    HEALTHCARE: "Healthcare",
+    CRM_FORMS: "CRM · Contact Forms",
 } as const;
 
 export type ModuleKey = keyof typeof MODULES;
@@ -846,6 +849,46 @@ export const PERMISSIONS: Record<string, Permission> = {
     EMPLOYEE_FORMS_CATEGORIES_MANAGE: { key: "EMPLOYEE_FORMS_CATEGORIES_MANAGE", label: "Add Employee Form Types", module: MODULES.HR_FORMS_PLANS, action: "create", moduleScope: "hr" },
     EMPLOYEE_FORMS_ANALYTICS: { key: "EMPLOYEE_FORMS_ANALYTICS", label: "View Employee Forms & Plans Analytics", module: MODULES.HR_FORMS_PLANS, action: "read", moduleScope: "hr" },
 
+    // ══════════════════════════════════════════════════════════════════════════
+    // HEALTHCARE ADD-ON — patients, visits, prescriptions, medicine batches.
+    // Clinical records are health information: notes, prescribing and
+    // dispensing are separate keys so a cashier never sees them by default.
+    // ══════════════════════════════════════════════════════════════════════════
+
+    HEALTHCARE_PATIENTS_VIEW: { key: "HEALTHCARE_PATIENTS_VIEW", label: "View Patient Medical Profiles", module: MODULES.HEALTHCARE, action: "read", moduleScope: "pos" },
+    HEALTHCARE_PATIENTS_MANAGE: { key: "HEALTHCARE_PATIENTS_MANAGE", label: "Register Patients & Edit Medical Profiles", module: MODULES.HEALTHCARE, action: "update", moduleScope: "pos" },
+    HEALTHCARE_VISITS_VIEW: { key: "HEALTHCARE_VISITS_VIEW", label: "View Patient Queue & Visits", module: MODULES.HEALTHCARE, action: "read", moduleScope: "pos" },
+    HEALTHCARE_VISITS_MANAGE: { key: "HEALTHCARE_VISITS_MANAGE", label: "Check In Patients & Move Them Along", module: MODULES.HEALTHCARE, action: "update", moduleScope: "pos" },
+    HEALTHCARE_TRIAGE: { key: "HEALTHCARE_TRIAGE", label: "Record Vitals (Triage)", module: MODULES.HEALTHCARE, action: "special", moduleScope: "pos" },
+    HEALTHCARE_CLINICAL_NOTES: { key: "HEALTHCARE_CLINICAL_NOTES", label: "View & Write Clinical Notes and Diagnoses", module: MODULES.HEALTHCARE, action: "special", moduleScope: "pos" },
+    HEALTHCARE_PRESCRIBE: { key: "HEALTHCARE_PRESCRIBE", label: "Write Prescriptions", module: MODULES.HEALTHCARE, action: "special", moduleScope: "pos" },
+    HEALTHCARE_PRESCRIPTIONS_VIEW: { key: "HEALTHCARE_PRESCRIPTIONS_VIEW", label: "View Prescriptions", module: MODULES.HEALTHCARE, action: "read", moduleScope: "pos" },
+    HEALTHCARE_DISPENSE: { key: "HEALTHCARE_DISPENSE", label: "Dispense Medicine", module: MODULES.HEALTHCARE, action: "special", moduleScope: "pos" },
+    HEALTHCARE_BATCHES_VIEW: { key: "HEALTHCARE_BATCHES_VIEW", label: "View Medicine Batches & Expiry", module: MODULES.HEALTHCARE, action: "read", moduleScope: "pos" },
+    HEALTHCARE_BATCHES_MANAGE: { key: "HEALTHCARE_BATCHES_MANAGE", label: "Receive Batches & Write Off Stock", module: MODULES.HEALTHCARE, action: "update", moduleScope: "pos" },
+    HEALTHCARE_LAB_ORDER: { key: "HEALTHCARE_LAB_ORDER", label: "Order Lab Tests & Imaging", module: MODULES.HEALTHCARE, action: "special", moduleScope: "pos" },
+    HEALTHCARE_LAB_VIEW: { key: "HEALTHCARE_LAB_VIEW", label: "View Lab & Imaging Worklist", module: MODULES.HEALTHCARE, action: "read", moduleScope: "pos" },
+    HEALTHCARE_LAB_WORK: { key: "HEALTHCARE_LAB_WORK", label: "Collect Samples & Enter Results", module: MODULES.HEALTHCARE, action: "special", moduleScope: "pos" },
+    HEALTHCARE_LAB_SETUP: { key: "HEALTHCARE_LAB_SETUP", label: "Set Up Lab Tests & Reference Ranges", module: MODULES.HEALTHCARE, action: "update", moduleScope: "pos" },
+    HEALTHCARE_CLAIMS_VIEW: { key: "HEALTHCARE_CLAIMS_VIEW", label: "View Insurance Claims", module: MODULES.HEALTHCARE, action: "read", moduleScope: "pos" },
+    HEALTHCARE_CLAIMS_MANAGE: { key: "HEALTHCARE_CLAIMS_MANAGE", label: "Create, Submit & Record Payments on Claims", module: MODULES.HEALTHCARE, action: "special", moduleScope: "pos" },
+    HEALTHCARE_PAYERS_MANAGE: { key: "HEALTHCARE_PAYERS_MANAGE", label: "Set Up Insurers & Schemes", module: MODULES.HEALTHCARE, action: "update", moduleScope: "pos" },
+    HEALTHCARE_REPORTS_VIEW: { key: "HEALTHCARE_REPORTS_VIEW", label: "View Healthcare Reports", module: MODULES.HEALTHCARE, action: "read", moduleScope: "pos" },
+    HEALTHCARE_INPATIENT_VIEW: { key: "HEALTHCARE_INPATIENT_VIEW", label: "View Wards, Beds & Admissions", module: MODULES.HEALTHCARE, action: "read", moduleScope: "pos" },
+    HEALTHCARE_ADMIT: { key: "HEALTHCARE_ADMIT", label: "Admit, Transfer & Discharge Patients", module: MODULES.HEALTHCARE, action: "special", moduleScope: "pos" },
+    HEALTHCARE_INPATIENT_CARE: { key: "HEALTHCARE_INPATIENT_CARE", label: "Ward Notes, Vitals & Charges", module: MODULES.HEALTHCARE, action: "special", moduleScope: "pos" },
+    HEALTHCARE_WARDS_MANAGE: { key: "HEALTHCARE_WARDS_MANAGE", label: "Set Up Wards & Beds", module: MODULES.HEALTHCARE, action: "update", moduleScope: "pos" },
+    HEALTHCARE_DEPOSITS: { key: "HEALTHCARE_DEPOSITS", label: "Take Inpatient Deposits & Send Bills to the POS", module: MODULES.HEALTHCARE, action: "special", moduleScope: "pos" },
+    HEALTHCARE_ACCESS_LOG_VIEW: { key: "HEALTHCARE_ACCESS_LOG_VIEW", label: "View Who Opened Patient Records", module: MODULES.HEALTHCARE, action: "read", moduleScope: "pos" },
+
+    // Mteja contact forms: consent, privacy, media release, waivers… for leads
+    // and people who aren't customers
+    MTEJA_FORMS_VIEW: { key: "MTEJA_FORMS_VIEW", label: "View Contact Forms", module: MODULES.CRM_FORMS, action: "read", moduleScope: "crm" },
+    MTEJA_FORMS_MANAGE: { key: "MTEJA_FORMS_MANAGE", label: "Create, Edit & Void Contact Forms", module: MODULES.CRM_FORMS, action: "update", moduleScope: "crm" },
+    MTEJA_FORMS_APPROVE: { key: "MTEJA_FORMS_APPROVE", label: "Approve Contact Forms", module: MODULES.CRM_FORMS, action: "special", moduleScope: "crm" },
+    MTEJA_FORMS_SEND: { key: "MTEJA_FORMS_SEND", label: "Send Contact Forms for Signing", module: MODULES.CRM_FORMS, action: "create", moduleScope: "crm" },
+    MTEJA_FORMS_VIEW_FILLED: { key: "MTEJA_FORMS_VIEW_FILLED", label: "View, Download & Analyse Signed Contact Forms", module: MODULES.CRM_FORMS, action: "read", moduleScope: "crm" },
+
     // ── Reports ───────────────────────────────────────────────────────────────
 
     DALA_REPORTS_VIEW: { key: "DALA_REPORTS_VIEW", label: "View Dala Reports", module: MODULES.DALA_REPORTS, action: "read", moduleScope: "dala" },
@@ -984,6 +1027,9 @@ export const makePermissionChecker =
             isAdmin || rolePermissions.includes(permissionKey);
 
 // ─── Preset role templates ────────────────────────────────────────────────────
+
+/** Every healthcare role: their own notifications. Sales and money are added per role. */
+const HC_BASE = ["NOTIFICATIONS_VIEW_MY", "NOTIFICATIONS_MARK_READ", "NOTIFICATIONS_MARK_ALL_READ"];
 
 export const ROLE_PRESETS: Record<string, string[]> = {
 
@@ -1307,6 +1353,110 @@ DIGITAX_MANAGER: [
     "ACCOUNTING_INVOICE_VIEW", "ACCOUNTING_INVOICE_VIEW_ONE",
     "DOCUMENTS_VIEW", "DOCUMENTS_VIEW_ONE",
     "NOTIFICATIONS_VIEW_MY", "NOTIFICATIONS_MARK_READ",
+],
+
+// ── Healthcare (hospital mode) ────────────────────────────────────────────────
+// Each desk gets what it needs and no more. Clinical notes, prescribing,
+// money and the record access log are kept to the roles that need them.
+
+/** HC_RECEPTIONIST — registers and checks in patients, sees the queue; no clinical notes */
+HC_RECEPTIONIST: [
+    ...HC_BASE,
+    "CUSTOMERS_VIEW", "CUSTOMERS_VIEW_ONE", "CUSTOMERS_CREATE", "CUSTOMERS_UPDATE",
+    "HEALTHCARE_PATIENTS_VIEW", "HEALTHCARE_PATIENTS_MANAGE",
+    "HEALTHCARE_VISITS_VIEW", "HEALTHCARE_VISITS_MANAGE",
+],
+
+/** HC_TRIAGE_NURSE — takes vitals and moves patients along */
+HC_TRIAGE_NURSE: [
+    ...HC_BASE,
+    "CUSTOMERS_VIEW", "CUSTOMERS_VIEW_ONE",
+    "HEALTHCARE_PATIENTS_VIEW",
+    "HEALTHCARE_VISITS_VIEW", "HEALTHCARE_VISITS_MANAGE",
+    "HEALTHCARE_TRIAGE",
+],
+
+/** HC_DOCTOR — consults: notes, diagnoses, prescribing, ordering tests, admitting, referrals */
+HC_DOCTOR: [
+    ...HC_BASE,
+    "CUSTOMERS_VIEW", "CUSTOMERS_VIEW_ONE",
+    "HEALTHCARE_PATIENTS_VIEW", "HEALTHCARE_PATIENTS_MANAGE",
+    "HEALTHCARE_VISITS_VIEW", "HEALTHCARE_VISITS_MANAGE",
+    "HEALTHCARE_TRIAGE", "HEALTHCARE_CLINICAL_NOTES",
+    "HEALTHCARE_PRESCRIBE", "HEALTHCARE_PRESCRIPTIONS_VIEW",
+    "HEALTHCARE_LAB_ORDER", "HEALTHCARE_LAB_VIEW",
+    "HEALTHCARE_INPATIENT_VIEW", "HEALTHCARE_ADMIT", "HEALTHCARE_INPATIENT_CARE",
+],
+
+/** HC_WARD_NURSE — cares for admitted patients: notes, vitals, ward charges, beds */
+HC_WARD_NURSE: [
+    ...HC_BASE,
+    "CUSTOMERS_VIEW", "CUSTOMERS_VIEW_ONE",
+    "HEALTHCARE_PATIENTS_VIEW",
+    "HEALTHCARE_VISITS_VIEW",
+    "HEALTHCARE_TRIAGE",
+    "HEALTHCARE_PRESCRIPTIONS_VIEW",
+    "HEALTHCARE_INPATIENT_VIEW", "HEALTHCARE_INPATIENT_CARE",
+],
+
+/** HC_LAB_TECHNICIAN — the lab and imaging worklist and results; no notes or money */
+HC_LAB_TECHNICIAN: [
+    ...HC_BASE,
+    "CUSTOMERS_VIEW", "CUSTOMERS_VIEW_ONE",
+    "HEALTHCARE_LAB_VIEW", "HEALTHCARE_LAB_WORK", "HEALTHCARE_LAB_ORDER",
+],
+
+/** HC_PHARMACIST — dispensing, outside prescriptions, stock, batches and expiry */
+HC_PHARMACIST: [
+    ...HC_BASE,
+    "CUSTOMERS_VIEW", "CUSTOMERS_VIEW_ONE", "CUSTOMERS_CREATE",
+    "HEALTHCARE_PATIENTS_VIEW",
+    "HEALTHCARE_PRESCRIPTIONS_VIEW", "HEALTHCARE_DISPENSE",
+    "HEALTHCARE_BATCHES_VIEW", "HEALTHCARE_BATCHES_MANAGE",
+    "PRODUCTS_VIEW", "INVENTORY_VIEW",
+    "CART_VIEW_ITEMS", "CART_CREATE", "CART_UPDATE", "CART_GET", "CART_ADD_ITEM", "CART_UPDATE_ITEM",
+],
+
+/** HC_BILLING_CASHIER — takes payment at Billing, inpatient deposits; no clinical records */
+HC_BILLING_CASHIER: [
+    ...HC_BASE,
+    "CART_VIEW_ITEMS", "CART_CREATE", "CART_UPDATE", "CART_GET",
+    "CART_ADD_ITEM", "CART_UPDATE_ITEM", "CART_DELETE_ITEM", "CART_DELETE_ALL_ITEMS",
+    "CART_PRINT_INVOICE", "CART_VIEW_INVOICES", "CART_REPRINT_INVOICE",
+    "ORDERS_VIEW", "ORDERS_VIEW_DASHBOARD",
+    "PRODUCTS_VIEW", "PAYMENT_METHODS_VIEW",
+    "TABLES_VIEW", "TABLES_CREATE_AUTO_SLOT",
+    "CUSTOMERS_VIEW", "CUSTOMERS_VIEW_ONE",
+    "HEALTHCARE_VISITS_VIEW",
+    "HEALTHCARE_INPATIENT_VIEW", "HEALTHCARE_DEPOSITS",
+],
+
+/** HC_CLAIMS_OFFICER — insurers, schemes and claims, and their reports */
+HC_CLAIMS_OFFICER: [
+    ...HC_BASE,
+    "CUSTOMERS_VIEW", "CUSTOMERS_VIEW_ONE",
+    "HEALTHCARE_VISITS_VIEW",
+    "HEALTHCARE_CLAIMS_VIEW", "HEALTHCARE_CLAIMS_MANAGE", "HEALTHCARE_PAYERS_MANAGE",
+    "HEALTHCARE_REPORTS_VIEW", "REPORTS_VIEW",
+],
+
+/** HC_WARD_MANAGER — runs the wards: beds, admissions, discharges, deposits, occupancy */
+HC_WARD_MANAGER: [
+    ...HC_BASE,
+    "CUSTOMERS_VIEW", "CUSTOMERS_VIEW_ONE",
+    "HEALTHCARE_PATIENTS_VIEW",
+    "HEALTHCARE_VISITS_VIEW",
+    "HEALTHCARE_INPATIENT_VIEW", "HEALTHCARE_ADMIT", "HEALTHCARE_INPATIENT_CARE",
+    "HEALTHCARE_WARDS_MANAGE", "HEALTHCARE_DEPOSITS",
+    "HEALTHCARE_REPORTS_VIEW", "REPORTS_VIEW",
+],
+
+/** HC_MEDICAL_DIRECTOR — sees everything clinical, the reports and who opened which record */
+HC_MEDICAL_DIRECTOR: [
+    ...HC_BASE,
+    "CUSTOMERS_VIEW", "CUSTOMERS_VIEW_ONE",
+    ...ALL_PERMISSION_KEYS.filter((k) => k.startsWith("HEALTHCARE_")),
+    "REPORTS_VIEW",
 ],
 
 };

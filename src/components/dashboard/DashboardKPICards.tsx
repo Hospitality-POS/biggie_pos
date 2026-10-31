@@ -90,7 +90,7 @@ const DashboardKPICards: React.FC<KPICardsProps> = ({
       ),
     },
     {
-      title: hospital ? "Patient Visits" : hotel ? "Total Bookings" : "Total Orders",
+      title: hospital ? "Bills" : hotel ? "Total Bookings" : "Total Orders",
       value: totalOrders.toLocaleString(),
       icon: hospital ? <MedicineBoxOutlined /> : hotel ? <HomeOutlined /> : <ShoppingCartOutlined />,
       color: "#3b82f6",

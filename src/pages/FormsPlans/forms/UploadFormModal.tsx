@@ -138,7 +138,7 @@ const UploadFormModal: React.FC<Props> = ({ open, onClose, onUploaded }) => {
         </div>
         <div>
           <Text style={{ fontSize: 12.5, color: C.subText, display: "block", marginBottom: 4 }}>
-            {a.audience === "employee" ? "Type" : "Treatment"} <span style={{ color: "#94a3b8" }}>(optional)</span>
+            {a.categoryNoun === "type" ? "Type" : "Treatment"} <span style={{ color: "#94a3b8" }}>(optional)</span>
           </Text>
           <CategorySelect
             value={category}

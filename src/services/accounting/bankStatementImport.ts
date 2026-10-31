@@ -125,6 +125,8 @@ export interface RawTransaction {
     categorized_by?: "rule" | "keyword_map" | "manual" | null;
     categorized_at?: string;
     is_duplicate?: boolean;
+    /** Entered by hand in the review screen rather than parsed from the file */
+    is_manual?: boolean;
     pushed_at?: string;
     journal_entry_id?: string;
     pushed_to_reconciliation_id?: string;
@@ -1022,6 +1024,118 @@ export const deleteImport = async (id: string) => {
             message.error(axiosError.response.data.message);
         } else {
             message.error("Error deleting import");
+        }
+        throw error;
+    }
+};
+
+// ── Smart Assist ─────────────────────────────────────────────────────────────
+
+/** A suggested account for an uncategorized line. */
+export interface AssistSuggestion {
+    txn_id: string;
+    account_id: string;
+    account_code?: string;
+    account_name?: string;
+    /** 0–100 */
+    confidence: number;
+    /** history = learned from earlier categorizations; ai = asked the AI */
+    source: "history" | "ai";
+    based_on: number;
+    disagreeing?: number;
+    reason?: string;
+    examples: { date: string; description: string; amount: number }[];
+    /** The line being suggested for */
+    txn: { date: string; description: string; amount: number; direction: "debit" | "credit" } | null;
+}
+
+export interface AssistPattern {
+    key: string;
+    label: string;
+    direction: "debit" | "credit";
+    count: number;
+    months: number;
+    in_this_import: number;
+    uncategorized_here: number;
+    cadence: { label: string; days: number } | null;
+    typical_amount: number;
+    min_amount: number;
+    max_amount: number;
+    last_seen: string;
+    top_account: { account_id: string; account_code?: string; account_name?: string; n: number; share: number } | null;
+    consistency: number | null;
+    covered_by_rule: { _id: string; name: string } | null;
+    suggested_rule: {
+        name: string;
+        match_type: MatchType;
+        apply_to: ApplyTo;
+        conditions: RuleCondition[];
+        actions: RuleActions;
+    } | null;
+    sample_descriptions: string[];
+}
+
+export interface AssistWatchout {
+    type: "unusual_amount" | "duplicate" | "missing_recurring";
+    severity: "high" | "medium" | "low";
+    txn_id?: string;
+    related_txn_id?: string;
+    title: string;
+    detail: string;
+}
+
+export interface ImportAssist {
+    summary: {
+        uncategorized: number;
+        suggested: number;
+        high_confidence: number;
+        without_history: number;
+        history_lines: number;
+        patterns: number;
+        rules_to_create: number;
+        watchouts: number;
+    };
+    suggestions: AssistSuggestion[];
+    patterns: AssistPattern[];
+    watchouts: AssistWatchout[];
+    ai: { available: boolean; used: boolean; error: string | null };
+    generated_at: string;
+}
+
+/** Suggestions, recurring patterns and watch-outs; ai also asks the AI about lines with no history. */
+export const getImportAssist = async (id: string, opts: { ai?: boolean } = {}) => {
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/bank-reconciliations/bank-imports/${id}/assist`,
+        { params: opts.ai ? { ai: 1 } : {} }
+    );
+    return response.data as ImportAssist;
+};
+
+export interface AddTransactionInput {
+    transaction_date: string;
+    description: string;
+    reference?: string;
+    direction: "in" | "out";
+    amount: number;
+    /** Categorizes the transaction straight away when given */
+    account_id?: string;
+    notes?: string;
+}
+
+export const addTransaction = async (id: string, data: AddTransactionInput) => {
+    try {
+        const response = await axiosInstance.post(
+            `${BASE_URL}/accounting/bank-reconciliations/bank-imports/${id}/transactions`,
+            data
+        );
+        message.success(response.data.message);
+        return response.data as { message: string; transaction: RawTransaction };
+    } catch (error: unknown) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        if (axiosError?.response?.data?.message) {
+            message.error(axiosError.response.data.message);
+        } else {
+            message.error("Error adding transaction");
         }
         throw error;
     }

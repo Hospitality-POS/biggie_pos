@@ -18,13 +18,25 @@ export type BuiltInCategory =
   | "incident"
   | "training"
   | "contract"
+  // Contact (Mteja) forms
+  | "consent"
+  | "data_privacy"
+  | "marketing_consent"
+  | "media_release"
+  | "waiver"
+  | "agreement"
+  | "registration"
+  | "feedback"
   | "other";
 
 /** A built-in category or the key of one the shop added. */
 export type FormCategory = BuiltInCategory | (string & {});
 
-/** Who fills the form in: a customer, or an employee (Bandu HR). */
-export type Audience = "client" | "employee";
+/**
+ * Who fills the form in: a customer, an employee (Bandu HR), or a contact
+ * (Mteja: a lead, or anyone who isn't a customer).
+ */
+export type Audience = "client" | "employee" | "contact";
 
 export type FieldType =
   | "short_text"

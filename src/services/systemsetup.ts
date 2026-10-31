@@ -29,6 +29,12 @@ export const clearSystemSetupCache = () => {
   inflightSettingsPromise = null;
 };
 
+/** Another branch's settings (Shop Management edits branches other than the current one). */
+export const fetchSystemSettingsForShop = async (shopId: string) => {
+  const response = await axiosInstance.get(`${BASE_URL}/users/fetch-system-setting/${shopId}`);
+  return response.data;
+};
+
 export const fetchSystemSetupDetailsById = async (forceRefresh = false) => {
   const shopId = localStorage.getItem("shopId");
   if (!shopId) return null;

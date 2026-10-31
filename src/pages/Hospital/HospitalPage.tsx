@@ -49,9 +49,11 @@ const getSectionIcon = (name: string) => SECTION_ICONS[name] ?? SECTION_ICONS.de
 
 interface HospitalPageProps {
   mode?: "hospital" | "retail";
+  /** Extra height taken above the page (e.g. the hospital workspace's tab bar) */
+  topOffset?: number;
 }
 
-const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
+const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital", topOffset = 0 }) => {
   const [windowWidth, setWindowWidth] = useState(
     typeof window !== "undefined" ? window.innerWidth : 1024
   );
@@ -224,7 +226,7 @@ const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
         display: "flex",
         flexDirection: isMobile ? "column" : "row",
         gap: isMobile ? 0 : 16,
-        height: isMobile ? "auto" : "calc(100vh - 80px)",
+        height: isMobile ? "auto" : `calc(100vh - ${80 + topOffset}px)`,
         width: "100%",
         overflow: "hidden",
       }}
