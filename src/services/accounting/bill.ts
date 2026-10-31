@@ -43,6 +43,11 @@ export interface BillPaymentRef {
     payment_status: string;
     method_id?: { name: string } | string;
     reference?: string;
+    notes?: string;
+    createdAt?: string;
+    /** "journal" = recorded by linking a bank-statement transaction */
+    recorded_via?: "manual" | "journal";
+    journal_entry_id?: { _id: string; entry_no?: string; status?: string } | string;
 }
 
 export interface Bill {

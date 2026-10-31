@@ -125,10 +125,52 @@ export interface RawTransaction {
     categorized_by?: "rule" | "keyword_map" | "manual" | null;
     categorized_at?: string;
     is_duplicate?: boolean;
+    /** Entered by hand in the review screen rather than parsed from the file */
+    is_manual?: boolean;
     pushed_at?: string;
     journal_entry_id?: string;
     pushed_to_reconciliation_id?: string;
     pushed_to_statement_line_id?: string;
+    allocations?: TransactionAllocation[];
+    payment_method_id?: string | null;
+    splits?: TransactionSplit[];
+}
+
+/** One account's share of a transaction's (unlinked) category amount. */
+export interface TransactionSplit {
+    account_id: string;
+    account_code?: string;
+    account_name?: string;
+    amount: number;
+    description?: string;
+}
+
+// ── Invoice / bill links ─────────────────────────────────────────────────────
+// Money in links to customer invoices, money out to supplier bills.
+
+export type LinkDocType = "invoice" | "bill";
+
+export interface TransactionAllocation {
+    doc_type: LinkDocType;
+    doc_id: string;
+    doc_no?: string;
+    party_name?: string;
+    amount: number;
+    payment_id?: string | null;
+}
+
+export interface LinkableDocument {
+    doc_type: LinkDocType;
+    doc_id: string;
+    doc_no: string;
+    party_name: string;
+    date?: string;
+    due_date?: string;
+    grand_total: number;
+    amount_paid: number;
+    amount_due: number;
+    status: string;
+    exact_match: boolean;
 }
 
 // ── Bank Statement Import ────────────────────────────────────────────────────
@@ -238,6 +280,8 @@ export interface CategorizeTransactionInput {
     target_account_id?: string;
     target_account_code?: string;
     target_account_name?: string;
+    /** Two or more lines splitting the category amount; [] removes a split. */
+    splits?: Pick<TransactionSplit, "account_id" | "amount" | "description">[];
 }
 
 export interface BulkCategorizeInput extends CategorizeTransactionInput {
@@ -254,7 +298,34 @@ export type UnpostedReason =
     | "not_posted"
     | "missing_journal_entry"
     | "journal_entry_deleted"
-    | "journal_entry_voided";
+    | "journal_entry_voided"
+    // The entry exists but won't show in this bank account's ledger as expected
+    | "journal_entry_draft"
+    | "not_on_bank_account"
+    | "amount_mismatch"
+    | "different_branch"
+    | "date_differs";
+
+/** Reasons a re-post fixes — the others need the existing entry corrected. */
+export const REPOSTABLE_REASONS: UnpostedReason[] = [
+    "not_posted",
+    "missing_journal_entry",
+    "journal_entry_deleted",
+    "journal_entry_voided",
+];
+
+export const UNPOSTED_REASON_LABELS: Record<UnpostedReason, { label: string; color: string; hint: string }> = {
+    not_categorized: { label: "Not Categorized", color: "warning", hint: "Pick an account, then complete it" },
+    not_posted: { label: "Not Posted", color: "warning", hint: "Categorized but never completed" },
+    missing_journal_entry: { label: "Missing Journal Entry", color: "error", hint: "Marked completed, but no journal entry exists — re-post it" },
+    journal_entry_deleted: { label: "Journal Entry Deleted", color: "error", hint: "Its journal entry was deleted — re-post it" },
+    journal_entry_voided: { label: "Journal Entry Voided", color: "error", hint: "Its journal entry was voided — re-post it" },
+    journal_entry_draft: { label: "Entry Still Draft", color: "orange", hint: "Draft entries don't show in the ledger — post the entry" },
+    not_on_bank_account: { label: "Not On This Bank", color: "orange", hint: "The entry has no line on this statement's bank account" },
+    amount_mismatch: { label: "Amount Differs", color: "orange", hint: "The entry's bank line doesn't match the statement amount" },
+    different_branch: { label: "Other Branch", color: "orange", hint: "The entry belongs to a different branch, so a branch-filtered ledger hides it" },
+    date_differs: { label: "Date Differs", color: "gold", hint: "The entry date differs from the statement date and may fall outside the ledger period" },
+};
 
 export interface UnpostedTransaction {
     _id: string;
@@ -268,6 +339,8 @@ export interface UnpostedTransaction {
     account_code?: string;
     account_name?: string;
     journal_entry_id?: string | null;
+    journal_entry_no?: string | null;
+    entry_date?: string | null;
     reason: UnpostedReason;
 }
 
@@ -816,6 +889,34 @@ export const excludeTransaction = async (id: string, txn_id: string, notes?: str
     }
 };
 
+export const getLinkableDocuments = async (params: { type: LinkDocType; search?: string; amount?: number }) => {
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/bank-reconciliations/bank-imports/linkable-documents`,
+        { params }
+    );
+    return (response.data?.documents || []) as LinkableDocument[];
+};
+
+export const linkTransaction = async (
+    id: string,
+    txn_id: string,
+    data: { allocations: Pick<TransactionAllocation, "doc_type" | "doc_id" | "amount">[]; payment_method_id?: string | null }
+) => {
+    try {
+        const response = await axiosInstance.put(
+            `${BASE_URL}/accounting/bank-reconciliations/bank-imports/${id}/transactions/${txn_id}/allocations`,
+            data
+        );
+        message.success(response.data.message);
+        if (response.data.warning) message.warning(response.data.warning);
+        return response.data as { transaction: RawTransaction; applied: boolean };
+    } catch (error: unknown) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        message.error(axiosError?.response?.data?.message || "Error linking transaction");
+        throw error;
+    }
+};
+
 export const uncategorizeTransaction = async (id: string, txn_id: string) => {
     try {
         const response = await axiosInstance.patch(
@@ -846,10 +947,18 @@ export const pushToJournalEntries = async (id: string, data: PushToJournalEntrie
                     `${response.data.pushed_count} journal entries created`
             );
         }
+        const linkErrors: { description: string; reason: string }[] = response.data.link_errors || [];
+        if (linkErrors.length) {
+            message.warning(
+                `Invoice/bill links not applied: ${linkErrors.map((e) => `${e.description} — ${e.reason}`).join("; ")}`,
+                8
+            );
+        }
         return response.data as {
             created_entries: string[];
             pushed_count: number;
             already_posted?: number;
+            link_errors?: { txn_id: string; description: string; reason: string }[];
         };
     } catch (error: unknown) {
         const axiosError = error as { response?: { data?: { message?: string } } };
@@ -915,6 +1024,118 @@ export const deleteImport = async (id: string) => {
             message.error(axiosError.response.data.message);
         } else {
             message.error("Error deleting import");
+        }
+        throw error;
+    }
+};
+
+// ── Smart Assist ─────────────────────────────────────────────────────────────
+
+/** A suggested account for an uncategorized line. */
+export interface AssistSuggestion {
+    txn_id: string;
+    account_id: string;
+    account_code?: string;
+    account_name?: string;
+    /** 0–100 */
+    confidence: number;
+    /** history = learned from earlier categorizations; ai = asked the AI */
+    source: "history" | "ai";
+    based_on: number;
+    disagreeing?: number;
+    reason?: string;
+    examples: { date: string; description: string; amount: number }[];
+    /** The line being suggested for */
+    txn: { date: string; description: string; amount: number; direction: "debit" | "credit" } | null;
+}
+
+export interface AssistPattern {
+    key: string;
+    label: string;
+    direction: "debit" | "credit";
+    count: number;
+    months: number;
+    in_this_import: number;
+    uncategorized_here: number;
+    cadence: { label: string; days: number } | null;
+    typical_amount: number;
+    min_amount: number;
+    max_amount: number;
+    last_seen: string;
+    top_account: { account_id: string; account_code?: string; account_name?: string; n: number; share: number } | null;
+    consistency: number | null;
+    covered_by_rule: { _id: string; name: string } | null;
+    suggested_rule: {
+        name: string;
+        match_type: MatchType;
+        apply_to: ApplyTo;
+        conditions: RuleCondition[];
+        actions: RuleActions;
+    } | null;
+    sample_descriptions: string[];
+}
+
+export interface AssistWatchout {
+    type: "unusual_amount" | "duplicate" | "missing_recurring";
+    severity: "high" | "medium" | "low";
+    txn_id?: string;
+    related_txn_id?: string;
+    title: string;
+    detail: string;
+}
+
+export interface ImportAssist {
+    summary: {
+        uncategorized: number;
+        suggested: number;
+        high_confidence: number;
+        without_history: number;
+        history_lines: number;
+        patterns: number;
+        rules_to_create: number;
+        watchouts: number;
+    };
+    suggestions: AssistSuggestion[];
+    patterns: AssistPattern[];
+    watchouts: AssistWatchout[];
+    ai: { available: boolean; used: boolean; error: string | null };
+    generated_at: string;
+}
+
+/** Suggestions, recurring patterns and watch-outs; ai also asks the AI about lines with no history. */
+export const getImportAssist = async (id: string, opts: { ai?: boolean } = {}) => {
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/bank-reconciliations/bank-imports/${id}/assist`,
+        { params: opts.ai ? { ai: 1 } : {} }
+    );
+    return response.data as ImportAssist;
+};
+
+export interface AddTransactionInput {
+    transaction_date: string;
+    description: string;
+    reference?: string;
+    direction: "in" | "out";
+    amount: number;
+    /** Categorizes the transaction straight away when given */
+    account_id?: string;
+    notes?: string;
+}
+
+export const addTransaction = async (id: string, data: AddTransactionInput) => {
+    try {
+        const response = await axiosInstance.post(
+            `${BASE_URL}/accounting/bank-reconciliations/bank-imports/${id}/transactions`,
+            data
+        );
+        message.success(response.data.message);
+        return response.data as { message: string; transaction: RawTransaction };
+    } catch (error: unknown) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        if (axiosError?.response?.data?.message) {
+            message.error(axiosError.response.data.message);
+        } else {
+            message.error("Error adding transaction");
         }
         throw error;
     }

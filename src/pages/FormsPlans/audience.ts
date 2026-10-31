@@ -1,12 +1,16 @@
 import { createContext, useContext } from "react";
 import type { Audience, BuiltInCategory, PrefillSource, SignerRole } from "./forms/types";
 import { CATEGORY_META } from "./forms/constants";
+import type { FormsSettings } from "@hooks/useFormsSettings";
 
 /**
- * Forms & Plans serves two audiences with the same screens:
- *  - client   → customers (Duka / Pesa / Mteja): consent forms, treatment plans
+ * Forms & Plans serves three audiences with the same screens:
+ *  - client   → customers (Duka / Pesa): consent forms, treatment plans
  *  - employee → Bandu HR: onboarding, policies, NDAs, incident reports,
  *               onboarding / training plans
+ *  - contact  → Mteja: consent, data privacy, media releases, waivers,
+ *               agreements… for leads and people who aren't customers
+ *               (forms only — contacts have no plans)
  * Everything that differs (wording, permission keys, categories, paths)
  * lives here; components read it with useAudience().
  */
@@ -15,21 +19,48 @@ export type HubTab = "forms" | "filled" | "analytics" | "plans" | "templates";
 
 export interface AudienceConfig {
   audience: Audience;
-  /** The person who fills forms in: "Client" / "Employee" */
+  /** The person who fills forms in: "Client" / "Employee" / "Contact" */
   person: string;
   people: string;
-  /** Picker label: "Customer" / "Employee" */
+  /** "a client" / "an employee" / "a contact" */
+  aPerson: string;
+  /** Picker label: "Customer" / "Employee" / "Contact" */
   pickerLabel: string;
-  /** Staff who countersign: "Therapist" / "HR" */
+  /** Staff who countersign: "Therapist" / "HR" / "Staff" */
   staff: string;
   signerLabels: Record<SignerRole, string>;
   /** Flagged answers on signed forms */
   alertsLabel: string;
   /** One flagged answer: "medical alert" / "flag for HR" */
   alertNoun: string;
+  /** Short word for a flagged answer in lists: "alert" / "flag" */
+  alertShort: string;
   title: string;
+  /** Line under the hub title */
+  tagline: string;
   formsTitle: string;
   filledTitle: string;
+  /** Side-menu group for the form tabs */
+  formsGroup: string;
+  filledDescription: string;
+  /** Where a sent form shows up afterwards */
+  filledWhere: string;
+  /** How the person signs from a link */
+  linkHint: string;
+  voidPlaceholder: string;
+  /** What a category is called in pickers: "treatment" / "type" */
+  categoryNoun: string;
+  /** Hub header colours */
+  headerBg: string;
+  headerColor: string;
+  /** Setting names in System Setup → Forms & Plans */
+  formsSettingLabel: string;
+  formsFlag: keyof FormsSettings;
+  plansFlag: keyof FormsSettings;
+  /** Contacts have forms only */
+  hasPlans: boolean;
+  /** Request/filter key for the person a form belongs to */
+  personKey: "customer_id" | "employee_id" | "lead_id";
   plansTitle: string;
   planNoun: string;
   /** One row of a plan: "Session" / "Step" */
@@ -84,6 +115,19 @@ const CLIENT_CATEGORIES: BuiltInCategory[] = [
 
 const EMPLOYEE_CATEGORIES: BuiltInCategory[] = ["onboarding", "policy", "nda", "incident", "training", "contract", "other"];
 
+const CONTACT_CATEGORIES: BuiltInCategory[] = [
+  "consent",
+  "data_privacy",
+  "marketing_consent",
+  "media_release",
+  "waiver",
+  "nda",
+  "agreement",
+  "registration",
+  "feedback",
+  "other",
+];
+
 const COMMON_PREFILL = (who: string): { value: PrefillSource; label: string }[] => [
   { value: "none", label: `${who} types it` },
   { value: "customer_name", label: `${who} name` },
@@ -97,14 +141,30 @@ export const AUDIENCES: Record<Audience, AudienceConfig> = {
     audience: "client",
     person: "Client",
     people: "Clients",
+    aPerson: "a client",
     pickerLabel: "Customer",
     staff: "Therapist",
     signerLabels: { client: "Client", therapist: "Therapist", witness: "Witness" },
     alertsLabel: "Medical alerts",
     alertNoun: "medical alert",
+    alertShort: "alert",
     title: "Client Forms & Plans",
+    tagline: "Client forms, e-signatures and treatment plans",
     formsTitle: "Form library",
     filledTitle: "Signed by clients",
+    formsGroup: "Client forms",
+    filledDescription: "Signed forms, links & countersigning",
+    filledWhere: "the customer's Forms tab",
+    linkHint: "They fill and sign on their phone before the visit.",
+    voidPlaceholder: "Reason, e.g. filled for the wrong treatment",
+    categoryNoun: "treatment",
+    headerBg: "linear-gradient(135deg, #fdf2f8 0%, #f5f3ff 100%)",
+    headerColor: "#8b5cf6",
+    formsSettingLabel: "Client Forms",
+    formsFlag: "clientForms",
+    plansFlag: "clientPlans",
+    hasPlans: true,
+    personKey: "customer_id",
     plansTitle: "Treatment plans",
     planNoun: "treatment plan",
     stepNoun: "Session",
@@ -145,14 +205,30 @@ export const AUDIENCES: Record<Audience, AudienceConfig> = {
     audience: "employee",
     person: "Employee",
     people: "Employees",
+    aPerson: "an employee",
     pickerLabel: "Employee",
     staff: "HR",
     signerLabels: { client: "Employee", therapist: "HR", witness: "Witness" },
     alertsLabel: "Flagged answers",
     alertNoun: "flag for HR",
+    alertShort: "flag",
     title: "Employee Forms & Plans",
+    tagline: "Onboarding, policies, NDAs & incident reports — signed by the employee, countersigned by HR",
     formsTitle: "Form library",
     filledTitle: "Signed by employees",
+    formsGroup: "Employee forms",
+    filledDescription: "Signed forms, links & HR countersigning",
+    filledWhere: "Signed by employees",
+    linkHint: "They fill and sign on their own phone or computer.",
+    voidPlaceholder: "Reason, e.g. sent the wrong policy version",
+    categoryNoun: "type",
+    headerBg: "linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%)",
+    headerColor: "#2563eb",
+    formsSettingLabel: "Employee Forms",
+    formsFlag: "employeeForms",
+    plansFlag: "employeePlans",
+    hasPlans: true,
+    personKey: "employee_id",
     plansTitle: "Onboarding & training",
     planNoun: "plan",
     stepNoun: "Step",
@@ -192,12 +268,83 @@ export const AUDIENCES: Record<Audience, AudienceConfig> = {
     builderPath: (id) => `/hr/forms/builder/${id}`,
     fillPath: (id) => `/hr/forms/fill/${id}`,
   },
+  contact: {
+    audience: "contact",
+    person: "Contact",
+    people: "Contacts",
+    aPerson: "a contact",
+    pickerLabel: "Contact",
+    staff: "Staff",
+    signerLabels: { client: "Signatory", therapist: "Staff", witness: "Witness" },
+    alertsLabel: "Flagged answers",
+    alertNoun: "flag to follow up",
+    alertShort: "flag",
+    title: "Contact Forms",
+    tagline: "Consent, privacy, media releases, waivers & agreements — for leads and people who aren't customers",
+    formsTitle: "Form library",
+    filledTitle: "Signed by contacts",
+    formsGroup: "Contact forms",
+    filledDescription: "Signed forms, links & countersigning",
+    filledWhere: "Signed by contacts",
+    linkHint: "They fill and sign on their own phone or computer — no account needed.",
+    voidPlaceholder: "Reason, e.g. sent to the wrong person",
+    categoryNoun: "type",
+    headerBg: "linear-gradient(135deg, #ecfdf5 0%, #eff6ff 100%)",
+    headerColor: "#059669",
+    formsSettingLabel: "Contact Forms (Mteja)",
+    formsFlag: "contactForms",
+    plansFlag: "contactPlans",
+    hasPlans: false,
+    personKey: "lead_id",
+    plansTitle: "Plans",
+    planNoun: "plan",
+    stepNoun: "Step",
+    ownerLabel: "Owner",
+    serviceLabel: "Topic",
+    notesLabel: "Notes",
+    guidanceLabel: "Guidance",
+    categories: CONTACT_CATEGORIES,
+    categoryOptions: options(CONTACT_CATEGORIES),
+    prefillOptions: [
+      ...COMMON_PREFILL("Contact"),
+      { value: "address", label: "Contact address" },
+      { value: "id_number", label: "Contact ID / passport no." },
+      { value: "today", label: "Today’s date" },
+    ],
+    perms: {
+      view: "MTEJA_FORMS_VIEW",
+      create: "MTEJA_FORMS_MANAGE",
+      update: "MTEJA_FORMS_MANAGE",
+      delete: "MTEJA_FORMS_MANAGE",
+      approve: "MTEJA_FORMS_APPROVE",
+      viewFilled: "MTEJA_FORMS_VIEW_FILLED",
+      send: "MTEJA_FORMS_SEND",
+      countersign: "MTEJA_FORMS_SEND",
+      void: "MTEJA_FORMS_MANAGE",
+      plansView: "MTEJA_FORMS_MANAGE",
+      plansManage: "MTEJA_FORMS_MANAGE",
+      planTemplatesManage: "MTEJA_FORMS_MANAGE",
+      analytics: "MTEJA_FORMS_VIEW_FILLED",
+      download: "MTEJA_FORMS_VIEW_FILLED",
+      categoriesManage: "MTEJA_FORMS_MANAGE",
+      plansDownload: "MTEJA_FORMS_MANAGE",
+    },
+    hubPath: (tab) => `${adminPrefix()}/crm/forms${tab ? `?tab=${tab}` : ""}`,
+    builderPath: (id) => `${adminPrefix()}/crm/forms/builder/${id}`,
+    fillPath: (id) => `/crm/forms/fill/${id}`,
+  },
 };
 
-export const audienceConfig = (audience?: Audience | null): AudienceConfig => AUDIENCES[audience === "employee" ? "employee" : "client"];
+export const audienceConfig = (audience?: Audience | null): AudienceConfig =>
+  AUDIENCES[audience === "employee" || audience === "contact" ? audience : "client"];
 
-/** Which audience a route belongs to: anything under /hr is employees. */
-export const audienceFromPath = (pathname: string): Audience => (/^\/(admin\/)?hr\//.test(pathname) ? "employee" : "client");
+/** The forms audience of a submission's subject_type. */
+export const audienceOfSubject = (subjectType?: string | null): Audience =>
+  subjectType === "employee" ? "employee" : subjectType === "contact" ? "contact" : "client";
+
+/** Which audience a route belongs to: /hr is employees, /crm is Mteja contacts. */
+export const audienceFromPath = (pathname: string): Audience =>
+  /^\/(admin\/)?hr\//.test(pathname) ? "employee" : /^\/(admin\/)?crm\//.test(pathname) ? "contact" : "client";
 
 export const AudienceContext = createContext<AudienceConfig>(AUDIENCES.client);
 

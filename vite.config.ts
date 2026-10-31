@@ -8,6 +8,16 @@ export default defineConfig(({ mode }) => {
   return {
     resolve: {
       tsconfigPaths: true,
+      dedupe: ['antd', '@ant-design/pro-components', '@ant-design/pro-provider', 'react', 'react-dom'],
+      alias: [
+        // lottie-react's "browser" field points at its UMD (CommonJS) build.
+        // In production the default import of that build resolves to the
+        // module object instead of the <Lottie> component, so rendering it
+        // throws React #130 — e.g. the order-success animation on /tables,
+        // which the router then shows as the "page does not exist" screen.
+        // Always use the ES build.
+        { find: /^lottie-react$/, replacement: 'lottie-react/build/index.es.js' },
+      ],
     },
     server: {
       host: '0.0.0.0',

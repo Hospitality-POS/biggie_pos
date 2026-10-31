@@ -13,12 +13,15 @@ import {
     Badge,
     Alert,
     Spin,
+    Tooltip,
 } from "antd";
 import {
     CheckCircleOutlined,
     StopOutlined,
     EditOutlined,
     SwapOutlined,
+    LinkOutlined,
+    ApartmentOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -28,6 +31,9 @@ import {
     JournalEntry,
     JournalLine,
 } from "@services/accounting/journals";
+import { getImportById } from "@services/accounting/bankStatementImport";
+import LinkDocumentsModal from "../Banking/LinkDocumentsModal";
+import SplitJournalLineModal from "@components/accounting/SplitJournalLineModal";
 import dayjs from "dayjs";
 
 const { Text, Title } = Typography;
@@ -87,6 +93,18 @@ const JournalEntryDetailDrawer: React.FC<Props> = ({ open, onClose, entryId, onS
 
     const entry: JournalEntry | undefined = data?.entry;
 
+    // ── Bank statement transaction behind a bank-upload entry ─────────────────
+    // Lets the entry be linked to the invoices / bills it pays.
+    const [linkOpen, setLinkOpen] = useState(false);
+    const isBankTxn = entry?.source_type === "bank_import_transaction" && !!entry?.bank_import_id;
+    const { data: importData } = useQuery({
+        queryKey: ["import-detail", entry?.bank_import_id, "for-entry"],
+        queryFn: () => getImportById(String(entry!.bank_import_id), { limit: 100000 }),
+        enabled: open && isBankTxn,
+    });
+    const bankTxn =
+        (importData?.import?.transactions || []).find((t: any) => String(t._id) === String(entry?.source_id)) || null;
+
     // ── Mutations ──────────────────────────────────────────────────────────────
 
     const postMutation = useMutation({
@@ -109,6 +127,11 @@ const JournalEntryDetailDrawer: React.FC<Props> = ({ open, onClose, entryId, onS
             onSuccess();
         },
     });
+
+    // ── Split a line across accounts ───────────────────────────────────────────
+
+    const [splitIndex, setSplitIndex] = useState<number | null>(null);
+    const canSplit = !!entry && entry.status !== "Voided" && !entry.period_locked;
 
     const handleVoidConfirm = () => {
         if (!voidReason.trim() || !entryId) return;
@@ -183,6 +206,26 @@ const JournalEntryDetailDrawer: React.FC<Props> = ({ open, onClose, entryId, onS
                     <Text type="secondary">—</Text>
                 ),
         },
+        ...(canSplit
+            ? [
+                {
+                    title: "",
+                    key: "split",
+                    width: 44,
+                    render: (_: any, line: JournalLine, index: number) => (
+                        <Tooltip title="Split across accounts">
+                            <Button
+                                icon={<ApartmentOutlined />}
+                                size="small"
+                                type="text"
+                                onClick={() => setSplitIndex(index)}
+                                disabled={!((line.debit || 0) > 0 || (line.credit || 0) > 0)}
+                            />
+                        </Tooltip>
+                    ),
+                },
+            ]
+            : []),
     ];
 
     const lines = entry?.lines || [];
@@ -239,6 +282,11 @@ const JournalEntryDetailDrawer: React.FC<Props> = ({ open, onClose, entryId, onS
                                     onClick={() => postMutation.mutate(entry._id)}
                                 >
                                     Post Entry
+                                </Button>
+                            )}
+                            {status === "Posted" && bankTxn && (
+                                <Button icon={<LinkOutlined />} onClick={() => setLinkOpen(true)}>
+                                    {Math.abs(bankTxn.debit || 0) > 0 ? "Link to bills" : "Link to invoices"}
                                 </Button>
                             )}
                             {status === "Posted" && (
@@ -329,6 +377,20 @@ const JournalEntryDetailDrawer: React.FC<Props> = ({ open, onClose, entryId, onS
                                     </Text>
                                 </Descriptions.Item>
                             )}
+
+                            {!!bankTxn?.allocations?.length && (
+                                <Descriptions.Item label="Pays" span={2}>
+                                    <Space size={4} wrap>
+                                        {bankTxn.allocations.map((a: any) => (
+                                            <Tag key={a.doc_id} icon={<LinkOutlined />} color={a.payment_id ? "green" : "gold"}>
+                                                {a.doc_no}
+                                                {a.party_name ? ` · ${a.party_name}` : ""} ·{" "}
+                                                {(a.amount || 0).toLocaleString("en-KE", { minimumFractionDigits: 2 })}
+                                            </Tag>
+                                        ))}
+                                    </Space>
+                                </Descriptions.Item>
+                            )}
                         </Descriptions>
 
                         {/* ── Lines ── */}
@@ -359,6 +421,7 @@ const JournalEntryDetailDrawer: React.FC<Props> = ({ open, onClose, entryId, onS
                                                 {(entry.total_credit || 0).toLocaleString("en-KE", { minimumFractionDigits: 2 })}
                                             </Text>
                                         </Table.Summary.Cell>
+                                        {canSplit && <Table.Summary.Cell index={4} />}
                                     </Table.Summary.Row>
                                 </Table.Summary>
                             )}
@@ -383,6 +446,28 @@ const JournalEntryDetailDrawer: React.FC<Props> = ({ open, onClose, entryId, onS
                     </>
                 )}
             </Drawer>
+
+            <LinkDocumentsModal
+                open={linkOpen}
+                importId={entry?.bank_import_id ? String(entry.bank_import_id) : undefined}
+                txn={bankTxn}
+                onClose={() => setLinkOpen(false)}
+                onLinked={() => {
+                    queryClient.invalidateQueries({ queryKey: ["import-detail", entry?.bank_import_id] });
+                    queryClient.invalidateQueries({ queryKey: ["journal-entry", entryId] });
+                    queryClient.invalidateQueries({ queryKey: ["journal-entries"] });
+                    queryClient.invalidateQueries({ queryKey: ["linkable-documents"] });
+                    onSuccess();
+                }}
+            />
+
+            {/* ── Split a line across accounts ── */}
+            <SplitJournalLineModal
+                entryId={splitIndex !== null ? entryId : null}
+                lineIndex={splitIndex ?? undefined}
+                onClose={() => setSplitIndex(null)}
+                onSaved={onSuccess}
+            />
 
             {/* ── Void Modal ── */}
             <Modal

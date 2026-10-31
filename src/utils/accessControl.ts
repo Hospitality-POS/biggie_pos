@@ -82,6 +82,7 @@ export const MODULES = {
     HR_FORMS_PLANS: "HR · Employee Forms & Plans",
     // ── Healthcare add-on (clinics, pharmacies, hospitals) ──
     HEALTHCARE: "Healthcare",
+    CRM_FORMS: "CRM · Contact Forms",
 } as const;
 
 export type ModuleKey = keyof typeof MODULES;
@@ -879,6 +880,14 @@ export const PERMISSIONS: Record<string, Permission> = {
     HEALTHCARE_WARDS_MANAGE: { key: "HEALTHCARE_WARDS_MANAGE", label: "Set Up Wards & Beds", module: MODULES.HEALTHCARE, action: "update", moduleScope: "pos" },
     HEALTHCARE_DEPOSITS: { key: "HEALTHCARE_DEPOSITS", label: "Take Inpatient Deposits & Send Bills to the POS", module: MODULES.HEALTHCARE, action: "special", moduleScope: "pos" },
     HEALTHCARE_ACCESS_LOG_VIEW: { key: "HEALTHCARE_ACCESS_LOG_VIEW", label: "View Who Opened Patient Records", module: MODULES.HEALTHCARE, action: "read", moduleScope: "pos" },
+
+    // Mteja contact forms: consent, privacy, media release, waivers… for leads
+    // and people who aren't customers
+    MTEJA_FORMS_VIEW: { key: "MTEJA_FORMS_VIEW", label: "View Contact Forms", module: MODULES.CRM_FORMS, action: "read", moduleScope: "crm" },
+    MTEJA_FORMS_MANAGE: { key: "MTEJA_FORMS_MANAGE", label: "Create, Edit & Void Contact Forms", module: MODULES.CRM_FORMS, action: "update", moduleScope: "crm" },
+    MTEJA_FORMS_APPROVE: { key: "MTEJA_FORMS_APPROVE", label: "Approve Contact Forms", module: MODULES.CRM_FORMS, action: "special", moduleScope: "crm" },
+    MTEJA_FORMS_SEND: { key: "MTEJA_FORMS_SEND", label: "Send Contact Forms for Signing", module: MODULES.CRM_FORMS, action: "create", moduleScope: "crm" },
+    MTEJA_FORMS_VIEW_FILLED: { key: "MTEJA_FORMS_VIEW_FILLED", label: "View, Download & Analyse Signed Contact Forms", module: MODULES.CRM_FORMS, action: "read", moduleScope: "crm" },
 
     // ── Reports ───────────────────────────────────────────────────────────────
 

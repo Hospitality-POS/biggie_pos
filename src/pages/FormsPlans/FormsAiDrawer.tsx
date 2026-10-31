@@ -20,7 +20,7 @@ const INSIGHT_STYLES: Record<FormsInsightType, InsightStyle> = {
   recommendation: { label: "Recommendation", icon: <BulbOutlined />, color: "#047857", bg: "#ecfdf5" },
 };
 
-const quickPrompts = (isEmployee: boolean): QuickPrompt[] => [
+const quickPrompts = (isEmployee: boolean, hasPlans: boolean): QuickPrompt[] => [
   {
     icon: <FormOutlined />,
     title: "Unsigned forms",
@@ -33,22 +33,33 @@ const quickPrompts = (isEmployee: boolean): QuickPrompt[] => [
     desc: "How long do forms take to get signed, and does sending a link or filling in store work better?",
     tag: "Forms",
   },
-  {
-    icon: <ScheduleOutlined />,
-    title: isEmployee ? "Stalled plans" : "Stalled treatments",
-    desc: `Which ${isEmployee ? "plans" : "treatment plans"} are stalling — overdue or skipped ${isEmployee ? "steps" : "sessions"}, cancellations? What should we do?`,
-    tag: "Plans",
-  },
-  {
-    icon: <TeamOutlined />,
-    title: isEmployee ? "Per supervisor" : "Per therapist",
-    desc: `Compare ${isEmployee ? "supervisors / trainers" : "therapists"} by plans, active plans and completion in a table.`,
-    tag: "Plans",
-  },
+  ...(hasPlans
+    ? [
+        {
+          icon: <ScheduleOutlined />,
+          title: isEmployee ? "Stalled plans" : "Stalled treatments",
+          desc: `Which ${isEmployee ? "plans" : "treatment plans"} are stalling — overdue or skipped ${isEmployee ? "steps" : "sessions"}, cancellations? What should we do?`,
+          tag: "Plans",
+        },
+        {
+          icon: <TeamOutlined />,
+          title: isEmployee ? "Per supervisor" : "Per therapist",
+          desc: `Compare ${isEmployee ? "supervisors / trainers" : "therapists"} by plans, active plans and completion in a table.`,
+          tag: "Plans",
+        },
+      ]
+    : [
+        {
+          icon: <TeamOutlined />,
+          title: "Most used forms",
+          desc: "Which forms are sent most, and which ones do people leave unsigned?",
+          tag: "Forms",
+        },
+      ]),
   {
     icon: <MedicineBoxOutlined />,
-    title: isEmployee ? "Flagged answers" : "Medical alerts",
-    desc: `How many ${isEmployee ? "flagged answers" : "medical alerts"} came in, and on which forms?`,
+    title: isEmployee || !hasPlans ? "Flagged answers" : "Medical alerts",
+    desc: `How many ${isEmployee || !hasPlans ? "flagged answers" : "medical alerts"} came in, and on which forms?`,
     tag: "Alerts",
   },
   {
@@ -77,17 +88,18 @@ interface Props {
 /** AI insights drawer on the Forms & Plans analytics tab. */
 const FormsAiDrawer: React.FC<Props> = ({ open, onClose, params, periodLabel }) => {
   const isEmployee = params.audience === "employee";
+  const isContact = params.audience === "contact";
   return (
     <AiInsightsDrawer
       open={open}
       onClose={onClose}
       assistantName="Forms AI"
-      subtitle={`${isEmployee ? "Employee forms & plans" : "Client forms & treatment plans"} · ${periodLabel}`}
+      subtitle={`${isContact ? "Contact forms" : isEmployee ? "Employee forms & plans" : "Client forms & treatment plans"} · ${periodLabel}`}
       queryKey={["forms-insights", params]}
       fetchInsights={(fresh) => fetchFormsInsights({ ...params, fresh })}
       ask={async (question, history) => (await askFormsAssistant({ ...params, question, history })).answer}
       insightStyles={INSIGHT_STYLES}
-      quickPrompts={quickPrompts(isEmployee)}
+      quickPrompts={quickPrompts(isEmployee, !isContact)}
       thinking={THINKING}
       loadingText="Analysing your forms and plans…"
       placeholder="Ask Forms AI about forms and plans…"

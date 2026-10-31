@@ -63,10 +63,15 @@ export interface ProfitAndLossResponse {
 // ── Balance Sheet ────────────────────────────────────────────────────────────
 
 export interface BalanceSheetRow {
+    _id?: string;
     account_code: string;
     account_name: string;
+    account_type?: string;
+    /** Groups accounts under their account type on the report (Cash & Bank, Inventory…) */
     account_subtype?: string;
     balance: number;
+    /** The computed "Current Period Net Income" line in Equity */
+    is_synthetic?: boolean;
 }
 
 export interface BalanceSheetResponse {
@@ -90,6 +95,7 @@ export interface BalanceSheetResponse {
         difference: number;
     };
     is_balanced: boolean;
+    current_net_income?: number;
 }
 
 // ── General Ledger ───────────────────────────────────────────────────────────

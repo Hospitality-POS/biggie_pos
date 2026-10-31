@@ -9,6 +9,7 @@ import "./index.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ConfigProvider } from "antd";
 import enUS from "antd/locale/en_US";
+import { ProConfigProvider, enUSIntl } from "@ant-design/pro-components";
 import { PrimaryColorProvider, usePrimaryColor } from "./context/PrimaryColorContext";
 import { POSModeProvider } from "./context/POSModeContext";
 import { RetailQueueProvider } from "./context/RetailQueueContext";
@@ -17,6 +18,20 @@ import { reloadForNewVersion } from "@utils/lazyWithReload";
 import { initDesktopZoom } from "@utils/desktopZoom";
 import { initDesktopUpdater } from "@utils/desktopUpdater";
 import { initPwaFreshness } from "@utils/pwaFreshness";
+import dayjs from "dayjs";
+
+// ProComponents set dayjs's GLOBAL locale to "zh-cn" whenever one renders
+// without an antd locale above it (static Modal.confirm, portals), which turns
+// every "DD MMM YYYY" in the app into "27 10月 2026". The app is English-only,
+// so global switches to anything else are ignored. Locale files registering
+// themselves (isLocal) and per-instance .locale() calls are unaffected.
+const setGlobalLocale = dayjs.locale;
+dayjs.locale = ((preset?: string | ILocale, object?: Partial<ILocale>, isLocal?: boolean) => {
+  const name = typeof preset === "string" ? preset : preset?.name;
+  const allowed = isLocal || preset === undefined || (name || "").toLowerCase().startsWith("en");
+  return setGlobalLocale(allowed ? preset : "en", object, isLocal);
+}) as typeof dayjs.locale;
+dayjs.locale("en");
 
 initDesktopZoom();
 initDesktopUpdater();
@@ -61,7 +76,9 @@ const AppWithColor = () => {
         },
       }}
     >
-      <App />
+      <ProConfigProvider intl={enUSIntl}>
+        <App />
+      </ProConfigProvider>
     </ConfigProvider>
   );
 };

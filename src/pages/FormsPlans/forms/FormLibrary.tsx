@@ -12,6 +12,7 @@ import {
   EyeOutlined,
   CheckCircleOutlined,
   FileSearchOutlined,
+  AppstoreAddOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -21,6 +22,8 @@ import { usePermissions } from "@hooks/usePermissions";
 import { fetchFormTemplates, createBlankForm, apiErrorMessage } from "@services/formTemplates";
 import { useAudience } from "../audience";
 import UploadFormModal from "./UploadFormModal";
+import StarterTemplatesModal from "./StarterTemplatesModal";
+import { STARTER_TEMPLATES } from "./starterTemplates";
 import { STATUS_META } from "./constants";
 import type { FormStatus, FormTemplateSummary } from "./types";
 import { CategorySelect } from "./categories";
@@ -182,7 +185,10 @@ const FormLibrary: React.FC = () => {
   const { can } = usePermissions();
   const a = useAudience();
   const isEmployee = a.audience === "employee";
+  const isContact = a.audience === "contact";
   const canCreate = can(a.perms.create);
+  const hasStarters = STARTER_TEMPLATES[a.audience].length > 0;
+  const [startersOpen, setStartersOpen] = useState(false);
 
   const [tab, setTab] = useState<TabKey>("all");
   const [search, setSearch] = useState("");
@@ -230,9 +236,16 @@ const FormLibrary: React.FC = () => {
       {canCreate && (
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
           <Text style={{ flex: "1 1 220px", fontSize: 13, color: C.subText }}>
-            Upload the paper forms you use today, review them, and get them approved.
+            {hasStarters
+              ? "Start from a ready-made template, upload the paper forms you use today, review them, and get them approved."
+              : "Upload the paper forms you use today, review them, and get them approved."}
           </Text>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {hasStarters && (
+              <Button icon={<AppstoreAddOutlined />} onClick={() => setStartersOpen(true)}>
+                {isMobile ? "Templates" : "From template"}
+              </Button>
+            )}
             <Button icon={<PlusOutlined />} onClick={startBlank} loading={creating}>
               {isMobile ? "Blank" : "Start blank"}
             </Button>
@@ -328,7 +341,7 @@ const FormLibrary: React.FC = () => {
           />
           <CategorySelect
             allowClear
-            placeholder={isEmployee ? "All types" : "All treatments"}
+            placeholder={a.categoryNoun === "type" ? "All types" : "All treatments"}
             value={category}
             onChange={setCategory}
             style={{ width: isMobile ? 160 : 190 }}
@@ -345,16 +358,31 @@ const FormLibrary: React.FC = () => {
         total === 0 && !search && !category ? (
           <div style={{ textAlign: "center", padding: isMobile ? "28px 8px" : "48px 24px", maxWidth: 760, margin: "0 auto" }}>
             <div style={{ fontSize: 46, marginBottom: 8 }}>📋</div>
-            <Title level={5} style={{ marginBottom: 4 }}>Bring your paper forms online</Title>
+            <Title level={5} style={{ marginBottom: 4 }}>
+              {isContact ? "Get consent and signatures from anyone" : "Bring your paper forms online"}
+            </Title>
             <Text style={{ color: C.subText }}>
-              {isEmployee
-                ? "Upload the onboarding forms, policies, NDAs and incident reports you already use. Employees fill and sign them on a tablet or from a link, and HR countersigns — no more paper files."
-                : "Upload the consultation and consent forms you already use. Clients then fill and sign them on a tablet or from a link — no more paper files."}
+              {isContact
+                ? "Data protection consent, marketing opt-ins, photo releases, waivers, NDAs, agreements, registrations and feedback — for leads and people who aren't customers. They fill and sign on a tablet or from a link, no account needed."
+                : isEmployee
+                  ? "Upload the onboarding forms, policies, NDAs and incident reports you already use. Employees fill and sign them on a tablet or from a link, and HR countersigns — no more paper files."
+                  : "Upload the consultation and consent forms you already use. Clients then fill and sign them on a tablet or from a link — no more paper files."}
             </Text>
             {canCreate && (
-              <div style={{ marginTop: 18 }}>
-                <Button type="primary" size="large" icon={<CloudUploadOutlined />} onClick={() => setUploadOpen(true)} style={{ background: C.primary }}>
-                  Upload your first form
+              <div style={{ marginTop: 18, display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+                {hasStarters && (
+                  <Button type="primary" size="large" icon={<AppstoreAddOutlined />} onClick={() => setStartersOpen(true)} style={{ background: C.primary }}>
+                    Browse templates
+                  </Button>
+                )}
+                <Button
+                  type={hasStarters ? "default" : "primary"}
+                  size="large"
+                  icon={<CloudUploadOutlined />}
+                  onClick={() => setUploadOpen(true)}
+                  style={hasStarters ? undefined : { background: C.primary }}
+                >
+                  {hasStarters ? "Upload your own" : "Upload your first form"}
                 </Button>
               </div>
             )}
@@ -391,6 +419,7 @@ const FormLibrary: React.FC = () => {
           openForm(form._id);
         }}
       />
+      {hasStarters && <StarterTemplatesModal open={startersOpen} onClose={() => setStartersOpen(false)} />}
     </div>
   );
 };

@@ -3,7 +3,7 @@ import { Button, Rate, Table, Typography } from "antd";
 import { FileExcelOutlined, FilePdfOutlined, StarFilled } from "@ant-design/icons";
 import { utils as XLSXUtils, writeFile } from "xlsx";
 import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import autoTable from "@utils/autoTable";
 import { THEME_C } from "@utils/getPrimaryColor";
 
 const { Text } = Typography;

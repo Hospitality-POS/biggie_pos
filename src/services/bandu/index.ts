@@ -212,6 +212,20 @@ export const fetchEmployees = async (params: ParamsType = {}) => {
   }
 };
 
+// Every employee matching the filters — pages through /employees, which
+// otherwise returns only the first page (20 by default)
+export const fetchAllEmployees = async (params: ParamsType = {}) => {
+  const limit = 500;
+  const all: any[] = [];
+  for (let page = 1; ; page++) {
+    const res = await fetchEmployees({ ...params, page, limit });
+    const rows = res?.data || [];
+    all.push(...rows);
+    if (rows.length < limit || all.length >= (res?.pagination?.total ?? 0)) break;
+  }
+  return all;
+};
+
 // Get Single Employee
 export const getEmployeeById = async (employeeId: string) => {
   try {
@@ -1253,6 +1267,21 @@ export const markPayrollPaid = async (
   const response = await axiosInstance.patch(`${bandu_url}/payroll/${payrollId}/pay`, payload);
   message.success("Payroll marked as paid");
   return response.data;
+};
+
+// Mark a paid payroll as unpaid — reverses the salary payment journal entry
+// (when one was posted) and returns the payroll to processed / approved.
+// The accrual entry is kept, so the net pay shows as owed again.
+export const markPayrollUnpaid = async (payrollId: string, payload: { reason?: string } = {}) => {
+  try {
+    const response = await axiosInstance.patch(`${bandu_url}/payroll/${payrollId}/unpay`, payload);
+    message.success(response.data?.message || "Payroll marked as unpaid");
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.message || error?.message || "Failed to mark payroll as unpaid";
+    message.error(errorMessage);
+    throw new Error(errorMessage);
+  }
 };
 
 // Initialize default statutory deduction configs (Kenya)

@@ -85,6 +85,8 @@ const HubAnalytics: React.FC<{ showForms: boolean; showPlans: boolean }> = ({ sh
   const a = useAudience();
   const isEmployee = a.audience === "employee";
   const plansLabel = isEmployee ? "Onboarding & training plans" : "Treatment plans";
+  // Section heading for the forms half: "Client forms" / "Employee forms" / "Contact forms"
+  const formsHeading = a.formsGroup;
   const [range, setRange] = useState<Range>("30");
   const [aiOpen, setAiOpen] = useState(false);
 
@@ -206,7 +208,7 @@ const HubAnalytics: React.FC<{ showForms: boolean; showPlans: boolean }> = ({ sh
       {/* ── Forms ─────────────────────────────────────────────────────── */}
       {showForms && forms && forms.total > 0 && (
         <>
-          <SectionTitle icon={<FormOutlined />} color={FORMS_COLOR} title={isEmployee ? "Employee forms" : "Client forms"} />
+          <SectionTitle icon={<FormOutlined />} color={FORMS_COLOR} title={formsHeading} />
           <div style={{ display: "grid", gridTemplateColumns: cols(3), gap: 10, marginBottom: 14 }}>
             <Stat label="Needs countersign" value={forms.by_status.awaiting_therapist ?? 0} color="#d97706" />
             <Stat label="Not signed yet" value={waiting} hint={forms.by_status.voided ? `${forms.by_status.voided} voided` : undefined} />

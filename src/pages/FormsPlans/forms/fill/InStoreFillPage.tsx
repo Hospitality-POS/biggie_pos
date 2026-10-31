@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Button, Modal, Result, Spin, Typography, message } from "antd";
-import { CloseOutlined, DownloadOutlined, EditOutlined, CheckOutlined } from "@ant-design/icons";
+import { CloseOutlined, DownloadOutlined, EditOutlined, CheckOutlined, MailOutlined } from "@ant-design/icons";
 import { usePermissions } from "@hooks/usePermissions";
 import {
   fetchFormSubmission,
@@ -15,17 +15,18 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchShop } from "@services/shops";
 import FillFlow from "./FillFlow";
 import StaffSignModal from "./StaffSignModal";
+import EmailSignedCopyModal from "./EmailSignedCopyModal";
 import { SubmitError, questionLead } from "./utils";
 import type { FormSubmission } from "./types";
 import type { Answers } from "../components/FormRenderer";
-import { AudienceContext, audienceConfig, audienceFromPath } from "../../audience";
+import { AudienceContext, audienceConfig, audienceFromPath, audienceOfSubject } from "../../audience";
 
 const { Text, Title } = Typography;
 
 /**
  * Full-screen form on the shop's tablet: the client (or employee) fills and
  * signs, hands the device back, and staff (therapist, HR…) countersign right away.
- * Routes: /forms/fill/:id, /hr/forms/fill/:id  (state.returnTo = where to go afterwards)
+ * Routes: /forms/fill/:id, /hr/forms/fill/:id, /crm/forms/fill/:id  (state.returnTo = where to go afterwards)
  */
 const InStoreFillPage: React.FC = () => {
   const { id = "" } = useParams<{ id: string }>();
@@ -39,6 +40,7 @@ const InStoreFillPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [countersignOpen, setCountersignOpen] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [emailOpen, setEmailOpen] = useState(false);
 
   const shopId = localStorage.getItem("shopId") || "";
   const { data: shop } = useQuery({ queryKey: ["shop", shopId], queryFn: () => fetchShop(shopId), enabled: !!shopId });
@@ -50,7 +52,7 @@ const InStoreFillPage: React.FC = () => {
       .catch((e) => setError(submissionError(e, "Couldn't open this form").message));
   }, [id, pathAudience]);
 
-  const a = audienceConfig(submission ? (submission.subject_type === "employee" ? "employee" : "client") : pathAudience);
+  const a = audienceConfig(submission ? audienceOfSubject(submission.subject_type) : pathAudience);
   const aud = a.audience;
 
   const leave = () => (returnTo ? navigate(returnTo) : navigate(-1));
@@ -93,8 +95,10 @@ const InStoreFillPage: React.FC = () => {
       </Title>
       <Text style={{ fontSize: 15, color: "#475569", display: "block", maxWidth: 440, margin: "0 auto" }}>
         {submission.status === "completed"
-          ? `${submission.form.name} is complete and saved to ${submission.subject_snapshot.name}'s profile.`
-          : aud === "employee"
+          ? aud === "contact"
+            ? `${submission.form.name} is complete and saved under ${a.filledTitle}.`
+            : `${submission.form.name} is complete and saved to ${submission.subject_snapshot.name}'s profile.`
+          : aud !== "client"
             ? `Thank you. Please hand the device back to ${staffLabel}.`
             : `Please hand the device back to your ${staffLabel.toLowerCase()}.`}
       </Text>
@@ -107,6 +111,11 @@ const InStoreFillPage: React.FC = () => {
         {submission.status === "completed" && submission.has_pdf && can(a.perms.viewFilled) && (
           <Button size="large" icon={<DownloadOutlined />} onClick={download} loading={downloading}>
             Signed PDF
+          </Button>
+        )}
+        {submission.status === "completed" && can(a.perms.viewFilled) && (
+          <Button size="large" icon={<MailOutlined />} onClick={() => setEmailOpen(true)}>
+            Email signed copy
           </Button>
         )}
         <Button size="large" icon={<CheckOutlined />} onClick={leave}>
@@ -123,6 +132,7 @@ const InStoreFillPage: React.FC = () => {
           ))}
         </div>
       )}
+      <EmailSignedCopyModal submission={emailOpen ? submission : null} audience={aud} onClose={() => setEmailOpen(false)} />
       <StaffSignModal
         open={countersignOpen}
         submission={submission}
@@ -175,7 +185,7 @@ const InStoreFillPage: React.FC = () => {
           onClick={() =>
             Modal.confirm({
               title: "Leave this form?",
-              content: `Answers so far are saved. You can continue later from ${aud === "employee" ? "Signed by employees" : "the customer's profile"}.`,
+              content: `Answers so far are saved. You can continue later from ${aud === "client" ? "the customer's profile" : a.filledTitle}.`,
               okText: "Leave",
               onOk: leave,
             })

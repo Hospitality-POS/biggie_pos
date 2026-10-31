@@ -10,6 +10,7 @@ import {
     Divider,
     Badge,
     Spin,
+    Tooltip,
 } from "antd";
 import {
     ArrowRightOutlined,
@@ -18,7 +19,7 @@ import {
 } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
-import { getBillById, type Bill } from "@services/accounting/bill";
+import { getBillById, type Bill, type BillPaymentRef } from "@services/accounting/bill";
 import { getNotesByBill } from "@services/accounting/notes";
 import { getSupplierById } from "@services/supplier";
 
@@ -305,6 +306,53 @@ const BillDetailDrawer: React.FC<Props> = ({
                         </Table.Summary.Row>
                     );
                 }}
+            />
+
+            <Divider orientation="left">Payments</Divider>
+            <Table
+                dataSource={(bill.payments || []).filter((p): p is BillPaymentRef => typeof p === "object")}
+                rowKey="_id"
+                pagination={false}
+                size="small"
+                locale={{ emptyText: "No payments recorded" }}
+                columns={[
+                    {
+                        title: "Date",
+                        key: "date",
+                        render: (_: unknown, p: BillPaymentRef) =>
+                            dayjs(p.payment_date || p.createdAt).format("DD MMM YYYY"),
+                    },
+                    {
+                        title: "Method",
+                        key: "method",
+                        render: (_: unknown, p: BillPaymentRef) => (
+                            <Space size={2} wrap>
+                                <Tag color="blue">{typeof p.method_id === "object" ? p.method_id?.name : "—"}</Tag>
+                                {p.recorded_via === "journal" && (
+                                    <Tooltip title="Recorded from a bank statement transaction linked to this bill">
+                                        <Tag color="purple">
+                                            via Journal
+                                            {typeof p.journal_entry_id === "object" && p.journal_entry_id?.entry_no
+                                                ? ` · ${p.journal_entry_id.entry_no}`
+                                                : ""}
+                                        </Tag>
+                                    </Tooltip>
+                                )}
+                            </Space>
+                        ),
+                    },
+                    {
+                        title: "Reference",
+                        dataIndex: "reference",
+                        render: (v?: string) => v || "—",
+                    },
+                    {
+                        title: "Amount",
+                        dataIndex: "amount",
+                        align: "right" as const,
+                        render: (v: number) => `KES ${(v || 0).toLocaleString("en-KE", { minimumFractionDigits: 2 })}`,
+                    },
+                ]}
             />
 
             {!hideCreditNotes && (

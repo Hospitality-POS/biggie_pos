@@ -1,10 +1,11 @@
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import autoTable from '@utils/autoTable';
 import * as XLSX from 'xlsx-js-style';
 import { message } from 'antd';
 import { fetchSystemSetupDetailsById } from '@services/systemsetup';
 import { getUser } from '@services/tenants';
 import { getPrimaryColor, hexToRgb } from './getPrimaryColor';
+import { getExportTheme, argb, xlsxFill, type ExportTheme } from './exportTemplates';
 
 /**
  * Payslip export — PDF (one page per payslip) and Excel (one sheet per
@@ -14,6 +15,11 @@ import { getPrimaryColor, hexToRgb } from './getPrimaryColor';
 
 const fmt = (n?: number | null) =>
   Number(n || 0).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+// rounded → whole-shilling figures (display/export only, mirrors the payroll
+// muster roll "Rounded" toggle)
+const moneyFmt = (rounded = false) => (n?: number | null) =>
+  rounded ? Math.round(Number(n || 0)).toLocaleString('en-KE') : fmt(n);
 
 const fmtDate = (d?: string) =>
   d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
@@ -28,8 +34,74 @@ const employeeName = (p: any) =>
 const departmentName = (p: any) =>
   p.payroll_id?.department_id?.name || p.department_id?.name || '—';
 
+// ── Hideable payslip lines ─────────────────────────────────────────────────────
+// Lines a user can leave off a payslip. Hiding is display-only: totals, PAYE
+// and net pay keep the stored figures, nothing is recalculated.
+export const PAYSLIP_HIDEABLE_LINES = [
+  { key: 'nssf', label: 'NSSF' },
+  { key: 'shif', label: 'SHIF' },
+  { key: 'housing_levy', label: 'Housing Levy' },
+  { key: 'pension', label: 'Pension Contribution' },
+  { key: 'withholding_tax', label: 'Withholding Tax' },
+  { key: 'overtime', label: 'Overtime Pay' },
+  { key: 'taxable_pay', label: 'Taxable Pay' },
+  { key: 'income_tax', label: 'Income Tax' },
+  { key: 'personal_relief', label: 'Personal Relief' },
+  { key: 'insurance_relief', label: 'Insurance Relief' },
+] as const;
+export type PayslipLineKey = (typeof PAYSLIP_HIDEABLE_LINES)[number]['key'];
+
+// Export row label → the hideable line it shows
+const LINE_KEY_BY_LABEL: Record<string, PayslipLineKey> = {
+  'Overtime Pay': 'overtime',
+  'Less Pension (NSSF)': 'nssf',
+  'N.S.S.F.': 'nssf',
+  'Less SHIF': 'shif',
+  'SHIF (NHIF)': 'shif',
+  'Less Housing Levy (AHL)': 'housing_levy',
+  'Housing Levy': 'housing_levy',
+  'Less Pension Contribution': 'pension',
+  Pension: 'pension',
+  'Withholding Tax': 'withholding_tax',
+  'CHARGEABLE AMOUNT': 'taxable_pay',
+  'Tax Charged': 'income_tax',
+  'Personal Relief': 'personal_relief',
+  'Insurance Relief': 'insurance_relief',
+};
+
+// ── Download file names ────────────────────────────────────────────────────────
+const fileSafe = (s: string) => s.replace(/[\\/:*?"<>|]/g, ' ').trim().replace(/\s+/g, '_');
+
+/** "<Department>_<what>_<period>" when the export covers exactly one department, else "<Client>_<what>_<period>". */
+export const exportFileName = (parts: { client?: string; departments?: (string | undefined)[]; what: string; period?: string }) => {
+  const depts = [...new Set((parts.departments || []).filter((d): d is string => !!d && d !== '—'))];
+  return [depts.length === 1 ? depts[0] : parts.client, parts.what, parts.period || 'export']
+    .filter((s): s is string => !!s)
+    .map(fileSafe)
+    .join('_');
+};
+
+/** "Payslip_<Employee Name>_<period>" for a single employee's payslip. */
+const singlePayslipFileName = (p: any) =>
+  ['Payslip', employeeName(p), p.period_label || 'period'].map(fileSafe).join('_');
+
 // ── Shared payslip data model ──────────────────────────────────────────────────
-const payslipRows = (p: any) => {
+const payslipRows = (p: any, rounded = false, hidden: PayslipLineKey[] = []) => {
+  const rows = payslipRowsAll(p, rounded);
+  // Blank details (no NSSF / NHIF number, job title, overtime…) are left off
+  const filled = ([, value]: [string, string]) => value !== '—';
+  const keep = (row: [string, string]) => filled(row) && !hidden.includes(LINE_KEY_BY_LABEL[row[0]]);
+  return {
+    ...rows,
+    infoRows: rows.infoRows.filter(filled),
+    earningsRows: rows.earningsRows.filter(keep),
+    payeRows: rows.payeRows.filter(keep),
+    deductionRows: rows.deductionRows.filter(keep),
+  };
+};
+
+const payslipRowsAll = (p: any, rounded = false) => {
+  const fmt = moneyFmt(rounded);
   const e = p.earnings || {};
   const d = p.deductions || {};
   const taxable =
@@ -130,7 +202,7 @@ const payslipRows = (p: any) => {
     ['TOTAL DEDUCTIONS', fmt(d.total)],
   ];
 
-  return { infoRows, earningsRows, payeRows, deductionRows, netPay: p.net_pay };
+  return { infoRows, earningsRows, payeRows, deductionRows, netPay: p.net_pay, fmt };
 };
 
 export type PayslipHeaderMode = 'company' | 'department';
@@ -175,26 +247,29 @@ export const renderPayslipPage = (
     user?: any;
     primary: [number, number, number];
     headerMode?: PayslipHeaderMode;
+    rounded?: boolean;
+    hidden?: PayslipLineKey[];
+    theme?: ExportTheme;
   },
   isFirstPage = true
 ) => {
-  const { kraPin, address, user, primary } = ctx;
+  const { kraPin, address, user } = ctx;
+  const theme = ctx.theme || getExportTheme();
   const company = headerName(payslip, { company: ctx.company, headerMode: ctx.headerMode || 'company' });
-  const [pr, pg, pb] = primary;
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   // Squeeze the payslip into a centered column — figures stay compact in the
   // middle of the page instead of stretching edge-to-edge (privacy-friendly)
   const contentWidth = Math.min(pageWidth * 0.48, 300);
   const margin = (pageWidth - contentWidth) / 2;
-  const { infoRows, earningsRows, payeRows, deductionRows, netPay } = payslipRows(payslip);
+  const { infoRows, earningsRows, payeRows, deductionRows, netPay, fmt } = payslipRows(payslip, !!ctx.rounded, ctx.hidden);
 
   if (!isFirstPage) doc.addPage();
 
   // ── Company header ──
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
-  doc.setTextColor(pr, pg, pb);
+  doc.setTextColor(...theme.title);
   doc.text(company.toUpperCase(), pageWidth / 2, margin + 2, { align: 'center' });
   doc.setFontSize(9.5);
   doc.setTextColor(100, 116, 139);
@@ -208,7 +283,7 @@ export const renderPayslipPage = (
     if (bits) doc.text(bits, pageWidth / 2, margin + 28, { align: 'center' });
   }
 
-  doc.setDrawColor(pr, pg, pb);
+  doc.setDrawColor(...theme.rule);
   doc.setLineWidth(1);
   doc.line(margin, margin + 34, pageWidth - margin, margin + 34);
 
@@ -223,9 +298,9 @@ export const renderPayslipPage = (
     theme: 'grid',
     styles: { fontSize: 8, cellPadding: 2.5, lineColor: [203, 213, 225], lineWidth: 0.4 },
     columnStyles: {
-      0: { fontStyle: 'bold', cellWidth: 62, textColor: [71, 85, 105] },
+      0: { fontStyle: 'bold', cellWidth: 62, textColor: [71, 85, 105], ...(theme.labelFill && { fillColor: theme.labelFill }) },
       1: { cellWidth: 68 },
-      2: { fontStyle: 'bold', cellWidth: 62, textColor: [71, 85, 105] },
+      2: { fontStyle: 'bold', cellWidth: 62, textColor: [71, 85, 105], ...(theme.labelFill && { fillColor: theme.labelFill }) },
       3: {},
     },
     margin: { left: margin, right: margin },
@@ -235,10 +310,17 @@ export const renderPayslipPage = (
   const sectionTable = (title: string, rows: [string, string][], highlightLast = true) => {
     autoTable(doc, {
       startY: y,
-      head: [[{ content: title, styles: { fillColor: [pr, pg, pb] } }, 'KSH']],
+      head: [[title, { content: 'KSH', styles: { halign: 'right' } }]],
       body: rows,
       theme: 'grid',
-      headStyles: { fillColor: [pr, pg, pb], textColor: 255, fontSize: 8.5, fontStyle: 'bold' },
+      headStyles: {
+        fillColor: theme.headFill,
+        textColor: theme.headText,
+        lineColor: theme.headLine,
+        lineWidth: 0.6,
+        fontSize: 8.5,
+        fontStyle: 'bold',
+      },
       styles: { fontSize: 8.5, cellPadding: 3, lineColor: [203, 213, 225], lineWidth: 0.4 },
       columnStyles: {
         0: { fontStyle: 'bold', cellWidth: 190, textColor: [51, 65, 85] },
@@ -248,8 +330,8 @@ export const renderPayslipPage = (
       didParseCell: (data) => {
         if (highlightLast && data.section === 'body' && data.row.index === rows.length - 1) {
           data.cell.styles.fontStyle = 'bold';
-          data.cell.styles.fillColor = [pr, pg, pb];
-          data.cell.styles.textColor = [255, 255, 255];
+          data.cell.styles.textColor = theme.totalText;
+          if (theme.totalFill) data.cell.styles.fillColor = theme.totalFill;
         }
       },
     });
@@ -260,12 +342,18 @@ export const renderPayslipPage = (
   sectionTable('PAYE COMPUTATION', payeRows);
   sectionTable('DEDUCTIONS', deductionRows);
 
-  // ── Net pay banner — same brand color as the highlighted totals rows ──
-  doc.setFillColor(pr, pg, pb);
-  doc.roundedRect(margin, y, contentWidth, 26, 4, 4, 'F');
+  // ── Net pay banner — filled, or an outlined box on the lighter templates ──
+  if (theme.netFill) {
+    doc.setFillColor(...theme.netFill);
+    doc.roundedRect(margin, y, contentWidth, 26, 4, 4, 'F');
+  } else {
+    doc.setDrawColor(...theme.netBorder);
+    doc.setLineWidth(1.2);
+    doc.roundedRect(margin, y, contentWidth, 26, 4, 4, 'S');
+  }
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(255, 255, 255);
+  doc.setTextColor(...theme.netText);
   doc.text('NET PAY', margin + 12, y + 17);
   doc.setFontSize(15);
   doc.text(`KES ${fmt(netPay)}`, pageWidth - margin - 12, y + 18, { align: 'right' });
@@ -285,9 +373,9 @@ export const renderPayslipPage = (
 
 // Build a payslip PDF document without saving — returns the jsPDF instance
 // (used for email attachments via doc.output('datauristring'))
-export const buildPayslipsPDFDoc = async (payslips: any[], headerMode?: PayslipHeaderMode) => {
+export const buildPayslipsPDFDoc = async (payslips: any[], headerMode?: PayslipHeaderMode, rounded = false) => {
   if (!payslips.length) return null;
-  const ctx = await getExportContext(headerMode);
+  const ctx = { ...(await getExportContext(headerMode)), rounded };
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
 
   let rendered = 0;
@@ -302,19 +390,23 @@ export const buildPayslipsPDFDoc = async (payslips: any[], headerMode?: PayslipH
   return rendered ? doc : null;
 };
 
-export const generatePayslipsPDF = async (payslips: any[], headerMode?: PayslipHeaderMode) => {
+export const generatePayslipsPDF = async (payslips: any[], headerMode?: PayslipHeaderMode, rounded = false) => {
   if (!payslips.length) {
     message.warning('No payslips to export for the current filter');
     return;
   }
-  const doc = await buildPayslipsPDFDoc(payslips, headerMode);
+  const doc = await buildPayslipsPDFDoc(payslips, headerMode, rounded);
   if (!doc) {
     message.error('Export failed — no payslips could be rendered');
     return;
   }
 
-  const period = payslips[0]?.period_label?.replace(/\s+/g, '_') || 'export';
-  doc.save(`payslips_${period}.pdf`);
+  const { company } = await getExportContext(headerMode);
+  doc.save(
+    payslips.length === 1
+      ? `${singlePayslipFileName(payslips[0])}.pdf`
+      : `${exportFileName({ client: company, departments: payslips.map(departmentName), what: 'Payslips', period: payslips[0]?.period_label })}.pdf`
+  );
   message.success(`Exported ${payslips.length} payslip${payslips.length === 1 ? '' : 's'} to PDF`);
 };
 
@@ -469,9 +561,9 @@ export const exportP9ToExcel = async (payslips: any[], year: number, opts?: { hi
   XLSX.writeFile(wb, `P9_Form_${empNo}_${year}.xlsx`);
 };
 
-const buildPayslipSheet = (p: any, company: string) => {
-  const { infoRows, earningsRows, payeRows, deductionRows, netPay } = payslipRows(p);
-  const brand = (getPrimaryColor() || '#0E388A').replace('#', '').toUpperCase().padStart(6, '0');
+const buildPayslipSheet = (p: any, company: string, rounded = false, hidden: PayslipLineKey[] = []) => {
+  const { infoRows, earningsRows, payeRows, deductionRows, netPay, fmt } = payslipRows(p, rounded, hidden);
+  const theme = getExportTheme();
 
   const aoa: any[][] = [
     [company.toUpperCase()],
@@ -510,8 +602,9 @@ const buildPayslipSheet = (p: any, company: string) => {
   // ── Cell styles (written by xlsx-js-style) ──
   const thin = { style: 'thin', color: { rgb: 'FFCBD5E1' } };
   const border = { top: thin, bottom: thin, left: thin, right: thin };
+  const headLine = { style: 'thin', color: { rgb: argb(theme.headLine) } };
   const companyStyle: any = {
-    font: { bold: true, sz: 14, color: { rgb: `FF${brand}` } },
+    font: { bold: true, sz: 14, color: { rgb: argb(theme.title) } },
     alignment: { horizontal: 'center', vertical: 'center' },
   };
   const titleStyle: any = {
@@ -521,30 +614,31 @@ const buildPayslipSheet = (p: any, company: string) => {
   const periodStyle: any = {
     font: { sz: 9, color: { rgb: 'FF94A3B8' } },
     alignment: { horizontal: 'center' },
-    border: { bottom: { style: 'medium', color: { rgb: `FF${brand}` } } },
+    border: { bottom: { style: 'medium', color: { rgb: argb(theme.rule) } } },
   };
   const infoLabel: any = {
     font: { bold: true, sz: 9, color: { rgb: 'FF475569' } },
-    fill: { fgColor: { rgb: 'FFF1F5F9' } },
+    ...xlsxFill(theme.labelFill),
     border,
   };
   const infoValue: any = { font: { sz: 9 }, border };
   const sectionLabel: any = {
-    font: { bold: true, sz: 9.5, color: { rgb: 'FFFFFFFF' } },
-    fill: { fgColor: { rgb: `FF${brand}` } },
-    border,
+    font: { bold: true, sz: 9.5, color: { rgb: argb(theme.headText) } },
+    ...xlsxFill(theme.headFill),
+    border: { top: headLine, bottom: headLine, left: headLine, right: headLine },
   };
   const bodyLabel: any = { font: { sz: 9, color: { rgb: 'FF334155' } }, border };
   const bodyValue: any = { font: { sz: 9 }, border, alignment: { horizontal: 'right' } };
   const totalLabel: any = {
-    font: { bold: true, sz: 9.5, color: { rgb: 'FFFFFFFF' } },
-    fill: { fgColor: { rgb: `FF${brand}` } },
+    font: { bold: true, sz: 9.5, color: { rgb: argb(theme.totalText) } },
+    ...xlsxFill(theme.totalFill),
     border,
   };
+  const netBorder = { style: 'medium', color: { rgb: argb(theme.netBorder) } };
   const netPayLabel: any = {
-    font: { bold: true, sz: 11, color: { rgb: 'FFFFFFFF' } },
-    fill: { fgColor: { rgb: `FF${brand}` } },
-    border,
+    font: { bold: true, sz: 11, color: { rgb: argb(theme.netText) } },
+    ...xlsxFill(theme.netFill),
+    border: { top: netBorder, bottom: netBorder, left: netBorder, right: netBorder },
   };
 
   const setCell = (r: number, c: number, s: any) => {
@@ -582,26 +676,42 @@ const buildPayslipSheet = (p: any, company: string) => {
   const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
   for (let r = 0; r <= range.e.r; r++) {
     const cell = ws[XLSX.utils.encode_cell({ r, c: 1 })];
-    if (cell && cell.t === 'n') cell.z = '#,##0.00';
+    if (cell && cell.t === 'n') cell.z = rounded ? '#,##0' : '#,##0.00';
   }
   return ws;
 };
 
 /** Single-payslip Excel export — the classic payslip layout on one sheet. */
-export const exportPayslipToExcel = async (payslip: any, headerMode?: PayslipHeaderMode) => {
+export const exportPayslipToExcel = async (
+  payslip: any,
+  headerMode?: PayslipHeaderMode,
+  rounded = false,
+  hidden: PayslipLineKey[] = []
+) => {
   const ctx = await getExportContext(headerMode);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(
     wb,
-    buildPayslipSheet(payslip, headerName(payslip, ctx)),
+    buildPayslipSheet(payslip, headerName(payslip, ctx), rounded, hidden),
     sanitizeSheetName(payslip.employee_id?.employee_number || 'Payslip', 'Payslip')
   );
-  const period = (payslip.period_label || 'export').replace(/\s+/g, '_');
-  const empNo = payslip.employee_id?.employee_number || 'employee';
-  XLSX.writeFile(wb, `Payslip_${empNo}_${period}.xlsx`);
+  XLSX.writeFile(wb, `${singlePayslipFileName(payslip)}.xlsx`);
 };
 
-export const exportPayslipsToExcel = async (payslips: any[], headerMode?: PayslipHeaderMode) => {
+/** Single-payslip PDF — same layout and file name rules as the Excel export. */
+export const exportPayslipToPDF = async (
+  payslip: any,
+  headerMode?: PayslipHeaderMode,
+  rounded = false,
+  hidden: PayslipLineKey[] = []
+) => {
+  const ctx = { ...(await getExportContext(headerMode)), rounded, hidden };
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  renderPayslipPage(doc, payslip, ctx, true);
+  doc.save(`${singlePayslipFileName(payslip)}.pdf`);
+};
+
+export const exportPayslipsToExcel = async (payslips: any[], headerMode?: PayslipHeaderMode, rounded = false) => {
   if (!payslips.length) {
     message.warning('No payslips to export for the current filter');
     return;
@@ -622,20 +732,21 @@ export const exportPayslipsToExcel = async (payslips: any[], headerMode?: Paysli
     ...(hasWht ? ['WHT'] : []),
     'Other', 'Total Deductions', 'Net Pay', 'Emailed',
   ];
+  const rn = (v: any) => (rounded ? Math.round(Number(v || 0)) : Number(v || 0));
   const summaryBody = payslips.map((p: any) => [
     employeeName(p),
     p.employee_id?.employee_number || '—',
     departmentName(p),
     p.period_label || '—',
-    p.earnings?.gross_salary || 0,
-    p.deductions?.paye || 0,
-    p.deductions?.nssf || 0,
-    p.deductions?.nhif || 0,
-    p.deductions?.housing_levy || 0,
-    ...(hasWht ? [p.deductions?.withholding_tax || 0] : []),
-    (p.deductions?.custom || []).reduce((s: number, c: any) => s + (c.amount || 0), 0),
-    p.deductions?.total || 0,
-    p.net_pay || 0,
+    rn(p.earnings?.gross_salary),
+    rn(p.deductions?.paye),
+    rn(p.deductions?.nssf),
+    rn(p.deductions?.nhif),
+    rn(p.deductions?.housing_levy),
+    ...(hasWht ? [rn(p.deductions?.withholding_tax)] : []),
+    rn((p.deductions?.custom || []).reduce((s: number, c: any) => s + (c.amount || 0), 0)),
+    rn(p.deductions?.total),
+    rn(p.net_pay),
     p.emailed_at ? 'Yes' : 'No',
   ]);
   const summaryWs = XLSX.utils.aoa_to_sheet([summaryHead, ...summaryBody]);
@@ -650,7 +761,7 @@ export const exportPayslipsToExcel = async (payslips: any[], headerMode?: Paysli
   for (let r = 1; r <= sRange.e.r; r++) {
     for (let c = 4; c <= summaryHead.length - 2; c++) {
       const cell = summaryWs[XLSX.utils.encode_cell({ r, c })];
-      if (cell && cell.t === 'n') cell.z = '#,##0.00';
+      if (cell && cell.t === 'n') cell.z = rounded ? '#,##0' : '#,##0.00';
     }
   }
   XLSX.utils.book_append_sheet(wb, summaryWs, 'Summary');
@@ -667,15 +778,19 @@ export const exportPayslipsToExcel = async (payslips: any[], headerMode?: Paysli
       let n = 1;
       while (usedNames.has(name)) name = `${name.slice(0, 28)}_${++n}`;
       usedNames.add(name);
-      XLSX.utils.book_append_sheet(wb, buildPayslipSheet(p, headerName(p, ctx)), name);
+      XLSX.utils.book_append_sheet(wb, buildPayslipSheet(p, headerName(p, ctx), rounded), name);
     } catch (err) {
       console.error(`Failed to render payslip sheet ${p?._id}:`, err);
       failed++;
     }
   }
 
-  const period = payslips[0]?.period_label?.replace(/\s+/g, '_') || 'export';
-  XLSX.writeFile(wb, `payslips_${period}.xlsx`);
+  XLSX.writeFile(
+    wb,
+    payslips.length === 1
+      ? `${singlePayslipFileName(payslips[0])}.xlsx`
+      : `${exportFileName({ client: ctx.company, departments: payslips.map(departmentName), what: 'Payslips', period: payslips[0]?.period_label })}.xlsx`
+  );
   if (failed) {
     message.warning(`Exported ${wb.SheetNames.length - 1} payslip sheets; ${failed} failed`);
   } else {

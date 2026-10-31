@@ -8,6 +8,7 @@ import {
   TeamOutlined,
   SolutionOutlined,
   CarryOutOutlined,
+  ContactsOutlined,
 } from "@ant-design/icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { fetchSystemSetupDetailsById, updateSystemSetup } from "../../../services/systemsetup";
@@ -24,12 +25,13 @@ type FormsFlag =
   | "client_plans_enabled"
   | "require_form_before_checkout"
   | "employee_forms_enabled"
-  | "employee_plans_enabled";
+  | "employee_plans_enabled"
+  | "contact_forms_enabled";
 
 type FormsSettingsState = Record<FormsFlag, boolean>;
 
 // Mirrors the API defaults: the add-on itself is off; once it is on, client
-// forms and plans are available straight away and HR switches its own on.
+// and contact forms are available straight away and HR switches its own on.
 const DEFAULTS: FormsSettingsState = {
   enabled: false,
   client_forms_enabled: true,
@@ -37,6 +39,7 @@ const DEFAULTS: FormsSettingsState = {
   require_form_before_checkout: false,
   employee_forms_enabled: false,
   employee_plans_enabled: false,
+  contact_forms_enabled: true,
 };
 
 const SectionLabel: React.FC<{ text: string }> = ({ text }) => (
@@ -119,9 +122,11 @@ interface FormsSettingsProps {
   hasClients: boolean;
   /** The tenant has Bandu HR */
   hasEmployees: boolean;
+  /** The tenant has Mteja (contact forms for leads and non-customers) */
+  hasContacts?: boolean;
 }
 
-const FormsSettings: React.FC<FormsSettingsProps> = ({ hasClients, hasEmployees }) => {
+const FormsSettings: React.FC<FormsSettingsProps> = ({ hasClients, hasEmployees, hasContacts = false }) => {
   const queryClient = useQueryClient();
   const [settings, setSettings] = useState<FormsSettingsState>(DEFAULTS);
   const [systemSettingsId, setSystemSettingsId] = useState<string | null>(null);
@@ -178,7 +183,10 @@ const FormsSettings: React.FC<FormsSettingsProps> = ({ hasClients, hasEmployees 
   }
 
   const off = !settings.enabled;
-  const where = [hasClients && "Duka", hasEmployees && "Bandu HR"].filter(Boolean).join(" and ");
+  const where = [hasClients && "Duka", hasEmployees && "Bandu HR", hasContacts && "Mteja"]
+    .filter(Boolean)
+    .join(", ")
+    .replace(/, ([^,]*)$/, " and $1");
 
   return (
     <ProCard
@@ -281,6 +289,23 @@ const FormsSettings: React.FC<FormsSettingsProps> = ({ hasClients, hasEmployees 
                 disabled={off}
               />
             </Space>
+          </div>
+        )}
+
+        {hasContacts && (
+          <div>
+            <SectionLabel text="Contacts (Mteja)" />
+            <ToggleRow
+              icon={<ContactsOutlined />}
+              color="#059669"
+              bg="#ecfdf5"
+              title="Contact Forms & Consents"
+              description="Data protection consent, marketing opt-ins, photo releases, waivers, NDAs and agreements for leads and people who aren't customers — signed on a tablet or from a link, with ready-made templates."
+              checked={settings.contact_forms_enabled}
+              onChange={handleToggle("contact_forms_enabled", (c) => (c ? "Contact Forms turned on" : "Contact Forms turned off"))}
+              loading={updating === "contact_forms_enabled"}
+              disabled={off}
+            />
           </div>
         )}
 

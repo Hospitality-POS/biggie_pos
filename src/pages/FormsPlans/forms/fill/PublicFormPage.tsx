@@ -94,8 +94,8 @@ const PublicFormPage: React.FC = () => {
       <Text style={{ fontSize: 15, color: "#475569", display: "block", maxWidth: 420, margin: "0 auto" }}>
         {completed
           ? `Your signed ${view.form.name} has been sent to ${business}.`
-          : a.audience === "employee"
-            ? `${business} has your signed form. ${staffLabel || "HR"} will countersign it — you can download your copy from this link afterwards.`
+          : a.audience !== "client"
+            ? `${business} has your signed form. ${staffLabel || a.staff} will countersign it — you can download your copy from this link afterwards.`
             : `${business} has your answers. Your ${(staffLabel || "therapist").toLowerCase()} will countersign before your treatment.`}
       </Text>
       {completed && hasPdf && (

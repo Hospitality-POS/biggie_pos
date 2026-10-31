@@ -56,9 +56,11 @@ export interface FrozenForm {
 
 export interface FormSubmission {
   _id: string;
-  subject_type: "customer" | "employee";
+  subject_type: "customer" | "employee" | "contact";
   customer_id: string | null;
   employee_id: string | null;
+  /** Contact forms: the Mteja lead, when the person is one */
+  lead_id?: string | null;
   subject_snapshot: { name: string; phone: string; email: string };
   template_id: string;
   template_version: number;
@@ -83,7 +85,7 @@ export type FormSubmissionSummary = Omit<FormSubmission, "answers" | "form"> & {
 
 export interface PublicFormView {
   business_name: string;
-  audience: "client" | "employee";
+  audience: "client" | "employee" | "contact";
   client_name: string;
   status: SubmissionStatus;
   signed: boolean;

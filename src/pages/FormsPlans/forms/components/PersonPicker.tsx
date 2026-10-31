@@ -4,6 +4,7 @@ import { Select, Spin } from "antd";
 import { useDebounce } from "@hooks/useDebounce";
 import { fetchEmployees } from "@services/bandu";
 import CustomerPicker, { type PickedCustomer } from "./CustomerPicker";
+import { LeadPicker } from "./ContactPicker";
 import { useAudience } from "../../audience";
 import { personName, type PersonLite } from "../person";
 
@@ -22,7 +23,11 @@ const EmployeePicker: React.FC<Props> = ({ value, onChange, size = "middle" }) =
 
   const { data: employees = [], isFetching } = useQuery({
     queryKey: ["employee-picker", debounced],
-    queryFn: async () => ((await fetchEmployees({ search: debounced || undefined, limit: 30 }))?.employees ?? []) as PersonLite[],
+    queryFn: async () => {
+      // /employees returns the list under `data` (same as the Employees page reads it)
+      const res = await fetchEmployees({ search: debounced || undefined, limit: 30 });
+      return (Array.isArray(res) ? res : res?.data ?? res?.employees ?? []) as PersonLite[];
+    },
   });
 
   // Keep the chosen employee in the list so the Select can show their name
@@ -47,10 +52,11 @@ const EmployeePicker: React.FC<Props> = ({ value, onChange, size = "middle" }) =
   );
 };
 
-/** Customer or employee picker, depending on the audience. */
+/** Customer, employee or lead picker, depending on the audience. */
 const PersonPicker: React.FC<Props> = (props) => {
   const { audience } = useAudience();
   if (audience === "employee") return <EmployeePicker {...props} />;
+  if (audience === "contact") return <LeadPicker {...props} />;
   return (
     <CustomerPicker
       value={props.value as PickedCustomer | null}

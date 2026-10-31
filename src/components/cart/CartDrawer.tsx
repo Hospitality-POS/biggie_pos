@@ -11,7 +11,7 @@ import {
   updateCart,
 } from "../../features/Cart/CartActions";
 import { clearPendingPrint, setPendingPrint } from "../../features/PendingPrint/PendingPrintSlice";
-import { computeCartTotals } from "../../features/Cart/CartSlice";
+import { computeCartTotals, recalculateTotals } from "../../features/Cart/CartSlice";
 import { updateCart as updateCartService } from "../../services/cart";
 import PaymentDrawer from "../payment/PaymentDrawer";
 import SkeletonCartItemCard from "./SkeletonCartItemCard";
@@ -147,6 +147,13 @@ const CartDrawer: React.FC = () => {
 
   const { id } = useParams();
   const dispatch = useAppDispatch();
+
+  // fetchShop caches this branch's VAT settings — re-run the cart totals so
+  // branch VAT takes priority over the business-wide VAT.
+  const shopTaxSettingsKey = JSON.stringify(shopData?.tax_settings ?? null);
+  useEffect(() => {
+    if (shopData) dispatch(recalculateTotals());
+  }, [shopTaxSettingsKey, dispatch]);
   const navigate = useNavigate();
   const primaryColor = usePrimaryColor();
   const { isRetailMode, isHospitalMode } = usePOSMode();

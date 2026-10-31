@@ -170,7 +170,7 @@ const MapView: React.FC<{ shops: any[]; height?: number }> = ({ shops, height = 
       }
       const script = document.createElement("script");
       script.id = "gmap-script";
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places`;
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places&loading=async`;
       script.async = true;
       script.defer = true;
       script.onload = () => setSdkLoaded(true);

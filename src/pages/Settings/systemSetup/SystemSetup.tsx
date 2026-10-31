@@ -157,17 +157,18 @@ const SystemSetup: React.FC = () => {
       );
     }
 
-    // Client forms need customers (POS); employee forms need Bandu HR
-    if (hasPOS || hasBandu) {
+    // Client forms need customers (POS); employee forms need Bandu HR;
+    // contact forms (consent, waivers… for non-customers) need Mteja
+    if (hasPOS || hasBandu || hasMteja) {
       list.push({
         key: "forms-plans",
         label: "Forms & Plans",
-        description: "Forms, e-sign & plans for clients and employees",
+        description: "Forms, e-sign & plans for clients, employees and contacts",
         icon: <FormOutlined />,
         color: "#8b5cf6",
         bg: "#f5f3ff",
         group: "Add-ons",
-        render: () => <FormsSettings hasClients={hasPOS} hasEmployees={hasBandu} />,
+        render: () => <FormsSettings hasClients={hasPOS} hasEmployees={hasBandu} hasContacts={hasMteja} />,
       });
     }
 

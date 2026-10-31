@@ -119,8 +119,11 @@ const InStoreFillPage = lazyWithReload(() => import("@pages/FormsPlans/forms/fil
 const PublicFormPage = lazyWithReload(() => import("@pages/FormsPlans/forms/fill/PublicFormPage"));
 const AccountRestrictedPage = lazyWithReload(() => import("@pages/AccountRestricted/AccountRestrictedPage"));
 const EmployeeFormsHubPage = () => <FormsHubPage audience="employee" />;
+// Mteja: consent, privacy, waivers… for leads and people who aren't customers
+const ContactFormsHubPage = () => <FormsHubPage audience="contact" />;
 const CLIENT_FORMS_HUB_PERMISSIONS = ["CLIENT_FORMS_VIEW", "CLIENT_FORMS_VIEW_FILLED", "CLIENT_PLANS_VIEW", "CLIENT_FORMS_ANALYTICS"];
 const EMPLOYEE_FORMS_HUB_PERMISSIONS = ["EMPLOYEE_FORMS_VIEW", "EMPLOYEE_PLANS_VIEW", "EMPLOYEE_FORMS_ANALYTICS"];
+const CONTACT_FORMS_HUB_PERMISSIONS = ["MTEJA_FORMS_VIEW", "MTEJA_FORMS_VIEW_FILLED"];
 
 // The POS screen. In hospital mode it also holds the Healthcare queue and
 // pharmacy tabs, so clinical staff without cart access can open it too.
@@ -432,6 +435,11 @@ const routes = sentryCreateBrowserRouter(
         errorElement={<NotFound />}
         element={banduHRPage(InStoreFillPage, "EMPLOYEE_FORMS_MANAGE")}
       />
+      <Route
+        path="/crm/forms/fill/:id"
+        errorElement={<NotFound />}
+        element={mtejaPage(InStoreFillPage, "MTEJA_FORMS_SEND")}
+      />
       <Route path="/client-forms/fill/:id" element={<RedirectWithParams to="/forms/fill/:id" />} />
 
       {/* ══════════════════════════════════════════════════════════════════
@@ -655,6 +663,11 @@ const routes = sentryCreateBrowserRouter(
               tenants selling through the WhatsApp Marketplace. */}
           <Route path="orders" errorElement={<NotFound />}
             element={mtejaPage(MainOrders, "ORDERS_VIEW")} />
+          {/* Contact forms — consent, privacy, waivers… for leads and non-customers */}
+          <Route path="forms" errorElement={<NotFound />}
+            element={mtejaPage(ContactFormsHubPage, CONTACT_FORMS_HUB_PERMISSIONS)} />
+          <Route path="forms/builder/:id" errorElement={<NotFound />}
+            element={mtejaPage(FormBuilderPage, "MTEJA_FORMS_VIEW")} />
         </Route>
 
         {/* ── Dala Real Estate — shop level (/dala/...) ───────────────────────
@@ -966,6 +979,10 @@ const routes = sentryCreateBrowserRouter(
             element={mtejaAdminPage(InventoryMainSettings, "INVENTORY_VIEW")} />
           <Route path="orders" errorElement={<NotFound />}
             element={mtejaAdminPage(MainOrders, "ORDERS_VIEW")} />
+          <Route path="forms" errorElement={<NotFound />}
+            element={mtejaAdminPage(ContactFormsHubPage, CONTACT_FORMS_HUB_PERMISSIONS)} />
+          <Route path="forms/builder/:id" errorElement={<NotFound />}
+            element={mtejaAdminPage(FormBuilderPage, "MTEJA_FORMS_VIEW")} />
         </Route>
 
         {/* ── Dala Real Estate — admin level (/admin/dala/...) ───────────────

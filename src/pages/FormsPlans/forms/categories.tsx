@@ -67,7 +67,7 @@ export const CategorySelect: React.FC<CategorySelectProps> = (props) => {
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
   const canAdd = can(a.perms.categoriesManage);
-  const noun = a.audience === "employee" ? "type" : "treatment";
+  const noun = a.categoryNoun;
 
   const add = async () => {
     const label = name.trim();

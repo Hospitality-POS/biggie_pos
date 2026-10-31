@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { beginLogout } from "@services/request";
 import {
   Badge,
   Button,
@@ -244,6 +245,8 @@ const AdminDashboard: React.FC = () => {
   }, [location.pathname]);
 
   const handleLogout = () => {
+    // Pages still on screen must not toast errors once the session is gone
+    beginLogout();
     localStorage.removeItem("user");
     localStorage.removeItem("token");
     queryClient.removeQueries(["userNotifications"]);
