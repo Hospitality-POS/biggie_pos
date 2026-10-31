@@ -1,15 +1,13 @@
-import { deleteProductInventory } from "@features/Inventory/product/productInventoryActions";
+import { deleteInventory } from "@services/inventory";
 import { Modal, notification } from "antd/lib";
 import { useState } from "react";
-import { useAppDispatch } from "src/store";
 
 export const useProductInventorySettings = () => {
-  const dispatch = useAppDispatch();
   const [deleteConfirmationOpen, setDeleteConfirmationOpen] =
     useState<boolean>(false);
-  const [deleteCandidate, setDeleteCandidate] = useState("");
+  const [deleteCandidate, setDeleteCandidate] = useState<any>("");
 
-  const handleDeleteClick = (_id: number) => {
+  const handleDeleteClick = (_id: any) => {
     setDeleteCandidate(_id);
     setDeleteConfirmationOpen(true);
   };
@@ -17,7 +15,7 @@ export const useProductInventorySettings = () => {
   const handleDeleteConfirm = async (ref) => {
     try {
       if (deleteCandidate) {
-        dispatch(deleteProductInventory(deleteCandidate._id));
+        await deleteInventory(deleteCandidate._id || deleteCandidate);
         setDeleteConfirmationOpen(false);
         ref?.current?.reload() && ref.current.reload();
       }

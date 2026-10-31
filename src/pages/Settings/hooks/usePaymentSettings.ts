@@ -1,11 +1,8 @@
 import { useState } from "react";
-import { useAppDispatch } from "../../../store";
-import { deletePaymentMethod } from "@features/Payment/PaymentMethodActions";
+import { deletePaymentMethod } from "@services/paymentMethod";
 import { Modal, notification } from "antd/lib";
 
 const usePaymentSettings = () => {
-  const dispatch = useAppDispatch();
-
   const [addPaymentSettingDialogOpen, setAddPaymentSettingDialogOpen] =
     useState(false);
   const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
@@ -19,7 +16,7 @@ const usePaymentSettings = () => {
   const handleDeleteConfirm = async (ref) => {
     try {
       if (deleteCandidate) {
-        dispatch(deletePaymentMethod(deleteCandidate._id));
+        await deletePaymentMethod(deleteCandidate._id);
         setDeleteConfirmationOpen(false);
         ref.current?.reload();
 
