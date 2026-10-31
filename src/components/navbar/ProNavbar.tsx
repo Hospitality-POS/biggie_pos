@@ -73,6 +73,7 @@ import EcosystemAppSwitcher from "./EcosystemAppSwitcher";
 import { useActiveProduct } from "@context/ProductContext";
 import React from "react";
 import { getCurrentTenantId } from "@services/tenants";
+import { beginLogout } from "@services/request";
 
 import { QuickLinks, useQuickLinks } from "@components/quicklinks";
 
@@ -218,6 +219,8 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
   };
 
   const handleLogout = () => {
+    // Pages still on screen must not toast errors once the session is gone
+    beginLogout();
     dispatch(logoutUser());
     localStorage.removeItem("shopId");
     dispatch(reset());

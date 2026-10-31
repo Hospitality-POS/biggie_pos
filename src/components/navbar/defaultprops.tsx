@@ -207,6 +207,7 @@ const CRM_ROUTE_PERMISSIONS: Record<string, string> = {
   "/crm/calendar": "CUSTOMERS_VIEW",
   "/crm/stock": "INVENTORY_VIEW",
   "/crm/orders": "ORDERS_VIEW",
+  "/crm/forms": "MTEJA_FORMS_VIEW|MTEJA_FORMS_VIEW_FILLED",
   "/customers": "CUSTOMERS_VIEW",
   "/reports": "REPORTS_ITEM_SALES|REPORTS_VIEW",
   "/documents": "DOCUMENTS_VIEW",
@@ -478,6 +479,10 @@ export const useProLayoutNav = () => {
     { path: p("/crm/leads"), name: "Leads", icon: <TeamOutlined />, _bare: "/crm/leads" },
     { path: p("/crm/calendar"), name: "Activity Calendar", icon: <CalendarOutlined />, _bare: "/crm/calendar" },
     { path: p("/crm/quotes"), name: "Quotes", icon: <FileTextOutlined />, _bare: "/crm/quotes" },
+    // Consent, privacy, waivers, NDAs… for leads and people who aren't customers
+    ...(formsAddOn.contactForms
+      ? [{ path: p("/crm/forms"), name: "Forms & Consents", icon: <FormOutlined />, _bare: "/crm/forms" }]
+      : []),
     { path: p("/crm/campaigns"), name: "Campaigns", icon: <NotificationOutlined />, _bare: "/crm/campaigns" },
     { path: p("/crm/sales-targets"), name: "Sales Targets", icon: <AimOutlined />, _bare: "/crm/sales-targets" },
     { path: p("/crm/sales-budgets"), name: "Sales Budgets", icon: <RiseOutlined />, _bare: "/crm/sales-budgets" },

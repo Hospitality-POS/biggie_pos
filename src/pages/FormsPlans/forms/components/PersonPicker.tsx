@@ -4,6 +4,7 @@ import { Select, Spin } from "antd";
 import { useDebounce } from "@hooks/useDebounce";
 import { fetchEmployees } from "@services/bandu";
 import CustomerPicker, { type PickedCustomer } from "./CustomerPicker";
+import { LeadPicker } from "./ContactPicker";
 import { useAudience } from "../../audience";
 import { personName, type PersonLite } from "../person";
 
@@ -51,10 +52,11 @@ const EmployeePicker: React.FC<Props> = ({ value, onChange, size = "middle" }) =
   );
 };
 
-/** Customer or employee picker, depending on the audience. */
+/** Customer, employee or lead picker, depending on the audience. */
 const PersonPicker: React.FC<Props> = (props) => {
   const { audience } = useAudience();
   if (audience === "employee") return <EmployeePicker {...props} />;
+  if (audience === "contact") return <LeadPicker {...props} />;
   return (
     <CustomerPicker
       value={props.value as PickedCustomer | null}

@@ -47,6 +47,7 @@ import {
   EditOutlined,
   ThunderboltOutlined,
   PayCircleOutlined,
+  RollbackOutlined,
   FileExcelOutlined,
   FilePdfOutlined,
   MoreOutlined,
@@ -56,6 +57,8 @@ import {
   UserOutlined,
 } from "@ant-design/icons";
 import { exportPayrollToExcel, exportPayrollToPDF, exportPayrollsToExcel, exportPayrollsToPDF, exportNssfFiling, exportShifFiling, exportPayeFiling } from "@utils/payrollExport";
+import { useExportTemplate } from "@utils/exportTemplates";
+import { exportTemplateMenuItem } from "@components/ExportTemplate/exportTemplateMenu";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getUser } from "@services/tenants";
 import { getPermissionChecker } from "@utils/getPermissionChecker";
@@ -74,6 +77,7 @@ import {
   payrollLineAction,
   processPayrollRequest,
   markPayrollPaid,
+  markPayrollUnpaid,
   initializeDeductionSettings,
   fetchDeductionConfigs,
   getPayrollById,
@@ -173,6 +177,7 @@ const PayrollManagement: React.FC = () => {
   // Rounds every money figure shown in the payroll table (and passed to
   // muster-roll exports) to whole shillings — display/export only.
   const [roundOff, setRoundOff] = useState(false);
+  const [exportTemplate, setExportTemplate] = useExportTemplate();
   const [form] = Form.useForm();
   const [deductionForm] = Form.useForm();
   const [customDeductions, setCustomDeductions] = useState<
@@ -1118,6 +1123,45 @@ const PayrollManagement: React.FC = () => {
         message.error(data?.message || "Failed to mark payroll as paid");
       }
     }
+  };
+
+  // Undo a payment (marked paid by mistake, transfer failed…). The API
+  // reverses the salary payment entry in accounting; the accrual stays.
+  // `ids` is one payroll from its row menu, or the bulk selection.
+  const confirmMarkUnpaid = (ids: string[]) => {
+    let reason = "";
+    const many = ids.length > 1;
+    Modal.confirm({
+      title: many ? `Mark ${ids.length} payrolls as unpaid?` : "Mark this payroll as unpaid?",
+      okText: "Mark Unpaid",
+      okButtonProps: { danger: true },
+      content: (
+        <div>
+          <Text style={{ display: "block", marginBottom: 10 }}>
+            {many ? "They go" : "It goes"} back to <strong>Processed</strong> (or Approved, if never processed) so{" "}
+            {many ? "they" : "it"} can be paid again later.
+            If the payment was posted to accounting, a reversing entry is posted today — the bank balance goes back up and the
+            net salaries show as owed again. The accrual entry is kept.
+          </Text>
+          <Input.TextArea
+            rows={2}
+            maxLength={500}
+            placeholder="Reason (optional), e.g. bank transfer failed"
+            onChange={(e) => {
+              reason = e.target.value;
+            }}
+          />
+        </div>
+      ),
+      onOk: async () => {
+        if (many) {
+          await runBulk("Mark unpaid", (id) => markPayrollUnpaid(id, { reason }));
+        } else {
+          await markPayrollUnpaid(ids[0], { reason });
+          queryClient.invalidateQueries({ queryKey: ["payrolls"] });
+        }
+      },
+    });
   };
 
   // Generate batch payslips mutation
@@ -2122,6 +2166,15 @@ const PayrollManagement: React.FC = () => {
             onClick: () => handleMarkPaid(record),
           });
         }
+        if (record.status === "paid" && canProcessPayroll) {
+          items.push({
+            key: "unpaid",
+            label: "Mark Unpaid",
+            icon: <RollbackOutlined />,
+            danger: true,
+            onClick: () => confirmMarkUnpaid([record._id]),
+          });
+        }
         if (["approved", "processed", "paid"].includes(record.status) && canGeneratePayslips) {
           items.push({
             key: "payslips",
@@ -2180,6 +2233,7 @@ const PayrollManagement: React.FC = () => {
   const allSelectedDraft = allSelectedStatus("draft");
   const allSelectedProcessable = allSelectedStatus("approved");
   const allSelectedPayable = allSelectedStatus("approved", "processed");
+  const allSelectedPaid = allSelectedStatus("paid");
   const allSelectedPayslipable = allSelectedStatus("approved", "processed", "paid");
   // Admins may delete at any step in either view — in Employees view a full
   // selection on a processed/paid payroll deletes the whole payroll (posted
@@ -2270,6 +2324,7 @@ const PayrollManagement: React.FC = () => {
                     icon: roundOff ? <CheckCircleOutlined style={{ color: "#10b981" }} /> : <span style={{ display: "inline-block", width: 14 }} />,
                     onClick: () => setRoundOff((v) => !v),
                   },
+                  exportTemplateMenuItem(exportTemplate, setExportTemplate),
                   { type: "divider" },
                   {
                     key: "excel",
@@ -2625,6 +2680,17 @@ const PayrollManagement: React.FC = () => {
                         }
                       >
                         Mark Paid
+                      </Button>
+                    )}
+                    {allSelectedPaid && canProcessPayroll && (
+                      <Button
+                        size="small"
+                        danger
+                        icon={<RollbackOutlined />}
+                        loading={bulkBusy}
+                        onClick={() => confirmMarkUnpaid(selectedPayrolls.map((p: Payroll) => p._id))}
+                      >
+                        Mark Unpaid
                       </Button>
                     )}
                     {allSelectedPayslipable && canGeneratePayslips && (
@@ -4198,6 +4264,8 @@ const PayrollManagement: React.FC = () => {
                       trigger={["click"]}
                       menu={{
                         items: [
+                          exportTemplateMenuItem(exportTemplate, setExportTemplate),
+                          { type: "divider" },
                           { key: "x-default", label: "Default header", onClick: () => exportPayrollToExcel(selectedPayroll, { rounded: roundOff }) },
                           { key: "x-company", label: "Company name header", onClick: () => exportPayrollToExcel(selectedPayroll, { rounded: roundOff, headerMode: "company" }) },
                           { key: "x-dept", label: "Department name header", onClick: () => exportPayrollToExcel(selectedPayroll, { rounded: roundOff, headerMode: "department" }) },
@@ -4212,6 +4280,8 @@ const PayrollManagement: React.FC = () => {
                       trigger={["click"]}
                       menu={{
                         items: [
+                          exportTemplateMenuItem(exportTemplate, setExportTemplate),
+                          { type: "divider" },
                           { key: "p-default", label: "Default header", onClick: () => exportPayrollToPDF(selectedPayroll, { rounded: roundOff }) },
                           { key: "p-company", label: "Company name header", onClick: () => exportPayrollToPDF(selectedPayroll, { rounded: roundOff, headerMode: "company" }) },
                           { key: "p-dept", label: "Department name header", onClick: () => exportPayrollToPDF(selectedPayroll, { rounded: roundOff, headerMode: "department" }) },

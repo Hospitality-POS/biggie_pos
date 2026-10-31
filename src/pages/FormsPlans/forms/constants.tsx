@@ -41,6 +41,14 @@ export const CATEGORY_META: Record<BuiltInCategory, { label: string; color: stri
   incident: { label: "Incident report", color: "#dc2626", bg: "#fef2f2", emoji: "⚠️" },
   training: { label: "Training", color: "#16a34a", bg: "#f0fdf4", emoji: "🎓" },
   contract: { label: "Contract", color: "#b45309", bg: "#fffbeb", emoji: "✍️" },
+  consent: { label: "Consent", color: "#059669", bg: "#ecfdf5", emoji: "✅" },
+  data_privacy: { label: "Data protection & privacy", color: "#2563eb", bg: "#eff6ff", emoji: "🛡️" },
+  marketing_consent: { label: "Marketing opt-in", color: "#db2777", bg: "#fdf2f8", emoji: "📣" },
+  media_release: { label: "Photo & media release", color: "#7c3aed", bg: "#f5f3ff", emoji: "📸" },
+  waiver: { label: "Waiver & liability release", color: "#dc2626", bg: "#fef2f2", emoji: "🧾" },
+  agreement: { label: "Agreement", color: "#b45309", bg: "#fffbeb", emoji: "🤝" },
+  registration: { label: "Registration", color: "#0ea5e9", bg: "#f0f9ff", emoji: "🗂️" },
+  feedback: { label: "Feedback & survey", color: "#f59e0b", bg: "#fffbeb", emoji: "💬" },
   other: { label: "Other", color: "#64748b", bg: "#f8fafc", emoji: "📄" },
 };
 

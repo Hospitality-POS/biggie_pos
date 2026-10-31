@@ -10,6 +10,7 @@ import {
   RightOutlined,
   TeamOutlined,
   BarChartOutlined,
+  ContactsOutlined,
 } from "@ant-design/icons";
 import { THEME_C } from "@utils/getPrimaryColor";
 import { usePermissions } from "@hooks/usePermissions";
@@ -44,6 +45,7 @@ interface Section {
  * tablet and scrollable tabs on phones:
  *  - client   → /forms?tab=…     (customers: consent forms, treatment plans)
  *  - employee → /hr/forms?tab=…  (Bandu HR: onboarding, NDAs…, onboarding & training plans)
+ *  - contact  → /crm/forms?tab=… (Mteja: consent, privacy, waivers… for leads and non-customers)
  */
 const FormsHubPage: React.FC<{ audience?: Audience }> = ({ audience = "client" }) => {
   const screens = Grid.useBreakpoint();
@@ -55,8 +57,8 @@ const FormsHubPage: React.FC<{ audience?: Audience }> = ({ audience = "client" }
   const a = audienceConfig(audience);
   const isEmployee = audience === "employee";
 
-  const formsOn = isEmployee ? settings.employeeForms : settings.clientForms;
-  const plansOn = isEmployee ? settings.employeePlans : settings.clientPlans;
+  const formsOn = !!settings[a.formsFlag];
+  const plansOn = a.hasPlans && !!settings[a.plansFlag];
   const showForms = formsOn && can(a.perms.view);
   const showFilled = formsOn && can(a.perms.viewFilled);
   const showPlans = plansOn && can(a.perms.plansView);
@@ -82,8 +84,8 @@ const FormsHubPage: React.FC<{ audience?: Audience }> = ({ audience = "client" }
       list.push({
         key: "forms",
         label: a.formsTitle,
-        description: "Upload, review & approve forms",
-        group: isEmployee ? "Employee forms" : "Client forms",
+        description: audience === "contact" ? "Start from a template, upload, review & approve" : "Upload, review & approve forms",
+        group: a.formsGroup,
         icon: <FormOutlined />,
         color: "#ec4899",
         bg: "#fdf2f8",
@@ -94,8 +96,8 @@ const FormsHubPage: React.FC<{ audience?: Audience }> = ({ audience = "client" }
       list.push({
         key: "filled",
         label: a.filledTitle,
-        description: isEmployee ? "Signed forms, links & HR countersigning" : "Signed forms, links & countersigning",
-        group: isEmployee ? "Employee forms" : "Client forms",
+        description: a.filledDescription,
+        group: a.formsGroup,
         icon: <SolutionOutlined />,
         color: "#8b5cf6",
         bg: "#f5f3ff",
@@ -130,7 +132,7 @@ const FormsHubPage: React.FC<{ audience?: Audience }> = ({ audience = "client" }
       list.push({
         key: "analytics",
         label: "Analytics",
-        description: "Forms signed, plans & sessions",
+        description: plansOn ? "Forms signed, plans & sessions" : "Forms sent, signed & flagged",
         group: "Insights",
         icon: <BarChartOutlined />,
         color: "#2563eb",
@@ -149,7 +151,7 @@ const FormsHubPage: React.FC<{ audience?: Audience }> = ({ audience = "client" }
   }, [active, requested, setParams]);
 
   const select = (key: HubTab) => setParams({ tab: key }, { replace: true });
-  const HeaderIcon = isEmployee ? TeamOutlined : FormOutlined;
+  const HeaderIcon = isEmployee ? TeamOutlined : audience === "contact" ? ContactsOutlined : FormOutlined;
 
   if (settings.isLoading) {
     return (
@@ -166,8 +168,8 @@ const FormsHubPage: React.FC<{ audience?: Audience }> = ({ audience = "client" }
         title={`${a.title} isn't available`}
         subTitle={
           settings.enabled && (formsOn || plansOn)
-            ? `You don't have permission to view ${isEmployee ? "employee" : "client"} forms or plans. Ask an admin for access.`
-            : `Switch on ${isEmployee ? "Employee Forms" : "Client Forms"} in System Setup → Forms & Plans.`
+            ? `You don't have permission to view ${a.person.toLowerCase()} forms${a.hasPlans ? " or plans" : ""}. Ask an admin for access.`
+            : `Switch on ${settings.enabled ? a.formsSettingLabel : `the Forms & Plans add-on and ${a.formsSettingLabel}`} in System Setup → Forms & Plans.`
         }
       />
     );
@@ -228,8 +230,8 @@ const FormsHubPage: React.FC<{ audience?: Audience }> = ({ audience = "client" }
             width: isPhone ? 40 : 46,
             height: isPhone ? 40 : 46,
             borderRadius: 12,
-            background: isEmployee ? "linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%)" : "linear-gradient(135deg, #fdf2f8 0%, #f5f3ff 100%)",
-            color: isEmployee ? "#2563eb" : "#8b5cf6",
+            background: a.headerBg,
+            color: a.headerColor,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -244,9 +246,7 @@ const FormsHubPage: React.FC<{ audience?: Audience }> = ({ audience = "client" }
             {a.title}
           </Title>
           <Text style={{ fontSize: isPhone ? 11.5 : 13, color: C.subText }}>
-            {isEmployee
-              ? "Onboarding, policies, NDAs & incident reports — signed by the employee, countersigned by HR"
-              : "Client forms, e-signatures and treatment plans"}
+            {a.tagline}
           </Text>
         </div>
       </div>
