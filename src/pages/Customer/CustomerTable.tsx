@@ -7,7 +7,11 @@ import {
     SearchOutlined, StarFilled, TeamOutlined, TrophyOutlined,
     UserAddOutlined, UserOutlined, PhoneOutlined,
 } from "@ant-design/icons";
-import { App, Button, Drawer, Dropdown, Form, Input, Modal, Table, Typography } from "antd";
+import { App, Button, Drawer, Dropdown, Form, Input, Modal, Table, Tag, Typography } from "antd";
+import { useQuery } from "@tanstack/react-query";
+import { useHealthcareSettings } from "@hooks/useHealthcareSettings";
+import { useHealthcareAccess, ageOf } from "@pages/Healthcare/shared";
+import { fetchPatientProfiles } from "@services/healthcare";
 import CustomerDetailDrawer from "./CustomerDetailDrawer";
 import { deleteCustomer, fetchAllCustomers, fetchAllGiftCards } from "@services/customers";
 import ExpandedRowContent from "./ExpandableCustomer";
@@ -481,6 +485,15 @@ const getModules = () => {
     }
 };
 
+/** The fields the hospital-mode patient columns read from a customer row */
+interface PatientRowRecord {
+    _id: string;
+    date_of_birth?: string;
+    gender?: string;
+}
+
+const asPatientRow = (row: unknown) => row as PatientRowRecord;
+
 interface CustomerTableProps {
     nonCustomerEnabled?: boolean;
     onEditCustomer?: (customer: any) => void;
@@ -497,6 +510,20 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
         // ── Gift cards are a POS feature — hide when accounting-only ──────────
         const { hasPOS, hasDala } = getModules();
         const giftCardsEnabled = nonCustomerEnabled && hasPOS;
+
+        // ── Hospital mode: customers are patients ────────────────────────────
+        const isHospital = (localStorage.getItem("posMode") ?? "") === "hospital";
+        const { patientRecords, words } = useHealthcareSettings();
+        const { viewPatients } = useHealthcareAccess();
+        const showMedical = isHospital && patientRecords && viewPatients;
+        const [rowIds, setRowIds] = useState<string[]>([]);
+        const { data: profiles = [] } = useQuery({
+            queryKey: ["healthcare-patient-profiles", rowIds],
+            queryFn: () => fetchPatientProfiles(rowIds),
+            enabled: showMedical && rowIds.length > 0,
+        });
+        const profileOf = new Map(profiles.map((p) => [String(p.customer_id), p]));
+        const noun = isHospital ? words.person : "Customer";
 
         const [giftCardOpen, setGiftCardOpen] = useState(false);
         const [newRecipientOpen, setNewRecipientOpen] = useState(false);
@@ -669,15 +696,55 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
             },
         ];
 
+        const dash = <Text style={{ fontSize: 12, color: C.subText }}>—</Text>;
+        // Hospital mode: who the patient is and what clinicians must know,
+        // instead of the business address and tax columns
+        const patientColumns = [
+            {
+                title: "Age / Gender", key: "age", search: false,
+                render: (_: unknown, row: unknown) => {
+                    const text = [ageOf(asPatientRow(row).date_of_birth), asPatientRow(row).gender].filter(Boolean).join(" · ");
+                    return text ? <Text style={{ fontSize: 12 }}>{text}</Text> : dash;
+                },
+            },
+            ...(showMedical ? [
+                {
+                    title: "ID No.", key: "national_id", search: false,
+                    render: (_: unknown, row: unknown) => profileOf.get(String(asPatientRow(row)._id))?.national_id || dash,
+                },
+                {
+                    title: "Allergies", key: "allergies", search: false,
+                    render: (_: unknown, row: unknown) => {
+                        const allergies = profileOf.get(String(asPatientRow(row)._id))?.allergies ?? [];
+                        return allergies.length
+                            ? allergies.map((a) => <Tag color="red" key={a.substance} style={{ fontSize: 11 }}>{a.substance}</Tag>)
+                            : <Text style={{ fontSize: 12, color: C.subText }}>None recorded</Text>;
+                    },
+                },
+                {
+                    title: "Insurance", key: "insurance", search: false,
+                    render: (_: unknown, row: unknown) => {
+                        const ins = profileOf.get(String(asPatientRow(row)._id))?.insurance;
+                        return ins?.provider
+                            ? <Text style={{ fontSize: 12 }}>{ins.provider}{ins.member_number ? ` · ${ins.member_number}` : ""}</Text>
+                            : <Text style={{ fontSize: 12, color: C.subText }}>Cash</Text>;
+                    },
+                },
+            ] : []),
+        ];
+
         const columns = [
             {
-                title: "Code", dataIndex: "code",
-                fieldProps: { placeholder: "Customer Code" },
-                render: (text: string) => <Text copyable strong style={{ fontSize: 12 }}>{text}</Text>,
+                title: showMedical ? "Patient No." : "Code", dataIndex: "code",
+                fieldProps: { placeholder: `${noun} Code` },
+                render: (text: string, row: unknown) => {
+                    const number = showMedical ? profileOf.get(String(asPatientRow(row)._id))?.patient_number : undefined;
+                    return <Text copyable strong style={{ fontSize: 12 }}>{number || text}</Text>;
+                },
             },
             {
                 title: "Name", dataIndex: "customer_name",
-                fieldProps: { placeholder: "Customer Name" },
+                fieldProps: { placeholder: `${noun} Name` },
                 render: (_: string, record: any) => {
                     const displayName = record.entity_type === 'company' 
                         ? (record.company_name || 'Unnamed Company') 
@@ -704,7 +771,8 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
                 fieldProps: { placeholder: "Search by phone..." },
                 render: (phone: string) => <Text style={{ fontSize: 12 }}>{phone || "—"}</Text>,
             },
-                        {
+            ...(isHospital ? patientColumns : [
+            {
                 title: "Street Address", dataIndex: ["address", "street"], search: false,
                 render: (street: string) => (
                     <Text style={{ fontSize: 12, color: C.subText }}>
@@ -738,6 +806,7 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
                         </div>
                     ) : <Text style={{ fontSize: 12, color: C.subText }}>—</Text>,
             },
+            ]),
             ...(!hasDala ? [
                 {
                     title: "Status", dataIndex: "lastVisit", hideInSearch: true,
@@ -762,7 +831,7 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
                         items: [
                             { key: "view", icon: <EyeOutlined />, label: "View Details", onClick: () => { setCurrentCustomer(record); setCustomerDetailOpen(true); } },
                             ...(onEditCustomer ? [{
-                                key: "edit", icon: <EditOutlined />, label: "Edit Customer",
+                                key: "edit", icon: <EditOutlined />, label: `Edit ${noun}`,
                                 onClick: () => onEditCustomer(record),
                             }] : []),
                             // ── Gift card actions — only when POS is enabled ──
@@ -970,7 +1039,7 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
 
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 6 }}>
                         <div>
-                            <Text strong style={{ fontSize: 15, color: C.darkText, display: "block" }}>Customer List</Text>
+                            <Text strong style={{ fontSize: 15, color: C.darkText, display: "block" }}>{noun} List</Text>
                             <Text style={{ fontSize: 11, color: C.subText }}>{mobileTotal} total</Text>
                         </div>
                         <Button icon={<ReloadOutlined />}
@@ -1069,6 +1138,7 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
                     columns={columns}
                     request={async (params) => {
                         const data = await fetchAllCustomers(params);
+                        if (isHospital) setRowIds((data as PatientRowRecord[]).map((c) => String(c._id)));
                         loadAllForStats();
                         return { data, success: true, total: data.length };
                     }}
@@ -1077,10 +1147,10 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
                     cardBordered={false}
                     pagination={{
                         pageSize: 10, showQuickJumper: true, showSizeChanger: true,
-                        showTotal: (total, range) => `${range[0]}–${range[1]} of ${total} customers`,
+                        showTotal: (total, range) => `${range[0]}–${range[1]} of ${total} ${noun.toLowerCase()}s`,
                     }}
                     search={{ searchText: "Search", resetText: "Reset", labelWidth: "auto" }}
-                    headerTitle={<Text strong style={{ fontSize: 14, color: C.darkText }}>Customer List</Text>}
+                    headerTitle={<Text strong style={{ fontSize: 14, color: C.darkText }}>{noun} List</Text>}
                     tableAlertRender={({ selectedRowKeys }) => (
                         <Text style={{ fontSize: 12 }}>Selected: {selectedRowKeys.length}</Text>
                     )}

@@ -17,6 +17,7 @@ import {
   PercentageOutlined,
   TagOutlined,
   FormOutlined,
+  MedicineBoxOutlined,
 } from "@ant-design/icons";
 import { Tabs } from "antd";
 import { useQuery } from "@tanstack/react-query";
@@ -30,6 +31,7 @@ import BankDetailsSettings from "./BankDetailsSettings";
 import NotificationSettings from "./NotificationSettings";
 
 import HotelSettings from "./HotelSettings";
+import HealthcareSettings from "./HealthcareSettings";
 import TransactionLocking from "./TransactionLocking";
 import PayrollSettings from "./PayrollSettings";
 import AccessSettings from "./AccessSettings";
@@ -58,6 +60,7 @@ const SystemSetup: React.FC = () => {
   });
 
   const isHotelMode = shopData?.pos_mode === "hotel";
+  const isHospitalMode = shopData?.pos_mode === "hospital";
 
   const storedTenant = localStorage.getItem("tenant");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
@@ -312,8 +315,21 @@ const SystemSetup: React.FC = () => {
       });
     }
 
+    if (isHospitalMode && hasPOS) {
+      list.push({
+        key: "healthcare-settings",
+        label: "Healthcare",
+        description: "Patients, queue, prescriptions & expiry",
+        icon: <MedicineBoxOutlined />,
+        color: "#0ea5e9",
+        bg: "#f0f9ff",
+        group: "Healthcare",
+        render: () => <HealthcareSettings />,
+      });
+    }
+
     return list;
-  }, [hasPOS, hasBandu, hasAccounting, isHotelMode, canSeeCurrencies, hasMteja]);
+  }, [hasPOS, hasBandu, hasAccounting, isHotelMode, isHospitalMode, canSeeCurrencies, hasMteja]);
 
   return (
     <SettingsShell
