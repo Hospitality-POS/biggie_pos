@@ -62,6 +62,7 @@ import {
   Legend,
 } from "recharts";
 import dayjs from "dayjs";
+import { CUSTOM_RANGE_PRESETS } from "src/utils/dateRangePresets";
 import relativeTime from "dayjs/plugin/relativeTime";
 import axiosInstance from "@services/request";
 import { BASE_URL } from "@utils/config";
@@ -750,6 +751,7 @@ const MtejaDashboard: React.FC = () => {
           {showCustomPicker && (
             <RangePicker
               value={customDateRange as any}
+              presets={CUSTOM_RANGE_PRESETS}
               onChange={(dates) => setCustomDateRange(dates || [])}
               style={{ width: "100%" }}
             />
@@ -810,6 +812,7 @@ const MtejaDashboard: React.FC = () => {
               {showCustomPicker && (
                 <RangePicker
                   value={customDateRange as any}
+                  presets={CUSTOM_RANGE_PRESETS}
                   onChange={(dates) => setCustomDateRange(dates || [])}
                   size="small"
                   style={{ minWidth: 230 }}
