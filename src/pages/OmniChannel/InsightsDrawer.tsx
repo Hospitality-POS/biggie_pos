@@ -42,8 +42,11 @@ const toPoints = (text: string): { kind: InsightKind; text: string }[] => {
         .split(/\n+/)
         .map((l) => l.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, "").replace(/\*\*/g, "").trim())
         .filter((l) => l.length > 2);
-    // One long paragraph → split into sentences.
-    const points = lines.length > 1 ? lines : (lines[0] || "").split(/(?<=[.!?])\s+(?=[A-Z])/).filter(Boolean);
+    // One long paragraph → split into sentences. Avoids regex lookbehind, which
+    // older Safari (< 16.4) can't parse — it breaks the whole bundle on macOS.
+    const points = lines.length > 1
+        ? lines
+        : (lines[0] || "").replace(/([.!?])\s+(?=[A-Z])/g, "$1\n").split("\n").filter(Boolean);
     return points.map((p) => ({
         kind: /\b(slow|drop|declin|low|risk|delay|miss|unanswered|pending|backlog|concern|fail|poor|only)\b/i.test(p)
             ? "risk"
