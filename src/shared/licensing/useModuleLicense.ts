@@ -16,8 +16,8 @@ export function useModuleLicense(moduleKey: BaseModuleKey) {
     return readStoredTenant();
   }, []);
 
-  const enableModule = async (planId?: string) => {
-    return subscribeMutation.mutateAsync({ moduleKey, planId });
+  const enableModule = async (planId?: string, billingCycle?: 'Monthly' | 'Yearly') => {
+    return subscribeMutation.mutateAsync({ moduleKey, planId, billingCycle });
   };
 
   return {

@@ -97,7 +97,15 @@ export function useSubscribeModule() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ moduleKey }: { moduleKey: BaseModuleKey; planId?: string }) => {
+    mutationFn: async ({
+      moduleKey,
+      planId,
+      billingCycle,
+    }: {
+      moduleKey: BaseModuleKey;
+      planId?: string;
+      billingCycle?: 'Monthly' | 'Yearly';
+    }) => {
       const tenantId = getCurrentTenantId();
       if (!tenantId) {
         throw new Error('No tenant ID found. Please re-login.');
@@ -108,6 +116,8 @@ export function useSubscribeModule() {
         const res = await axios.post(endpoint, {
           accept_terms: true,
           accept_charges: true,
+          plan_id: planId,
+          billing_cycle: billingCycle || 'Monthly',
         });
         return res.data;
       } catch (err: any) {

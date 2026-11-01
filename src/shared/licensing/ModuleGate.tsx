@@ -161,7 +161,7 @@ export const ModuleGate: React.FC<ModuleGateProps> = ({
 
   const handleActivate = async (plan?: SaaSSubscriptionPlan) => {
     try {
-      await enableModule(plan?._id);
+      await enableModule(plan?._id, billingCycle);
     } catch {
       // Error handled by hook notification
     }
