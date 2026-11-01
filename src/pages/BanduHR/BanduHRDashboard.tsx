@@ -58,6 +58,7 @@ import { clockIn, clockOut, fetchClockStatus } from "@services/hr/leave";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { fmtK } from "@utils/formatters";
 import dayjs from "dayjs";
+import { CUSTOM_RANGE_PRESETS } from "src/utils/dateRangePresets";
 import {
   LineChart,
   Line,
@@ -898,6 +899,7 @@ const BanduHRDashboard: React.FC = () => {
             {showCustomDatePicker && (
               <RangePicker
                 value={customDateRange as any}
+                presets={CUSTOM_RANGE_PRESETS}
                 onChange={(d) => setCustomDateRange(d || [])}
                 allowClear
                 style={{ width: "100%" }}
@@ -1042,6 +1044,7 @@ const BanduHRDashboard: React.FC = () => {
                 {showCustomDatePicker && (
                   <RangePicker
                     value={customDateRange as any}
+                    presets={CUSTOM_RANGE_PRESETS}
                     onChange={(d) => setCustomDateRange(d || [])}
                     allowClear
                     style={{ minWidth: 240 }}
