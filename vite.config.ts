@@ -2,6 +2,21 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
+// mdast-util-gfm-autolink-literal (via remark-gfm) ships an email regex literal
+// with a lookbehind. Safari < 16.4 can't parse lookbehind, so the whole chunk
+// fails to load on older Macs ("Invalid regular expression: invalid group
+// specifier name"). Its findEmail() already checks the preceding character,
+// so dropping the lookbehind keeps behaviour (it's the pre-2.0.1 regex).
+const stripGfmEmailLookbehind = () => ({
+  name: 'strip-gfm-email-lookbehind',
+  enforce: 'pre' as const,
+  transform(code: string, id: string) {
+    if (!id.includes('mdast-util-gfm-autolink-literal')) return null;
+    const next = code.replace('/(?<=^|\\s|\\p{P}|\\p{S})([-.\\w+]+)@', '/([-.\\w+]+)@');
+    return next === code ? null : { code: next, map: null };
+  },
+});
+
 export default defineConfig(({ mode }) => {
   const isProduction = mode === 'production';
 
@@ -77,6 +92,7 @@ export default defineConfig(({ mode }) => {
     },
   },
   plugins: [
+    stripGfmEmailLookbehind(),
     react(),
     VitePWA({
       registerType: 'autoUpdate',

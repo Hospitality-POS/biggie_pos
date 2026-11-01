@@ -68,6 +68,7 @@ import {
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { fmtK } from "@utils/formatters";
 import dayjs from "dayjs";
+import { CUSTOM_RANGE_PRESETS } from "src/utils/dateRangePresets";
 
 const { Text, Title } = Typography;
 const { RangePicker } = DatePicker;
@@ -588,6 +589,7 @@ const AccountingDashboardPage: React.FC = () => {
             {showCustomDatePicker && (
               <RangePicker
                 value={customDateRange as any}
+                presets={CUSTOM_RANGE_PRESETS}
                 onChange={(d) => setCustomDateRange(d || [])}
                 allowClear
                 style={{ width: "100%" }}
@@ -677,6 +679,7 @@ const AccountingDashboardPage: React.FC = () => {
                 {showCustomDatePicker && (
                   <RangePicker
                     value={customDateRange as any}
+                    presets={CUSTOM_RANGE_PRESETS}
                     onChange={(d) => setCustomDateRange(d || [])}
                     allowClear
                     style={{ minWidth: 240 }}

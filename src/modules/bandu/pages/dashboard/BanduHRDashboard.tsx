@@ -74,6 +74,7 @@ import {
   Pie,
   ComposedChart,
 } from "recharts";
+import { CUSTOM_RANGE_PRESETS } from "src/utils/dateRangePresets";
 
 const { Text, Title } = Typography;
 const { RangePicker } = DatePicker;
@@ -898,6 +899,7 @@ const BanduHRDashboard: React.FC = () => {
             {showCustomDatePicker && (
               <RangePicker
                 value={customDateRange as any}
+                presets={CUSTOM_RANGE_PRESETS}
                 onChange={(d) => setCustomDateRange(d || [])}
                 allowClear
                 style={{ width: "100%" }}
@@ -1042,6 +1044,7 @@ const BanduHRDashboard: React.FC = () => {
                 {showCustomDatePicker && (
                   <RangePicker
                     value={customDateRange as any}
+                    presets={CUSTOM_RANGE_PRESETS}
                     onChange={(d) => setCustomDateRange(d || [])}
                     allowClear
                     style={{ minWidth: 240 }}
