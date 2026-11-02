@@ -31,6 +31,19 @@ const lineName = (line: any) =>
   line.employee_number ||
   '—';
 
+// "Basic Pay" for display/export. A net-salary line stores basic_salary as
+// the entered take-home figure; the column shows the grossed-up basic
+// instead — gross minus overtime and allowances/benefits — so the row foots
+// to Gross Pay. Gross-salary lines show basic_salary as entered.
+export const displayBasicPay = (line: any): number => {
+  const type = line?.salary_type || line?.employee_id?.salary_type || 'gross';
+  if (type !== 'net') return num(line?.basic_salary);
+  return Math.max(
+    0,
+    num(line?.gross_salary) - num(line?.overtime_pay) - num(line?.allowances) - num(line?.benefits)
+  );
+};
+
 // Money columns — Allowances/Benefits/Overtime hide when every line is zero
 // (same rule as the on-screen payroll table); custom deductions get one column
 // per name, between PAYE and Total Deductions.
@@ -118,7 +131,7 @@ const buildMusterRoll = (lines: any[], withDepartment = false, rounded = false):
   ];
 
   const moneyCols: MoneyCol[] = [
-    { header: 'Basic Pay', get: (l) => rn(l.basic_salary) },
+    { header: 'Basic Pay', get: (l) => rn(displayBasicPay(l)) },
     ...allowanceNames.map((n): MoneyCol => ({
       header: n,
       get: (l) =>
