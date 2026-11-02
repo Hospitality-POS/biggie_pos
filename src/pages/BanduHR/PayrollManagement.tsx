@@ -56,7 +56,7 @@ import {
   CompressOutlined,
   UserOutlined,
 } from "@ant-design/icons";
-import { exportPayrollToExcel, exportPayrollToPDF, exportPayrollsToExcel, exportPayrollsToPDF, exportNssfFiling, exportShifFiling, exportPayeFiling } from "@utils/payrollExport";
+import { exportPayrollToExcel, exportPayrollToPDF, exportPayrollsToExcel, exportPayrollsToPDF, exportNssfFiling, exportShifFiling, exportPayeFiling, displayBasicPay } from "@utils/payrollExport";
 import { useExportTemplate } from "@utils/exportTemplates";
 import { exportTemplateMenuItem } from "@components/ExportTemplate/exportTemplateMenu";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -533,7 +533,7 @@ const PayrollManagement: React.FC = () => {
         );
       },
     },
-    moneyCol("Basic Pay", (l) => l.basic_salary),
+    moneyCol("Basic Pay", displayBasicPay),
     ...allowanceNames.map((n) =>
       moneyCol(n, (l) =>
         itemsOf(l, "allowance_items", "allowances")
