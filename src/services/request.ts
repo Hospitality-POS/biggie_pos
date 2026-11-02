@@ -70,6 +70,23 @@ const restrictAccount = (status?: string) => {
     window.location.href = `/account-restricted?status=${kind}`;
 };
 
+// The API answers 402 { code: "CONTRACT_LOCKED" } when the BasePoint payment is
+// overdue past the restricted stage: nobody can sign in or use the system.
+// Sign out and show the payment screen. The company code is kept (and saved
+// if this was a first sign-in) so the screen can load what is owed.
+const lockForPayment = (tenantCode?: string) => {
+    if (window.location.pathname.startsWith("/payment-required")) return;
+    isLoggingOut = true;
+    queryClient.cancelQueries();
+    queryClient.clear();
+    localStorage.removeItem("user");
+    localStorage.removeItem("shopId");
+    if (tenantCode && !localStorage.getItem("companyCode")) {
+        localStorage.setItem("companyCode", tenantCode);
+    }
+    window.location.href = "/payment-required";
+};
+
 const getValidShopId = (): string | null => {
     const shopId = localStorage.getItem("shopId");
     if (!shopId || shopId === "undefined" || shopId === "null" || shopId.trim() === "") {
@@ -396,6 +413,15 @@ axiosInstance.interceptors.response.use(
                     logoutUser();
                     break;
                 }
+                case 402:
+                    if (response.data?.code === "CONTRACT_LOCKED") {
+                        lockForPayment(response.data?.tenant_code);
+                        break;
+                    }
+                    // Smart contract overdue — refresh the payment banner
+                    queryClient.invalidateQueries({ queryKey: ["contractStatus"] });
+                    handleError(response.data?.message || "Payment is overdue. Contact BasePoint support.");
+                    break;
                 case 403:
                     if (response.data?.code === "ACCOUNT_INACTIVE") {
                         restrictAccount(response.data?.status);
