@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Button, Typography, Tag, Row, Col, Space, Spin, Segmented } from 'antd';
 import { ProCard } from '@ant-design/pro-components';
 import {
@@ -13,7 +13,17 @@ import {
   ClockCircleFilled,
   PercentageOutlined,
 } from '@ant-design/icons';
-import { BaseModuleKey, SaaSSubscriptionPlan, DEFAULT_BASE_PLANS } from '../types/pricing';
+import {
+  BaseModuleKey,
+  SaaSSubscriptionPlan,
+  DEFAULT_BASE_PLANS,
+  getValidPlanFeatures,
+  getPlanDescription,
+  getPlanDisplayName,
+  getPlanTier,
+  isRecommendedPlan,
+  sortSubscriptionPlans,
+} from '../types/pricing';
 import { useModuleLicense } from './useModuleLicense';
 import { useModulePricing } from '../hooks/usePricing';
 import { useResponsive } from '../hooks/useResponsive';
@@ -80,41 +90,6 @@ const MODULE_META: Record<
   },
 };
 
-/**
- * Robust helper to safely extract feature label from strings or populated MongoDB objects
- */
-const extractFeatureName = (f: any): string => {
-  if (typeof f === 'string') return f.trim();
-  if (!f) return '';
-  return (
-    f?.feature?.name ||
-    f?.name ||
-    f?.feature?.key ||
-    f?.key ||
-    f?.feature?.code ||
-    f?.code ||
-    ''
-  ).trim();
-};
-
-/**
- * Filter and extract valid non-empty feature strings
- */
-const getValidPlanFeatures = (plan: SaaSSubscriptionPlan): string[] => {
-  if (!Array.isArray(plan.features)) return [];
-  const list: string[] = [];
-  for (const item of plan.features) {
-    if (typeof item === 'string' && item.trim()) {
-      list.push(item.trim());
-    } else if (typeof item === 'object' && item !== null) {
-      if ((item as any).enabled === false) continue;
-      const name = extractFeatureName(item);
-      if (name) list.push(name);
-    }
-  }
-  return list;
-};
-
 export const ModuleGate: React.FC<ModuleGateProps> = ({
   moduleId,
   children,
@@ -157,7 +132,10 @@ export const ModuleGate: React.FC<ModuleGateProps> = ({
   });
 
   // Fallback to official Kenyan pricing matrix if no matching plans from backend
-  const displayPlans = modulePlans.length > 0 ? modulePlans : (DEFAULT_BASE_PLANS[moduleId] || []);
+  const displayPlans = useMemo(() => {
+    const raw = modulePlans.length > 0 ? modulePlans : (DEFAULT_BASE_PLANS[moduleId] || []);
+    return sortSubscriptionPlans(raw);
+  }, [modulePlans, moduleId]);
 
   const handleActivate = async (plan?: SaaSSubscriptionPlan) => {
     try {
@@ -353,13 +331,17 @@ export const ModuleGate: React.FC<ModuleGateProps> = ({
           justify={displayPlans.length <= 2 ? 'center' : 'start'}
           align="stretch"
         >
-          {displayPlans.map((plan) => {
-            const isRec = Boolean(plan.is_recommended);
+          {displayPlans.map((plan, idx) => {
+            const isRec = isRecommendedPlan(plan, idx, displayPlans.length);
             const isFree = plan.price === 0;
             const isYearly = billingCycle === 'Yearly';
             const priceAmount = isYearly
               ? plan.pricing?.yearly || Math.round(plan.price * 12 * 0.9)
               : plan.price;
+
+            const displayName = getPlanDisplayName(plan, moduleId);
+            const displayTier = getPlanTier(plan);
+            const displayDesc = getPlanDescription(plan, moduleId);
 
             const billingPeriodLabel = isFree
               ? 'forever'
@@ -369,7 +351,7 @@ export const ModuleGate: React.FC<ModuleGateProps> = ({
               ? 'branch / month'
               : 'business / month';
 
-            const features = getValidPlanFeatures(plan);
+            const features = getValidPlanFeatures(plan, moduleId);
 
             // Responsive column widths based on count of plans
             const colSpan =
@@ -451,15 +433,15 @@ export const ModuleGate: React.FC<ModuleGateProps> = ({
                           color: '#0f172a',
                         }}
                       >
-                        {plan.name}
+                        {displayName}
                       </Title>
                     </div>
-                    {plan.tier && plan.tier !== 'Free' && (
+                    {displayTier && displayTier !== 'Free' && (
                       <Tag
                         color={isRec ? 'processing' : 'default'}
                         style={{ borderRadius: 6, fontSize: 11, margin: 0 }}
                       >
-                        {plan.tier}
+                        {displayTier}
                       </Tag>
                     )}
                   </div>
@@ -475,7 +457,7 @@ export const ModuleGate: React.FC<ModuleGateProps> = ({
                       color: '#64748b',
                     }}
                   >
-                    {plan.description || `${plan.charging_model?.replace('_', ' ') || 'Subscription'} plan`}
+                    {displayDesc}
                   </Paragraph>
 
                   {/* Pricing Typography */}

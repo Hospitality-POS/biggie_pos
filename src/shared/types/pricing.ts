@@ -527,3 +527,219 @@ export interface ModuleManifest {
   chargingModel: ChargingModel;
   features: string[];
 }
+
+/**
+ * Safely extract feature label from strings or populated MongoDB objects
+ */
+export const extractFeatureName = (f: any): string => {
+  if (typeof f === 'string') return f.trim();
+  if (!f) return '';
+  return (
+    f?.feature?.name ||
+    f?.name ||
+    f?.feature?.key ||
+    f?.key ||
+    f?.feature?.code ||
+    f?.code ||
+    ''
+  ).trim();
+};
+
+/**
+ * Filter and extract valid non-empty feature strings with fallback to default plan features
+ */
+export const getValidPlanFeatures = (plan: any, moduleKey?: BaseModuleKey | null): string[] => {
+  const list: string[] = [];
+  if (Array.isArray(plan?.features)) {
+    for (const item of plan.features) {
+      if (typeof item === 'string' && item.trim()) {
+        list.push(item.trim());
+      } else if (typeof item === 'object' && item !== null) {
+        if ((item as any).enabled === false) continue;
+        const name = extractFeatureName(item);
+        if (name) list.push(name);
+      }
+    }
+  }
+
+  // Fallback to official default base plan features if backend returned empty features
+  if (list.length === 0 && moduleKey && DEFAULT_BASE_PLANS[moduleKey]) {
+    const defaultPlans = DEFAULT_BASE_PLANS[moduleKey];
+    const matchedDefault =
+      defaultPlans.find((p) => p.code === plan.code) ||
+      defaultPlans.find((p) => p.tier?.toLowerCase() === plan.tier?.toLowerCase()) ||
+      defaultPlans.find((p) => p.name?.toLowerCase().includes(plan.name?.toLowerCase() || '')) ||
+      defaultPlans[0];
+    if (matchedDefault && Array.isArray(matchedDefault.features)) {
+      return matchedDefault.features
+        .map((f) => (typeof f === 'string' ? f : extractFeatureName(f)))
+        .filter(Boolean);
+    }
+  }
+
+  return list;
+};
+
+/**
+ * Sanitize and enrich plan description so placeholder text like "ok" or empty never displays
+ */
+export const getPlanDescription = (plan: any, moduleKey?: BaseModuleKey | null): string => {
+  const desc = (plan?.description || '').trim();
+  const lowerDesc = desc.toLowerCase();
+  const isDummy =
+    !desc ||
+    lowerDesc === 'ok' ||
+    lowerDesc === 'test' ||
+    lowerDesc === 'n/a' ||
+    lowerDesc === 'none' ||
+    lowerDesc === (plan?.name || '').trim().toLowerCase();
+
+  if (!isDummy) return desc;
+
+  const key = (moduleKey || plan?.module || '').toLowerCase();
+  const nameOrTier = `${plan?.name || ''} ${plan?.tier || ''}`.toLowerCase();
+
+  if (key === 'duka' || nameOrTier.includes('pos') || nameOrTier.includes('retail') || nameOrTier.includes('hospitality')) {
+    if (nameOrTier.includes('pro') || nameOrTier.includes('enterprise')) {
+      return 'Multi-branch console, comparison dashboard, Biashara AI health score, and audit trail.';
+    }
+    if (nameOrTier.includes('business') || nameOrTier.includes('premium')) {
+      return 'Full inventory, purchase orders, eTIMS included, staff permissions, and reports for up to 5 branches.';
+    }
+    return 'Point of Sale, catalog, orders, receipts, basic stock, and desktop printing for 1 branch.';
+  }
+
+  if (key === 'pesa' || nameOrTier.includes('account')) {
+    if (nameOrTier.includes('pro')) {
+      return 'Fixed asset register, depreciation schedules, multi-currency support, and financial audit trail.';
+    }
+    if (nameOrTier.includes('business') || nameOrTier.includes('premium')) {
+      return 'Supplier bills, debit/credit notes, automated bank reconciliation, and full financial statements.';
+    }
+    if (nameOrTier.includes('free')) {
+      return 'Invoices, sales receipts, customer balances, and basic expense tracking. Free forever.';
+    }
+    return 'Journals, chart of accounts, suppliers, and basic financial reports for your business.';
+  }
+
+  if (key === 'bandu' || nameOrTier.includes('payroll') || nameOrTier.includes('hr')) {
+    if (nameOrTier.includes('pro')) {
+      return 'Statutory KRA P9 automation, custom payroll deduction formulas, and executive wage analytics.';
+    }
+    if (nameOrTier.includes('business') || nameOrTier.includes('premium')) {
+      return 'Leave calendar, biometric attendance sync, automated payroll posting to Pesa Accounting.';
+    }
+    if (nameOrTier.includes('free')) {
+      return 'Up to 4 staff: employee master records, statutory payroll calculations, and payslips.';
+    }
+    return 'Biometric attendance tracking, leave policies, shift rosters, and PDF payslip delivery.';
+  }
+
+  if (key === 'dala' || nameOrTier.includes('prop') || nameOrTier.includes('estate')) {
+    if (nameOrTier.includes('pro') || nameOrTier.includes('enterprise')) {
+      return 'Commercial property portfolios, utility meter readings, and vendor work orders.';
+    }
+    if (nameOrTier.includes('business') || nameOrTier.includes('premium')) {
+      return 'Multi-property portfolio, digital lease contracts, rent collection, and maintenance tracking.';
+    }
+    return 'Residential unit inventory, digital tenant leases, automated rent invoicing, and M-Pesa collection.';
+  }
+
+  if (key === 'mteja' || nameOrTier.includes('crm')) {
+    if (nameOrTier.includes('pro')) {
+      return 'Up to 10 agents included, sales quotas, targets, and omnichannel live conversation analytics.';
+    }
+    if (nameOrTier.includes('business') || nameOrTier.includes('premium')) {
+      return 'WhatsApp marketing campaigns, bulk broadcasts, and customer 360 purchase history.';
+    }
+    return 'WhatsApp inbox (1 number, 2 agents included), lead pipeline stages, and sales quotes.';
+  }
+
+  if (key === 'esign' || nameOrTier.includes('sign')) {
+    return 'Document center, signature pad, audit trails, and contract templates (50 documents/mo).';
+  }
+
+  return `${plan?.charging_model?.replace('_', ' ') || 'Subscription'} plan for your business`;
+};
+
+/**
+ * Format plan name properly (capitalized, prefixed with module name when bare like 'basic' or 'pro')
+ */
+export const getPlanDisplayName = (plan: any, moduleKey?: BaseModuleKey | null): string => {
+  const raw = (plan?.name || '').trim();
+  if (!raw) return 'Standard Plan';
+
+  const lower = raw.toLowerCase();
+  const key = (moduleKey || plan?.module || '').toLowerCase();
+
+  if (key === 'duka' || plan?.solution_type?.toLowerCase().includes('pos')) {
+    if (lower === 'basic') return 'Duka Starter';
+    if (lower === 'pro') return 'Duka Pro';
+    if (lower === 'premium') return 'Duka Business';
+    if (lower === 'retail basic') return 'Duka Free';
+  }
+
+  if (key === 'dala' || plan?.solution_type?.toLowerCase().includes('property')) {
+    if (lower === 'basic') return 'Dala Starter';
+    if (lower === 'pro') return 'Dala Pro';
+    if (lower === 'premium') return 'Dala Business';
+  }
+
+  if (raw === lower) {
+    return raw.charAt(0).toUpperCase() + raw.slice(1);
+  }
+  return raw;
+};
+
+/**
+ * Determine the tier tag accurately even if the database has legacy tier labels
+ */
+export const getPlanTier = (plan: any): string => {
+  const name = (plan?.name || '').toLowerCase();
+  const rawTier = (plan?.tier || '').trim();
+
+  if (name.includes('pro') && (rawTier.toLowerCase() === 'basic' || !rawTier)) return 'Pro';
+  if ((name.includes('premium') || name.includes('business')) && (rawTier.toLowerCase() === 'basic' || !rawTier)) return 'Business';
+  if ((name.includes('starter') || name.includes('basic')) && (!rawTier || rawTier.toLowerCase() === 'basic')) return 'Starter';
+  if (name.includes('enterprise')) return 'Enterprise';
+  if (name.includes('free')) return 'Free';
+
+  return rawTier || 'Starter';
+};
+
+/**
+ * Identify whether a plan should receive the RECOMMENDED badge
+ */
+export const isRecommendedPlan = (plan: any, index?: number, total?: number): boolean => {
+  if (plan?.is_recommended || plan?.is_popular) return true;
+  const name = (plan?.name || '').toLowerCase();
+  const tier = (plan?.tier || '').toLowerCase();
+  if (tier === 'business' || tier === 'premium' || name.includes('business') || name.includes('premium')) return true;
+  if (typeof index === 'number' && typeof total === 'number' && total === 3 && index === 1) return true;
+  return false;
+};
+
+/**
+ * Sort subscription plans logically: Free -> Starter -> Business -> Pro -> Enterprise
+ */
+export const sortSubscriptionPlans = (plans: any[]): any[] => {
+  const tierWeights: Record<string, number> = {
+    free: 0,
+    basic: 1,
+    starter: 1,
+    business: 2,
+    premium: 2,
+    pro: 3,
+    enterprise: 4,
+    custom: 5,
+  };
+
+  return [...plans].sort((a, b) => {
+    const tierA = (getPlanTier(a) || '').toLowerCase();
+    const tierB = (getPlanTier(b) || '').toLowerCase();
+    const weightA = tierWeights[tierA] ?? (a.price ? a.price / 1000 : 1);
+    const weightB = tierWeights[tierB] ?? (b.price ? b.price / 1000 : 1);
+    if (weightA !== weightB) return weightA - weightB;
+    return (a.price || 0) - (b.price || 0);
+  });
+};

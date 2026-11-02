@@ -39,64 +39,18 @@ import {
   BaseModuleKey,
   DEFAULT_BASE_PLANS,
   SaaSSubscriptionPlan,
+  getValidPlanFeatures,
+  getPlanDescription,
+  getPlanDisplayName,
+  getPlanTier,
+  isRecommendedPlan,
+  sortSubscriptionPlans,
 } from '@shared/types/pricing';
 import { useSubscribeModule, useModulePricing } from '@shared/hooks/usePricing';
 import { useResponsive } from '@shared/hooks/useResponsive';
 
 const { Title, Text, Paragraph } = Typography;
 const C = THEME_C;
-
-/**
- * Robust helper to safely extract feature label from strings or populated MongoDB objects
- */
-const extractFeatureName = (f: any): string => {
-  if (typeof f === 'string') return f.trim();
-  if (!f) return '';
-  return (
-    f?.feature?.name ||
-    f?.name ||
-    f?.feature?.key ||
-    f?.key ||
-    f?.feature?.code ||
-    f?.code ||
-    ''
-  ).trim();
-};
-
-/**
- * Filter and extract valid non-empty feature strings with fallback to default plan features
- */
-const getValidPlanFeatures = (plan: any, moduleKey?: BaseModuleKey | null): string[] => {
-  const list: string[] = [];
-  if (Array.isArray(plan?.features)) {
-    for (const item of plan.features) {
-      if (typeof item === 'string' && item.trim()) {
-        list.push(item.trim());
-      } else if (typeof item === 'object' && item !== null) {
-        if ((item as any).enabled === false) continue;
-        const name = extractFeatureName(item);
-        if (name) list.push(name);
-      }
-    }
-  }
-
-  // Fallback to official default base plan features if backend returned empty features
-  if (list.length === 0 && moduleKey && DEFAULT_BASE_PLANS[moduleKey]) {
-    const defaultPlans = DEFAULT_BASE_PLANS[moduleKey];
-    const matchedDefault =
-      defaultPlans.find((p) => p.code === plan.code) ||
-      defaultPlans.find((p) => p.tier?.toLowerCase() === plan.tier?.toLowerCase()) ||
-      defaultPlans.find((p) => p.name?.toLowerCase().includes(plan.name?.toLowerCase() || '')) ||
-      defaultPlans[0];
-    if (matchedDefault && Array.isArray(matchedDefault.features)) {
-      return matchedDefault.features
-        .map((f) => (typeof f === 'string' ? f : extractFeatureName(f)))
-        .filter(Boolean);
-    }
-  }
-
-  return list;
-};
 
 interface ModuleCardConfig {
   key: BaseModuleKey;
@@ -183,8 +137,11 @@ const BillingDashboard: React.FC = () => {
 
   const displayPlans = useMemo(() => {
     if (!selectedModuleForPlan) return [];
-    if (livePlans && livePlans.length > 0) return livePlans;
-    return DEFAULT_BASE_PLANS[selectedModuleForPlan] || [];
+    const source =
+      livePlans && livePlans.length > 0
+        ? livePlans
+        : DEFAULT_BASE_PLANS[selectedModuleForPlan] || [];
+    return sortSubscriptionPlans(source);
   }, [selectedModuleForPlan, livePlans]);
 
   const selectedModuleConfig = useMemo(() => {
@@ -531,8 +488,11 @@ const BillingDashboard: React.FC = () => {
           </div>
         ) : (
           <Row gutter={[20, 20]} align="stretch">
-            {displayPlans.map((plan) => {
-              const isRec = Boolean(plan.is_recommended);
+            {displayPlans.map((plan, idx) => {
+              const isRec = isRecommendedPlan(plan, idx, displayPlans.length);
+              const displayName = getPlanDisplayName(plan, selectedModuleForPlan);
+              const displayTier = getPlanTier(plan);
+              const displayDesc = getPlanDescription(plan, selectedModuleForPlan);
               const isFree = plan.price === 0;
               const isYearly = billingCycle === 'Yearly';
               const monthlyPrice = plan.pricing?.monthly ?? plan.price;
@@ -612,14 +572,14 @@ const BillingDashboard: React.FC = () => {
                         }}
                       >
                         <Title level={4} style={{ margin: 0, fontWeight: 700, color: '#0f172a' }}>
-                          {plan.name}
+                          {displayName}
                         </Title>
-                        {plan.tier && plan.tier !== 'Free' && (
+                        {displayTier && displayTier !== 'Free' && (
                           <Tag
                             color={isRec ? 'processing' : 'default'}
                             style={{ borderRadius: 6, fontSize: 11, margin: 0, fontWeight: 600 }}
                           >
-                            {plan.tier}
+                            {displayTier}
                           </Tag>
                         )}
                       </div>
@@ -635,7 +595,7 @@ const BillingDashboard: React.FC = () => {
                           color: '#64748b',
                         }}
                       >
-                        {plan.description || `${plan.charging_model?.replace('_', ' ') || 'Subscription'} plan`}
+                        {displayDesc}
                       </Paragraph>
 
                       {/* Pricing Typography */}
