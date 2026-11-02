@@ -28,6 +28,7 @@ import {
   GiftFilled,
   DollarOutlined,
   SyncOutlined,
+  CrownFilled,
 } from '@ant-design/icons';
 
 import { usePrimaryColor } from '@context/PrimaryColorContext';
@@ -44,6 +45,58 @@ import { useResponsive } from '@shared/hooks/useResponsive';
 
 const { Title, Text, Paragraph } = Typography;
 const C = THEME_C;
+
+/**
+ * Robust helper to safely extract feature label from strings or populated MongoDB objects
+ */
+const extractFeatureName = (f: any): string => {
+  if (typeof f === 'string') return f.trim();
+  if (!f) return '';
+  return (
+    f?.feature?.name ||
+    f?.name ||
+    f?.feature?.key ||
+    f?.key ||
+    f?.feature?.code ||
+    f?.code ||
+    ''
+  ).trim();
+};
+
+/**
+ * Filter and extract valid non-empty feature strings with fallback to default plan features
+ */
+const getValidPlanFeatures = (plan: any, moduleKey?: BaseModuleKey | null): string[] => {
+  const list: string[] = [];
+  if (Array.isArray(plan?.features)) {
+    for (const item of plan.features) {
+      if (typeof item === 'string' && item.trim()) {
+        list.push(item.trim());
+      } else if (typeof item === 'object' && item !== null) {
+        if ((item as any).enabled === false) continue;
+        const name = extractFeatureName(item);
+        if (name) list.push(name);
+      }
+    }
+  }
+
+  // Fallback to official default base plan features if backend returned empty features
+  if (list.length === 0 && moduleKey && DEFAULT_BASE_PLANS[moduleKey]) {
+    const defaultPlans = DEFAULT_BASE_PLANS[moduleKey];
+    const matchedDefault =
+      defaultPlans.find((p) => p.code === plan.code) ||
+      defaultPlans.find((p) => p.tier?.toLowerCase() === plan.tier?.toLowerCase()) ||
+      defaultPlans.find((p) => p.name?.toLowerCase().includes(plan.name?.toLowerCase() || '')) ||
+      defaultPlans[0];
+    if (matchedDefault && Array.isArray(matchedDefault.features)) {
+      return matchedDefault.features
+        .map((f) => (typeof f === 'string' ? f : extractFeatureName(f)))
+        .filter(Boolean);
+    }
+  }
+
+  return list;
+};
 
 interface ModuleCardConfig {
   key: BaseModuleKey;
@@ -133,6 +186,10 @@ const BillingDashboard: React.FC = () => {
     if (livePlans && livePlans.length > 0) return livePlans;
     return DEFAULT_BASE_PLANS[selectedModuleForPlan] || [];
   }, [selectedModuleForPlan, livePlans]);
+
+  const selectedModuleConfig = useMemo(() => {
+    return MODULE_CONFIGS.find((m) => m.key === selectedModuleForPlan);
+  }, [selectedModuleForPlan]);
 
   const activeModulesCount = useMemo(() => {
     return MODULE_CONFIGS.filter((m) => isModuleEnabled(tenantModules, m.key)).length;
@@ -288,10 +345,10 @@ const BillingDashboard: React.FC = () => {
                                   {config.icon}
                                 </div>
                                 <div>
-                                  <Text strong style={{ fontSize: 16, color: C.darkText, display: 'block' }}>
+                                  <Title level={5} style={{ margin: 0, color: C.darkText, fontWeight: 700 }}>
                                     {config.name}
-                                  </Text>
-                                  <Text style={{ fontSize: 11, color: '#64748b' }}>
+                                  </Title>
+                                  <Text type="secondary" style={{ fontSize: 12 }}>
                                     {config.chargingModel}
                                   </Text>
                                 </div>
@@ -308,10 +365,10 @@ const BillingDashboard: React.FC = () => {
                               )}
                             </div>
 
-                            <Text style={{ fontSize: 12, color: '#475569', fontWeight: 500, display: 'block', marginBottom: 6 }}>
+                            <Text style={{ fontSize: 13, color: '#475569', fontWeight: 600, display: 'block', marginBottom: 6 }}>
                               {config.subtitle}
                             </Text>
-                            <Paragraph style={{ fontSize: 12, color: '#64748b', lineHeight: 1.5, margin: 0 }}>
+                            <Paragraph type="secondary" style={{ fontSize: 12, lineHeight: 1.5, margin: 0 }}>
                               {config.description}
                             </Paragraph>
                           </div>
@@ -394,29 +451,42 @@ const BillingDashboard: React.FC = () => {
         open={!!selectedModuleForPlan}
         onCancel={() => setSelectedModuleForPlan(null)}
         footer={null}
-        width={960}
+        width={1020}
         destroyOnHidden
+        style={{ top: 24, maxWidth: '95vw' }}
         title={
-          selectedModuleForPlan ? (
-            <Space align="center" size={10}>
-              <span style={{ fontSize: 24 }}>
-                {MODULE_CONFIGS.find((m) => m.key === selectedModuleForPlan)?.icon}
-              </span>
+          selectedModuleConfig ? (
+            <Space align="center" size={12}>
+              <div
+                style={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: 12,
+                  backgroundColor: `${selectedModuleConfig.color}14`,
+                  border: `1px solid ${selectedModuleConfig.color}28`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 22,
+                }}
+              >
+                {selectedModuleConfig.icon}
+              </div>
               <div>
-                <Title level={4} style={{ margin: 0 }}>
-                  {MODULE_CONFIGS.find((m) => m.key === selectedModuleForPlan)?.name} Plans
+                <Title level={4} style={{ margin: 0, fontWeight: 700, color: '#0f172a' }}>
+                  {selectedModuleConfig.name} Plans
                 </Title>
-                <Text style={{ fontSize: 12, color: '#64748b' }}>
-                  {MODULE_CONFIGS.find((m) => m.key === selectedModuleForPlan)?.subtitle}
+                <Text type="secondary" style={{ fontSize: 13 }}>
+                  {selectedModuleConfig.subtitle}
                 </Text>
               </div>
             </Space>
           ) : undefined
         }
       >
-        <div style={{ marginTop: 12, marginBottom: 20, textAlign: 'center' }}>
+        <div style={{ marginTop: 14, marginBottom: 24, textAlign: 'center' }}>
           <Space align="center" size={12}>
-            <Text style={{ fontWeight: 600 }}>Billing Cycle:</Text>
+            <Text strong style={{ color: '#475569' }}>Billing Cycle:</Text>
             <Segmented
               value={billingCycle}
               onChange={(val) => setBillingCycle(val as 'Monthly' | 'Yearly')}
@@ -424,10 +494,19 @@ const BillingDashboard: React.FC = () => {
                 { label: 'Monthly Billing', value: 'Monthly' },
                 {
                   label: (
-                    <Space size={4}>
+                    <Space size={6}>
                       <span>Annual Billing</span>
-                      <Tag color="success" style={{ margin: 0, padding: '0 6px', borderRadius: 8, fontSize: 10 }}>
-                        Save 10%
+                      <Tag
+                        color="success"
+                        style={{
+                          margin: 0,
+                          fontSize: 10,
+                          fontWeight: 700,
+                          borderRadius: 6,
+                          padding: '0 6px',
+                        }}
+                      >
+                        SAVE 10%
                       </Tag>
                     </Space>
                   ),
@@ -436,84 +515,251 @@ const BillingDashboard: React.FC = () => {
               ]}
             />
           </Space>
-          <div style={{ marginTop: 8 }}>
-            <Tag color="processing" icon={<GiftFilled />}>
-              1-Month Free Trial included on all plans
+          <div style={{ marginTop: 10 }}>
+            <Tag color="processing" icon={<GiftFilled />} style={{ borderRadius: 8, padding: '3px 10px', fontSize: 12 }}>
+              1-Month Free Trial included on all plans • Instant workspace activation
             </Tag>
           </div>
         </div>
 
         {plansLoading ? (
-          <div style={{ textAlign: 'center', padding: '40px 0' }}>
-            <SyncOutlined spin style={{ fontSize: 28, color: primaryColor }} />
-            <Text style={{ display: 'block', marginTop: 10, color: '#64748b' }}>Loading available plans...</Text>
+          <div style={{ textAlign: 'center', padding: '60px 0' }}>
+            <SyncOutlined spin style={{ fontSize: 32, color: selectedModuleConfig?.color || primaryColor }} />
+            <Text type="secondary" style={{ display: 'block', marginTop: 12, fontSize: 14 }}>
+              Loading available subscription plans...
+            </Text>
           </div>
         ) : (
-          <Row gutter={[16, 16]}>
+          <Row gutter={[20, 20]} align="stretch">
             {displayPlans.map((plan) => {
+              const isRec = Boolean(plan.is_recommended);
+              const isFree = plan.price === 0;
+              const isYearly = billingCycle === 'Yearly';
               const monthlyPrice = plan.pricing?.monthly ?? plan.price;
               const yearlyPrice = plan.pricing?.yearly ?? Math.round(monthlyPrice * 12 * 0.9);
-              const effectivePrice = billingCycle === 'Yearly' ? yearlyPrice : monthlyPrice;
+              const effectivePrice = isYearly ? yearlyPrice : monthlyPrice;
+              const moduleColor = selectedModuleConfig?.color || primaryColor;
+              const features = getValidPlanFeatures(plan, selectedModuleForPlan);
+
+              const billingPeriodLabel = isFree
+                ? 'forever'
+                : isYearly
+                ? 'year (10% off)'
+                : plan.charging_model === 'per_shop'
+                ? 'branch / month'
+                : 'business / month';
 
               return (
-                <Col xs={24} sm={12} lg={8} key={plan._id || plan.name}>
+                <Col xs={24} sm={12} lg={8} key={plan._id || plan.code || plan.name} style={{ display: 'flex' }}>
                   <Card
                     hoverable
                     style={{
-                      borderRadius: 14,
-                      height: '100%',
+                      width: '100%',
+                      borderRadius: 16,
                       display: 'flex',
                       flexDirection: 'column',
-                      border: plan.is_recommended ? `2px solid ${primaryColor}` : '1px solid #e2e8f0',
+                      borderColor: isRec ? moduleColor : '#e2e8f0',
+                      borderWidth: isRec ? 2 : 1,
+                      boxShadow: isRec
+                        ? `0 12px 30px ${moduleColor}25`
+                        : '0 2px 10px rgba(0, 0, 0, 0.04)',
+                      position: 'relative',
+                      transition: 'all 0.25s ease',
                     }}
-                    bodyStyle={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '100%', padding: 20 }}
+                    bodyStyle={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      height: '100%',
+                      flex: 1,
+                      padding: '26px 22px 22px',
+                    }}
                   >
+                    {isRec && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: -12,
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          backgroundColor: moduleColor,
+                          color: '#ffffff',
+                          padding: '2px 14px',
+                          borderRadius: 20,
+                          fontSize: 10,
+                          fontWeight: 700,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 5,
+                          letterSpacing: '0.06em',
+                          boxShadow: `0 4px 10px ${moduleColor}40`,
+                          zIndex: 10,
+                        }}
+                      >
+                        <CrownFilled style={{ color: '#fbbf24' }} />
+                        <span>RECOMMENDED</span>
+                      </div>
+                    )}
+
                     <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                        <Text strong style={{ fontSize: 16 }}>{plan.name}</Text>
-                        {plan.is_recommended && (
-                          <Tag color="blue" style={{ borderRadius: 8 }}>Recommended</Tag>
+                      {/* Plan Header & Tier Badge */}
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'flex-start',
+                          marginBottom: 8,
+                        }}
+                      >
+                        <Title level={4} style={{ margin: 0, fontWeight: 700, color: '#0f172a' }}>
+                          {plan.name}
+                        </Title>
+                        {plan.tier && plan.tier !== 'Free' && (
+                          <Tag
+                            color={isRec ? 'processing' : 'default'}
+                            style={{ borderRadius: 6, fontSize: 11, margin: 0, fontWeight: 600 }}
+                          >
+                            {plan.tier}
+                          </Tag>
                         )}
                       </div>
 
-                      <div style={{ margin: '14px 0' }}>
-                        <Text style={{ fontSize: 24, fontWeight: 700, color: C.darkText }}>
-                          KES {effectivePrice.toLocaleString()}
-                        </Text>
-                        <Text style={{ fontSize: 12, color: '#64748b' }}>
-                          /{billingCycle === 'Yearly' ? 'year' : 'month'}
-                        </Text>
+                      {/* Plan Description */}
+                      <Paragraph
+                        type="secondary"
+                        style={{
+                          fontSize: 13,
+                          lineHeight: '1.5',
+                          minHeight: 40,
+                          marginBottom: 16,
+                          color: '#64748b',
+                        }}
+                      >
+                        {plan.description || `${plan.charging_model?.replace('_', ' ') || 'Subscription'} plan`}
+                      </Paragraph>
+
+                      {/* Pricing Typography */}
+                      <div
+                        style={{
+                          padding: '14px 0',
+                          borderTop: '1px solid #f1f5f9',
+                          borderBottom: '1px solid #f1f5f9',
+                          marginBottom: 18,
+                        }}
+                      >
+                        {isFree ? (
+                          <div>
+                            <Title
+                              level={2}
+                              style={{
+                                margin: 0,
+                                fontWeight: 800,
+                                color: '#059669',
+                                letterSpacing: '-0.02em',
+                              }}
+                            >
+                              FREE
+                            </Title>
+                            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 2 }}>
+                              Free forever for your business
+                            </Text>
+                          </div>
+                        ) : (
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: 6 }}>
+                              <Title
+                                level={2}
+                                style={{
+                                  margin: 0,
+                                  fontWeight: 800,
+                                  color: '#0f172a',
+                                  letterSpacing: '-0.02em',
+                                }}
+                              >
+                                KES {effectivePrice.toLocaleString()}
+                              </Title>
+                              <Text type="secondary" style={{ fontSize: 13 }}>
+                                / {billingPeriodLabel}
+                              </Text>
+                            </div>
+
+                            {isYearly && (
+                              <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <Tag color="success" style={{ margin: 0, fontSize: 10, fontWeight: 700, borderRadius: 4 }}>
+                                  10% OFF
+                                </Tag>
+                                <Text type="secondary" style={{ fontSize: 12 }}>
+                                  ≈ KES {Math.round(effectivePrice / 12).toLocaleString()} / mo billed annually
+                                </Text>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
 
-                      {plan.description && (
-                        <Paragraph style={{ fontSize: 12, color: '#64748b', lineHeight: 1.4 }}>
-                          {plan.description}
-                        </Paragraph>
-                      )}
+                      {/* Included Features List (Natural expansion, NO internal card scroll!) */}
+                      <div style={{ marginBottom: 20 }}>
+                        <Text
+                          strong
+                          style={{
+                            fontSize: 11,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.08em',
+                            color: '#94a3b8',
+                            display: 'block',
+                            marginBottom: 12,
+                          }}
+                        >
+                          Included Features:
+                        </Text>
 
-                      <Divider style={{ margin: '12px 0' }} />
-
-                      <div style={{ maxHeight: 180, overflowY: 'auto' }}>
-                        {Array.isArray(plan.features) &&
-                          plan.features.map((feat: any, idx: number) => {
-                            const featText = typeof feat === 'string' ? feat : feat?.name || feat?.code;
-                            return (
-                              <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginBottom: 6 }}>
-                                <CheckCircleFilled style={{ color: '#10b981', fontSize: 12, marginTop: 3 }} />
-                                <Text style={{ fontSize: 11, color: '#334155' }}>{featText}</Text>
+                        {features.length > 0 ? (
+                          <Space direction="vertical" size={9} style={{ width: '100%' }}>
+                            {features.map((featName, idx) => (
+                              <div
+                                key={idx}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'flex-start',
+                                  gap: 9,
+                                }}
+                              >
+                                <CheckCircleFilled
+                                  style={{
+                                    color: isRec ? moduleColor : '#10b981',
+                                    fontSize: 14,
+                                    marginTop: 3,
+                                    flexShrink: 0,
+                                  }}
+                                />
+                                <Text style={{ fontSize: 13, lineHeight: '19px', color: '#334155' }}>
+                                  {featName}
+                                </Text>
                               </div>
-                            );
-                          })}
+                            ))}
+                          </Space>
+                        ) : (
+                          <Text type="secondary" style={{ fontSize: 13, fontStyle: 'italic' }}>
+                            Full suite of {selectedModuleConfig?.name || 'module'} features included
+                          </Text>
+                        )}
                       </div>
                     </div>
 
-                    <div style={{ marginTop: 16 }}>
+                    {/* Action Button pinned at bottom */}
+                    <div style={{ marginTop: 'auto', paddingTop: 12 }}>
                       <Button
-                        type={plan.is_recommended ? 'primary' : 'default'}
+                        type={isRec ? 'primary' : 'default'}
                         block
+                        size="large"
                         loading={subscribeMutation.isLoading}
                         onClick={() => selectedModuleForPlan && handleSubscribe(selectedModuleForPlan, plan)}
-                        style={{ borderRadius: 8, fontWeight: 600 }}
+                        style={{
+                          borderRadius: 8,
+                          fontWeight: 600,
+                          backgroundColor: isRec ? moduleColor : undefined,
+                          borderColor: isRec ? moduleColor : undefined,
+                        }}
                       >
                         Start 1-Month Free Trial
                       </Button>
