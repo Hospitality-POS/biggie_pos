@@ -56,6 +56,15 @@ const TAB_ITEMS = [
     { key: "ap-aging", label: "AP Aging" },
 ];
 
+// Customer picker label — business customers keep their name in company_name
+// (customer_name is optional), and the phone field is `phone`
+const customerOptionLabel = (c: any) => {
+    const name =
+        c.customer_name?.trim() || c.company_name?.trim() || c.contact_person?.name?.trim() ||
+        c.email || c.code || "Unnamed customer";
+    return c.phone ? `${name} — ${c.phone}` : name;
+};
+
 const fmt = (v: number) =>
     (v ?? 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -572,10 +581,10 @@ const AccountingReportsPage: React.FC = () => {
             case "customer-statement": return <>
                 <Space style={{ marginBottom: 12 }} wrap>
                     <Select showSearch placeholder="Select customer…" value={customerId} onChange={setCustomerId} style={{ width: 260, borderRadius: 8 }} optionFilterProp="label"
-                        options={customers.map((c: any) => ({ label: `${c.customer_name}${c.customer_phone ? ` — ${c.customer_phone}` : ""}`, value: c._id }))} />
+                        options={customers.map((c: any) => ({ label: customerOptionLabel(c), value: c._id }))} />
                     {custPeriod.enabled && (
                         <Select showSearch placeholder="Compare customer (optional)…" value={compareCustomerId} onChange={setCompareCustomerId} allowClear style={{ width: 260, borderRadius: 8 }} optionFilterProp="label"
-                            options={customers.map((c: any) => ({ label: `${c.customer_name}${c.customer_phone ? ` — ${c.customer_phone}` : ""}`, value: c._id }))} />
+                            options={customers.map((c: any) => ({ label: customerOptionLabel(c), value: c._id }))} />
                     )}
                 </Space>
                 <PeriodFilter value={custPeriod} onChange={setCustPeriod} onRun={() => { if (customerId) run("customer-statement"); }} loading={isLoading(custQ, custQC, custPeriod.enabled)} supportComparative extra={<FilterControls />} />
