@@ -538,7 +538,6 @@ const BillingDashboard: React.FC = () => {
                     <Space align="center">
                       <FileTextOutlined style={{ color: primaryColor }} />
                       <Text strong style={{ fontSize: 16 }}>Billing Invoices &amp; Receipts</Text>
-                      <Tag color="cyan">Code: {tenant?.tenant_code || 'BASE'}</Tag>
                     </Space>
                   }
                   rowKey="_id"
