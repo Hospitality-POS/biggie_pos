@@ -1,11 +1,15 @@
 import React, { useState } from "react";
-import { Alert, Card, Col, Collapse, Row, Space, Statistic, Table, Tag, Tooltip, Typography, Button } from "antd";
-import { CheckCircleOutlined, WarningOutlined, EyeOutlined } from "@ant-design/icons";
+import { Alert, Card, Col, Collapse, Row, Space, Statistic, Table, Tag, Tooltip, Typography, Button, Popconfirm, App } from "antd";
+import { CheckCircleOutlined, WarningOutlined, EyeOutlined, ToolOutlined, RobotOutlined } from "@ant-design/icons";
+import { useMutation } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import {
     StatementVerifyResult,
     StatementGapReason,
     LedgerGapReason,
+    fixStatementAnomaly,
+    aiReviewStatement,
+    StatementAiReview,
 } from "@services/accounting/accounts";
 import JournalEntryDetailDrawer from "../JournalEntry/JournalEntryDetailDrawer";
 
@@ -44,6 +48,16 @@ const STATEMENT_GAP: Record<StatementGapReason, { label: string; color: string; 
 };
 
 const LEDGER_GAP: Record<LedgerGapReason, { label: string; color: string; hint: string }> = {
+    in_transit: {
+        label: "In transit",
+        color: "blue",
+        hint: "Booked before the cut-off, but the bank only shows it after — a timing difference, nothing to fix",
+    },
+    misposted_wht: {
+        label: "Misposted WHT",
+        color: "magenta",
+        hint: "Withholding tax was booked as money into the bank — the customer kept it, so it never reached the bank",
+    },
     possible_duplicate: {
         label: "Possible duplicate",
         color: "red",
@@ -63,15 +77,44 @@ const LEDGER_GAP: Record<LedgerGapReason, { label: string; color: string; hint: 
 
 interface Props {
     result: StatementVerifyResult;
-    /** Called after the books change (an entry edited from here) */
+    /** The bank account being verified — needed for fixes and the AI review */
+    accountId?: string;
+    /** Called after the books change (an entry edited or fixed from here) */
     onChanged?: () => void;
 }
 
-const LedgerStatementResult: React.FC<Props> = ({ result, onChanged }) => {
+const CONFIDENCE_COLOR: Record<string, string> = { high: "green", medium: "gold", low: "default" };
+
+const LedgerStatementResult: React.FC<Props> = ({ result, accountId, onChanged }) => {
+    const { message } = App.useApp();
     const [viewEntryId, setViewEntryId] = useState<string | null>(null);
+    const [ai, setAi] = useState<StatementAiReview | null>(null);
+    const aiNote = (key: string) => ai?.items.find((i) => i.key === key);
     const { counts, balances, explanation } = result;
     const hasBalances = balances.closing_difference !== null;
     const inBalance = hasBalances && isZero(balances.closing_difference);
+
+    const fixMutation = useMutation({
+        mutationFn: (v: { entry_id: string; action: "void" | "reclassify_wht" }) =>
+            fixStatementAnomaly(accountId as string, v),
+        onSuccess: (res) => {
+            message.success(res.message);
+            setAi(null); // the result changes — an old review would no longer fit
+            onChanged?.();
+        },
+        onError: (err: any) => message.error(err?.response?.data?.message || "Couldn't apply the fix"),
+    });
+
+    const aiMutation = useMutation({
+        mutationFn: () => aiReviewStatement(accountId as string, result),
+        onSuccess: setAi,
+        onError: (err: any) => message.error(err?.response?.data?.message || "AI review failed"),
+    });
+    const anomalies = counts.missing_in_ledger + counts.missing_in_statement;
+
+    // Books-only items split into timing (in transit) and the rest
+    const inTransitNet = explanation.in_transit_net || 0;
+    const otherBooksOnlyNet = (explanation.missing_in_statement_net || 0) - inTransitNet;
 
     const parts: { label: string; value: number; hint: string }[] = [
         {
@@ -85,9 +128,14 @@ const LedgerStatementResult: React.FC<Props> = ({ result, onChanged }) => {
             hint: "Bank activity the ledger doesn't have yet",
         },
         {
-            label: `In the books, not on the statement (${counts.missing_in_statement})`,
-            value: explanation.missing_in_statement_net,
-            hint: "Ledger entries the bank never showed",
+            label: `In transit — clears at the bank after ${result.as_of ? fmtDate(result.as_of) : "the cut-off"} (${counts.in_transit || 0})`,
+            value: inTransitNet,
+            hint: "Timing only: booked before the cut-off, shown by the bank after it — nothing to fix",
+        },
+        {
+            label: `In the books, not on the statement (${counts.missing_in_statement - (counts.in_transit || 0)})`,
+            value: otherBooksOnlyNet,
+            hint: "Ledger entries the bank never showed — see the diagnosis and fix on each one below",
         },
         {
             label: "Matched entries dated outside the statement period",
@@ -177,6 +225,33 @@ const LedgerStatementResult: React.FC<Props> = ({ result, onChanged }) => {
                 />
             )}
 
+            {/* ── AI review (read-only: explains, suggests; fixes stay explicit) ── */}
+            {accountId && anomalies > 0 && (
+                ai ? (
+                    <Alert
+                        type="info"
+                        showIcon
+                        icon={<RobotOutlined />}
+                        message="AI review"
+                        description={
+                            <Space direction="vertical" size={4}>
+                                <Text>{ai.summary}</Text>
+                                <Text type="secondary" style={{ fontSize: 12 }}>
+                                    AI suggestions can be wrong — its notes are on each row below. Nothing changes until you apply a fix.
+                                </Text>
+                            </Space>
+                        }
+                        action={<Button size="small" onClick={() => aiMutation.mutate()} loading={aiMutation.isLoading}>Refresh</Button>}
+                    />
+                ) : (
+                    <Row justify="end">
+                        <Button icon={<RobotOutlined />} onClick={() => aiMutation.mutate()} loading={aiMutation.isLoading}>
+                            Explain with AI
+                        </Button>
+                    </Row>
+                )
+            )}
+
             {/* ── Counts ── */}
             <Row gutter={12}>
                 <Col span={6}>
@@ -229,6 +304,20 @@ const LedgerStatementResult: React.FC<Props> = ({ result, onChanged }) => {
                                 </Tooltip>
                             ),
                         },
+                        ...(ai ? [{
+                            title: "AI note",
+                            key: "ai",
+                            width: 260,
+                            render: (_: unknown, row: { row_index: number }) => {
+                                const n = aiNote(`stmt-${row.row_index}`);
+                                return n ? (
+                                    <Space direction="vertical" size={0}>
+                                        <Text style={{ fontSize: 12 }}>{n.explanation}</Text>
+                                        {n.action && <Text type="secondary" style={{ fontSize: 11 }}>→ {n.action}</Text>}
+                                    </Space>
+                                ) : <Text type="secondary">—</Text>;
+                            },
+                        }] : []),
                     ]}
                 />
             </div>
@@ -244,7 +333,7 @@ const LedgerStatementResult: React.FC<Props> = ({ result, onChanged }) => {
                     dataSource={result.missing_in_statement}
                     size="small"
                     pagination={{ pageSize: 10, hideOnSinglePage: true }}
-                    scroll={{ x: 860 }}
+                    scroll={{ x: 1100 }}
                     locale={{ emptyText: "Every ledger entry in the period is on the statement" }}
                     columns={[
                         { title: "Date", dataIndex: "entry_date", width: 110, render: fmtDate },
@@ -256,21 +345,67 @@ const LedgerStatementResult: React.FC<Props> = ({ result, onChanged }) => {
                         {
                             title: "Why",
                             dataIndex: "reason",
-                            width: 170,
-                            render: (r: LedgerGapReason, row) => (
-                                <Tooltip title={`${LEDGER_GAP[r]?.hint}${row.twin_entry_no ? ` (${row.twin_entry_no})` : ""}`}>
-                                    <Tag color={LEDGER_GAP[r]?.color}>{LEDGER_GAP[r]?.label || r}</Tag>
-                                </Tooltip>
-                            ),
+                            width: 300,
+                            render: (r: LedgerGapReason, row) => {
+                                const n = aiNote(`entry-${row.entry_id}`);
+                                return (
+                                    <Space direction="vertical" size={2}>
+                                        <Space size={4} wrap>
+                                            <Tooltip title={LEDGER_GAP[r]?.hint}>
+                                                <Tag color={LEDGER_GAP[r]?.color} style={{ margin: 0 }}>{LEDGER_GAP[r]?.label || r}</Tag>
+                                            </Tooltip>
+                                            {row.cleared_on && <Text type="secondary" style={{ fontSize: 11 }}>cleared {fmtDate(row.cleared_on)}</Text>}
+                                            {row.counter_accounts?.length > 0 && (
+                                                <Text type="secondary" style={{ fontSize: 11 }}>
+                                                    vs {row.counter_accounts.map((c) => `${c.account_code} ${c.account_name}`).join(", ")}
+                                                </Text>
+                                            )}
+                                        </Space>
+                                        {row.diagnosis && <Text style={{ fontSize: 12 }}>{row.diagnosis}</Text>}
+                                        {n && (
+                                            <Text style={{ fontSize: 12, color: "#0958d9" }}>
+                                                <RobotOutlined /> {n.explanation}{n.action ? ` → ${n.action}` : ""}
+                                                {n.confidence && <Tag color={CONFIDENCE_COLOR[n.confidence]} style={{ marginLeft: 6, fontSize: 10 }}>{n.confidence}</Tag>}
+                                            </Text>
+                                        )}
+                                    </Space>
+                                );
+                            },
                         },
                         {
                             title: "",
-                            key: "view",
-                            width: 44,
+                            key: "actions",
+                            width: 150,
+                            fixed: "right" as const,
                             render: (_: unknown, row) => (
-                                <Tooltip title="View journal entry">
-                                    <Button size="small" type="text" icon={<EyeOutlined />} onClick={() => setViewEntryId(String(row.entry_id))} />
-                                </Tooltip>
+                                <Space size={4}>
+                                    <Tooltip title="View journal entry">
+                                        <Button size="small" type="text" icon={<EyeOutlined />} onClick={() => setViewEntryId(String(row.entry_id))} />
+                                    </Tooltip>
+                                    {row.fix && accountId && (
+                                        <Popconfirm
+                                            title={row.fix.label}
+                                            description={
+                                                row.fix.action === "reclassify_wht"
+                                                    ? `Posts a corrected entry for ${fmt(row.money_in || row.money_out)} and voids ${row.entry_no}. Both are kept for the audit trail.`
+                                                    : `Voids ${row.entry_no} (${fmt(row.money_in || row.money_out)}). It stays in the audit trail.`
+                                            }
+                                            okText="Apply fix"
+                                            okButtonProps={{ danger: row.fix.action === "void" }}
+                                            onConfirm={() => fixMutation.mutateAsync({ entry_id: String(row.entry_id), action: row.fix!.action })}
+                                        >
+                                            <Button
+                                                size="small"
+                                                type={row.fix.action === "reclassify_wht" ? "primary" : "default"}
+                                                danger={row.fix.action === "void"}
+                                                icon={<ToolOutlined />}
+                                                loading={fixMutation.isLoading && fixMutation.variables?.entry_id === String(row.entry_id)}
+                                            >
+                                                {row.fix.action === "reclassify_wht" ? "Fix" : "Void"}
+                                            </Button>
+                                        </Popconfirm>
+                                    )}
+                                </Space>
                             ),
                         },
                     ]}
