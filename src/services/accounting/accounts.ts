@@ -160,6 +160,8 @@ export interface GetLedgerParams {
     to?: string;
     page?: number;
     limit?: number;
+    // Entry no / description / reference / line note / account name, or an exact amount
+    search?: string;
 }
 
 // ============================================
@@ -384,12 +386,27 @@ export type StatementGapReason =
     | "completed_entry_elsewhere";
 
 /** Why a ledger entry isn't on the statement. */
-export type LedgerGapReason = "possible_duplicate" | "not_on_this_statement" | "booked_directly";
+export type LedgerGapReason =
+    | "in_transit"
+    | "misposted_wht"
+    | "possible_duplicate"
+    | "not_on_this_statement"
+    | "booked_directly";
+
+/** A one-click fix offered for a books-only entry (applied server-side after re-checking). */
+export interface StatementAnomalyFix {
+    action: "void" | "reclassify_wht";
+    label: string;
+    debit_account_id?: string;
+    credit_account_id?: string;
+}
 
 export interface StatementVerifyInput {
     shop_id?: string;
     statement_opening_balance?: number | null;
     statement_closing_balance?: number | null;
+    /** Cut-off (YYYY-MM-DD). Rows after it are only used to spot entries in transit. */
+    as_of?: string | null;
     transactions: {
         transaction_date: string;
         description: string;
@@ -404,14 +421,18 @@ export interface StatementVerifyInput {
 export interface StatementVerifyResult {
     account: { _id: string; account_code: string; account_name: string; account_type: AccountType };
     period: { from: string; to: string };
+    as_of: string | null;
     date_tolerance_days: number;
     counts: {
         statement: number;
+        after_cutoff: number;
         ledger_in_period: number;
         matched: number;
         matched_date_shifted: number;
         missing_in_ledger: number;
         missing_in_statement: number;
+        in_transit: number;
+        fixable: number;
     };
     balances: {
         ledger_opening: number;
@@ -425,6 +446,8 @@ export interface StatementVerifyResult {
         opening_difference: number | null;
         missing_in_ledger_net: number;
         missing_in_statement_net: number;
+        /** Part of missing_in_statement_net that only clears after the cut-off */
+        in_transit_net: number;
         period_boundary_net: number;
         unexplained: number | null;
     };
@@ -450,7 +473,13 @@ export interface StatementVerifyResult {
         money_in: number;
         money_out: number;
         reason: LedgerGapReason;
+        /** Plain-language explanation of what most likely happened */
+        diagnosis: string;
+        fix: StatementAnomalyFix | null;
+        counter_accounts: { account_id: string; account_code: string; account_name: string; debit: number; credit: number }[];
         twin_entry_no: string | null;
+        /** In transit: the date the bank shows it, after the cut-off */
+        cleared_on: string | null;
     }[];
     date_shifted: {
         transaction_date: string;
@@ -481,4 +510,30 @@ export const verifyAccountAgainstStatement = async (id: string, data: StatementV
         message.error(err.response?.data?.message || "Error verifying against the statement");
         throw error;
     }
+};
+
+/** Apply one fix offered by the verification (the server re-checks the entry first). */
+export const fixStatementAnomaly = async (
+    accountId: string,
+    data: { entry_id: string; action: StatementAnomalyFix["action"]; reason?: string }
+) => {
+    const response = await axiosInstance.post(
+        `${BASE_URL}/accounting/chart-of-accounts/${accountId}/verify-statement/fix`,
+        data
+    );
+    return response.data as { message: string; voided_entry_no: string; new_entry_no?: string };
+};
+
+export interface StatementAiReview {
+    summary: string;
+    items: { key: string; explanation: string; action: string; confidence?: "high" | "medium" | "low" }[];
+}
+
+/** Read-only AI explanation of a verification result. */
+export const aiReviewStatement = async (accountId: string, result: StatementVerifyResult) => {
+    const response = await axiosInstance.post(
+        `${BASE_URL}/accounting/chart-of-accounts/${accountId}/verify-statement/ai-review`,
+        { result }
+    );
+    return response.data as StatementAiReview;
 };
