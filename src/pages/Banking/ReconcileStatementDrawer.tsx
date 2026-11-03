@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import {
     Drawer, Typography, Upload, Alert, Space,
     Table, Button, Steps, Select, Row, Col, Radio, message, Statistic, Card, Tag,
-    InputNumber,
+    InputNumber, DatePicker, Spin,
 } from "antd";
 import {
     InboxOutlined, CheckCircleOutlined,
@@ -12,7 +12,8 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import Papa from "papaparse";
 import { getVisibleSheetRows } from "@utils/visibleSheetRows";
-import dayjs from "dayjs";
+import dayjs, { Dayjs } from "dayjs";
+import { parseBankStatementPdf, PdfStatementResult } from "@utils/bankStatementPdf";
 import {
     compareStatement,
     importStatement,
@@ -137,6 +138,11 @@ const ReconcileStatementDrawer: React.FC<Props> = ({
     const [stmtOpening, setStmtOpening] = useState<number | null>(null);
     const [stmtClosing, setStmtClosing] = useState<number | null>(null);
     const [verifyResult, setVerifyResult] = useState<StatementVerifyResult | null>(null);
+    // PDF statements are read straight into rows (no column mapping)
+    const [pdfInfo, setPdfInfo] = useState<PdfStatementResult | null>(null);
+    const [pdfLoading, setPdfLoading] = useState(false);
+    // Optional cut-off: reconcile "as of" this date; later rows only spot items in transit
+    const [asOf, setAsOf] = useState<Dayjs | null>(null);
 
     const { data: accountsData } = useQuery({
         queryKey: ["chart-of-accounts", shopId],
@@ -171,6 +177,7 @@ const ReconcileStatementDrawer: React.FC<Props> = ({
                 shop_id: (ledgerShopId ?? shopId) || undefined,
                 statement_opening_balance: input.opening,
                 statement_closing_balance: input.closing,
+                as_of: asOf ? asOf.format("YYYY-MM-DD") : null,
                 transactions: input.rows.map((r) => ({
                     transaction_date: r.transaction_date,
                     description: r.description,
@@ -198,7 +205,7 @@ const ReconcileStatementDrawer: React.FC<Props> = ({
             return importStatement({
                 shop_id: shopId,
                 account_id: selectedAccountId as string,
-                source_type: fileName.endsWith(".csv") ? "csv" : "excel",
+                source_type: fileName.toLowerCase().endsWith(".pdf") ? "pdf" : fileName.endsWith(".csv") ? "csv" : "excel",
                 original_filename: fileName,
                 statement_from: dates[0]?.startOf("day").toISOString(),
                 statement_to: dates[dates.length - 1]?.endOf("day").toISOString(),
@@ -246,10 +253,46 @@ const ReconcileStatementDrawer: React.FC<Props> = ({
         setStmtOpening(null);
         setStmtClosing(null);
         setVerifyResult(null);
+        setPdfInfo(null);
+        setAsOf(null);
+    };
+
+    // Re-run the check with the same rows — after a fix changes the books
+    const reverify = () => {
+        if (!parsedRows.length) return;
+        verifyMutation.mutate({ rows: parsedRows, opening: stmtOpening, closing: stmtClosing });
+    };
+
+    // ── PDF statement: read rows directly, no column mapping ──
+    const parsePdf = async (file: File) => {
+        setFileName(file.name);
+        setPdfLoading(true);
+        try {
+            const res = await parseBankStatementPdf(file);
+            if (!res.rows.length) {
+                message.error("No transactions found in this PDF. Export the statement as Excel/CSV instead.");
+                return;
+            }
+            setPdfInfo(res);
+            setParsedRows(res.rows);
+            setStmtOpening(res.opening);
+            setStmtClosing(res.closing);
+            setCurrentStep(1);
+        } catch (err) {
+            console.error("[parsePdf]", err);
+            message.error("Couldn't read this PDF — it may be scanned. Export the statement as Excel/CSV instead.");
+        } finally {
+            setPdfLoading(false);
+        }
     };
 
     const parseFile = (file: File) => {
         setFileName(file.name);
+        setPdfInfo(null);
+        if (file.name.toLowerCase().endsWith(".pdf")) {
+            parsePdf(file);
+            return false;
+        }
 
         const isHeaderRow = (row: any[]) => {
             const recognized = [
@@ -324,6 +367,15 @@ const ReconcileStatementDrawer: React.FC<Props> = ({
     };
 
     const applyMapping = () => {
+        // PDF rows are already parsed — go straight to the check
+        if (pdfInfo) {
+            if (!ledgerMode) {
+                compareMutation.mutate();
+                return;
+            }
+            verifyMutation.mutate({ rows: parsedRows, opening: stmtOpening, closing: stmtClosing });
+            return;
+        }
         const dateKey = columnMap["date"];
         const descKey = columnMap["description"];
         const debitKey = columnMap["debit"];
@@ -384,8 +436,8 @@ const ReconcileStatementDrawer: React.FC<Props> = ({
     };
 
     const headerOptions = fileHeaders.map((h) => ({ label: h, value: h }));
-    const isMappingValid = columnMap["date"] && columnMap["description"] &&
-        (amountColumnType === "single" ? columnMap["amount"] : (columnMap["debit"] || columnMap["credit"]));
+    const isMappingValid = !!pdfInfo || (columnMap["date"] && columnMap["description"] &&
+        (amountColumnType === "single" ? columnMap["amount"] : (columnMap["debit"] || columnMap["credit"])));
 
     const diffColumns = [
         { title: "Date", dataIndex: "transaction_date", width: 110, render: (v: string) => dayjs(v).isValid() ? dayjs(v).format("DD MMM YYYY") : v },
@@ -512,36 +564,87 @@ const ReconcileStatementDrawer: React.FC<Props> = ({
                     </div>
                     <div>
                         <Text strong style={{ display: "block", marginBottom: 8 }}>
-                            Upload Excel / CSV Statement
+                            Upload Statement (PDF, Excel or CSV)
                         </Text>
-                        <Dragger
-                            accept=".xlsx,.xls,.csv"
-                            beforeUpload={parseFile}
-                            showUploadList={false}
-                            multiple={false}
-                            disabled={!selectedAccountId}
-                        >
-                            <p className="ant-upload-drag-icon">
-                                <InboxOutlined style={{ color: selectedAccountId ? "#52c41a" : "#d9d9d9", fontSize: 48 }} />
-                            </p>
-                            <p className="ant-upload-text">
-                                {selectedAccountId ? "Click or drag Excel/CSV file here" : "Select a bank account first"}
-                            </p>
-                            <p className="ant-upload-hint">Supports .xlsx, .xls, .csv</p>
-                        </Dragger>
+                        <Spin spinning={pdfLoading} tip="Reading the statement PDF…">
+                            <Dragger
+                                accept=".pdf,.xlsx,.xls,.csv"
+                                beforeUpload={parseFile}
+                                showUploadList={false}
+                                multiple={false}
+                                disabled={!selectedAccountId || pdfLoading}
+                            >
+                                <p className="ant-upload-drag-icon">
+                                    <InboxOutlined style={{ color: selectedAccountId ? "#52c41a" : "#d9d9d9", fontSize: 48 }} />
+                                </p>
+                                <p className="ant-upload-text">
+                                    {selectedAccountId ? "Click or drag the bank statement here" : "Select a bank account first"}
+                                </p>
+                                <p className="ant-upload-hint">
+                                    PDF statements (text, not scanned) are read automatically. Excel / CSV let you map the columns.
+                                </p>
+                            </Dragger>
+                        </Spin>
                     </div>
                 </Space>
             )}
 
             {currentStep === 1 && (
                 <Space direction="vertical" style={{ width: "100%" }} size={20}>
-                    <Alert
-                        type="success"
-                        showIcon
-                        message={`${rawRows.length} rows detected`}
-                        description={`File: ${fileName}`}
-                    />
+                    {pdfInfo ? (
+                        <Alert
+                            type={pdfInfo.mismatches ? "warning" : "success"}
+                            showIcon
+                            message={`${pdfInfo.rows.length} transactions read from ${pdfInfo.pages} page${pdfInfo.pages === 1 ? "" : "s"}`}
+                            description={
+                                <Space direction="vertical" size={2}>
+                                    <Text>File: {fileName}</Text>
+                                    <Text>
+                                        {dayjs(pdfInfo.rows[0].transaction_date).format("DD MMM YYYY")} – {dayjs(pdfInfo.rows[pdfInfo.rows.length - 1].transaction_date).format("DD MMM YYYY")}
+                                        {" · "}opening {fmt(pdfInfo.opening || 0)} · closing {fmt(pdfInfo.closing || 0)}
+                                    </Text>
+                                    <Text type={pdfInfo.mismatches ? "danger" : "secondary"}>
+                                        {pdfInfo.mismatches
+                                            ? `${pdfInfo.mismatches} row(s) where the balance didn't move by the amount — the PDF may not have been read correctly; check against the statement.`
+                                            : "Balance check passed: every row's balance moved by exactly its amount."}
+                                    </Text>
+                                    {pdfInfo.outOfOrder > 0 && (
+                                        <Text type="secondary">
+                                            {pdfInfo.outOfOrder} row(s) are printed out of date order (the bank lists them by posting) — the check uses each row's own date.
+                                        </Text>
+                                    )}
+                                </Space>
+                            }
+                        />
+                    ) : (
+                        <Alert
+                            type="success"
+                            showIcon
+                            message={`${rawRows.length} rows detected`}
+                            description={`File: ${fileName}`}
+                        />
+                    )}
 
+                    {ledgerMode && (
+                        <div>
+                            <Text strong style={{ display: "block", marginBottom: 4 }}>Reconcile as of (optional)</Text>
+                            <Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 8 }}>
+                                Compare the books with the bank up to this date — e.g. the balance sheet date. Statement rows after it
+                                are only used to find entries that are in transit (booked before the date, cleared at the bank after).
+                            </Text>
+                            <DatePicker
+                                value={asOf}
+                                onChange={setAsOf}
+                                format="DD MMM YYYY"
+                                allowClear
+                                placeholder="Whole statement"
+                                style={{ width: 220 }}
+                                size="large"
+                            />
+                        </div>
+                    )}
+
+                    {!pdfInfo && (<>
                     <div>
                         <Text strong style={{ display: "block", marginBottom: 8 }}>Amount Column Type</Text>
                         <Radio.Group
@@ -680,6 +783,7 @@ const ReconcileStatementDrawer: React.FC<Props> = ({
                             )}
                         </Row>
                     </div>
+                    </>)}
 
                     {ledgerMode && (
                         <div>
@@ -726,7 +830,16 @@ const ReconcileStatementDrawer: React.FC<Props> = ({
             )}
 
             {ledgerMode && currentStep === 2 && verifyResult && (
-                <LedgerStatementResult result={verifyResult} onChanged={onSuccess} />
+                <Spin spinning={verifyMutation.isLoading} tip="Re-checking…">
+                    <LedgerStatementResult
+                        result={verifyResult}
+                        accountId={selectedAccountId as string}
+                        onChanged={() => {
+                            onSuccess();
+                            reverify();
+                        }}
+                    />
+                </Spin>
             )}
 
             {!ledgerMode && currentStep === 2 && result && (

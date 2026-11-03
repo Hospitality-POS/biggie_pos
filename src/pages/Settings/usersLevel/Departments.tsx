@@ -2,19 +2,21 @@ import { useEffect, useRef, useState } from "react";
 import { ActionType, ProTable } from "@ant-design/pro-components";
 import {
     ApartmentOutlined, DeleteOutlined, EditOutlined,
-    EyeOutlined, MoreOutlined, PlusOutlined, TeamOutlined,
+    EyeOutlined, MoreOutlined, PictureOutlined, PlusOutlined, TeamOutlined,
 } from "@ant-design/icons";
 import {
     App, Avatar, Button, Drawer, Dropdown, Form, Input,
-    Modal, Select, Space, Tag, Typography, message,
+    Modal, Select, Space, Tag, Typography, Upload, message,
 } from "antd";
 import { useAppDispatch } from "../../../store";
 import {
     fetchAllDepartments, getDepartmentById, createDepartment,
     updateDepartment, deleteDepartment, getDepartmentMembers,
+    uploadDepartmentLogo, removeDepartmentLogo,
     Department, DepartmentMember,
 } from "@services/crm/departments";
 import { fetchUserRoles } from "@services/users";
+import { fetchShop } from "@services/shops";
 import { useQuery } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { THEME_C } from "../../../utils/getPrimaryColor";
@@ -51,6 +53,50 @@ const DeptFormModal: React.FC<DeptFormModalProps> = ({
     });
     const roles = Array.isArray(rolesData) ? rolesData : [];
 
+    // Department logos are opt-in per shop (System Setup → Payroll)
+    const shopId = localStorage.getItem("shopId");
+    const { data: shopData } = useQuery({
+        queryKey: ["shop", shopId],
+        queryFn: () => fetchShop(shopId!),
+        enabled: visible && !!shopId,
+        staleTime: 5 * 60 * 1000,
+    });
+    const logosEnabled =
+        shopData?.payroll_logo_settings?.show_logo !== false &&
+        !!shopData?.payroll_logo_settings?.department_logos_enabled;
+
+    // Logo changes are applied on submit: a picked file is uploaded, or the
+    // existing logo removed — so it works for new departments too
+    const [logoFile, setLogoFile] = useState<File | null>(null);
+    const [logoPreview, setLogoPreview] = useState<string | null>(null);
+    const [removeLogo, setRemoveLogo] = useState(false);
+    const currentLogo = removeLogo ? null : logoPreview || (isEdit ? department?.logo?.url : null) || null;
+
+    useEffect(() => {
+        if (!visible) {
+            setLogoFile(null);
+            setLogoPreview(null);
+            setRemoveLogo(false);
+        }
+    }, [visible]);
+
+    useEffect(() => () => { if (logoPreview) URL.revokeObjectURL(logoPreview); }, [logoPreview]);
+
+    const handlePickLogo = (file: File) => {
+        if (!["image/png", "image/jpeg", "image/jpg", "image/webp"].includes(file.type)) {
+            message.error("Logo must be a PNG, JPEG or WebP image");
+            return Upload.LIST_IGNORE;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+            message.error("Logo must be 5MB or smaller");
+            return Upload.LIST_IGNORE;
+        }
+        setLogoFile(file);
+        setLogoPreview(URL.createObjectURL(file));
+        setRemoveLogo(false);
+        return false; // uploaded on submit
+    };
+
     useEffect(() => {
         if (!visible) return;
         if (isEdit && department) {
@@ -69,10 +115,20 @@ const DeptFormModal: React.FC<DeptFormModalProps> = ({
         try {
             const tenant_id = JSON.parse(localStorage.getItem("tenant") || "{}")?._id;
             const payload = { ...values, tenant_id };
+            let deptId = department?._id;
             if (isEdit && department?._id) {
                 await dispatch(updateDepartment({ id: department._id, data: payload })).unwrap();
             } else {
-                await dispatch(createDepartment(payload)).unwrap();
+                const created = await dispatch(createDepartment(payload)).unwrap();
+                deptId = created?.department?._id || created?._id;
+            }
+            if (logosEnabled && deptId) {
+                try {
+                    if (logoFile) await uploadDepartmentLogo(deptId, logoFile);
+                    else if (removeLogo && department?.logo?.url) await removeDepartmentLogo(deptId);
+                } catch (err: any) {
+                    message.error(err?.response?.data?.message || "Department saved, but the logo could not be updated");
+                }
             }
             form.resetFields();
             onClose();
@@ -139,6 +195,35 @@ const DeptFormModal: React.FC<DeptFormModalProps> = ({
                         <Input placeholder={C.primary} style={{ borderRadius: 8 }} maxLength={7} />
                     </Form.Item>
                 </div>
+
+                {logosEnabled && (
+                    <Form.Item
+                        label="Logo"
+                        extra="Shown on this department's payroll and payslip PDFs instead of the business logo. PNG, JPEG or WebP, up to 5MB."
+                    >
+                        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                            <div style={{
+                                width: 96, height: 56, borderRadius: 8, border: `1px dashed ${C.border}`,
+                                display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", background: "#fafafa",
+                            }}>
+                                {currentLogo
+                                    ? <img src={currentLogo} alt="Department logo" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
+                                    : <Text type="secondary" style={{ fontSize: 11 }}>No logo</Text>}
+                            </div>
+                            <Space>
+                                <Upload accept="image/png,image/jpeg,image/webp" showUploadList={false} beforeUpload={handlePickLogo} maxCount={1}>
+                                    <Button size="small" icon={<PictureOutlined />}>{currentLogo ? "Change" : "Upload"}</Button>
+                                </Upload>
+                                {currentLogo && (
+                                    <Button size="small" danger type="text" icon={<DeleteOutlined />}
+                                        onClick={() => { setLogoFile(null); setLogoPreview(null); setRemoveLogo(true); }}>
+                                        Remove
+                                    </Button>
+                                )}
+                            </Space>
+                        </div>
+                    </Form.Item>
+                )}
 
                 <div style={{ display: "flex", gap: 10 }}>
                     <Button block onClick={() => { form.resetFields(); onClose(); }} disabled={loading} style={{ borderRadius: 8, height: 38 }}>Cancel</Button>
