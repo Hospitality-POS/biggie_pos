@@ -92,6 +92,8 @@ export const getAllInvoices = async (params: ParamsType) => {
         invoiceNo: params?.invoice_no || params?.invoiceNo,
         tableName: params?.table || params?.tableName,
         customer_id: params?.customer_id,
+        // Matches invoice no, order/quote no or customer name
+        search: params?.search,
         status: params?.status,
         posted: params?.posted,
         start_date: params?.start_date,

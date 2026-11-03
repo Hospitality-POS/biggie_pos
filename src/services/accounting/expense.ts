@@ -48,6 +48,8 @@ export interface Expense {
     subtotal: number;
     total_vat_amount: number;
     grand_total: number;
+    // No VAT on any line (exempt / non-VAT-registered payee)
+    vat_exempt?: boolean;
     currency: string;
 
     // Lines
@@ -118,6 +120,8 @@ export interface CreateExpenseLineParam {
 }
 
 export interface CreateExpenseParams {
+    // No VAT on any line — the API zeroes line VAT and posts no VAT Input
+    vat_exempt?: boolean;
     expense_date?: string;
     customer_id?: string;
     supplier_id?: string;
@@ -178,6 +182,8 @@ export const getExpenseSummary = async (params?: {
     from?: string;
     to?: string;
     payment_method?: ExpensePaymentMethod;
+    supplier_id?: string;
+    customer_id?: string;
 }) => {
     const response = await axiosInstance.get(
         `${BASE_URL}/accounting/expenses/summary`,
