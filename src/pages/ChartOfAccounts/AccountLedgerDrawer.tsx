@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import {
     Drawer, Table, Typography, Space, Tag, Tooltip,
-    Statistic, Row, Col, DatePicker, Button, Dropdown, MenuProps,
+    Statistic, Row, Col, DatePicker, Button, Dropdown, MenuProps, Pagination,
 } from "antd";
 import {
     ArrowUpOutlined, ArrowDownOutlined,
@@ -49,6 +49,53 @@ const SOURCE_COLORS: Record<string, string> = {
     note_void: "red",
 };
 
+// Readable transaction type for each journal source (Zoho-style "Transaction Type")
+const SOURCE_LABELS: Record<string, string> = {
+    manual: "Manual Journal",
+    journal: "Journal",
+    pos_sale: "POS Sale",
+    pos_subscription: "POS Subscription",
+    invoice: "Invoice",
+    bill: "Bill",
+    payment: "Payment",
+    reconciliation: "Reconciliation",
+    bank_upload: "Bank Upload",
+    income: "Income",
+    expense: "Expense",
+    payroll: "Payroll",
+    sales_receipt: "Sales Receipt",
+    credit_note: "Credit Note",
+    debit_note: "Debit Note",
+    note_void: "Note Void",
+    asset_acquisition: "Asset Acquisition",
+    asset_depreciation: "Asset Depreciation",
+    asset_revaluation: "Asset Revaluation",
+    asset_disposal: "Asset Disposal",
+    asset_impairment: "Asset Impairment",
+};
+
+const sourceLabel = (s?: string) =>
+    (s && SOURCE_LABELS[s]) || (s || "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+// The corresponding account(s) — the other side of the entry, e.g. the bank
+// it was paid from. Several → the main one plus "+N more".
+const counterLabel = (l: LedgerLine) => {
+    const list = l.counter_accounts || [];
+    if (!list.length) return "";
+    return list.length === 1 ? list[0].account_name : `${list[0].account_name} +${list.length - 1} more`;
+};
+const counterFull = (l: LedgerLine) =>
+    (l.counter_accounts || []).map((c) => `${c.account_code ? `${c.account_code} ` : ""}${c.account_name}`).join(", ");
+
+// Entry description plus this account's own line note, when it adds something
+const detailsText = (l: LedgerLine) =>
+    [l.description, l.line_description].filter(Boolean).join(" — ");
+
+const money = (v: number) => Number(v || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+// A ledger table row — the opening-balance row is a pseudo line
+type LedgerRow = LedgerLine & { _opening?: boolean };
+
 // ── Export helpers ────────────────────────────────────────────────────────────
 
 const exportLedgerToExcel = async (
@@ -63,10 +110,11 @@ const exportLedgerToExcel = async (
 
     const rows = ledger.map((l) => ({
         Date: dayjs(l.entry_date).format("DD/MM/YYYY"),
-        "Entry No.": l.entry_no,
-        Description: l.description || "",
-        Reference: l.reference || "",
-        Source: l.source?.replace(/_/g, " ").toUpperCase() || "",
+        Account: counterFull(l),
+        "Transaction Details": detailsText(l),
+        "Transaction Type": sourceLabel(l.source),
+        "Transaction #": l.entry_no,
+        "Reference #": l.reference || "",
         "Debit (KES)": l.debit || 0,
         "Credit (KES)": l.credit || 0,
         "Balance (KES)": l.balance,
@@ -75,37 +123,30 @@ const exportLedgerToExcel = async (
     // Totals row
     rows.push({
         Date: "",
-        "Entry No.": "",
-        Description: "TOTALS",
-        Reference: "",
-        Source: "",
+        Account: "",
+        "Transaction Details": "TOTALS",
+        "Transaction Type": "",
+        "Transaction #": "",
+        "Reference #": "",
         "Debit (KES)": totals.totalDebit,
         "Credit (KES)": totals.totalCredit,
         "Balance (KES)": totals.closing,
     } as any);
 
-    const ws = XLSX.utils.json_to_sheet(rows);
-
-    // Column widths
-    ws["!cols"] = [
-        { wch: 14 }, { wch: 16 }, { wch: 36 }, { wch: 24 }, { wch: 18 },
-        { wch: 14 }, { wch: 14 }, { wch:  14 },
-    ];
-
-    // Header meta rows above the data (insert before data)
-    XLSX.utils.sheet_add_aoa(ws, [
-        [`Account Ledger Report`],
-        [`${account.account_code} ${account.account_name}`],
-        [`Period: ${period}`],
+    // Title block (account + period) above the column headers, like the on-screen report
+    const headers = Object.keys(rows[0] || {});
+    const dataWs = XLSX.utils.aoa_to_sheet([
+        [account.account_name.toUpperCase()],
+        [`${account.account_code} · ${period}`],
         [`Generated: ${dayjs().format("DD/MM/YYYY HH:mm")}`],
-        [`Company: Biggie POS System`],
         [],
-        ["Date", "Entry No.", "Description", "Reference", "Source", "Debit (KES)", "Credit (KES)", "Balance (KES)"],
-    ], { origin: "A1" });
-
-    // Shift data down by 3 rows to make room for the header
-    const dataWs = XLSX.utils.json_to_sheet(rows);
-    dataWs["!cols"] = ws["!cols"];
+        headers,
+        ...rows.map((r) => headers.map((h) => (r as any)[h])),
+    ]);
+    dataWs["!cols"] = [
+        { wch: 12 }, { wch: 28 }, { wch: 44 }, { wch: 18 }, { wch: 22 }, { wch: 20 },
+        { wch: 14 }, { wch: 14 }, { wch: 14 },
+    ];
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, dataWs, "Ledger");
@@ -153,21 +194,22 @@ const exportLedgerToPdf = async (
 
     autoTable(doc, {
         startY: 42,
-        head: [["Date", "Entry No.", "Description", "Reference", "Source", "Debit (KES)", "Credit (KES)", "Balance (KES)"]],
+        head: [["Date", "Account", "Transaction Details", "Type", "Transaction #", "Reference #", "Debit (KES)", "Credit (KES)", "Balance (KES)"]],
         body: [
             ...ledger.map((l) => [
                 dayjs(l.entry_date).format("DD/MM/YYYY"),
+                counterFull(l),
+                detailsText(l),
+                sourceLabel(l.source),
                 l.entry_no,
-                l.description || "",
                 l.reference || "",
-                (l.source || "").replace(/_/g, " ").toUpperCase(),
                 l.debit > 0 ? l.debit.toLocaleString("en-KE", { minimumFractionDigits: 2 }) : "—",
                 l.credit > 0 ? l.credit.toLocaleString("en-KE", { minimumFractionDigits: 2 }) : "—",
                 l.balance.toLocaleString("en-KE", { minimumFractionDigits: 2 }),
             ]),
             // Totals row
             [
-                "", "", { content: "PAGE TOTALS", styles: { fontStyle: "bold" } }, "", "",
+                "", "", { content: "TOTALS", styles: { fontStyle: "bold" } }, "", "", "",
                 { content: totals.totalDebit.toLocaleString("en-KE", { minimumFractionDigits: 2 }), styles: { fontStyle: "bold", textColor: [207, 19, 34] } },
                 { content: totals.totalCredit.toLocaleString("en-KE", { minimumFractionDigits: 2 }), styles: { fontStyle: "bold", textColor: [56, 158, 13] } },
                 { content: Math.abs(totals.closing).toLocaleString("en-KE", { minimumFractionDigits: 2 }), styles: { fontStyle: "bold", textColor: totals.closing >= 0 ? [29, 57, 196] : [207, 19, 34] } },
@@ -177,14 +219,15 @@ const exportLedgerToPdf = async (
         headStyles: { fillColor: [24, 144, 255], textColor: 255, fontStyle: "bold" },
         alternateRowStyles: { fillColor: [248, 250, 255] },
         columnStyles: {
-            0: { cellWidth: 24 },
-            1: { cellWidth: 28 },
-            2: { cellWidth: 64 },
-            3: { cellWidth: 28 },
-            4: { cellWidth: 28 },
-            5: { halign: "right", cellWidth: 30 },
-            6: { halign: "right", cellWidth: 30 },
-            7: { halign: "right", cellWidth: 32 },
+            0: { cellWidth: 20 },
+            1: { cellWidth: 34 },
+            2: { cellWidth: 58 },
+            3: { cellWidth: 22 },
+            4: { cellWidth: 30 },
+            5: { cellWidth: 24 },
+            6: { halign: "right", cellWidth: 26 },
+            7: { halign: "right", cellWidth: 26 },
+            8: { halign: "right", cellWidth: 28 },
         },
     });
 
@@ -345,87 +388,98 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId, 
         },
     ];
 
+    // Zoho-style column header: small and uppercase (colour comes from the table theme)
+    const head = (t: string) => (
+        <span style={{ fontSize: 11.5, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" }}>{t}</span>
+    );
+    const drCr = (v: number) => (isDr(v) ? "Dr" : "Cr");
+
     const columns = [
         {
-            title: "Date",
+            title: head("Date"),
             dataIndex: "entry_date",
             key: "entry_date",
             width: 110,
-            sorter: (a: LedgerLine, b: LedgerLine) => dayjs(a.entry_date).unix() - dayjs(b.entry_date).unix(),
-            defaultSortOrder: "ascend" as const,
             render: (d: string) => dayjs(d).format("DD/MM/YYYY"),
         },
         {
-            title: "Entry No.",
-            dataIndex: "entry_no",
-            key: "entry_no",
-            width: 120,
-            sorter: (a: LedgerLine, b: LedgerLine) => (a.entry_no || "").localeCompare(b.entry_no || ""),
-            render: (v: string) => <Text code style={{ fontSize: 12 }}>{v}</Text>,
+            title: head("Account"),
+            key: "account",
+            width: 200,
+            render: (_: unknown, l: LedgerLine) => {
+                const label = counterLabel(l);
+                if (!label) return <Text type="secondary">—</Text>;
+                return (
+                    <Tooltip title={(l.counter_accounts || []).length > 1 ? counterFull(l) : undefined}>
+                        <Text strong style={{ fontSize: 13, color: "#0f172a" }}>{label}</Text>
+                    </Tooltip>
+                );
+            },
         },
         {
-            title: "Description",
-            dataIndex: "description",
-            key: "description",
-            ellipsis: true,
+            title: head("Transaction Details"),
+            key: "details",
+            render: (_: unknown, l: LedgerLine) => (
+                <div style={{ lineHeight: 1.35 }}>
+                    <Text style={{ fontSize: 13, color: "#1e293b" }}>{l.description || "—"}</Text>
+                    {l.line_description && (
+                        <div><Text type="secondary" style={{ fontSize: 12 }}>{l.line_description}</Text></div>
+                    )}
+                </div>
+            ),
         },
         {
-            title: "Reference",
-            dataIndex: "reference",
-            key: "reference",
-            ellipsis: true,
-            width: 120,
-            render: (v: string) => v || "—",
-        },
-        {
-            title: "Source",
+            title: head("Transaction Type"),
             dataIndex: "source",
             key: "source",
-            width: 130,
+            width: 150,
             render: (s: string) => (
-                <Tag color={SOURCE_COLORS[s] || "default"} style={{ fontSize: 11 }}>
-                    {s?.replace(/_/g, " ").toUpperCase()}
+                <Tag color={SOURCE_COLORS[s] || "default"} style={{ fontSize: 11, margin: 0 }}>
+                    {sourceLabel(s)}
                 </Tag>
             ),
         },
         {
-            title: "Debit",
+            title: head("Transaction #"),
+            dataIndex: "entry_no",
+            key: "entry_no",
+            width: 170,
+            render: (v: string) => <Text style={{ fontSize: 12, color: "#475569", wordBreak: "break-all" }}>{v}</Text>,
+        },
+        {
+            title: head("Reference #"),
+            dataIndex: "reference",
+            key: "reference",
+            width: 150,
+            render: (v: string) => v ? <Text style={{ fontSize: 12.5 }}>{v}</Text> : <Text type="secondary">—</Text>,
+        },
+        {
+            title: head("Debit"),
             dataIndex: "debit",
             key: "debit",
-            width: 110,
+            width: 130,
             align: "right" as const,
-            sorter: (a: LedgerLine, b: LedgerLine) => (a.debit || 0) - (b.debit || 0),
             render: (v: number) =>
-                v > 0 ? (
-                    <Text style={{ color: "#cf1322" }}>
-                        {v.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
-                    </Text>
-                ) : <Text type="secondary">—</Text>,
+                v > 0 ? <Text style={{ color: "#1d4ed8", fontWeight: 500 }}>{money(v)}</Text> : <Text type="secondary">—</Text>,
         },
         {
-            title: "Credit",
+            title: head("Credit"),
             dataIndex: "credit",
             key: "credit",
-            width: 110,
+            width: 130,
             align: "right" as const,
-            sorter: (a: LedgerLine, b: LedgerLine) => (a.credit || 0) - (b.credit || 0),
             render: (v: number) =>
-                v > 0 ? (
-                    <Text style={{ color: "#389e0d" }}>
-                        {v.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
-                    </Text>
-                ) : <Text type="secondary">—</Text>,
+                v > 0 ? <Text style={{ color: "#1d4ed8", fontWeight: 500 }}>{money(v)}</Text> : <Text type="secondary">—</Text>,
         },
         {
-            title: "Balance",
+            title: head("Balance"),
             dataIndex: "balance",
             key: "balance",
-            width: 120,
+            width: 150,
             align: "right" as const,
-            sorter: (a: LedgerLine, b: LedgerLine) => (a.balance || 0) - (b.balance || 0),
             render: (v: number) => (
-                <Text strong style={{ color: v >= 0 ? "#1d39c4" : "#cf1322" }}>
-                    {v.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
+                <Text strong style={{ color: "#0f172a" }}>
+                    {money(Math.abs(v))} <Text type="secondary" style={{ fontSize: 11 }}>{drCr(v)}</Text>
                 </Text>
             ),
         },
@@ -447,6 +501,32 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId, 
         },
     ];
 
+    // Page 1 starts with an "As On <from> · Opening Balance" row, like Zoho.
+    // It spans the text columns and shows the opening balance on the right.
+    const rows: LedgerRow[] = pagination.page === 1 && ledger.length > 0
+        ? [{ _opening: true, entry_id: "", entry_no: "", entry_date: "", description: "", source: "", debit: 0, credit: 0, balance: openingBalance }, ...ledger]
+        : ledger;
+    const OPENING_TEXT_SPAN = 6; // Date … Reference #
+    const tableColumns = columns.map((col, i) => ({
+        ...col,
+        onCell: (r: LedgerRow) => {
+            if (!r._opening) return {};
+            if (i === 0) return { colSpan: 1 };
+            if (i === 1) return { colSpan: OPENING_TEXT_SPAN - 1 };
+            if (i < OPENING_TEXT_SPAN) return { colSpan: 0 };
+            return {};
+        },
+        render: (v: any, r: LedgerRow, idx: number) => {
+            if (!r._opening) return (col.render as any)?.(v, r, idx) ?? v;
+            if (i === 0) return (dateRange[0] ? <Text strong>As On {dateRange[0].format("DD/MM/YYYY")}</Text> : null);
+            if (i === 1) return <Text strong>Opening Balance</Text>;
+            if (col.key === "balance") {
+                return <Text strong>{money(Math.abs(openingBalance))} <Text type="secondary" style={{ fontSize: 11 }}>{drCr(openingBalance)}</Text></Text>;
+            }
+            return null;
+        },
+    }));
+
     return (
         <Drawer
             title={
@@ -461,7 +541,8 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId, 
             }
             open={open}
             onClose={() => { onClose(); setPage(1); }}
-            width={860}
+            width="100%"
+            styles={{ body: { background: "#f1f5f9", padding: 20 } }}
             destroyOnClose
             extra={
                 <Space>
@@ -479,7 +560,7 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId, 
             }
         >
             {/* ── Date Range Filter ── */}
-            <Space style={{ marginBottom: 16 }}>
+            <Space style={{ marginBottom: 16 }} wrap>
                 <Text type="secondary">Period:</Text>
                 <RangePicker
                     value={dateRange}
@@ -500,8 +581,8 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId, 
             </Space>
 
             {/* ── Summary Stats ── */}
-            <Row gutter={16} style={{ marginBottom: 20 }}>
-                <Col span={6}>
+            <Row gutter={[16, 12]} style={{ marginBottom: 16, background: "#fff", borderRadius: 10, padding: "14px 8px", border: "1px solid #e2e8f0", marginLeft: 0, marginRight: 0 }}>
+                <Col xs={12} md={6}>
                     <Statistic
                         title="Opening Balance"
                         value={Math.abs(openingBalance)}
@@ -511,7 +592,7 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId, 
                         suffix={isDr(openingBalance) ? "(DR)" : "(CR)"}
                     />
                 </Col>
-                <Col span={6}>
+                <Col xs={12} md={6}>
                     <Statistic
                         title="Total Debits"
                         value={totalDebit}
@@ -521,7 +602,7 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId, 
                         suffix={<ArrowUpOutlined />}
                     />
                 </Col>
-                <Col span={6}>
+                <Col xs={12} md={6}>
                     <Statistic
                         title="Total Credits"
                         value={totalCredit}
@@ -531,7 +612,7 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId, 
                         suffix={<ArrowDownOutlined />}
                     />
                 </Col>
-                <Col span={6}>
+                <Col xs={12} md={6}>
                     <Statistic
                         title="Closing Balance"
                         value={Math.abs(closing)}
@@ -543,56 +624,95 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId, 
                 </Col>
             </Row>
 
-            {/* ── Ledger Table ── */}
-            <Table
-                rowKey={(r, i) => `${r.entry_no}-${i}`}
-                columns={columns}
-                dataSource={ledger}
+            {/* ── Ledger report — Zoho-style: centred account title, then the table ── */}
+            <div style={{ background: "#fff", borderRadius: 10, border: "1px solid #e2e8f0", overflow: "hidden" }}>
+            <div style={{ textAlign: "center", padding: "22px 16px 16px", borderBottom: "1px solid #e2e8f0" }}>
+                <Title level={4} style={{ margin: 0, letterSpacing: 0.5, textTransform: "uppercase", fontWeight: 600 }}>
+                    {account?.account_name}
+                </Title>
+                <Text type="secondary" style={{ fontSize: 13.5 }}>
+                    {account?.account_code ? `${account.account_code} · ` : ""}
+                    From {dateRange[0] ? dateRange[0].format("DD/MM/YYYY") : "the beginning"} To {dateRange[1]?.format("DD/MM/YYYY")}
+                </Text>
+            </div>
+            <Table<LedgerRow>
+                rowKey={(r, i) => (r._opening ? "opening" : `${r.entry_no}-${i}`)}
+                columns={tableColumns}
+                dataSource={rows}
                 loading={isLoading}
-                size="small"
-                scroll={{ x: 800 }}
-                pagination={{
-                    current: pagination.page,
-                    total: pagination.total,
-                    pageSize: pageSize,
-                    pageSizeOptions: [10, 25, 50, 100],
-                    showTotal: (total) => `${total} transactions`,
-                    onChange: (p) => setPage(p),
-                    onShowSizeChange: (_current, size) => {
-                        setPageSize(size);
-                        setPage(1);
-                    },
-                    showSizeChanger: true,
-                }}
+                size="middle"
+                scroll={{ x: 1400 }}
+                onRow={(r) => (r._opening ? { style: { background: "#f8fafc" } } : {})}
+                // Paged by the server — a separate Pagination below so the extra
+                // opening-balance row never makes the Table trim a transaction
+                pagination={false}
                 locale={{ emptyText: "No transactions in this period" }}
                 summary={() =>
                     ledger.length > 0 ? (
-                        <Table.Summary fixed>
-                            <Table.Summary.Row style={{ background: "#fafafa" }}>
-                                <Table.Summary.Cell index={0} colSpan={5}>
+                        <Table.Summary>
+                            <Table.Summary.Row style={{ background: "#f8fafc" }}>
+                                <Table.Summary.Cell index={0} colSpan={6}>
                                     <Text strong>Page Total</Text>
                                 </Table.Summary.Cell>
-                                <Table.Summary.Cell index={4} align="right">
-                                    <Text strong style={{ color: "#cf1322" }}>
-                                        {pageTotalDebit.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
-                                    </Text>
-                                </Table.Summary.Cell>
-                                <Table.Summary.Cell index={5} align="right">
-                                    <Text strong style={{ color: "#389e0d" }}>
-                                        {pageTotalCredit.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
-                                    </Text>
-                                </Table.Summary.Cell>
                                 <Table.Summary.Cell index={6} align="right">
-                                    <Text strong style={{ color: pageClosing >= 0 ? "#1d39c4" : "#cf1322" }}>
-                                        {Math.abs(pageClosing).toLocaleString("en-KE", { minimumFractionDigits: 2 })}
-                                    </Text>
+                                    <Text strong>{money(pageTotalDebit)}</Text>
                                 </Table.Summary.Cell>
-                                <Table.Summary.Cell index={7} />
+                                <Table.Summary.Cell index={7} align="right">
+                                    <Text strong>{money(pageTotalCredit)}</Text>
+                                </Table.Summary.Cell>
+                                <Table.Summary.Cell index={8} align="right">
+                                    <Text strong>{money(Math.abs(pageClosing))} <Text type="secondary" style={{ fontSize: 11 }}>{drCr(pageClosing)}</Text></Text>
+                                </Table.Summary.Cell>
+                                <Table.Summary.Cell index={9} />
                             </Table.Summary.Row>
+                            {pagination.page >= pagination.totalPages && (
+                                <Table.Summary.Row style={{ background: "#eef2ff" }}>
+                                    <Table.Summary.Cell index={0}>
+                                        <Text strong>As On {dateRange[1]?.format("DD/MM/YYYY")}</Text>
+                                    </Table.Summary.Cell>
+                                    <Table.Summary.Cell index={1} colSpan={5}>
+                                        <Text strong>Closing Balance</Text>
+                                    </Table.Summary.Cell>
+                                    <Table.Summary.Cell index={6} align="right">
+                                        <Text strong>{money(totalDebit)}</Text>
+                                    </Table.Summary.Cell>
+                                    <Table.Summary.Cell index={7} align="right">
+                                        <Text strong>{money(totalCredit)}</Text>
+                                    </Table.Summary.Cell>
+                                    <Table.Summary.Cell index={8} align="right">
+                                        <Text strong style={{ color: "#1d39c4" }}>
+                                            {money(Math.abs(closing))} <Text type="secondary" style={{ fontSize: 11 }}>{drCr(closing)}</Text>
+                                        </Text>
+                                    </Table.Summary.Cell>
+                                    <Table.Summary.Cell index={9} />
+                                </Table.Summary.Row>
+                            )}
                         </Table.Summary>
                     ) : null
                 }
             />
+            {pagination.total > 0 && (
+                <div style={{ display: "flex", justifyContent: "flex-end", padding: "12px 16px", borderTop: "1px solid #e2e8f0" }}>
+                    <Pagination
+                        size="small"
+                        current={pagination.page}
+                        total={pagination.total}
+                        pageSize={pageSize}
+                        pageSizeOptions={[10, 25, 50, 100]}
+                        showSizeChanger
+                        showTotal={(total) => `${total} transactions`}
+                        onChange={(p, size) => {
+                            if (size !== pageSize) {
+                                setPageSize(size);
+                                setPage(1);
+                            } else {
+                                setPage(p);
+                            }
+                        }}
+                    />
+                </div>
+            )}
+            </div>
 
             {/* ── Edit the whole entry behind a ledger row ── */}
             <JournalEntryFormDrawer
