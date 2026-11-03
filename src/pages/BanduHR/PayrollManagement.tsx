@@ -3835,9 +3835,9 @@ const PayrollManagement: React.FC = () => {
                 style={{ width: "100%" }}
                 showSearch
                 allowClear
-                // Keep the typed text after picking one so several matches
-                // can be selected in a row
-                autoClearSearchValue={false}
+                // The typed search text clears once a department is picked
+                // (only the selected tag stays)
+                autoClearSearchValue
                 maxTagCount="responsive"
                 filterOption={(input, option) =>
                   String(option?.label ?? "").toLowerCase().includes(input.trim().toLowerCase())
