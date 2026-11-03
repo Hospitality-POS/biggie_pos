@@ -13,12 +13,10 @@ import {
   Divider,
   Card,
   Tooltip,
-  Table,
   Input,
-  Statistic,
   Alert,
 } from 'antd';
-import { ProCard } from '@ant-design/pro-components';
+import { ProCard, ProTable, type ProColumns } from '@ant-design/pro-components';
 import {
   CreditCardOutlined,
   CheckCircleFilled,
@@ -30,7 +28,6 @@ import {
   FileTextOutlined,
   InfoCircleOutlined,
   GiftFilled,
-  DollarOutlined,
   SyncOutlined,
   CrownFilled,
   MobileOutlined,
@@ -145,21 +142,139 @@ const BillingDashboard: React.FC = () => {
   const [payingInvoice, setPayingInvoice] = useState<TenantInvoice | null>(null);
   const [mpesaPhone, setMpesaPhone] = useState<string>('');
 
-  const invoiceStats = useMemo(() => {
-    let totalBilled = 0;
-    let totalPaid = 0;
-    let totalPending = 0;
-    invoices.forEach((inv) => {
-      const amt = Number(inv.amount) || 0;
-      totalBilled += amt;
-      if (inv.payment_status === 'paid') {
-        totalPaid += amt;
-      } else {
-        totalPending += amt;
-      }
-    });
-    return { totalBilled, totalPaid, totalPending, count: invoices.length };
+  const unpaidInvoicesCount = useMemo(() => {
+    return invoices.filter((i) => (i.payment_status || '').toLowerCase() !== 'paid').length;
   }, [invoices]);
+
+  const invoiceColumns: ProColumns<TenantInvoice>[] = useMemo(
+    () => [
+      {
+        title: 'Invoice #',
+        dataIndex: 'invoice_code',
+        key: 'invoice_code',
+        width: 140,
+        render: (_, record) => (
+          <Text strong style={{ fontFamily: 'monospace', color: '#1e293b' }}>
+            {record.invoice_code || `INV-${record._id.slice(-6).toUpperCase()}`}
+          </Text>
+        ),
+      },
+      {
+        title: 'Product / Plan',
+        key: 'description',
+        render: (_, record) => (
+          <div>
+            <Text strong style={{ display: 'block', color: '#0f172a' }}>
+              {record.subscription_id?.name || record.module?.toUpperCase() || 'Ecosystem Module Plan'}
+            </Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {record.subscription_id?.billing_cycle || 'Monthly Subscription'}
+            </Text>
+          </div>
+        ),
+      },
+      {
+        title: 'Amount',
+        dataIndex: 'amount',
+        key: 'amount',
+        width: 130,
+        render: (_, record) => (
+          <Text strong style={{ color: '#0f172a', fontWeight: 600 }}>
+            KES {(record.amount || 0).toLocaleString()}
+          </Text>
+        ),
+      },
+      {
+        title: 'Due Date',
+        dataIndex: 'due_date',
+        key: 'due_date',
+        width: 130,
+        render: (_, record) => {
+          const dateVal = record.due_date || record.createdAt;
+          return (
+            <Text type="secondary" style={{ fontSize: 13 }}>
+              {dateVal
+                ? new Date(dateVal).toLocaleDateString(undefined, {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                  })
+                : '—'}
+            </Text>
+          );
+        },
+      },
+      {
+        title: 'Status',
+        dataIndex: 'payment_status',
+        key: 'payment_status',
+        width: 120,
+        render: (_, record) => {
+          const status = (record.payment_status || 'pending').toLowerCase();
+          if (status === 'paid') {
+            return <Tag color="success" icon={<CheckCircleFilled />}>Paid</Tag>;
+          }
+          if (status === 'overdue') {
+            return <Tag color="error" icon={<CloseCircleOutlined />}>Overdue</Tag>;
+          }
+          return <Tag color="warning" icon={<ClockCircleOutlined />}>Pending</Tag>;
+        },
+      },
+      {
+        title: 'Action',
+        key: 'action',
+        valueType: 'option',
+        width: 140,
+        render: (_, record) => {
+          const isPaid = (record.payment_status || '').toLowerCase() === 'paid';
+          if (isPaid) {
+            return [
+              <Button
+                key="receipt"
+                size="small"
+                icon={<FileTextOutlined />}
+                onClick={() => {
+                  Modal.info({
+                    title: `Receipt for ${record.invoice_code || record._id}`,
+                    content: (
+                      <div style={{ marginTop: 12 }}>
+                        <p><strong>Amount Paid:</strong> KES {(record.amount || 0).toLocaleString()}</p>
+                        <p><strong>Status:</strong> Completed &amp; Verified</p>
+                        <p><strong>Tenant:</strong> {tenant?.name || tenant?.tenant_code}</p>
+                        <p style={{ color: '#64748b', fontSize: 12 }}>Official VAT invoice receipt dispatched to registered business email.</p>
+                      </div>
+                    ),
+                  });
+                }}
+              >
+                View Receipt
+              </Button>,
+            ];
+          }
+          return [
+            <Button
+              key="pay"
+              size="small"
+              type="primary"
+              icon={<MobileOutlined />}
+              style={{
+                backgroundColor: '#059669',
+                borderColor: '#059669',
+                fontWeight: 600,
+              }}
+              onClick={() => {
+                setPayingInvoice(record);
+                setMpesaPhone(tenant?.phone || '');
+              }}
+            >
+              Pay via M-Pesa
+            </Button>,
+          ];
+        },
+      },
+    ],
+    [tenant]
+  );
 
   // Selected module for plan modal
   const [selectedModuleForPlan, setSelectedModuleForPlan] = useState<BaseModuleKey | null>(null);
@@ -411,199 +526,49 @@ const BillingDashboard: React.FC = () => {
               <Space size={6}>
                 <FileTextOutlined />
                 <span>Invoices &amp; Receipts</span>
-                {invoiceStats.totalPending > 0 && (
-                  <Badge count={invoices.filter((i) => i.payment_status !== 'paid').length} style={{ backgroundColor: '#f59e0b' }} />
+                {unpaidInvoicesCount > 0 && (
+                  <Badge count={unpaidInvoicesCount} style={{ backgroundColor: '#f59e0b' }} />
                 )}
               </Space>
             ),
             children: (
               <div style={{ marginTop: 16 }}>
-                {/* Metrics Summary */}
-                <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
-                  <Col xs={24} sm={8}>
-                    <Card bordered style={{ borderRadius: 12 }}>
-                      <Statistic
-                        title={<Text type="secondary">Total Invoiced</Text>}
-                        value={invoiceStats.totalBilled}
-                        prefix={<DollarOutlined style={{ color: '#0b2f78' }} />}
-                        precision={0}
-                        suffix="KES"
-                        valueStyle={{ fontWeight: 700, color: '#0f172a' }}
-                      />
-                    </Card>
-                  </Col>
-                  <Col xs={24} sm={8}>
-                    <Card bordered style={{ borderRadius: 12 }}>
-                      <Statistic
-                        title={<Text type="secondary">Paid to Date</Text>}
-                        value={invoiceStats.totalPaid}
-                        prefix={<CheckCircleFilled style={{ color: '#059669' }} />}
-                        precision={0}
-                        suffix="KES"
-                        valueStyle={{ fontWeight: 700, color: '#059669' }}
-                      />
-                    </Card>
-                  </Col>
-                  <Col xs={24} sm={8}>
-                    <Card bordered style={{ borderRadius: 12 }}>
-                      <Statistic
-                        title={<Text type="secondary">Due / Pending</Text>}
-                        value={invoiceStats.totalPending}
-                        prefix={<ClockCircleOutlined style={{ color: '#ea580c' }} />}
-                        precision={0}
-                        suffix="KES"
-                        valueStyle={{ fontWeight: 700, color: invoiceStats.totalPending > 0 ? '#ea580c' : '#64748b' }}
-                      />
-                    </Card>
-                  </Col>
-                </Row>
-
-                {/* Invoices Table Card */}
-                <Card
-                  bordered
-                  style={{ borderRadius: 14 }}
-                  title={
+                <ProTable<TenantInvoice>
+                  headerTitle={
                     <Space align="center">
                       <FileTextOutlined style={{ color: primaryColor }} />
                       <Text strong style={{ fontSize: 16 }}>Billing Invoices &amp; Receipts</Text>
                       <Tag color="cyan">Code: {tenant?.tenant_code || 'BASE'}</Tag>
                     </Space>
                   }
-                  extra={
-                    <Button
-                      icon={<SyncOutlined spin={invoicesLoading} />}
-                      onClick={() => refetchInvoices()}
-                      size="small"
-                    >
-                      Refresh
-                    </Button>
-                  }
-                >
-                  <Table<TenantInvoice>
-                    dataSource={invoices}
-                    rowKey="_id"
-                    loading={invoicesLoading}
-                    pagination={{ pageSize: 8, showSizeChanger: false }}
-                    scroll={{ x: 650 }}
-                    columns={[
-                      {
-                        title: 'Invoice #',
-                        key: 'invoice_code',
-                        render: (_, record) => (
-                          <Text strong style={{ fontFamily: 'monospace', color: '#1e293b' }}>
-                            {record.invoice_code || `INV-${record._id.slice(-6).toUpperCase()}`}
-                          </Text>
-                        ),
-                      },
-                      {
-                        title: 'Product / Description',
-                        key: 'description',
-                        render: (_, record) => (
-                          <div>
-                            <Text strong style={{ display: 'block' }}>
-                              {record.subscription_id?.name || record.module?.toUpperCase() || 'Ecosystem Module Plan'}
-                            </Text>
-                            <Text type="secondary" style={{ fontSize: 12 }}>
-                              {record.subscription_id?.billing_cycle || 'Monthly Subscription'}
-                            </Text>
-                          </div>
-                        ),
-                      },
-                      {
-                        title: 'Amount',
-                        key: 'amount',
-                        render: (_, record) => (
-                          <Text strong style={{ color: '#0f172a' }}>
-                            KES {(record.amount || 0).toLocaleString()}
-                          </Text>
-                        ),
-                      },
-                      {
-                        title: 'Due Date',
-                        key: 'due_date',
-                        render: (_, record) => {
-                          const dateVal = record.due_date || record.createdAt;
-                          return (
-                            <Text type="secondary" style={{ fontSize: 13 }}>
-                              {dateVal ? new Date(dateVal).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
-                            </Text>
-                          );
-                        },
-                      },
-                      {
-                        title: 'Status',
-                        key: 'payment_status',
-                        render: (_, record) => {
-                          const status = (record.payment_status || 'pending').toLowerCase();
-                          if (status === 'paid') {
-                            return <Tag color="success" icon={<CheckCircleFilled />}>Paid</Tag>;
-                          }
-                          if (status === 'overdue') {
-                            return <Tag color="error" icon={<CloseCircleOutlined />}>Overdue</Tag>;
-                          }
-                          return <Tag color="warning" icon={<ClockCircleOutlined />}>Pending</Tag>;
-                        },
-                      },
-                      {
-                        title: 'Action',
-                        key: 'action',
-                        render: (_, record) => {
-                          const isPaid = (record.payment_status || '').toLowerCase() === 'paid';
-                          if (isPaid) {
-                            return (
-                              <Button
-                                size="small"
-                                icon={<FileTextOutlined />}
-                                onClick={() => {
-                                  Modal.info({
-                                    title: `Receipt for ${record.invoice_code || record._id}`,
-                                    content: (
-                                      <div style={{ marginTop: 12 }}>
-                                        <p><strong>Amount Paid:</strong> KES {(record.amount || 0).toLocaleString()}</p>
-                                        <p><strong>Status:</strong> Completed &amp; Verified</p>
-                                        <p><strong>Tenant:</strong> {tenant?.name || tenant?.tenant_code}</p>
-                                        <p style={{ color: '#64748b', fontSize: 12 }}>Official VAT invoice receipt dispatched to registered business email.</p>
-                                      </div>
-                                    ),
-                                  });
-                                }}
-                              >
-                                View Receipt
-                              </Button>
-                            );
-                          }
-                          return (
-                            <Button
-                              size="small"
-                              type="primary"
-                              icon={<MobileOutlined />}
-                              style={{
-                                backgroundColor: '#059669',
-                                borderColor: '#059669',
-                                fontWeight: 600,
-                              }}
-                              onClick={() => {
-                                setPayingInvoice(record);
-                                setMpesaPhone(tenant?.phone || '');
-                              }}
-                            >
-                              Pay via M-Pesa
-                            </Button>
-                          );
-                        },
-                      },
-                    ]}
-                    locale={{
-                      emptyText: (
-                        <div style={{ padding: '32px 0', textAlign: 'center' }}>
-                          <CheckCircleFilled style={{ fontSize: 36, color: '#10b981', marginBottom: 8 }} />
-                          <Title level={5} style={{ margin: 0 }}>No Outstanding Invoices</Title>
-                          <Text type="secondary">All module subscriptions and renewal invoices are fully up-to-date.</Text>
-                        </div>
-                      ),
-                    }}
-                  />
-                </Card>
+                  rowKey="_id"
+                  cardBordered
+                  search={false}
+                  options={{
+                    density: true,
+                    fullScreen: true,
+                    reload: () => refetchInvoices(),
+                    setting: true,
+                  }}
+                  dataSource={invoices}
+                  loading={invoicesLoading}
+                  pagination={{
+                    pageSize: 8,
+                    showQuickJumper: false,
+                    showSizeChanger: true,
+                  }}
+                  scroll={{ x: 700 }}
+                  columns={invoiceColumns}
+                  locale={{
+                    emptyText: (
+                      <div style={{ padding: '36px 0', textAlign: 'center' }}>
+                        <CheckCircleFilled style={{ fontSize: 36, color: '#10b981', marginBottom: 8 }} />
+                        <Title level={5} style={{ margin: 0 }}>No Invoices Found</Title>
+                        <Text type="secondary">All module subscriptions and renewal invoices are fully up-to-date.</Text>
+                      </div>
+                    ),
+                  }}
+                />
               </div>
             ),
           },
