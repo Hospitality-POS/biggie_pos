@@ -64,13 +64,24 @@ export interface AccountTree {
     EXPENSE: AccountTreeNode[];
 }
 
+export interface LedgerCounterAccount {
+    account_id: string;
+    account_code: string;
+    account_name: string;
+    amount: number;
+}
+
 export interface LedgerLine {
     entry_id: string;
     entry_no: string;
     entry_date: string;
     description: string;
+    // This account's own line note, when it differs from the entry description
+    line_description?: string;
     reference?: string;
     source: string;
+    // The other side(s) of the entry — e.g. the bank account it was paid from
+    counter_accounts?: LedgerCounterAccount[];
     debit: number;
     credit: number;
     balance: number;
