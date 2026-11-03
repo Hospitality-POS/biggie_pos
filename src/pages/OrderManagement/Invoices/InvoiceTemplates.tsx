@@ -263,6 +263,24 @@ const EtrQrCode = ({ inv }: { inv: InvoiceForPrint }) => {
     );
 };
 
+// Whether the line unit prices already include VAT. Trusts vat_pricing_mode
+// when it says INCLUSIVE; otherwise checks the figures — prices that add up
+// to subtotal + VAT (not to the subtotal) are VAT-inclusive, and adding the
+// line VAT again would double-count it.
+const unitPricesIncludeVat = (inv: InvoiceForPrint) => {
+    if (String(inv.vat_pricing_mode || "").toUpperCase() === "INCLUSIVE") return true;
+    const vat = inv.total_vat_amount || 0;
+    if (vat <= 0) return false;
+    const gross = (inv.items || []).reduce((s, it) => s + (it.unit_price || it.price || 0) * (it.quantity || 0), 0);
+    const near = (a: number, b: number) => Math.abs(a - b) <= 1;
+    return near(gross, (inv.subtotal || 0) + vat) && !near(gross, inv.subtotal || 0);
+};
+
+// Line total shown on templates — VAT added on top only for VAT-exclusive prices
+const lineTotalOf = (inv: InvoiceForPrint, item: InvoiceItem, discount = 0) =>
+    (item.unit_price || item.price || 0) * item.quantity - discount +
+    (unitPricesIncludeVat(inv) ? 0 : item.vat_amount || 0);
+
 const ItemsTable = ({ inv }: { inv: InvoiceForPrint }) => {
     const items = inv.items || [];
     return (
@@ -302,7 +320,7 @@ const ItemsTable = ({ inv }: { inv: InvoiceForPrint }) => {
                                 {(item.vat_amount || 0) > 0 ? fmt(item.vat_amount!) : "—"}
                             </td>
                             <td style={{ padding: "7px 10px", textAlign: "right", fontWeight: 700, borderBottom: "1px solid #f1f5f9", color: "#000" }}>
-                                {fmt((item.unit_price || item.price || 0) * item.quantity + (item.vat_amount || 0))}
+                                {fmt(lineTotalOf(inv, item))}
                             </td>
                         </tr>
                     ))
@@ -1525,7 +1543,7 @@ const ItemsTableClean = ({ inv }: { inv: InvoiceForPrint }) => {
                 {items.length ? items.map((item, i) => {
                     const unit = item.unit_price || item.price || 0;
                     const discount = (item as any).discount || 0;
-                    const lineTotal = (unit * item.quantity) - discount + (item.vat_amount || 0);
+                    const lineTotal = lineTotalOf(inv, item, discount);
                     return (
                         <tr key={item._id || i}>
                             <td style={{ padding: "10px 12px", borderBottom: "1px solid #e5e7eb", color: "#000" }}>{item.product_id?.name || `Item ${i + 1}`}</td>
