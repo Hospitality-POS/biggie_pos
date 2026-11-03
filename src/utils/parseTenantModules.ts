@@ -82,6 +82,31 @@ export function parseTenantModules(tenant: any): TenantModules {
     };
 }
 
+// ── Narrow to the products a role may use ─────────────────────────────────────
+// role.modules holds product scopes (pos = Duka, accounting = Pesa, crm = Mteja,
+// hr = Bandu, dala, signature). Empty or missing means no restriction. A role
+// can only narrow what the tenant has, never turn a product on.
+export type RoleModuleScope = "pos" | "accounting" | "crm" | "hr" | "dala" | "signature";
+
+const SCOPE_FLAG: Record<RoleModuleScope, keyof TenantModules> = {
+    pos: "hasPOS",
+    accounting: "hasAccounting",
+    crm: "hasMteja",
+    hr: "hasHR",
+    dala: "hasDala",
+    signature: "hasSignature",
+};
+
+export function restrictToRoleModules(mods: TenantModules, roleModules?: string[] | null): TenantModules {
+    if (!Array.isArray(roleModules) || roleModules.length === 0) return mods;
+    const allowed = new Set(roleModules);
+    const out = { ...mods };
+    (Object.keys(SCOPE_FLAG) as RoleModuleScope[]).forEach((scope) => {
+        if (!allowed.has(scope)) out[SCOPE_FLAG[scope]] = false;
+    });
+    return out;
+}
+
 // ── Read the tenant saved at login ────────────────────────────────────────────
 export function readStoredTenant(): any {
     try {

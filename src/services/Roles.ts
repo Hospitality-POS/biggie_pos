@@ -9,9 +9,11 @@ interface Role {
   role_type?: string;
   description?: string;
   permissions?: string[];
+  // Products the role may use; empty = every product the tenant has
+  modules?: string[];
   _id?: string;
   // updateRoleTypeById reads req.body.values on the backend
-  values?: { role_type?: string; description?: string; permissions?: string[] };
+  values?: { role_type?: string; description?: string; permissions?: string[]; modules?: string[] };
 }
 
 export const fetchAllRoles = async (params: ParamsType) => {

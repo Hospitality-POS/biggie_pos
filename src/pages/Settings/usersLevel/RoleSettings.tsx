@@ -111,9 +111,13 @@ const PermCountPill: React.FC<{ count: number }> = ({ count }) => (
 );
 
 // ── Module scope tags ─────────────────────────────────────────────────────────
-const ModuleScopeTags: React.FC<{ permissionKeys: string[] }> = ({ permissionKeys }) => {
+// A role limited to some products (roleModules) only tags those products —
+// old keys it still holds for other products don't apply to it.
+const ModuleScopeTags: React.FC<{ permissionKeys: string[]; roleModules?: string[] }> = ({ permissionKeys, roleModules }) => {
   const scopes = new Set(
-    permissionKeys.map((k) => PERMISSIONS[k]?.moduleScope).filter(Boolean)
+    permissionKeys
+      .map((k) => PERMISSIONS[k]?.moduleScope)
+      .filter((s) => s && (!roleModules?.length || roleModules.includes(s)))
   );
   if (!scopes.has("hr") && !scopes.has("accounting") && !scopes.has("crm") && !scopes.has("dala")) return null;
   return (
@@ -361,7 +365,7 @@ const RoleCard: React.FC<{
             <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
               <Text strong style={{ fontSize: 13, color: C.darkText }}>{record.role_type}</Text>
               <PermCountPill count={permKeys.length} />
-              <ModuleScopeTags permissionKeys={permKeys} />
+              <ModuleScopeTags permissionKeys={permKeys} roleModules={record.modules} />
             </div>
             <RoleTag role={record.role_type} />
           </div>
@@ -384,6 +388,13 @@ const RoleCard: React.FC<{
         </div>
       )}
 
+      <div style={{ marginBottom: 10 }}>
+        <Text style={{ fontSize: 10, color: "#94a3b8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.4px", display: "block", marginBottom: 6 }}>
+          Product Access
+        </Text>
+        <ProductAccessTags modules={record.modules} />
+      </div>
+
       {/* Dates */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
         {[
@@ -399,6 +410,29 @@ const RoleCard: React.FC<{
     </Card>
   );
 };
+
+// ── Product access (role.modules; empty = every product) ──────────────────────
+const PRODUCT_TAGS: Record<string, { name: string; color: string }> = {
+  pos: { name: "Duka", color: "blue" },
+  accounting: { name: "Pesa", color: "purple" },
+  crm: { name: "Mteja", color: "cyan" },
+  hr: { name: "Bandu", color: "geekblue" },
+  dala: { name: "Dala", color: "orange" },
+  signature: { name: "Signature", color: "red" },
+};
+
+const ProductAccessTags: React.FC<{ modules?: string[] }> = ({ modules }) =>
+  !modules?.length ? (
+    <Text style={{ fontSize: 12, color: C.subText }}>All products</Text>
+  ) : (
+    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+      {modules.map((m) => (
+        <Tag key={m} color={PRODUCT_TAGS[m]?.color} style={{ fontSize: 11, margin: 0 }}>
+          {PRODUCT_TAGS[m]?.name ?? m} only
+        </Tag>
+      ))}
+    </div>
+  );
 
 // ── Mobile list ───────────────────────────────────────────────────────────────
 const MobileRoleList: React.FC<{
@@ -537,6 +571,14 @@ function RoleSettings() {
           ),
         },
         {
+          title: "Product Access",
+          dataIndex: "modules",
+          key: "modules",
+          search: false,
+          width: 160,
+          render: (_: any, record: any) => <ProductAccessTags modules={record.modules} />,
+        },
+        {
           title: "Permissions",
           dataIndex: "permissions",
           key: "permissions",
@@ -547,7 +589,7 @@ function RoleSettings() {
             return (
               <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                 <PermCountPill count={keys.length} />
-                <ModuleScopeTags permissionKeys={keys} />
+                <ModuleScopeTags permissionKeys={keys} roleModules={record.modules} />
               </div>
             );
           },

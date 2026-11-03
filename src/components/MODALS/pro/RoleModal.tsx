@@ -7,6 +7,7 @@ import {
   Empty,
   Input,
   Modal,
+  Radio,
   Select,
   Space,
   Steps,
@@ -27,6 +28,7 @@ import { createRole, updateRole } from "@services/Roles";
 import ShowConfirm from "@utils/ConfirmUtil";
 import {
   getPermissionsGroupedByModuleForTenant,
+  getPermissionsForTenant,
   PERMISSIONS,
   Permission,
   ActionType,
@@ -35,6 +37,7 @@ import {
   ModuleScope,
 } from "@utils/accessControl";
 import { useTenantModules } from "@hooks/useTenantModules";
+import { RoleModuleScope, TenantModules, restrictToRoleModules } from "@utils/parseTenantModules";
 
 import { THEME_C } from "@utils/getPrimaryColor";
 
@@ -62,6 +65,19 @@ const SCOPE_CFG: Record<string, { color: string; bg: string; antColor: string; l
   dala: { color: C.orange, bg: "#fff7ed", antColor: "orange", label: "Dala" },
   signature: { color: C.red, bg: "#fef2f2", antColor: "red", label: "Signature" },
 };
+
+// ── Products a role can be limited to ─────────────────────────────────────────
+const PRODUCTS: { scope: RoleModuleScope; flag: keyof TenantModules; name: string; desc: string }[] = [
+  { scope: "pos", flag: "hasPOS", name: "Duka", desc: "POS, sales & inventory" },
+  { scope: "accounting", flag: "hasAccounting", name: "Pesa", desc: "Accounting & finance" },
+  { scope: "crm", flag: "hasMteja", name: "Mteja", desc: "CRM & customers" },
+  { scope: "hr", flag: "hasHR", name: "Bandu", desc: "HR & payroll" },
+  { scope: "dala", flag: "hasDala", name: "Dala", desc: "Property management" },
+  { scope: "signature", flag: "hasSignature", name: "Signature", desc: "E-signatures" },
+];
+
+const productName = (scope: string) =>
+  scope === "core" ? "Core" : PRODUCTS.find((p) => p.scope === scope)?.name ?? scope;
 
 // ── Mobile hook ───────────────────────────────────────────────────────────────
 const useIsMobile = () => {
@@ -212,8 +228,17 @@ const StepBasicInfo: React.FC<{
   hasAccounting: boolean;
   hasMteja: boolean;
   hasDala: boolean;
-  hasPOS: boolean;
-}> = ({ roleType, onChange, error, onApplyPreset, hasHR, hasAccounting, hasMteja, hasDala, hasPOS }) => {
+  tenantModules: TenantModules;
+  limitProducts: boolean;
+  roleModules: RoleModuleScope[];
+  onLimitChange: (limit: boolean) => void;
+  onToggleProduct: (scope: RoleModuleScope, checked: boolean) => void;
+  productError?: string;
+}> = ({
+  roleType, onChange, error, onApplyPreset, hasHR, hasAccounting, hasMteja, hasDala,
+  tenantModules, limitProducts, roleModules, onLimitChange, onToggleProduct, productError,
+}) => {
+  const tenantProducts = PRODUCTS.filter((p) => tenantModules[p.flag]);
 
   // Filter presets to only show those relevant to enabled modules
   const presetOptions = Object.entries(ROLE_PRESETS)
@@ -261,24 +286,53 @@ const StepBasicInfo: React.FC<{
         </Text>
       </div>
 
-      {/* Active modules indicator */}
-      <div style={{ ...panelCard, padding: "12px 16px" }}>
-        <SectionLabel>Active Modules — Permissions Available</SectionLabel>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-          <Tag color="default" style={{ fontSize: 11 }}>✓ Core</Tag>
-          {hasPOS ? <Tag color="blue" style={{ fontSize: 11 }}>✓ POS Module</Tag>
-            : <Tag style={{ fontSize: 11, color: "#94a3b8", borderColor: C.border }}>✗ POS (not enabled)</Tag>}
-          {hasHR ? <Tag color="blue" style={{ fontSize: 11 }}>✓ HR Module</Tag>
-            : <Tag style={{ fontSize: 11, color: "#94a3b8", borderColor: C.border }}>✗ HR (not enabled)</Tag>}
-          {hasAccounting ? <Tag color="purple" style={{ fontSize: 11 }}>✓ Accounting</Tag>
-            : <Tag style={{ fontSize: 11, color: "#94a3b8", borderColor: C.border }}>✗ Accounting (not enabled)</Tag>}
-          {hasMteja ? <Tag color="cyan" style={{ fontSize: 11 }}>✓ CRM / Mteja</Tag>
-            : <Tag style={{ fontSize: 11, color: "#94a3b8", borderColor: C.border }}>✗ CRM (not enabled)</Tag>}
-          {hasDala ? <Tag color="orange" style={{ fontSize: 11 }}>✓ Dala / Property</Tag>
-            : <Tag style={{ fontSize: 11, color: "#94a3b8", borderColor: C.border }}>✗ Dala (not enabled)</Tag>}
-        </div>
-        <Text style={{ fontSize: 11, color: C.subText }}>
-          Only permissions for your active modules are shown on Step 2.
+      {/* Product access */}
+      <div style={{ ...panelCard, padding: "14px 16px" }}>
+        <SectionLabel>Product Access</SectionLabel>
+        <Text style={{ fontSize: 12, color: C.subText, display: "block", marginBottom: 10 }}>
+          Choose which products staff with this role can open. They won't see the other products, even though the business has them.
+        </Text>
+        <Radio.Group
+          value={limitProducts ? "some" : "all"}
+          onChange={(e) => onLimitChange(e.target.value === "some")}
+          style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: limitProducts ? 12 : 0 }}
+        >
+          <Radio value="all">
+            <Text style={{ fontSize: 12 }}>All products the business has</Text>
+            <Text style={{ fontSize: 11, color: C.subText }}>
+              {" "}({tenantProducts.map((p) => p.name).join(", ") || "none enabled"})
+            </Text>
+          </Radio>
+          <Radio value="some" disabled={tenantProducts.length === 0}>
+            <Text style={{ fontSize: 12 }}>Only selected products</Text>
+          </Radio>
+        </Radio.Group>
+
+        {limitProducts && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))", gap: 8 }}>
+            {tenantProducts.map((p) => {
+              const checked = roleModules.includes(p.scope);
+              const cfg = SCOPE_CFG[p.scope] || SCOPE_CFG.core;
+              return (
+                <label key={p.scope} style={{
+                  display: "flex", alignItems: "flex-start", gap: 8, cursor: "pointer",
+                  border: `1.5px solid ${checked ? cfg.color : C.border}`,
+                  background: checked ? cfg.bg : "#fff",
+                  borderRadius: 8, padding: "8px 10px",
+                }}>
+                  <Checkbox checked={checked} onChange={(e) => onToggleProduct(p.scope, e.target.checked)} />
+                  <div>
+                    <Text style={{ fontSize: 12, fontWeight: 600, color: checked ? cfg.color : C.darkText, display: "block" }}>{p.name}</Text>
+                    <Text style={{ fontSize: 11, color: C.subText }}>{p.desc}</Text>
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+        )}
+        {productError && <Text style={{ fontSize: 12, color: C.red, marginTop: 6, display: "block" }}>{productError}</Text>}
+        <Text style={{ fontSize: 11, color: C.subText, marginTop: 10, display: "block" }}>
+          Step 2 shows Core permissions plus the permissions for each product chosen here.
         </Text>
       </div>
 
@@ -328,10 +382,11 @@ const StepPermissions: React.FC<{
   hasMteja: boolean;
   hasDala: boolean;
   hasPOS: boolean;
+  hasSignature: boolean;
   selected: string[];
   onToggle: (key: string, checked: boolean) => void;
   onToggleAll: (keys: string[], checked: boolean) => void;
-}> = ({ groupedPermissions, hasHR, hasAccounting, hasMteja, hasDala, hasPOS, selected, onToggle, onToggleAll }) => {
+}> = ({ groupedPermissions, hasHR, hasAccounting, hasMteja, hasDala, hasPOS, hasSignature, selected, onToggle, onToggleAll }) => {
   const [search, setSearch] = useState("");
   const [filterScope, setFilterScope] = useState<ModuleScope | "all">("all");
 
@@ -353,6 +408,22 @@ const StepPermissions: React.FC<{
   }, [groupedPermissions, search, filterScope]);
 
   const allKeys = useMemo(() => Object.values(groupedPermissions).flat().map((p) => p.key), [groupedPermissions]);
+
+  // One section per product the role can use. A feature module shared between
+  // products sits under its home product when that one is on, else under the
+  // first product it is shared with.
+  const productSections = useMemo(() => {
+    const enabled: Record<string, boolean> = {
+      core: true, pos: hasPOS, hr: hasHR, accounting: hasAccounting, crm: hasMteja, dala: hasDala, signature: hasSignature,
+    };
+    const order = ["core", "pos", "accounting", "crm", "hr", "dala", "signature"];
+    const bySection: Record<string, [string, Permission[]][]> = {};
+    Object.entries(filteredGroups).forEach(([mod, perms]) => {
+      const section = getPermissionScopes(perms[0]).find((s) => enabled[s]) ?? "core";
+      (bySection[section] ||= []).push([mod, perms]);
+    });
+    return order.filter((s) => bySection[s]).map((scope) => ({ scope, groups: bySection[scope] }));
+  }, [filteredGroups, hasPOS, hasHR, hasAccounting, hasMteja, hasDala, hasSignature]);
 
   // Only show scope filter tabs for enabled modules
   const scopeOptions = useMemo(() => {
@@ -427,21 +498,47 @@ const StepPermissions: React.FC<{
         </div>
       )}
 
-      {Object.keys(filteredGroups).length === 0 ? (
+      {productSections.length === 0 ? (
         <Empty description="No permissions match your filter" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: "32px 0" }} />
       ) : (
         // fixed-height scroll area — filtering must not resize the modal (avoids flicker)
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignContent: "flex-start", minHeight: 260 }}>
-          {Object.entries(filteredGroups).map(([mod, perms]) => (
-            <PermissionGroupCard
-              key={mod}
-              moduleName={mod}
-              permissions={perms}
-              selected={selected}
-              onToggle={onToggle}
-              onToggleAll={onToggleAll}
-            />
-          ))}
+        <div style={{ display: "flex", flexDirection: "column", gap: 18, minHeight: 260 }}>
+          {productSections.map(({ scope, groups }) => {
+            const keys = groups.flatMap(([, perms]) => perms.map((p) => p.key));
+            const count = keys.filter((k) => selected.includes(k)).length;
+            const cfg = SCOPE_CFG[scope] || SCOPE_CFG.core;
+            return (
+              <div key={scope}>
+                <div style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
+                  borderLeft: `3px solid ${cfg.color}`, paddingLeft: 10, marginBottom: 10,
+                }}>
+                  <Checkbox
+                    checked={count === keys.length && keys.length > 0}
+                    indeterminate={count > 0 && count < keys.length}
+                    onChange={(e) => onToggleAll(keys, e.target.checked)}
+                  >
+                    <Text style={{ fontSize: 13, fontWeight: 700, color: cfg.color }}>
+                      {productName(scope)} {scope === "core" ? "(shared by all products)" : "permissions"}
+                    </Text>
+                  </Checkbox>
+                  <Text style={{ fontSize: 11, color: C.subText, flexShrink: 0 }}>{count}/{keys.length} selected</Text>
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignContent: "flex-start" }}>
+                  {groups.map(([mod, perms]) => (
+                    <PermissionGroupCard
+                      key={mod}
+                      moduleName={mod}
+                      permissions={perms}
+                      selected={selected}
+                      onToggle={onToggle}
+                      onToggleAll={onToggleAll}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </>
@@ -449,7 +546,7 @@ const StepPermissions: React.FC<{
 };
 
 // ── Step 3: Review ────────────────────────────────────────────────────────────
-const StepReview: React.FC<{ roleType: string; selected: string[] }> = ({ roleType, selected }) => {
+const StepReview: React.FC<{ roleType: string; selected: string[]; roleModules: RoleModuleScope[] }> = ({ roleType, selected, roleModules }) => {
   const grouped = useMemo(() => {
     return selected.reduce<Record<string, Permission[]>>((acc, key) => {
       const perm = PERMISSIONS[key];
@@ -479,6 +576,22 @@ const StepReview: React.FC<{ roleType: string; selected: string[] }> = ({ roleTy
           </span>
         ) : (
           <Text style={{ color: "#94a3b8", fontSize: 13 }}>Not set</Text>
+        )}
+      </div>
+
+      {/* Product access */}
+      <div style={{ ...panelCard, padding: "14px 16px" }}>
+        <SectionLabel>Product Access</SectionLabel>
+        {roleModules.length === 0 ? (
+          <Text style={{ fontSize: 13, color: C.darkText }}>All products the business has</Text>
+        ) : (
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {roleModules.map((scope) => (
+              <Tag key={scope} color={SCOPE_CFG[scope]?.antColor} style={{ fontSize: 12, margin: 0 }}>
+                {productName(scope)} only
+              </Tag>
+            ))}
+          </div>
         )}
       </div>
 
@@ -543,14 +656,7 @@ const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({ 
 
   // ── Tenant module flags ────────────────────────────────────────────────────
   // useTenantModules must expose hasHR, hasAccounting, hasMteja, hasDala, hasPOS, hasSignature
-  const { hasHR, hasAccounting, hasMteja, hasDala, hasPOS, hasSignature } = useTenantModules();
-
-  // Rebuild permission groups whenever module flags change.
-  // hasCRM maps to hasMteja — the CRM scope is gated on tenant.modules.crm.
-  const groupedPermissions = useMemo(
-    () => getPermissionsGroupedByModuleForTenant({ hasHR, hasAccounting, hasCRM: hasMteja, hasDala, hasPOS, hasSignature }),
-    [hasHR, hasAccounting, hasMteja, hasDala, hasPOS, hasSignature]
-  );
+  const tenantModules = useTenantModules();
 
   const [open, setOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
@@ -558,6 +664,29 @@ const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({ 
   const [roleTypeError, setRoleTypeError] = useState("");
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  // Product access — when limitProducts is off the role gets every tenant product
+  const [limitProducts, setLimitProducts] = useState(false);
+  const [roleModules, setRoleModules] = useState<RoleModuleScope[]>([]);
+  const [productError, setProductError] = useState("");
+
+  // The products this role ends up with: the tenant's, narrowed by the picker.
+  // Limiting with nothing ticked leaves Core only.
+  const productFlags = (limit: boolean, mods: RoleModuleScope[]): TenantModules =>
+    limit ? restrictToRoleModules(tenantModules, mods.length ? mods : ["none"]) : tenantModules;
+
+  const roleFlags = useMemo(
+    () => productFlags(limitProducts, roleModules),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [tenantModules, limitProducts, roleModules]
+  );
+  const { hasHR, hasAccounting, hasMteja, hasDala, hasPOS, hasSignature } = roleFlags;
+
+  // Rebuild permission groups whenever module flags change.
+  // hasCRM maps to hasMteja — the CRM scope is gated on tenant.modules.crm.
+  const groupedPermissions = useMemo(
+    () => getPermissionsGroupedByModuleForTenant({ hasHR, hasAccounting, hasCRM: hasMteja, hasDala, hasPOS, hasSignature }),
+    [hasHR, hasAccounting, hasMteja, hasDala, hasPOS, hasSignature]
+  );
 
   // ── Populate when editing ─────────────────────────────────────────────────
   useEffect(() => {
@@ -568,8 +697,37 @@ const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({ 
           .map((p: any) => (typeof p === "string" ? p : p.key || p._id || ""))
           .filter(Boolean)
       );
+      const mods: RoleModuleScope[] = Array.isArray(data.modules) ? data.modules : [];
+      setLimitProducts(mods.length > 0);
+      setRoleModules(mods);
     }
   }, [open, edit, data]);
+
+  // Changing product access drops permissions that belong only to products
+  // the role no longer has, so the saved role matches what Step 2 shows.
+  const offeredKeys = ({ hasMteja: hasCRM, ...rest }: TenantModules) =>
+    new Set(getPermissionsForTenant({ ...rest, hasCRM }).map((p) => p.key));
+
+  const pruneToProducts = (nextLimit: boolean, nextModules: RoleModuleScope[]) => {
+    const offered = offeredKeys(productFlags(nextLimit, nextModules));
+    // Only drop keys the current choice offers — keys from products the tenant
+    // doesn't have (left over on old roles) are kept as they were.
+    const wasOffered = offeredKeys(roleFlags);
+    setSelectedPermissions((prev) => prev.filter((k) => offered.has(k) || !wasOffered.has(k)));
+  };
+
+  const handleLimitChange = (limit: boolean) => {
+    setLimitProducts(limit);
+    setProductError("");
+    pruneToProducts(limit, roleModules);
+  };
+
+  const handleToggleProduct = (scope: RoleModuleScope, checked: boolean) => {
+    const next = checked ? [...roleModules, scope] : roleModules.filter((s) => s !== scope);
+    setRoleModules(next);
+    setProductError("");
+    pruneToProducts(limitProducts, next);
+  };
 
   // ── Open / close ───────────────────────────────────────────────────────────
   const handleOpen = (next: boolean) => {
@@ -580,6 +738,9 @@ const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({ 
       setRoleTypeError("");
       setSelectedPermissions([]);
       setSubmitting(false);
+      setLimitProducts(false);
+      setRoleModules([]);
+      setProductError("");
     }
   };
 
@@ -609,6 +770,7 @@ const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({ 
     if (currentStep === 0) {
       if (!roleType.trim()) { setRoleTypeError("Role type is required"); return; }
       setRoleTypeError("");
+      if (limitProducts && roleModules.length === 0) { setProductError("Pick at least one product"); return; }
     }
     setCurrentStep((s) => Math.min(s + 1, 2));
   };
@@ -618,11 +780,21 @@ const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({ 
   // ── Submit ─────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
     if (!roleType.trim()) { setCurrentStep(0); setRoleTypeError("Role type is required"); return; }
+    if (limitProducts && roleModules.length === 0) { setCurrentStep(0); setProductError("Pick at least one product"); return; }
     const confirmed = await ShowConfirm({ title: `${edit ? "Update" : "Create"} role "${roleType}"?`, position: true });
     if (!confirmed) return;
     setSubmitting(true);
     try {
-      const payload = { role_type: roleType.trim().toLowerCase(), permissions: selectedPermissions };
+      const payload = {
+        role_type: roleType.trim().toLowerCase(),
+        // A role limited to some products keeps only Core + those products'
+        // permissions — including old keys from products it no longer covers.
+        permissions: limitProducts
+          ? selectedPermissions.filter((k) => offeredKeys(roleFlags).has(k))
+          : selectedPermissions,
+        // [] = every product the business has
+        modules: limitProducts ? roleModules : [],
+      };
       edit ? await updateRole({ values: payload, _id: data?._id }) : await createRole(payload);
       actionRef?.current?.reload();
       handleOpen(false);
@@ -651,7 +823,12 @@ const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({ 
       hasAccounting={hasAccounting}
       hasMteja={hasMteja}
       hasDala={hasDala}
-      hasPOS={hasPOS}
+      tenantModules={tenantModules}
+      limitProducts={limitProducts}
+      roleModules={roleModules}
+      onLimitChange={handleLimitChange}
+      onToggleProduct={handleToggleProduct}
+      productError={productError}
     />,
     <StepPermissions
       key="perms"
@@ -661,11 +838,12 @@ const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({ 
       hasMteja={hasMteja}
       hasDala={hasDala}
       hasPOS={hasPOS}
+      hasSignature={hasSignature}
       selected={selectedPermissions}
       onToggle={handleToggle}
       onToggleAll={handleToggleAll}
     />,
-    <StepReview key="review" roleType={roleType} selected={selectedPermissions} />,
+    <StepReview key="review" roleType={roleType} selected={selectedPermissions} roleModules={limitProducts ? roleModules : []} />,
   ];
 
   // ── Shared footer ──────────────────────────────────────────────────────────
