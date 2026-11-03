@@ -16,6 +16,7 @@ import {
     ArrowRightOutlined,
     EyeOutlined,
     EditOutlined,
+    CopyOutlined,
 } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
@@ -36,6 +37,8 @@ interface Props {
     hideCreditNotes?: boolean;
     // Opens the edit form for this bill; the Edit button is hidden without it
     onEdit?: (bill: Bill) => void;
+    // Opens a new-bill form pre-filled from this one; hidden without it
+    onClone?: (bill: Bill) => void;
 }
 
 const BillDetailDrawer: React.FC<Props> = ({
@@ -45,6 +48,7 @@ const BillDetailDrawer: React.FC<Props> = ({
     onOpenNote,
     hideCreditNotes = false,
     onEdit,
+    onClone,
 }) => {
     const {
         data: billData,
@@ -251,17 +255,26 @@ const BillDetailDrawer: React.FC<Props> = ({
             onClose={onClose}
             width={900}
             extra={
-                onEdit ? (
+                onEdit || onClone ? (
                     <Space>
-                        <Tooltip title={BILL_EDITABLE_STATUSES.includes(bill.status) ? undefined : billEditLockReason(bill.status)}>
-                            <Button
-                                icon={<EditOutlined />}
-                                disabled={!BILL_EDITABLE_STATUSES.includes(bill.status)}
-                                onClick={() => onEdit(bill)}
-                            >
-                                Edit
-                            </Button>
-                        </Tooltip>
+                        {onClone && (
+                            <Tooltip title="New bill with these details">
+                                <Button icon={<CopyOutlined />} onClick={() => onClone(bill)}>
+                                    Clone
+                                </Button>
+                            </Tooltip>
+                        )}
+                        {onEdit && (
+                            <Tooltip title={BILL_EDITABLE_STATUSES.includes(bill.status) ? undefined : billEditLockReason(bill.status)}>
+                                <Button
+                                    icon={<EditOutlined />}
+                                    disabled={!BILL_EDITABLE_STATUSES.includes(bill.status)}
+                                    onClick={() => onEdit(bill)}
+                                >
+                                    Edit
+                                </Button>
+                            </Tooltip>
+                        )}
                     </Space>
                 ) : null
             }

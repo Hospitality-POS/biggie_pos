@@ -30,6 +30,8 @@ interface Props {
     onClose: () => void;
     onSuccess?: () => void;
     expenseToEdit?: any;
+    // Pre-fill a NEW expense from this one (Clone) — saved with createExpense
+    expenseToClone?: any;
 }
 
 const numFormatter = (v: any) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -44,7 +46,7 @@ const STEPS = [
     { title: "Review", description: "Payee, notes & post", icon: <FileSearchOutlined /> },
 ];
 
-const ExpenseFormModal: React.FC<Props> = ({ open, onClose, onSuccess, expenseToEdit }) => {
+const ExpenseFormModal: React.FC<Props> = ({ open, onClose, onSuccess, expenseToEdit, expenseToClone }) => {
     const [form] = Form.useForm();
     const { message } = App.useApp();
     const queryClient = useQueryClient();
@@ -85,6 +87,33 @@ const ExpenseFormModal: React.FC<Props> = ({ open, onClose, onSuccess, expenseTo
             });
         }
     }, [open, expenseToEdit, form, functionalCurrency]);
+
+    // ── Clone: same payee, paid-from account, lines and notes, dated today.
+    // The reference (receipt no.) is left blank and line VAT is recomputed.
+    const isClone = !expenseToEdit && !!expenseToClone;
+    useEffect(() => {
+        if (!open || !isClone) return;
+        const src = expenseToClone;
+        const exempt = !!src.vat_exempt;
+        form.setFieldsValue({
+            expense_date: dayjs(),
+            customer_id: src.customer_id?._id || src.customer_id,
+            supplier_id: src.supplier_id?._id || src.supplier_id,
+            method_id: src.payment_method_id,
+            payment_account_id: accountIdOf(src.payment_account_id),
+            lines: (src.expense_lines || []).map((l: any) => ({
+                account_id: accountIdOf(l.account_id),
+                description: l.description,
+                amount: l.amount,
+                vat_amount: lineVat(Number(l.amount) || 0, exempt),
+            })),
+            notes: src.notes,
+            currency: src.currency || functionalCurrency?.code || "KES",
+            vat_exempt: exempt,
+        });
+        // lineVat only depends on the VAT settings, read once per open
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open, isClone, expenseToClone, form, functionalCurrency]);
 
     // ── VAT ───────────────────────────────────────────────────────────────────
     const vatConfig = getVATConfigSync();
@@ -167,10 +196,24 @@ const ExpenseFormModal: React.FC<Props> = ({ open, onClose, onSuccess, expenseTo
         value: s._id,
     }));
 
+    // Business customers keep their name in company_name (customer_name is optional)
+    const customerLabel = (c: any) => {
+        const name = c?.customer_name?.trim() || c?.company_name?.trim() || c?.contact_person?.name?.trim() || c?.code || "Customer";
+        return `${name}${c?.phone ? ` — ${c.phone}` : ""}`;
+    };
     const customerOptions = (customersData || []).map((c: any) => ({
-        label: `${c.customer_name}${c.phone ? ` — ${c.phone}` : ""}`,
+        label: customerLabel(c),
         value: c._id,
     }));
+
+    // Keep the edited / cloned expense's payee visible even if the search list doesn't include it
+    const source = expenseToEdit || expenseToClone;
+    if (source?.supplier_id?._id && !supplierOptions.some((o: any) => o.value === source.supplier_id._id)) {
+        supplierOptions.unshift({ label: source.supplier_id.name, value: source.supplier_id._id });
+    }
+    if (source?.customer_id?._id && !customerOptions.some((o: any) => o.value === source.customer_id._id)) {
+        customerOptions.unshift({ label: customerLabel(source.customer_id), value: source.customer_id._id });
+    }
 
     const labelOf = (opts: { label: string; value: string }[], id?: string) =>
         opts.find((o) => o.value === id)?.label;
@@ -309,7 +352,13 @@ const ExpenseFormModal: React.FC<Props> = ({ open, onClose, onSuccess, expenseTo
                 onCancel={handleCancel}
                 icon={<ArrowUpOutlined />}
                 accent={ACCENT}
-                title={expenseToEdit ? `Edit Expense — ${expenseToEdit.expense_no || ""}` : "Post Expense"}
+                title={
+                    expenseToEdit
+                        ? `Edit Expense — ${expenseToEdit.expense_no || ""}`
+                        : isClone
+                            ? `Clone Expense — from ${expenseToClone.expense_no || ""}`
+                            : "Post Expense"
+                }
                 steps={STEPS}
                 current={step}
                 onStepClick={setStep}
@@ -326,7 +375,11 @@ const ExpenseFormModal: React.FC<Props> = ({ open, onClose, onSuccess, expenseTo
                     <div style={show(0)}>
                         <Alert
                             type="success" showIcon
-                            message="Expense posts instantly — cash is recorded as paid now."
+                            message={
+                                isClone
+                                    ? `Cloned from ${expenseToClone.expense_no || "an existing expense"} — dated today; check the details, then post. The original isn't changed.`
+                                    : "Expense posts instantly — cash is recorded as paid now."
+                            }
                             style={{ marginBottom: 16 }}
                         />
                         <Row gutter={16}>

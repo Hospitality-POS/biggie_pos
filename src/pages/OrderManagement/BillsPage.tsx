@@ -5,7 +5,7 @@ import {
 } from "antd";
 import {
     FileTextOutlined, PlusOutlined, DollarOutlined,
-    StopOutlined, MoreOutlined, EyeOutlined, EditOutlined, SearchOutlined,
+    StopOutlined, MoreOutlined, EyeOutlined, EditOutlined, SearchOutlined, CopyOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
@@ -243,6 +243,8 @@ function BillsPage() {
     const [payTarget, setPayTarget] = useState<Bill | null>(null);
     const [voidTarget, setVoidTarget] = useState<Bill | null>(null);
     const [editTarget, setEditTarget] = useState<Bill | null>(null);
+    // Bill whose details pre-fill a new bill (Clone)
+    const [cloneTarget, setCloneTarget] = useState<Bill | null>(null);
     const [viewTarget, setViewTarget] = useState<Bill | null>(null);
     const [noteDetailOpen, setNoteDetailOpen] = useState(false);
     const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
@@ -423,6 +425,13 @@ function BillsPage() {
                                 onClick={() => setEditTarget(row)}
                             />
                         </Tooltip>
+                        <Tooltip title="Clone — new bill with these details">
+                            <Button
+                                size="small"
+                                icon={<CopyOutlined />}
+                                onClick={() => setCloneTarget(row)}
+                            />
+                        </Tooltip>
                         {canPay && (
                             <Tooltip title="Record Payment">
                                 <Button
@@ -567,6 +576,13 @@ function BillsPage() {
                 billToEdit={editTarget}
             />
 
+            <BillFormModal
+                open={!!cloneTarget}
+                onClose={() => setCloneTarget(null)}
+                onSuccess={refresh}
+                billToClone={cloneTarget}
+            />
+
             <BillPaymentModal
                 bill={payTarget}
                 open={!!payTarget}
@@ -589,6 +605,10 @@ function BillsPage() {
                     // Close the drawer and open the edit form on the freshly loaded bill
                     setViewTarget(null);
                     setEditTarget(bill);
+                }}
+                onClone={(bill) => {
+                    setViewTarget(null);
+                    setCloneTarget(bill);
                 }}
                 onOpenNote={(noteId) => {
                     setSelectedNoteId(noteId);
