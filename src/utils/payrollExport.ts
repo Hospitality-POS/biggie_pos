@@ -216,19 +216,17 @@ const buildMusterRoll = (lines: any[], withDepartment = false, rounded = false):
   const payeTotal = sumOf((l) => rn(dOf(l).paye)), shifTotal = sumOf((l) => rn(dOf(l).nhif));
   const nssfTotal = sumOf((l) => rn(dOf(l).nssf)), ahlTotal = sumOf((l) => rn(dOf(l).housing_levy));
   const whtTotal = sumOf((l) => rn(dOf(l).withholding_tax));
-  // Sum the custom columns' getters so the row foots exactly against the
-  // named custom columns in the table (Loan, HELB, advances…)
-  const customCols = cols.filter((c) => c.custom);
-  const customTotal = sumOf((l) => customCols.reduce((s, c) => s + c.get(l), 0));
   const netTotal = sumOf((l) => rn(l.gross_salary) - rn(dOf(l).total));
   const nssfErTotal = sumOf((l) => rn(erOf(l, 'employer_nssf', 'nssf')));
   const ahlErTotal = sumOf((l) => rn(erOf(l, 'employer_housing_levy', 'housing_levy')));
   const nitaTotal = sumOf((l) => rn(erOf(l, 'employer_nita', 'nita')));
   // "Total Deductions" foots against the rows listed above it — deductions
-  // not shown in this block (e.g. pension) must not be folded in.
+  // not shown in this block (e.g. pension) must not be folded in. Custom
+  // deductions (advances, loans, HELB…) are not statutory: they stay in their
+  // own table columns and are left out of this block.
   const summaryTotal =
     payeTotal + shifTotal + nssfTotal + nssfErTotal + ahlTotal + ahlErTotal +
-    whtTotal + customTotal + nitaTotal;
+    whtTotal + nitaTotal;
 
   const summary: [string, string | number][] = [
     ['PAYE', rn(payeTotal)],
@@ -236,7 +234,6 @@ const buildMusterRoll = (lines: any[], withDepartment = false, rounded = false):
     ['NSSF (EE + ER)', rn(nssfTotal + nssfErTotal)],
     ['Housing Levy (EE + ER)', rn(ahlTotal + ahlErTotal)],
     ...(whtTotal > 0 ? [['Withholding Tax', rn(whtTotal)] as [string, number]] : []),
-    ...(customTotal > 0 ? [['Custom Deductions', rn(customTotal)] as [string, number]] : []),
     ['NITA (Employer)', rn(nitaTotal)],
     ['Total Deductions', rn(summaryTotal)],
     ['Employees', lines.length],
