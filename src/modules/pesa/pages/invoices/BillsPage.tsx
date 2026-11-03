@@ -1,29 +1,41 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
-    Button, DatePicker, Spin, Table, Typography, Tag, Modal,
+    Button, Spin, Table, Typography, Tag, Modal,
     Form, InputNumber, Select, Input, App, Popconfirm, Tooltip, Space,
 } from "antd";
 import {
     FileTextOutlined, PlusOutlined, DollarOutlined,
-    StopOutlined, MoreOutlined, EyeOutlined, EditOutlined,
+    StopOutlined, MoreOutlined, EyeOutlined, EditOutlined, SearchOutlined, CopyOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import BillFormModal from "@modules/duka/pages/orders/components/BillFormModal";
 import {
     getAllBills, getBillSummary, recordBillPayment, voidBill,
+    BILL_EDITABLE_STATUSES, billEditLockReason,
     type Bill, type BillStatus,
 } from "@services/accounting/bill";
 import BillDetailDrawer from "./components/BillDetailDrawer";
 import NoteDetailDrawer from "./NoteDetailDrawer";
-import { usePaymentMethodsQuery } from "@hooks/queries";
+import { fetchAllPaymentMethods } from "@services/paymentMethod";
 import { getAllAccounts } from "@services/accounting/accounts";
 import { THEME_C } from "@utils/getPrimaryColor";
+import { fetchAllSuppliers } from "@services/supplier";
+import PeriodFilter, { defaultPeriod, periodRange, isDefaultPeriod, type PeriodValue } from "@components/PeriodFilter";
 
-const { RangePicker } = DatePicker;
 const { Text } = Typography;
 
 const C = THEME_C;
+
+const BILL_STATUS_OPTIONS: { label: string; value: BillStatus }[] = [
+    { label: "Draft", value: "Draft" },
+    { label: "Pending", value: "Pending" },
+    { label: "Partially Paid", value: "Partially_Paid" },
+    { label: "Overdue", value: "Overdue" },
+    { label: "Paid", value: "Paid" },
+    { label: "Voided", value: "Voided" },
+    { label: "Cancelled", value: "Cancelled" },
+];
 
 const fmt = (v: number) =>
     (v || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -56,7 +68,9 @@ const STATUS_CFG: Record<BillStatus, { color: string; label: string }> = {
 
 const PAYABLE_STATUSES: BillStatus[] = ["Pending", "Partially_Paid", "Overdue"];
 const VOIDABLE_STATUSES: BillStatus[] = ["Pending", "Partially_Paid", "Overdue", "Draft"];
-const EDITABLE_STATUSES: BillStatus[] = ["Pending", "Draft"];
+// Mirrors the API's updateBill rule — only Paid / Voided / Cancelled bills are locked
+const EDITABLE_STATUSES = BILL_EDITABLE_STATUSES;
+const editLockReason = billEditLockReason;
 
 // ── Payment modal ─────────────────────────────────────────────────────────────
 const BillPaymentModal: React.FC<{
@@ -69,7 +83,11 @@ const BillPaymentModal: React.FC<{
     const { message } = App.useApp();
     const queryClient = useQueryClient();
 
-    const { data: methodsData } = usePaymentMethodsQuery({}, { enabled: open });
+    const { data: methodsData } = useQuery({
+        queryKey: ["payment-methods"],
+        queryFn: () => fetchAllPaymentMethods({}),
+        enabled: open,
+    });
     const { data: accountsData } = useQuery({
         queryKey: ["chart-of-accounts"],
         queryFn: () => getAllAccounts({}),
@@ -225,37 +243,70 @@ function BillsPage() {
     const [payTarget, setPayTarget] = useState<Bill | null>(null);
     const [voidTarget, setVoidTarget] = useState<Bill | null>(null);
     const [editTarget, setEditTarget] = useState<Bill | null>(null);
+    // Bill whose details pre-fill a new bill (Clone)
+    const [cloneTarget, setCloneTarget] = useState<Bill | null>(null);
     const [viewTarget, setViewTarget] = useState<Bill | null>(null);
     const [noteDetailOpen, setNoteDetailOpen] = useState(false);
     const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
-    const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
-        dayjs().startOf("month"),
-        dayjs().endOf("month"),
-    ]);
+    // ── Filters ─────────────────────────────────────────────────────────────
+    // Period: a month / calendar quarter / year picked with one picker, or a custom range
+    const [period, setPeriod] = useState<PeriodValue>(defaultPeriod);
+    const [statusFilter, setStatusFilter] = useState<BillStatus | undefined>();
+    const [supplierFilter, setSupplierFilter] = useState<string | undefined>();
+    const [supplierSearch, setSupplierSearch] = useState("");
+    const [searchInput, setSearchInput] = useState("");
+    const [search, setSearch] = useState("");
+
+    // Debounce the free-text search so each keystroke doesn't refetch
+    useEffect(() => {
+        const t = setTimeout(() => { setSearch(searchInput.trim()); setPage(1); }, 400);
+        return () => clearTimeout(t);
+    }, [searchInput]);
+
+    const dateRange = useMemo(() => periodRange(period), [period]);
+    const from = dateRange[0].format("YYYY-MM-DD");
+    const to = dateRange[1].format("YYYY-MM-DD");
+
+    const filtersActive = !!(statusFilter || supplierFilter || search) || !isDefaultPeriod(period);
+    const clearFilters = () => {
+        setStatusFilter(undefined);
+        setSupplierFilter(undefined);
+        setSearchInput("");
+        setSearch("");
+        setPeriod(defaultPeriod());
+        setPage(1);
+    };
+
+    const { data: suppliersData, isFetching: suppliersFetching } = useQuery({
+        queryKey: ["suppliers-dropdown-bills-filter", supplierSearch],
+        queryFn: () => fetchAllSuppliers({ name: supplierSearch }),
+        select: (res: any) => (Array.isArray(res) ? res : res?.suppliers || res?.data || []),
+        staleTime: 30_000,
+    });
+    const supplierOptions = (suppliersData || []).map((s: any) => ({ label: s.name, value: s._id }));
 
     const queryClient = useQueryClient();
 
     const { data, isLoading } = useQuery({
-        queryKey: ["bills", page, dateRange],
+        queryKey: ["bills", page, from, to, statusFilter, supplierFilter, search],
         queryFn: () => getAllBills({
-            page, limit: 10,
-            from: dateRange[0].format("YYYY-MM-DD"),
-            to: dateRange[1].format("YYYY-MM-DD"),
+            page, limit: 10, from, to,
+            status: statusFilter,
+            supplier_id: supplierFilter,
+            search: search || undefined,
         }),
     });
 
     const { data: summaryData } = useQuery({
-        queryKey: ["bill-summary", dateRange],
-        queryFn: () => getBillSummary({
-            from: dateRange[0].format("YYYY-MM-DD"),
-            to: dateRange[1].format("YYYY-MM-DD"),
-        }),
+        queryKey: ["bill-summary", from, to, supplierFilter],
+        queryFn: () => getBillSummary({ from, to, supplier_id: supplierFilter }),
     });
 
     const bills: Bill[] = data?.bills || [];
     const total = data?.total || 0;
     const overdueCount = summaryData?.overdue_count || 0;
-    const summaryRows = summaryData?.summary || [];
+    // The summary is grouped by status, so a status filter is applied here
+    const summaryRows = (summaryData?.summary || []).filter((r) => !statusFilter || r._id === statusFilter);
     const totalBills = summaryRows.reduce((s, r) => s + r.total_value, 0);
     const totalPaid = summaryRows.filter((r) => r._id === "Paid").reduce((s, r) => s + r.total_paid, 0);
     const totalOutstanding = summaryRows.reduce((s, r) => s + r.total_due, 0);
@@ -365,16 +416,22 @@ function BillsPage() {
                                 onClick={() => setViewTarget(row)}
                             />
                         </Tooltip>
-                        {canEdit && (
-                            <Tooltip title="Edit Bill">
-                                <Button
-                                    size="small"
-                                    icon={<EditOutlined />}
-                                    style={{ background: "#1890ff", borderColor: "#1890ff", color: "#fff" }}
-                                    onClick={() => setEditTarget(row)}
-                                />
-                            </Tooltip>
-                        )}
+                        <Tooltip title={canEdit ? "Edit Bill" : editLockReason(row.status)}>
+                            <Button
+                                size="small"
+                                icon={<EditOutlined />}
+                                disabled={!canEdit}
+                                style={canEdit ? { background: "#1890ff", borderColor: "#1890ff", color: "#fff" } : undefined}
+                                onClick={() => setEditTarget(row)}
+                            />
+                        </Tooltip>
+                        <Tooltip title="Clone — new bill with these details">
+                            <Button
+                                size="small"
+                                icon={<CopyOutlined />}
+                                onClick={() => setCloneTarget(row)}
+                            />
+                        </Tooltip>
                         {canPay && (
                             <Tooltip title="Record Payment">
                                 <Button
@@ -434,17 +491,7 @@ function BillsPage() {
                         display: "flex", justifyContent: "space-between",
                         alignItems: "center", flexWrap: "wrap", gap: 10,
                     }}>
-                        <RangePicker
-                            value={dateRange}
-                            onChange={(v) => { if (v) { setPage(1); setDateRange(v as [dayjs.Dayjs, dayjs.Dayjs]); } }}
-                            style={{ borderRadius: 8 }}
-                            presets={[
-                                { label: "Today", value: [dayjs().startOf("day"), dayjs().endOf("day")] },
-                                { label: "This Week", value: [dayjs().startOf("week"), dayjs().endOf("week")] },
-                                { label: "This Month", value: [dayjs().startOf("month"), dayjs().endOf("month")] },
-                                { label: "Last Month", value: [dayjs().subtract(1, "month").startOf("month"), dayjs().subtract(1, "month").endOf("month")] },
-                            ]}
-                        />
+                        <PeriodFilter value={period} onChange={(p) => { setPeriod(p); setPage(1); }} />
                         <Button
                             type="primary" icon={<PlusOutlined />}
                             onClick={() => setModalOpen(true)}
@@ -452,6 +499,44 @@ function BillsPage() {
                         >
                             Create Supplier Bill
                         </Button>
+                    </div>
+
+                    {/* ── Status / supplier / search filters ── */}
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                        <Select
+                            allowClear
+                            placeholder="All statuses"
+                            value={statusFilter}
+                            onChange={(v) => { setStatusFilter(v); setPage(1); }}
+                            style={{ width: 170 }}
+                            options={BILL_STATUS_OPTIONS}
+                        />
+                        <Select
+                            allowClear
+                            showSearch
+                            placeholder="All suppliers"
+                            value={supplierFilter}
+                            onChange={(v) => { setSupplierFilter(v); setPage(1); }}
+                            onSearch={setSupplierSearch}
+                            filterOption={false}
+                            loading={suppliersFetching}
+                            options={supplierOptions}
+                            notFoundContent={suppliersFetching ? "Searching…" : "No suppliers"}
+                            style={{ width: 240 }}
+                        />
+                        <Input
+                            allowClear
+                            prefix={<SearchOutlined style={{ color: C.subText }} />}
+                            placeholder="Bill no, supplier ref or supplier"
+                            value={searchInput}
+                            onChange={(e) => setSearchInput(e.target.value)}
+                            style={{ width: 260, borderRadius: 8 }}
+                        />
+                        {filtersActive && (
+                            <Button type="link" onClick={clearFilters} style={{ paddingInline: 4 }}>
+                                Clear filters
+                            </Button>
+                        )}
                     </div>
 
                     <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -491,6 +576,13 @@ function BillsPage() {
                 billToEdit={editTarget}
             />
 
+            <BillFormModal
+                open={!!cloneTarget}
+                onClose={() => setCloneTarget(null)}
+                onSuccess={refresh}
+                billToClone={cloneTarget}
+            />
+
             <BillPaymentModal
                 bill={payTarget}
                 open={!!payTarget}
@@ -509,6 +601,15 @@ function BillsPage() {
                 open={!!viewTarget}
                 onClose={() => setViewTarget(null)}
                 billId={viewTarget?._id || null}
+                onEdit={(bill) => {
+                    // Close the drawer and open the edit form on the freshly loaded bill
+                    setViewTarget(null);
+                    setEditTarget(bill);
+                }}
+                onClone={(bill) => {
+                    setViewTarget(null);
+                    setCloneTarget(bill);
+                }}
                 onOpenNote={(noteId) => {
                     setSelectedNoteId(noteId);
                     setNoteDetailOpen(true);

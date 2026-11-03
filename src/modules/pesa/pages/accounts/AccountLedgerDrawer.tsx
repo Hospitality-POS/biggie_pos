@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
 import {
     Drawer, Table, Typography, Space, Tag, Tooltip,
-    Statistic, Row, Col, DatePicker, Button, Dropdown, MenuProps, Pagination,
+    Statistic, Row, Col, DatePicker, Button, Dropdown, MenuProps, Pagination, Input, Alert, Spin,
 } from "antd";
 import {
     ArrowUpOutlined, ArrowDownOutlined,
     DownloadOutlined, FileExcelOutlined, FilePdfOutlined,
-    EditOutlined, ApartmentOutlined, AuditOutlined,
+    EditOutlined, ApartmentOutlined, AuditOutlined, SearchOutlined,
 } from "@ant-design/icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -262,9 +262,16 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId, 
         initialTo ?? dayjs().endOf("month"),
     ]);
 
+    // Transaction search — debounced, server-side across every page
+    const [searchInput, setSearchInput] = useState("");
+    const [search, setSearch] = useState("");
+    const searching = !!search;
+
     useEffect(() => {
         if (open) {
             setPage(1);
+            setSearchInput("");
+            setSearch("");
             setDateRange([
                 initialFrom ?? null,
                 initialTo ?? dayjs().endOf("month"),
@@ -272,28 +279,34 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId, 
         }
     }, [open, initialFrom, initialTo]);
 
+    useEffect(() => {
+        const t = setTimeout(() => { setSearch(searchInput.trim()); setPage(1); }, 400);
+        return () => clearTimeout(t);
+    }, [searchInput]);
+
     const from = dateRange[0]?.startOf("day").toISOString();
     const to = dateRange[1]?.endOf("day").toISOString();
 
-    const { data, isLoading } = useQuery({
-        queryKey: ["account-ledger", account?._id, page, pageSize, from, to],
+    const { data, isLoading, isFetching } = useQuery({
+        queryKey: ["account-ledger", account?._id, page, pageSize, from, to, search],
         queryFn: () =>
-            getAccountLedger(account!._id, { shop_id: shopId, from, to, page, limit: pageSize }),
+            getAccountLedger(account!._id, { shop_id: shopId, from, to, page, limit: pageSize, search: search || undefined }),
         enabled: open && !!account?._id,
         keepPreviousData: true,
     });
 
-    // Fetch all pages for summary statistics
+    // Fetch all pages for summary statistics (matches only, while searching)
     const { data: allPagesData } = useQuery({
-        queryKey: ["account-ledger-all", account?._id, from, to],
+        queryKey: ["account-ledger-all", account?._id, from, to, search],
         queryFn: async () => {
             const allLedger: LedgerLine[] = [];
             let currentPage = 1;
             let hasMore = true;
-            
+
             while (hasMore) {
-                const response = await getAccountLedger(account!._id, { 
-                    shop_id: shopId, 
+                const response = await getAccountLedger(account!._id, {
+                    search: search || undefined,
+                    shop_id: shopId,
                     from, 
                     to, 
                     page: currentPage, 
@@ -503,11 +516,14 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId, 
 
     // Page 1 starts with an "As On <from> · Opening Balance" row, like Zoho.
     // It spans the text columns and shows the opening balance on the right.
-    const rows: LedgerRow[] = pagination.page === 1 && ledger.length > 0
+    // While searching, the running balance only sums the matches — so the
+    // opening row and Balance column are hidden rather than shown wrong.
+    const rows: LedgerRow[] = !searching && pagination.page === 1 && ledger.length > 0
         ? [{ _opening: true, entry_id: "", entry_no: "", entry_date: "", description: "", source: "", debit: 0, credit: 0, balance: openingBalance }, ...ledger]
         : ledger;
     const OPENING_TEXT_SPAN = 6; // Date … Reference #
-    const tableColumns = columns.map((col, i) => ({
+    const visibleColumns = searching ? columns.filter((c) => c.key !== "balance") : columns;
+    const tableColumns = visibleColumns.map((col, i) => ({
         ...col,
         onCell: (r: LedgerRow) => {
             if (!r._opening) return {};
@@ -578,19 +594,45 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId, 
                         { label: "Last 90 Days", value: [dayjs().subtract(90, "day"), dayjs()] },
                     ]}
                 />
+                <Input
+                    allowClear
+                    prefix={<SearchOutlined style={{ color: "#94a3b8" }} />}
+                    suffix={isFetching && searching ? <Spin size="small" /> : null}
+                    placeholder="Search entry no, description, reference, account or amount"
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    style={{ width: 380, borderRadius: 8 }}
+                />
             </Space>
+
+            {searching && (
+                <Alert
+                    type="info" showIcon style={{ marginBottom: 16 }}
+                    message={`${pagination.total} transaction${pagination.total === 1 ? "" : "s"} match "${search}"`}
+                    description="Totals are for the matching transactions only. The running balance is hidden while searching — clear the search to see it."
+                    action={<Button size="small" onClick={() => setSearchInput("")}>Clear search</Button>}
+                />
+            )}
 
             {/* ── Summary Stats ── */}
             <Row gutter={[16, 12]} style={{ marginBottom: 16, background: "#fff", borderRadius: 10, padding: "14px 8px", border: "1px solid #e2e8f0", marginLeft: 0, marginRight: 0 }}>
                 <Col xs={12} md={6}>
-                    <Statistic
-                        title="Opening Balance"
-                        value={Math.abs(openingBalance)}
-                        precision={2}
-                        prefix="KES"
-                        valueStyle={{ color: "#64748b", fontSize: 16 }}
-                        suffix={isDr(openingBalance) ? "(DR)" : "(CR)"}
-                    />
+                    {searching ? (
+                        <Statistic
+                            title="Matching Transactions"
+                            value={pagination.total}
+                            valueStyle={{ color: "#64748b", fontSize: 16 }}
+                        />
+                    ) : (
+                        <Statistic
+                            title="Opening Balance"
+                            value={Math.abs(openingBalance)}
+                            precision={2}
+                            prefix="KES"
+                            valueStyle={{ color: "#64748b", fontSize: 16 }}
+                            suffix={isDr(openingBalance) ? "(DR)" : "(CR)"}
+                        />
+                    )}
                 </Col>
                 <Col xs={12} md={6}>
                     <Statistic
@@ -613,14 +655,25 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId, 
                     />
                 </Col>
                 <Col xs={12} md={6}>
-                    <Statistic
-                        title="Closing Balance"
-                        value={Math.abs(closing)}
-                        precision={2}
-                        prefix="KES"
-                        valueStyle={{ color: closing >= 0 ? "#1d39c4" : "#cf1322", fontSize: 16 }}
-                        suffix={isDr(closing) ? "(DR)" : "(CR)"}
-                    />
+                    {searching ? (
+                        <Statistic
+                            title="Net of Matches"
+                            value={Math.abs(totalDebit - totalCredit)}
+                            precision={2}
+                            prefix="KES"
+                            valueStyle={{ color: "#1d39c4", fontSize: 16 }}
+                            suffix={totalDebit >= totalCredit ? "(DR)" : "(CR)"}
+                        />
+                    ) : (
+                        <Statistic
+                            title="Closing Balance"
+                            value={Math.abs(closing)}
+                            precision={2}
+                            prefix="KES"
+                            valueStyle={{ color: closing >= 0 ? "#1d39c4" : "#cf1322", fontSize: 16 }}
+                            suffix={isDr(closing) ? "(DR)" : "(CR)"}
+                        />
+                    )}
                 </Col>
             </Row>
 
@@ -646,7 +699,7 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId, 
                 // Paged by the server — a separate Pagination below so the extra
                 // opening-balance row never makes the Table trim a transaction
                 pagination={false}
-                locale={{ emptyText: "No transactions in this period" }}
+                locale={{ emptyText: searching ? `No transactions match "${search}" in this period` : "No transactions in this period" }}
                 summary={() =>
                     ledger.length > 0 ? (
                         <Table.Summary>
@@ -660,12 +713,28 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId, 
                                 <Table.Summary.Cell index={7} align="right">
                                     <Text strong>{money(pageTotalCredit)}</Text>
                                 </Table.Summary.Cell>
-                                <Table.Summary.Cell index={8} align="right">
-                                    <Text strong>{money(Math.abs(pageClosing))} <Text type="secondary" style={{ fontSize: 11 }}>{drCr(pageClosing)}</Text></Text>
-                                </Table.Summary.Cell>
-                                <Table.Summary.Cell index={9} />
+                                {!searching && (
+                                    <Table.Summary.Cell index={8} align="right">
+                                        <Text strong>{money(Math.abs(pageClosing))} <Text type="secondary" style={{ fontSize: 11 }}>{drCr(pageClosing)}</Text></Text>
+                                    </Table.Summary.Cell>
+                                )}
+                                <Table.Summary.Cell index={searching ? 8 : 9} />
                             </Table.Summary.Row>
-                            {pagination.page >= pagination.totalPages && (
+                            {searching && pagination.page >= pagination.totalPages && (
+                                <Table.Summary.Row style={{ background: "#eef2ff" }}>
+                                    <Table.Summary.Cell index={0} colSpan={6}>
+                                        <Text strong>Total of {pagination.total} matching transaction{pagination.total === 1 ? "" : "s"}</Text>
+                                    </Table.Summary.Cell>
+                                    <Table.Summary.Cell index={6} align="right">
+                                        <Text strong>{money(totalDebit)}</Text>
+                                    </Table.Summary.Cell>
+                                    <Table.Summary.Cell index={7} align="right">
+                                        <Text strong>{money(totalCredit)}</Text>
+                                    </Table.Summary.Cell>
+                                    <Table.Summary.Cell index={8} />
+                                </Table.Summary.Row>
+                            )}
+                            {!searching && pagination.page >= pagination.totalPages && (
                                 <Table.Summary.Row style={{ background: "#eef2ff" }}>
                                     <Table.Summary.Cell index={0}>
                                         <Text strong>As On {dateRange[1]?.format("DD/MM/YYYY")}</Text>

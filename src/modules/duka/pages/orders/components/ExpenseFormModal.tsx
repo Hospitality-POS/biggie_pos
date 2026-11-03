@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import {
     Form, Input, InputNumber, Select, DatePicker,
-    Button, App, Row, Col, Alert, Divider, Typography, Descriptions, Table,
+    Button, App, Row, Col, Alert, Divider, Typography, Descriptions, Table, Checkbox,
 } from "antd";
 import {
     ArrowUpOutlined, PlusOutlined, DeleteOutlined, BankOutlined,
@@ -30,6 +30,8 @@ interface Props {
     onClose: () => void;
     onSuccess?: () => void;
     expenseToEdit?: any;
+    // Pre-fill a NEW expense from this one (Clone) — saved with createExpense
+    expenseToClone?: any;
 }
 
 const numFormatter = (v: any) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -44,7 +46,7 @@ const STEPS = [
     { title: "Review", description: "Payee, notes & post", icon: <FileSearchOutlined /> },
 ];
 
-const ExpenseFormModal: React.FC<Props> = ({ open, onClose, onSuccess, expenseToEdit }) => {
+const ExpenseFormModal: React.FC<Props> = ({ open, onClose, onSuccess, expenseToEdit, expenseToClone }) => {
     const [form] = Form.useForm();
     const { message } = App.useApp();
     const queryClient = useQueryClient();
@@ -81,24 +83,62 @@ const ExpenseFormModal: React.FC<Props> = ({ open, onClose, onSuccess, expenseTo
                 })),
                 notes: expenseToEdit.notes,
                 currency: expenseToEdit.currency || functionalCurrency?.code || "KES",
+                vat_exempt: !!expenseToEdit.vat_exempt,
             });
         }
     }, [open, expenseToEdit, form, functionalCurrency]);
+
+    // ── Clone: same payee, paid-from account, lines and notes, dated today.
+    // The reference (receipt no.) is left blank and line VAT is recomputed.
+    const isClone = !expenseToEdit && !!expenseToClone;
+    useEffect(() => {
+        if (!open || !isClone) return;
+        const src = expenseToClone;
+        const exempt = !!src.vat_exempt;
+        form.setFieldsValue({
+            expense_date: dayjs(),
+            customer_id: src.customer_id?._id || src.customer_id,
+            supplier_id: src.supplier_id?._id || src.supplier_id,
+            method_id: src.payment_method_id,
+            payment_account_id: accountIdOf(src.payment_account_id),
+            lines: (src.expense_lines || []).map((l: any) => ({
+                account_id: accountIdOf(l.account_id),
+                description: l.description,
+                amount: l.amount,
+                vat_amount: lineVat(Number(l.amount) || 0, exempt),
+            })),
+            notes: src.notes,
+            currency: src.currency || functionalCurrency?.code || "KES",
+            vat_exempt: exempt,
+        });
+        // lineVat only depends on the VAT settings, read once per open
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open, isClone, expenseToClone, form, functionalCurrency]);
 
     // ── VAT ───────────────────────────────────────────────────────────────────
     const vatConfig = getVATConfigSync();
     const vatEnabled = vatConfig.is_vat_enabled;
     const standardVatRate = vatConfig.vat_standard_rate;
 
-    const handleValuesChange = (changed: any) => {
-        if (!vatEnabled || !Array.isArray(changed?.lines)) return;
+    // The line amount is NET (saved with vat_inclusive: false) — VAT goes on top
+    // whatever the tenant's POS pricing mode, rounded to the cent. Exempt → 0.
+    const lineVat = (amt: number, exempt: boolean) =>
+        exempt || !vatEnabled || !(amt > 0)
+            ? 0
+            : Math.round(calculateVAT(amt, { ...vatConfig, vat_pricing_mode: "EXCLUSIVE" }).vat_amount * 100) / 100;
+
+    const handleValuesChange = (changed: any, all: any) => {
+        // Toggling the exemption re-prices every line
+        if ("vat_exempt" in (changed || {})) {
+            (all?.lines || []).forEach((l: any, idx: number) => {
+                form.setFieldValue(["lines", idx, "vat_amount"], lineVat(Number(l?.amount) || 0, !!changed.vat_exempt));
+            });
+            return;
+        }
+        if (!Array.isArray(changed?.lines)) return;
         changed.lines.forEach((l: any, idx: number) => {
             if (l && "amount" in l) {
-                const amt = l.amount as number;
-                form.setFieldValue(
-                    ["lines", idx, "vat_amount"],
-                    amt && amt > 0 ? calculateVAT(amt, vatConfig).vat_amount : 0,
-                );
+                form.setFieldValue(["lines", idx, "vat_amount"], lineVat(l.amount as number, !!all?.vat_exempt));
             }
         });
     };
@@ -156,10 +196,24 @@ const ExpenseFormModal: React.FC<Props> = ({ open, onClose, onSuccess, expenseTo
         value: s._id,
     }));
 
+    // Business customers keep their name in company_name (customer_name is optional)
+    const customerLabel = (c: any) => {
+        const name = c?.customer_name?.trim() || c?.company_name?.trim() || c?.contact_person?.name?.trim() || c?.code || "Customer";
+        return `${name}${c?.phone ? ` — ${c.phone}` : ""}`;
+    };
     const customerOptions = (customersData || []).map((c: any) => ({
-        label: `${c.customer_name}${c.phone ? ` — ${c.phone}` : ""}`,
+        label: customerLabel(c),
         value: c._id,
     }));
+
+    // Keep the edited / cloned expense's payee visible even if the search list doesn't include it
+    const source = expenseToEdit || expenseToClone;
+    if (source?.supplier_id?._id && !supplierOptions.some((o: any) => o.value === source.supplier_id._id)) {
+        supplierOptions.unshift({ label: source.supplier_id.name, value: source.supplier_id._id });
+    }
+    if (source?.customer_id?._id && !customerOptions.some((o: any) => o.value === source.customer_id._id)) {
+        customerOptions.unshift({ label: customerLabel(source.customer_id), value: source.customer_id._id });
+    }
 
     const labelOf = (opts: { label: string; value: string }[], id?: string) =>
         opts.find((o) => o.value === id)?.label;
@@ -233,7 +287,7 @@ const ExpenseFormModal: React.FC<Props> = ({ open, onClose, onSuccess, expenseTo
         // One bank payment → one expense, one DR line per expense account
         const expenseLines = (v.lines || []).map((l: any) => {
             const netAmount = l.amount as number;
-            const vatAmount = (l.vat_amount as number) || 0;
+            const vatAmount = v.vat_exempt ? 0 : (l.vat_amount as number) || 0;
             return {
                 account_id: l.account_id,
                 description: l.description,
@@ -257,6 +311,7 @@ const ExpenseFormModal: React.FC<Props> = ({ open, onClose, onSuccess, expenseTo
                 : "Cash",
             notes: v.notes || undefined,
             currency: v.currency || functionalCurrency?.code || "KES",
+            vat_exempt: !!v.vat_exempt,
         };
 
         if (expenseToEdit) updateMutation.mutate(payload);
@@ -297,7 +352,13 @@ const ExpenseFormModal: React.FC<Props> = ({ open, onClose, onSuccess, expenseTo
                 onCancel={handleCancel}
                 icon={<ArrowUpOutlined />}
                 accent={ACCENT}
-                title={expenseToEdit ? `Edit Expense — ${expenseToEdit.expense_no || ""}` : "Post Expense"}
+                title={
+                    expenseToEdit
+                        ? `Edit Expense — ${expenseToEdit.expense_no || ""}`
+                        : isClone
+                            ? `Clone Expense — from ${expenseToClone.expense_no || ""}`
+                            : "Post Expense"
+                }
                 steps={STEPS}
                 current={step}
                 onStepClick={setStep}
@@ -314,7 +375,11 @@ const ExpenseFormModal: React.FC<Props> = ({ open, onClose, onSuccess, expenseTo
                     <div style={show(0)}>
                         <Alert
                             type="success" showIcon
-                            message="Expense posts instantly — cash is recorded as paid now."
+                            message={
+                                isClone
+                                    ? `Cloned from ${expenseToClone.expense_no || "an existing expense"} — dated today; check the details, then post. The original isn't changed.`
+                                    : "Expense posts instantly — cash is recorded as paid now."
+                            }
                             style={{ marginBottom: 16 }}
                         />
                         <Row gutter={16}>
@@ -442,6 +507,20 @@ const ExpenseFormModal: React.FC<Props> = ({ open, onClose, onSuccess, expenseTo
                                 </>
                             )}
                         </Form.List>
+
+                        <Form.Item
+                            name="vat_exempt"
+                            valuePropName="checked"
+                            initialValue={false}
+                            style={{ marginBottom: 12 }}
+                            extra={
+                                locked
+                                    ? "Changing this on an approved expense reposts its journal entry without VAT Input."
+                                    : "For payees whose goods or services carry no VAT — no VAT Input is claimed."
+                            }
+                        >
+                            <Checkbox>VAT exempt — no VAT on this expense</Checkbox>
+                        </Form.Item>
 
                         <div style={{
                             display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8,

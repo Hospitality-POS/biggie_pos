@@ -21,6 +21,7 @@ import {
 } from "./InvoiceTemplates";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { THEME_C } from "@utils/getPrimaryColor";
+import { inlineImages } from "@utils/inlineImages";
 
 const { Text } = Typography;
 
@@ -196,6 +197,8 @@ const InvoiceReprintModal: React.FC<InvoiceReprintModalProps> = ({
       clone.style.overflow = "visible";
       clone.style.width = "730px";
       document.body.appendChild(clone);
+      // Logos are cross-origin — inline them so they aren't dropped from the capture
+      await inlineImages(clone);
       const canvas = await html2canvas(clone, { scale: 2, useCORS: true, allowTaint: true });
       document.body.removeChild(clone);
       const imgData = canvas.toDataURL("image/png");

@@ -219,6 +219,15 @@ export const updateShopHotelSettings = async (shopId: string, hotelSettings: any
     throw error;
   }
 };
+// Logo on payroll/payslip PDFs — see utils/exportLogo.ts for how it resolves
+export interface ShopPayrollLogoSettings {
+  show_logo?: boolean;
+  department_logos_enabled?: boolean;
+}
+export const updateShopPayrollLogoSettings = async (shopId: string, settings: ShopPayrollLogoSettings) => {
+  const response = await axiosInstance.patch(`${url}/${shopId}`, { payroll_logo_settings: settings });
+  return response.data;
+};
 // Branch-only VAT / catering levy — business-wide ones live on the tenant
 // (VAT) and system settings (levy). See utils/taxConfig.ts.
 export const updateShopTaxSettings = async (shopId: string, taxSettings: ShopTaxSettings) => {

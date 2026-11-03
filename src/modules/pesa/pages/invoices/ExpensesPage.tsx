@@ -1,11 +1,11 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
-    Button, DatePicker, Spin, Table, Typography, Tag, Modal,
+    Button, Spin, Table, Typography, Tag, Modal,
     Input, App, Space, Tooltip, Select, Drawer, Descriptions, Divider, Empty,
 } from "antd";
 import {
     ArrowUpOutlined, PlusOutlined, CheckCircleOutlined, StopOutlined, ReloadOutlined, EditOutlined,
-    EyeOutlined,
+    EyeOutlined, SearchOutlined, CopyOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
@@ -15,10 +15,19 @@ import {
     type Expense, type ExpenseStatus,
 } from "@services/accounting/expense";
 import { fetchAllCustomers } from "@services/customers";
+import { fetchAllSuppliers } from "@services/supplier";
+import { fetchAllPaymentMethods } from "@services/paymentMethod";
 import { THEME_C } from "@utils/getPrimaryColor";
+import PeriodFilter, { defaultPeriod, periodRange, isDefaultPeriod, type PeriodValue } from "@components/PeriodFilter";
 
-const { RangePicker } = DatePicker;
 const { Text } = Typography;
+
+const EXPENSE_STATUS_OPTIONS: { label: string; value: ExpenseStatus }[] = [
+    { label: "Draft", value: "Draft" },
+    { label: "Pending", value: "Pending" },
+    { label: "Approved", value: "Approved" },
+    { label: "Voided", value: "Voided" },
+];
 
 const C = THEME_C;
 
@@ -120,7 +129,8 @@ const ViewExpenseDrawer: React.FC<{
     expenseId: string | null;
     onClose: () => void;
     onEdit: (expense: Expense) => void;
-}> = ({ expenseId, onClose, onEdit }) => {
+    onClone: (expense: Expense) => void;
+}> = ({ expenseId, onClose, onEdit, onClone }) => {
     const { data, isLoading } = useQuery({
         queryKey: ["expense", expenseId],
         queryFn: () => getExpenseById(expenseId!),
@@ -148,8 +158,15 @@ const ViewExpenseDrawer: React.FC<{
                     )}
                 </Space>
             }
-            extra={expense && expense.status !== "Voided" && (
-                <Button icon={<EditOutlined />} onClick={() => onEdit(expense)}>Edit</Button>
+            extra={expense && (
+                <Space>
+                    <Tooltip title="New expense with these details">
+                        <Button icon={<CopyOutlined />} onClick={() => onClone(expense)}>Clone</Button>
+                    </Tooltip>
+                    {expense.status !== "Voided" && (
+                        <Button icon={<EditOutlined />} onClick={() => onEdit(expense)}>Edit</Button>
+                    )}
+                </Space>
             )}
         >
             <Spin spinning={isLoading}>
@@ -274,12 +291,41 @@ function ExpensesPage() {
     const [modalOpen, setModalOpen] = useState(false);
     const [voidTarget, setVoidTarget] = useState<Expense | null>(null);
     const [editTarget, setEditTarget] = useState<Expense | null>(null);
+    // Expense whose details pre-fill a new expense (Clone)
+    const [cloneTarget, setCloneTarget] = useState<Expense | null>(null);
     const [viewId, setViewId] = useState<string | null>(null);
-    const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
-        dayjs().startOf("month"),
-        dayjs().endOf("month"),
-    ]);
+    // ── Filters (same layout as Bills) ──────────────────────────────────────
+    const [period, setPeriod] = useState<PeriodValue>(defaultPeriod);
     const [selectedCustomerId, setSelectedCustomerId] = useState<string | undefined>();
+    const [statusFilter, setStatusFilter] = useState<ExpenseStatus | undefined>();
+    const [methodFilter, setMethodFilter] = useState<string | undefined>();
+    const [supplierFilter, setSupplierFilter] = useState<string | undefined>();
+    const [supplierSearch, setSupplierSearch] = useState("");
+    const [searchInput, setSearchInput] = useState("");
+    const [search, setSearch] = useState("");
+
+    // Debounce the free-text search so each keystroke doesn't refetch
+    useEffect(() => {
+        const t = setTimeout(() => { setSearch(searchInput.trim()); setPage(1); }, 400);
+        return () => clearTimeout(t);
+    }, [searchInput]);
+
+    const dateRange = useMemo(() => periodRange(period), [period]);
+    const from = dateRange[0].format("YYYY-MM-DD");
+    const to = dateRange[1].format("YYYY-MM-DD");
+
+    const filtersActive =
+        !!(statusFilter || methodFilter || supplierFilter || selectedCustomerId || search) || !isDefaultPeriod(period);
+    const clearFilters = () => {
+        setStatusFilter(undefined);
+        setMethodFilter(undefined);
+        setSupplierFilter(undefined);
+        setSelectedCustomerId(undefined);
+        setSearchInput("");
+        setSearch("");
+        setPeriod(defaultPeriod());
+        setPage(1);
+    };
 
     const { message } = App.useApp();
     const queryClient = useQueryClient();
@@ -290,21 +336,43 @@ function ExpensesPage() {
     });
     const customers = Array.isArray(customersRaw) ? customersRaw : [];
 
+    const { data: suppliersData, isFetching: suppliersFetching } = useQuery({
+        queryKey: ["suppliers-dropdown-expenses-filter", supplierSearch],
+        queryFn: () => fetchAllSuppliers({ name: supplierSearch }),
+        select: (res: any) => (Array.isArray(res) ? res : res?.suppliers || res?.data || []),
+        staleTime: 30_000,
+    });
+    const supplierOptions = (suppliersData || []).map((s: any) => ({ label: s.name, value: s._id }));
+
+    // Expenses store the payment method's name, so filter by name
+    const { data: methodsData } = useQuery({
+        queryKey: ["payment-methods"],
+        queryFn: () => fetchAllPaymentMethods(),
+        staleTime: 60_000,
+    });
+    const methodOptions = ((Array.isArray(methodsData) ? methodsData : (methodsData as any)?.data || []) as any[])
+        .filter((m) => m?.name)
+        .map((m) => ({ label: m.name, value: m.name }));
+
     const { data, isLoading } = useQuery({
-        queryKey: ["expenses", page, dateRange, selectedCustomerId],
+        queryKey: ["expenses", page, from, to, selectedCustomerId, statusFilter, methodFilter, supplierFilter, search],
         queryFn: () => getAllExpenses({
-            page, limit: 10,
-            from: dateRange[0].format("YYYY-MM-DD"),
-            to: dateRange[1].format("YYYY-MM-DD"),
+            page, limit: 10, from, to,
             customer_id: selectedCustomerId,
+            status: statusFilter,
+            payment_method: methodFilter as any,
+            supplier_id: supplierFilter,
+            search: search || undefined,
         }),
     });
 
     const { data: summaryData } = useQuery({
-        queryKey: ["expense-summary", dateRange],
+        queryKey: ["expense-summary", from, to, methodFilter, supplierFilter, selectedCustomerId],
         queryFn: () => getExpenseSummary({
-            from: dateRange[0].format("YYYY-MM-DD"),
-            to: dateRange[1].format("YYYY-MM-DD"),
+            from, to,
+            payment_method: methodFilter as any,
+            supplier_id: supplierFilter,
+            customer_id: selectedCustomerId,
         }),
     });
 
@@ -320,7 +388,8 @@ function ExpensesPage() {
 
     const expenses: Expense[] = data?.expenses || [];
     const total = data?.total || 0;
-    const summaryRows = summaryData?.summary || [];
+    // The summary is grouped by status, so a status filter is applied here
+    const summaryRows = (summaryData?.summary || []).filter((r) => !statusFilter || r._id === statusFilter);
 
     // Calculate from summary API if available, otherwise fallback to expenses list
     const totalExpenses = summaryRows.length > 0
@@ -457,6 +526,17 @@ function ExpensesPage() {
                                 />
                             </Tooltip>
                         )}
+                        <Tooltip title="Clone — new expense with these details">
+                            <Button
+                                size="small"
+                                icon={<CopyOutlined />}
+                                onClick={() => {
+                                    setEditTarget(null);
+                                    setCloneTarget(row);
+                                    setModalOpen(true);
+                                }}
+                            />
+                        </Tooltip>
                         {isApprovable && (
                             <Tooltip title="Approve & post to books">
                                 <Button
@@ -513,34 +593,7 @@ function ExpensesPage() {
                         display: "flex", justifyContent: "space-between",
                         alignItems: "center", flexWrap: "wrap", gap: 10,
                     }}>
-                        <Space size={8}>
-                            <RangePicker
-                                value={dateRange}
-                                onChange={(v) => { if (v) { setPage(1); setDateRange(v as [dayjs.Dayjs, dayjs.Dayjs]); } }}
-                                style={{ borderRadius: 8 }}
-                                presets={[
-                                    { label: "Today", value: [dayjs().startOf("day"), dayjs().endOf("day")] },
-                                    { label: "This Week", value: [dayjs().startOf("week"), dayjs().endOf("week")] },
-                                    { label: "This Month", value: [dayjs().startOf("month"), dayjs().endOf("month")] },
-                                    { label: "Last Month", value: [dayjs().subtract(1, "month").startOf("month"), dayjs().subtract(1, "month").endOf("month")] },
-                                    { label: "This Quarter", value: [dayjs().month(Math.floor(dayjs().month() / 3) * 3).startOf("month"), dayjs().month(Math.floor(dayjs().month() / 3) * 3 + 2).endOf("month")] },
-                                    { label: "This Year", value: [dayjs().startOf("year"), dayjs().endOf("year")] },
-                                ]}
-                            />
-                            <Select
-                                showSearch
-                                allowClear
-                                placeholder="Filter by customer"
-                                style={{ width: 200, borderRadius: 8 }}
-                                value={selectedCustomerId}
-                                onChange={(v) => { setPage(1); setSelectedCustomerId(v); }}
-                                options={customers.map((c: any) => ({
-                                    label: c.customer_name,
-                                    value: c._id,
-                                }))}
-                                optionFilterProp="label"
-                            />
-                        </Space>
+                        <PeriodFilter value={period} onChange={(p) => { setPeriod(p); setPage(1); }} />
                         <Space>
                             <Tooltip title="Refresh records">
                                 <Button
@@ -553,6 +606,7 @@ function ExpensesPage() {
                                 type="primary" icon={<PlusOutlined />}
                                 onClick={() => {
                                     setEditTarget(null);
+                                    setCloneTarget(null);
                                     setModalOpen(true);
                                 }}
                                 style={{ background: C.red, borderColor: C.red, borderRadius: 8, fontWeight: 600 }}
@@ -560,6 +614,67 @@ function ExpensesPage() {
                                 Post Expense
                             </Button>
                         </Space>
+                    </div>
+
+                    {/* ── Status / method / party / search filters ── */}
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                        <Select
+                            allowClear
+                            placeholder="All statuses"
+                            value={statusFilter}
+                            onChange={(v) => { setStatusFilter(v); setPage(1); }}
+                            style={{ width: 150 }}
+                            options={EXPENSE_STATUS_OPTIONS}
+                        />
+                        <Select
+                            allowClear
+                            showSearch
+                            placeholder="All payment methods"
+                            value={methodFilter}
+                            onChange={(v) => { setMethodFilter(v); setPage(1); }}
+                            options={methodOptions}
+                            optionFilterProp="label"
+                            style={{ width: 190 }}
+                        />
+                        <Select
+                            allowClear
+                            showSearch
+                            placeholder="All suppliers"
+                            value={supplierFilter}
+                            onChange={(v) => { setSupplierFilter(v); setPage(1); }}
+                            onSearch={setSupplierSearch}
+                            filterOption={false}
+                            loading={suppliersFetching}
+                            options={supplierOptions}
+                            notFoundContent={suppliersFetching ? "Searching…" : "No suppliers"}
+                            style={{ width: 210 }}
+                        />
+                        <Select
+                            showSearch
+                            allowClear
+                            placeholder="All customers"
+                            style={{ width: 200 }}
+                            value={selectedCustomerId}
+                            onChange={(v) => { setPage(1); setSelectedCustomerId(v); }}
+                            options={customers.map((c: any) => ({
+                                label: c.customer_name || c.company_name,
+                                value: c._id,
+                            }))}
+                            optionFilterProp="label"
+                        />
+                        <Input
+                            allowClear
+                            prefix={<SearchOutlined style={{ color: C.subText }} />}
+                            placeholder="Expense no, payee or reference"
+                            value={searchInput}
+                            onChange={(e) => setSearchInput(e.target.value)}
+                            style={{ width: 250, borderRadius: 8 }}
+                        />
+                        {filtersActive && (
+                            <Button type="link" onClick={clearFilters} style={{ paddingInline: 4 }}>
+                                Clear filters
+                            </Button>
+                        )}
                     </div>
 
                     <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -591,9 +706,11 @@ function ExpensesPage() {
                 onClose={() => {
                     setModalOpen(false);
                     setEditTarget(null);
+                    setCloneTarget(null);
                 }}
                 onSuccess={refresh}
                 expenseToEdit={editTarget}
+                expenseToClone={cloneTarget}
             />
 
             <ViewExpenseDrawer
@@ -601,7 +718,14 @@ function ExpensesPage() {
                 onClose={() => setViewId(null)}
                 onEdit={(exp) => {
                     setViewId(null);
+                    setCloneTarget(null);
                     setEditTarget(exp);
+                    setModalOpen(true);
+                }}
+                onClone={(exp) => {
+                    setViewId(null);
+                    setEditTarget(null);
+                    setCloneTarget(exp);
                     setModalOpen(true);
                 }}
             />
