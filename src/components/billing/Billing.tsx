@@ -21,6 +21,11 @@ import {
   CreditCardOutlined,
   CheckCircleFilled,
   ShopOutlined,
+  DollarOutlined,
+  TeamOutlined,
+  HomeOutlined,
+  CustomerServiceOutlined,
+  SignatureOutlined,
   RocketFilled,
   LockOutlined,
   ThunderboltFilled,
@@ -68,7 +73,7 @@ interface ModuleCardConfig {
   subtitle: string;
   description: string;
   color: string;
-  icon: string;
+  icon: React.ReactNode;
   chargingModel: string;
 }
 
@@ -79,7 +84,7 @@ const MODULE_CONFIGS: ModuleCardConfig[] = [
     subtitle: 'Point of Sale, Catalog & Multi-Shop Inventory',
     description: 'Cashier checkout, kitchen order printing, table management, barcode scanning, stock counts and recipe tracking.',
     color: '#0b2f78',
-    icon: '🛒',
+    icon: <ShopOutlined />,
     chargingModel: 'Per Branch / Month',
   },
   {
@@ -88,7 +93,7 @@ const MODULE_CONFIGS: ModuleCardConfig[] = [
     subtitle: 'Financial Accounting, General Ledger & Tax Compliance',
     description: 'Double-entry bookkeeping, chart of accounts, multi-currency reporting, bank reconciliation, and KRA eTIMS invoices.',
     color: '#0d9488',
-    icon: '💰',
+    icon: <DollarOutlined />,
     chargingModel: 'Flat Rate / Business',
   },
   {
@@ -97,7 +102,7 @@ const MODULE_CONFIGS: ModuleCardConfig[] = [
     subtitle: 'Human Resources, Attendance & Payroll Engine',
     description: 'Employee profiles, statutory PAYE/NHIF/NSSF deductions, staff shift scheduling, and automated PDF payslip generation.',
     color: '#7c3aed',
-    icon: '👥',
+    icon: <TeamOutlined />,
     chargingModel: 'Flat Rate / Business',
   },
   {
@@ -106,7 +111,7 @@ const MODULE_CONFIGS: ModuleCardConfig[] = [
     subtitle: 'Real Estate, Leases & Property Management',
     description: 'Multi-unit portfolio management, digital tenant lease contracts, automated monthly rent billing, and maintenance tracking.',
     color: '#2563eb',
-    icon: '🏢',
+    icon: <HomeOutlined />,
     chargingModel: 'Flat Rate / Business',
   },
   {
@@ -115,7 +120,7 @@ const MODULE_CONFIGS: ModuleCardConfig[] = [
     subtitle: 'CRM, WhatsApp & Omnichannel Customer Messaging',
     description: 'Lead generation workflows, targeted promotional broadcasts, WhatsApp business chat, and customer lifecycle insights.',
     color: '#ea580c',
-    icon: '💬',
+    icon: <CustomerServiceOutlined />,
     chargingModel: 'Flat Rate / Business',
   },
   {
@@ -124,7 +129,7 @@ const MODULE_CONFIGS: ModuleCardConfig[] = [
     subtitle: 'Document Center & Legally-Binding Digital Signatures',
     description: 'Contract templates, dynamic placeholder tags, signature pad, email dispatch, and audit-trailed signed PDF documents.',
     color: '#059669',
-    icon: '✍️',
+    icon: <SignatureOutlined />,
     chargingModel: 'Flat Rate / Business',
   },
 ];
@@ -444,6 +449,7 @@ const BillingDashboard: React.FC = () => {
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     fontSize: 22,
+                                    color: config.color,
                                   }}
                                 >
                                   {config.icon}
@@ -593,6 +599,7 @@ const BillingDashboard: React.FC = () => {
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontSize: 22,
+                  color: selectedModuleConfig.color,
                 }}
               >
                 {selectedModuleConfig.icon}
