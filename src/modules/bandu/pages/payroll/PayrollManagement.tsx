@@ -264,7 +264,10 @@ const PayrollManagement: React.FC = () => {
     const helbCfg = deductionConfigs.find((c: any) => c.deduction_type === "HELB");
     const whtCfg = deductionConfigs.find((c: any) => c.deduction_type === "WITHHOLDING_TAX");
     const payeCfg = deductionConfigs.find((c: any) => c.deduction_type === "PAYE");
+    const shaCfg = deductionConfigs.find((c: any) => c.deduction_type === "SHA");
     deductionForm.setFieldsValue({
+      // Saved SHA floor — 0/unset means the statutory KES 300
+      sha_minimum_amount: shaCfg?.min_amount > 0 ? shaCfg.min_amount : 300,
       helb_enabled: helbCfg ? helbCfg.is_active !== false : true,
       helb_amount: helbCfg?.fixed_amount ?? 0,
       paye_secondary_rate: (payeCfg?.secondary_rate ?? 0.35) * 100,
@@ -886,6 +889,7 @@ const PayrollManagement: React.FC = () => {
       sha_enabled: true,
       sha_employee_rate: 2.75,
       sha_income_limit: 0,
+      sha_minimum_amount: 300,
       // Housing Levy — 1.5% of gross, uncapped
       housing_levy_enabled: true,
       housing_levy_rate: 1.5,
@@ -3372,9 +3376,25 @@ const PayrollManagement: React.FC = () => {
                         />
                       </Form.Item>
                     </Col>
+                    <Col span={12}>
+                      <Form.Item
+                        name="sha_minimum_amount"
+                        label="Minimum Contribution (KES)"
+                        tooltip="No employee pays less than this — when 2.75% of gross comes out lower, this amount is deducted instead"
+                        initialValue={300}
+                        rules={[{ required: true, message: "Required" }]}
+                      >
+                        <InputNumber
+                          min={1}
+                          style={{ width: "100%" }}
+                          addonBefore="KES"
+                        />
+                      </Form.Item>
+                    </Col>
                   </Row>
                   <Text type="secondary" style={{ fontSize: 12 }}>
-                    SHA (Social Health Insurance) replaces NHIF. Employees contribute 2.75% of gross pay.
+                    SHA (Social Health Insurance) replaces NHIF. Employees contribute 2.75% of gross pay,
+                    subject to the minimum contribution above.
                   </Text>
                 </Form>
               </Tabs.TabPane>
@@ -3811,8 +3831,18 @@ const PayrollManagement: React.FC = () => {
             >
               <Select
                 mode="multiple"
-                placeholder="Select departments"
+                placeholder="Search or select departments"
                 style={{ width: "100%" }}
+                showSearch
+                allowClear
+                // Keep the typed text after picking one so several matches
+                // can be selected in a row
+                autoClearSearchValue={false}
+                maxTagCount="responsive"
+                filterOption={(input, option) =>
+                  String(option?.label ?? "").toLowerCase().includes(input.trim().toLowerCase())
+                }
+                notFoundContent="No matching department"
                 options={departments.map((d: any) => ({
                   label: d.name,
                   value: d._id,
