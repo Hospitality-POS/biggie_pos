@@ -5,7 +5,7 @@ import {
 } from "antd";
 import {
     ArrowUpOutlined, PlusOutlined, CheckCircleOutlined, StopOutlined, ReloadOutlined, EditOutlined,
-    EyeOutlined, SearchOutlined,
+    EyeOutlined, SearchOutlined, CopyOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
@@ -129,7 +129,8 @@ const ViewExpenseDrawer: React.FC<{
     expenseId: string | null;
     onClose: () => void;
     onEdit: (expense: Expense) => void;
-}> = ({ expenseId, onClose, onEdit }) => {
+    onClone: (expense: Expense) => void;
+}> = ({ expenseId, onClose, onEdit, onClone }) => {
     const { data, isLoading } = useQuery({
         queryKey: ["expense", expenseId],
         queryFn: () => getExpenseById(expenseId!),
@@ -157,8 +158,15 @@ const ViewExpenseDrawer: React.FC<{
                     )}
                 </Space>
             }
-            extra={expense && expense.status !== "Voided" && (
-                <Button icon={<EditOutlined />} onClick={() => onEdit(expense)}>Edit</Button>
+            extra={expense && (
+                <Space>
+                    <Tooltip title="New expense with these details">
+                        <Button icon={<CopyOutlined />} onClick={() => onClone(expense)}>Clone</Button>
+                    </Tooltip>
+                    {expense.status !== "Voided" && (
+                        <Button icon={<EditOutlined />} onClick={() => onEdit(expense)}>Edit</Button>
+                    )}
+                </Space>
             )}
         >
             <Spin spinning={isLoading}>
@@ -283,6 +291,8 @@ function ExpensesPage() {
     const [modalOpen, setModalOpen] = useState(false);
     const [voidTarget, setVoidTarget] = useState<Expense | null>(null);
     const [editTarget, setEditTarget] = useState<Expense | null>(null);
+    // Expense whose details pre-fill a new expense (Clone)
+    const [cloneTarget, setCloneTarget] = useState<Expense | null>(null);
     const [viewId, setViewId] = useState<string | null>(null);
     // ── Filters (same layout as Bills) ──────────────────────────────────────
     const [period, setPeriod] = useState<PeriodValue>(defaultPeriod);
@@ -516,6 +526,17 @@ function ExpensesPage() {
                                 />
                             </Tooltip>
                         )}
+                        <Tooltip title="Clone — new expense with these details">
+                            <Button
+                                size="small"
+                                icon={<CopyOutlined />}
+                                onClick={() => {
+                                    setEditTarget(null);
+                                    setCloneTarget(row);
+                                    setModalOpen(true);
+                                }}
+                            />
+                        </Tooltip>
                         {isApprovable && (
                             <Tooltip title="Approve & post to books">
                                 <Button
@@ -585,6 +606,7 @@ function ExpensesPage() {
                                 type="primary" icon={<PlusOutlined />}
                                 onClick={() => {
                                     setEditTarget(null);
+                                    setCloneTarget(null);
                                     setModalOpen(true);
                                 }}
                                 style={{ background: C.red, borderColor: C.red, borderRadius: 8, fontWeight: 600 }}
@@ -684,9 +706,11 @@ function ExpensesPage() {
                 onClose={() => {
                     setModalOpen(false);
                     setEditTarget(null);
+                    setCloneTarget(null);
                 }}
                 onSuccess={refresh}
                 expenseToEdit={editTarget}
+                expenseToClone={cloneTarget}
             />
 
             <ViewExpenseDrawer
@@ -694,7 +718,14 @@ function ExpensesPage() {
                 onClose={() => setViewId(null)}
                 onEdit={(exp) => {
                     setViewId(null);
+                    setCloneTarget(null);
                     setEditTarget(exp);
+                    setModalOpen(true);
+                }}
+                onClone={(exp) => {
+                    setViewId(null);
+                    setEditTarget(null);
+                    setCloneTarget(exp);
                     setModalOpen(true);
                 }}
             />

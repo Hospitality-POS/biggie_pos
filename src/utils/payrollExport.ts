@@ -302,7 +302,8 @@ const buildMusterRollSheet = (
   const aoa: any[][] = [
     [company.toUpperCase()],
     [`MUSTER ROLL${payroll.period_label ? ` — ${payroll.period_label}` : ''}`],
-    [`Generated ${new Date().toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })}${rounded ? ' · Amounts rounded to whole KES' : ''}`],
+    // No generated-on date in the header — only the rounding note when it applies
+    [rounded ? 'Amounts rounded to whole KES' : ''],
     [],
     headers,
     ...bodyNums,

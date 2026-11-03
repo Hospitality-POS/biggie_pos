@@ -27,6 +27,8 @@ interface Props {
     onClose: () => void;
     onSuccess?: () => void;
     billToEdit?: any;
+    // Pre-fill a NEW bill from this one (Clone) — saved with createBill
+    billToClone?: any;
 }
 
 const numFormatter = (v: any) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -40,7 +42,7 @@ const STEPS = [
     { title: "Review", description: "Notes & create", icon: <FileSearchOutlined /> },
 ];
 
-const BillFormModal: React.FC<Props> = ({ open, onClose, onSuccess, billToEdit }) => {
+const BillFormModal: React.FC<Props> = ({ open, onClose, onSuccess, billToEdit, billToClone }) => {
     const [form] = Form.useForm();
     const { message } = App.useApp();
     const queryClient = useQueryClient();
@@ -75,6 +77,28 @@ const BillFormModal: React.FC<Props> = ({ open, onClose, onSuccess, billToEdit }
             });
         }
     }, [open, billToEdit, form, functionalCurrency]);
+
+    // ── Clone: same supplier, account, amount and notes; dated today with the
+    // original's payment term (bill date → due date gap). VAT is recomputed.
+    const isClone = !isEdit && !!billToClone;
+    useEffect(() => {
+        if (!open || !isClone) return;
+        const src = billToClone;
+        const termDays = src.bill_date && src.due_date
+            ? Math.max(0, dayjs(src.due_date).startOf("day").diff(dayjs(src.bill_date).startOf("day"), "day"))
+            : null;
+        form.setFieldsValue({
+            supplier_id: src.supplier_id?._id || src.supplier_id,
+            issue_date: dayjs(),
+            due_date: termDays !== null ? dayjs().add(termDays, "day") : null,
+            expense_account_id: src.bill_lines?.[0]?.account_id?._id || src.bill_lines?.[0]?.account_id,
+            amount: src.subtotal || src.bill_lines?.[0]?.amount,
+            vat_exempt: !!src.vat_exempt,
+            notes: src.notes,
+            description: src.bill_lines?.[0]?.description,
+            currency: src.currency || functionalCurrency?.code || "KES",
+        });
+    }, [open, isClone, billToClone, form, functionalCurrency]);
 
     // ── VAT ───────────────────────────────────────────────────────────────────
     const vatConfig = getVATConfigSync();
@@ -125,9 +149,10 @@ const BillFormModal: React.FC<Props> = ({ open, onClose, onSuccess, billToEdit }
         label: `${s.name}${s.phone ? ` — ${s.phone}` : ""}`,
         value: s._id,
     }));
-    // Keep the edited bill's supplier visible even if the search list doesn't include it
-    if (billToEdit?.supplier_id?._id && !supplierOptions.some((o: any) => o.value === billToEdit.supplier_id._id)) {
-        supplierOptions.unshift({ label: billToEdit.supplier_id.name, value: billToEdit.supplier_id._id });
+    // Keep the edited / cloned bill's supplier visible even if the search list doesn't include it
+    const sourceSupplier = (billToEdit || billToClone)?.supplier_id;
+    if (sourceSupplier?._id && !supplierOptions.some((o: any) => o.value === sourceSupplier._id)) {
+        supplierOptions.unshift({ label: sourceSupplier.name, value: sourceSupplier._id });
     }
 
     const labelOf = (opts: { label: string; value: string }[], id?: string) =>
@@ -263,7 +288,13 @@ const BillFormModal: React.FC<Props> = ({ open, onClose, onSuccess, billToEdit }
                 onCancel={handleCancel}
                 icon={<FileTextOutlined />}
                 accent={ACCENT}
-                title={isEdit ? `Edit Supplier Bill — ${billToEdit.bill_no || ""}` : "Create Supplier Bill"}
+                title={
+                    isEdit
+                        ? `Edit Supplier Bill — ${billToEdit.bill_no || ""}`
+                        : isClone
+                            ? `Clone Supplier Bill — from ${billToClone.bill_no || ""}`
+                            : "Create Supplier Bill"
+                }
                 steps={STEPS}
                 current={step}
                 onStepClick={setStep}
@@ -273,11 +304,20 @@ const BillFormModal: React.FC<Props> = ({ open, onClose, onSuccess, billToEdit }
                 <Form form={form} layout="vertical" initialValues={{ issue_date: dayjs() }}>
                     {/* ── Step 1: Supplier ─────────────────────────────────── */}
                     <div style={show(0)}>
-                        <Alert
-                            type="info" showIcon
-                            message="Supplier bill stays Pending — use Record Payment on the Bills list when you pay."
-                            style={{ marginBottom: 16 }}
-                        />
+                        {isClone ? (
+                            <Alert
+                                type="success" showIcon
+                                message={`Cloned from ${billToClone.bill_no || "an existing bill"}`}
+                                description="Everything is copied and dated today — change anything you need, then create. The original bill is not changed."
+                                style={{ marginBottom: 16 }}
+                            />
+                        ) : (
+                            <Alert
+                                type="info" showIcon
+                                message="Supplier bill stays Pending — use Record Payment on the Bills list when you pay."
+                                style={{ marginBottom: 16 }}
+                            />
+                        )}
                         <Form.Item name="supplier_id" label="Supplier" rules={[{ required: true, message: "Supplier is required" }]}>
                             <Select
                                 showSearch allowClear placeholder="Search supplier..."
