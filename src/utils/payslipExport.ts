@@ -6,6 +6,7 @@ import { fetchSystemSetupDetailsById } from '@services/systemsetup';
 import { getUser } from '@services/tenants';
 import { getPrimaryColor, hexToRgb } from './getPrimaryColor';
 import { getExportTheme, argb, xlsxFill, type ExportTheme } from './exportTemplates';
+import { loadExportLogos, drawExportLogo, departmentIdOf, type ExportLogoResolver } from './exportLogo';
 
 /**
  * Payslip export — PDF (one page per payslip) and Excel (one sheet per
@@ -250,6 +251,7 @@ export const renderPayslipPage = (
     rounded?: boolean;
     hidden?: PayslipLineKey[];
     theme?: ExportTheme;
+    logos?: ExportLogoResolver;
   },
   isFirstPage = true
 ) => {
@@ -265,6 +267,13 @@ export const renderPayslipPage = (
   const { infoRows, earningsRows, payeRows, deductionRows, netPay, fmt } = payslipRows(payslip, !!ctx.rounded, ctx.hidden);
 
   if (!isFirstPage) doc.addPage();
+
+  // ── Logo — centred above the company name, in the top margin (department → tenant → none) ──
+  const logo = ctx.logos?.forDepartment(departmentIdOf(payslip));
+  if (logo) {
+    const LOGO_H = 64;
+    drawExportLogo(doc, logo, { x: margin, y: margin - LOGO_H - 22, maxWidth: contentWidth, maxHeight: LOGO_H, align: 'center' });
+  }
 
   // ── Company header ──
   doc.setFont('helvetica', 'bold');
@@ -375,7 +384,8 @@ export const renderPayslipPage = (
 // (used for email attachments via doc.output('datauristring'))
 export const buildPayslipsPDFDoc = async (payslips: any[], headerMode?: PayslipHeaderMode, rounded = false) => {
   if (!payslips.length) return null;
-  const ctx = { ...(await getExportContext(headerMode)), rounded };
+  const logos = await loadExportLogos(payslips.map(departmentIdOf));
+  const ctx = { ...(await getExportContext(headerMode)), rounded, logos };
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
 
   let rendered = 0;
@@ -705,7 +715,8 @@ export const exportPayslipToPDF = async (
   rounded = false,
   hidden: PayslipLineKey[] = []
 ) => {
-  const ctx = { ...(await getExportContext(headerMode)), rounded, hidden };
+  const logos = await loadExportLogos([departmentIdOf(payslip)]);
+  const ctx = { ...(await getExportContext(headerMode)), rounded, hidden, logos };
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
   renderPayslipPage(doc, payslip, ctx, true);
   doc.save(`${singlePayslipFileName(payslip)}.pdf`);

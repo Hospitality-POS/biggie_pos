@@ -34,6 +34,9 @@ export interface Department {
     is_active: boolean;
     color?: string;
     icon?: string;
+    // Shown on the department's payroll/payslip PDFs when the shop has
+    // department logos enabled (payroll_logo_settings)
+    logo?: { url?: string } | null;
     tenant_id: string;
     created_by?: string;
     createdAt: string;
@@ -169,6 +172,24 @@ export const updateDepartment = createAsyncThunk(
         }
     }
 );
+
+/* ============================================================
+   LOGO  (payroll/payslip PDFs)
+============================================================ */
+
+export const uploadDepartmentLogo = async (id: string, file: File): Promise<Department> => {
+    const formData = new FormData();
+    formData.append("logo", file);
+    const response = await axiosInstance.post(`${BASE}/${id}/logo`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+    });
+    return response.data?.department;
+};
+
+export const removeDepartmentLogo = async (id: string): Promise<Department> => {
+    const response = await axiosInstance.delete(`${BASE}/${id}/logo`);
+    return response.data?.department;
+};
 
 /* ============================================================
    ASSIGN / REMOVE USERS
