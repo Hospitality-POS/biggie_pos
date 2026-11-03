@@ -12,6 +12,12 @@ import {
   CustomerServiceFilled,
   ClockCircleFilled,
   PercentageOutlined,
+  ShopOutlined,
+  DollarOutlined,
+  TeamOutlined,
+  HomeOutlined,
+  CustomerServiceOutlined,
+  SignatureOutlined,
 } from '@ant-design/icons';
 import {
   BaseModuleKey,
@@ -38,7 +44,7 @@ export interface ModuleGateProps {
 
 const MODULE_META: Record<
   BaseModuleKey,
-  { name: string; subtitle: string; description: string; color: string; icon: string }
+  { name: string; subtitle: string; description: string; color: string; icon: React.ReactNode }
 > = {
   duka: {
     name: 'Duka by Base',
@@ -46,7 +52,7 @@ const MODULE_META: Record<
     description:
       'Manage multiple shop fronts, POS cashier terminals, recipe management, modifiers, offline orders, and kitchen display systems seamlessly.',
     color: '#0b2f78',
-    icon: '🛒',
+    icon: <ShopOutlined />,
   },
   pesa: {
     name: 'Pesa by Base',
@@ -54,7 +60,7 @@ const MODULE_META: Record<
     description:
       'Multi-currency double-entry bookkeeping, chart of accounts, bank reconciliations, VAT/ETIMS reports, and automated financial statements.',
     color: '#0d9488',
-    icon: '💰',
+    icon: <DollarOutlined />,
   },
   bandu: {
     name: 'Bandu by Base',
@@ -62,7 +68,7 @@ const MODULE_META: Record<
     description:
       'Manage employee profiles, automated PAYE/NHIF/NSSF payroll, attendance biometric sync, shift schedules, and PDF payslip delivery.',
     color: '#7c3aed',
-    icon: '👥',
+    icon: <TeamOutlined />,
   },
   dala: {
     name: 'Dala by Base',
@@ -70,7 +76,7 @@ const MODULE_META: Record<
     description:
       'Complete property lifecycle: multi-unit inventory, digital lease contracts, automated rent invoicing, meter readings, and maintenance tracking.',
     color: '#2563eb',
-    icon: '🏢',
+    icon: <HomeOutlined />,
   },
   mteja: {
     name: 'Mteja by Base',
@@ -78,7 +84,7 @@ const MODULE_META: Record<
     description:
       'Track sales leads, run targeted broadcast campaigns, automate WhatsApp workflows, and view 360-degree customer purchase history.',
     color: '#ea580c',
-    icon: '💬',
+    icon: <CustomerServiceOutlined />,
   },
   esign: {
     name: 'ESign by Base',
@@ -86,7 +92,7 @@ const MODULE_META: Record<
     description:
       'Prepare contract templates, embed dynamic placeholder tags, dispatch signing links, and generate audit-trailed signed PDFs.',
     color: '#059669',
-    icon: '✍️',
+    icon: <SignatureOutlined />,
   },
 };
 
@@ -114,7 +120,7 @@ export const ModuleGate: React.FC<ModuleGateProps> = ({
     subtitle: 'Modular Ecosystem Feature',
     description: 'Subscribe to access this module.',
     color: '#0b2f78',
-    icon: '🔒',
+    icon: <LockOutlined />,
   };
 
   // Filter backend plans to strictly match the current moduleId or its solution aliases
@@ -181,7 +187,8 @@ export const ModuleGate: React.FC<ModuleGateProps> = ({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: 30,
+                  fontSize: 28,
+                  color: meta.color,
                   flexShrink: 0,
                   boxShadow: `0 4px 12px ${meta.color}20`,
                 }}
