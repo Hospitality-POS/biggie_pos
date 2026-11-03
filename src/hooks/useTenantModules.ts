@@ -20,6 +20,7 @@ import {
     NO_TENANT_MODULES,
     parseTenantModules as parseModules,
     readStoredTenant as readFromLocalStorage,
+    restrictToRoleModules,
 } from "@utils/parseTenantModules";
 
 export type { TenantModules };
@@ -40,7 +41,22 @@ function selectTenantFromRedux(state: any): any {
 // ── The hook ──────────────────────────────────────────────────────────────────
 export function useTenantModules(): TenantModules {
     const reduxTenant = useAppSelector(selectTenantFromRedux);
+    const tenantModules = useTenantWideModules(reduxTenant);
 
+    // Staff on a role limited to some products (e.g. Pesa only) see just those,
+    // even when the business has more. Admins always see everything.
+    const user = useAppSelector((state: any) => state?.auth?.user);
+    const isAdmin = user?.isAdmin === true || user?.role === "admin";
+    const roleModules: string[] | undefined = isAdmin ? undefined : user?.roleData?.modules;
+
+    return useMemo(
+        () => restrictToRoleModules(tenantModules, roleModules),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [tenantModules, (roleModules ?? []).join(",")]
+    );
+}
+
+function useTenantWideModules(reduxTenant: any): TenantModules {
     return useMemo(() => {
         // 1. Try Redux first (reactive — re-renders on store change)
         if (reduxTenant) {
