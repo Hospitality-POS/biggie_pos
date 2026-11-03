@@ -154,7 +154,6 @@ const STATUTORY_ITEMS: { key: keyof HRDashboardData["statutory"]; label: string;
   { key: "housing_levy", label: "Housing Levy", color: "#f59e0b" },
   { key: "nita", label: "NITA", color: "#8b5cf6" },
   { key: "withholding_tax", label: "Withholding Tax", color: "#ec4899" },
-  { key: "other", label: "Other", color: "#94a3b8" },
 ];
 
 const PIPELINE_STAGES: Record<string, { label: string; color: string }> = {

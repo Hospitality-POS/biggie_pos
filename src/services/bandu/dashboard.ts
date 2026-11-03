@@ -71,7 +71,6 @@ export interface StatutoryDeductions {
   housing_levy: number;
   nita: number;
   withholding_tax: number;
-  other: number;
 }
 
 export interface PayrollPipelineStage {
@@ -250,7 +249,6 @@ const EMPTY_STATUTORY: StatutoryDeductions = {
   housing_levy: 0,
   nita: 0,
   withholding_tax: 0,
-  other: 0,
 };
 
 const EMPTY_WORKFORCE: WorkforceStats = {
