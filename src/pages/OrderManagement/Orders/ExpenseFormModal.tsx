@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import {
     Form, Input, InputNumber, Select, DatePicker,
-    Button, App, Row, Col, Alert, Divider, Typography, Descriptions, Table,
+    Button, App, Row, Col, Alert, Divider, Typography, Descriptions, Table, Checkbox,
 } from "antd";
 import {
     ArrowUpOutlined, PlusOutlined, DeleteOutlined, BankOutlined,
@@ -81,6 +81,7 @@ const ExpenseFormModal: React.FC<Props> = ({ open, onClose, onSuccess, expenseTo
                 })),
                 notes: expenseToEdit.notes,
                 currency: expenseToEdit.currency || functionalCurrency?.code || "KES",
+                vat_exempt: !!expenseToEdit.vat_exempt,
             });
         }
     }, [open, expenseToEdit, form, functionalCurrency]);
@@ -90,15 +91,25 @@ const ExpenseFormModal: React.FC<Props> = ({ open, onClose, onSuccess, expenseTo
     const vatEnabled = vatConfig.is_vat_enabled;
     const standardVatRate = vatConfig.vat_standard_rate;
 
-    const handleValuesChange = (changed: any) => {
-        if (!vatEnabled || !Array.isArray(changed?.lines)) return;
+    // The line amount is NET (saved with vat_inclusive: false) — VAT goes on top
+    // whatever the tenant's POS pricing mode, rounded to the cent. Exempt → 0.
+    const lineVat = (amt: number, exempt: boolean) =>
+        exempt || !vatEnabled || !(amt > 0)
+            ? 0
+            : Math.round(calculateVAT(amt, { ...vatConfig, vat_pricing_mode: "EXCLUSIVE" }).vat_amount * 100) / 100;
+
+    const handleValuesChange = (changed: any, all: any) => {
+        // Toggling the exemption re-prices every line
+        if ("vat_exempt" in (changed || {})) {
+            (all?.lines || []).forEach((l: any, idx: number) => {
+                form.setFieldValue(["lines", idx, "vat_amount"], lineVat(Number(l?.amount) || 0, !!changed.vat_exempt));
+            });
+            return;
+        }
+        if (!Array.isArray(changed?.lines)) return;
         changed.lines.forEach((l: any, idx: number) => {
             if (l && "amount" in l) {
-                const amt = l.amount as number;
-                form.setFieldValue(
-                    ["lines", idx, "vat_amount"],
-                    amt && amt > 0 ? calculateVAT(amt, vatConfig).vat_amount : 0,
-                );
+                form.setFieldValue(["lines", idx, "vat_amount"], lineVat(l.amount as number, !!all?.vat_exempt));
             }
         });
     };
@@ -233,7 +244,7 @@ const ExpenseFormModal: React.FC<Props> = ({ open, onClose, onSuccess, expenseTo
         // One bank payment → one expense, one DR line per expense account
         const expenseLines = (v.lines || []).map((l: any) => {
             const netAmount = l.amount as number;
-            const vatAmount = (l.vat_amount as number) || 0;
+            const vatAmount = v.vat_exempt ? 0 : (l.vat_amount as number) || 0;
             return {
                 account_id: l.account_id,
                 description: l.description,
@@ -257,6 +268,7 @@ const ExpenseFormModal: React.FC<Props> = ({ open, onClose, onSuccess, expenseTo
                 : "Cash",
             notes: v.notes || undefined,
             currency: v.currency || functionalCurrency?.code || "KES",
+            vat_exempt: !!v.vat_exempt,
         };
 
         if (expenseToEdit) updateMutation.mutate(payload);
@@ -442,6 +454,20 @@ const ExpenseFormModal: React.FC<Props> = ({ open, onClose, onSuccess, expenseTo
                                 </>
                             )}
                         </Form.List>
+
+                        <Form.Item
+                            name="vat_exempt"
+                            valuePropName="checked"
+                            initialValue={false}
+                            style={{ marginBottom: 12 }}
+                            extra={
+                                locked
+                                    ? "Changing this on an approved expense reposts its journal entry without VAT Input."
+                                    : "For payees whose goods or services carry no VAT — no VAT Input is claimed."
+                            }
+                        >
+                            <Checkbox>VAT exempt — no VAT on this expense</Checkbox>
+                        </Form.Item>
 
                         <div style={{
                             display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8,

@@ -1,17 +1,18 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActionType,
+  type ProColumns,
   ProFormInstance,
   ProTable,
 } from "@ant-design/pro-components";
 import ExpandedRowContent from "./ExpandableInvoice";
 import {
-  Button, DatePicker, Drawer, Form, Input, InputNumber,
+  Button, DatePicker, Form, Input, InputNumber,
   Modal, Select, App, Tooltip, Typography, Dropdown, Tag, Divider,
 } from "antd";
 import {
   DollarOutlined, EditOutlined, FileDoneOutlined,
-  FileTextOutlined, FilePdfOutlined, FilterOutlined, MoreOutlined,
+  FileTextOutlined, FilePdfOutlined, MoreOutlined,
   PrinterOutlined, UserOutlined, SafetyCertificateOutlined,
   DeleteOutlined, PlusOutlined, CopyOutlined, StopOutlined,
 } from "@ant-design/icons";
@@ -31,9 +32,11 @@ import NoteFormDrawer from "../../Notes/NoteFormDrawer";
 import AccountFormDrawer from "@pages/ChartOfAccounts/AccountFormDrawer";
 import dayjs from "dayjs";
 import { THEME_C } from "@utils/getPrimaryColor";
+import { inlineImages } from "@utils/inlineImages";
+import PeriodFilter, { defaultPeriod, periodRange, isDefaultPeriod, type PeriodValue } from "@components/PeriodFilter";
+import { SearchOutlined } from "@ant-design/icons";
 
 const { Text } = Typography;
-const { RangePicker } = DatePicker;
 
 // ── Palette ────────────────────────────────────────────────────────────────
 const C = THEME_C;
@@ -156,60 +159,68 @@ const modalFooter = (
     </Button>,
   ];
 
-// ── Mobile filter drawer ───────────────────────────────────────────────────
-const MobileFilterDrawer: React.FC<{
-  open: boolean; onClose: () => void; onSearch: (params: any) => void;
-}> = ({ open, onClose, onSearch }) => {
-  const [form] = Form.useForm();
-  const handleApply = async () => {
-    const v = await form.validateFields();
-    onSearch(v); onClose();
-  };
+// ── Filters (same layout as Bills / Expenses / Sales Receipts) ───────────────
+const QUICK_FILTER_OPTIONS = [
+  { label: "Not Posted", value: "not_posted" },
+  { label: "Due (Pending / Partial / Overdue)", value: "due" },
+  { label: "Pending", value: "pending" },
+  { label: "Paid", value: "paid" },
+  { label: "Overdue", value: "overdue" },
+];
+
+// Quick filter → API status / posted params (quotes are always Drafts)
+const statusParamsFor = (quotesOnly: boolean, quickFilter?: string): Record<string, string> => {
+  if (quotesOnly) return { status: "Draft" };
+  if (quickFilter === "not_posted") return { posted: "false" };
+  if (quickFilter === "due") return { status: "Pending,Partially_Paid,Partial,Overdue" };
+  if (quickFilter === "pending") return { status: "Pending" };
+  if (quickFilter === "paid") return { status: "Paid" };
+  if (quickFilter === "overdue") return { status: "Overdue" };
+  return {};
+};
+
+const SummaryCard: React.FC<{ label: string; value: string; sub?: string; color: string; bg: string }> = ({
+  label, value, sub, color, bg,
+}) => (
+  <div style={{
+    flex: "1 1 150px", background: bg,
+    border: `1px solid ${color}20`, borderLeft: `3px solid ${color}`,
+    borderRadius: 8, padding: "10px 14px",
+  }}>
+    <Text style={{
+      fontSize: 10, color: C.subText, textTransform: "uppercase",
+      letterSpacing: "0.4px", fontWeight: 700, display: "block", marginBottom: 4,
+    }}>{label}</Text>
+    <Text strong style={{ fontSize: 14, color }}>{value}</Text>
+    {sub && <Text style={{ fontSize: 11, color: C.subText, display: "block" }}>{sub}</Text>}
+  </div>
+);
+
+// Cards computed from the loaded invoices — the list endpoint returns every match
+const InvoiceSummaryCards: React.FC<{ rows: any[]; quotesOnly: boolean }> = ({ rows, quotesOnly }) => {
+  if (quotesOnly) {
+    const value = rows.reduce((s, r) => s + (Number(r.grand_total) || 0), 0);
+    return (
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <SummaryCard label="Quotes" value={String(rows.length)} color="#8b5cf6" bg="#f5f3ff" />
+        <SummaryCard label="Quoted Value" value={`KES ${fmt(value)}`} color="#0E388A" bg="#eff6ff" />
+      </div>
+    );
+  }
+  const live = rows.filter((r) => !["Voided", "Draft", "Cancelled"].includes(r.status));
+  const invoiced = live.reduce((s, r) => s + (Number(r.grand_total) || 0), 0);
+  const paid = live.reduce((s, r) => s + (Number(r.amount_paid) || 0), 0);
+  const outstanding = live.filter(isPayable).reduce((s, r) => s + (Number(r.amount_due) || 0), 0);
+  const overdue = live.filter((r) =>
+    r.status === "Overdue" || (isPayable(r) && r.due_date && dayjs(r.due_date).isBefore(dayjs(), "day"))
+  );
   return (
-    <Drawer open={open} onClose={onClose} placement="bottom" height="auto"
-      title={modalTitle(<FilterOutlined />, C.primary, "Filter Invoices")}
-      destroyOnClose
-      styles={{
-        body: { padding: "16px 16px 0" },
-        footer: { padding: "12px 16px", borderTop: `1px solid ${C.border}` },
-      }}
-      footer={
-        <div style={{ display: "flex", gap: 8 }}>
-          <Button block onClick={() => { form.resetFields(); onSearch({}); onClose(); }}
-            style={{ borderRadius: 8 }}>Reset</Button>
-          <Button block type="primary" onClick={handleApply}
-            style={{ background: C.primary, borderColor: C.primary, borderRadius: 8 }}>
-            Apply Filters
-          </Button>
-        </div>
-      }
-    >
-      <Form form={form} layout="vertical">
-        <Form.Item name="dateRange" label="Date Range">
-          <RangePicker style={{ width: "100%", borderRadius: 8 }}
-            presets={[
-              { label: "Today", value: [dayjs().startOf("day"), dayjs().endOf("day")] },
-              { label: "Yesterday", value: [dayjs().subtract(1, "days").startOf("day"), dayjs().subtract(1, "days").endOf("day")] },
-              { label: "This Week", value: [dayjs().startOf("week"), dayjs().endOf("week")] },
-              { label: "This Month", value: [dayjs().startOf("month"), dayjs().endOf("month")] },
-              { label: "Last Month", value: [dayjs().subtract(1, "month").startOf("month"), dayjs().subtract(1, "month").endOf("month")] },
-              { label: "This Quarter", value: [dayjs().startOf("quarter"), dayjs().endOf("quarter")] },
-              { label: "This Year", value: [dayjs().startOf("year"), dayjs().endOf("year")] },
-            ]} />
-        </Form.Item>
-        <Form.Item name="order_no" label="Order / Quote No.">
-          <Input placeholder="Enter order number" style={{ borderRadius: 8 }} />
-        </Form.Item>
-        <Form.Item name="invoice_no" label="Invoice No.">
-          <Input placeholder="Enter invoice number" style={{ borderRadius: 8 }} />
-        </Form.Item>
-        {hasPOS && (
-          <Form.Item name="name" label="Table Name">
-            <Input placeholder="Enter table name" style={{ borderRadius: 8 }} />
-          </Form.Item>
-        )}
-      </Form>
-    </Drawer>
+    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+      <SummaryCard label="Total Invoiced" value={`KES ${fmt(invoiced)}`} sub={`${live.length} invoices`} color="#0E388A" bg="#eff6ff" />
+      <SummaryCard label="Paid" value={`KES ${fmt(paid)}`} color="#16a34a" bg="#f0fdf4" />
+      <SummaryCard label="Outstanding" value={`KES ${fmt(outstanding)}`} color="#ef4444" bg="#fef2f2" />
+      <SummaryCard label="Overdue" value={String(overdue.length)} sub={`KES ${fmt(overdue.reduce((s, r) => s + (Number(r.amount_due) || 0), 0))}`} color="#f59e0b" bg="#fffbeb" />
+    </div>
   );
 };
 
@@ -661,14 +672,12 @@ const InvoicesTable = ({ quotesOnly = false }: { quotesOnly?: boolean }) => {
   const [voidTarget, setVoidTarget] = useState<any>(null);
   const [voidReason, setVoidReason] = useState("");
   const [creditNoteTarget, setCreditNoteTarget] = useState<any>(null);
-  const [filterOpen, setFilterOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [expandedRowKeys, setExpandedRowKeys] = useState<React.Key[]>([]);
   const [mobileData, setMobileData] = useState<any[]>([]);
   const [mobileLoading, setMobileLoading] = useState(false);
   const [mobilePage, setMobilePage] = useState(1);
   const [mobileTotal, setMobileTotal] = useState(0);
-  const [mobileFilters, setMobileFilters] = useState<any>({});
   const [manualModalOpen, setManualModalOpen] = useState(false);
   const [noteDetailOpen, setNoteDetailOpen] = useState(false);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
@@ -678,12 +687,107 @@ const InvoicesTable = ({ quotesOnly = false }: { quotesOnly?: boolean }) => {
   const sys = useSystemDetails();
   const { hasPOS } = useTenantModules();
 
+  // ── Filters (shared by desktop and mobile) ──────────────────────────────
+  const [period, setPeriod] = useState<PeriodValue>(defaultPeriod);
+  const [quickFilter, setQuickFilter] = useState<string | undefined>();
+  const [customerFilter, setCustomerFilter] = useState<string | undefined>();
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  // Everything the list returned for the current filters — feeds the cards
+  const [loadedInvoices, setLoadedInvoices] = useState<any[]>([]);
+
+  // Debounce the free-text search so each keystroke doesn't refetch
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput.trim()), 400);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  const filterParams = useMemo(() => {
+    const [start, end] = periodRange(period);
+    return {
+      start_date: start.startOf("day").toISOString(),
+      end_date: end.endOf("day").toISOString(),
+      customer_id: customerFilter,
+      search: search || undefined,
+      ...statusParamsFor(quotesOnly, quickFilter),
+    };
+  }, [period, customerFilter, search, quickFilter, quotesOnly]);
+
+  const filtersActive = !!(quickFilter || customerFilter || search) || !isDefaultPeriod(period);
+  const clearFilters = () => {
+    setQuickFilter(undefined);
+    setCustomerFilter(undefined);
+    setSearchInput("");
+    setSearch("");
+    setPeriod(defaultPeriod());
+  };
+
+  const { data: filterCustomersRaw } = useQuery({
+    queryKey: ["customers-select-invoices-filter"],
+    queryFn: () => fetchAllCustomers({ limit: 1000 }),
+    staleTime: 60_000,
+  });
+  const filterCustomers: any[] = Array.isArray(filterCustomersRaw)
+    ? filterCustomersRaw
+    : (filterCustomersRaw as any)?.customers || (filterCustomersRaw as any)?.data || [];
+  const customerOptions = filterCustomers.map((c: any) => ({
+    label: c.customer_name || c.company_name || c.code,
+    value: c._id,
+  }));
+
+  const filterBar = (
+    <div style={{
+      background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10,
+      padding: "12px 14px", marginBottom: 12, display: "flex", flexDirection: "column", gap: 10,
+    }}>
+      <PeriodFilter value={period} onChange={setPeriod} />
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+        {!quotesOnly && (
+          <Select
+            allowClear
+            placeholder="All statuses"
+            value={quickFilter}
+            onChange={setQuickFilter}
+            style={{ width: 230 }}
+            options={QUICK_FILTER_OPTIONS}
+          />
+        )}
+        <Select
+          allowClear
+          showSearch
+          placeholder="All customers"
+          value={customerFilter}
+          onChange={setCustomerFilter}
+          options={customerOptions}
+          optionFilterProp="label"
+          style={{ width: 220 }}
+        />
+        <Input
+          allowClear
+          prefix={<SearchOutlined style={{ color: C.subText }} />}
+          placeholder={quotesOnly ? "Quote no or customer" : "Invoice no, order no or customer"}
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          style={{ width: 260, borderRadius: 8 }}
+        />
+        {filtersActive && (
+          <Button type="link" onClick={clearFilters} style={{ paddingInline: 4 }}>
+            Clear filters
+          </Button>
+        )}
+      </div>
+      <InvoiceSummaryCards rows={loadedInvoices} quotesOnly={quotesOnly} />
+    </div>
+  );
+
   useEffect(() => {
     if (!pdfRecord || !pdfRef.current) return;
     const capture = async () => {
       try {
         const html2canvas = (await import("html2canvas")).default;
         const { default: jsPDF } = await import("jspdf");
+        // Logos are cross-origin — inline them so they aren't dropped from the capture
+        await inlineImages(pdfRef.current!);
         const canvas = await html2canvas(pdfRef.current!, { scale: 2, useCORS: true, allowTaint: true });
         const imgData = canvas.toDataURL("image/png");
         const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
@@ -712,11 +816,11 @@ const InvoicesTable = ({ quotesOnly = false }: { quotesOnly?: boolean }) => {
     return () => clearTimeout(timer);
   }, [pdfRecord]);
 
-  const [queryParams, setQueryParams] = useState({
-    page: 1, limit: 10,
-    start_date: dayjs().startOf("day").toISOString(),
-    end_date: dayjs().endOf("day").toISOString(),
-  });
+  // Client-side paging of the loaded list; a filter change goes back to page 1
+  const [queryParams, setQueryParams] = useState({ page: 1, limit: 10 });
+  useEffect(() => {
+    setQueryParams((p) => ({ ...p, page: 1 }));
+  }, [filterParams]);
 
   const handleOpenNote = (noteId: string) => {
     setSelectedNoteId(noteId);
@@ -726,45 +830,34 @@ const InvoicesTable = ({ quotesOnly = false }: { quotesOnly?: boolean }) => {
   const refreshTable = () => {
     queryClient.invalidateQueries({ queryKey: ["invoices-unsettled"] });
     if (isMobile) {
-      setMobilePage(1);
-      loadMobileData(1, mobileFilters);
+      loadMobileData();
     } else {
       actionRef.current?.reload();
     }
   };
 
-  const loadMobileData = async (page: number, filters: any = {}) => {
+  // The list endpoint returns every match at once (no server paging), so
+  // mobile loads the lot and shows it in slices
+  const loadMobileData = async () => {
     setMobileLoading(true);
     try {
-      const { dateRange, ...rest } = filters;
-      const data = await getAllInvoices({
-        ...rest, page, limit: 10, shop_id: shopId,
-        ...(quotesOnly ? { status: "Draft" } : {}),
-        start_date: dateRange?.[0] ? dayjs(dateRange[0]).startOf("day").toISOString() : dayjs().startOf("day").toISOString(),
-        end_date: dateRange?.[1] ? dayjs(dateRange[1]).endOf("day").toISOString() : dayjs().endOf("day").toISOString(),
-      });
-      setMobileData(page === 1 ? (data || []) : (prev) => [...prev, ...(data || [])]);
-      setMobileTotal(data.pagination?.total || 0);
+      const data = await getAllInvoices({ ...filterParams, shop_id: shopId });
+      const rows = Array.isArray(data) ? data : [];
+      setMobileData(rows);
+      setMobileTotal(rows.length);
+      setMobilePage(1);
+      setLoadedInvoices(rows);
     } finally {
       setMobileLoading(false);
     }
   };
 
   useEffect(() => {
-    if (isMobile) loadMobileData(1, mobileFilters);
-  }, [isMobile]);
+    if (isMobile) loadMobileData();
+  }, [isMobile, filterParams]);
 
-  const handleMobileFilter = (filters: any) => {
-    setMobileFilters(filters);
-    setMobilePage(1);
-    loadMobileData(1, filters);
-  };
-
-  const handleLoadMore = () => {
-    const next = mobilePage + 1;
-    setMobilePage(next);
-    loadMobileData(next, mobileFilters);
-  };
+  const MOBILE_PAGE = 20;
+  const handleLoadMore = () => setMobilePage((p) => p + 1);
 
   const handleEtrSubmit = async (record: any) => {
     setEtrSubmitting(record._id);
@@ -1104,12 +1197,6 @@ const InvoicesTable = ({ quotesOnly = false }: { quotesOnly?: boolean }) => {
             padding: "12px 14px", background: C.bg, borderBottom: `1px solid ${C.border}`,
           }}>
             <Text strong style={{ fontSize: 14, color: C.darkText }}>{quotesOnly ? "Quotes" : "Invoices & Quotes"}</Text>
-            <div style={{ display: "flex", gap: 8 }}>
-                            <Button size="small" icon={<FilterOutlined />} onClick={() => setFilterOpen(true)}
-                style={{ borderRadius: 8, borderColor: C.border }}>
-                Filter
-              </Button>
-            </div>
           </div>
           <div style={{ padding: "8px 14px", borderBottom: `1px solid ${C.border}` }}>
             <Text style={{ fontSize: 11, color: C.subText }}>
@@ -1118,13 +1205,15 @@ const InvoicesTable = ({ quotesOnly = false }: { quotesOnly?: boolean }) => {
           </div>
         </div>
 
-        {mobileLoading && mobilePage === 1 ? (
+        {filterBar}
+
+        {mobileLoading ? (
           <div style={{ textAlign: "center", padding: "40px 0", color: C.subText }}>Loading…</div>
         ) : mobileData.length === 0 ? (
           <div style={{ textAlign: "center", padding: "40px 0", color: C.subText }}>{quotesOnly ? "No quotes found." : "No invoices found."}</div>
         ) : (
           <>
-            {mobileData.map((record) => (
+            {mobileData.slice(0, mobilePage * MOBILE_PAGE).map((record) => (
               <MobileInvoiceCard
                 key={record._id}
                 record={record}
@@ -1138,16 +1227,14 @@ const InvoicesTable = ({ quotesOnly = false }: { quotesOnly?: boolean }) => {
                 onPaymentsChanged={refreshTable}
               />
             ))}
-            {mobileData.length < mobileTotal && (
-              <Button block onClick={handleLoadMore} loading={mobileLoading}
+            {mobilePage * MOBILE_PAGE < mobileTotal && (
+              <Button block onClick={handleLoadMore}
                 style={{ borderRadius: 8, marginBottom: 16 }}>
-                Load More ({mobileData.length} / {mobileTotal})
+                Load More ({Math.min(mobilePage * MOBILE_PAGE, mobileTotal)} / {mobileTotal})
               </Button>
             )}
           </>
         )}
-
-        <MobileFilterDrawer open={filterOpen} onClose={() => setFilterOpen(false)} onSearch={handleMobileFilter} />
 
         {convertTarget && (
           <ConvertModal invoice={convertTarget} open={!!convertTarget}
@@ -1176,30 +1263,15 @@ const InvoicesTable = ({ quotesOnly = false }: { quotesOnly?: boolean }) => {
           <Template6Clean inv={pdfRecord} sys={sys} />
         </div>
       )}
+      {filterBar}
       <ProTable
         rowKey="_id"
         cardBordered
         formRef={formRef}
         actionRef={actionRef}
-        form={{
-          onFinish: async (values) => {
-            const { dateRange, ...rest } = values;
-            setQueryParams({ 
-              ...rest, 
-              page: 1, 
-              limit: queryParams.limit,
-              start_date: dateRange?.[0] ? dayjs(dateRange[0]).startOf("day").toISOString() : queryParams.start_date,
-              end_date: dateRange?.[1] ? dayjs(dateRange[1]).endOf("day").toISOString() : queryParams.end_date
-            });
-            return true;
-          },
-          initialValues: { dateRange: [dayjs().startOf("day"), dayjs().endOf("day")] },
-        }}
-        search={{
-          labelWidth: "auto", defaultCollapsed: false,
-          searchText: "Search", resetText: "Reset",
-          optionRender: (_, __, dom) => [...dom],
-        }}
+        // Filters live in the bar above; `params` refetches when they change
+        params={filterParams}
+        search={false}
         toolBarRender={() => (quotesOnly || hasPesa ? [
             <Button
               key="new-invoice"
@@ -1214,69 +1286,19 @@ const InvoicesTable = ({ quotesOnly = false }: { quotesOnly?: boolean }) => {
         pagination={{
           pageSize: queryParams.limit, current: queryParams.page,
           showQuickJumper: true, showSizeChanger: true,
-          onChange: (page, pageSize) => setQueryParams((prev) => ({ ...prev, page, limit: pageSize, start_date: prev.start_date, end_date: prev.end_date })),
+          onChange: (page, pageSize) => setQueryParams({ page, limit: pageSize }),
         }}
-        columns={[
-          {
-            title: "Date Range", dataIndex: "dateRange",
-            valueType: "dateRange", hideInTable: true,
-            initialValue: [dayjs().startOf("day"), dayjs().endOf("day")],
-            fieldProps: {
-              ranges: {
-                Today: [dayjs().startOf("day"), dayjs().endOf("day")],
-                Yesterday: [dayjs().subtract(1, "days").startOf("day"), dayjs().subtract(1, "days").endOf("day")],
-                "This Week": [dayjs().startOf("week"), dayjs().endOf("week")],
-                "Last Week": [dayjs().subtract(1, "week").startOf("week"), dayjs().subtract(1, "week").endOf("week")],
-                "This Month": [dayjs().startOf("month"), dayjs().endOf("month")],
-                "Last Month": [dayjs().subtract(1, "month").startOf("month"), dayjs().subtract(1, "month").endOf("month")],
-                "This Quarter": [dayjs().startOf("quarter"), dayjs().endOf("quarter")],
-                "This Year": [dayjs().startOf("year"), dayjs().endOf("year")],
-              },
-            },
-          },
-          {
-            title: "Invoice No", dataIndex: "invoice_no",
-            hideInTable: true,
-            valueType: "text",
-          },
-          ...(!quotesOnly ? [{
-            title: "Quick Filter", dataIndex: "quick_filter",
-            hideInTable: true,
-            valueType: "select" as const,
-            valueEnum: {
-              all: { text: "All" },
-              not_posted: { text: "Not Posted" },
-              due: { text: "Due (Pending / Partial / Overdue)" },
-              pending: { text: "Pending" },
-              paid: { text: "Paid" },
-              overdue: { text: "Overdue" },
-            },
-            initialValue: "all",
-          }] : []),
-          ...desktopColumns,
-        ]}
-        request={async (params) => {
-          const { current, pageSize, dateRange, _timestamp, quick_filter, ...rest } = params;
-          const apiParams: any = { ...rest, page: current, limit: pageSize, shop_id: shopId };
-
-          if (quotesOnly) {
-            apiParams.status = "Draft";
-          } else if (quick_filter === "not_posted") {
-            apiParams.posted = "false";
-          } else if (quick_filter === "due") {
-            apiParams.status = "Pending,Partially_Paid,Partial,Overdue";
-          } else if (["pending", "paid", "overdue"].includes(quick_filter)) {
-            apiParams.status = quick_filter === "pending" ? "Pending" : quick_filter === "paid" ? "Paid" : "Overdue";
-          }
-
+        columns={desktopColumns as ProColumns<any>[]}
+        request={async () => {
+          // The endpoint returns every match (no server paging) — the table
+          // pages it client-side and the summary cards total it
           try {
-            const data = await getAllInvoices({
-              ...apiParams,
-              start_date: dateRange?.[0] ? dayjs(dateRange[0]).startOf("day").toISOString() : dayjs().startOf("day").toISOString(),
-              end_date: dateRange?.[1] ? dayjs(dateRange[1]).endOf("day").toISOString() : dayjs().endOf("day").toISOString(),
-            });
-            return { data: data || [], success: true, total: data.pagination?.total || 0 };
+            const data = await getAllInvoices({ ...filterParams, shop_id: shopId });
+            const rows = Array.isArray(data) ? data : [];
+            setLoadedInvoices(rows);
+            return { data: rows, success: true, total: rows.length };
           } catch {
+            setLoadedInvoices([]);
             return { data: [], success: false, total: 0 };
           }
         }}

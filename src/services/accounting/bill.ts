@@ -15,6 +15,13 @@ export type BillStatus =
     | "Voided"
     | "Cancelled";
 
+// Statuses the API lets you edit (updateBill locks Paid / Voided / Cancelled)
+export const BILL_EDITABLE_STATUSES: BillStatus[] = ["Draft", "Pending", "Partially_Paid", "Overdue"];
+export const billEditLockReason = (status: BillStatus) =>
+    status === "Paid"
+        ? "Paid bills can't be edited — their journal entries are posted"
+        : `${status} bills can't be edited`;
+
 export type VatPricingMode = "INCLUSIVE" | "EXCLUSIVE";
 
 export interface BillLine {
@@ -74,6 +81,7 @@ export interface Bill {
     discount_amount: number;
     total_vat_amount: number;
     vat_pricing_mode: VatPricingMode;
+    vat_exempt?: boolean;
     vat_standard_rate: number;
     grand_total: number;
     amount_paid: number;
@@ -151,6 +159,8 @@ export interface CreateBillParams {
     discount_amount?: number;
     currency?: string;
     status?: BillStatus;
+    // No VAT on any line (exempt / non-VAT-registered supplier)
+    vat_exempt?: boolean;
     // Optional: record payment immediately (e.g. cash bill paid on the spot)
     record_payment?: boolean;
     payment_method_id?: string;
@@ -175,6 +185,10 @@ export interface UpdateBillParams {
     terms?: string;
     internal_notes?: string;
     currency?: string;
+    // Toggle VAT exemption — the API recalculates totals and reposts the JE.
+    // vat_rate (decimal, e.g. 0.16) is used when VAT is re-applied.
+    vat_exempt?: boolean;
+    vat_rate?: number;
 }
 
 // ============================================

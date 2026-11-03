@@ -19,7 +19,10 @@ import {
 } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
-import { getBillById, type Bill, type BillPaymentRef } from "@services/accounting/bill";
+import {
+    getBillById, BILL_EDITABLE_STATUSES, billEditLockReason,
+    type Bill, type BillPaymentRef,
+} from "@services/accounting/bill";
 import { getNotesByBill } from "@services/accounting/notes";
 import { getSupplierById } from "@services/supplier";
 
@@ -31,6 +34,8 @@ interface Props {
     billId: string | null;
     onOpenNote?: (noteId: string) => void;
     hideCreditNotes?: boolean;
+    // Opens the edit form for this bill; the Edit button is hidden without it
+    onEdit?: (bill: Bill) => void;
 }
 
 const BillDetailDrawer: React.FC<Props> = ({
@@ -39,6 +44,7 @@ const BillDetailDrawer: React.FC<Props> = ({
     billId,
     onOpenNote,
     hideCreditNotes = false,
+    onEdit,
 }) => {
     const {
         data: billData,
@@ -245,9 +251,19 @@ const BillDetailDrawer: React.FC<Props> = ({
             onClose={onClose}
             width={900}
             extra={
-                <Space>
-                    <Button icon={<EditOutlined />}>Edit</Button>
-                </Space>
+                onEdit ? (
+                    <Space>
+                        <Tooltip title={BILL_EDITABLE_STATUSES.includes(bill.status) ? undefined : billEditLockReason(bill.status)}>
+                            <Button
+                                icon={<EditOutlined />}
+                                disabled={!BILL_EDITABLE_STATUSES.includes(bill.status)}
+                                onClick={() => onEdit(bill)}
+                            >
+                                Edit
+                            </Button>
+                        </Tooltip>
+                    </Space>
+                ) : null
             }
         >
             <Descriptions column={2} bordered size="small">

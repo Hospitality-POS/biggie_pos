@@ -284,24 +284,43 @@ export interface AgingInvoiceRow {
 }
 
 export interface ARAgingCustomer {
-    customer_id: string;
+    // null when the invoice has no linked customer (grouped by counterparty name)
+    customer_id: string | null;
     customer_name: string;
+    company_name?: string;
+    contact_person?: string;
+    entity_type?: string;
     email?: string;
     phone?: string;
     code?: string;
+    kra_pin?: string;
+    // Days until an invoice falls due
+    payment_terms?: number | null;
+    credit_limit?: number | null;
     invoices: AgingInvoiceRow[];
     buckets: Record<string, number>;
     total: number;
+    invoice_count?: number;
+    oldest_days_overdue?: number;
+    overdue_total?: number;
 }
 
 export interface APAgingSupplier {
-    supplier_id: string;
+    // null when the bill has no linked supplier (grouped by counterparty name)
+    supplier_id: string | null;
     supplier_name: string;
     email?: string;
     phone?: string;
+    kra_pin?: string;
+    // Days until a bill falls due
+    payment_terms?: number | null;
+    credit_limit?: number | null;
     bills: (AgingInvoiceRow & { bill_id: string; supplier_ref?: string })[];
     buckets: Record<string, number>;
     total: number;
+    bill_count?: number;
+    oldest_days_overdue?: number;
+    overdue_total?: number;
 }
 
 export interface ARAgingResponse {
