@@ -210,6 +210,7 @@ export const getSalesReceiptSummary = async (params: {
     from?: string;
     to?: string;
     payment_method?: PaymentMethod;
+    customer_id?: string;
 } = {}): Promise<SalesReceiptSummaryResponse> => {
     try {
         const response = await axiosInstance.get(`${API_BASE}/summary`, { params });

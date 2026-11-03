@@ -1,7 +1,7 @@
 import React, { useState, useRef, useContext, createContext } from "react";
 import {
     Table, Tag, Typography, Space, Alert,
-    Divider, Button, Dropdown, MenuProps, Segmented, Descriptions,
+    Divider, Button, Dropdown, MenuProps, Segmented, Descriptions, Tooltip,
 } from "antd";
 import {
     FileExcelOutlined, FilePdfOutlined, DownloadOutlined,
@@ -12,7 +12,7 @@ import {
     TrialBalanceResponse, ProfitAndLossResponse, BalanceSheetResponse, BalanceSheetRow,
     GeneralLedgerResponse, VATReportResponse, CashFlowResponse,
     AccountBalancesResponse, CustomerStatementResponse, SupplierStatementResponse,
-    ARAgingResponse, APAgingResponse, TrialBalanceRow, GeneralLedgerAccount,
+    ARAgingResponse, ARAgingCustomer, APAgingResponse, APAgingSupplier, TrialBalanceRow, GeneralLedgerAccount,
 } from "@services/accounting/reports";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { getPrimaryColor } from "@utils/getPrimaryColor";
@@ -1410,6 +1410,95 @@ export const SupplierStatementTable: React.FC<{ data: SupplierStatementResponse 
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
+// ── Shared by AR / AP aging ───────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Bucket colour: green when current, warming to deep red for the oldest bucket
+const AGE_COLORS = ["#16a34a", "#ca8a04", "#ea580c", "#dc2626", "#b91c1c", "#7f1d1d"];
+const agingBucketColor = (i: number, bucketCount: number) =>
+    AGE_COLORS[Math.min(AGE_COLORS.length - 1, Math.round((i / Math.max(1, bucketCount - 1)) * (AGE_COLORS.length - 1)))];
+const agingDaysColor = (d: number) => (d > 90 ? "red" : d > 30 ? "orange" : d > 0 ? "gold" : "green");
+
+// Name with code / contact / phone underneath — the party cell in aging summaries
+const AgingPartyCell: React.FC<{ name: string; sub: (string | undefined | null)[] }> = ({ name, sub }) => {
+    const bits = sub.filter(Boolean);
+    return (
+        <div style={{ lineHeight: 1.3 }}>
+            <Text strong style={{ fontSize: 13.5, color: "#0f172a" }}>{name}</Text>
+            {bits.length > 0 && <div><Text type="secondary" style={{ fontSize: 11.5 }}>{bits.join(" · ")}</Text></div>}
+        </div>
+    );
+};
+
+// Headline cards + the age-bucket split bar above an aging table
+const AgingOverview: React.FC<{
+    labels: string[];
+    totals: Record<string, number>;
+    partyLabel: string;
+    partyCount: number;
+    docLabel: string;
+    docCount: number;
+    oldestDays: number;
+    overdueLabel?: string;
+}> = ({ labels, totals, partyLabel, partyCount, docLabel, docCount, oldestDays, overdueLabel = "Overdue" }) => {
+    const current = totals[labels[0]] || 0;
+    const overdue = Math.max(0, (totals.total || 0) - current);
+    const cards = [
+        { label: "Total Outstanding", value: `KES ${fmt(totals.total || 0)}`, color: "#0f172a" },
+        { label: overdueLabel, value: `KES ${fmt(overdue)}`, color: overdue > 0 ? "#b91c1c" : "#16a34a" },
+        { label: "Not Yet Due", value: `KES ${fmt(current)}`, color: "#16a34a" },
+        { label: partyLabel, value: String(partyCount), color: "#0f172a" },
+        { label: docLabel, value: String(docCount), color: "#0f172a" },
+        { label: "Oldest Overdue", value: oldestDays > 0 ? `${oldestDays} days` : "—", color: oldestDays > 90 ? "#b91c1c" : "#0f172a" },
+    ];
+    return (
+        <>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginBottom: 14 }}>
+                {cards.map((k) => (
+                    <div key={k.label} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 14px" }}>
+                        <Text type="secondary" style={{ fontSize: 11.5, textTransform: "uppercase", letterSpacing: 0.4 }}>{k.label}</Text>
+                        <div style={{ fontSize: 18, fontWeight: 600, color: k.color, marginTop: 2 }}>{k.value}</div>
+                    </div>
+                ))}
+            </div>
+            {(totals.total || 0) > 0 && (
+                <div style={{ marginBottom: 14 }}>
+                    <div style={{ display: "flex", height: 10, borderRadius: 6, overflow: "hidden", background: "#f1f5f9" }}>
+                        {labels.map((lbl, i) => (totals[lbl] || 0) > 0 && (
+                            <Tooltip key={lbl} title={`${lbl}: KES ${fmt(totals[lbl])} (${((totals[lbl] / totals.total) * 100).toFixed(1)}%)`}>
+                                <div style={{ width: `${(totals[lbl] / totals.total) * 100}%`, background: agingBucketColor(i, labels.length) }} />
+                            </Tooltip>
+                        ))}
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 16px", marginTop: 6 }}>
+                        {labels.map((lbl, i) => (
+                            <span key={lbl} style={{ fontSize: 12, color: "#475569", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                <span style={{ width: 9, height: 9, borderRadius: 2, background: agingBucketColor(i, labels.length), display: "inline-block" }} />
+                                {lbl}: <b style={{ color: (totals[lbl] || 0) > 0 ? agingBucketColor(i, labels.length) : "#94a3b8" }}>{fmt(totals[lbl] || 0)}</b>
+                            </span>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </>
+    );
+};
+
+// Invoice / bill rows behind a party (expanded summary rows and the per-party view)
+const agingDocColumns = (noTitle: string, extra: any[] = []) => [
+    { title: noTitle, dataIndex: "invoice_no", width: 150, render: (v: string) => <Text strong style={{ color: "#1d4ed8" }}>{v}</Text> },
+    ...extra,
+    { title: "Issue Date", dataIndex: "issue_date", width: 110, render: (d: string) => dayjs(d).format("DD/MM/YYYY") },
+    { title: "Due Date", dataIndex: "due_date", width: 110, render: (d: string) => d ? dayjs(d).format("DD/MM/YYYY") : <Text type="secondary">No due date</Text> },
+    { title: "Amount", dataIndex: "grand_total", width: 130, align: "right" as const, render: (v: number) => fmt(v) },
+    { title: "Paid", dataIndex: "amount_paid", width: 120, align: "right" as const, render: (v: number) => v > 0 ? <Text style={{ color: "#16a34a" }}>{fmt(v)}</Text> : <Text type="secondary">—</Text> },
+    { title: "Balance Due", dataIndex: "amount_due", width: 130, align: "right" as const, render: (v: number) => <Text strong style={{ color: "#b91c1c" }}>{fmt(v)}</Text> },
+    { title: "Overdue", dataIndex: "days_overdue", width: 110, align: "right" as const, render: (v: number) => <Tag color={agingDaysColor(v)} style={{ margin: 0 }}>{v > 0 ? `${v} days` : "Not due"}</Tag> },
+    { title: "Bucket", dataIndex: "bucket", width: 140, render: (v: string) => <Text type="secondary" style={{ fontSize: 12 }}>{v}</Text> },
+    { title: "Status", dataIndex: "status", width: 120, render: (v: string) => <Tag color={v === "Overdue" ? "error" : v === "Partially_Paid" ? "processing" : "default"} style={{ fontSize: 11, margin: 0 }}>{(v || "").replace(/_/g, " ")}</Tag> },
+];
+
+// ══════════════════════════════════════════════════════════════════════════════
 // ── 10. AR AGING — Summary + Detailed views (matching reference screenshots) ──
 // ══════════════════════════════════════════════════════════════════════════════
 export const ARAgingTable: React.FC<{ data: ARAgingResponse }> = ({ data }) => {
@@ -1418,38 +1507,69 @@ export const ARAgingTable: React.FC<{ data: ARAgingResponse }> = ({ data }) => {
     // ── derive bucket columns dynamically ────────────────────────────────────
     const allBucketLabels = data.buckets || ["Current (not yet due)", "1–30 days", "31–60 days", "61–90 days", "91–120 days", "121+ days"];
 
+    // Stable key per customer — customer_id is null when grouped by counterparty name
+    const custKey = (c: ARAgingCustomer, i: number) => c.customer_id || `name-${i}-${c.customer_name}`;
+
     // Build summary rows — one row per customer with bucket columns
-    const summaryRows = data.customers.map((c) => {
-        const row: any = { customer_id: c.customer_id, customer_name: c.customer_name, total: c.total };
+    const summaryRows = data.customers.map((c, i) => {
+        const row: any = { key: custKey(c, i), customer: c, customer_id: c.customer_id, customer_name: c.customer_name, total: c.total };
         allBucketLabels.forEach((lbl) => { row[lbl] = c.buckets?.[lbl] || 0; });
         return row;
     });
     const summaryTotals: Record<string, number> = { total: summaryRows.reduce((s, r) => s + r.total, 0) };
     allBucketLabels.forEach((lbl) => { summaryTotals[lbl] = summaryRows.reduce((s, r) => s + (r[lbl] || 0), 0); });
 
-    // ── Summary columns (like image 2) ────────────────────────────────────────
+    // Headline figures for the strip above the table
+    const invoiceCount = data.customers.reduce((s, c) => s + (c.invoice_count ?? c.invoices.length), 0);
+    const oldestDays = data.customers.reduce(
+        (m, c) => Math.max(m, c.oldest_days_overdue ?? c.invoices.reduce((x, inv) => Math.max(x, inv.days_overdue), 0)),
+        0
+    );
+    const bucketColor = (i: number) => agingBucketColor(i, allBucketLabels.length);
+    const daysColor = agingDaysColor;
+
+    // ── Summary columns ───────────────────────────────────────────────────────
     const summaryColumns = [
-        { title: "Customer Name", dataIndex: "customer_name", key: "name", render: (v: string) => <Text strong style={{ color: "#1890ff", cursor: "pointer" }} onClick={() => setView("per-client")}>{v}</Text> },
-        ...allBucketLabels.map((lbl) => ({
-            title: lbl, dataIndex: lbl, key: lbl, align: "right" as const,
-            render: (v: number) => v > 0 ? <Text style={{ color: "#1890ff" }}>KES{fmt(v)}</Text> : <Text type="secondary">KES0.00</Text>,
+        {
+            title: "Customer", dataIndex: "customer_name", key: "name", fixed: "left" as const, width: 260,
+            render: (_: string, r: any) => {
+                const c: ARAgingCustomer = r.customer;
+                return <AgingPartyCell name={c.customer_name} sub={[c.code, c.contact_person !== c.customer_name ? c.contact_person : "", c.phone || c.email]} />;
+            },
+        },
+        {
+            title: "Invoices", key: "count", width: 90, align: "center" as const,
+            render: (_: any, r: any) => <Tag style={{ margin: 0 }}>{r.customer.invoice_count ?? r.customer.invoices.length}</Tag>,
+        },
+        ...allBucketLabels.map((lbl, i) => ({
+            title: lbl, dataIndex: lbl, key: lbl, align: "right" as const, width: 130,
+            render: (v: number) => v > 0
+                ? <Text style={{ color: bucketColor(i), fontWeight: 500 }}>{fmt(v)}</Text>
+                : <Text type="secondary">—</Text>,
         })),
-        { title: "Total", dataIndex: "total", key: "total", align: "right" as const, render: (v: number) => <Text strong style={{ color: "#1890ff" }}>KES{fmt(v)}</Text> },
+        {
+            title: "Total (KES)", dataIndex: "total", key: "total", align: "right" as const, width: 150,
+            render: (v: number) => <Text strong style={{ color: "#0f172a" }}>{fmt(v)}</Text>,
+        },
     ];
+
+    // Invoices behind a customer row (expanded in the summary, and the Per Client view)
+    const invoiceColumns = agingDocColumns("Invoice No.");
 
     // ── Detailed view — flat table grouped by customer (like image 3) ─────────
     type DetailRow = { key: string; isGroup?: boolean; isBucket?: boolean; customer_name?: string; customer_total?: number; bucket_label?: string; bucket_total?: number; invoice_no?: string; issue_date?: string; due_date?: string; amount?: number; amount_due?: number; days_overdue?: number; status?: string };
     const detailRows: DetailRow[] = [];
-    for (const c of data.customers) {
-        detailRows.push({ key: `grp-${c.customer_id}`, isGroup: true, customer_name: c.customer_name, customer_total: c.total });
+    data.customers.forEach((c, ci) => {
+        const ck = custKey(c, ci);
+        detailRows.push({ key: `grp-${ck}`, isGroup: true, customer_name: c.customer_name, customer_total: c.total });
         // group by bucket
         const byBucket: Record<string, typeof c.invoices> = {};
         for (const inv of c.invoices) { if (!byBucket[inv.bucket]) byBucket[inv.bucket] = []; byBucket[inv.bucket].push(inv); }
         for (const [bkt, invs] of Object.entries(byBucket)) {
-            detailRows.push({ key: `bkt-${c.customer_id}-${bkt}`, isBucket: true, bucket_label: bkt, bucket_total: invs.reduce((s, i) => s + i.amount_due, 0) });
-            for (const inv of invs) detailRows.push({ key: `inv-${inv.invoice_no}`, invoice_no: inv.invoice_no, issue_date: inv.issue_date, due_date: inv.due_date, amount: inv.grand_total, amount_due: inv.amount_due, days_overdue: inv.days_overdue, status: inv.status });
+            detailRows.push({ key: `bkt-${ck}-${bkt}`, isBucket: true, bucket_label: bkt, bucket_total: invs.reduce((s, i) => s + i.amount_due, 0) });
+            for (const inv of invs) detailRows.push({ key: `inv-${ck}-${inv.invoice_no}`, customer_name: c.customer_name, invoice_no: inv.invoice_no, issue_date: inv.issue_date, due_date: inv.due_date, amount: inv.grand_total, amount_due: inv.amount_due, days_overdue: inv.days_overdue, status: inv.status });
         }
-    }
+    });
 
     const detailColumns = [
         {
@@ -1463,7 +1583,7 @@ export const ARAgingTable: React.FC<{ data: ARAgingResponse }> = ({ data }) => {
         { title: "Transaction #", dataIndex: "invoice_no", key: "inv", width: 140, render: (_: any, r: DetailRow) => r.invoice_no ? <Text style={{ color: "#1890ff", paddingLeft: 24 }}>{r.invoice_no}</Text> : null },
         { title: "Type", key: "type", width: 90, render: (_: any, r: DetailRow) => r.invoice_no ? <Text>Invoice</Text> : null },
         { title: "Status", dataIndex: "status", key: "status", width: 100, render: (_: any, r: DetailRow) => r.status ? <Tag color={r.status === "Overdue" ? "error" : "default"} style={{ fontSize: 10 }}>{r.status}</Tag> : null },
-        { title: "Customer Name", key: "cname", width: 160, render: (_: any, r: DetailRow) => r.invoice_no ? <Text type="secondary" style={{ fontSize: 11 }}>{data.customers.find((c) => c.invoices.some((i) => i.invoice_no === r.invoice_no))?.customer_name || ""}</Text> : null },
+        { title: "Customer Name", key: "cname", width: 180, render: (_: any, r: DetailRow) => r.invoice_no ? <Text type="secondary" style={{ fontSize: 12 }}>{r.customer_name}</Text> : null },
         { title: "Age", dataIndex: "days_overdue", key: "age", width: 90, align: "right" as const, render: (_: any, r: DetailRow) => r.invoice_no ? <Text>{r.days_overdue}  Days</Text> : (r.isBucket ? null : r.isGroup ? <Text strong style={{ color: "#cf1322" }}>KES{fmt(r.customer_total || 0)}</Text> : null) },
         { title: "Amount (KES)", dataIndex: "amount", key: "amount", align: "right" as const, render: (_: any, r: DetailRow) => r.invoice_no ? <Text style={{ color: "#1890ff" }}>KES{fmt(r.amount || 0)}</Text> : r.isBucket ? <Text type="secondary">KES{fmt(r.bucket_total || 0)}</Text> : null },
         { title: "Balance Due", dataIndex: "amount_due", key: "due", align: "right" as const, render: (_: any, r: DetailRow) => r.invoice_no ? <Text strong style={{ color: "#cf1322" }}>KES{fmt(r.amount_due || 0)}</Text> : r.isBucket ? <Text strong>KES{fmt(r.bucket_total || 0)}</Text> : null },
@@ -1490,7 +1610,8 @@ export const ARAgingTable: React.FC<{ data: ARAgingResponse }> = ({ data }) => {
     };
 
     const handleExcel = () => exportToExcel("ar_aging_summary", summaryRows.map((r) => {
-        const row: any = { "Customer": r.customer_name };
+        const c: ARAgingCustomer = r.customer;
+        const row: any = { "Customer": r.customer_name, "Code": c.code || "", "Phone": c.phone || "", "Email": c.email || "", "Invoices": c.invoice_count ?? c.invoices.length };
         allBucketLabels.forEach((l) => { row[l] = r[l]; });
         row["Total"] = r.total;
         return row;
@@ -1499,13 +1620,22 @@ export const ARAgingTable: React.FC<{ data: ARAgingResponse }> = ({ data }) => {
 
     return (
         <>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <Space size={6}>
-                    <Tag color="red" style={{ fontSize: 12, padding: "2px 10px" }}>Total AR: KES {fmt(data.summary?.grand_total || 0)}</Tag>
-                    <Tag color="default" style={{ fontSize: 12, padding: "2px 10px" }}>{data.total_customers_with_outstanding} customers</Tag>
-                    <Text type="secondary" style={{ fontSize: 12 }}>As of {dayjs(data.as_of).format("DD MMM YYYY")}</Text>
-                </Space>
-                <Space>
+            {/* ── Headline figures + age-bucket split ── */}
+            <AgingOverview
+                labels={allBucketLabels}
+                totals={summaryTotals}
+                partyLabel="Customers"
+                partyCount={data.total_customers_with_outstanding}
+                docLabel="Open Invoices"
+                docCount={invoiceCount}
+                oldestDays={oldestDays}
+            />
+
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+                <Text type="secondary" style={{ fontSize: 12.5 }}>
+                    As of {dayjs(data.as_of).format("DD MMM YYYY")} · amounts in KES · aged by due date
+                </Text>
+                <Space wrap>
                     <Segmented
                         size="small"
                         value={view}
@@ -1524,30 +1654,47 @@ export const ARAgingTable: React.FC<{ data: ARAgingResponse }> = ({ data }) => {
                 </Space>
             </div>
 
-            {/* ── SUMMARY VIEW (like image 2) ── */}
+            {/* ── SUMMARY VIEW — expand a customer to see its invoices ── */}
             {view === "summary" && (
                 <Table
-                    rowKey="customer_id"
+                    rowKey="key"
                     dataSource={summaryRows}
                     columns={summaryColumns}
-                    size="small"
+                    size="middle"
                     pagination={false}
                     scroll={{ x: "max-content" }}
-                    summary={() => (
+                    locale={{ emptyText: "No outstanding customer invoices as of this date" }}
+                    expandable={{
+                        expandRowByClick: true,
+                        expandedRowRender: (r: any) => (
+                            <Table
+                                rowKey={(inv: any) => `${r.key}-${inv.invoice_no}`}
+                                dataSource={r.customer.invoices}
+                                columns={invoiceColumns}
+                                size="small"
+                                pagination={false}
+                                style={{ margin: "4px 0" }}
+                            />
+                        ),
+                    }}
+                    summary={() => summaryRows.length > 0 ? (
                         <Table.Summary fixed>
-                            <Table.Summary.Row style={{ background: "#fafafa", fontWeight: 700 }}>
-                                <Table.Summary.Cell index={0}><Text strong>Totals</Text></Table.Summary.Cell>
+                            <Table.Summary.Row style={{ background: "#f8fafc" }}>
+                                {/* index 0 is the expand-icon column */}
+                                <Table.Summary.Cell index={0} />
+                                <Table.Summary.Cell index={1}><Text strong>Totals</Text></Table.Summary.Cell>
+                                <Table.Summary.Cell index={2} align="center"><Text strong>{invoiceCount}</Text></Table.Summary.Cell>
                                 {allBucketLabels.map((lbl, i) => (
-                                    <Table.Summary.Cell key={lbl} index={i + 1} align="right">
-                                        <Text strong style={{ color: summaryTotals[lbl] > 0 ? "#1890ff" : "#aaa" }}>KES{fmt(summaryTotals[lbl])}</Text>
+                                    <Table.Summary.Cell key={lbl} index={i + 3} align="right">
+                                        <Text strong style={{ color: summaryTotals[lbl] > 0 ? bucketColor(i) : "#94a3b8" }}>{summaryTotals[lbl] > 0 ? fmt(summaryTotals[lbl]) : "—"}</Text>
                                     </Table.Summary.Cell>
                                 ))}
-                                <Table.Summary.Cell index={allBucketLabels.length + 1} align="right">
-                                    <Text strong style={{ color: "#cf1322" }}>KES{fmt(summaryTotals.total)}</Text>
+                                <Table.Summary.Cell index={allBucketLabels.length + 3} align="right">
+                                    <Text strong style={{ color: "#b91c1c" }}>{fmt(summaryTotals.total)}</Text>
                                 </Table.Summary.Cell>
                             </Table.Summary.Row>
                         </Table.Summary>
-                    )}
+                    ) : null}
                 />
             )}
 
@@ -1566,30 +1713,46 @@ export const ARAgingTable: React.FC<{ data: ARAgingResponse }> = ({ data }) => {
             )}
 
             {/* ── PER CLIENT VIEW ── */}
-            {view === "per-client" && data.customers.map((cust) => (
-                <div key={cust.customer_id} style={{ marginBottom: 24, border: "1px solid #f0f0f0", borderRadius: 8, overflow: "hidden" }}>
-                    <div style={{ background: "#fafafa", padding: "8px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #f0f0f0" }}>
-                        <Space>
-                            <Text strong style={{ fontSize: 14 }}>{cust.customer_name}</Text>
-                            {cust.email && <Text type="secondary" style={{ fontSize: 12 }}>{cust.email}</Text>}
-                        </Space>
-                        <Tag color="red" style={{ fontSize: 12 }}>Outstanding: KES {fmt(cust.total)}</Tag>
+            {view === "per-client" && data.customers.map((cust, ci) => {
+                const details: [string, React.ReactNode][] = [
+                    ["Code", cust.code],
+                    ["Contact", cust.contact_person],
+                    ["Phone", cust.phone],
+                    ["Email", cust.email],
+                    ["KRA PIN", cust.kra_pin],
+                    ["Payment Terms", cust.payment_terms ? `${cust.payment_terms} days` : ""],
+                    ["Credit Limit", cust.credit_limit ? `KES ${fmt(cust.credit_limit)}` : ""],
+                ].filter(([, v]) => !!v) as [string, React.ReactNode][];
+                const oldest = cust.oldest_days_overdue ?? cust.invoices.reduce((m, i) => Math.max(m, i.days_overdue), 0);
+                return (
+                    <div key={custKey(cust, ci)} style={{ marginBottom: 20, border: "1px solid #e2e8f0", borderRadius: 10, overflow: "hidden", background: "#fff" }}>
+                        <div style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", borderBottom: "1px solid #e2e8f0", background: "#f8fafc" }}>
+                            <div style={{ minWidth: 0 }}>
+                                <Text strong style={{ fontSize: 15, color: "#0f172a" }}>{cust.customer_name}</Text>
+                                {cust.company_name && cust.company_name !== cust.customer_name && (
+                                    <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>{cust.company_name}</Text>
+                                )}
+                                {details.length > 0 && (
+                                    <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 16px", marginTop: 4 }}>
+                                        {details.map(([k, v]) => (
+                                            <span key={k} style={{ fontSize: 12, color: "#475569" }}>
+                                                <span style={{ color: "#94a3b8" }}>{k}:</span> {v}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                            <Space size={6} wrap>
+                                <Tag style={{ margin: 0 }}>{cust.invoice_count ?? cust.invoices.length} invoices</Tag>
+                                {oldest > 0 && <Tag color={daysColor(oldest)} style={{ margin: 0 }}>Oldest {oldest} days</Tag>}
+                                <Tag color="red" style={{ margin: 0, fontSize: 13, padding: "2px 10px" }}>Outstanding KES {fmt(cust.total)}</Tag>
+                            </Space>
+                        </div>
+                        <Table rowKey={(inv: any) => `${custKey(cust, ci)}-${inv.invoice_no}`} dataSource={cust.invoices} pagination={false} size="small"
+                            scroll={{ x: "max-content" }} columns={invoiceColumns} />
                     </div>
-                    <Table rowKey="invoice_no" dataSource={cust.invoices} pagination={false} size="small"
-                        columns={[
-                            { title: "Invoice No.", dataIndex: "invoice_no", width: 130, render: (v: string) => <Text style={{ color: "#1890ff" }}>{v}</Text> },
-                            { title: "Issue Date", dataIndex: "issue_date", width: 110, render: (d: string) => dayjs(d).format("DD/MM/YYYY") },
-                            { title: "Due Date", dataIndex: "due_date", width: 110, render: (d: string) => d ? dayjs(d).format("DD/MM/YYYY") : "—" },
-                            { title: "Amount", dataIndex: "grand_total", width: 120, align: "right" as const, render: (v: number) => <Text style={{ color: "#1890ff" }}>KES{fmt(v)}</Text> },
-                            { title: "Paid", dataIndex: "amount_paid", width: 110, align: "right" as const, render: (v: number) => <Text style={{ color: "#389e0d" }}>KES{fmt(v)}</Text> },
-                            { title: "Balance Due", dataIndex: "amount_due", width: 120, align: "right" as const, render: (v: number) => <Text strong style={{ color: "#cf1322" }}>KES{fmt(v)}</Text> },
-                            { title: "Days Overdue", dataIndex: "days_overdue", width: 110, align: "right" as const, render: (v: number) => <Tag color={v > 90 ? "red" : v > 30 ? "orange" : v > 0 ? "gold" : "default"}>{v} Days</Tag> },
-                            { title: "Bucket", dataIndex: "bucket", width: 120, render: (v: string) => <Tag style={{ fontSize: 10 }}>{v}</Tag> },
-                            { title: "Status", dataIndex: "status", width: 100, render: (v: string) => <Tag color={v === "Overdue" ? "error" : "default"} style={{ fontSize: 10 }}>{v}</Tag> },
-                        ]}
-                    />
-                </div>
-            ))}
+                );
+            })}
 
             <style>{`
                 .aging-group-row td { background: #f9f0f2 !important; font-weight: 700; }
@@ -1606,34 +1769,67 @@ export const APAgingTable: React.FC<{ data: APAgingResponse }> = ({ data }) => {
     const [view, setView] = useState<"summary" | "detailed" | "per-supplier">("summary");
     const allBucketLabels = data.buckets || ["Current (not yet due)", "1–30 days", "31–60 days", "61–90 days", "91–120 days", "121+ days"];
 
-    const summaryRows = data.suppliers.map((s) => {
-        const row: any = { supplier_id: s.supplier_id, supplier_name: s.supplier_name, total: s.total };
+    // Stable key per supplier — supplier_id is null when grouped by counterparty name
+    const supKey = (s: APAgingSupplier, i: number) => s.supplier_id || `name-${i}-${s.supplier_name}`;
+
+    const summaryRows = data.suppliers.map((s, i) => {
+        const row: any = { key: supKey(s, i), supplier: s, supplier_id: s.supplier_id, supplier_name: s.supplier_name, total: s.total };
         allBucketLabels.forEach((lbl) => { row[lbl] = s.buckets?.[lbl] || 0; });
         return row;
     });
     const summaryTotals: Record<string, number> = { total: summaryRows.reduce((s, r) => s + r.total, 0) };
     allBucketLabels.forEach((lbl) => { summaryTotals[lbl] = summaryRows.reduce((s, r) => s + (r[lbl] || 0), 0); });
 
+    const billCount = data.suppliers.reduce((s, sup) => s + (sup.bill_count ?? sup.bills.length), 0);
+    const oldestDays = data.suppliers.reduce(
+        (m, sup) => Math.max(m, sup.oldest_days_overdue ?? sup.bills.reduce((x, b) => Math.max(x, b.days_overdue), 0)),
+        0
+    );
+    const bucketColor = (i: number) => agingBucketColor(i, allBucketLabels.length);
+
+    // ── Summary columns ───────────────────────────────────────────────────────
     const summaryColumns = [
-        { title: "Supplier Name", dataIndex: "supplier_name", key: "name", render: (v: string) => <Text strong style={{ color: "#fa8c16", cursor: "pointer" }} onClick={() => setView("per-supplier")}>{v}</Text> },
-        ...allBucketLabels.map((lbl) => ({
-            title: lbl, dataIndex: lbl, key: lbl, align: "right" as const,
-            render: (v: number) => v > 0 ? <Text style={{ color: "#fa8c16" }}>KES{fmt(v)}</Text> : <Text type="secondary">KES0.00</Text>,
+        {
+            title: "Supplier", dataIndex: "supplier_name", key: "name", fixed: "left" as const, width: 260,
+            render: (_: string, r: any) => {
+                const s: APAgingSupplier = r.supplier;
+                return <AgingPartyCell name={s.supplier_name} sub={[s.phone || s.email, s.kra_pin ? `PIN ${s.kra_pin}` : ""]} />;
+            },
+        },
+        {
+            title: "Bills", key: "count", width: 90, align: "center" as const,
+            render: (_: any, r: any) => <Tag style={{ margin: 0 }}>{r.supplier.bill_count ?? r.supplier.bills.length}</Tag>,
+        },
+        ...allBucketLabels.map((lbl, i) => ({
+            title: lbl, dataIndex: lbl, key: lbl, align: "right" as const, width: 130,
+            render: (v: number) => v > 0
+                ? <Text style={{ color: bucketColor(i), fontWeight: 500 }}>{fmt(v)}</Text>
+                : <Text type="secondary">—</Text>,
         })),
-        { title: "Total", dataIndex: "total", key: "total", align: "right" as const, render: (v: number) => <Text strong style={{ color: "#fa8c16" }}>KES{fmt(v)}</Text> },
+        {
+            title: "Total (KES)", dataIndex: "total", key: "total", align: "right" as const, width: 150,
+            render: (v: number) => <Text strong style={{ color: "#0f172a" }}>{fmt(v)}</Text>,
+        },
     ];
 
-    type DetailRow = { key: string; isGroup?: boolean; isBucket?: boolean; supplier_name?: string; supplier_total?: number; bucket_label?: string; bucket_total?: number; invoice_no?: string; issue_date?: string; due_date?: string; amount?: number; amount_due?: number; days_overdue?: number; status?: string };
+    // Bills behind a supplier row — the supplier's own invoice no. is shown too
+    const billColumns = agingDocColumns("Bill No.", [
+        { title: "Supplier Ref", dataIndex: "supplier_ref", width: 130, render: (v: string) => v || <Text type="secondary">—</Text> },
+    ]);
+
+    // ── Detailed view — flat table grouped by supplier ────────────────────────
+    type DetailRow = { key: string; isGroup?: boolean; isBucket?: boolean; supplier_name?: string; supplier_total?: number; bucket_label?: string; bucket_total?: number; invoice_no?: string; supplier_ref?: string; issue_date?: string; due_date?: string; amount?: number; amount_due?: number; days_overdue?: number; status?: string };
     const detailRows: DetailRow[] = [];
-    for (const s of data.suppliers) {
-        detailRows.push({ key: `grp-${s.supplier_id}`, isGroup: true, supplier_name: s.supplier_name, supplier_total: s.total });
+    data.suppliers.forEach((s, si) => {
+        const sk = supKey(s, si);
+        detailRows.push({ key: `grp-${sk}`, isGroup: true, supplier_name: s.supplier_name, supplier_total: s.total });
         const byBucket: Record<string, typeof s.bills> = {};
         for (const b of s.bills) { if (!byBucket[b.bucket]) byBucket[b.bucket] = []; byBucket[b.bucket].push(b); }
         for (const [bkt, bills] of Object.entries(byBucket)) {
-            detailRows.push({ key: `bkt-${s.supplier_id}-${bkt}`, isBucket: true, bucket_label: bkt, bucket_total: bills.reduce((sum, b) => sum + b.amount_due, 0) });
-            for (const b of bills) detailRows.push({ key: `bill-${b.invoice_no}`, invoice_no: b.invoice_no, issue_date: b.issue_date, due_date: b.due_date, amount: b.grand_total, amount_due: b.amount_due, days_overdue: b.days_overdue, status: b.status });
+            detailRows.push({ key: `bkt-${sk}-${bkt}`, isBucket: true, bucket_label: bkt, bucket_total: bills.reduce((sum, b) => sum + b.amount_due, 0) });
+            for (const b of bills) detailRows.push({ key: `bill-${sk}-${b.bill_id || b.invoice_no}`, supplier_name: s.supplier_name, invoice_no: b.invoice_no, supplier_ref: b.supplier_ref, issue_date: b.issue_date, due_date: b.due_date, amount: b.grand_total, amount_due: b.amount_due, days_overdue: b.days_overdue, status: b.status });
         }
-    }
+    });
 
     const detailColumns = [
         {
@@ -1644,44 +1840,61 @@ export const APAgingTable: React.FC<{ data: APAgingResponse }> = ({ data }) => {
                 return <Text style={{ paddingLeft: 24 }}>{dayjs(r.issue_date).format("DD/MM/YYYY")}</Text>;
             },
         },
-        { title: "Bill #", dataIndex: "invoice_no", key: "bill", width: 130, render: (_: any, r: DetailRow) => r.invoice_no ? <Text style={{ color: "#fa8c16", paddingLeft: 24 }}>{r.invoice_no}</Text> : null },
-        { title: "Type", key: "type", width: 70, render: (_: any, r: DetailRow) => r.invoice_no ? <Text>Bill</Text> : null },
-        { title: "Status", dataIndex: "status", key: "status", width: 100, render: (_: any, r: DetailRow) => r.status ? <Tag color={r.status === "Overdue" ? "error" : "default"} style={{ fontSize: 10 }}>{r.status}</Tag> : null },
-        { title: "Age", dataIndex: "days_overdue", key: "age", align: "right" as const, width: 90, render: (_: any, r: DetailRow) => r.invoice_no ? <Text>{r.days_overdue} Days</Text> : (r.isGroup ? <Text strong style={{ color: "#fa8c16" }}>KES{fmt(r.supplier_total || 0)}</Text> : null) },
-        { title: "Amount", dataIndex: "amount", key: "amount", align: "right" as const, render: (_: any, r: DetailRow) => r.invoice_no ? <Text style={{ color: "#fa8c16" }}>KES{fmt(r.amount || 0)}</Text> : r.isBucket ? <Text type="secondary">KES{fmt(r.bucket_total || 0)}</Text> : null },
-        { title: "Balance Due", dataIndex: "amount_due", key: "due", align: "right" as const, render: (_: any, r: DetailRow) => r.invoice_no ? <Text strong style={{ color: "#fa8c16" }}>KES{fmt(r.amount_due || 0)}</Text> : r.isBucket ? <Text strong>KES{fmt(r.bucket_total || 0)}</Text> : null },
+        { title: "Bill #", dataIndex: "invoice_no", key: "bill", width: 140, render: (_: any, r: DetailRow) => r.invoice_no ? <Text style={{ color: "#1d4ed8", paddingLeft: 24 }}>{r.invoice_no}</Text> : null },
+        { title: "Supplier Ref", key: "ref", width: 120, render: (_: any, r: DetailRow) => r.invoice_no ? (r.supplier_ref || <Text type="secondary">—</Text>) : null },
+        { title: "Status", dataIndex: "status", key: "status", width: 110, render: (_: any, r: DetailRow) => r.status ? <Tag color={r.status === "Overdue" ? "error" : "default"} style={{ fontSize: 10 }}>{r.status.replace(/_/g, " ")}</Tag> : null },
+        { title: "Supplier", key: "sname", width: 180, render: (_: any, r: DetailRow) => r.invoice_no ? <Text type="secondary" style={{ fontSize: 12 }}>{r.supplier_name}</Text> : null },
+        { title: "Age", dataIndex: "days_overdue", key: "age", align: "right" as const, width: 90, render: (_: any, r: DetailRow) => r.invoice_no ? <Text>{r.days_overdue} Days</Text> : (r.isGroup ? <Text strong style={{ color: "#b91c1c" }}>KES{fmt(r.supplier_total || 0)}</Text> : null) },
+        { title: "Amount (KES)", dataIndex: "amount", key: "amount", align: "right" as const, render: (_: any, r: DetailRow) => r.invoice_no ? <Text>{fmt(r.amount || 0)}</Text> : r.isBucket ? <Text type="secondary">{fmt(r.bucket_total || 0)}</Text> : null },
+        { title: "Balance Due", dataIndex: "amount_due", key: "due", align: "right" as const, render: (_: any, r: DetailRow) => r.invoice_no ? <Text strong style={{ color: "#b91c1c" }}>{fmt(r.amount_due || 0)}</Text> : r.isBucket ? <Text strong>{fmt(r.bucket_total || 0)}</Text> : null },
     ];
 
     const handlePrint = (mode: "summary" | "detailed") => {
         if (mode === "summary") {
             const bh = allBucketLabels.map((l) => `<th class="num">${escapeHtml(l)}</th>`).join("");
-            const rows = summaryRows.map((r) => `<tr><td>${escapeHtml(r.supplier_name)}</td>${allBucketLabels.map((l) => `<td class="num" style="color:${r[l] > 0 ? "#fa8c16" : "#aaa"}">${r[l] > 0 ? "KES" + fmt(r[l]) : "KES0.00"}</td>`).join("")}<td class="num" style="color:#fa8c16;font-weight:700">KES${fmt(r.total)}</td>`).join("");
+            const rows = summaryRows.map((r) => `<tr><td>${escapeHtml(r.supplier_name)}</td>${allBucketLabels.map((l) => `<td class="num" style="color:${r[l] > 0 ? "#fa8c16" : "#aaa"}">${r[l] > 0 ? "KES" + fmt(r[l]) : "KES0.00"}</td>`).join("")}<td class="num" style="color:#fa8c16;font-weight:700">KES${fmt(r.total)}</td></tr>`).join("");
+            const totRow = `<tr class="total-row"><td>TOTALS</td>${allBucketLabels.map((l) => `<td class="num">KES${fmt(summaryTotals[l])}</td>`).join("")}<td class="num">KES${fmt(summaryTotals.total)}</td></tr>`;
             const html = `<div class="header-block"><div><div class="company">AP Aging Summary</div><div class="subtitle">As of ${dayjs(data.as_of).format("DD/MM/YYYY")}</div></div><div class="meta">Generated: ${dayjs().format("DD MMM YYYY HH:mm")}</div></div>
-            <table><thead><tr><th>Supplier Name</th>${bh}<th class="num">Total</th></tr></thead><tbody>${rows}</tbody></table>`;
+            <table><thead><tr><th>Supplier Name</th>${bh}<th class="num">Total</th></tr></thead><tbody>${rows}</tbody><tfoot>${totRow}</tfoot></table>`;
             printSection(html, "AP Aging Summary");
         } else {
             const rows = data.suppliers.map((s) => {
-                const billRows = s.bills.map((b) => `<tr><td style="padding-left:32px">${dayjs(b.issue_date).format("DD/MM/YYYY")}</td><td style="padding-left:32px;color:#fa8c16">${escapeHtml(b.invoice_no)}</td><td>Bill</td><td><span style="color:${b.status === "Overdue" ? "#cf1322" : "#666"}">${escapeHtml(b.status)}</span></td><td class="num">${escapeHtml(b.days_overdue)} Days</td><td class="num" style="color:#fa8c16">KES${fmt(b.grand_total)}</td><td class="num" style="color:#fa8c16">KES${fmt(b.amount_due)}</td>`).join("");
+                const billRows = s.bills.map((b) => `<tr><td style="padding-left:32px">${dayjs(b.issue_date).format("DD/MM/YYYY")}</td><td style="padding-left:32px;color:#fa8c16">${escapeHtml(b.invoice_no)}</td><td>${escapeHtml(b.supplier_ref || "")}</td><td><span style="color:${b.status === "Overdue" ? "#cf1322" : "#666"}">${escapeHtml(b.status)}</span></td><td class="num">${escapeHtml(b.days_overdue)} Days</td><td class="num" style="color:#fa8c16">KES${fmt(b.grand_total)}</td><td class="num" style="color:#fa8c16">KES${fmt(b.amount_due)}</td></tr>`).join("");
                 return `<tr class="section-header"><td colspan="7">${escapeHtml(s.supplier_name)} — KES${fmt(s.total)}</td></tr>${billRows}`;
             }).join("");
             const html = `<div class="header-block"><div><div class="company">AP Aging Details</div><div class="subtitle">As of ${dayjs(data.as_of).format("DD/MM/YYYY")}</div></div><div class="meta">Generated: ${dayjs().format("DD MMM YYYY HH:mm")}</div></div>
-            <table><thead><tr><th>Date</th><th>Bill #</th><th>Type</th><th>Status</th><th class="num">Age</th><th class="num">Amount</th><th class="num">Balance Due</th></tr></thead><tbody>${rows}</tbody></table>`;
+            <table><thead><tr><th>Date</th><th>Bill #</th><th>Supplier Ref</th><th>Status</th><th class="num">Age</th><th class="num">Amount</th><th class="num">Balance Due</th></tr></thead><tbody>${rows}</tbody></table>`;
             printSection(html, "AP Aging Details");
         }
     };
 
-    const handleExcel = () => exportToExcel("ap_aging_summary", summaryRows.map((r) => { const row: any = { "Supplier": r.supplier_name }; allBucketLabels.forEach((l) => { row[l] = r[l]; }); row["Total"] = r.total; return row; }));
+    const handleExcel = () => exportToExcel("ap_aging_summary", summaryRows.map((r) => {
+        const s: APAgingSupplier = r.supplier;
+        const row: any = { "Supplier": r.supplier_name, "Phone": s.phone || "", "Email": s.email || "", "KRA PIN": s.kra_pin || "", "Bills": s.bill_count ?? s.bills.length };
+        allBucketLabels.forEach((l) => { row[l] = r[l]; });
+        row["Total"] = r.total;
+        return row;
+    }));
     const handlePdf = () => exportToPdf("ap_aging", "AP Aging Report", `As of: ${dayjs(data.as_of).format("DD MMM YYYY")}  |  Total: KES ${fmt(data.summary?.grand_total || 0)}`, ["Supplier", ...allBucketLabels, "Total"], summaryRows.map((r) => [r.supplier_name, ...allBucketLabels.map((l) => fmt(r[l])), fmt(r.total)]));
 
     return (
         <>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <Space size={6}>
-                    <Tag color="orange" style={{ fontSize: 12, padding: "2px 10px" }}>Total AP: KES {fmt(data.summary?.grand_total || 0)}</Tag>
-                    <Tag color="default" style={{ fontSize: 12, padding: "2px 10px" }}>{data.total_suppliers_with_outstanding} suppliers</Tag>
-                    <Text type="secondary" style={{ fontSize: 12 }}>As of {dayjs(data.as_of).format("DD MMM YYYY")}</Text>
-                </Space>
-                <Space>
+            {/* ── Headline figures + age-bucket split ── */}
+            <AgingOverview
+                labels={allBucketLabels}
+                totals={summaryTotals}
+                partyLabel="Suppliers"
+                partyCount={data.total_suppliers_with_outstanding}
+                docLabel="Open Bills"
+                docCount={billCount}
+                oldestDays={oldestDays}
+            />
+
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+                <Text type="secondary" style={{ fontSize: 12.5 }}>
+                    As of {dayjs(data.as_of).format("DD MMM YYYY")} · amounts in KES · aged by due date
+                </Text>
+                <Space wrap>
                     <Segmented
                         size="small"
                         value={view}
@@ -1700,59 +1913,95 @@ export const APAgingTable: React.FC<{ data: APAgingResponse }> = ({ data }) => {
                 </Space>
             </div>
 
+            {/* ── SUMMARY VIEW — expand a supplier to see its bills ── */}
             {view === "summary" && (
-                <Table rowKey="supplier_id" dataSource={summaryRows} columns={summaryColumns} size="small" pagination={false} scroll={{ x: "max-content" }}
-                    summary={() => (
+                <Table
+                    rowKey="key"
+                    dataSource={summaryRows}
+                    columns={summaryColumns}
+                    size="middle"
+                    pagination={false}
+                    scroll={{ x: "max-content" }}
+                    locale={{ emptyText: "No outstanding supplier bills as of this date" }}
+                    expandable={{
+                        expandRowByClick: true,
+                        expandedRowRender: (r: any) => (
+                            <Table
+                                rowKey={(b: any) => `${r.key}-${b.bill_id || b.invoice_no}`}
+                                dataSource={r.supplier.bills}
+                                columns={billColumns}
+                                size="small"
+                                pagination={false}
+                                style={{ margin: "4px 0" }}
+                            />
+                        ),
+                    }}
+                    summary={() => summaryRows.length > 0 ? (
                         <Table.Summary fixed>
-                            <Table.Summary.Row style={{ background: "#fafafa", fontWeight: 700 }}>
-                                <Table.Summary.Cell index={0}><Text strong>Totals</Text></Table.Summary.Cell>
+                            <Table.Summary.Row style={{ background: "#f8fafc" }}>
+                                {/* index 0 is the expand-icon column */}
+                                <Table.Summary.Cell index={0} />
+                                <Table.Summary.Cell index={1}><Text strong>Totals</Text></Table.Summary.Cell>
+                                <Table.Summary.Cell index={2} align="center"><Text strong>{billCount}</Text></Table.Summary.Cell>
                                 {allBucketLabels.map((lbl, i) => (
-                                    <Table.Summary.Cell key={lbl} index={i + 1} align="right">
-                                        <Text strong style={{ color: summaryTotals[lbl] > 0 ? "#fa8c16" : "#aaa" }}>KES{fmt(summaryTotals[lbl])}</Text>
+                                    <Table.Summary.Cell key={lbl} index={i + 3} align="right">
+                                        <Text strong style={{ color: summaryTotals[lbl] > 0 ? bucketColor(i) : "#94a3b8" }}>{summaryTotals[lbl] > 0 ? fmt(summaryTotals[lbl]) : "—"}</Text>
                                     </Table.Summary.Cell>
                                 ))}
-                                <Table.Summary.Cell index={allBucketLabels.length + 1} align="right">
-                                    <Text strong style={{ color: "#fa8c16" }}>KES{fmt(summaryTotals.total)}</Text>
+                                <Table.Summary.Cell index={allBucketLabels.length + 3} align="right">
+                                    <Text strong style={{ color: "#b91c1c" }}>{fmt(summaryTotals.total)}</Text>
                                 </Table.Summary.Cell>
                             </Table.Summary.Row>
                         </Table.Summary>
-                    )}
+                    ) : null}
                 />
             )}
 
+            {/* ── DETAILED VIEW ── */}
             {view === "detailed" && (
-                <Table rowKey="key" dataSource={detailRows} columns={detailColumns} size="small" pagination={false} scroll={{ x: 900 }}
+                <Table rowKey="key" dataSource={detailRows} columns={detailColumns} size="small" pagination={false} scroll={{ x: 1000 }}
                     rowClassName={(r: DetailRow) => r.isGroup ? "aging-group-row-ap" : r.isBucket ? "aging-bucket-row" : ""}
                 />
             )}
 
-            {view === "per-supplier" && data.suppliers.map((sup) => (
-                <div key={sup.supplier_id} style={{ marginBottom: 24, border: "1px solid #f0f0f0", borderRadius: 8, overflow: "hidden" }}>
-                    <div style={{ background: "#fff7e6", padding: "8px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #ffe7ba" }}>
-                        <Space>
-                            <Text strong style={{ fontSize: 14 }}>{sup.supplier_name}</Text>
-                            {sup.email && <Text type="secondary" style={{ fontSize: 12 }}>{sup.email}</Text>}
-                        </Space>
-                        <Tag color="orange" style={{ fontSize: 12 }}>Outstanding: KES {fmt(sup.total)}</Tag>
+            {/* ── PER SUPPLIER VIEW ── */}
+            {view === "per-supplier" && data.suppliers.map((sup, si) => {
+                const details: [string, React.ReactNode][] = [
+                    ["Phone", sup.phone],
+                    ["Email", sup.email],
+                    ["KRA PIN", sup.kra_pin],
+                    ["Payment Terms", sup.payment_terms ? `${sup.payment_terms} days` : ""],
+                    ["Credit Limit", sup.credit_limit ? `KES ${fmt(sup.credit_limit)}` : ""],
+                ].filter(([, v]) => !!v) as [string, React.ReactNode][];
+                const oldest = sup.oldest_days_overdue ?? sup.bills.reduce((m, b) => Math.max(m, b.days_overdue), 0);
+                return (
+                    <div key={supKey(sup, si)} style={{ marginBottom: 20, border: "1px solid #e2e8f0", borderRadius: 10, overflow: "hidden", background: "#fff" }}>
+                        <div style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", borderBottom: "1px solid #e2e8f0", background: "#f8fafc" }}>
+                            <div style={{ minWidth: 0 }}>
+                                <Text strong style={{ fontSize: 15, color: "#0f172a" }}>{sup.supplier_name}</Text>
+                                {details.length > 0 && (
+                                    <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 16px", marginTop: 4 }}>
+                                        {details.map(([k, v]) => (
+                                            <span key={k} style={{ fontSize: 12, color: "#475569" }}>
+                                                <span style={{ color: "#94a3b8" }}>{k}:</span> {v}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                            <Space size={6} wrap>
+                                <Tag style={{ margin: 0 }}>{sup.bill_count ?? sup.bills.length} bills</Tag>
+                                {oldest > 0 && <Tag color={agingDaysColor(oldest)} style={{ margin: 0 }}>Oldest {oldest} days</Tag>}
+                                <Tag color="red" style={{ margin: 0, fontSize: 13, padding: "2px 10px" }}>Owed KES {fmt(sup.total)}</Tag>
+                            </Space>
+                        </div>
+                        <Table rowKey={(b: any) => `${supKey(sup, si)}-${b.bill_id || b.invoice_no}`} dataSource={sup.bills} pagination={false} size="small"
+                            scroll={{ x: "max-content" }} columns={billColumns} />
                     </div>
-                    <Table rowKey="bill_id" dataSource={sup.bills} pagination={false} size="small"
-                        columns={[
-                            { title: "Bill No.", dataIndex: "invoice_no", width: 130, render: (v: string) => <Text style={{ color: "#fa8c16" }}>{v}</Text> },
-                            { title: "Issue Date", dataIndex: "issue_date", width: 110, render: (d: string) => dayjs(d).format("DD/MM/YYYY") },
-                            { title: "Due Date", dataIndex: "due_date", width: 110, render: (d: string) => d ? dayjs(d).format("DD/MM/YYYY") : "—" },
-                            { title: "Amount", dataIndex: "grand_total", width: 120, align: "right" as const, render: (v: number) => <Text style={{ color: "#fa8c16" }}>KES{fmt(v)}</Text> },
-                            { title: "Paid", dataIndex: "amount_paid", width: 110, align: "right" as const, render: (v: number) => <Text style={{ color: "#389e0d" }}>KES{fmt(v)}</Text> },
-                            { title: "Balance Due", dataIndex: "amount_due", width: 120, align: "right" as const, render: (v: number) => <Text strong style={{ color: "#fa8c16" }}>KES{fmt(v)}</Text> },
-                            { title: "Days Overdue", dataIndex: "days_overdue", width: 110, align: "right" as const, render: (v: number) => <Tag color={v > 90 ? "red" : v > 30 ? "orange" : v > 0 ? "gold" : "default"}>{v} Days</Tag> },
-                            { title: "Bucket", dataIndex: "bucket", width: 120, render: (v: string) => <Tag style={{ fontSize: 10 }}>{v}</Tag> },
-                            { title: "Status", dataIndex: "status", width: 100, render: (v: string) => <Tag color={v === "Overdue" ? "error" : "default"} style={{ fontSize: 10 }}>{v}</Tag> },
-                        ]}
-                    />
-                </div>
-            ))}
+                );
+            })}
 
             <style>{`
-                .aging-group-row td { background: #fff7e6 !important; font-weight: 700; }
                 .aging-group-row-ap td { background: #fff7e6 !important; font-weight: 700; }
                 .aging-bucket-row td { background: #fafafa !important; color: #888; font-style: italic; }
             `}</style>
