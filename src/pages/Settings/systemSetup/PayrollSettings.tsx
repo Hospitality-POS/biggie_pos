@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { Switch, Typography, Alert, Spin, Button, Radio, InputNumber, Space, Select, Tag, Card, Segmented } from "antd";
 import { ProCard } from "@ant-design/pro-components";
-import { DollarOutlined, CalendarOutlined, PercentageOutlined, FileTextOutlined, GiftOutlined } from "@ant-design/icons";
+import { DollarOutlined, CalendarOutlined, PercentageOutlined, FileTextOutlined, GiftOutlined, PictureOutlined, ApartmentOutlined } from "@ant-design/icons";
 import { message } from "antd";
+import { useQueryClient } from "@tanstack/react-query";
 import { fetchSystemSetupDetailsById, updateSystemSetup } from "../../../services/systemsetup";
+import { fetchShop, updateShopPayrollLogoSettings } from "../../../services/shops";
 import { resolveBenefitTypes, BenefitTypeDefault } from "../../../utils/benefitTypes";
 import { THEME_C } from "../../../utils/getPrimaryColor";
 
@@ -26,13 +28,23 @@ const PayrollSettings: React.FC = () => {
   const [payslipHeader, setPayslipHeader] = useState<"company" | "department">("company");
   const [p9HideEmployer, setP9HideEmployer] = useState(false);
   const [benefitTypes, setBenefitTypes] = useState<BenefitTypeDefault[]>(resolveBenefitTypes(null));
+  // Logo on payroll/payslip PDFs — stored on the shop (payroll_logo_settings)
+  const [showLogo, setShowLogo] = useState(true);
+  const [departmentLogosEnabled, setDepartmentLogosEnabled] = useState(false);
   const [settingsId, setSettingsId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const queryClient = useQueryClient();
+  const shopId = localStorage.getItem("shopId");
 
   useEffect(() => {
     (async () => {
       try {
+        if (shopId) {
+          const shop = await fetchShop(shopId).catch(() => null);
+          setShowLogo(shop?.payroll_logo_settings?.show_logo !== false);
+          setDepartmentLogosEnabled(!!shop?.payroll_logo_settings?.department_logos_enabled);
+        }
         const data = await fetchSystemSetupDetailsById();
         const ps = data?.payroll_settings || {};
         setPayFullFirstMonth(!!ps.pay_full_first_month);
@@ -51,6 +63,37 @@ const PayrollSettings: React.FC = () => {
       }
     })();
   }, []);
+
+  // Logo switches live on the shop and save as soon as they're toggled (like
+  // the other shop-level switches). The response is checked so an API that
+  // doesn't know payroll_logo_settings yet fails loudly instead of silently.
+  const [savingLogo, setSavingLogo] = useState(false);
+  const saveLogoSetting = async (patch: { show_logo?: boolean; department_logos_enabled?: boolean }) => {
+    if (!shopId) {
+      message.error("Shop not found");
+      return;
+    }
+    const prev = { show_logo: showLogo, department_logos_enabled: departmentLogosEnabled };
+    if (patch.show_logo !== undefined) setShowLogo(patch.show_logo);
+    if (patch.department_logos_enabled !== undefined) setDepartmentLogosEnabled(patch.department_logos_enabled);
+    setSavingLogo(true);
+    try {
+      const res = await updateShopPayrollLogoSettings(shopId, patch);
+      const saved = res?.data?.payroll_logo_settings;
+      if (!saved) throw new Error("The server did not return payroll_logo_settings — the API may need updating/restarting");
+      setShowLogo(saved.show_logo !== false);
+      setDepartmentLogosEnabled(!!saved.department_logos_enabled);
+      queryClient.invalidateQueries({ queryKey: ["shop", shopId] });
+      message.success("Logo settings saved");
+    } catch (error: any) {
+      console.error("Failed to save logo settings:", error);
+      setShowLogo(prev.show_logo);
+      setDepartmentLogosEnabled(prev.department_logos_enabled);
+      message.error(error?.message || "Failed to save logo settings");
+    } finally {
+      setSavingLogo(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!settingsId) {
@@ -212,6 +255,35 @@ const PayrollSettings: React.FC = () => {
             </Text>
           </div>
           <Switch checked={p9HideEmployer} onChange={setP9HideEmployer} />
+        </div>
+      </ProCard>
+
+      <ProCard bordered title="Logo on PDF exports" style={{ marginBottom: 16 }}>
+        <div style={rowStyle}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <Text strong style={{ display: "block", fontSize: 13, marginBottom: 2 }}>
+              <PictureOutlined style={{ color: C.primary, marginRight: 6 }} />
+              Show logo on payroll & payslip PDFs
+            </Text>
+            <Text type="secondary" style={{ fontSize: 12, display: "block", maxWidth: 560 }}>
+              Adds a logo to the top of muster roll and payslip PDFs. Uses the department's logo
+              when it has one, otherwise the business logo. Nothing is shown when neither exists.
+            </Text>
+          </div>
+          <Switch checked={showLogo} loading={savingLogo} onChange={(v) => saveLogoSetting({ show_logo: v })} />
+        </div>
+        <div style={{ ...rowStyle, borderTop: "1px solid #f1f5f9" }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <Text strong style={{ display: "block", fontSize: 13, marginBottom: 2 }}>
+              <ApartmentOutlined style={{ color: C.primary, marginRight: 6 }} />
+              Department logos
+            </Text>
+            <Text type="secondary" style={{ fontSize: 12, display: "block", maxWidth: 560 }}>
+              When on, each department can upload its own logo in Staff Management → Departments.
+              A department's logo replaces the business logo on its payroll and payslip PDFs.
+            </Text>
+          </div>
+          <Switch checked={departmentLogosEnabled} loading={savingLogo} disabled={!showLogo} onChange={(v) => saveLogoSetting({ department_logos_enabled: v })} />
         </div>
       </ProCard>
 

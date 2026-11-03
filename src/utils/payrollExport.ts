@@ -5,6 +5,7 @@ import { message } from 'antd';
 import { fetchSystemSetupDetailsById } from '@services/systemsetup';
 import { exportFileName } from './payslipExport';
 import { getExportTheme, argb, xlsxFill, type ExportTheme } from './exportTemplates';
+import { loadExportLogos, drawExportLogo, departmentIdOf, type ExportLogo } from './exportLogo';
 
 /**
  * Payroll "Muster Roll" export — Excel + PDF.
@@ -491,7 +492,8 @@ const renderPayrollPage = (
   theme: ExportTheme,
   lines: any[],
   withDepartment: boolean,
-  rounded = false
+  rounded = false,
+  logo: ExportLogo | null = null
 ) => {
   const { headers, bodyText, totalsText, summary } = buildMusterRoll(lines, withDepartment, rounded);
   const fmtV = (v: any) =>
@@ -499,23 +501,41 @@ const renderPayrollPage = (
   const margin = 24;
   const pageWidth = doc.internal.pageSize.getWidth();
 
-  // ── Header: coloured band (Branded) or plain title over a rule ──
+  // ── Header: logo centred on top (department → tenant → none), then the
+  // title and period. The header grows to make room when there's a logo.
+  const LOGO_H = 64;
+  const logoTop = 12;
+  const titleY = logo ? logoTop + LOGO_H + 20 : 22;
+  const headerH = logo ? titleY + 28 : 52;
+
+  // Coloured band (Branded) or plain title over a rule
   if (theme.headerBand) {
     doc.setFillColor(...theme.title);
-    doc.rect(0, 0, pageWidth, 52, 'F');
+    doc.rect(0, 0, pageWidth, headerH, 'F');
     doc.setTextColor(255, 255, 255);
   } else {
     doc.setDrawColor(...theme.rule);
     doc.setLineWidth(1);
-    doc.line(margin, 50, pageWidth - margin, 50);
+    doc.line(margin, headerH - 2, pageWidth - margin, headerH - 2);
     doc.setTextColor(...theme.title);
+  }
+  if (logo) {
+    const box = { x: pageWidth / 2 - 110, y: logoTop, maxWidth: 220, maxHeight: LOGO_H, align: 'center' as const };
+    // On the coloured band the logo sits on a white card so dark logos stay visible
+    if (theme.headerBand) {
+      const scale = Math.min(box.maxWidth / logo.width, box.maxHeight / logo.height);
+      const w = logo.width * scale;
+      doc.setFillColor(255, 255, 255);
+      doc.roundedRect(pageWidth / 2 - w / 2 - 10, logoTop - 6, w + 20, LOGO_H + 12, 6, 6, 'F');
+    }
+    drawExportLogo(doc, logo, box);
   }
   doc.setFontSize(15);
   doc.setFont('helvetica', 'bold');
-  doc.text(company.toUpperCase(), pageWidth / 2, 22, { align: 'center' });
+  doc.text(company.toUpperCase(), pageWidth / 2, titleY, { align: 'center' });
   doc.setFontSize(10);
   if (!theme.headerBand) doc.setTextColor(100, 116, 139);
-  doc.text(`MUSTER ROLL — ${payroll.period_label || ''}`, pageWidth / 2, 37, { align: 'center' });
+  doc.text(`MUSTER ROLL — ${payroll.period_label || ''}`, pageWidth / 2, titleY + 15, { align: 'center' });
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
 
@@ -539,7 +559,7 @@ const renderPayrollPage = (
 
   // ── Main table with grouped section headers ──
   autoTable(doc, {
-    startY: 62,
+    startY: headerH + 10,
     head: [
       [
         { content: 'Employee Name', rowSpan: 2 },
@@ -647,7 +667,9 @@ export const exportPayrollToPDF = async (payroll: any, opts: { rounded?: boolean
   // column readable and lets the viewer scroll sideways if needed
   const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a3' });
   const theme = getExportTheme();
-  renderPayrollPage(doc, payroll, company, theme, payroll.lines || [], false, !!opts.rounded);
+  const deptId = departmentIdOf(payroll);
+  const logo = (await loadExportLogos([deptId])).forDepartment(deptId);
+  renderPayrollPage(doc, payroll, company, theme, payroll.lines || [], false, !!opts.rounded, logo);
   addPageFooters(doc, theme);
   doc.save(`${musterRollFileName(client, [payroll])}.pdf`);
 };
@@ -668,12 +690,17 @@ export const exportPayrollsToPDF = async (payrolls: any[], opts: { rounded?: boo
   const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a3' });
   const theme = getExportTheme();
   const lines = merged ? mergedLines(payrolls) : payrolls[0].lines || [];
+  // One document → one logo: the department's when every payroll shares it,
+  // otherwise the tenant logo
+  const deptIds = [...new Set(payrolls.map(departmentIdOf))];
+  const sharedDeptId = deptIds.length === 1 ? deptIds[0] : undefined;
+  const logo = (await loadExportLogos([sharedDeptId])).forDepartment(sharedDeptId);
 
   try {
     const display = merged
       ? { ...payrolls[0], payroll_id: `${payrolls.length} payrolls`, department_id: null }
       : payrolls[0];
-    renderPayrollPage(doc, display, company, theme, lines, merged, !!opts.rounded);
+    renderPayrollPage(doc, display, company, theme, lines, merged, !!opts.rounded, logo);
   } catch (err) {
     console.error('Failed to render muster roll page:', err);
     message.error('Export failed — could not render payrolls');
