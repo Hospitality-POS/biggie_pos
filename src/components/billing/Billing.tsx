@@ -346,11 +346,8 @@ const BillingDashboard: React.FC = () => {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <Title level={3} style={{ margin: 0, color: C.darkText, fontWeight: 700 }}>
-                Billing & Subscriptions
+                Billing &amp; Subscriptions
               </Title>
-              <Tag color="blue" style={{ borderRadius: 10, fontWeight: 600 }}>
-                {tenant?.tenant_code || 'BASE'}
-              </Tag>
             </div>
             <Text style={{ fontSize: 13, color: C.subText }}>
               Manage your BasePoint ecosystem subscriptions, plans, and business licenses
