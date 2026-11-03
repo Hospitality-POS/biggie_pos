@@ -30,6 +30,7 @@ import {
   Grid,
   Segmented,
   AutoComplete,
+  Checkbox,
 } from "antd";
 import {
   DollarOutlined,
@@ -224,8 +225,9 @@ const PayrollManagement: React.FC = () => {
   const [lineAllowanceItems, setLineAllowanceItems] = useState<
     Array<{ key: number; name: string; amount: number; basis?: number }>
   >([]);
+  // deductible: false → paid in full, kept out of PAYE/SHIF/Housing Levy (e.g. commission)
   const [lineBenefitItems, setLineBenefitItems] = useState<
-    Array<{ key: number; name: string; amount: number; basis?: number }>
+    Array<{ key: number; name: string; amount: number; basis?: number; deductible?: boolean }>
   >([]);
   // Pension/insurance override — this run only, layered on the employee's
   // own record (mirrors the Pension & Insurance step on the employee form)
@@ -394,9 +396,13 @@ const PayrollManagement: React.FC = () => {
   // ── Per-employee "Results" breakdown (KRA payslip sequence) ──
   const renderLineResults = (line: any, periodLabel?: string) => {
     const d = line.deductions || {};
+    // Non-deductible benefits (e.g. commission) sit in gross but outside the
+    // statutory base — shown separately and added back before net pay
+    const untaxed = line.untaxed_benefits || 0;
+    const taxedGross = (line.gross_salary || 0) - untaxed;
     const taxable =
       d.taxable_pay ??
-      Math.max(0, (line.gross_salary || 0) - (d.nssf || 0) - (d.nhif || 0) - (d.housing_levy || 0));
+      Math.max(0, taxedGross - (d.nssf || 0) - (d.nhif || 0) - (d.housing_levy || 0));
     const incomeTax = d.income_tax ?? 0;
     const relief = d.personal_relief ?? 0;
     const insuranceRelief = d.insurance_relief ?? 0;
@@ -426,7 +432,7 @@ const PayrollManagement: React.FC = () => {
             Secondary Employee — PAYE at flat rate, no reliefs
           </Tag>
         )}
-        <Row label="Basic Pay" value={line.gross_salary} />
+        <Row label="Basic Pay" value={taxedGross} />
         <Row label="NSSF" value={-(d.nssf || 0)} color="#64748b" />
         <Row label="S.H.I.F." value={-(d.nhif || 0)} color="#64748b" />
         <Row label="Housing Levy" value={-(d.housing_levy || 0)} color="#64748b" />
@@ -439,6 +445,7 @@ const PayrollManagement: React.FC = () => {
         <Row label="Pay After Tax" value={payAfterTax} strong />
         {wht > 0 && <Row label="Withholding Tax" value={-wht} color="#64748b" />}
         {customTotal > 0 && <Row label="Other Deductions" value={-customTotal} color="#64748b" />}
+        {untaxed > 0 && <Row label="Non-deductible Benefits" value={untaxed} color="#10b981" />}
         <Row label="Net Pay" value={line.net_pay} strong color="#10b981" />
       </div>
     );
@@ -1454,12 +1461,15 @@ const PayrollManagement: React.FC = () => {
 
     // Row editor shared by Allowances and Benefits — pick a predefined type
     // (prefills its amount) or type a custom name; rows sum into the line total
+    // withDeductible adds a per-row "Deductible" flag (Benefits only)
+    type ItemRow = { key: number; name: string; amount: number; basis?: number; deductible?: boolean };
     const itemsEditor = (
       title: string,
       hint: string,
-      items: Array<{ key: number; name: string; amount: number; basis?: number }>,
-      setItems: (v: Array<{ key: number; name: string; amount: number; basis?: number }>) => void,
-      options: Array<{ value: string; amount: number; type?: BenefitTypeDefault }>
+      items: ItemRow[],
+      setItems: (v: ItemRow[]) => void,
+      options: Array<{ value: string; amount: number; type?: BenefitTypeDefault }>,
+      withDeductible = false
     ) => (
       <>
         <Divider style={{ margin: "8px 0 12px" }}>
@@ -1471,8 +1481,8 @@ const PayrollManagement: React.FC = () => {
           const optType = options.find((o) => o.value === it.name)?.type;
           const isComputed = !!optType && optType.mode !== "fixed";
           return (
-          <Row key={it.key} gutter={8} style={{ marginBottom: 8 }}>
-            <Col span={isComputed ? 8 : 14}>
+          <Row key={it.key} gutter={8} align="middle" style={{ marginBottom: 8 }}>
+            <Col span={(isComputed ? 8 : 14) - (withDeductible ? (isComputed ? 2 : 4) : 0)}>
               <AutoComplete
                 style={{ width: "100%" }}
                 allowClear
@@ -1517,7 +1527,7 @@ const PayrollManagement: React.FC = () => {
               />
             </Col>
             {isComputed && optType && (
-              <Col span={7}>
+              <Col span={withDeductible ? 6 : 7}>
                 <InputNumber
                   min={0}
                   placeholder={optType.mode === "percent_of_value" ? "Asset value" : "Monthly rent"}
@@ -1540,7 +1550,7 @@ const PayrollManagement: React.FC = () => {
                 />
               </Col>
             )}
-            <Col span={isComputed ? 7 : 8}>
+            <Col span={isComputed ? (withDeductible ? 6 : 7) : 8}>
               <InputNumber
                 min={0}
                 placeholder="Amount"
@@ -1553,6 +1563,20 @@ const PayrollManagement: React.FC = () => {
                 }
               />
             </Col>
+            {withDeductible && (
+              <Col span={4}>
+                <Tooltip title="Ticked: taxed with the rest of gross pay (PAYE, SHIF, Housing Levy). Unticked: paid in full — no deductions on it (e.g. commission)">
+                  <Checkbox
+                    checked={!!it.deductible}
+                    onChange={(e) =>
+                      setItems(items.map((d) => (d.key === it.key ? { ...d, deductible: e.target.checked } : d)))
+                    }
+                  >
+                    Deductible
+                  </Checkbox>
+                </Tooltip>
+              </Col>
+            )}
             <Col span={2}>
               <Button
                 type="text"
@@ -1695,7 +1719,8 @@ const PayrollManagement: React.FC = () => {
           "pick predefined types — multiple allowed",
           lineBenefitItems,
           setLineBenefitItems,
-          itemOptions("benefit")
+          itemOptions("benefit"),
+          true
         )}
 
         <Divider style={{ margin: "8px 0 12px" }}>
@@ -1799,12 +1824,14 @@ const PayrollManagement: React.FC = () => {
       name: it.name || it.allowance_type || it.benefit_type || "",
       amount: Number(it[amountField]) || 0,
       basis: it.basis ?? it.basis_value,
+      // Items saved before the flag existed were taxed — keep them deductible
+      deductible: it.deductible !== false,
     }));
     const sum = rows.reduce((s, it) => s + it.amount, 0);
     // Stored total larger than the named items — keep the leftover as a
     // generic "Other" row so the amount is editable instead of dropped
     const residual = Math.round(((storedTotal || 0) - sum) * 100) / 100;
-    if (residual > 0) rows.push({ key: rows.length, name: "Other", amount: residual, basis: undefined });
+    if (residual > 0) rows.push({ key: rows.length, name: "Other", amount: residual, basis: undefined, deductible: true });
     return rows;
   };
 
@@ -1856,7 +1883,7 @@ const PayrollManagement: React.FC = () => {
               .map(({ name, amount }) => ({ name, amount })),
             benefit_items: lineBenefitItems
               .filter((d) => d.name && d.amount > 0)
-              .map(({ name, amount }) => ({ name, value: amount })),
+              .map(({ name, amount, deductible }) => ({ name, value: amount, deductible: !!deductible })),
             overtime_hours: values.overtime_hours,
             overtime_pay: values.overtime_pay,
             custom_deductions: lineCustomDeductions
@@ -1934,7 +1961,7 @@ const PayrollManagement: React.FC = () => {
             .map(({ name, amount }) => ({ name, amount })),
           benefit_items: lineBenefitItems
             .filter((d) => d.name && d.amount > 0)
-            .map(({ name, amount }) => ({ name, value: amount })),
+            .map(({ name, amount, deductible }) => ({ name, value: amount, deductible: !!deductible })),
           overtime_hours: values.overtime_hours,
           overtime_pay: values.overtime_pay,
           custom_deductions: lineCustomDeductions
