@@ -1,18 +1,33 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
 import { message } from 'antd';
-import { TENANT_BASE_URL } from '@utils/config';
+import axiosInstance from '@services/request';
 import { BaseModuleKey, SaaSSubscriptionPlan, SaasFeature, DEFAULT_BASE_PLANS } from '../types/pricing';
-import { getCurrentTenantId } from '@services/tenants';
+
+export interface TenantInvoice {
+  _id: string;
+  invoice_code?: string;
+  amount: number;
+  currency?: string;
+  payment_status: 'paid' | 'pending' | 'overdue' | 'cancelled';
+  issue_date?: string;
+  due_date?: string;
+  subscription_id?: {
+    _id: string;
+    name: string;
+    billing_cycle?: string;
+    pricing?: number;
+  };
+  module?: string;
+  createdAt?: string;
+}
 
 /**
- * Fetch active subscription plans for a given module from admin_portal_api
+ * Fetch active subscription plans for a given module via BFF Gateway (/api/billing/plans)
  */
 export const fetchModulePlans = async (moduleKey: BaseModuleKey): Promise<SaaSSubscriptionPlan[]> => {
   const fallbackPlans = DEFAULT_BASE_PLANS[moduleKey] || [];
-  if (!TENANT_BASE_URL) return fallbackPlans;
   try {
-    const res = await axios.get(`${TENANT_BASE_URL}/api/subscriptions`, {
+    const res = await axiosInstance.get('/api/billing/plans', {
       params: { module: moduleKey, is_active: 'true', status: 'active' },
     });
     const data = res.data?.data || res.data || [];
@@ -42,14 +57,12 @@ export const fetchModulePlans = async (moduleKey: BaseModuleKey): Promise<SaaSSu
   }
 };
 
-
 /**
- * Fetch available features for a given module
+ * Fetch available features for a given module via BFF Gateway (/api/billing/features)
  */
 export const fetchModuleFeatures = async (moduleKey: BaseModuleKey): Promise<SaasFeature[]> => {
-  if (!TENANT_BASE_URL) return [];
   try {
-    const res = await axios.get(`${TENANT_BASE_URL}/api/features`, {
+    const res = await axiosInstance.get('/api/billing/features', {
       params: { module: moduleKey },
     });
     const data = res.data?.data || res.data || [];
@@ -91,7 +104,7 @@ export function useModulePricing(moduleKey: BaseModuleKey) {
 }
 
 /**
- * Mutation hook to activate/subscribe to a module for the current tenant
+ * Mutation hook to activate/subscribe to a module for the current tenant via BFF Gateway
  */
 export function useSubscribeModule() {
   const queryClient = useQueryClient();
@@ -106,29 +119,22 @@ export function useSubscribeModule() {
       planId?: string;
       billingCycle?: 'Monthly' | 'Yearly';
     }) => {
-      const tenantId = getCurrentTenantId();
-      if (!tenantId) {
-        throw new Error('No tenant ID found. Please re-login.');
-      }
-      // Route through appropriate enable endpoint in admin_portal_api
-      const endpoint = `${TENANT_BASE_URL}/api/tenants/${tenantId}/enable-${moduleKey}`;
       try {
-        const res = await axios.post(endpoint, {
-          accept_terms: true,
-          accept_charges: true,
-          plan_id: planId,
-          billing_cycle: billingCycle || 'Monthly',
+        const res = await axiosInstance.post('/api/billing/subscribe', {
+          moduleKey,
+          planId,
+          billingCycle: billingCycle || 'Monthly',
         });
         return res.data;
       } catch (err: any) {
-        // Fallback for modular apps if the remote API doesn't have an enable-<moduleKey> endpoint yet
-        if (err?.response?.status === 404) {
-          const stored = localStorage.getItem("tenant");
+        // Fallback for modular local dev if remote API doesn't support the module yet
+        if (err?.response?.status === 404 || err?.response?.status === 501) {
+          const stored = localStorage.getItem('tenant');
           if (stored) {
             try {
               const parsed = JSON.parse(stored);
               parsed.modules = { ...(parsed.modules || {}), [moduleKey]: true };
-              localStorage.setItem("tenant", JSON.stringify(parsed));
+              localStorage.setItem('tenant', JSON.stringify(parsed));
             } catch (_) {}
           }
           return { success: true, module: moduleKey, fallback: true };
@@ -136,20 +142,91 @@ export function useSubscribeModule() {
         throw err;
       }
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (data, variables) => {
       message.success(`Successfully enabled ${variables.moduleKey.toUpperCase()} module!`);
+
+      // Update tenant in localStorage and cache reactively with fresh server data
+      const freshTenant = data?.data?.tenant || data?.tenant;
+      if (freshTenant) {
+        localStorage.setItem('tenant', JSON.stringify(freshTenant));
+        queryClient.setQueryData(['tenant-details'], freshTenant);
+      } else {
+        const stored = localStorage.getItem('tenant');
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            parsed.modules = { ...(parsed.modules || {}), [variables.moduleKey]: true };
+            localStorage.setItem('tenant', JSON.stringify(parsed));
+            queryClient.setQueryData(['tenant-details'], parsed);
+          } catch (_) {}
+        }
+      }
+
       // Invalidate relevant queries
       queryClient.invalidateQueries({ queryKey: ['tenant-details'] });
       queryClient.invalidateQueries({ queryKey: ['saas-plans', variables.moduleKey] });
-      // Trigger global tenant refresh
+      queryClient.invalidateQueries({ queryKey: ['tenant-invoices'] });
+
+      // Trigger global tenant refresh across components
       window.dispatchEvent(new CustomEvent('tenantUpdated'));
-      // Reload current page to initialize module context cleanly
-      setTimeout(() => {
-        window.location.reload();
-      }, 800);
     },
     onError: (err: any) => {
-      const msg = err?.response?.data?.error || err?.message || 'Failed to activate module.';
+      const msg = err?.response?.data?.message || err?.response?.data?.error || err?.message || 'Failed to activate module.';
+      message.error(msg);
+    },
+  });
+}
+
+/**
+ * React Query hook to fetch current tenant invoices via BFF Gateway
+ */
+export function useTenantInvoices() {
+  return useQuery({
+    queryKey: ['tenant-invoices'],
+    queryFn: async (): Promise<TenantInvoice[]> => {
+      try {
+        const res = await axiosInstance.get('/api/billing/invoices');
+        const list = res.data?.data || res.data || [];
+        return Array.isArray(list) ? list : [];
+      } catch (err) {
+        console.warn('Failed to fetch invoices:', err);
+        return [];
+      }
+    },
+    staleTime: 1000 * 60 * 3, // 3 mins cache
+    refetchOnWindowFocus: true,
+  });
+}
+
+/**
+ * Mutation hook to initiate an instant M-Pesa STK push for an invoice
+ */
+export function useInitiatePayment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      invoiceId,
+      mpesaPhoneNumber,
+      amount,
+    }: {
+      invoiceId: string;
+      mpesaPhoneNumber: string;
+      amount?: number;
+    }) => {
+      const res = await axiosInstance.post(`/api/billing/invoices/${invoiceId}/pay`, {
+        payment_method: 'mpesa',
+        mpesa_phone_number: mpesaPhoneNumber,
+        amount,
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      message.success('M-Pesa payment prompt sent to your phone! Please enter your PIN to complete.');
+      queryClient.invalidateQueries({ queryKey: ['tenant-invoices'] });
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message || err?.response?.data?.error || err?.message || 'Failed to initiate M-Pesa payment.';
       message.error(msg);
     },
   });

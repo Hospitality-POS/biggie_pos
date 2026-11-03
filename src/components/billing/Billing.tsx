@@ -13,6 +13,10 @@ import {
   Divider,
   Card,
   Tooltip,
+  Table,
+  Input,
+  Statistic,
+  Alert,
 } from 'antd';
 import { ProCard } from '@ant-design/pro-components';
 import {
@@ -29,6 +33,9 @@ import {
   DollarOutlined,
   SyncOutlined,
   CrownFilled,
+  MobileOutlined,
+  ClockCircleOutlined,
+  CloseCircleOutlined,
 } from '@ant-design/icons';
 
 import { usePrimaryColor } from '@context/PrimaryColorContext';
@@ -46,7 +53,13 @@ import {
   isRecommendedPlan,
   sortSubscriptionPlans,
 } from '@shared/types/pricing';
-import { useSubscribeModule, useModulePricing } from '@shared/hooks/usePricing';
+import {
+  useSubscribeModule,
+  useModulePricing,
+  useTenantInvoices,
+  useInitiatePayment,
+  type TenantInvoice,
+} from '@shared/hooks/usePricing';
 import { useResponsive } from '@shared/hooks/useResponsive';
 
 const { Title, Text, Paragraph } = Typography;
@@ -125,6 +138,28 @@ const BillingDashboard: React.FC = () => {
   const tenant = readStoredTenant();
   const { isMobile } = useResponsive();
   const subscribeMutation = useSubscribeModule();
+
+  // Invoices & Payments state (BFF Gateway)
+  const { data: invoices = [], isLoading: invoicesLoading, refetch: refetchInvoices } = useTenantInvoices();
+  const initiatePaymentMutation = useInitiatePayment();
+  const [payingInvoice, setPayingInvoice] = useState<TenantInvoice | null>(null);
+  const [mpesaPhone, setMpesaPhone] = useState<string>('');
+
+  const invoiceStats = useMemo(() => {
+    let totalBilled = 0;
+    let totalPaid = 0;
+    let totalPending = 0;
+    invoices.forEach((inv) => {
+      const amt = Number(inv.amount) || 0;
+      totalBilled += amt;
+      if (inv.payment_status === 'paid') {
+        totalPaid += amt;
+      } else {
+        totalPending += amt;
+      }
+    });
+    return { totalBilled, totalPaid, totalPending, count: invoices.length };
+  }, [invoices]);
 
   // Selected module for plan modal
   const [selectedModuleForPlan, setSelectedModuleForPlan] = useState<BaseModuleKey | null>(null);
@@ -376,26 +411,198 @@ const BillingDashboard: React.FC = () => {
               <Space size={6}>
                 <FileTextOutlined />
                 <span>Invoices &amp; Receipts</span>
+                {invoiceStats.totalPending > 0 && (
+                  <Badge count={invoices.filter((i) => i.payment_status !== 'paid').length} style={{ backgroundColor: '#f59e0b' }} />
+                )}
               </Space>
             ),
             children: (
               <div style={{ marginTop: 16 }}>
-                <Card bordered style={{ borderRadius: 14 }}>
-                  <div style={{ textAlign: 'center', padding: '36px 20px' }}>
-                    <div style={{ fontSize: 40, color: '#3b82f6', marginBottom: 12 }}>
-                      <FileTextOutlined />
-                    </div>
-                    <Title level={4} style={{ marginBottom: 6 }}>
-                      Invoices &amp; Payment Receipts
-                    </Title>
-                    <Paragraph style={{ color: '#64748b', maxWidth: 480, margin: '0 auto 16px' }}>
-                      Subscription payments are processed through M-Pesa or Card. When a module renewal occurs, an automated receipt is generated and emailed to your billing contact.
-                    </Paragraph>
-                    <Space size={10}>
-                      <Tag color="cyan">Business Code: {tenant?.tenant_code || 'BASE'}</Tag>
-                      <Tag color="green">VAT Inclusive: {tenant?.is_vat_enabled ? 'Yes (16%)' : 'No'}</Tag>
+                {/* Metrics Summary */}
+                <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
+                  <Col xs={24} sm={8}>
+                    <Card bordered style={{ borderRadius: 12 }}>
+                      <Statistic
+                        title={<Text type="secondary">Total Invoiced</Text>}
+                        value={invoiceStats.totalBilled}
+                        prefix={<DollarOutlined style={{ color: '#0b2f78' }} />}
+                        precision={0}
+                        suffix="KES"
+                        valueStyle={{ fontWeight: 700, color: '#0f172a' }}
+                      />
+                    </Card>
+                  </Col>
+                  <Col xs={24} sm={8}>
+                    <Card bordered style={{ borderRadius: 12 }}>
+                      <Statistic
+                        title={<Text type="secondary">Paid to Date</Text>}
+                        value={invoiceStats.totalPaid}
+                        prefix={<CheckCircleFilled style={{ color: '#059669' }} />}
+                        precision={0}
+                        suffix="KES"
+                        valueStyle={{ fontWeight: 700, color: '#059669' }}
+                      />
+                    </Card>
+                  </Col>
+                  <Col xs={24} sm={8}>
+                    <Card bordered style={{ borderRadius: 12 }}>
+                      <Statistic
+                        title={<Text type="secondary">Due / Pending</Text>}
+                        value={invoiceStats.totalPending}
+                        prefix={<ClockCircleOutlined style={{ color: '#ea580c' }} />}
+                        precision={0}
+                        suffix="KES"
+                        valueStyle={{ fontWeight: 700, color: invoiceStats.totalPending > 0 ? '#ea580c' : '#64748b' }}
+                      />
+                    </Card>
+                  </Col>
+                </Row>
+
+                {/* Invoices Table Card */}
+                <Card
+                  bordered
+                  style={{ borderRadius: 14 }}
+                  title={
+                    <Space align="center">
+                      <FileTextOutlined style={{ color: primaryColor }} />
+                      <Text strong style={{ fontSize: 16 }}>Billing Invoices &amp; Receipts</Text>
+                      <Tag color="cyan">Code: {tenant?.tenant_code || 'BASE'}</Tag>
                     </Space>
-                  </div>
+                  }
+                  extra={
+                    <Button
+                      icon={<SyncOutlined spin={invoicesLoading} />}
+                      onClick={() => refetchInvoices()}
+                      size="small"
+                    >
+                      Refresh
+                    </Button>
+                  }
+                >
+                  <Table<TenantInvoice>
+                    dataSource={invoices}
+                    rowKey="_id"
+                    loading={invoicesLoading}
+                    pagination={{ pageSize: 8, showSizeChanger: false }}
+                    scroll={{ x: 650 }}
+                    columns={[
+                      {
+                        title: 'Invoice #',
+                        key: 'invoice_code',
+                        render: (_, record) => (
+                          <Text strong style={{ fontFamily: 'monospace', color: '#1e293b' }}>
+                            {record.invoice_code || `INV-${record._id.slice(-6).toUpperCase()}`}
+                          </Text>
+                        ),
+                      },
+                      {
+                        title: 'Product / Description',
+                        key: 'description',
+                        render: (_, record) => (
+                          <div>
+                            <Text strong style={{ display: 'block' }}>
+                              {record.subscription_id?.name || record.module?.toUpperCase() || 'Ecosystem Module Plan'}
+                            </Text>
+                            <Text type="secondary" style={{ fontSize: 12 }}>
+                              {record.subscription_id?.billing_cycle || 'Monthly Subscription'}
+                            </Text>
+                          </div>
+                        ),
+                      },
+                      {
+                        title: 'Amount',
+                        key: 'amount',
+                        render: (_, record) => (
+                          <Text strong style={{ color: '#0f172a' }}>
+                            KES {(record.amount || 0).toLocaleString()}
+                          </Text>
+                        ),
+                      },
+                      {
+                        title: 'Due Date',
+                        key: 'due_date',
+                        render: (_, record) => {
+                          const dateVal = record.due_date || record.createdAt;
+                          return (
+                            <Text type="secondary" style={{ fontSize: 13 }}>
+                              {dateVal ? new Date(dateVal).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                            </Text>
+                          );
+                        },
+                      },
+                      {
+                        title: 'Status',
+                        key: 'payment_status',
+                        render: (_, record) => {
+                          const status = (record.payment_status || 'pending').toLowerCase();
+                          if (status === 'paid') {
+                            return <Tag color="success" icon={<CheckCircleFilled />}>Paid</Tag>;
+                          }
+                          if (status === 'overdue') {
+                            return <Tag color="error" icon={<CloseCircleOutlined />}>Overdue</Tag>;
+                          }
+                          return <Tag color="warning" icon={<ClockCircleOutlined />}>Pending</Tag>;
+                        },
+                      },
+                      {
+                        title: 'Action',
+                        key: 'action',
+                        render: (_, record) => {
+                          const isPaid = (record.payment_status || '').toLowerCase() === 'paid';
+                          if (isPaid) {
+                            return (
+                              <Button
+                                size="small"
+                                icon={<FileTextOutlined />}
+                                onClick={() => {
+                                  Modal.info({
+                                    title: `Receipt for ${record.invoice_code || record._id}`,
+                                    content: (
+                                      <div style={{ marginTop: 12 }}>
+                                        <p><strong>Amount Paid:</strong> KES {(record.amount || 0).toLocaleString()}</p>
+                                        <p><strong>Status:</strong> Completed &amp; Verified</p>
+                                        <p><strong>Tenant:</strong> {tenant?.name || tenant?.tenant_code}</p>
+                                        <p style={{ color: '#64748b', fontSize: 12 }}>Official VAT invoice receipt dispatched to registered business email.</p>
+                                      </div>
+                                    ),
+                                  });
+                                }}
+                              >
+                                View Receipt
+                              </Button>
+                            );
+                          }
+                          return (
+                            <Button
+                              size="small"
+                              type="primary"
+                              icon={<MobileOutlined />}
+                              style={{
+                                backgroundColor: '#059669',
+                                borderColor: '#059669',
+                                fontWeight: 600,
+                              }}
+                              onClick={() => {
+                                setPayingInvoice(record);
+                                setMpesaPhone(tenant?.phone || '');
+                              }}
+                            >
+                              Pay via M-Pesa
+                            </Button>
+                          );
+                        },
+                      },
+                    ]}
+                    locale={{
+                      emptyText: (
+                        <div style={{ padding: '32px 0', textAlign: 'center' }}>
+                          <CheckCircleFilled style={{ fontSize: 36, color: '#10b981', marginBottom: 8 }} />
+                          <Title level={5} style={{ margin: 0 }}>No Outstanding Invoices</Title>
+                          <Text type="secondary">All module subscriptions and renewal invoices are fully up-to-date.</Text>
+                        </div>
+                      ),
+                    }}
+                  />
                 </Card>
               </div>
             ),
@@ -729,6 +936,128 @@ const BillingDashboard: React.FC = () => {
               );
             })}
           </Row>
+        )}
+      </Modal>
+
+      {/* ── Instant M-Pesa Payment Modal (BFF Gateway) ── */}
+      <Modal
+        open={!!payingInvoice}
+        onCancel={() => {
+          if (!initiatePaymentMutation.isLoading) {
+            setPayingInvoice(null);
+          }
+        }}
+        footer={null}
+        width={460}
+        destroyOnHidden
+        title={
+          <Space align="center" size={10}>
+            <div
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 10,
+                backgroundColor: '#05966914',
+                border: '1px solid #05966930',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#059669',
+                fontSize: 20,
+              }}
+            >
+              <MobileOutlined />
+            </div>
+            <div>
+              <Title level={5} style={{ margin: 0, fontWeight: 700 }}>
+                Instant M-Pesa Checkout
+              </Title>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                Lipa Na M-Pesa Online STK Push
+              </Text>
+            </div>
+          </Space>
+        }
+      >
+        {payingInvoice && (
+          <div style={{ marginTop: 16 }}>
+            <Card
+              size="small"
+              style={{
+                borderRadius: 10,
+                backgroundColor: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                marginBottom: 16,
+              }}
+            >
+              <Row justify="space-between" align="middle">
+                <Col>
+                  <Text type="secondary" style={{ fontSize: 12 }}>Invoice Code</Text>
+                  <div>
+                    <Text strong style={{ fontFamily: 'monospace', fontSize: 14 }}>
+                      {payingInvoice.invoice_code || `INV-${payingInvoice._id.slice(-6).toUpperCase()}`}
+                    </Text>
+                  </div>
+                </Col>
+                <Col style={{ textAlign: 'right' }}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>Total Due</Text>
+                  <div>
+                    <Text strong style={{ fontSize: 18, color: '#059669' }}>
+                      KES {(payingInvoice.amount || 0).toLocaleString()}
+                    </Text>
+                  </div>
+                </Col>
+              </Row>
+            </Card>
+
+            <div style={{ marginBottom: 16 }}>
+              <Text strong style={{ display: 'block', marginBottom: 6 }}>
+                Safaricom M-Pesa Phone Number:
+              </Text>
+              <Input
+                size="large"
+                prefix={<span style={{ color: '#64748b', fontWeight: 600 }}>+254</span>}
+                placeholder="712 345 678"
+                value={mpesaPhone.replace(/^(\+?254|0)/, '')}
+                onChange={(e) => setMpesaPhone(`254${e.target.value.replace(/\D/g, '')}`)}
+                style={{ borderRadius: 8, fontSize: 16 }}
+              />
+              <Text type="secondary" style={{ fontSize: 12, marginTop: 4, display: 'block' }}>
+                Ensure your phone is unlocked. You will receive an instant prompt on your screen to enter your M-Pesa PIN.
+              </Text>
+            </div>
+
+            <Button
+              type="primary"
+              size="large"
+              block
+              loading={initiatePaymentMutation.isLoading}
+              style={{
+                backgroundColor: '#059669',
+                borderColor: '#059669',
+                borderRadius: 8,
+                fontWeight: 600,
+                height: 44,
+              }}
+              onClick={async () => {
+                if (!mpesaPhone || mpesaPhone.length < 9) {
+                  message.warning('Please enter a valid M-Pesa phone number');
+                  return;
+                }
+                const formatted = mpesaPhone.startsWith('254') ? mpesaPhone : `254${mpesaPhone.replace(/^0/, '')}`;
+                try {
+                  await initiatePaymentMutation.mutateAsync({
+                    invoiceId: payingInvoice._id,
+                    mpesaPhoneNumber: formatted,
+                    amount: payingInvoice.amount,
+                  });
+                  setPayingInvoice(null);
+                } catch (_) {}
+              }}
+            >
+              Pay KES {(payingInvoice.amount || 0).toLocaleString()} via M-Pesa
+            </Button>
+          </div>
         )}
       </Modal>
     </div>

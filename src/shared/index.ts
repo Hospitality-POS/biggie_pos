@@ -6,8 +6,11 @@ export { useModuleLicense } from './licensing/useModuleLicense';
 export {
   useModulePricing,
   useSubscribeModule,
+  useTenantInvoices,
+  useInitiatePayment,
   fetchModulePlans,
   fetchModuleFeatures,
+  type TenantInvoice,
 } from './hooks/usePricing';
 
 // Responsive Grid Hook
