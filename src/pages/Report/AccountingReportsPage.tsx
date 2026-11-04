@@ -22,6 +22,9 @@ import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { sendEmail } from "@services/emailReports";
 import { getAllAccounts, ChartOfAccount } from "@services/accounting/accounts";
 import AccountLedgerDrawer from "../ChartOfAccounts/AccountLedgerDrawer";
+import ProjectSelect from "@components/accounting/ProjectSelect";
+import ProjectsReport from "./ProjectsReport";
+import { getProjectsReport } from "@services/accounting/projects";
 import {
     PeriodFilter, AsOfFilter, GLPeriodFilter,
     ComparativePeriod, ComparativeAsOf, GLPeriodValue, suggestComparePeriod,
@@ -39,10 +42,11 @@ const { Text } = Typography;
 type ReportTab =
     | "profit-loss" | "balance-sheet" | "trial-balance" | "general-ledger"
     | "account-balances" | "vat" | "cash-flow" | "customer-statement"
-    | "supplier-statement" | "ar-aging" | "ap-aging" | "catering-levy";
+    | "supplier-statement" | "ar-aging" | "ap-aging" | "catering-levy" | "projects";
 
 const TAB_ITEMS = [
     { key: "profit-loss", label: "P&L" },
+    { key: "projects", label: "Projects" },
     { key: "balance-sheet", label: "Balance Sheet" },
     { key: "trial-balance", label: "Trial Balance" },
     { key: "general-ledger", label: "General Ledger" },
@@ -208,6 +212,7 @@ const AccountingReportsPage: React.FC = () => {
     const [tbPeriod, setTbPeriod] = useState<ComparativePeriod>(makeDefaultPeriod());
     const [vatPeriod, setVatPeriod] = useState<ComparativePeriod>(makeDefaultPeriod());
     const [levyPeriod, setLevyPeriod] = useState<ComparativePeriod>(makeDefaultPeriod());
+    const [projPeriod, setProjPeriod] = useState<ComparativePeriod>(makeDefaultPeriod());
     const [cfPeriod, setCfPeriod] = useState<ComparativePeriod>(makeDefaultPeriod());
     const [custPeriod, setCustPeriod] = useState<ComparativePeriod>(makeDefaultPeriod());
     const [suppPeriod, setSuppPeriod] = useState<ComparativePeriod>(makeDefaultPeriod());
@@ -275,8 +280,11 @@ const AccountingReportsPage: React.FC = () => {
     const [runKey, setRunKey] = useState<Record<ReportTab, number>>({
         "profit-loss": 0, "balance-sheet": 0, "trial-balance": 0,
         "general-ledger": 0, "account-balances": 0, "vat": 0, "cash-flow": 0,
-        "customer-statement": 0, "supplier-statement": 0, "ar-aging": 0, "ap-aging": 0, "catering-levy": 0,
+        "customer-statement": 0, "supplier-statement": 0, "ar-aging": 0, "ap-aging": 0, "catering-levy": 0, "projects": 0,
     });
+
+    // Profit & Loss per project (undefined = whole business)
+    const [plProjectId, setPlProjectId] = useState<string | undefined>();
 
     const run = (tab: ReportTab) => setRunKey((p) => ({ ...p, [tab]: p[tab] + 1 }));
     const isReady = (tab: ReportTab) => runKey[tab] > 0;
@@ -297,11 +305,12 @@ const AccountingReportsPage: React.FC = () => {
     };
 
     // ── Primary queries ───────────────────────────────────────────────────────
-    const plQ = useQuery({ queryKey: ["rpt-pl", plPeriod.primary, selectedBranchId, runKey["profit-loss"]], queryFn: () => getProfitAndLoss(buildQueryParams({ from: plPeriod.primary[0]?.toISOString(), to: plPeriod.primary[1]?.toISOString() })), enabled: isReady("profit-loss"), retry: 1 });
+    const plQ = useQuery({ queryKey: ["rpt-pl", plPeriod.primary, selectedBranchId, plProjectId, runKey["profit-loss"]], queryFn: () => getProfitAndLoss(buildQueryParams({ from: plPeriod.primary[0]?.toISOString(), to: plPeriod.primary[1]?.toISOString(), project_id: plProjectId })), enabled: isReady("profit-loss"), retry: 1 });
     const bsQ = useQuery({ queryKey: ["rpt-bs", bsAsOf.primary, selectedBranchId, runKey["balance-sheet"]], queryFn: () => getBalanceSheet(buildQueryParams({ as_of: bsAsOf.primary?.toISOString() })), enabled: isReady("balance-sheet"), retry: 1 });
     const tbQ = useQuery({ queryKey: ["rpt-tb", tbPeriod.primary, selectedBranchId, runKey["trial-balance"]], queryFn: () => getTrialBalance(buildQueryParams({ from: tbPeriod.primary[0]?.toISOString(), to: tbPeriod.primary[1]?.toISOString() })), enabled: isReady("trial-balance"), retry: 1 });
     const abQ = useQuery({ queryKey: ["rpt-ab", abAsOf.primary, selectedBranchId, runKey["account-balances"]], queryFn: () => getAccountBalances(buildQueryParams({ as_of: abAsOf.primary?.toISOString() })), enabled: isReady("account-balances"), retry: 1 });
     const vatQ = useQuery({ queryKey: ["rpt-vat", vatPeriod.primary, selectedBranchId, runKey["vat"]], queryFn: () => getVATReport(buildQueryParams({ from: vatPeriod.primary[0]?.toISOString(), to: vatPeriod.primary[1]?.toISOString() })), enabled: isReady("vat"), retry: 1 });
+    const projQ = useQuery({ queryKey: ["rpt-projects", projPeriod.primary, selectedBranchId, runKey["projects"]], queryFn: () => getProjectsReport(buildQueryParams({ from: projPeriod.primary[0]?.toISOString(), to: projPeriod.primary[1]?.toISOString() })), enabled: isReady("projects"), retry: 1 });
     const levyQ = useQuery({ queryKey: ["rpt-levy", levyPeriod.primary, selectedBranchId, runKey["catering-levy"]], queryFn: () => getCateringLevyReport(buildQueryParams({ from: levyPeriod.primary[0]?.toISOString(), to: levyPeriod.primary[1]?.toISOString() })), enabled: isReady("catering-levy"), retry: 1 });
     const cfQ = useQuery({ queryKey: ["rpt-cf", cfPeriod.primary, selectedBranchId, runKey["cash-flow"]], queryFn: () => getCashFlowSummary(buildQueryParams({ from: cfPeriod.primary[0]?.toISOString(), to: cfPeriod.primary[1]?.toISOString() })), enabled: isReady("cash-flow"), retry: 1 });
     const custQ = useQuery({ queryKey: ["rpt-cust", customerId, custPeriod.primary, selectedBranchId, runKey["customer-statement"]], queryFn: () => getCustomerStatement(customerId!, buildQueryParams({ from: custPeriod.primary[0]?.toISOString(), to: custPeriod.primary[1]?.toISOString() })), enabled: !!customerId && isReady("customer-statement"), retry: 1 });
@@ -318,7 +327,7 @@ const AccountingReportsPage: React.FC = () => {
     });
 
     // ── Compare queries (all reports except GL) ───────────────────────────────
-    const plQC = useQuery({ queryKey: ["rpt-pl-c", plPeriod.compare, selectedBranchId, runKey["profit-loss"]], queryFn: () => getProfitAndLoss(buildQueryParams({ from: plPeriod.compare[0]?.toISOString(), to: plPeriod.compare[1]?.toISOString() })), enabled: plPeriod.enabled && isReady("profit-loss") && !!plPeriod.compare[0], retry: 1 });
+    const plQC = useQuery({ queryKey: ["rpt-pl-c", plPeriod.compare, selectedBranchId, plProjectId, runKey["profit-loss"]], queryFn: () => getProfitAndLoss(buildQueryParams({ from: plPeriod.compare[0]?.toISOString(), to: plPeriod.compare[1]?.toISOString(), project_id: plProjectId })), enabled: plPeriod.enabled && isReady("profit-loss") && !!plPeriod.compare[0], retry: 1 });
     const bsQC = useQuery({ queryKey: ["rpt-bs-c", bsAsOf.compare, selectedBranchId, runKey["balance-sheet"]], queryFn: () => getBalanceSheet(buildQueryParams({ as_of: bsAsOf.compare?.toISOString() })), enabled: bsAsOf.enabled && isReady("balance-sheet") && !!bsAsOf.compare, retry: 1 });
     const tbQC = useQuery({ queryKey: ["rpt-tb-c", tbPeriod.compare, selectedBranchId, runKey["trial-balance"]], queryFn: () => getTrialBalance(buildQueryParams({ from: tbPeriod.compare[0]?.toISOString(), to: tbPeriod.compare[1]?.toISOString() })), enabled: tbPeriod.enabled && isReady("trial-balance") && !!tbPeriod.compare[0], retry: 1 });
     const abQC = useQuery({ queryKey: ["rpt-ab-c", abAsOf.compare, selectedBranchId, runKey["account-balances"]], queryFn: () => getAccountBalances(buildQueryParams({ as_of: abAsOf.compare?.toISOString() })), enabled: abAsOf.enabled && isReady("account-balances") && !!abAsOf.compare, retry: 1 });
@@ -538,7 +547,7 @@ const AccountingReportsPage: React.FC = () => {
         switch (activeTab) {
 
             case "profit-loss": return <>
-                <PeriodFilter value={plPeriod} onChange={setPlPeriod} onRun={() => run("profit-loss")} loading={isLoading(plQ, plQC, plPeriod.enabled)} supportComparative extra={<FilterControls />} />
+                <PeriodFilter value={plPeriod} onChange={setPlPeriod} onRun={() => run("profit-loss")} loading={isLoading(plQ, plQC, plPeriod.enabled)} supportComparative extra={<Space wrap size={8}><ProjectSelect includeClosed placeholder="All projects" value={plProjectId} onChange={(v) => { setPlProjectId(v); run("profit-loss"); }} style={{ width: 200 }} /><FilterControls /></Space>} />
                 {plQ.isFetching ? <Loading /> : plPeriod.enabled && plQ.data && plQC.data ? renderComparativePL() : plQ.data ? <ProfitAndLossTable data={plQ.data} period={{ from: plPeriod.primary[0]?.toISOString(), to: plPeriod.primary[1]?.toISOString() }} /> : <EmptyState />}
             </>;
 
@@ -566,6 +575,21 @@ const AccountingReportsPage: React.FC = () => {
             case "vat": return <>
                 <PeriodFilter value={vatPeriod} onChange={setVatPeriod} onRun={() => run("vat")} loading={isLoading(vatQ, vatQC, vatPeriod.enabled)} supportComparative extra={<FilterControls />} />
                 {vatQ.isFetching ? <Loading /> : vatPeriod.enabled && vatQ.data && vatQC.data ? renderComparativeVAT() : vatQ.data ? <VATReportTable data={vatQ.data} /> : <EmptyState />}
+            </>;
+
+            case "projects": return <>
+                <PeriodFilter value={projPeriod} onChange={setProjPeriod} onRun={() => run("projects")} loading={projQ.isFetching} supportComparative={false} />
+                {projQ.isFetching ? <Loading /> : projQ.data ? (
+                    <ProjectsReport
+                        data={projQ.data}
+                        onViewProfitAndLoss={(id) => {
+                            setPlProjectId(id);
+                            setPlPeriod({ ...plPeriod, primary: projPeriod.primary, enabled: false });
+                            setActiveTab("profit-loss");
+                            run("profit-loss");
+                        }}
+                    />
+                ) : <EmptyState />}
             </>;
 
             case "catering-levy": return <>
@@ -651,6 +675,12 @@ const AccountingReportsPage: React.FC = () => {
             case "vat":
                 if (!vatQ.data) return empty;
                 return vatQ.data.transactions.map((t: any) => ({ Date: dayjs(t.entry_date).format("DD MMM YYYY"), "Entry No.": t.entry_no, Description: t.description, Source: t.source, "VAT Collected (KES)": t.vat_collected, "VAT Paid (KES)": t.vat_paid }));
+            case "projects":
+                if (!projQ.data) return empty;
+                return [
+                    ...projQ.data.projects.map((p) => ({ Project: p.name, Code: p.code || "", Status: p.status, "Income (KES)": p.revenue, "Expenses (KES)": p.expenses, "Net Profit (KES)": p.net_profit, "Margin (%)": p.margin_pct ?? "", "Budget (KES)": p.budget || "", "Budget Used (%)": p.budget_used_pct ?? "", Transactions: p.transactions })),
+                    { Project: "Not tagged to a project", Code: "", Status: "", "Income (KES)": projQ.data.untagged.revenue, "Expenses (KES)": projQ.data.untagged.expenses, "Net Profit (KES)": projQ.data.untagged.net_profit, "Margin (%)": "", "Budget (KES)": "", "Budget Used (%)": "", Transactions: projQ.data.untagged.transactions },
+                ];
             case "catering-levy":
                 if (!levyQ.data) return empty;
                 return levyQ.data.documents.map((d) => ({ Date: dayjs(d.date).format("DD MMM YYYY"), Type: d.type, Number: d.number, Customer: d.customer, Branch: d.shop_name, "Net Sale (KES)": d.base, "Rate (%)": parseFloat((d.rate * 100).toFixed(2)), Exempt: d.exempt ? "Yes" : "No", "Levy (KES)": d.exempt ? 0 : d.levy, Status: d.status }));
@@ -685,6 +715,8 @@ const AccountingReportsPage: React.FC = () => {
                 return tbPeriod.primary;
             case "vat":
                 return vatPeriod.primary;
+            case "projects":
+                return projPeriod.primary;
             case "catering-levy":
                 return levyPeriod.primary;
             case "cash-flow":
@@ -852,7 +884,7 @@ const AccountingReportsPage: React.FC = () => {
                                 setRunKey({
                                     "profit-loss": 0, "balance-sheet": 0, "trial-balance": 0,
                                     "general-ledger": 0, "account-balances": 0, "vat": 0, "cash-flow": 0,
-                                    "customer-statement": 0, "supplier-statement": 0, "ar-aging": 0, "ap-aging": 0, "catering-levy": 0,
+                                    "customer-statement": 0, "supplier-statement": 0, "ar-aging": 0, "ap-aging": 0, "catering-levy": 0, "projects": 0,
                                 });
                             }}
                             allowClear
@@ -877,7 +909,7 @@ const AccountingReportsPage: React.FC = () => {
                                     setRunKey({
                                         "profit-loss": 0, "balance-sheet": 0, "trial-balance": 0,
                                         "general-ledger": 0, "account-balances": 0, "vat": 0, "cash-flow": 0,
-                                        "customer-statement": 0, "supplier-statement": 0, "ar-aging": 0, "ap-aging": 0, "catering-levy": 0,
+                                        "customer-statement": 0, "supplier-statement": 0, "ar-aging": 0, "ap-aging": 0, "catering-levy": 0, "projects": 0,
                                     });
                                 }}
                             >

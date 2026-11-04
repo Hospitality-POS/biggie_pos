@@ -30,12 +30,14 @@ import {
     DeleteOutlined,
     ClearOutlined,
     ApartmentOutlined,
+    UndoOutlined,
 } from "@ant-design/icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
     getAllJournalEntries,
     getJournalEntrySummary,
     bulkDeleteJournalEntries,
+    unvoidJournalEntry,
     JournalEntry,
     JournalEntryStatus,
     JournalEntrySource,
@@ -390,6 +392,20 @@ const JournalEntriesPage: React.FC = () => {
         queryClient.invalidateQueries({ queryKey: ["journal-entry-summary"] });
     }, [queryClient]);
 
+    const [unvoidingId, setUnvoidingId] = useState<string | null>(null);
+    const handleUnvoid = async (id: string) => {
+        setUnvoidingId(id);
+        try {
+            await unvoidJournalEntry(id);
+            queryClient.invalidateQueries({ queryKey: ["journal-entry", id] });
+            onFormSuccess();
+        } catch {
+            // unvoidJournalEntry already shows the error
+        } finally {
+            setUnvoidingId(null);
+        }
+    };
+
     const handleBulkDelete = async () => {
         setDeleting(true);
         try {
@@ -709,6 +725,22 @@ const JournalEntriesPage: React.FC = () => {
                                 />
                             </Tooltip>
                         </>
+                    )}
+                    {!record.period_locked && record.status === "Voided" && (
+                        <Popconfirm
+                            title="Unvoid this entry?"
+                            description="It goes back to Posted and the reversal entry created by the void is removed."
+                            okText="Unvoid"
+                            onConfirm={() => handleUnvoid(record._id)}
+                        >
+                            <Tooltip title="Unvoid">
+                                <Button
+                                    icon={<UndoOutlined />}
+                                    size="small"
+                                    loading={unvoidingId === record._id}
+                                />
+                            </Tooltip>
+                        </Popconfirm>
                     )}
                 </Space>
             ),

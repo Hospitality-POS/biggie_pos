@@ -150,6 +150,8 @@ export interface CreateBillLineParam {
 
 export interface CreateBillParams {
     supplier_id: string;
+    /** Tag the bill to a project (Profit & Loss per project) */
+    project_id?: string | null;
     bill_date?: string;
     due_date?: string;
     bill_lines: CreateBillLineParam[];
@@ -178,6 +180,7 @@ export interface RecordBillPaymentParams {
 }
 
 export interface UpdateBillParams {
+    project_id?: string | null;
     bill_date?: string;
     due_date?: string;
     supplier_ref?: string;

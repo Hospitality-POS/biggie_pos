@@ -97,6 +97,8 @@ export interface GetJournalEntriesParams {
 
 export interface CreateManualEntryParams {
     shop_id: string;
+    /** Tag every line of the new entry with this project */
+    project_id?: string | null;
     entry_date?: string;
     description: string;
     reference?: string;
@@ -344,6 +346,31 @@ export const voidJournalEntry = async (id: string, reason: string) => {
             message.error(err.response.data.message);
         } else {
             message.error("Error voiding journal entry");
+        }
+        throw error;
+    }
+};
+
+/**
+ * Unvoid a Voided journal entry: puts it back to Posted and removes the
+ * reversal entry that voiding created.
+ */
+export const unvoidJournalEntry = async (id: string) => {
+    try {
+        const response = await axiosInstance.patch(
+            `${BASE_URL}/accounting/journal-entries/${id}/unvoid`
+        );
+        message.success(response.data?.message || "Journal entry restored");
+        return response.data as {
+            entry: JournalEntry;
+            removed_reversal_entry_no: string | null;
+        };
+    } catch (error) {
+        const err = error as ApiError;
+        if (err.response?.data?.message) {
+            message.error(err.response.data.message);
+        } else {
+            message.error("Error unvoiding journal entry");
         }
         throw error;
     }

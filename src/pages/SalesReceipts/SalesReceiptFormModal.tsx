@@ -21,6 +21,7 @@ import { fetchAllCustomers } from "@services/customers";
 import { getAllAccounts, ChartOfAccount } from "@services/accounting/accounts";
 import { getAllInvoices } from "@services/accounting/invoice";
 import StepperModal from "@components/MODALS/StepperModal";
+import ProjectSelect from "@components/accounting/ProjectSelect";
 import dayjs from "dayjs";
 import { useCateringLevy, computeCateringLevy } from "@hooks/useCateringLevy";
 
@@ -176,6 +177,7 @@ const SalesReceiptFormModal: React.FC<Props> = ({ open, onClose, receiptId, onSu
                 vat_standard_rate: receipt.vat_standard_rate ?? 0.16,
                 status: receipt.status,
                 invoice_id: receipt.invoice_id?._id,
+                project_id: idOf(receipt.project_id) || undefined,
             });
             setVatPricingMode(receipt.vat_pricing_mode || "EXCLUSIVE");
             setLevyExempt(!!receipt.catering_levy_exempt);
@@ -308,6 +310,7 @@ const SalesReceiptFormModal: React.FC<Props> = ({ open, onClose, receiptId, onSu
             status: values.status || "Pending",
             invoice_id: values.invoice_id,
             catering_levy_exempt: levyExempt,
+            project_id: values.project_id || null,
         };
 
         if (isEdit) updateMutation.mutate({ id: receiptId!, data });
@@ -536,6 +539,9 @@ const SalesReceiptFormModal: React.FC<Props> = ({ open, onClose, receiptId, onSu
                                 </Form.Item>
                             </Col>
                         </Row>
+                        <Form.Item name="project_id" label="Project (optional)" tooltip="Tag this to a project so it shows in that project's Profit & Loss">
+                            <ProjectSelect placeholder="No project" />
+                        </Form.Item>
                         <Form.Item name="notes" label="Notes">
                             <TextArea rows={2} placeholder="Optional notes" />
                         </Form.Item>
