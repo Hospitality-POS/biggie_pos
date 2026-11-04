@@ -10,6 +10,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import ExpenseFormModal from "@modules/duka/pages/orders/components/ExpenseFormModal";
+import ProjectTagCell from "@components/accounting/ProjectTagCell";
 import {
     getAllExpenses, getExpenseSummary, getExpenseById, approveExpense, voidExpense,
     type Expense, type ExpenseStatus,
@@ -501,6 +502,18 @@ function ExpensesPage() {
                     {je.entry_no}
                 </span>
             ) : <span style={{ color: C.subText, fontSize: 12 }}>—</span>,
+        },
+        {
+            title: "Project", key: "project", width: 180,
+            render: (_: any, r: any) => (
+                <ProjectTagCell
+                    docType="expense"
+                    docId={r._id}
+                    value={r.project_id}
+                    disabled={r.status === "Voided"}
+                    invalidate={["expenses", "expense", "journal-entries"]}
+                />
+            ),
         },
         {
             title: "Actions", key: "actions", width: 160, fixed: "right" as const,

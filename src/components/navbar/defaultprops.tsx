@@ -36,6 +36,7 @@ import {
   ClockCircleOutlined,
   DollarOutlined,
   FormOutlined,
+  ProjectOutlined,
 } from "@ant-design/icons";
 import { useAppSelector } from "src/store";
 import React from "react";
@@ -179,6 +180,8 @@ const ACCOUNTING_ROUTE_PERMISSIONS: Record<string, string> = {
   "/accounting/bills": "ACCOUNTING_INVOICE_VIEW",
   "/accounting/notes": "ACCOUNTING_NOTES_VIEW",
   "/accounting/journals": "ACCOUNTING_JOURNAL_VIEW",
+  // No dedicated permission yet — anyone who can post expenses / income or read the P&L
+  "/accounting/projects": "ACCOUNTING_INCOME_POST_EXPENSE|ACCOUNTING_INCOME_VIEW_HISTORY|ACCOUNTING_REPORT_PROFIT_LOSS",
   "/accounting/bank-statements": "ACCOUNTING_BANK_STMT_VIEW",
   "/accounting/reconciliation": "ACCOUNTING_RECON_VIEW",
   "/accounting/accounts": "ACCOUNTING_COA_VIEW",
@@ -442,6 +445,7 @@ export const useProLayoutNav = () => {
     { path: p("/accounting/sales-receipts"), name: "Sales Receipts", icon: <AccountBookOutlined />, _bare: "/accounting/sales-receipts" },
     { path: p("/accounting/expenses"), name: "Expenses", icon: <ArrowUpOutlined />, _bare: "/accounting/expenses" },
     { path: p("/accounting/bills"), name: "Bills", icon: <FileTextOutlined />, _bare: "/accounting/bills" },
+    { path: p("/accounting/projects"), name: "Projects", icon: <ProjectOutlined />, _bare: "/accounting/projects" },
     { path: p("/accounting/notes"), name: "Debit/Credit Notes", icon: <FileSearchOutlined />, _bare: "/accounting/notes" },
     { path: p("/accounting/journals"), name: "Journal Entries", icon: <AuditOutlined />, _bare: "/accounting/journals" },
     { path: p("/accounting/bank-statements"), name: "Banking", icon: <BankOutlined />, _bare: "/accounting/bank-statements" },

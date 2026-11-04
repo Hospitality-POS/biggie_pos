@@ -29,6 +29,7 @@ import { Template6Clean } from "./InvoiceTemplates";
 import ManualInvoiceModal from "./ManualInvoiceModal";
 import NoteDetailDrawer from "../NoteDetailDrawer";
 import NoteFormDrawer from "../NoteFormDrawer";
+import ProjectTagCell from "@components/accounting/ProjectTagCell";
 import AccountFormDrawer from "@pages/ChartOfAccounts/AccountFormDrawer";
 import dayjs from "dayjs";
 import { THEME_C } from "@utils/getPrimaryColor";
@@ -1160,6 +1161,19 @@ const InvoicesTable = ({ quotesOnly = false }: { quotesOnly?: boolean }) => {
         );
       },
       sorter: (a: any, b: any) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime(),
+    },
+    {
+      title: "Project", hideInSearch: true, key: "project", width: 180,
+      render: (_: any, record: any) =>
+        record.status === "Draft" ? null : (
+          <ProjectTagCell
+            docType="invoice"
+            docId={record._id}
+            value={record.project_id}
+            disabled={["Voided", "Cancelled"].includes(record.status)}
+            invalidate={["journal-entries"]}
+          />
+        ),
     },
     {
       title: "Actions", hideInSearch: true, key: "action", width: 60,

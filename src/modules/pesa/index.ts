@@ -10,3 +10,4 @@ export * from './pages/journals';
 export * from './pages/taxes';
 export * from './pages/reports';
 export * from './pages/assets';
+export * from './pages/projects';

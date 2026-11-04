@@ -27,6 +27,7 @@ import AccountFormDrawer from "@pages/ChartOfAccounts/AccountFormDrawer";
 import { fetchSystemSetupDetailsById } from "@services/systemsetup";
 import { useCurrency } from "@context/CurrencyContext";
 import { CurrencySelector } from "@components/Currency/CurrencySelector";
+import ProjectSelect from "@components/accounting/ProjectSelect";
 import dayjs, { Dayjs } from "dayjs";
 import { useCateringLevy, computeCateringLevy } from "@hooks/useCateringLevy";
 
@@ -390,6 +391,8 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
             due_date: freshInvoice.due_date ? dayjs(freshInvoice.due_date) : null,
             terms: freshInvoice.terms || undefined,
             notes: freshInvoice.notes || "",
+            project_id:
+                (typeof freshInvoice.project_id === "object" ? freshInvoice.project_id?._id : freshInvoice.project_id) || undefined,
         });
         setDocType(freshInvoice.status === "Draft" ? "quote" : "invoice");
         setSelectedCurrency(freshInvoice.currency || functionalCurrency?.code || "KES");
@@ -738,6 +741,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
         due_date: values.due_date?.toISOString(),
         notes: values.notes,
         terms: values.terms,
+        project_id: values.project_id || null,
         status,
         vat_pricing_mode: vatPricingMode,
         vat_standard_rate: standardVatRate,
@@ -770,6 +774,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
         due_date: values.due_date?.toISOString(),
         notes: values.notes,
         terms: values.terms,
+        project_id: values.project_id || null,
         currency: selectedCurrency,
         vat_pricing_mode: vatPricingMode,
         vat_standard_rate: standardVatRate,
@@ -1512,6 +1517,11 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
                             }
                         >
                             <DatePicker style={{ width: "100%" }} format="DD MMM YYYY" />
+                        </Form.Item>
+                    </Col>
+                    <Col span={16}>
+                        <Form.Item name="project_id" label="Project (optional)" tooltip="Optional — tag this invoice to a project so it shows in that project's Profit & Loss">
+                            <ProjectSelect placeholder="No project" />
                         </Form.Item>
                     </Col>
                 </Row>

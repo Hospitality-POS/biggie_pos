@@ -18,6 +18,7 @@ import StepperModal from "@components/MODALS/StepperModal";
 import AccountFormDrawer from "@pages/ChartOfAccounts/AccountFormDrawer";
 import { getVATConfigSync, calculateVAT } from "@utils/vat";
 import { CurrencySelector, useCurrency } from "@components/Currency";
+import ProjectSelect from "@components/accounting/ProjectSelect";
 import dayjs from "dayjs";
 
 const { TextArea } = Input;
@@ -82,6 +83,7 @@ const ExpenseFormModal: React.FC<Props> = ({ open, onClose, onSuccess, expenseTo
                     vat_amount: l.vat_amount || 0,
                 })),
                 notes: expenseToEdit.notes,
+                project_id: accountIdOf(expenseToEdit.project_id) || undefined,
                 currency: expenseToEdit.currency || functionalCurrency?.code || "KES",
                 vat_exempt: !!expenseToEdit.vat_exempt,
             });
@@ -310,6 +312,7 @@ const ExpenseFormModal: React.FC<Props> = ({ open, onClose, onSuccess, expenseTo
                 ? (paymentMethods.find((m: any) => m._id === v.method_id)?.name || "Cash")
                 : "Cash",
             notes: v.notes || undefined,
+            project_id: v.project_id || null,
             currency: v.currency || functionalCurrency?.code || "KES",
             vat_exempt: !!v.vat_exempt,
         };
@@ -394,6 +397,9 @@ const ExpenseFormModal: React.FC<Props> = ({ open, onClose, onSuccess, expenseTo
                                 </Form.Item>
                             </Col>
                         </Row>
+                        <Form.Item name="project_id" label="Project (optional)" tooltip="Optional — tag this expense to a project so it shows in that project's Profit & Loss">
+                            <ProjectSelect placeholder="No project" />
+                        </Form.Item>
                         <Row gutter={16}>
                             <Col xs={24} sm={12}>
                                 <Form.Item name="method_id" label="Payment Method" tooltip="How was this paid?">

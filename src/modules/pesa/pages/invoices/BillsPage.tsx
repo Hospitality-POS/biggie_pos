@@ -10,6 +10,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import BillFormModal from "@modules/duka/pages/orders/components/BillFormModal";
+import ProjectTagCell from "@components/accounting/ProjectTagCell";
 import {
     getAllBills, getBillSummary, recordBillPayment, voidBill,
     BILL_EDITABLE_STATUSES, billEditLockReason,
@@ -400,6 +401,18 @@ function BillsPage() {
                     {je.entry_no}
                 </span>
             ) : <span style={{ color: C.subText, fontSize: 12 }}>—</span>,
+        },
+        {
+            title: "Project", key: "project", width: 180,
+            render: (_: any, r: any) => (
+                <ProjectTagCell
+                    docType="bill"
+                    docId={r._id}
+                    value={r.project_id}
+                    disabled={["Voided", "Cancelled"].includes(r.status)}
+                    invalidate={["bills", "bill", "journal-entries"]}
+                />
+            ),
         },
         {
             title: "Actions", key: "actions", width: 250, fixed: "right" as const,

@@ -17,6 +17,7 @@ import {
 import JournalEntryFormDrawer from "../journals/JournalEntryFormDrawer";
 import SplitJournalLineModal from "@components/accounting/SplitJournalLineModal";
 import ReconcileStatementDrawer from "../banking/ReconcileStatementDrawer";
+import ProjectTagCell from "@components/accounting/ProjectTagCell";
 import dayjs, { Dayjs } from "dayjs";
 
 const { Text, Title } = Typography;
@@ -483,6 +484,19 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId, 
             align: "right" as const,
             render: (v: number) =>
                 v > 0 ? <Text style={{ color: "#1d4ed8", fontWeight: 500 }}>{money(v)}</Text> : <Text type="secondary">—</Text>,
+        },
+        {
+            title: head("Project"),
+            key: "project",
+            width: 180,
+            render: (_: unknown, l: LedgerLine) => (
+                <ProjectTagCell
+                    docType="journal_entry"
+                    docId={l.entry_id}
+                    value={l.project_id}
+                    invalidate={["account-ledger", "account-ledger-all", "journal-entries", "expenses", "bills"]}
+                />
+            ),
         },
         {
             title: head("Balance"),

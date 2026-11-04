@@ -350,6 +350,8 @@ export interface PeriodReportParams {
     financial_year?: number;
     method?: "accrual" | "cash";
     display_by?: "customer" | "quarters" | "years" | "total";
+    /** Profit & Loss only: keep just the lines tagged to this project */
+    project_id?: string;
 }
 
 export interface AgingReportParams {
