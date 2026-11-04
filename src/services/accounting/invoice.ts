@@ -68,6 +68,8 @@ export interface InvoicePaymentRef {
 export interface Invoice {
     _id: string;
     order_no: string;
+    /** Project tag (Profit & Loss per project) */
+    project_id?: string | { _id: string; name: string } | null;
     source: InvoiceSource;
     direction: InvoiceDirection;
     status: InvoiceStatus;

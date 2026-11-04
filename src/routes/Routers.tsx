@@ -61,6 +61,9 @@ const privatePage = (Component: React.ComponentType) => (
   </Suspense>
 );
 
+// Projects has no dedicated permission yet — anyone who can post expenses / income or read the P&L
+const PROJECT_PERMISSIONS = ["ACCOUNTING_INCOME_POST_EXPENSE", "ACCOUNTING_INCOME_VIEW_HISTORY", "ACCOUNTING_REPORT_PROFIT_LOSS"];
+
 const guardedPage = (Component: React.ComponentType, permission: string | string[]) => (
   <PermissionRoute permission={permission}>
     {privatePage(Component)}
@@ -161,6 +164,7 @@ const OAuthCallbackPage = lazyWithReload(() => import("src/pages/OmniChannel/OAu
 // ─── Accounting Module ────────────────────────────────────────────────────────
 const ChartOfAccountsPage = lazyWithReload(() => import("src/pages/ChartOfAccounts/ChartOfAccountsPage"));
 const JournalEntriesPage = lazyWithReload(() => import("src/pages/JournalEntry/JournalEntriesPage"));
+const ProjectsPage = lazyWithReload(() => import("src/pages/Projects/ProjectsPage"));
 const SalesReceiptsPage = lazyWithReload(() => import("src/pages/SalesReceipts/SalesReceiptsPage"));
 const NotesPage = lazyWithReload(() => import("src/pages/Notes/NotesPage"));
 const BankStatementPage = lazyWithReload(() => import("src/pages/Banking/BankStatementPage"));
@@ -592,6 +596,8 @@ const routes = sentryCreateBrowserRouter(
             element={guardedPage(ChartOfAccountsPage, "ACCOUNTING_COA_VIEW")} />
           <Route path="journals" errorElement={<NotFound />}
             element={guardedPage(JournalEntriesPage, "ACCOUNTING_JOURNAL_VIEW")} />
+          <Route path="projects" errorElement={<NotFound />}
+            element={guardedPage(ProjectsPage, PROJECT_PERMISSIONS)} />
           <Route path="sales-receipts" errorElement={<NotFound />}
             element={guardedPage(SalesReceiptsPage, "ACCOUNTING_INCOME_VIEW_HISTORY")} />
           <Route path="notes" errorElement={<NotFound />}
@@ -936,6 +942,8 @@ const routes = sentryCreateBrowserRouter(
             element={guardedAdminPage(ChartOfAccountsPage, "ACCOUNTING_COA_VIEW")} />
           <Route path="journals" errorElement={<NotFound />}
             element={guardedAdminPage(JournalEntriesPage, "ACCOUNTING_JOURNAL_VIEW")} />
+          <Route path="projects" errorElement={<NotFound />}
+            element={guardedAdminPage(ProjectsPage, PROJECT_PERMISSIONS)} />
           <Route path="sales-receipts" errorElement={<NotFound />}
             element={guardedAdminPage(SalesReceiptsPage, "ACCOUNTING_INCOME_VIEW_HISTORY")} />
           <Route path="notes" errorElement={<NotFound />}

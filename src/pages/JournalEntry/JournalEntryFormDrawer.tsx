@@ -18,6 +18,7 @@ import {
     Divider,
     Alert,
     Tooltip,
+    Form,
 } from "antd";
 import {
     PlusOutlined,
@@ -38,6 +39,8 @@ import {
 import { getAllAccounts, ChartOfAccount } from "@services/accounting/accounts";
 import AccountFormDrawer from "@pages/ChartOfAccounts/AccountFormDrawer";
 import SplitAccountsModal, { SplitRow } from "@components/accounting/SplitAccountsModal";
+import ProjectSelect from "@components/accounting/ProjectSelect";
+import { tagProject } from "@services/accounting/projects";
 import dayjs from "dayjs";
 
 const { Text } = Typography;
@@ -133,6 +136,13 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
         account_type: a.account_type,
     }));
 
+    // Project an entry is tagged to — first tagged line wins
+    const entryProjectId = (e?: JournalEntry) => {
+        const tagged = (e?.lines || []).find((l: any) => l.project_id) as any;
+        const p = tagged?.project_id;
+        return (p && typeof p === "object" ? p._id : p) || undefined;
+    };
+
     // ── Reset on open ──────────────────────────────────────────────────────────
 
     useEffect(() => {
@@ -142,6 +152,7 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
                 entry_date: dayjs(editingEntry.entry_date),
                 description: editingEntry.description,
                 reference: editingEntry.reference,
+                project_id: entryProjectId(editingEntry),
             });
             setReference(editingEntry.reference || "");
             setLines(
@@ -247,6 +258,13 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
                     lines: mappedLines,
                 };
                 await updateJournalEntry(entryId, payload);
+                // Project is a tag, not an amount — the tag endpoint also updates
+                // the source document and its other entries so they stay in sync.
+                const nextProject = values.project_id || null;
+                const prevProject = entryProjectId(editingEntry) || null;
+                if (nextProject !== prevProject || (nextProject && mappedLines.some((l) => !l._id))) {
+                    await tagProject({ doc_type: "journal_entry", doc_id: entryId, project_id: nextProject });
+                }
             } else {
                 const payload: CreateManualEntryParams = {
                     shop_id: shopId,
@@ -256,6 +274,7 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
                         ? dayjs(values.entry_date).toISOString()
                         : undefined,
                     auto_post: values.auto_post || false,
+                    project_id: values.project_id || null,
                     lines: mappedLines,
                 };
                 await createManualEntry(payload);
@@ -502,6 +521,17 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
                                 Generate
                             </Button>
                         </div>
+                        <Form.Item
+                            name="project_id"
+                            label="Project (optional)"
+                            tooltip={
+                                editingEntry && editingEntry.source !== "manual"
+                                    ? "Tags this entry and its source document (invoice, bill, expense…) to the project for Profit & Loss per project. Amounts are not changed."
+                                    : "Tag this entry to a project for Profit & Loss per project"
+                            }
+                        >
+                            <ProjectSelect includeClosed placeholder="No project" style={{ width: 220 }} />
+                        </Form.Item>
                     </Space>
 
                     {!entryId && (

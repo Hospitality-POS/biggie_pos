@@ -29,6 +29,7 @@ export interface SalesReceiptLineItem {
 export interface SalesReceipt {
     _id: string;
     receipt_no: string;
+    project_id?: string | { _id: string; name: string } | null;
     customer_id?: {
         _id: string;
         customer_name: string;
