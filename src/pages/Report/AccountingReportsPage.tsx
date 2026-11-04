@@ -83,38 +83,65 @@ const buildPeriodLabel = (period: [Dayjs | null, Dayjs | null] | Dayjs | null): 
     return `${f.format("DD MMM YY")} – ${t.format("DD MMM YY")}`;
 };
 
-const VarianceCell: React.FC<{ current: number; compare: number; invertColors?: boolean }> = ({
-    current, compare, invertColors = false,
+// ── Comparative layout ────────────────────────────────────────────────────────
+// Every comparative table on this page shares these column widths with a fixed
+// table layout, so the Current / Compare / Variance columns line up across
+// sections (Revenue vs Expenses, Assets vs Liabilities …) and with the
+// grand-total bar underneath them.
+const CMP_COL = { current: 170, compare: 170, variance: 210 } as const;
+const CMP_MIN_WIDTH = 760; // below this the table scrolls horizontally instead of squashing
+const CURRENT_COLOR = "#2563eb";
+const COMPARE_COLOR = "#7c3aed";
+const NUM_STYLE: React.CSSProperties = { fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" };
+
+const VarianceCell: React.FC<{ current: number; compare: number; invertColors?: boolean; strong?: boolean }> = ({
+    current, compare, invertColors = false, strong = false,
 }) => {
     const diff = current - compare;
     const pct = compare !== 0 ? (diff / Math.abs(compare)) * 100 : null;
-    const isNeutral = diff === 0;
+    const isNeutral = Math.abs(diff) < 0.005;
     const isPositive = diff > 0;
-    const goodColor = invertColors ? "#ef4444" : "#10b981";
-    const badColor = invertColors ? "#10b981" : "#ef4444";
+    const goodColor = invertColors ? "#dc2626" : "#059669";
+    const badColor = invertColors ? "#059669" : "#dc2626";
     const color = isNeutral ? "#94a3b8" : isPositive ? goodColor : badColor;
+    const showPct = pct !== null && !isNeutral;
     return (
-        <Space size={4} style={{ justifyContent: "flex-end", width: "100%" }}>
-            <Text style={{ fontSize: 12, color, fontWeight: 600 }}>
-                {isNeutral ? "—" : `${isPositive ? "+" : ""}${fmt(diff)}`}
+        <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 6 }}>
+            <Text style={{ ...NUM_STYLE, fontSize: 13, color, fontWeight: strong ? 700 : 600 }}>
+                {isNeutral ? "—" : `${isPositive ? "+" : "−"}${fmt(Math.abs(diff))}`}
             </Text>
-            {pct !== null && !isNeutral && (
-                <Tag style={{ fontSize: 10, borderRadius: 20, padding: "0 6px", margin: 0, background: `${color}18`, border: `1px solid ${color}40`, color }}>
-                    {isPositive ? <Up /> : <Down />} {Math.abs(pct).toFixed(1)}%
-                </Tag>
-            )}
-        </Space>
+            {/* Fixed-width pill (kept as a placeholder when empty) so the amounts stay right-aligned in one column */}
+            <span style={{
+                ...NUM_STYLE, display: "inline-flex", justifyContent: "center", alignItems: "center", gap: 2,
+                width: 68, fontSize: 10, lineHeight: "18px", borderRadius: 20,
+                visibility: showPct ? "visible" : "hidden",
+                background: `${color}14`, border: `1px solid ${color}40`, color,
+            }}>
+                {showPct && <>{isPositive ? <Up /> : <Down />}{Math.abs(pct!) >= 1000 ? `${Math.round(Math.abs(pct!)).toLocaleString()}%` : `${Math.abs(pct!).toFixed(1)}%`}</>}
+            </span>
+        </div>
     );
 };
 
+const PeriodDot: React.FC<{ color: string }> = ({ color }) => (
+    <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: color, marginRight: 6, verticalAlign: "middle", boxShadow: "0 0 0 2px rgba(255,255,255,0.6)" }} />
+);
+
 const PeriodHeaders: React.FC<{ currentLabel: string; compareLabel: string }> = ({ currentLabel, compareLabel }) => (
-    <Space style={{ marginBottom: 12 }} size={8}>
-        <Tag color="blue" style={{ borderRadius: 20, padding: "2px 12px", fontSize: 12 }}>Current: {currentLabel}</Tag>
-        <Tag color="purple" style={{ borderRadius: 20, padding: "2px 12px", fontSize: 12 }}>Compare: {compareLabel}</Tag>
+    <Space style={{ marginBottom: 4 }} size={8} wrap>
+        <Tag color="blue" style={{ borderRadius: 20, padding: "2px 12px", fontSize: 12, margin: 0 }}><PeriodDot color={CURRENT_COLOR} />Current: {currentLabel}</Tag>
+        <Tag color="purple" style={{ borderRadius: 20, padding: "2px 12px", fontSize: 12, margin: 0 }}><PeriodDot color={COMPARE_COLOR} />Compare: {compareLabel}</Tag>
     </Space>
 );
 
+// Header label for a period column — inherits the table header's text colour
+// (white on the themed header) and uses a dot to tie it to the period tag.
+const PeriodColTitle: React.FC<{ label: string; color: string }> = ({ label, color }) => (
+    <span style={{ whiteSpace: "nowrap" }}><PeriodDot color={color} />{label}</span>
+);
+
 interface ComparativeRow {
+    _id?: string;
     account_name: string;
     account_code?: string;
     current: number;
@@ -124,48 +151,59 @@ interface ComparativeRow {
     tagColor?: string;
 }
 
+const AccountLabel: React.FC<{ row: ComparativeRow; strong?: boolean }> = ({ row, strong }) => (
+    <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+        {row.account_code && <Text style={{ fontSize: 11, color: "#94a3b8", fontFamily: "monospace", flexShrink: 0, width: 40 }}>{row.account_code}</Text>}
+        <Text strong={strong} ellipsis={{ tooltip: row.account_name }} style={{ fontSize: strong ? 14 : 13, minWidth: 0 }}>{row.account_name}</Text>
+        {row.tag && <Tag color={row.tagColor || "default"} style={{ fontSize: 10, padding: "0 4px", lineHeight: "16px", margin: 0, flexShrink: 0 }}>{row.tag}</Tag>}
+    </div>
+);
+
+const comparativeColumns = (currentLabel: string, compareLabel: string, accountTitle = "Account") => [
+    { title: accountTitle, dataIndex: "account_name", ellipsis: true, render: (_: any, row: ComparativeRow) => <AccountLabel row={row} /> },
+    { title: <PeriodColTitle label={currentLabel} color={CURRENT_COLOR} />, dataIndex: "current", width: CMP_COL.current, align: "right" as const, render: (v: number) => <Text style={{ ...NUM_STYLE, fontWeight: 600, fontSize: 13 }}>{fmt(v ?? 0)}</Text> },
+    { title: <PeriodColTitle label={compareLabel} color={COMPARE_COLOR} />, dataIndex: "compare", width: CMP_COL.compare, align: "right" as const, render: (v: number) => <Text style={{ ...NUM_STYLE, fontSize: 13, color: "#64748b" }}>{fmt(v ?? 0)}</Text> },
+    { title: "Variance", key: "variance", width: CMP_COL.variance, align: "right" as const, render: (_: any, row: ComparativeRow) => <VarianceCell current={row.current ?? 0} compare={row.compare ?? 0} invertColors={row.invertColors} /> },
+];
+
+const SectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+    <Text strong style={{ display: "block", fontSize: 13, marginBottom: 8, color: "#374151", textTransform: "uppercase", letterSpacing: 0.4 }}>{children}</Text>
+);
+
 const ComparativeTable: React.FC<{
     rows: ComparativeRow[];
     currentLabel: string;
     compareLabel: string;
     title?: string;
     showSummary?: boolean;
-}> = ({ rows, currentLabel, compareLabel, title, showSummary }) => {
+    totalLabel?: string;
+    accountTitle?: string;
+    /** Colour rule for the total row's variance (e.g. expenses rising is bad). */
+    invertTotal?: boolean;
+}> = ({ rows, currentLabel, compareLabel, title, showSummary, totalLabel = "Total", accountTitle, invertTotal }) => {
     const ledger = useContext(LedgerContext);
     const onAccountRow = (record: any) =>
         record?._id ? { onClick: () => ledger?.openLedger?.(record._id), style: { cursor: "pointer" } } : {};
+    const totalInvert = invertTotal ?? (rows.length > 0 && rows.every((r) => r.invertColors));
     return (
-    <div style={{ marginBottom: 16 }}>
-        {title && <Text strong style={{ display: "block", fontSize: 13, marginBottom: 8, color: "#374151" }}>{title}</Text>}
+    <div>
+        {title && <SectionTitle>{title}</SectionTitle>}
         <Table
-            size="small" pagination={false}
-            dataSource={rows.map((r, i) => ({ ...r, key: i }))}
-            columns={[
-                {
-                    title: "Account", dataIndex: "account_name",
-                    render: (name, row) => (
-                        <Space size={6}>
-                            {row.account_code && <Text style={{ fontSize: 11, color: "#94a3b8", fontFamily: "monospace" }}>{row.account_code}</Text>}
-                            <Text style={{ fontSize: 13 }}>{name}</Text>
-                            {row.tag && <Tag color={row.tagColor || "default"} style={{ fontSize: 10, padding: "0 4px" }}>{row.tag}</Tag>}
-                        </Space>
-                    ),
-                },
-                { title: <Text style={{ color: "#3b82f6", fontSize: 12 }}>{currentLabel}</Text>, dataIndex: "current", align: "right" as const, render: (v) => <Text style={{ fontWeight: 600, fontSize: 13 }}>{fmt(v ?? 0)}</Text> },
-                { title: <Text style={{ color: "#7c3aed", fontSize: 12 }}>{compareLabel}</Text>, dataIndex: "compare", align: "right" as const, render: (v) => <Text style={{ fontSize: 13, color: "#64748b" }}>{fmt(v ?? 0)}</Text> },
-                { title: "Variance", align: "right" as const, render: (_, row) => <VarianceCell current={row.current ?? 0} compare={row.compare ?? 0} invertColors={row.invertColors} /> },
-            ]}
-            style={{ borderRadius: 8, overflow: "hidden" }}
+            size="small" pagination={false} tableLayout="fixed" scroll={{ x: CMP_MIN_WIDTH }}
+            dataSource={rows.map((r, i) => ({ ...r, key: r.account_code || r._id || i }))}
+            columns={comparativeColumns(currentLabel, compareLabel, accountTitle)}
+            locale={{ emptyText: "No activity in either period" }}
+            style={{ borderRadius: 8, overflow: "hidden", border: "1px solid #f0f0f0" }}
             onRow={onAccountRow}
-            summary={showSummary ? () => {
+            summary={showSummary && rows.length > 0 ? () => {
                 const totC = rows.reduce((s, r) => s + (r.current ?? 0), 0);
                 const totCo = rows.reduce((s, r) => s + (r.compare ?? 0), 0);
                 return (
-                    <Table.Summary.Row style={{ background: "#f8fafc", fontWeight: 700 }}>
-                        <Table.Summary.Cell index={0}><Text strong>Total</Text></Table.Summary.Cell>
-                        <Table.Summary.Cell index={1} align="right"><Text strong style={{ color: "#3b82f6" }}>{fmt(totC)}</Text></Table.Summary.Cell>
-                        <Table.Summary.Cell index={2} align="right"><Text strong style={{ color: "#7c3aed" }}>{fmt(totCo)}</Text></Table.Summary.Cell>
-                        <Table.Summary.Cell index={3} align="right"><VarianceCell current={totC} compare={totCo} /></Table.Summary.Cell>
+                    <Table.Summary.Row style={{ background: "#f8fafc" }}>
+                        <Table.Summary.Cell index={0}><Text strong>{totalLabel}</Text></Table.Summary.Cell>
+                        <Table.Summary.Cell index={1} align="right"><Text strong style={{ ...NUM_STYLE, color: CURRENT_COLOR }}>{fmt(totC)}</Text></Table.Summary.Cell>
+                        <Table.Summary.Cell index={2} align="right"><Text strong style={{ ...NUM_STYLE, color: COMPARE_COLOR }}>{fmt(totCo)}</Text></Table.Summary.Cell>
+                        <Table.Summary.Cell index={3} align="right"><VarianceCell current={totC} compare={totCo} invertColors={totalInvert} strong /></Table.Summary.Cell>
                     </Table.Summary.Row>
                 );
             } : undefined}
@@ -173,6 +211,32 @@ const ComparativeTable: React.FC<{
     </div>
     );
 };
+
+// Grand-total bar (Net Profit, Total Assets …) laid out on the exact same
+// column grid as the ComparativeTables above it.
+const ComparativeTotalBar: React.FC<{ label: string; current: number; compare: number; invertColors?: boolean }> = ({
+    label, current, compare, invertColors,
+}) => (
+    <Table
+        size="small" pagination={false} showHeader={false} tableLayout="fixed" scroll={{ x: CMP_MIN_WIDTH }}
+        dataSource={[{ key: "total", account_name: label, current, compare }]}
+        style={{ borderRadius: 8, overflow: "hidden", border: "1px solid #e2e8f0" }}
+        onRow={() => ({ style: { background: "#f1f5f9" } })}
+        columns={[
+            { dataIndex: "account_name", render: (v: string) => <Text strong style={{ fontSize: 14 }}>{v}</Text> },
+            { dataIndex: "current", width: CMP_COL.current, align: "right" as const, render: (v: number) => <Text strong style={{ ...NUM_STYLE, fontSize: 14, color: CURRENT_COLOR }}>{fmt(v)}</Text> },
+            { dataIndex: "compare", width: CMP_COL.compare, align: "right" as const, render: (v: number) => <Text strong style={{ ...NUM_STYLE, fontSize: 14, color: COMPARE_COLOR }}>{fmt(v)}</Text> },
+            { key: "variance", width: CMP_COL.variance, align: "right" as const, render: () => <VarianceCell current={current} compare={compare} invertColors={invertColors} strong /> },
+        ]}
+    />
+);
+
+const ComparativeLayout: React.FC<{ cl: string; cm: string; children: React.ReactNode }> = ({ cl, cm, children }) => (
+    <Space direction="vertical" style={{ width: "100%" }} size={20}>
+        <PeriodHeaders currentLabel={cl} compareLabel={cm} />
+        {children}
+    </Space>
+);
 
 const buildCompareMap = (rows: any[], valueKey: string | ((r: any) => number)) => {
     const map: Record<string, number> = {};
@@ -354,40 +418,50 @@ const AccountingReportsPage: React.FC = () => {
     const EmptyState = () => <Empty description="Run the report to see results" style={{ padding: 40 }} />;
     const isLoading = (pQ: any, cQ: any, enabled: boolean) => pQ.isFetching || (enabled && cQ.isFetching);
 
+    const ACCOUNT_TAG_COLORS: Record<string, string> = { ASSET: "blue", LIABILITY: "red", EQUITY: "purple", REVENUE: "green", EXPENSE: "orange" };
+    const rowKey = (r: any) => r?.account_code || r?.account_name;
+    const rowValue = (r: any, valueKey: string | ((r: any) => number)) =>
+        (typeof valueKey === "function" ? valueKey(r) : r?.[valueKey]) ?? 0;
+
+    // Union of both periods: accounts that only had activity in the compare
+    // period are kept (current = 0), otherwise the compare totals would not
+    // reconcile with the report's own totals.
     const mergeRows = (primary: any[], compare: any[], valueKey: string | ((r: any) => number), invertColors = false): ComparativeRow[] => {
         const cMap = buildCompareMap(compare, valueKey);
-        return (primary || []).map((r: any) => ({
+        const toRow = (r: any, current: number, cmp: number): ComparativeRow => ({
+            _id: r._id,
             account_code: r.account_code,
             account_name: r.account_name,
-            current: typeof valueKey === "function" ? valueKey(r) : (r[valueKey] ?? 0),
-            compare: lookupCompare(cMap, r.account_code, r.account_name),
+            current,
+            compare: cmp,
             invertColors,
             tag: r.account_type,
-            tagColor: ({ ASSET: "blue", LIABILITY: "red", EQUITY: "purple", REVENUE: "green", EXPENSE: "orange" } as any)[r.account_type],
-        }));
+            tagColor: ACCOUNT_TAG_COLORS[r.account_type],
+        });
+        const seen = new Set<string>();
+        const rows = (primary || []).map((r: any) => {
+            seen.add(rowKey(r));
+            return toRow(r, rowValue(r, valueKey), lookupCompare(cMap, r.account_code, r.account_name));
+        });
+        (compare || []).forEach((r: any) => {
+            if (seen.has(rowKey(r))) return;
+            seen.add(rowKey(r));
+            rows.push(toRow(r, 0, rowValue(r, valueKey)));
+        });
+        return rows.sort((a, b) => (a.account_code || "").localeCompare(b.account_code || "", undefined, { numeric: true }));
     };
 
-    // ── Comparative renderers (unchanged from original) ───────────────────────
+    // ── Comparative renderers ─────────────────────────────────────────────────
     const renderComparativePL = () => {
         if (!plQ.data || !plQC.data) return null;
         const cl = buildPeriodLabel(plPeriod.primary), cm = buildPeriodLabel(plPeriod.compare);
         const netC = plQ.data.net_profit ?? 0, netCo = plQC.data.net_profit ?? 0;
         return (
-            <Space direction="vertical" style={{ width: "100%" }} size={12}>
-                <PeriodHeaders currentLabel={cl} compareLabel={cm} />
-                <ComparativeTable title="Revenue" rows={mergeRows(plQ.data.revenue?.accounts, plQC.data.revenue?.accounts, "amount", false)} currentLabel={cl} compareLabel={cm} showSummary />
-                <ComparativeTable title="Expenses" rows={mergeRows(plQ.data.expenses?.accounts, plQC.data.expenses?.accounts, "amount", true)} currentLabel={cl} compareLabel={cm} showSummary />
-                <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: "12px 16px" }}>
-                    <Space style={{ width: "100%", justifyContent: "space-between" }}>
-                        <Text strong style={{ fontSize: 14 }}>Net Profit / Loss</Text>
-                        <Space size={16}>
-                            <Text strong style={{ fontSize: 14, color: "#3b82f6" }}>{fmt(netC)}</Text>
-                            <Text style={{ fontSize: 14, color: "#7c3aed" }}>{fmt(netCo)}</Text>
-                            <VarianceCell current={netC} compare={netCo} />
-                        </Space>
-                    </Space>
-                </div>
-            </Space>
+            <ComparativeLayout cl={cl} cm={cm}>
+                <ComparativeTable title="Revenue" totalLabel="Total Revenue" rows={mergeRows(plQ.data.revenue?.accounts, plQC.data.revenue?.accounts, "amount", false)} currentLabel={cl} compareLabel={cm} showSummary />
+                <ComparativeTable title="Expenses" totalLabel="Total Expenses" rows={mergeRows(plQ.data.expenses?.accounts, plQC.data.expenses?.accounts, "amount", true)} currentLabel={cl} compareLabel={cm} showSummary invertTotal />
+                <ComparativeTotalBar label="Net Profit / Loss" current={netC} compare={netCo} />
+            </ComparativeLayout>
         );
     };
 
@@ -395,22 +469,12 @@ const AccountingReportsPage: React.FC = () => {
         if (!bsQ.data || !bsQC.data) return null;
         const cl = buildPeriodLabel(bsAsOf.primary), cm = buildPeriodLabel(bsAsOf.compare);
         return (
-            <Space direction="vertical" style={{ width: "100%" }} size={12}>
-                <PeriodHeaders currentLabel={cl} compareLabel={cm} />
-                <ComparativeTable title="Assets" rows={mergeRows(bsQ.data.assets?.accounts, bsQC.data.assets?.accounts, "balance", false)} currentLabel={cl} compareLabel={cm} showSummary />
-                <ComparativeTable title="Liabilities" rows={mergeRows(bsQ.data.liabilities?.accounts, bsQC.data.liabilities?.accounts, "balance", true)} currentLabel={cl} compareLabel={cm} showSummary />
-                <ComparativeTable title="Equity" rows={mergeRows(bsQ.data.equity?.accounts, bsQC.data.equity?.accounts, "balance", false)} currentLabel={cl} compareLabel={cm} showSummary />
-                <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: "12px 16px" }}>
-                    <Space style={{ width: "100%", justifyContent: "space-between" }}>
-                        <Text strong style={{ fontSize: 14 }}>Total Assets</Text>
-                        <Space size={16}>
-                            <Text strong style={{ fontSize: 14, color: "#3b82f6" }}>{fmt(bsQ.data.totals?.total_assets ?? 0)}</Text>
-                            <Text style={{ fontSize: 14, color: "#7c3aed" }}>{fmt(bsQC.data.totals?.total_assets ?? 0)}</Text>
-                            <VarianceCell current={bsQ.data.totals?.total_assets ?? 0} compare={bsQC.data.totals?.total_assets ?? 0} />
-                        </Space>
-                    </Space>
-                </div>
-            </Space>
+            <ComparativeLayout cl={cl} cm={cm}>
+                <ComparativeTable title="Assets" totalLabel="Total Assets" rows={mergeRows(bsQ.data.assets?.accounts, bsQC.data.assets?.accounts, "balance", false)} currentLabel={cl} compareLabel={cm} showSummary />
+                <ComparativeTable title="Liabilities" totalLabel="Total Liabilities" rows={mergeRows(bsQ.data.liabilities?.accounts, bsQC.data.liabilities?.accounts, "balance", true)} currentLabel={cl} compareLabel={cm} showSummary invertTotal />
+                <ComparativeTable title="Equity" totalLabel="Total Equity" rows={mergeRows(bsQ.data.equity?.accounts, bsQC.data.equity?.accounts, "balance", false)} currentLabel={cl} compareLabel={cm} showSummary />
+                <ComparativeTotalBar label="Total Assets" current={bsQ.data.totals?.total_assets ?? 0} compare={bsQC.data.totals?.total_assets ?? 0} />
+            </ComparativeLayout>
         );
     };
 
@@ -419,24 +483,56 @@ const AccountingReportsPage: React.FC = () => {
         const cl = buildPeriodLabel(tbPeriod.primary), cm = buildPeriodLabel(tbPeriod.compare);
         const cMap: Record<string, any> = {};
         (tbQC.data.rows || []).forEach((r: any) => { if (r.account_code) cMap[r.account_code] = r; if (r.account_name) cMap[r.account_name] = r; });
-        const TYPE_COLORS: Record<string, string> = { ASSET: "blue", LIABILITY: "red", EQUITY: "purple", REVENUE: "green", EXPENSE: "orange" };
+        const seen = new Set((tbQ.data.rows || []).map(rowKey));
+        const rows = [
+            ...(tbQ.data.rows || []),
+            // accounts that only moved in the compare period
+            ...(tbQC.data.rows || []).filter((r: any) => !seen.has(rowKey(r))).map((r: any) => ({ account_code: r.account_code, account_name: r.account_name, account_type: r.account_type, period_debit: 0, period_credit: 0 })),
+        ].sort((a: any, b: any) => (a.account_code || "").localeCompare(b.account_code || "", undefined, { numeric: true }));
+        const cmpOf = (r: any) => cMap[r.account_code] || cMap[r.account_name];
+        const money = (v: number, color: string, strong = false) =>
+            <Text style={{ ...NUM_STYLE, fontWeight: strong ? 600 : 400, fontSize: 12, color: v > 0 ? color : "#cbd5e1" }}>{v > 0 ? fmt(v) : "—"}</Text>;
+        const sum = (list: any[], k: string) => list.reduce((s, r) => s + (r?.[k] ?? 0), 0);
+        const tot = { dc: sum(rows, "period_debit"), cc: sum(rows, "period_credit"), dp: sum(tbQC.data.rows || [], "period_debit"), cp: sum(tbQC.data.rows || [], "period_credit") };
+        const MONEY_W = 130;
+        const groupTitle = (label: string, color: string) => <PeriodColTitle label={label} color={color} />;
         return (
-            <Space direction="vertical" style={{ width: "100%" }} size={12}>
-                <PeriodHeaders currentLabel={cl} compareLabel={cm} />
-                <Table size="small" pagination={{ pageSize: 30, showSizeChanger: true }}
-                    dataSource={(tbQ.data.rows || []).map((r: any, i: number) => ({ ...r, key: i }))}
-                    scroll={{ x: 900 }}
+            <ComparativeLayout cl={cl} cm={cm}>
+                <Table size="small" pagination={{ pageSize: 50, showSizeChanger: true }} tableLayout="fixed" bordered
+                    dataSource={rows.map((r: any, i: number) => ({ ...r, key: rowKey(r) || i }))}
+                    scroll={{ x: 1040 }}
+                    style={{ borderRadius: 8, overflow: "hidden" }}
                     columns={[
                         { title: "Code", dataIndex: "account_code", width: 80, render: (v: string) => <Text style={{ fontFamily: "monospace", fontSize: 11, color: "#94a3b8" }}>{v}</Text> },
-                        { title: "Account", dataIndex: "account_name", render: (v: string, r: any) => <Space size={4}><Text style={{ fontSize: 13 }}>{v}</Text>{r.account_type && <Tag color={TYPE_COLORS[r.account_type]} style={{ fontSize: 10, padding: "0 4px" }}>{r.account_type}</Tag>}</Space> },
-                        { title: <Text style={{ color: "#3b82f6", fontSize: 11 }}>DR ({cl})</Text>, align: "right" as const, render: (_: any, r: any) => <Text style={{ fontWeight: 600, fontSize: 12, color: "#cf1322" }}>{r.period_debit > 0 ? fmt(r.period_debit) : "—"}</Text> },
-                        { title: <Text style={{ color: "#3b82f6", fontSize: 11 }}>CR ({cl})</Text>, align: "right" as const, render: (_: any, r: any) => <Text style={{ fontWeight: 600, fontSize: 12, color: "#389e0d" }}>{r.period_credit > 0 ? fmt(r.period_credit) : "—"}</Text> },
-                        { title: <Text style={{ color: "#7c3aed", fontSize: 11 }}>DR ({cm})</Text>, align: "right" as const, render: (_: any, r: any) => { const c = cMap[r.account_code] || cMap[r.account_name]; return <Text style={{ fontSize: 12, color: "#64748b" }}>{(c?.period_debit ?? 0) > 0 ? fmt(c.period_debit) : "—"}</Text>; } },
-                        { title: <Text style={{ color: "#7c3aed", fontSize: 11 }}>CR ({cm})</Text>, align: "right" as const, render: (_: any, r: any) => { const c = cMap[r.account_code] || cMap[r.account_name]; return <Text style={{ fontSize: 12, color: "#64748b" }}>{(c?.period_credit ?? 0) > 0 ? fmt(c.period_credit) : "—"}</Text>; } },
-                        { title: "Δ Net", align: "right" as const, render: (_: any, r: any) => { const c = cMap[r.account_code] || cMap[r.account_name]; return <VarianceCell current={(r.period_debit ?? 0) - (r.period_credit ?? 0)} compare={(c?.period_debit ?? 0) - (c?.period_credit ?? 0)} />; } },
+                        { title: "Account", dataIndex: "account_name", ellipsis: true, render: (v: string, r: any) => <AccountLabel row={{ account_name: v, current: 0, compare: 0, tag: r.account_type, tagColor: ACCOUNT_TAG_COLORS[r.account_type] }} /> },
+                        {
+                            title: groupTitle(cl, CURRENT_COLOR), align: "center" as const, children: [
+                                { title: "Debit", key: "dc", width: MONEY_W, align: "right" as const, render: (_: any, r: any) => money(r.period_debit ?? 0, "#0f172a", true) },
+                                { title: "Credit", key: "cc", width: MONEY_W, align: "right" as const, render: (_: any, r: any) => money(r.period_credit ?? 0, "#0f172a", true) },
+                            ],
+                        },
+                        {
+                            title: groupTitle(cm, COMPARE_COLOR), align: "center" as const, children: [
+                                { title: "Debit", key: "dp", width: MONEY_W, align: "right" as const, render: (_: any, r: any) => money(cmpOf(r)?.period_debit ?? 0, "#64748b") },
+                                { title: "Credit", key: "cp", width: MONEY_W, align: "right" as const, render: (_: any, r: any) => money(cmpOf(r)?.period_credit ?? 0, "#64748b") },
+                            ],
+                        },
+                        { title: "Δ Net (Dr − Cr)", key: "delta", width: CMP_COL.variance, align: "right" as const, render: (_: any, r: any) => { const c = cmpOf(r); return <VarianceCell current={(r.period_debit ?? 0) - (r.period_credit ?? 0)} compare={(c?.period_debit ?? 0) - (c?.period_credit ?? 0)} />; } },
                     ]}
+                    summary={() => (
+                        <Table.Summary fixed>
+                            <Table.Summary.Row style={{ background: "#f8fafc" }}>
+                                <Table.Summary.Cell index={0} colSpan={2}><Text strong>Total</Text></Table.Summary.Cell>
+                                <Table.Summary.Cell index={2} align="right"><Text strong style={{ ...NUM_STYLE, color: CURRENT_COLOR }}>{fmt(tot.dc)}</Text></Table.Summary.Cell>
+                                <Table.Summary.Cell index={3} align="right"><Text strong style={{ ...NUM_STYLE, color: CURRENT_COLOR }}>{fmt(tot.cc)}</Text></Table.Summary.Cell>
+                                <Table.Summary.Cell index={4} align="right"><Text strong style={{ ...NUM_STYLE, color: COMPARE_COLOR }}>{fmt(tot.dp)}</Text></Table.Summary.Cell>
+                                <Table.Summary.Cell index={5} align="right"><Text strong style={{ ...NUM_STYLE, color: COMPARE_COLOR }}>{fmt(tot.cp)}</Text></Table.Summary.Cell>
+                                <Table.Summary.Cell index={6} align="right"><VarianceCell current={tot.dc - tot.cc} compare={tot.dp - tot.cp} strong /></Table.Summary.Cell>
+                            </Table.Summary.Row>
+                        </Table.Summary>
+                    )}
                 />
-            </Space>
+            </ComparativeLayout>
         );
     };
 
@@ -444,14 +540,13 @@ const AccountingReportsPage: React.FC = () => {
         if (!vatQ.data || !vatQC.data) return null;
         const cl = buildPeriodLabel(vatPeriod.primary), cm = buildPeriodLabel(vatPeriod.compare);
         return (
-            <Space direction="vertical" style={{ width: "100%" }} size={12}>
-                <PeriodHeaders currentLabel={cl} compareLabel={cm} />
-                <ComparativeTable title="VAT Summary" rows={[
+            <ComparativeLayout cl={cl} cm={cm}>
+                <ComparativeTable title="VAT Summary" accountTitle="Item" rows={[
                     { account_name: "Output VAT (Collected)", current: vatQ.data.summary?.vat_collected ?? 0, compare: vatQC.data.summary?.vat_collected ?? 0 },
                     { account_name: "Input VAT (Paid)", current: vatQ.data.summary?.vat_paid ?? 0, compare: vatQC.data.summary?.vat_paid ?? 0, invertColors: true },
-                    { account_name: "Net VAT Payable", current: vatQ.data.summary?.net_vat_payable ?? 0, compare: vatQC.data.summary?.net_vat_payable ?? 0 },
                 ]} currentLabel={cl} compareLabel={cm} />
-            </Space>
+                <ComparativeTotalBar label="Net VAT Payable" current={vatQ.data.summary?.net_vat_payable ?? 0} compare={vatQC.data.summary?.net_vat_payable ?? 0} />
+            </ComparativeLayout>
         );
     };
 
@@ -459,15 +554,14 @@ const AccountingReportsPage: React.FC = () => {
         if (!cfQ.data || !cfQC.data) return null;
         const cl = buildPeriodLabel(cfPeriod.primary), cm = buildPeriodLabel(cfPeriod.compare);
         return (
-            <Space direction="vertical" style={{ width: "100%" }} size={12}>
-                <PeriodHeaders currentLabel={cl} compareLabel={cm} />
-                <ComparativeTable title="Cash Flow by Account" rows={mergeRows(cfQ.data.accounts, cfQC.data.accounts, "net_cash_flow", false)} currentLabel={cl} compareLabel={cm} showSummary />
-                <ComparativeTable title="Summary" rows={[
+            <ComparativeLayout cl={cl} cm={cm}>
+                <ComparativeTable title="Cash Flow by Account" totalLabel="Net Cash Flow" rows={mergeRows(cfQ.data.accounts, cfQC.data.accounts, "net_cash_flow", false)} currentLabel={cl} compareLabel={cm} showSummary />
+                <ComparativeTable title="Summary" accountTitle="Item" rows={[
                     { account_name: "Total Inflows", current: cfQ.data.totals?.total_inflows ?? 0, compare: cfQC.data.totals?.total_inflows ?? 0 },
                     { account_name: "Total Outflows", current: cfQ.data.totals?.total_outflows ?? 0, compare: cfQC.data.totals?.total_outflows ?? 0, invertColors: true },
-                    { account_name: "Net Cash Flow", current: cfQ.data.totals?.net_cash_flow ?? 0, compare: cfQC.data.totals?.net_cash_flow ?? 0 },
                 ]} currentLabel={cl} compareLabel={cm} />
-            </Space>
+                <ComparativeTotalBar label="Net Cash Flow" current={cfQ.data.totals?.net_cash_flow ?? 0} compare={cfQC.data.totals?.net_cash_flow ?? 0} />
+            </ComparativeLayout>
         );
     };
 
@@ -475,10 +569,9 @@ const AccountingReportsPage: React.FC = () => {
         if (!abQ.data || !abQC.data) return null;
         const cl = buildPeriodLabel(abAsOf.primary), cm = buildPeriodLabel(abAsOf.compare);
         return (
-            <Space direction="vertical" style={{ width: "100%" }} size={12}>
-                <PeriodHeaders currentLabel={cl} compareLabel={cm} />
+            <ComparativeLayout cl={cl} cm={cm}>
                 <ComparativeTable title="Account Balances" rows={mergeRows(abQ.data.accounts, abQC.data.accounts, "balance", false)} currentLabel={cl} compareLabel={cm} showSummary />
-            </Space>
+            </ComparativeLayout>
         );
     };
 
@@ -486,14 +579,13 @@ const AccountingReportsPage: React.FC = () => {
         if (!custQ.data || !custQC.data) return null;
         const cl = buildPeriodLabel(custPeriod.primary), cm = buildPeriodLabel(custPeriod.compare);
         return (
-            <Space direction="vertical" style={{ width: "100%" }} size={12}>
-                <PeriodHeaders currentLabel={cl} compareLabel={cm} />
-                <ComparativeTable title="Customer Summary" rows={[
+            <ComparativeLayout cl={cl} cm={cm}>
+                <ComparativeTable title="Customer Summary" accountTitle="Item" rows={[
                     { account_name: "Total Invoiced", current: custQ.data.summary?.total_invoiced ?? 0, compare: custQC.data.summary?.total_invoiced ?? 0 },
                     { account_name: "Total Paid", current: custQ.data.summary?.total_paid ?? 0, compare: custQC.data.summary?.total_paid ?? 0 },
-                    { account_name: "Balance", current: custQ.data.summary?.closing_balance ?? 0, compare: custQC.data.summary?.closing_balance ?? 0 },
                 ]} currentLabel={cl} compareLabel={cm} />
-            </Space>
+                <ComparativeTotalBar label="Closing Balance" current={custQ.data.summary?.closing_balance ?? 0} compare={custQC.data.summary?.closing_balance ?? 0} />
+            </ComparativeLayout>
         );
     };
 
@@ -501,44 +593,52 @@ const AccountingReportsPage: React.FC = () => {
         if (!suppQ.data || !suppQC.data) return null;
         const cl = buildPeriodLabel(suppPeriod.primary), cm = buildPeriodLabel(suppPeriod.compare);
         return (
-            <Space direction="vertical" style={{ width: "100%" }} size={12}>
-                <PeriodHeaders currentLabel={cl} compareLabel={cm} />
-                <ComparativeTable title="Supplier Summary" rows={[
+            <ComparativeLayout cl={cl} cm={cm}>
+                <ComparativeTable title="Supplier Summary" accountTitle="Item" rows={[
                     { account_name: "Total Billed", current: suppQ.data.summary?.total_billed ?? 0, compare: suppQC.data.summary?.total_billed ?? 0 },
                     { account_name: "Total Paid", current: suppQ.data.summary?.total_paid ?? 0, compare: suppQC.data.summary?.total_paid ?? 0 },
-                    { account_name: "Balance", current: suppQ.data.summary?.closing_balance ?? 0, compare: suppQC.data.summary?.closing_balance ?? 0 },
                 ]} currentLabel={cl} compareLabel={cm} />
-            </Space>
+                <ComparativeTotalBar label="Closing Balance" current={suppQ.data.summary?.closing_balance ?? 0} compare={suppQC.data.summary?.closing_balance ?? 0} />
+            </ComparativeLayout>
         );
+    };
+
+    // Aging: union of parties across both dates so cleared balances still show.
+    const mergeParties = (cur: any[], cmp: any[], idKey: string, nameKey: string, invertColors: boolean): ComparativeRow[] => {
+        const cMap: Record<string, any> = {};
+        (cmp || []).forEach((p: any) => { cMap[p[idKey]] = p; });
+        const seen = new Set<string>();
+        const rows: ComparativeRow[] = (cur || []).map((p: any) => {
+            seen.add(p[idKey]);
+            return { account_name: p[nameKey], current: p.total ?? 0, compare: cMap[p[idKey]]?.total ?? 0, invertColors };
+        });
+        (cmp || []).forEach((p: any) => {
+            if (!seen.has(p[idKey])) rows.push({ account_name: p[nameKey], current: 0, compare: p.total ?? 0, invertColors });
+        });
+        return rows.sort((a, b) => b.current - a.current);
     };
 
     const renderComparativeAR = () => {
         if (!arQ.data || !arQC.data) return null;
         const cl = buildPeriodLabel(arPeriod.primary), cm = buildPeriodLabel(arPeriod.compare);
-        const cMap: Record<string, any> = {};
-        (arQC.data.customers || []).forEach((c: any) => { cMap[c.customer_id] = c; });
         return (
-            <Space direction="vertical" style={{ width: "100%" }} size={12}>
-                <PeriodHeaders currentLabel={cl} compareLabel={cm} />
-                <ComparativeTable title="AR Outstanding by Customer"
-                    rows={(arQ.data.customers || []).map((c: any) => ({ account_name: c.customer_name, current: c.total ?? 0, compare: cMap[c.customer_id]?.total ?? 0 }))}
+            <ComparativeLayout cl={cl} cm={cm}>
+                <ComparativeTable title="AR Outstanding by Customer" accountTitle="Customer" totalLabel="Total Outstanding"
+                    rows={mergeParties(arQ.data.customers, arQC.data.customers, "customer_id", "customer_name", false)}
                     currentLabel={cl} compareLabel={cm} showSummary />
-            </Space>
+            </ComparativeLayout>
         );
     };
 
     const renderComparativeAP = () => {
         if (!apQ.data || !apQC.data) return null;
         const cl = buildPeriodLabel(apPeriod.primary), cm = buildPeriodLabel(apPeriod.compare);
-        const cMap: Record<string, any> = {};
-        (apQC.data.suppliers || []).forEach((s: any) => { cMap[s.supplier_id] = s; });
         return (
-            <Space direction="vertical" style={{ width: "100%" }} size={12}>
-                <PeriodHeaders currentLabel={cl} compareLabel={cm} />
-                <ComparativeTable title="AP Outstanding by Supplier"
-                    rows={(apQ.data.suppliers || []).map((s: any) => ({ account_name: s.supplier_name, current: s.total ?? 0, compare: cMap[s.supplier_id]?.total ?? 0, invertColors: true }))}
+            <ComparativeLayout cl={cl} cm={cm}>
+                <ComparativeTable title="AP Outstanding by Supplier" accountTitle="Supplier" totalLabel="Total Outstanding"
+                    rows={mergeParties(apQ.data.suppliers, apQC.data.suppliers, "supplier_id", "supplier_name", true)}
                     currentLabel={cl} compareLabel={cm} showSummary />
-            </Space>
+            </ComparativeLayout>
         );
     };
 
