@@ -58,7 +58,14 @@ export function useTenantModules(): TenantModules {
 
 function useTenantWideModules(reduxTenant: any): TenantModules {
     return useMemo(() => {
-        // 1. Try Redux first (reactive — re-renders on store change)
+        // 1. localStorage first: Discover's Enable / Disable refreshes the
+        //    stored tenant (then reloads), while the Redux copy keeps the
+        //    flags from login — so Redux alone can show a module that was
+        //    just switched off.
+        const storedTenant = readFromLocalStorage();
+        if (storedTenant) return parseModules(storedTenant);
+
+        // 2. Redux (reactive — re-renders on store change)
         if (reduxTenant) {
             const parsed = parseModules(reduxTenant);
             // If any flag is true we have good data — use it.
@@ -66,10 +73,6 @@ function useTenantWideModules(reduxTenant: any): TenantModules {
             // so fall through to localStorage to be sure.
             if (parsed.hasHR || parsed.hasAccounting || parsed.hasMteja || parsed.hasDala || parsed.hasPOS || parsed.hasSignature) return parsed;
         }
-
-        // 2. localStorage fallback (always fresh after login)
-        const lsTenant = readFromLocalStorage();
-        if (lsTenant) return parseModules(lsTenant);
 
         // 3. No data at all
         return NO_TENANT_MODULES;

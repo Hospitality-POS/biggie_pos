@@ -85,6 +85,9 @@ export interface LedgerLine {
     debit: number;
     credit: number;
     balance: number;
+    // Project the entry is tagged to (Profit & Loss per project)
+    project_id?: string | null;
+    project?: { _id: string; name: string; code?: string } | null;
 }
 
 export interface AccountLedgerResponse {
@@ -140,6 +143,7 @@ export interface CreateAccountParams {
 
 export interface UpdateAccountParams {
     account_name?: string;
+    account_type?: ChartOfAccount["account_type"];
     description?: string;
     account_subtype?: string;
     parent_account_id?: string;

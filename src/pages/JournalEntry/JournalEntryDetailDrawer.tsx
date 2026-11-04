@@ -14,6 +14,7 @@ import {
     Alert,
     Spin,
     Tooltip,
+    Popconfirm,
 } from "antd";
 import {
     CheckCircleOutlined,
@@ -22,12 +23,14 @@ import {
     SwapOutlined,
     LinkOutlined,
     ApartmentOutlined,
+    UndoOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
     getJournalEntryById,
     postJournalEntry,
     voidJournalEntry,
+    unvoidJournalEntry,
     JournalEntry,
     JournalLine,
 } from "@services/accounting/journals";
@@ -124,6 +127,15 @@ const JournalEntryDetailDrawer: React.FC<Props> = ({ open, onClose, entryId, onS
             queryClient.invalidateQueries({ queryKey: ["journal-entry", entryId] });
             setVoidModalOpen(false);
             setVoidReason("");
+            onSuccess();
+        },
+    });
+
+    const unvoidMutation = useMutation({
+        mutationFn: (id: string) => unvoidJournalEntry(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["journal-entries"] });
+            queryClient.invalidateQueries({ queryKey: ["journal-entry", entryId] });
             onSuccess();
         },
     });
@@ -297,6 +309,18 @@ const JournalEntryDetailDrawer: React.FC<Props> = ({ open, onClose, entryId, onS
                                 >
                                     Void Entry
                                 </Button>
+                            )}
+                            {status === "Voided" && !entry.period_locked && (
+                                <Popconfirm
+                                    title="Unvoid this entry?"
+                                    description="It goes back to Posted and the reversal entry created by the void is removed."
+                                    okText="Unvoid"
+                                    onConfirm={() => unvoidMutation.mutate(entry._id)}
+                                >
+                                    <Button icon={<UndoOutlined />} loading={unvoidMutation.isPending}>
+                                        Unvoid Entry
+                                    </Button>
+                                </Popconfirm>
                             )}
                         </Space>
                     )

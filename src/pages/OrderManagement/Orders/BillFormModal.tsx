@@ -15,6 +15,7 @@ import StepperModal from "@components/MODALS/StepperModal";
 import AccountFormDrawer from "@pages/ChartOfAccounts/AccountFormDrawer";
 import { getVATConfigSync, calculateVAT } from "@utils/vat";
 import { CurrencySelector, useCurrency } from "@components/Currency";
+import ProjectSelect from "@components/accounting/ProjectSelect";
 import dayjs from "dayjs";
 
 const { TextArea } = Input;
@@ -72,6 +73,7 @@ const BillFormModal: React.FC<Props> = ({ open, onClose, onSuccess, billToEdit, 
                 vat_amount: billToEdit.total_vat_amount || billToEdit.total_vat,
                 vat_exempt: !!billToEdit.vat_exempt,
                 notes: billToEdit.notes,
+                project_id: billToEdit.project_id?._id || billToEdit.project_id || undefined,
                 description: billToEdit.bill_lines?.[0]?.description,
                 currency: billToEdit.currency || functionalCurrency?.code || "KES",
             });
@@ -229,6 +231,7 @@ const BillFormModal: React.FC<Props> = ({ open, onClose, onSuccess, billToEdit, 
                 currency: v.currency,
                 // Toggling the exemption recalculates the bill and reposts its JE
                 ...(exemptChanged ? { vat_exempt: !!v.vat_exempt, vat_rate: standardVatRate } : {}),
+                project_id: v.project_id || null,
             });
         } else {
             createMutation.mutate({
@@ -249,6 +252,7 @@ const BillFormModal: React.FC<Props> = ({ open, onClose, onSuccess, billToEdit, 
                 ],
                 notes: v.notes || undefined,
                 vat_exempt: !!v.vat_exempt,
+                project_id: v.project_id || null,
                 // Bills are deferred — Pending until paid via Record Payment
                 status: "Pending",
                 currency: v.currency || functionalCurrency?.code || "KES",
@@ -344,6 +348,9 @@ const BillFormModal: React.FC<Props> = ({ open, onClose, onSuccess, billToEdit, 
                                 </Form.Item>
                             </Col>
                         </Row>
+                        <Form.Item name="project_id" label="Project (optional)" tooltip="Optional — tag this bill to a project so it shows in that project's Profit & Loss">
+                            <ProjectSelect placeholder="No project" />
+                        </Form.Item>
                     </div>
 
                     {/* ── Step 2: Amount ───────────────────────────────────── */}
