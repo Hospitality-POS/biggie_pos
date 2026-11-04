@@ -21,6 +21,8 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   DeleteOutlined,
+  KeyOutlined,
+  MailOutlined,
   MoreOutlined,
   ReloadOutlined,
   SearchOutlined,
@@ -29,7 +31,7 @@ import {
   TeamOutlined,
   UserOutlined,
 } from "@ant-design/icons";
-import { deleteUserById, fetchAllUsersList, updateUserStatus } from "@services/users";
+import { deleteUserById, fetchAllUsersList, resendUserCredentials, resetUserCredentials, updateUserStatus } from "@services/users";
 import { fetchAllRoles } from "@services/Roles";
 import { fetchAllShops } from "@services/shops";
 import ExpandedRowContent from "./ExpandedRowContent";
@@ -157,8 +159,43 @@ const ActionCell: React.FC<{
 }> = ({ record, onStatusUpdate, onDelete, loading }) => {
   const isAdmin = typeof record?.role?.role_type === "string" && record?.role?.role_type?.toLowerCase() === "admin";
   const status = record?.status || "Active";
+  const hasEmail = !!record?.email;
+
+  // Service helpers show their own success/error toasts
+  const resendMutation = useMutation((id: string) => resendUserCredentials(id));
+  const resetMutation = useMutation((id: string) => resetUserCredentials(id));
+  const credentialsBusy = resendMutation.isLoading || resetMutation.isLoading;
+
+  const noEmailHint = (label: string) => (
+    <Tooltip title="Add an email address to this user first"><span style={{ color: "#94a3b8" }}>{label}</span></Tooltip>
+  );
 
   const menuItems = [
+    {
+      key: "resend-credentials",
+      icon: <MailOutlined style={{ color: hasEmail ? C.primary : "#94a3b8" }} />,
+      disabled: !hasEmail,
+      label: hasEmail ? (
+        <Popconfirm title="Resend login credentials?"
+          description={<>Emails the company code and current PIN to <b>{record.email}</b>.</>}
+          onConfirm={() => resendMutation.mutate(record._id)} okText="Send" cancelText="Cancel">
+          <span>Resend login credentials</span>
+        </Popconfirm>
+      ) : noEmailHint("Resend login credentials"),
+    },
+    {
+      key: "reset-credentials",
+      icon: <KeyOutlined style={{ color: hasEmail ? C.orange : "#94a3b8" }} />,
+      disabled: !hasEmail,
+      label: hasEmail ? (
+        <Popconfirm title="Reset PIN / password?"
+          description={<>Generates a new PIN{record.passwordEnabled ? " and temporary password" : ""} and emails it with the company code to <b>{record.email}</b>.<br />The current credentials stop working immediately.</>}
+          onConfirm={() => resetMutation.mutate(record._id)} okText="Reset & send" cancelText="Cancel" okButtonProps={{ danger: true }}>
+          <span style={{ color: C.orange }}>Reset PIN / password</span>
+        </Popconfirm>
+      ) : noEmailHint("Reset PIN / password"),
+    },
+    { type: "divider" as const },
     ...(status === "Active" ? [{
       key: "suspend",
       icon: <StopOutlined style={{ color: C.orange }} />,
@@ -222,7 +259,7 @@ const ActionCell: React.FC<{
       <AddEditProUserModal edit data={record} />
       <Dropdown menu={{ items: menuItems }} trigger={["click"]} placement="bottomRight">
         <Button
-          type="text" icon={<MoreOutlined />} loading={loading}
+          type="text" icon={<MoreOutlined />} loading={loading || credentialsBusy}
           style={{
             borderRadius: 7, border: `1px solid ${C.border}`,
             background: "#f8fafc", width: 30, height: 30, padding: 0,
