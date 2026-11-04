@@ -509,13 +509,47 @@ const BanduHRDashboard: React.FC = () => {
     color: LEAVE_COLORS[item.leave_type.toLowerCase()] || "#94a3b8",
   }));
 
-  const departmentBarData = (dashboardData.employees_by_department || []).map((item, index) => ({
-    name: item.department,
-    Total: item.count,
-    Active: item.active,
-    "On Leave": item.on_leave,
-    color: DEPARTMENT_COLORS[index % DEPARTMENT_COLORS.length],
-  }));
+  // Largest departments first; beyond MAX_DEPT_BARS the rest roll up into a
+  // single "Other" bar so the chart stays legible with many departments.
+  const MAX_DEPT_BARS = 7;
+  const departmentBarData = (() => {
+    const rows = [...(dashboardData.employees_by_department || [])]
+      .sort((a, b) => (b.count ?? 0) - (a.count ?? 0))
+      .map((item, index) => ({
+        name: item.department || "Unassigned",
+        Total: item.count ?? 0,
+        Active: item.active ?? 0,
+        "On Leave": item.on_leave ?? 0,
+        color: DEPARTMENT_COLORS[index % DEPARTMENT_COLORS.length],
+      }));
+    if (rows.length <= MAX_DEPT_BARS) return rows;
+    const head = rows.slice(0, MAX_DEPT_BARS - 1);
+    const rest = rows.slice(MAX_DEPT_BARS - 1);
+    return [
+      ...head,
+      {
+        name: `Other (${rest.length} depts)`,
+        Total: rest.reduce((s, r) => s + r.Total, 0),
+        Active: rest.reduce((s, r) => s + r.Active, 0),
+        "On Leave": rest.reduce((s, r) => s + r["On Leave"], 0),
+        color: "#94a3b8",
+      },
+    ];
+  })();
+  const deptLabelWidth = isMobile ? 90 : 130;
+  const deptChartHeight = Math.max(isMobile ? 180 : 200, departmentBarData.length * 34 + 60);
+  // Single-line, ellipsised y-axis label (full name shown in the tooltip / on hover)
+  const DeptTick = ({ x, y, payload }: any) => {
+    const full = String(payload?.value ?? "");
+    const maxChars = Math.floor(deptLabelWidth / 6.6);
+    const short = full.length > maxChars ? `${full.slice(0, maxChars - 1).trimEnd()}…` : full;
+    return (
+      <text x={x} y={y} dy={4} textAnchor="end" fontSize={11} fill="#64748b">
+        <title>{full}</title>
+        {short}
+      </text>
+    );
+  };
 
   const genderPieData = dashboardData.gender_breakdown
     ? [
@@ -1374,19 +1408,21 @@ const BanduHRDashboard: React.FC = () => {
               {demographicsTab === "dept" && (
                 <>
                   {departmentBarData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height={isMobile ? 210 : 240}>
+                    <ResponsiveContainer width="100%" height={deptChartHeight}>
                       <BarChart
                         data={departmentBarData}
                         layout="vertical"
-                        margin={isMobile ? { top: 10, right: 10, left: -10, bottom: 0 } : { top: 10, right: 15, left: 10, bottom: 0 }}
+                        barCategoryGap="28%"
+                        margin={{ top: 10, right: 15, left: 0, bottom: 0 }}
                       >
                         <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
-                        <XAxis type="number" tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} />
+                        <XAxis type="number" allowDecimals={false} tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} />
                         <YAxis
                           type="category"
                           dataKey="name"
-                          width={isMobile ? 65 : 90}
-                          tick={{ fontSize: 11, fill: "#64748b" }}
+                          width={deptLabelWidth}
+                          interval={0}
+                          tick={<DeptTick />}
                           axisLine={false}
                           tickLine={false}
                         />
