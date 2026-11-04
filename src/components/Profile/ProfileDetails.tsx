@@ -9,6 +9,7 @@ import {
   ClockCircleOutlined,
   EditOutlined,
   SaveOutlined,
+  SendOutlined,
 } from "@ant-design/icons";
 import { PageContainer, ProCard } from "@ant-design/pro-components";
 import {
@@ -24,9 +25,10 @@ import {
   Result,
   Divider,
   Input,
+  Popconfirm,
 } from "antd";
-import { useQuery } from "@tanstack/react-query";
-import { fetchUserById, updateUsers } from "@services/users";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { fetchUserById, resendUserCredentials, updateUsers } from "@services/users";
 import AuthenticationSettings from "@components/Settings/AuthenticationSettings";
 
 import { usePrimaryColor } from "@context/PrimaryColorContext";
@@ -105,6 +107,9 @@ function ProfileDetails({ userId }: ProfileDetailsProps) {
       setIsSaving(false);
     }
   };
+
+  // Service helper shows its own success/error toast
+  const resendMutation = useMutation(() => resendUserCredentials(userDetails?._id));
 
   const handleFieldChange = (field: string, value: string) => {
     setEditedFields((prev) => ({ ...prev, [field]: value }));
@@ -219,14 +224,35 @@ function ProfileDetails({ userId }: ProfileDetailsProps) {
                   </Button>
                 </Space>
               ) : (
-                <Button
-                  type="primary"
-                  icon={<EditOutlined />}
-                  onClick={handleEdit}
-                  style={{ width: "100%" }}
-                >
-                  Edit Profile
-                </Button>
+                <Space direction="vertical" size="small" style={{ width: "100%" }}>
+                  <Button
+                    type="primary"
+                    icon={<EditOutlined />}
+                    onClick={handleEdit}
+                    style={{ width: "100%" }}
+                  >
+                    Edit Profile
+                  </Button>
+                  <Popconfirm
+                    title="Resend login credentials?"
+                    description={userDetails.email
+                      ? <>Emails the company code and PIN to <b>{userDetails.email}</b>.</>
+                      : "This account has no email address."}
+                    onConfirm={() => resendMutation.mutate()}
+                    okText="Send"
+                    cancelText="Cancel"
+                    okButtonProps={{ disabled: !userDetails.email }}
+                  >
+                    <Button
+                      icon={<SendOutlined />}
+                      loading={resendMutation.isLoading}
+                      disabled={!userDetails.email}
+                      style={{ width: "100%" }}
+                    >
+                      Resend Login Credentials
+                    </Button>
+                  </Popconfirm>
+                </Space>
               )}
             </Space>
           </ProCard>

@@ -35,6 +35,32 @@ export const updateUserStatus = async (id: string, status: 'Active' | 'Suspended
     throw new Error(errorMessage);
   }
 };
+
+// Emails the user their company code + current PIN.
+export const resendUserCredentials = async (id: string) => {
+  try {
+    const response = await axiosInstance.post(`${userUrl}/${id}/resend-credentials`);
+    message.success(response.data?.message || "Login credentials sent");
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.message || "Failed to send login credentials";
+    message.error(errorMessage);
+    throw new Error(errorMessage);
+  }
+};
+
+// Generates a new PIN (and temporary password when enabled) and emails it with the company code.
+export const resetUserCredentials = async (id: string) => {
+  try {
+    const response = await axiosInstance.post(`${userUrl}/${id}/reset-credentials`);
+    message.success(response.data?.message || "Login credentials reset");
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.message || "Failed to reset login credentials";
+    message.error(errorMessage);
+    throw new Error(errorMessage);
+  }
+};
 export const fetchAllUsersList = async (data?: ParamsType & { shop_id?: string }) => {
   // When used directly as a React-Query queryFn the library passes a QueryFunctionContext
   // as the first argument (not a ParamsType). Guard against that so params stay clean.
