@@ -35,6 +35,8 @@ import {
     MessageOutlined,
     CloseOutlined,
     DeleteOutlined,
+    EditOutlined,
+    StopOutlined,
     ArrowLeftOutlined,
     MoreOutlined,
     FilePdfOutlined,
@@ -61,6 +63,8 @@ import {
     fetchAgents,
     handoverConversation,
     deleteConversation,
+    editMessage,
+    deleteMessage,
 } from "@services/whatsappService";
 import { useAppDispatch } from "src/store";
 import { createLeadActivity } from "@services/crm/leadActivities";
@@ -100,8 +104,16 @@ interface Message {
     sent_by?: { _id: string; fullname: string; thumbnail?: string };
     location?: { latitude: number; longitude: number; name?: string; address?: string };
     reaction?: { emoji: string; message_id: string };
+    edited_at?: string | null;
+    is_deleted?: boolean;
     createdAt: string;
 }
+
+// WhatsApp's own limits for changing a sent message.
+const EDIT_WINDOW_MIN = 15;
+const REVOKE_WINDOW_HOURS = 60;
+
+type DeleteScope = "me" | "everyone";
 
 interface SuggestedProduct {
     _id: string;
@@ -174,13 +186,77 @@ const FormattedText: React.FC<{ text?: string }> = ({ text }) => {
 
 // ── Message Bubble ────────────────────────────────────────────────────────────
 
-const MessageBubble: React.FC<{ msg: Message; channelColor: string; onReply?: (msg: Message) => void; isReplying?: boolean }> = ({
-    msg,
-    channelColor,
-    onReply,
-    isReplying,
-}) => {
+const MessageBubble: React.FC<{
+    msg: Message;
+    channel: string;
+    channelColor: string;
+    onReply?: (msg: Message) => void;
+    onEdit?: (msg: Message) => void;
+    onDelete?: (msg: Message, scope: DeleteScope) => void;
+    isReplying?: boolean;
+    alwaysShowMenu?: boolean;
+}> = ({ msg, channel, channelColor, onReply, onEdit, onDelete, isReplying, alwaysShowMenu }) => {
     const isOut = msg.direction === "outbound";
+    const [hovered, setHovered] = useState(false);
+    const [menuOpen, setMenuOpen] = useState(false);
+
+    const isWhatsapp = channel === "whatsapp";
+    const ageMin = dayjs().diff(dayjs(msg.createdAt), "minute");
+    // Edit / delete-for-everyone apply to text (or any) messages we sent on
+    // WhatsApp. Past WhatsApp's time limits they stay in the menu, greyed out
+    // with the reason, so agents aren't left wondering where the option went.
+    const editable = isOut && isWhatsapp && !msg.is_deleted && msg.message_type === "text";
+    const canEdit = editable && ageMin < EDIT_WINDOW_MIN;
+    const revocable = isOut && isWhatsapp && !msg.is_deleted;
+    const canDeleteForEveryone = revocable && ageMin < REVOKE_WINDOW_HOURS * 60;
+
+    const disabledLabel = (label: string, hint: string) => (
+        <span>
+            {label}
+            <span style={{ display: "block", fontSize: 11, color: "#8696a0" }}>{hint}</span>
+        </span>
+    );
+
+    const actionMenu: MenuProps = {
+        items: [
+            ...(!msg.is_deleted && onReply
+                ? [{ key: "reply", label: "Reply", icon: <MessageOutlined />, onClick: () => onReply(msg) }]
+                : []),
+            ...(editable && onEdit
+                ? [{
+                      key: "edit",
+                      label: canEdit ? "Edit" : disabledLabel("Edit", `Only within ${EDIT_WINDOW_MIN} min of sending`),
+                      icon: <EditOutlined />,
+                      disabled: !canEdit,
+                      onClick: () => canEdit && onEdit(msg),
+                  }]
+                : []),
+            ...(onDelete
+                ? [
+                      ...(revocable
+                          ? [{
+                                key: "delete-everyone",
+                                label: canDeleteForEveryone
+                                    ? "Delete for everyone"
+                                    : disabledLabel("Delete for everyone", "Too old to delete on WhatsApp"),
+                                icon: <DeleteOutlined />,
+                                danger: canDeleteForEveryone,
+                                disabled: !canDeleteForEveryone,
+                                onClick: () => canDeleteForEveryone && onDelete(msg, "everyone"),
+                            }]
+                          : []),
+                      {
+                          key: "delete-me",
+                          label: "Delete for me",
+                          icon: <DeleteOutlined />,
+                          danger: true,
+                          onClick: () => onDelete(msg, "me"),
+                      },
+                  ]
+                : []),
+        ],
+    };
+    const showMenuTrigger = (alwaysShowMenu || hovered || menuOpen) && (actionMenu.items?.length ?? 0) > 0;
 
     const bubbleStyle: React.CSSProperties = {
         maxWidth: "75%",
@@ -200,6 +276,14 @@ const MessageBubble: React.FC<{ msg: Message; channelColor: string; onReply?: (m
     };
 
     const renderContent = () => {
+        if (msg.is_deleted) {
+            return (
+                <Text style={{ fontStyle: "italic", color: "#667781" }}>
+                    <StopOutlined style={{ marginRight: 6 }} />
+                    {isOut ? "You deleted this message" : "This message was deleted"}
+                </Text>
+            );
+        }
         switch (msg.message_type) {
             case "image":
                 return msg.media_url ? (
@@ -363,11 +447,52 @@ const MessageBubble: React.FC<{ msg: Message; channelColor: string; onReply?: (m
 
             <div
                 style={bubbleStyle}
-                onClick={() => onReply?.(msg)}
-                title={onReply ? "Click to reply" : undefined}
+                onClick={() => !msg.is_deleted && onReply?.(msg)}
+                onMouseEnter={() => setHovered(true)}
+                onMouseLeave={() => setHovered(false)}
+                title={onReply && !msg.is_deleted ? "Click to reply" : undefined}
             >
+                {showMenuTrigger && (
+                    // Menu items render in a portal, but React still bubbles
+                    // their clicks up to the bubble — stop them here so
+                    // picking an option doesn't also start a reply.
+                    <span onClick={(e) => e.stopPropagation()}>
+                    <Dropdown
+                        menu={actionMenu}
+                        trigger={["click"]}
+                        placement={isOut ? "bottomRight" : "bottomLeft"}
+                        open={menuOpen}
+                        onOpenChange={setMenuOpen}
+                    >
+                        <span
+                            role="button"
+                            aria-label="Message options"
+                            onClick={(e) => e.stopPropagation()}
+                            style={{
+                                position: "absolute",
+                                top: 2,
+                                right: 2,
+                                zIndex: 1,
+                                width: 22,
+                                height: 18,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                borderRadius: 9,
+                                cursor: "pointer",
+                                color: "#54656f",
+                                background: isOut ? "#d9fdd3" : "#ffffff",
+                                boxShadow: "-6px 0 6px " + (isOut ? "#d9fdd3" : "#ffffff"),
+                            }}
+                        >
+                            <DownOutlined style={{ fontSize: 10 }} />
+                        </span>
+                    </Dropdown>
+                    </span>
+                )}
                 {renderContent()}
-                {["image", "document", "video"].includes(msg.message_type) &&
+                {!msg.is_deleted &&
+                    ["image", "document", "video"].includes(msg.message_type) &&
                     msg.content && (
                         <div style={{ marginTop: 4, fontSize: 12 }}>
                             <FormattedText text={msg.content} />
@@ -382,6 +507,13 @@ const MessageBubble: React.FC<{ msg: Message; channelColor: string; onReply?: (m
                         marginTop: 3,
                     }}
                 >
+                    {msg.edited_at && !msg.is_deleted && (
+                        <Tooltip title={`Edited ${dayjs(msg.edited_at).format("DD MMM, HH:mm")}`}>
+                            <Text style={{ fontSize: 10, color: "#667781", fontStyle: "italic" }}>
+                                Edited
+                            </Text>
+                        </Tooltip>
+                    )}
                     <Text
                         style={{
                             fontSize: 10,
@@ -390,7 +522,7 @@ const MessageBubble: React.FC<{ msg: Message; channelColor: string; onReply?: (m
                     >
                         {dayjs(msg.createdAt).format("HH:mm")}
                     </Text>
-                    {isOut && STATUS_ICONS[msg.status]}
+                    {isOut && !msg.is_deleted && STATUS_ICONS[msg.status]}
                 </div>
             </div>
 
@@ -940,6 +1072,80 @@ const MessageThread: React.FC<Props> = ({
         });
     };
 
+    // ── Edit / delete a single message ─────────────────────────────────────────
+
+    const [editingMsg, setEditingMsg] = useState<Message | null>(null);
+    const [editText, setEditText] = useState("");
+
+    // Older history lives in local state (not the polled query), so patch it
+    // directly; the latest page is refreshed with refetch().
+    const applyLocalMessageChange = (id: string, change: Partial<Message> | null) => {
+        setOlderMessages((prev) =>
+            change === null
+                ? prev.filter((m) => m._id !== id)
+                : prev.map((m) => (m._id === id ? { ...m, ...change } : m))
+        );
+    };
+
+    const openEditMessage = (msg: Message) => {
+        setEditingMsg(msg);
+        setEditText(msg.content || "");
+    };
+
+    const editMessageMutation = useMutation({
+        mutationFn: ({ id, content }: { id: string; content: string }) => editMessage(id, content),
+        onSuccess: (data: any, vars) => {
+            applyLocalMessageChange(vars.id, {
+                content: vars.content,
+                edited_at: data?.message?.edited_at || new Date().toISOString(),
+            });
+            setEditingMsg(null);
+            refetch();
+            onConversationUpdate();
+            antMessage.success("Message edited");
+        },
+        onError: (error: any) => {
+            antMessage.error(error?.response?.data?.message || "Could not edit message");
+        },
+    });
+
+    const handleSaveEdit = () => {
+        const content = editText.trim();
+        if (!editingMsg || !content || editMessageMutation.isLoading) return;
+        if (content === editingMsg.content) {
+            setEditingMsg(null);
+            return;
+        }
+        editMessageMutation.mutate({ id: editingMsg._id, content });
+    };
+
+    const handleDeleteMessage = (msg: Message, scope: DeleteScope) => {
+        Modal.confirm({
+            title: scope === "everyone" ? "Delete for everyone?" : "Delete for me?",
+            content:
+                scope === "everyone"
+                    ? `The message will be removed from ${conversation.external_contact_name || "the customer"}'s WhatsApp too.`
+                    : "The message will be removed from this inbox only. The customer will still see it.",
+            okText: "Delete",
+            okType: "danger",
+            onOk: async () => {
+                try {
+                    await deleteMessage(msg._id, scope);
+                    applyLocalMessageChange(
+                        msg._id,
+                        scope === "me" ? null : { is_deleted: true, content: "", media_url: undefined }
+                    );
+                    if (replyingTo?._id === msg._id) setReplyingTo(null);
+                    refetch();
+                    onConversationUpdate();
+                    antMessage.success("Message deleted");
+                } catch (error: any) {
+                    antMessage.error(error?.response?.data?.message || "Could not delete message");
+                }
+            },
+        });
+    };
+
     const convertMenu: MenuProps = {
         items: [
             { key: "customer", label: "Convert to Customer", icon: <UserAddOutlined />, onClick: () => openConvert("customer") },
@@ -1250,9 +1456,13 @@ const MessageThread: React.FC<Props> = ({
                                     <MessageBubble
                                         key={msg._id}
                                         msg={msg}
+                                        channel={conversation.channel}
                                         channelColor={cfg?.color || primaryColor}
                                         onReply={setReplyingTo}
+                                        onEdit={openEditMessage}
+                                        onDelete={handleDeleteMessage}
                                         isReplying={replyingTo?._id === msg._id}
+                                        alwaysShowMenu={isMobile}
                                     />
                                 ))}
                             </div>
@@ -1543,6 +1753,35 @@ const MessageThread: React.FC<Props> = ({
                         style={{ marginTop: 8 }}
                     />
                 )}
+            </Modal>
+
+            <Modal
+                title="Edit message"
+                open={!!editingMsg}
+                onCancel={() => setEditingMsg(null)}
+                onOk={handleSaveEdit}
+                okText="Save"
+                okButtonProps={{ disabled: !editText.trim() }}
+                confirmLoading={editMessageMutation.isLoading}
+                width={isMobile ? "90vw" : 480}
+                destroyOnClose
+            >
+                <TextArea
+                    value={editText}
+                    onChange={(e) => setEditText(e.target.value)}
+                    onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSaveEdit();
+                        }
+                    }}
+                    autoSize={{ minRows: 2, maxRows: 8 }}
+                    autoFocus
+                    style={{ marginTop: 8 }}
+                />
+                <Text type="secondary" style={{ fontSize: 11, display: "block", marginTop: 6 }}>
+                    WhatsApp lets you edit a message for {EDIT_WINDOW_MIN} minutes after sending. The customer will see it marked as edited.
+                </Text>
             </Modal>
 
             <Modal
