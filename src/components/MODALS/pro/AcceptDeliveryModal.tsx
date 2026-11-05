@@ -26,6 +26,7 @@ import ShowConfirm from "@utils/ConfirmUtil";
 import { addNewDelivery, editDelivery } from "@services/deliveries";
 
 import { usePrimaryColor } from "@context/PrimaryColorContext";
+import { PackLineFields } from "@components/inventory/PackPricing";
 
 interface AcceptDeliveryModalProps {
   data?: any;
@@ -307,6 +308,9 @@ const AcceptDeliveryModal: React.FC<AcceptDeliveryModalProps> = ({
                   },
                   quantity: item?.quantity,
                   supplier_price: item?.supplier_price,
+                  pack_count: item?.pack_count ?? undefined,
+                  pack_size: item?.pack_size ?? undefined,
+                  pack_price: item?.pack_price ?? undefined,
                 })),
               }
               : {}
@@ -362,9 +366,14 @@ const AcceptDeliveryModal: React.FC<AcceptDeliveryModalProps> = ({
                         min={0}
                         rules={[{ required: true }]}
                         fieldProps={{
-                          precision: 2,
-                          formatter: (value) => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ','),
-                          parser: (value) => value!.replace(/\$\s?|(,*)/g, ''),
+                          // up to 4 decimals — per-item prices worked out from a pack price
+                          precision: undefined,
+                          formatter: (value) => {
+                            if (value === undefined || value === null || String(value) === "") return "";
+                            const [whole, dec] = String(value).split(".");
+                            return `Ksh ${whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}${dec !== undefined ? `.${dec}` : ""}`;
+                          },
+                          parser: (value) => (value || "").replace(/[^\d.]/g, "") as any,
                         }}
                       />
                     </Col>
@@ -379,6 +388,14 @@ const AcceptDeliveryModal: React.FC<AcceptDeliveryModalProps> = ({
                           Remove
                         </Button>
                       )}
+                    </Col>
+                    <Col xs={24}>
+                      <PackLineFields
+                        listName="delivery_items"
+                        name={field.name}
+                        qtyKey="quantity"
+                        priceKey="supplier_price"
+                      />
                     </Col>
                   </Row>
                 ))}

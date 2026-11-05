@@ -14,7 +14,10 @@ import {
   InputNumber,
   Input,
   Switch,
+  Alert,
+  Typography,
 } from "antd";
+import type { FormInstance } from "antd";
 import { ModalForm } from "@ant-design/pro-form";
 import {
   EditOutlined,
@@ -550,6 +553,117 @@ const useBarcodeScanner = ({
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, [enabled, minLength, maxKeystrokeGap, onScan]);
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BULK PURCHASE → UNIT COST
+// Suppliers usually quote a pack price (e.g. 60 sausages for Ksh 3,000), not a
+// per-item price. This works the per-item supplier price out from the pack,
+// and shows the profit and margin against the selling price.
+// ─────────────────────────────────────────────────────────────────────────────
+const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+const ksh = (n: number) =>
+  `Ksh ${n.toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+const BulkCostHelper: React.FC<{ form: FormInstance; canSetQuantity: boolean }> = ({
+  form,
+  canSetQuantity,
+}) => {
+  const [open, setOpen] = useState(false);
+  const [packCost, setPackCost] = useState<number | null>(null);
+  const [perPack, setPerPack] = useState<number | null>(null);
+  const [packs, setPacks] = useState<number | null>(1);
+
+  const supplierPrice = Number(Form.useWatch("supplier_price", form)) || 0;
+  const sellingPrice = Number(Form.useWatch("price", form)) || 0;
+
+  const unitCost = packCost && perPack ? round2(packCost / perPack) : null;
+  const totalItems = perPack ? perPack * (packs || 1) : 0;
+
+  // Fill the Supplier Price field as the pack details are typed
+  useEffect(() => {
+    if (open && unitCost != null) form.setFieldValue("supplier_price", unitCost);
+  }, [open, unitCost, form]);
+
+  const profit = sellingPrice - supplierPrice;
+  const showMargin = supplierPrice > 0 && sellingPrice > 0;
+  const marginPct = showMargin ? (profit / sellingPrice) * 100 : 0;
+  const markupPct = showMargin ? (profit / supplierPrice) * 100 : 0;
+
+  return (
+    <div style={{ marginTop: -4, marginBottom: 16 }}>
+      {!open ? (
+        <Button type="link" icon={<DollarOutlined />} style={{ padding: 0 }} onClick={() => setOpen(true)}>
+          Bought in bulk? Work out the supplier price per item
+        </Button>
+      ) : (
+        <div style={{ border: "1px solid #e2e8f0", background: "#f8fafc", borderRadius: 10, padding: "12px 14px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <Typography.Text strong style={{ fontSize: 13 }}>Bulk purchase calculator</Typography.Text>
+            <Button size="small" type="text" onClick={() => setOpen(false)}>Close</Button>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12, alignItems: "end" }}>
+            <div>
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>Total paid for one pack</Typography.Text>
+              <InputNumber
+                autoFocus min={0} addonBefore="Ksh." style={{ width: "100%" }}
+                placeholder="e.g. 3000" value={packCost} onChange={(v) => setPackCost(v)}
+              />
+            </div>
+            <div>
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>Items in one pack</Typography.Text>
+              <InputNumber
+                min={1} precision={0} style={{ width: "100%" }} addonAfter="items"
+                placeholder="e.g. 60" value={perPack} onChange={(v) => setPerPack(v)}
+              />
+            </div>
+            <div>
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>Packs bought (optional)</Typography.Text>
+              <InputNumber
+                min={1} precision={0} style={{ width: "100%" }}
+                value={packs} onChange={(v) => setPacks(v)}
+              />
+            </div>
+          </div>
+
+          {unitCost != null && (
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginTop: 12 }}>
+              <Typography.Text>
+                {ksh(packCost!)} ÷ {perPack} items = <Typography.Text strong>{ksh(unitCost)} per item</Typography.Text>
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}> · set as Supplier Price</Typography.Text>
+              </Typography.Text>
+              {canSetQuantity && totalItems > 0 && (
+                <Space size={6} wrap>
+                  <Button size="small" onClick={() => form.setFieldValue("quantity", totalItems)}>
+                    Set quantity to {totalItems}
+                  </Button>
+                  <Button
+                    size="small"
+                    onClick={() => form.setFieldValue("quantity", (Number(form.getFieldValue("quantity")) || 0) + totalItems)}
+                  >
+                    Add {totalItems} to quantity
+                  </Button>
+                </Space>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {showMargin && (
+        <Alert
+          style={{ marginTop: 10 }}
+          type={profit < 0 ? "error" : marginPct < 10 ? "warning" : "success"}
+          showIcon
+          message={
+            profit < 0
+              ? `Selling below cost — you lose ${ksh(Math.abs(profit))} on every item`
+              : `Profit ${ksh(profit)} per item · margin ${marginPct.toFixed(1)}% · markup ${markupPct.toFixed(1)}%`
+          }
+        />
+      )}
+    </div>
+  );
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1262,6 +1376,9 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
                 />
               </Form.Item>
             </div>
+
+            {/* Pack price → per-item supplier price, plus profit/margin */}
+            <BulkCostHelper form={form} canSetQuantity={!hasVariants} />
 
             {/* Variants toggle */}
             <Form.Item
