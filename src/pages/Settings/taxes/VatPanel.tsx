@@ -136,7 +136,7 @@ const VatPanel: React.FC<{ scope: TaxScope }> = ({ scope }) => {
       <div style={{ display: "flex", flexWrap: "wrap", gap: 16, opacity: enabled ? 1 : 0.55, transition: "opacity 0.2s" }}>
         <RateCard label="Standard rate" value={pct} onChange={setPct} presets={[8, 16]} disabled={!enabled}>
           <div style={{ marginTop: 16 }}>
-            <CardLabel>Item selling prices are</CardLabel>
+            <CardLabel>Do your prices include VAT?</CardLabel>
             <Segmented
               block
               disabled={!enabled}
@@ -144,8 +144,8 @@ const VatPanel: React.FC<{ scope: TaxScope }> = ({ scope }) => {
               onChange={(v) => setMode(v as VatPricingMode)}
               style={{ marginTop: 8 }}
               options={[
-                { label: "Tax exclusive", value: "EXCLUSIVE" },
-                { label: "Tax inclusive", value: "INCLUSIVE" },
+                { label: "Yes, VAT is included", value: "INCLUSIVE" },
+                { label: "No, add VAT on top", value: "EXCLUSIVE" },
               ]}
             />
             <Text style={{ fontSize: 11, color: C.subText, display: "block", marginTop: 8 }}>

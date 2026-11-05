@@ -53,43 +53,57 @@ export const EXPORT_TEMPLATES: { id: ExportTemplateId; name: string; description
 
 export const DEFAULT_EXPORT_TEMPLATE: ExportTemplateId = 'minimal';
 
-const STORAGE_KEY = 'payrollExportTemplate';
-const CHANGE_EVENT = 'payroll-export-template-change';
+/**
+ * Which family of downloads a choice belongs to. Payroll (muster roll +
+ * payslips) and accounting documents (receipts, bills, expenses) each
+ * remember their own template.
+ */
+export type ExportTemplateScope = 'payroll' | 'document';
+
+const SCOPES: Record<ExportTemplateScope, { key: string; event: string; fallback: ExportTemplateId }> = {
+  payroll: { key: 'payrollExportTemplate', event: 'payroll-export-template-change', fallback: DEFAULT_EXPORT_TEMPLATE },
+  document: { key: 'documentExportTemplate', event: 'document-export-template-change', fallback: 'branded' },
+};
 
 const isTemplateId = (v: unknown): v is ExportTemplateId =>
   EXPORT_TEMPLATES.some((t) => t.id === v);
 
-export const getExportTemplate = (): ExportTemplateId => {
+export const getExportTemplate = (scope: ExportTemplateScope = 'payroll'): ExportTemplateId => {
+  const { key, fallback } = SCOPES[scope];
   try {
-    const v = localStorage.getItem(STORAGE_KEY);
-    return isTemplateId(v) ? v : DEFAULT_EXPORT_TEMPLATE;
+    const v = localStorage.getItem(key);
+    return isTemplateId(v) ? v : fallback;
   } catch {
-    return DEFAULT_EXPORT_TEMPLATE;
+    return fallback;
   }
 };
 
-export const setExportTemplate = (id: ExportTemplateId) => {
+export const setExportTemplate = (id: ExportTemplateId, scope: ExportTemplateScope = 'payroll') => {
+  const { key, event } = SCOPES[scope];
   try {
-    localStorage.setItem(STORAGE_KEY, id);
+    localStorage.setItem(key, id);
   } catch {
     /* storage unavailable — choice lasts for this page only */
   }
-  window.dispatchEvent(new CustomEvent(CHANGE_EVENT, { detail: id }));
+  window.dispatchEvent(new CustomEvent(event, { detail: id }));
 };
 
-/** Current template, kept in sync across the payroll and payslip pages. */
-export const useExportTemplate = (): [ExportTemplateId, (id: ExportTemplateId) => void] => {
-  const [id, setId] = useState<ExportTemplateId>(getExportTemplate);
+/** Current template for a scope, kept in sync across every page that uses it. */
+export const useExportTemplate = (
+  scope: ExportTemplateScope = 'payroll'
+): [ExportTemplateId, (id: ExportTemplateId) => void] => {
+  const [id, setId] = useState<ExportTemplateId>(() => getExportTemplate(scope));
   useEffect(() => {
-    const sync = () => setId(getExportTemplate());
-    window.addEventListener(CHANGE_EVENT, sync);
+    const sync = () => setId(getExportTemplate(scope));
+    const { event } = SCOPES[scope];
+    window.addEventListener(event, sync);
     window.addEventListener('storage', sync);
     return () => {
-      window.removeEventListener(CHANGE_EVENT, sync);
+      window.removeEventListener(event, sync);
       window.removeEventListener('storage', sync);
     };
-  }, []);
-  return [id, setExportTemplate];
+  }, [scope]);
+  return [id, (next: ExportTemplateId) => setExportTemplate(next, scope)];
 };
 
 export const getExportTheme = (id: ExportTemplateId = getExportTemplate()): ExportTheme => {
