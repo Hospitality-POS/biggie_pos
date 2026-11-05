@@ -768,6 +768,18 @@ export const fetchMessages = async (conversationId: string, params?: FetchMessag
     }
 };
 
+// Edit / delete throw on failure so the caller can show the server's reason
+// (e.g. WhatsApp's 15-minute edit window has passed).
+export const editMessage = async (messageId: string, content: string) => {
+    const response = await axiosInstance.patch(`${messageUrl}/${messageId}`, { content });
+    return response.data;
+};
+
+export const deleteMessage = async (messageId: string, scope: "me" | "everyone") => {
+    const response = await axiosInstance.delete(`${messageUrl}/${messageId}`, { params: { scope } });
+    return response.data;
+};
+
 export const sendTextMessage = async (params: { conversation_id: string; content: string; context_message_id?: string }) => {
     try {
         const response = await axiosInstance.post(`${messageUrl}/text`, {

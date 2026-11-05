@@ -335,26 +335,26 @@ function BillsPage() {
             ),
         },
         {
-            title: "Bill No", dataIndex: "bill_no", width: 130,
+            title: "Bill No", dataIndex: "bill_no", width: 140,
             render: (v: string) => (
                 <Text style={{ fontSize: 11, fontFamily: "monospace", color: C.subText }}>{v}</Text>
             ),
         },
         {
-            title: "Supplier", dataIndex: "supplier_id",
+            title: "Supplier", dataIndex: "supplier_id", width: 180, ellipsis: true,
             render: (s: any, row: Bill) => {
                 const name = s?.name || row.supplier_name;
                 return name
-                    ? <Text style={{ fontSize: 12, fontWeight: 500 }}>{name}</Text>
+                    ? <Text ellipsis={{ tooltip: name }} style={{ fontSize: 12, fontWeight: 500 }}>{name}</Text>
                     : <Text style={{ color: C.subText }}>—</Text>;
             },
         },
         {
-            title: "Description",
+            title: "Description", key: "description", width: 220, ellipsis: true,
             render: (_: any, row: Bill) => {
                 const desc = row.bill_lines?.[0]?.description || row.notes;
                 return desc
-                    ? <Text style={{ fontSize: 12 }}>{desc}</Text>
+                    ? <Text ellipsis={{ tooltip: desc }} style={{ fontSize: 12 }}>{desc}</Text>
                     : <Text style={{ color: C.subText }}>—</Text>;
             },
         },
@@ -382,7 +382,7 @@ function BillsPage() {
             },
         },
         {
-            title: "Amount", dataIndex: "grand_total", align: "right" as const, width: 120,
+            title: "Amount", dataIndex: "grand_total", align: "right" as const, width: 130,
             render: (v: number) => (
                 <Text strong style={{ color: C.purple, fontSize: 13 }}>KES {fmt(v)}</Text>
             ),
@@ -400,7 +400,7 @@ function BillsPage() {
                 : <Text style={{ color: C.subText }}>—</Text>,
         },
         {
-            title: "JE", dataIndex: "journal_entry_id", width: 150,
+            title: "JE", dataIndex: "journal_entry_id", width: 110,
             render: (je: any) => je ? (
                 <span style={{
                     background: je.status === "Posted" ? "#f0fdf4" : "#fffbeb",
@@ -413,7 +413,7 @@ function BillsPage() {
             ) : <span style={{ color: C.subText, fontSize: 12 }}>—</span>,
         },
         {
-            title: "Project", key: "project", width: 180,
+            title: "Project", key: "project", width: 170,
             render: (_: any, r: any) => (
                 <ProjectTagCell
                     docType="bill"
@@ -425,13 +425,13 @@ function BillsPage() {
             ),
         },
         {
-            title: "Actions", key: "actions", width: 285, fixed: "right" as const,
+            title: "Actions", key: "actions", width: 210, fixed: "right" as const,
             render: (_: any, row: Bill) => {
                 const canPay = PAYABLE_STATUSES.includes(row.status);
                 const canVoid = VOIDABLE_STATUSES.includes(row.status);
                 const canEdit = EDITABLE_STATUSES.includes(row.status);
                 return (
-                    <Space size={4}>
+                    <Space size={4} wrap={false}>
                         <Tooltip title="View Bill Details">
                             <Button
                                 size="small"
@@ -484,7 +484,11 @@ function BillsPage() {
                 );
             },
         },
-    ];
+    ].map((col) => ({
+        ...col,
+        // Keep headers on one line ("Description" was wrapping mid-word)
+        onHeaderCell: () => ({ style: { whiteSpace: "nowrap" as const } }),
+    }));
 
     return (
         <App>
@@ -580,7 +584,7 @@ function BillsPage() {
                                 showTotal: (t) => `${t} entries`,
                                 style: { marginBottom: 0 },
                             }}
-                            scroll={{ x: 1300 }}
+                            scroll={{ x: 1700 }}
                             style={{ border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden" }}
                         />
                     </Spin>
