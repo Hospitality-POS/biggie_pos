@@ -27,6 +27,10 @@ import { THEME_C, getPrimaryColor } from "../../../utils/getPrimaryColor";
 import PrintBillModal from "../../../components/MODALS/PrintBillModal";
 import { usePrintDocument, DocumentType } from "../../../components/MODALS/Hooks/usePrintDocument";
 import { inlineImages } from "@utils/inlineImages";
+import DocumentPdfButton from "@components/ExportTemplate/DocumentPdfButton";
+import { downloadInvoicePaymentReceiptPdf, type DocBusiness } from "@utils/financeDocs";
+import { useDocumentBusiness } from "@hooks/useDocumentBusiness";
+import type { ExportTemplateId } from "@utils/exportTemplates";
 
 const { Text } = Typography;
 
@@ -757,6 +761,42 @@ const DetailsTab = ({
 // ═══════════════════════════════════════════════════════════════
 // TAB 3 — Payments
 // ═══════════════════════════════════════════════════════════════
+
+/** Receipt number shown on payment receipts — INV-0042 → REC-0042[-ABC123]. */
+const paymentReceiptNo = (inv: InvoiceDetailsInterface, selected?: PaymentRecord) => {
+  const base = inv.order_no || inv.invoice_no || "";
+  const suffix = selected ? `-${selected._id?.slice(-6).toUpperCase()}` : "";
+  return base
+    ? base.replace(/^(INV|QUOTE|BILL)-?/, "REC-") + suffix
+    : `REC-${dayjs().format("YYYYMMDD")}-${(inv._id || "").slice(-6).toUpperCase()}`;
+};
+
+/** Templated PDF payment receipt — for one payment, or all of the invoice's payments. */
+const downloadPaymentReceipt = (
+  inv: InvoiceDetailsInterface, business: DocBusiness, template: ExportTemplateId, selected?: PaymentRecord,
+) => {
+  const all: PaymentRecord[] = inv.payments || inv.payment_ids || [];
+  const counted = all.filter((p) => !["FAILED", "REFUNDED"].includes(p.payment_status || ""));
+  const receiptsTotal = (inv.salesReceipts || []).reduce((s, r) => s + (r.grand_total || 0), 0);
+  const paidToDate = round2(counted.reduce((s, p) => s + (p.amount || 0), 0) + receiptsTotal);
+  const party = resolveParty(inv);
+  return downloadInvoicePaymentReceiptPdf({
+    receiptNo: paymentReceiptNo(inv, selected),
+    invoiceNo: inv.order_no || inv.invoice_no || "",
+    invoiceDate: (inv as any).issue_date || (inv as any).createdAt,
+    invoiceTotal: inv.grand_total || 0,
+    paidToDate,
+    balanceDue: round2(Math.max(0, (inv.grand_total || 0) - paidToDate)),
+    party: { name: party.name, phone: party.phone, email: party.email, kra_pin: party.kra_pin },
+    payments: (selected ? [selected] : counted).map((p) => ({
+      date: p.payment_date || p.createdAt,
+      method: p.method_id?.name || p.method,
+      reference: p.reference,
+      amount: p.amount || 0,
+    })),
+  }, business, template);
+};
+
 const PaymentsTab = ({
   record, onOpenPrint, onPaymentsChanged,
 }: {
@@ -765,6 +805,7 @@ const PaymentsTab = ({
   onPaymentsChanged?: () => void;
 }) => {
   const canEditPayments = !["Voided", "Cancelled", "Draft"].includes(record.status ?? "");
+  const business = useDocumentBusiness();
   const payments: PaymentRecord[] = record.payments || record.payment_ids || [];
   const total = payments.reduce((s, p) => s + (p.amount || 0), 0);
   const salesReceiptsTotal = (record.salesReceipts || []).reduce((s, r) => s + (r.grand_total || 0), 0);
@@ -959,16 +1000,19 @@ const PaymentsTab = ({
       render: (v: number) => <Text strong style={{ fontSize: 12, color: C.green }}>KES {fmt(v)}</Text>,
     },
     {
-      title: "Receipt", key: "receipt", align: "center" as const, width: 100,
+      title: "Receipt", key: "receipt", align: "center" as const, width: 130,
       render: (_: any, r: PaymentRecord) => (
-        <Button
-          size="small"
-          icon={<PrinterOutlined />}
-          onClick={() => onOpenPrint(r)}
-          style={{ borderRadius: 6, fontSize: 11 }}
-        >
-          Receipt
-        </Button>
+        <Space size={4}>
+          <Button
+            size="small"
+            icon={<PrinterOutlined />}
+            onClick={() => onOpenPrint(r)}
+            style={{ borderRadius: 6, fontSize: 11 }}
+          >
+            Receipt
+          </Button>
+          <DocumentPdfButton compact onDownload={(tpl) => downloadPaymentReceipt(record, business, tpl, r)} />
+        </Space>
       ),
     },
     ...(canEditPayments
@@ -1022,8 +1066,13 @@ const PaymentsTab = ({
         )}
         <Button icon={<PrinterOutlined />} onClick={() => onOpenPrint()}
           style={{ alignSelf: "center", borderRadius: 8, borderColor: C.primary, color: C.primary }}>
-          Download Receipt
+          Print Receipt
         </Button>
+        {payments.length > 0 && (
+          <div style={{ alignSelf: "center" }}>
+            <DocumentPdfButton label="Receipt PDF" onDownload={(tpl) => downloadPaymentReceipt(record, business, tpl)} />
+          </div>
+        )}
         <Button 
           icon={<CopyOutlined />} 
           onClick={handleDuplicate}
@@ -1648,11 +1697,7 @@ const ReceiptTemplateModern = React.forwardRef<HTMLDivElement, {
   const party = resolveParty(inv);
   const totalPaid = payments.reduce((s, p) => s + (p.amount || 0), 0);
   const balanceDue = Math.max(0, (inv.grand_total || 0) - totalPaid);
-  const receiptNo = (() => {
-    const base = inv.order_no || inv.invoice_no || "";
-    const suffix = selectedPayment ? `-${selectedPayment._id?.slice(-6).toUpperCase()}` : "";
-    return base ? base.replace(/^(INV|QUOTE|BILL)-?/, "REC-") + suffix : `REC-${dayjs().format("YYYYMMDD")}-${(inv._id || "").slice(-6).toUpperCase()}`;
-  })();
+  const receiptNo = paymentReceiptNo(inv, selectedPayment);
   return (
     <div ref={ref} style={{ fontFamily: "'Segoe UI', Roboto, sans-serif", color: "#0f172a", background: "#fff", width: "100%" }}>
 
@@ -1759,11 +1804,7 @@ const ReceiptTemplateCompact = React.forwardRef<HTMLDivElement, {
   const party = resolveParty(inv);
   const totalPaid = payments.reduce((s, p) => s + (p.amount || 0), 0);
   const balanceDue = Math.max(0, (inv.grand_total || 0) - totalPaid);
-  const receiptNo = (() => {
-    const base = inv.order_no || inv.invoice_no || "";
-    const suffix = selectedPayment ? `-${selectedPayment._id?.slice(-6).toUpperCase()}` : "";
-    return base ? base.replace(/^(INV|QUOTE|BILL)-?/, "REC-") + suffix : `REC-${dayjs().format("YYYYMMDD")}-${(inv._id || "").slice(-6).toUpperCase()}`;
-  })();
+  const receiptNo = paymentReceiptNo(inv, selectedPayment);
   return (
     <div ref={ref} style={{ fontFamily: "'Courier New', Courier, monospace", color: "#000", background: "#fff", padding: "28px 22px", width: "100%", maxWidth: 400, margin: "0 auto", boxSizing: "border-box" as const }}>
       <div style={{ textAlign: "center" as const, borderBottom: "2px dashed #000", paddingBottom: 12, marginBottom: 14 }}>
@@ -1837,6 +1878,7 @@ const PaymentReceiptDownload: React.FC<{
   inv: InvoiceDetailsInterface; sys: SystemDetails; primaryColor: string; selectedPayment?: PaymentRecord;
 }> = ({ inv, sys, primaryColor, selectedPayment }) => {
   const [style, setStyle] = useState<"modern" | "compact">("modern");
+  const business = useDocumentBusiness();
   const modernRef = useRef<HTMLDivElement>(null);
   const compactRef = useRef<HTMLDivElement>(null);
   const title = `Receipt-${inv.order_no || inv._id}${selectedPayment ? `-${selectedPayment._id?.slice(-6)}` : ""}`;
@@ -1850,11 +1892,15 @@ const PaymentReceiptDownload: React.FC<{
           <Text strong style={{ fontSize: 13 }}>Payment Receipt</Text>
           <Text style={{ fontSize: 11, color: C.subText, marginLeft: 8 }}>{inv.order_no}</Text>
         </div>
-        <Button type="primary" icon={<PrinterOutlined />}
-          onClick={() => style === "modern" ? printModern() : printCompact()}
-          style={{ background: primaryColor, borderColor: primaryColor, borderRadius: 6 }}>
-          Download / Print PDF
-        </Button>
+        <Space wrap size={8}>
+          <Button icon={<PrinterOutlined />}
+            onClick={() => style === "modern" ? printModern() : printCompact()}
+            style={{ borderColor: primaryColor, color: primaryColor, borderRadius: 6 }}>
+            Print
+          </Button>
+          {/* Direct PDF in the shared document templates (Minimal / Slate / Accent / Branded) */}
+          <DocumentPdfButton onDownload={(tpl) => downloadPaymentReceipt(inv, business, tpl, selectedPayment)} />
+        </Space>
       </div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>

@@ -20,6 +20,10 @@ import { fetchAllSuppliers } from "@services/supplier";
 import { fetchAllPaymentMethods } from "@services/paymentMethod";
 import { THEME_C } from "@utils/getPrimaryColor";
 import PeriodFilter, { defaultPeriod, periodRange, isDefaultPeriod, type PeriodValue } from "@components/PeriodFilter";
+import DocumentPdfButton from "@components/ExportTemplate/DocumentPdfButton";
+import { downloadExpensePdf } from "@utils/financeDocs";
+import { useDocumentBusiness } from "@hooks/useDocumentBusiness";
+import type { ExportTemplateId } from "@utils/exportTemplates";
 
 const { Text } = Typography;
 
@@ -138,6 +142,7 @@ const ViewExpenseDrawer: React.FC<{
         enabled: !!expenseId,
     });
     const expense = data?.expense;
+    const business = useDocumentBusiness();
     const je = expense?.journal_entry_id as any;
     const payAcct = expense?.payment_account_id as any;
     const person = (u: any) => u?.name || u?.username || "—";
@@ -161,6 +166,7 @@ const ViewExpenseDrawer: React.FC<{
             }
             extra={expense && (
                 <Space>
+                    <DocumentPdfButton onDownload={(tpl) => downloadExpensePdf(expense, business, tpl)} />
                     <Tooltip title="New expense with these details">
                         <Button icon={<CopyOutlined />} onClick={() => onClone(expense)}>Clone</Button>
                     </Tooltip>
@@ -330,6 +336,12 @@ function ExpensesPage() {
 
     const { message } = App.useApp();
     const queryClient = useQueryClient();
+    const business = useDocumentBusiness();
+    // Table rows don't carry every detail — fetch the full expense for its PDF
+    const downloadRowPdf = async (row: Expense, tpl: ExportTemplateId) => {
+        const { expense } = await queryClient.fetchQuery({ queryKey: ["expense", row._id], queryFn: () => getExpenseById(row._id) });
+        await downloadExpensePdf(expense, business, tpl);
+    };
 
     const { data: customersRaw } = useQuery({
         queryKey: ["customers-select-expenses"],
@@ -516,7 +528,7 @@ function ExpensesPage() {
             ),
         },
         {
-            title: "Actions", key: "actions", width: 160, fixed: "right" as const,
+            title: "Actions", key: "actions", width: 195, fixed: "right" as const,
             render: (_: any, row: Expense) => {
                 const isPending = row.status === "Pending" || row.status === "Draft";
                 const isApprovable = row.status === "Pending";
@@ -527,6 +539,7 @@ function ExpensesPage() {
                         <Tooltip title="View expense">
                             <Button size="small" icon={<EyeOutlined />} onClick={() => setViewId(row._id)} />
                         </Tooltip>
+                        <DocumentPdfButton compact onDownload={(tpl) => downloadRowPdf(row, tpl)} />
                         {isEditable && (
                             <Tooltip title="Edit expense">
                                 <Button

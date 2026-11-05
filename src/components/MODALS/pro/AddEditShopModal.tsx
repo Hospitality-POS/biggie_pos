@@ -325,8 +325,10 @@ const TaxRow: React.FC<{
   enabled: boolean; onToggle: (v: boolean) => void;
   tenantOn: boolean; tenantRate?: number;
   ratePct: number; onRate: (pct: number) => void;
+  /** one-click common rates, e.g. [16, 8] */
+  presets?: number[];
   children?: React.ReactNode;
-}> = ({ icon, title, desc, primaryColor, enabled, onToggle, tenantOn, tenantRate, ratePct, onRate, children }) => (
+}> = ({ icon, title, desc, primaryColor, enabled, onToggle, tenantOn, tenantRate, ratePct, onRate, presets, children }) => (
   <div style={{
     border: `1px solid ${enabled ? `${primaryColor}55` : "#e2e8f0"}`,
     background: enabled ? `${primaryColor}08` : "#fff",
@@ -354,11 +356,22 @@ const TaxRow: React.FC<{
     )}
 
     {enabled && (
-      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginTop: 10, paddingLeft: 44 }}>
-        <InputNumber
-          size="small" min={0} max={100} step={0.5} addonAfter="%"
-          value={ratePct} onChange={(v) => onRate(Number(v) || 0)} style={{ width: 120 }}
-        />
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 10, paddingLeft: 44 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <Typography.Text type="secondary" style={{ fontSize: 12, width: 40 }}>Rate</Typography.Text>
+          {presets?.map((p) => (
+            <Button
+              key={p} size="small"
+              type={ratePct === p ? "primary" : "default"}
+              onClick={() => onRate(p)}
+              style={ratePct === p ? { background: primaryColor, borderColor: primaryColor } : undefined}
+            >{p}%</Button>
+          ))}
+          <InputNumber
+            size="small" min={0} max={100} step={0.5} addonAfter="%"
+            value={ratePct} onChange={(v) => onRate(Number(v) || 0)} style={{ width: 110 }}
+          />
+        </div>
         {children}
       </div>
     )}
@@ -631,16 +644,20 @@ const AddEditShopModal: React.FC<ShopModalProps> = ({ actionRef, edit, data }) =
                 tenantRate={tenant?.vat_standard_rate}
                 ratePct={toPct(tax.vat_standard_rate)}
                 onRate={(pct) => setTaxField("vat_standard_rate", pct / 100)}
+                presets={[16, 8]}
               >
-                <Segmented
-                  size="small"
-                  value={tax.vat_pricing_mode}
-                  onChange={(v) => setTaxField("vat_pricing_mode", v as "INCLUSIVE" | "EXCLUSIVE")}
-                  options={[
-                    { label: "Tax exclusive", value: "EXCLUSIVE" },
-                    { label: "Tax inclusive", value: "INCLUSIVE" },
-                  ]}
-                />
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>Do your prices include VAT?</Typography.Text>
+                  <Segmented
+                    size="small"
+                    value={tax.vat_pricing_mode}
+                    onChange={(v) => setTaxField("vat_pricing_mode", v as "INCLUSIVE" | "EXCLUSIVE")}
+                    options={[
+                      { label: "Yes, VAT is included", value: "INCLUSIVE" },
+                      { label: "No, add VAT on top", value: "EXCLUSIVE" },
+                    ]}
+                  />
+                </div>
               </TaxRow>
               <TaxRow
                 icon={<PercentageOutlined />}

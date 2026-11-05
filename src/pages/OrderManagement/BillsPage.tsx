@@ -12,11 +12,15 @@ import dayjs from "dayjs";
 import BillFormModal from "./Orders/BillFormModal";
 import ProjectTagCell from "@components/accounting/ProjectTagCell";
 import {
-    getAllBills, getBillSummary, recordBillPayment, voidBill,
+    getAllBills, getBillSummary, getBillById, recordBillPayment, voidBill,
     BILL_EDITABLE_STATUSES, billEditLockReason,
     type Bill, type BillStatus,
 } from "@services/accounting/bill";
 import BillDetailDrawer from "./BillDetailDrawer";
+import DocumentPdfButton from "@components/ExportTemplate/DocumentPdfButton";
+import { downloadBillPdf } from "@utils/financeDocs";
+import { useDocumentBusiness } from "@hooks/useDocumentBusiness";
+import type { ExportTemplateId } from "@utils/exportTemplates";
 import NoteDetailDrawer from "../Notes/NoteDetailDrawer";
 import { fetchAllPaymentMethods } from "@services/paymentMethod";
 import { getAllAccounts } from "@services/accounting/accounts";
@@ -287,6 +291,12 @@ function BillsPage() {
     const supplierOptions = (suppliersData || []).map((s: any) => ({ label: s.name, value: s._id }));
 
     const queryClient = useQueryClient();
+    const business = useDocumentBusiness();
+    // Table rows don't carry every detail — fetch the full bill for its PDF
+    const downloadRowPdf = async (row: Bill, tpl: ExportTemplateId) => {
+        const { bill } = await queryClient.fetchQuery({ queryKey: ["bill", row._id], queryFn: () => getBillById(row._id) });
+        await downloadBillPdf(bill, business, tpl);
+    };
 
     const { data, isLoading } = useQuery({
         queryKey: ["bills", page, from, to, statusFilter, supplierFilter, search],
@@ -415,7 +425,7 @@ function BillsPage() {
             ),
         },
         {
-            title: "Actions", key: "actions", width: 250, fixed: "right" as const,
+            title: "Actions", key: "actions", width: 285, fixed: "right" as const,
             render: (_: any, row: Bill) => {
                 const canPay = PAYABLE_STATUSES.includes(row.status);
                 const canVoid = VOIDABLE_STATUSES.includes(row.status);
@@ -429,6 +439,7 @@ function BillsPage() {
                                 onClick={() => setViewTarget(row)}
                             />
                         </Tooltip>
+                        <DocumentPdfButton compact onDownload={(tpl) => downloadRowPdf(row, tpl)} />
                         <Tooltip title={canEdit ? "Edit Bill" : editLockReason(row.status)}>
                             <Button
                                 size="small"
