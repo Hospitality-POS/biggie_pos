@@ -22,6 +22,14 @@ import { createDeliveryFromPO } from '@services/purchaseOrder';
 import { fetchAllUsersList } from '@services/users';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import type { ActionType } from '@ant-design/pro-components';
+import { PackPricePopover } from "@components/inventory/PackPricing";
+
+/** Thousands separators in the whole part only — never inside the decimals */
+const withCommas = (value?: string | number) => {
+    if (value === undefined || value === null || value === "") return "";
+    const [whole, dec] = String(value).split(".");
+    return whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",") + (dec !== undefined ? `.${dec}` : "");
+};
 
 const { TextArea } = Input;
 const { Title, Text } = Typography;
@@ -102,6 +110,9 @@ const CreateDeliveryFromPOModal: React.FC<CreateDeliveryFromPOModalProps> = ({
                 pending_quantity: item.quantity_ordered - item.quantity_received,
                 quantity_to_deliver: 0,
                 supplier_price: item.unit_price || 0,
+                // carried from the PO line when it was priced per pack
+                pack_size: item.pack_size || null,
+                pack_price: item.pack_price ?? null,
             })) || [];
 
             setPendingItems(items);
@@ -150,6 +161,13 @@ const CreateDeliveryFromPOModal: React.FC<CreateDeliveryFromPOModalProps> = ({
                     inventory_id: item.inventory_id._id || item.inventory_id,
                     quantity_delivered: item.quantity_to_deliver,
                     supplier_price: item.supplier_price,
+                    ...(item.pack_size ? {
+                        pack_size: item.pack_size,
+                        pack_price: item.pack_price ?? null,
+                        // whole packs only — a part-pack delivery is just units
+                        pack_count: Number.isInteger(item.quantity_to_deliver / item.pack_size)
+                            ? item.quantity_to_deliver / item.pack_size : null,
+                    } : {}),
                 })),
             };
 
@@ -170,11 +188,13 @@ const CreateDeliveryFromPOModal: React.FC<CreateDeliveryFromPOModalProps> = ({
         });
     };
 
-    const updateSupplierPrice = (key: string, price: number) => {
+    const updateSupplierPrice = (key: string, price: number, pack?: { size: number; price: number }) => {
         setDeliveryItems(prevItems => {
             return prevItems.map(item => {
                 if (item.key === key) {
-                    return { ...item, supplier_price: price };
+                    return pack
+                        ? { ...item, supplier_price: price, pack_size: pack.size, pack_price: pack.price }
+                        : { ...item, supplier_price: price };
                 }
                 return item;
             });
@@ -223,31 +243,47 @@ const CreateDeliveryFromPOModal: React.FC<CreateDeliveryFromPOModalProps> = ({
             dataIndex: 'quantity_to_deliver',
             width: 120,
             render: (_, record: any) => (
-                <InputNumber
-                    min={0}
-                    max={record.pending_quantity}
-                    value={record.quantity_to_deliver}
-                    onChange={(value) => updateDeliveryQuantity(record.key, value || 0)}
-                    style={{ width: '100%' }}
-                />
+                <Space direction="vertical" size={2} style={{ width: '100%' }}>
+                    <InputNumber
+                        min={0}
+                        max={record.pending_quantity}
+                        value={record.quantity_to_deliver}
+                        onChange={(value) => updateDeliveryQuantity(record.key, value || 0)}
+                        style={{ width: '100%' }}
+                    />
+                    {record.pack_size ? (
+                        <Text type="secondary" style={{ fontSize: 11 }}>
+                            {record.quantity_to_deliver
+                                ? `= ${+(record.quantity_to_deliver / record.pack_size).toFixed(2)} pack(s) of ${record.pack_size}`
+                                : `${record.pack_size} per pack`}
+                        </Text>
+                    ) : null}
+                </Space>
             ),
         },
         {
             title: purchaseOrder?.direction === 'customer' ? 'Unit Price' : 'Supplier Price',
             dataIndex: 'supplier_price',
-            width: 120,
+            width: 150,
             render: (_, record: any) => (
-                <InputNumber
-                    min={0}
-                    step={0.01}
-                    precision={2}
-                    value={record.supplier_price}
-                    onChange={(value) => updateSupplierPrice(record.key, value || 0)}
-                    style={{ width: '100%' }}
-                    placeholder="0.00"
-                    formatter={(value) => ` ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                    parser={(value) => value!.replace(/\$\s?|(,*)/g, '')}
-                />
+                <Space direction="vertical" size={2} style={{ width: '100%' }}>
+                    <InputNumber
+                        min={0}
+                        step={0.01}
+                        value={record.supplier_price}
+                        onChange={(value) => updateSupplierPrice(record.key, Number(value) || 0)}
+                        style={{ width: '100%' }}
+                        placeholder="0.00"
+                        formatter={withCommas}
+                        parser={(value) => (value || '').replace(/[^\d.]/g, '') as any}
+                    />
+                    {purchaseOrder?.direction !== 'customer' && (
+                        <PackPricePopover
+                            initialSize={record.pack_size || undefined}
+                            onApply={(unit, pack) => updateSupplierPrice(record.key, unit, pack)}
+                        />
+                    )}
+                </Space>
             ),
         },
         {
