@@ -33,7 +33,7 @@ import {
     TrialBalanceTable, ProfitAndLossTable, BalanceSheetTable, GeneralLedgerTable,
     VATReportTable, CashFlowTable, AccountBalancesTable, CustomerStatementTable,
     SupplierStatementTable, ARAgingTable, APAgingTable,
-    LedgerContext,
+    LedgerContext, splitProfitAndLoss,
 } from "./ReportTables";
 import dayjs, { Dayjs } from "dayjs";
 
@@ -214,14 +214,19 @@ const ComparativeTable: React.FC<{
 
 // Grand-total bar (Net Profit, Total Assets …) laid out on the exact same
 // column grid as the ComparativeTables above it.
-const ComparativeTotalBar: React.FC<{ label: string; current: number; compare: number; invertColors?: boolean }> = ({
-    label, current, compare, invertColors,
+const TOTAL_BAR_TONES = {
+    final: { bg: "#f1f5f9", border: "#e2e8f0" },
+    subtotal: { bg: "#eff6ff", border: "#bfdbfe" },
+} as const;
+
+const ComparativeTotalBar: React.FC<{ label: string; current: number; compare: number; invertColors?: boolean; tone?: keyof typeof TOTAL_BAR_TONES }> = ({
+    label, current, compare, invertColors, tone = "final",
 }) => (
     <Table
         size="small" pagination={false} showHeader={false} tableLayout="fixed" scroll={{ x: CMP_MIN_WIDTH }}
         dataSource={[{ key: "total", account_name: label, current, compare }]}
-        style={{ borderRadius: 8, overflow: "hidden", border: "1px solid #e2e8f0" }}
-        onRow={() => ({ style: { background: "#f1f5f9" } })}
+        style={{ borderRadius: 8, overflow: "hidden", border: `1px solid ${TOTAL_BAR_TONES[tone].border}` }}
+        onRow={() => ({ style: { background: TOTAL_BAR_TONES[tone].bg } })}
         columns={[
             { dataIndex: "account_name", render: (v: string) => <Text strong style={{ fontSize: 14 }}>{v}</Text> },
             { dataIndex: "current", width: CMP_COL.current, align: "right" as const, render: (v: number) => <Text strong style={{ ...NUM_STYLE, fontSize: 14, color: CURRENT_COLOR }}>{fmt(v)}</Text> },
@@ -452,15 +457,28 @@ const AccountingReportsPage: React.FC = () => {
     };
 
     // ── Comparative renderers ─────────────────────────────────────────────────
+    // Same sections as the standard P&L (Income → COGS → Gross Profit →
+    // Operating Expense → Operating Profit → Non Operating → Net), each
+    // merged across both periods.
     const renderComparativePL = () => {
         if (!plQ.data || !plQC.data) return null;
         const cl = buildPeriodLabel(plPeriod.primary), cm = buildPeriodLabel(plPeriod.compare);
-        const netC = plQ.data.net_profit ?? 0, netCo = plQC.data.net_profit ?? 0;
+        const cur = splitProfitAndLoss(plQ.data), cmp = splitProfitAndLoss(plQC.data);
+        const section = (title: string, totalLabel: string, curRows: any[], cmpRows: any[], isCost: boolean, always = false) => {
+            const rows = mergeRows(curRows, cmpRows, "amount", isCost);
+            if (!always && rows.length === 0) return null;
+            return <ComparativeTable title={title} totalLabel={totalLabel} rows={rows} currentLabel={cl} compareLabel={cm} showSummary invertTotal={isCost} />;
+        };
         return (
             <ComparativeLayout cl={cl} cm={cm}>
-                <ComparativeTable title="Revenue" totalLabel="Total Revenue" rows={mergeRows(plQ.data.revenue?.accounts, plQC.data.revenue?.accounts, "amount", false)} currentLabel={cl} compareLabel={cm} showSummary />
-                <ComparativeTable title="Expenses" totalLabel="Total Expenses" rows={mergeRows(plQ.data.expenses?.accounts, plQC.data.expenses?.accounts, "amount", true)} currentLabel={cl} compareLabel={cm} showSummary invertTotal />
-                <ComparativeTotalBar label="Net Profit / Loss" current={netC} compare={netCo} />
+                {section("Income", "Total for Income", cur.incomeRows, cmp.incomeRows, false, true)}
+                {section("Cost of Goods Sold", "Total for Cost of Goods Sold", cur.cogsRows, cmp.cogsRows, true)}
+                <ComparativeTotalBar tone="subtotal" label="Gross Profit" current={cur.grossProfit} compare={cmp.grossProfit} />
+                {section("Operating Expense", "Total for Operating Expense", cur.opExpenseRows, cmp.opExpenseRows, true, true)}
+                <ComparativeTotalBar tone="subtotal" label="Operating Profit" current={cur.opProfit} compare={cmp.opProfit} />
+                {section("Non Operating Income", "Total for Non Operating Income", cur.nonOpIncRows, cmp.nonOpIncRows, false)}
+                {section("Non Operating Expense", "Total for Non Operating Expense", cur.nonOpExpRows, cmp.nonOpExpRows, true)}
+                <ComparativeTotalBar label="Net Profit / Loss" current={cur.netProfit} compare={cmp.netProfit} />
             </ComparativeLayout>
         );
     };
