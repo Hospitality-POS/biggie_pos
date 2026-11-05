@@ -15,6 +15,7 @@ import {
   Select,
   Empty,
   Result,
+  Tooltip,
 } from "antd";
 import { ProCard } from "@ant-design/pro-components";
 import {
@@ -28,6 +29,7 @@ import {
   BarChartOutlined,
   BranchesOutlined,
   AuditOutlined,
+  FieldTimeOutlined,
 } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import dayjs, { Dayjs } from "dayjs";
@@ -36,6 +38,32 @@ import { HealthScoreResult, MeasureItem } from "src/interfaces/healthScore";
 import { ProcessingState } from "./ProcessingState";
 
 const { Title, Text, Paragraph } = Typography;
+
+const BASIS_CONFIG: Record<
+  string,
+  { label: string; tagColor: string; description: string }
+> = {
+  S: {
+    label: "Standard",
+    tagColor: "geekblue",
+    description: "Standard or regulation: Rule set by a regulator or standard setter (e.g. Basel / IFRS 9 / CBK 90-day overdue rule, eTIMS, ASC 280).",
+  },
+  E: {
+    label: "Empirical",
+    tagColor: "green",
+    description: "Empirical evidence: Published study or official statistics (e.g. KNBS MSME closures, JPMorgan Chase small firm cash buffers).",
+  },
+  B: {
+    label: "Benchmark",
+    tagColor: "orange",
+    description: "Industry benchmark: Widely accepted operational rule of thumb in this sector.",
+  },
+  C: {
+    label: "Convention",
+    tagColor: "default",
+    description: "Convention: Expert-set baseline threshold pending wider cohort benchmarking.",
+  },
+};
 
 const BAND_COLORS: Record<string, string> = {
   Strong: "#2e7d32",
@@ -165,6 +193,7 @@ export default function BusinessHealthScorePage() {
             {biz.name || "Business"} ({biz.company_code}) · Evaluated as of{" "}
             <strong>{result.as_of}</strong> · Engine v{result.engine_version}
             {result.duration_seconds ? ` · computed in ${result.duration_seconds}s` : ""}
+            {result.context?.sector ? ` · Sector: ${String(result.context.sector).replace(/_/g, " ")}` : ""}
           </Text>
         </div>
 
@@ -332,41 +361,77 @@ export default function BusinessHealthScorePage() {
             }}
           >
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              {dimensionsList.map(([key, dim]) => (
-                <div key={key}>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      marginBottom: 4,
-                    }}
-                  >
-                    <div>
-                      <Text strong style={{ fontSize: 13.5, color: "#1e293b" }}>
-                        {dim.label}
-                      </Text>
-                      <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>
-                        ({Math.round(dim.weight * 100)}% weight · {dim.measures_available}/{dim.measures_total} measures)
-                      </Text>
-                      {dim.imputed && (
-                        <Tag color="orange" style={{ marginLeft: 6, fontSize: 10, borderRadius: 6 }}>
-                          Imputed
-                        </Tag>
-                      )}
+              {dimensionsList.map(([key, dim]) => {
+                const hasPartialCredibility =
+                  !dim.imputed &&
+                  dim.credibility !== undefined &&
+                  dim.credibility < 1.0;
+                return (
+                  <div key={key}>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        marginBottom: 4,
+                      }}
+                    >
+                      <div>
+                        <Text strong style={{ fontSize: 13.5, color: "#1e293b" }}>
+                          {dim.label}
+                        </Text>
+                        <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>
+                          ({Math.round(dim.weight * 100)}% weight · {dim.measures_available}/{dim.measures_total} measures)
+                        </Text>
+                        {dim.imputed ? (
+                          <Tooltip title="No records available for this dimension. Imputed at peer median score (50.0).">
+                            <Tag color="orange" style={{ marginLeft: 6, fontSize: 10, borderRadius: 6, cursor: "help" }}>
+                              Imputed (50.0)
+                            </Tag>
+                          </Tooltip>
+                        ) : hasPartialCredibility ? (
+                          <Tooltip
+                            title={`Raw measured average: ${
+                              dim.measured_score !== null && dim.measured_score !== undefined
+                                ? dim.measured_score.toFixed(1)
+                                : "–"
+                            } / 100. Credibility: ${(dim.credibility! * 100).toFixed(0)}% (measured ${((dim.measured_share || 0) * 100).toFixed(0)}% of dimension weight). Under Bühlmann credibility, thin dimensions (<50% measured) are blended toward peer median (50.0).`}
+                          >
+                            <Tag color="cyan" style={{ marginLeft: 6, fontSize: 10, borderRadius: 6, cursor: "help" }}>
+                              {(dim.credibility! * 100).toFixed(0)}% Credibility
+                            </Tag>
+                          </Tooltip>
+                        ) : null}
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <Text strong style={{ fontSize: 14, color: getScoreColor(dim.score) }}>
+                          {dim.score.toFixed(1)} / 100
+                        </Text>
+                      </div>
                     </div>
-                    <Text strong style={{ fontSize: 14, color: getScoreColor(dim.score) }}>
-                      {dim.score.toFixed(1)} / 100
-                    </Text>
+                    <Progress
+                      percent={Math.round(dim.score)}
+                      strokeColor={getScoreColor(dim.score)}
+                      showInfo={false}
+                      size={["100%", 9]}
+                    />
+                    {hasPartialCredibility && dim.measured_score !== null && dim.measured_score !== undefined && (
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          fontSize: 11,
+                          color: "#64748b",
+                          marginTop: 3,
+                        }}
+                      >
+                        <span>Raw measure average: {dim.measured_score.toFixed(1)}</span>
+                        <span>Credibility-blended score: {dim.score.toFixed(1)}</span>
+                      </div>
+                    )}
                   </div>
-                  <Progress
-                    percent={Math.round(dim.score)}
-                    strokeColor={getScoreColor(dim.score)}
-                    showInfo={false}
-                    size={["100%", 9]}
-                  />
-                </div>
-              ))}
+                );
+              })}
             </div>
           </ProCard>
         </Col>
@@ -467,12 +532,17 @@ export default function BusinessHealthScorePage() {
         <Tabs
           defaultActiveKey="measures"
           items={[
-            // Tab 1: 75 Measures Drilldown
+            // Tab 1: Measures Drilldown
             {
               key: "measures",
               label: (
                 <span>
-                  <AuditOutlined /> All Measures ({result.measures?.length || 0})
+                  <AuditOutlined /> Scored Measures ({result.measures?.length || 0})
+                  {result.measures_pending_benchmark && result.measures_pending_benchmark.length > 0 && (
+                    <Tag color="warning" style={{ marginLeft: 6, fontSize: 11, borderRadius: 10 }}>
+                      +{result.measures_pending_benchmark.length} pending benchmarks
+                    </Tag>
+                  )}
                 </span>
               ),
               children: (
@@ -488,7 +558,7 @@ export default function BusinessHealthScorePage() {
                     }}
                   >
                     <Text type="secondary">
-                      Comprehensive 75-point audit computed from live operational records.
+                      Comprehensive {result.measures?.length || 0}-point audit computed from live operational records across modules.
                     </Text>
                     <Select
                       value={selectedDimensionFilter}
@@ -514,16 +584,37 @@ export default function BusinessHealthScorePage() {
                         title: "Measure",
                         dataIndex: "label",
                         key: "label",
-                        render: (label, r) => (
-                          <div>
-                            <Text strong>{label}</Text>
-                            {r.supplier && (
-                              <Tag color="cyan" style={{ marginLeft: 6, fontSize: 10 }}>
-                                Supplier
-                              </Tag>
-                            )}
-                          </div>
-                        ),
+                        render: (label, r) => {
+                          const basisMeta = r.basis ? BASIS_CONFIG[r.basis] : null;
+                          return (
+                            <div>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                                <Text strong>{label}</Text>
+                                {basisMeta && (
+                                  <Tooltip title={`${basisMeta.label} basis: ${basisMeta.description}`}>
+                                    <Tag
+                                      color={basisMeta.tagColor}
+                                      style={{
+                                        fontSize: 10,
+                                        lineHeight: "16px",
+                                        padding: "0 6px",
+                                        borderRadius: 4,
+                                        cursor: "help",
+                                      }}
+                                    >
+                                      {r.basis} · {basisMeta.label}
+                                    </Tag>
+                                  </Tooltip>
+                                )}
+                                {r.supplier && (
+                                  <Tag color="cyan" style={{ fontSize: 10, lineHeight: "16px", padding: "0 6px" }}>
+                                    Supplier
+                                  </Tag>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        },
                       },
                       {
                         title: "Dimension",
@@ -559,16 +650,79 @@ export default function BusinessHealthScorePage() {
                         title: "Weight in Dimension",
                         dataIndex: "weight_in_dimension",
                         key: "weight_in_dimension",
-                        render: (w) => `${(w * 100).toFixed(1)}%`,
+                        render: (w) => (typeof w === "number" ? `${w.toFixed(1)}%` : "–"),
                       },
                       {
                         title: "Impact on Score",
                         dataIndex: "weight_in_score",
                         key: "weight_in_score",
-                        render: (w) => `${(w * 100).toFixed(2)}%`,
+                        render: (w) => (typeof w === "number" ? `${w.toFixed(2)}%` : "–"),
                       },
                     ]}
                   />
+
+                  {result.measures_pending_benchmark && result.measures_pending_benchmark.length > 0 && (
+                    <div
+                      style={{
+                        marginTop: 24,
+                        padding: 16,
+                        backgroundColor: "#f8fafc",
+                        borderRadius: 10,
+                        border: "1px dashed #cbd5e1",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                        <FieldTimeOutlined style={{ color: "#f59e0b", fontSize: 18 }} />
+                        <Title level={5} style={{ margin: 0, fontSize: 14 }}>
+                          Metrics Awaiting Sector Benchmarks ({result.measures_pending_benchmark.length})
+                        </Title>
+                      </div>
+                      <Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 14 }}>
+                        These operational indicators have been calculated from your records. To avoid arbitrary scoring,
+                        they will receive a 0–100 score once verified sector percentiles for{" "}
+                        <strong>{biz.business_type || "your sector"}</strong> are established.
+                      </Paragraph>
+                      <Table
+                        dataSource={result.measures_pending_benchmark}
+                        rowKey="id"
+                        pagination={false}
+                        size="small"
+                        columns={[
+                          {
+                            title: "Metric",
+                            dataIndex: "label",
+                            key: "label",
+                            render: (t) => <Text strong>{t}</Text>,
+                          },
+                          {
+                            title: "Dimension",
+                            dataIndex: "dimension",
+                            key: "dimension",
+                            render: (dim) => result.dimensions[dim]?.label || dim,
+                          },
+                          {
+                            title: "Calculated Value",
+                            dataIndex: "value",
+                            key: "value",
+                            render: (val, r) => (
+                              <span style={{ fontWeight: 600 }}>
+                                {typeof val === "number" ? val.toLocaleString() : val} {r.unit}
+                              </span>
+                            ),
+                          },
+                          {
+                            title: "Status",
+                            key: "status",
+                            render: () => (
+                              <Tag color="warning" style={{ borderRadius: 8 }}>
+                                Pending Sector Cohort Benchmarks
+                              </Tag>
+                            ),
+                          },
+                        ]}
+                      />
+                    </div>
+                  )}
                 </div>
               ),
             },

@@ -45,6 +45,10 @@ import AddEditProInventoryModal from "@components/MODALS/pro/AddEditProInventory
 import UomModal from "@components/MODALS/pro/UomModal";
 import { THEME_C } from "@utils/getPrimaryColor";
 import { fmtInteger as fmtK } from "@utils/formatters";
+import { PackLineFields } from "@components/inventory/PackPricing";
+
+/** Unit prices can carry up to 4 decimals when worked out from a pack price */
+const fmtUnit = (v: number) => (Number(v) || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 4 });
 
 const { Text } = Typography;
 
@@ -171,6 +175,11 @@ const AddEditPurchaseOrderModal: React.FC<AddEditPurchaseOrderModalProps> = ({
     setTotalAmount(total);
   };
 
+  const recalcFrom = (f: any) => {
+    const items = f?.getFieldValue?.("po_items") || [];
+    setTotalAmount(items.reduce((sum: number, item: any) => sum + (item?.quantity_ordered || 0) * (item?.unit_price || 0), 0));
+  };
+
   // ── Submit ────────────────────────────────────────────────────────────────
   const handleFinish = async (values: any) => {
     const confirmed = await ShowConfirm({
@@ -189,6 +198,12 @@ const AddEditPurchaseOrderModal: React.FC<AddEditPurchaseOrderModalProps> = ({
           unit_price: item.unit_price,
           total_price: (item.quantity_ordered || 0) * (item.unit_price || 0),
           notes: item.notes,
+          // Pack details when the supplier priced this line per pack
+          ...(item.pack_size ? {
+            pack_count: item.pack_count || null,
+            pack_size: item.pack_size,
+            pack_price: item.pack_price ?? null,
+          } : {}),
         })) || [];
 
       const submitData = {
@@ -494,6 +509,9 @@ const AddEditPurchaseOrderModal: React.FC<AddEditPurchaseOrderModalProps> = ({
                     quantity_ordered: item.quantity_ordered,
                     unit_price: item.unit_price,
                     notes: item.notes,
+                    pack_count: item.pack_count ?? undefined,
+                    pack_size: item.pack_size ?? undefined,
+                    pack_price: item.pack_price ?? undefined,
                   })),
                 }
                 : {}
@@ -601,12 +619,20 @@ const AddEditPurchaseOrderModal: React.FC<AddEditPurchaseOrderModalProps> = ({
                             name={[field.name, "unit_price"]}
                             label="Unit Price"
                             placeholder="0.00"
-                            min={0} precision={2}
+                            min={0}
                             rules={[{ required: true }]}
                             fieldProps={{ addonBefore: "Ksh", onChange: calculateTotal }}
                           />
                         </Col>
                       </Row>
+
+                      <PackLineFields
+                        listName="po_items"
+                        name={field.name}
+                        qtyKey="quantity_ordered"
+                        priceKey="unit_price"
+                        onChange={recalcFrom}
+                      />
 
                       <Row gutter={[12, 0]}>
                         <Col xs={24}>
@@ -768,7 +794,13 @@ const AddEditPurchaseOrderModal: React.FC<AddEditPurchaseOrderModalProps> = ({
                                     <Tag style={{ background: "#eff6ff", color: "#1d4ed8", border: "none", borderRadius: 5, fontSize: 11 }}>
                                       {qty} {resolveUnitLabel(item.unit_id)}
                                     </Tag>
-                                    <Text style={{ fontSize: 12, color: C.subText }}>@ Ksh {fmtK(price)}</Text>
+                                    <Text style={{ fontSize: 12, color: C.subText }}>@ Ksh {fmtUnit(price)}</Text>
+                                    {item.pack_size ? (
+                                      <Tag style={{ background: "#fef3c7", color: "#92400e", border: "none", borderRadius: 5, fontSize: 11 }}>
+                                        {item.pack_count ? `${item.pack_count} pack${item.pack_count === 1 ? "" : "s"} × ` : ""}{item.pack_size}
+                                        {item.pack_price != null ? ` @ Ksh ${fmtK(item.pack_price)}/pack` : " per pack"}
+                                      </Tag>
+                                    ) : null}
                                   </Space>
                                   {item.notes && (
                                     <Text italic style={{ fontSize: 11, color: C.subText, display: "block", marginTop: 3 }}>

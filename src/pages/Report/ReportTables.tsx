@@ -277,6 +277,48 @@ export const TrialBalanceTable: React.FC<{ data: TrialBalanceResponse }> = ({ da
 };
 
 // ── 2. Profit & Loss (Enhanced with COGS, Operating/Non-Operating splits) ───
+/**
+ * Splits a P&L response into the sections the report shows: Income, Cost of
+ * Goods Sold, Operating Expense, Non Operating Income/Expense, plus their
+ * totals. Shared by the standard P&L and the comparative P&L so both group
+ * accounts identically.
+ */
+export const splitProfitAndLoss = (data: ProfitAndLossResponse) => {
+    const revenueRows: any[] = (data.revenue?.accounts || []).map((a) => ({ ...a }));
+    const expenseRows: any[] = (data.expenses?.accounts || []).map((a) => ({ ...a }));
+    const isCogsAccount = (a: any) =>
+        /cost of goods sold/i.test(a.account_subtype || "") ||
+        (a.account_type || "").toLowerCase().includes("cogs") ||
+        /cost of (sales|goods)|purchases/i.test(a.account_name || "");
+    const rawCogsRows: any[] = [...((data as any).cogs?.accounts || []), ...expenseRows.filter(isCogsAccount)];
+    const cogsRows = rawCogsRows.filter((a, i, arr) => arr.findIndex((b) => b.account_code === a.account_code) === i);
+    const nonCogsExpenses = expenseRows.filter((a) => !isCogsAccount(a));
+    const opExpRows = nonCogsExpenses.filter((a: any) => !a.is_non_operating);
+    const nonOpExpRows = nonCogsExpenses.filter((a: any) => a.is_non_operating);
+    const opIncRows = revenueRows.filter((a: any) => !a.is_non_operating);
+    const nonOpIncRows = revenueRows.filter((a: any) => a.is_non_operating);
+    const sum = (rows: any[]) => rows.reduce((s, a) => s + (a.amount || 0), 0);
+    const totalRevenue = data.revenue?.total_revenue ?? sum(revenueRows);
+    const totalCogs = sum(cogsRows);
+    const grossProfit = totalRevenue - totalCogs;
+    const totalOpExp = sum(opExpRows);
+    return {
+        revenueRows, expenseRows, cogsRows, opExpRows, nonOpExpRows, opIncRows, nonOpIncRows,
+        // displayed lists (fallbacks match the original report)
+        incomeRows: opIncRows.length ? opIncRows : revenueRows,
+        opExpenseRows: opExpRows.length ? opExpRows : expenseRows,
+        totalRevenue,
+        totalOpInc: sum(opIncRows) || totalRevenue,
+        totalCogs,
+        grossProfit,
+        totalOpExp,
+        totalNonOpInc: sum(nonOpIncRows),
+        totalNonOpExp: sum(nonOpExpRows),
+        opProfit: grossProfit - totalOpExp,
+        netProfit: data.net_profit ?? 0,
+    };
+};
+
 export const ProfitAndLossTable: React.FC<{ data: ProfitAndLossResponse; period?: { from?: string; to?: string } }> = ({ data, period }) => {
     const { openLedger } = useLedger();
     const primaryColor = usePrimaryColor();

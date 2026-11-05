@@ -12,6 +12,9 @@ export interface DimensionInfo {
   label: string;
   weight: number;
   score: number;
+  measured_score?: number | null;
+  credibility?: number;
+  measured_share?: number;
   imputed: boolean;
   measures_available: number;
   measures_total: number;
@@ -29,12 +32,21 @@ export interface MeasureItem {
   weight_in_dimension: number;
   weight_in_score: number;
   supplier: boolean;
+  basis?: "S" | "E" | "B" | "C" | string;
 }
 
 export interface MeasureUnavailableItem {
   id: string;
   label: string;
   dimension: string;
+}
+
+export interface MeasurePendingBenchmarkItem {
+  id: string;
+  label: string;
+  dimension: string;
+  value: number;
+  unit: string;
 }
 
 export interface RedFlagItem {
@@ -98,6 +110,7 @@ export interface HealthScoreResult {
   dimensions: Record<string, DimensionInfo>;
   measures: MeasureItem[];
   measures_not_available: MeasureUnavailableItem[];
+  measures_pending_benchmark?: MeasurePendingBenchmarkItem[];
   red_flags: RedFlagItem[];
   drivers: DriversInfo;
   shops: ShopScoreItem[];

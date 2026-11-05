@@ -17,6 +17,7 @@ import {
     ReloadOutlined,
     SearchOutlined,
     FileDoneOutlined,
+    StopOutlined,
 } from "@ant-design/icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -32,6 +33,7 @@ import { THEME_C } from "@utils/getPrimaryColor";
 import PeriodFilter, { defaultPeriod, periodRange, isDefaultPeriod, type PeriodValue } from "@components/PeriodFilter";
 import SalesReceiptFormModal from "./SalesReceiptFormModal";
 import SalesReceiptDetailDrawer from "./SalesReceiptDetailDrawer";
+import VoidReceiptModal from "./VoidReceiptModal";
 import dayjs from "dayjs";
 
 const { Text } = Typography;
@@ -203,6 +205,8 @@ const SalesReceiptsPage: React.FC = () => {
         setFormOpen(true);
     };
 
+    const [voidTarget, setVoidTarget] = useState<SalesReceipt | null>(null);
+
     const handleCreate = () => {
         setSelectedReceiptId(null);
         setFormOpen(true);
@@ -301,12 +305,24 @@ const SalesReceiptsPage: React.FC = () => {
                             onClick={() => handleView(record._id)}
                         />
                     </Tooltip>
-                    {record.status === "Pending" && (
-                        <Tooltip title="Edit">
+                    {record.status !== "Voided" && (
+                        <Tooltip title={record.status === "Posted" ? "Edit (re-posts the journal entry)" : "Edit"}>
                             <Button
                                 type="text"
                                 icon={<EditOutlined />}
+                                aria-label="Edit receipt"
                                 onClick={() => handleEdit(record._id)}
+                            />
+                        </Tooltip>
+                    )}
+                    {record.status !== "Voided" && (
+                        <Tooltip title={record.status === "Posted" ? "Void (reverses the journal entry)" : "Void"}>
+                            <Button
+                                type="text"
+                                danger
+                                icon={<StopOutlined />}
+                                aria-label="Void receipt"
+                                onClick={() => setVoidTarget(record)}
                             />
                         </Tooltip>
                     )}
@@ -461,6 +477,15 @@ const SalesReceiptsPage: React.FC = () => {
                 onEdit={handleEdit}
                 receiptId={selectedReceiptId}
                 onSuccess={refresh}
+            />
+
+            <VoidReceiptModal
+                receipt={voidTarget}
+                onClose={() => setVoidTarget(null)}
+                onVoided={() => {
+                    refresh();
+                    queryClient.invalidateQueries({ queryKey: ["sales-receipt"] });
+                }}
             />
         </div>
     );

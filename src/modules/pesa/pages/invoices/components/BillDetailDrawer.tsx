@@ -26,6 +26,9 @@ import {
 } from "@services/accounting/bill";
 import { getNotesByBill } from "@services/accounting/notes";
 import { getSupplierById } from "@services/supplier";
+import DocumentPdfButton from "@components/ExportTemplate/DocumentPdfButton";
+import { downloadBillPdf } from "@utils/financeDocs";
+import { useDocumentBusiness } from "@hooks/useDocumentBusiness";
 
 const { Title, Text } = Typography;
 
@@ -82,6 +85,7 @@ const BillDetailDrawer: React.FC<Props> = ({
     });
 
     const supplier = supplierData?.supplier || supplierData;
+    const business = useDocumentBusiness();
     
     // Debug: Log the actual bill data
     React.useEffect(() => {
@@ -255,8 +259,8 @@ const BillDetailDrawer: React.FC<Props> = ({
             onClose={onClose}
             width={900}
             extra={
-                onEdit || onClone ? (
                     <Space>
+                        <DocumentPdfButton onDownload={(tpl) => downloadBillPdf(bill, business, tpl, supplier)} />
                         {onClone && (
                             <Tooltip title="New bill with these details">
                                 <Button icon={<CopyOutlined />} onClick={() => onClone(bill)}>
@@ -276,7 +280,6 @@ const BillDetailDrawer: React.FC<Props> = ({
                             </Tooltip>
                         )}
                     </Space>
-                ) : null
             }
         >
             <Descriptions column={2} bordered size="small">

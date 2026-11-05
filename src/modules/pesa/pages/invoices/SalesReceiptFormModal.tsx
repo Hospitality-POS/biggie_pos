@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
 import {
     Form, Button, Select, InputNumber, Input, Table, Typography, Divider,
-    Row, Col, DatePicker, Descriptions, Alert, Spin, Space, Switch, message,
+    Row, Col, DatePicker, Descriptions, Alert, Spin, Space, Switch, Collapse, message,
 } from "antd";
 import {
     PlusOutlined, DeleteOutlined, AccountBookOutlined, UserOutlined,
-    UnorderedListOutlined, FileSearchOutlined,
+    UnorderedListOutlined, FileSearchOutlined, InfoCircleOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
@@ -24,6 +24,8 @@ import StepperModal from "@components/MODALS/StepperModal";
 import ProjectSelect from "@components/accounting/ProjectSelect";
 import dayjs from "dayjs";
 import { useCateringLevy, computeCateringLevy } from "@hooks/useCateringLevy";
+import { useBranchVat } from "@hooks/useBranchVat";
+import { formatRate } from "@utils/taxConfig";
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -54,27 +56,68 @@ interface Props {
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-const emptyLine = (): LineItem => ({
+const emptyLine = (vatOn = true, rate = 0.16): LineItem => ({
     key: crypto.randomUUID(),
     description: "",
     quantity: 1,
     unit_price: 0,
     discount: 0,
-    vat_rate: 0.16,
-    vat_type: "STANDARD",
+    vat_rate: vatOn ? rate : 0,
+    vat_type: vatOn ? "STANDARD" : "NONE",
 });
 
 const fmt2 = (v: number) =>
     (v || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const idOf = (a: any) => (a && typeof a === "object" ? a._id : a);
 
-const VAT_TYPE_OPTIONS: { label: string; value: VatType }[] = [
-    { label: "Standard (16%)", value: "STANDARD" },
-    { label: "Zero Rated (0%)", value: "ZERO" },
-    { label: "Exempt", value: "EXEMPT" },
-    { label: "None", value: "NONE" },
-    { label: "Out of Scope", value: "OUT_OF_SCOPE" },
-];
+// Per-line VAT treatment. The rate itself comes from the branch's VAT
+// settings — only the treatment is chosen per line.
+const vatTypeOptions = (rate: number, current: VatType[]) => {
+    const opts: { label: string; value: VatType }[] = [
+        { label: `VAT ${formatRate(rate)}`, value: "STANDARD" },
+        { label: "Zero-rated", value: "ZERO" },
+        { label: "Exempt", value: "EXEMPT" },
+    ];
+    // Older receipts may carry these — keep them selectable when editing
+    if (current.includes("NONE")) opts.push({ label: "No VAT", value: "NONE" });
+    if (current.includes("OUT_OF_SCOPE")) opts.push({ label: "Out of scope", value: "OUT_OF_SCOPE" });
+    return opts;
+};
+
+const SectionLabel: React.FC<{ children: React.ReactNode; first?: boolean }> = ({ children, first }) => (
+    <Text style={{
+        display: "block", fontSize: 11, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase",
+        color: "#64748b", margin: first ? "0 0 10px" : "8px 0 10px",
+    }}>{children}</Text>
+);
+
+/** Collapsed-by-default group for optional fields, kept mounted so the form keeps their values. */
+const OptionalGroup: React.FC<{
+    label: string; hint?: string; open: boolean; onToggle: (o: boolean) => void; children: React.ReactNode;
+}> = ({ label, hint, open, onToggle, children }) => (
+    <Collapse
+        ghost size="small" style={{ marginTop: 4, background: "#f8fafc", borderRadius: 8 }}
+        activeKey={open ? ["o"] : []}
+        onChange={(k) => onToggle((Array.isArray(k) ? k : [k]).includes("o"))}
+        items={[{
+            key: "o", forceRender: true,
+            label: (
+                <span style={{ fontSize: 13 }}>
+                    {label} <Text type="secondary" style={{ fontSize: 12 }}>— optional{hint ? ` · ${hint}` : ""}</Text>
+                </span>
+            ),
+            children,
+        }]}
+    />
+);
+
+const REFERENCE_HINT: Partial<Record<PaymentMethod, string>> = {
+    "M-Pesa": "M-Pesa code, e.g. SGH7XK2LQ1",
+    Card: "Card slip / approval no.",
+    Bank_Transfer: "Bank reference",
+    Cheque: "Cheque number",
+    Other: "Reference",
+};
 
 const PAYMENT_METHOD_OPTIONS: { label: string; value: PaymentMethod }[] = [
     { label: "Cash", value: "Cash" },
@@ -83,11 +126,6 @@ const PAYMENT_METHOD_OPTIONS: { label: string; value: PaymentMethod }[] = [
     { label: "Bank Transfer", value: "Bank_Transfer" },
     { label: "Cheque", value: "Cheque" },
     { label: "Other", value: "Other" },
-];
-
-const VAT_PRICING_MODE_OPTIONS: { label: string; value: VatPricingMode }[] = [
-    { label: "Exclusive", value: "EXCLUSIVE" },
-    { label: "Inclusive", value: "INCLUSIVE" },
 ];
 
 const STEPS = [
@@ -107,13 +145,26 @@ const SalesReceiptFormModal: React.FC<Props> = ({ open, onClose, receiptId, onSu
     const [form] = Form.useForm();
     const [step, setStep] = useState(0);
     const [lines, setLines] = useState<LineItem[]>([emptyLine()]);
-    const [vatPricingMode, setVatPricingMode] = useState<VatPricingMode>("EXCLUSIVE");
     const [levyExempt, setLevyExempt] = useState(false);
     // Rate saved on the receipt when editing, else the branch's current rate
     const [savedLevyRate, setSavedLevyRate] = useState<number | null>(null);
     const branchLevy = useCateringLevy(open);
     const levyRate = savedLevyRate ?? branchLevy.rate;
     const isEdit = !!receiptId;
+
+    // VAT comes from the branch (or business-wide) settings — new receipts
+    // never ask for a rate or pricing mode. Edited receipts keep what they
+    // were saved with so historical totals don't shift.
+    const branchVat = useBranchVat(open);
+    const [savedVat, setSavedVat] = useState<{ on: boolean; mode: VatPricingMode; rate: number } | null>(null);
+    const vatOn = savedVat ? savedVat.on : branchVat.enabled;
+    const vatPricingMode: VatPricingMode = savedVat ? savedVat.mode : branchVat.mode;
+    const vatRate = savedVat ? savedVat.rate : branchVat.rate;
+    const lineVatRate = (l: LineItem) => (savedVat ? l.vat_rate : vatRate);
+
+    const [showInvoiceLink, setShowInvoiceLink] = useState(false);
+    const [showMoreOptions, setShowMoreOptions] = useState(false);
+    const paymentMethod: PaymentMethod | undefined = Form.useWatch("payment_method", form);
 
     // ── Data ────────────────────────────────────────────────────────────────────
 
@@ -165,6 +216,9 @@ const SalesReceiptFormModal: React.FC<Props> = ({ open, onClose, receiptId, onSu
         form.resetFields();
         setLevyExempt(false);
         setSavedLevyRate(null);
+        setSavedVat(null);
+        setShowInvoiceLink(false);
+        setShowMoreOptions(false);
         if (isEdit && receipt) {
             form.setFieldsValue({
                 customer_id: receipt.customer_id?._id,
@@ -172,14 +226,19 @@ const SalesReceiptFormModal: React.FC<Props> = ({ open, onClose, receiptId, onSu
                 payment_method: receipt.payment_method,
                 payment_reference: receipt.payment_reference,
                 payment_account_id: idOf(receipt.payment_account_id),
+                revenue_account_id: idOf((receipt as any).revenue_account_id) || undefined,
                 notes: receipt.notes,
-                vat_pricing_mode: receipt.vat_pricing_mode || "EXCLUSIVE",
-                vat_standard_rate: receipt.vat_standard_rate ?? 0.16,
                 status: receipt.status,
                 invoice_id: receipt.invoice_id?._id,
                 project_id: idOf(receipt.project_id) || undefined,
             });
-            setVatPricingMode(receipt.vat_pricing_mode || "EXCLUSIVE");
+            setSavedVat({
+                on: (receipt as any).total_vat > 0 || receipt.lines.some((l) => (l.vat_type || "STANDARD") === "STANDARD" && (l.vat_rate ?? 0) > 0),
+                mode: receipt.vat_pricing_mode || "EXCLUSIVE",
+                rate: receipt.vat_standard_rate ?? 0.16,
+            });
+            setShowInvoiceLink(!!receipt.invoice_id);
+            setShowMoreOptions(!!(idOf(receipt.project_id) || receipt.notes));
             setLevyExempt(!!receipt.catering_levy_exempt);
             setSavedLevyRate(receipt.catering_levy_rate ?? 0);
             setLines(receipt.lines.map((l) => ({
@@ -190,20 +249,29 @@ const SalesReceiptFormModal: React.FC<Props> = ({ open, onClose, receiptId, onSu
                 discount: l.discount || 0,
                 vat_rate: l.vat_rate ?? 0.16,
                 vat_type: l.vat_type || "STANDARD",
-                product_id: l.product_id,
+                product_id: idOf(l.product_id),
                 account_id: idOf(l.account_id),
             })));
         } else if (!isEdit) {
-            setVatPricingMode("EXCLUSIVE");
-            setLines([emptyLine()]);
+            setLines([emptyLine(branchVat.enabled, branchVat.rate)]);
             form.setFieldsValue({
                 receipt_date: dayjs(),
-                vat_pricing_mode: "EXCLUSIVE",
-                vat_standard_rate: 0.16,
+                payment_method: "Cash",
                 status: "Pending",
             });
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open, isEdit, receipt, form]);
+
+    // Branch VAT may arrive after the modal opens — line treatment follows it
+    // for new receipts (VAT off → "NONE", VAT on → standard-rated by default).
+    useEffect(() => {
+        if (!open || isEdit || branchVat.isLoading) return;
+        setLines((prev) => prev.map((l) => ({
+            ...l,
+            vat_type: branchVat.enabled ? (l.vat_type === "NONE" ? "STANDARD" : l.vat_type) : "NONE",
+        })));
+    }, [open, isEdit, branchVat.isLoading, branchVat.enabled]);
 
     // ── Calculations ────────────────────────────────────────────────────────────
 
@@ -211,10 +279,10 @@ const SalesReceiptFormModal: React.FC<Props> = ({ open, onClose, receiptId, onSu
     // customer pays in both pricing modes. Only Standard lines carry VAT.
     const calcLine = (line: LineItem) => {
         const amount = line.quantity * line.unit_price - line.discount;
-        const vatRate = line.vat_type === "STANDARD" ? line.vat_rate : 0;
+        const rate = vatOn && line.vat_type === "STANDARD" ? lineVatRate(line) : 0;
         const vatAmount = vatPricingMode === "INCLUSIVE"
-            ? amount - (amount / (1 + vatRate))
-            : amount * vatRate;
+            ? amount - (amount / (1 + rate))
+            : amount * rate;
         const netAmount = vatPricingMode === "INCLUSIVE" ? amount - vatAmount : amount;
         return { netAmount, vatAmount, lineTotal: netAmount + vatAmount };
     };
@@ -246,7 +314,7 @@ const SalesReceiptFormModal: React.FC<Props> = ({ open, onClose, receiptId, onSu
         mutationFn: ({ id, data }: { id: string; data: any }) => updateSalesReceipt(id, data),
         onSuccess: done,
     });
-    const saving = createMutation.isPending || updateMutation.isPending;
+    const saving = createMutation.isLoading || updateMutation.isLoading;
 
     // ── Step navigation ─────────────────────────────────────────────────────────
 
@@ -288,8 +356,12 @@ const SalesReceiptFormModal: React.FC<Props> = ({ open, onClose, receiptId, onSu
             quantity: l.quantity,
             unit_price: l.unit_price,
             discount: l.discount,
-            vat_rate: l.vat_rate,
-            vat_type: l.vat_type,
+            // Editing keeps each line's stored VAT values unless its treatment
+            // was changed, so an untouched posted receipt isn't re-posted.
+            vat_rate: savedVat
+                ? (l.vat_type === "STANDARD" ? (l.vat_rate || savedVat.rate) : l.vat_rate)
+                : (vatOn && l.vat_type === "STANDARD" ? vatRate : 0),
+            vat_type: savedVat ? l.vat_type : (vatOn ? l.vat_type : "NONE"),
             product_id: l.product_id,
             account_id: l.account_id,
         }));
@@ -305,8 +377,8 @@ const SalesReceiptFormModal: React.FC<Props> = ({ open, onClose, receiptId, onSu
             payment_account_id: values.payment_account_id,
             revenue_account_id: values.revenue_account_id,
             notes: values.notes,
-            vat_pricing_mode: values.vat_pricing_mode,
-            vat_standard_rate: values.vat_standard_rate,
+            vat_pricing_mode: vatPricingMode,
+            vat_standard_rate: savedVat ? savedVat.rate : (vatOn ? vatRate : 0),
             status: values.status || "Pending",
             invoice_id: values.invoice_id,
             catering_levy_exempt: levyExempt,
@@ -319,11 +391,12 @@ const SalesReceiptFormModal: React.FC<Props> = ({ open, onClose, receiptId, onSu
 
     // ── Line columns ────────────────────────────────────────────────────────────
 
+    const lineVatTypes = lines.map((l) => l.vat_type);
     const lineColumns = [
         {
-            title: "Description", dataIndex: "description", width: 200,
+            title: "Description", dataIndex: "description",
             render: (text: string, r: LineItem) => (
-                <Input value={text} placeholder="Item description"
+                <Input value={text} placeholder="What was sold"
                     onChange={(e) => updateLine(r.key, "description", e.target.value)} />
             ),
         },
@@ -335,36 +408,30 @@ const SalesReceiptFormModal: React.FC<Props> = ({ open, onClose, receiptId, onSu
             ),
         },
         {
-            title: "Unit Price", dataIndex: "unit_price", width: 110,
+            title: vatOn && vatPricingMode === "INCLUSIVE" ? "Price (incl. VAT)" : "Unit Price", dataIndex: "unit_price", width: 130,
             render: (v: number, r: LineItem) => (
                 <InputNumber value={v} min={0} style={{ width: "100%" }}
                     onChange={(n) => updateLine(r.key, "unit_price", n || 0)} />
             ),
         },
         {
-            title: "Discount", dataIndex: "discount", width: 90,
+            title: "Discount", dataIndex: "discount", width: 100,
             render: (v: number, r: LineItem) => (
-                <InputNumber value={v} min={0} style={{ width: "100%" }}
+                <InputNumber value={v} min={0} style={{ width: "100%" }} placeholder="0"
                     onChange={(n) => updateLine(r.key, "discount", n || 0)} />
             ),
         },
-        {
-            title: "VAT Type", dataIndex: "vat_type", width: 140,
+        // VAT treatment only when VAT is charged at this branch
+        ...(vatOn ? [{
+            title: "VAT", dataIndex: "vat_type", width: 130,
             render: (v: VatType, r: LineItem) => (
-                <Select value={v} options={VAT_TYPE_OPTIONS} style={{ width: "100%" }}
+                <Select value={v} options={vatTypeOptions(savedVat ? lineVatRate(r) : vatRate, lineVatTypes)} style={{ width: "100%" }}
                     onChange={(t) => updateLine(r.key, "vat_type", t)} />
             ),
-        },
+        }] : []),
         {
-            title: "VAT Rate", dataIndex: "vat_rate", width: 80,
-            render: (v: number, r: LineItem) => (
-                <InputNumber value={v} min={0} max={1} step={0.01} style={{ width: "100%" }}
-                    onChange={(n) => updateLine(r.key, "vat_rate", n || 0)} />
-            ),
-        },
-        {
-            title: "Line Total", key: "lineTotal", width: 110, align: "right" as const,
-            render: (_: any, r: LineItem) => <Text strong>{fmt2(calcLine(r).lineTotal)}</Text>,
+            title: "Line Total", key: "lineTotal", width: 120, align: "right" as const,
+            render: (_: any, r: LineItem) => <Text strong style={{ fontVariantNumeric: "tabular-nums" }}>{fmt2(calcLine(r).lineTotal)}</Text>,
         },
         {
             title: "", key: "actions", width: 44,
@@ -413,77 +480,99 @@ const SalesReceiptFormModal: React.FC<Props> = ({ open, onClose, receiptId, onSu
                 <Form form={form} layout="vertical">
                     {/* ── Step 1: Customer & payment ─────────────────────── */}
                     <div style={show(0)}>
+                        <SectionLabel first>Sale</SectionLabel>
                         <Row gutter={16}>
-                            <Col xs={24} sm={12}>
-                                <Form.Item name="customer_id" label="Customer (optional)">
+                            <Col xs={24} sm={16}>
+                                <Form.Item name="customer_id" label="Customer" extra="Leave blank for a walk-in cash sale">
                                     <Select
                                         showSearch allowClear optionFilterProp="label"
-                                        placeholder="Leave blank for cash sale" options={customerOptions}
+                                        placeholder="Walk-in customer" options={customerOptions}
                                     />
                                 </Form.Item>
                             </Col>
-                            <Col xs={24} sm={12}>
+                            <Col xs={24} sm={8}>
                                 <Form.Item name="receipt_date" label="Receipt Date" rules={[{ required: true, message: "Required" }]}>
                                     <DatePicker style={{ width: "100%" }} format="DD MMM YYYY" />
                                 </Form.Item>
                             </Col>
                         </Row>
+
+                        <SectionLabel>Payment</SectionLabel>
                         <Row gutter={16}>
-                            <Col xs={24} sm={12}>
-                                <Form.Item name="payment_method" label="Payment Method" rules={[{ required: true, message: "Required" }]}>
+                            <Col xs={24} sm={8}>
+                                <Form.Item name="payment_method" label="Paid With" rules={[{ required: true, message: "Required" }]}>
                                     <Select options={PAYMENT_METHOD_OPTIONS} placeholder="How was it paid?" />
                                 </Form.Item>
                             </Col>
-                            <Col xs={24} sm={12}>
-                                <Form.Item name="payment_reference" label="Payment Reference">
-                                    <Input placeholder="Optional — e.g. M-Pesa code" />
-                                </Form.Item>
-                            </Col>
-                        </Row>
-                        <Row gutter={16}>
-                            <Col xs={24} sm={12}>
-                                <Form.Item name="payment_account_id" label="Deposit To (Payment Account)">
+                            {/* Reference sits next to the method and only when the method has one */}
+                            {paymentMethod && paymentMethod !== "Cash" && (
+                                <Col xs={24} sm={8}>
+                                    <Form.Item name="payment_reference" label="Reference">
+                                        <Input placeholder={REFERENCE_HINT[paymentMethod] || "Reference"} />
+                                    </Form.Item>
+                                </Col>
+                            )}
+                            <Col xs={24} sm={paymentMethod && paymentMethod !== "Cash" ? 8 : 16}>
+                                <Form.Item name="payment_account_id" label="Deposit To" tooltip="The cash or bank account the money went into">
                                     <Select
                                         showSearch allowClear optionFilterProp="label"
-                                        placeholder="Optional — cash/bank account" options={paymentAccountOptions}
-                                    />
-                                </Form.Item>
-                            </Col>
-                            <Col xs={24} sm={12}>
-                                <Form.Item name="invoice_id" label="Linked Invoice" tooltip="Optional — settle an open customer invoice with this receipt">
-                                    <Select
-                                        showSearch allowClear optionFilterProp="label"
-                                        placeholder="Optional" options={invoiceOptions}
+                                        placeholder="Default cash/bank account" options={paymentAccountOptions}
                                     />
                                 </Form.Item>
                             </Col>
                         </Row>
+
+                        <OptionalGroup
+                            label="Settle an open invoice"
+                            hint={invoiceOptions.length ? `${invoiceOptions.length} open` : "none open"}
+                            open={showInvoiceLink}
+                            onToggle={setShowInvoiceLink}
+                        >
+                            <Form.Item name="invoice_id" label="Invoice" style={{ marginBottom: 0 }}
+                                extra="Use this receipt as payment for an unpaid customer invoice">
+                                <Select
+                                    showSearch allowClear optionFilterProp="label"
+                                    placeholder="Select an invoice" options={invoiceOptions}
+                                    notFoundContent="No open customer invoices"
+                                />
+                            </Form.Item>
+                        </OptionalGroup>
                     </div>
 
                     {/* ── Step 2: Line items ─────────────────────────────── */}
                     <div style={show(1)}>
-                        <Row gutter={16}>
-                            <Col xs={24} sm={12}>
-                                <Form.Item name="vat_pricing_mode" label="VAT Pricing Mode">
-                                    <Select
-                                        options={VAT_PRICING_MODE_OPTIONS}
-                                        onChange={(v) => setVatPricingMode(v)}
-                                    />
-                                </Form.Item>
-                            </Col>
-                            <Col xs={24} sm={12}>
-                                <Form.Item name="vat_standard_rate" label="Standard VAT Rate">
-                                    <InputNumber min={0} max={1} step={0.01} style={{ width: "100%" }} />
-                                </Form.Item>
-                            </Col>
-                        </Row>
+                        {/* VAT is decided by the branch's tax settings, not on this form */}
+                        <div style={{
+                            display: "flex", alignItems: "center", gap: 8, marginBottom: 12, padding: "8px 12px",
+                            borderRadius: 8, fontSize: 12,
+                            background: vatOn ? "#eff6ff" : "#f8fafc",
+                            border: `1px solid ${vatOn ? "#bfdbfe" : "#e2e8f0"}`,
+                            color: vatOn ? "#1e40af" : "#475569",
+                        }}>
+                            <InfoCircleOutlined />
+                            {branchVat.isLoading && !savedVat ? (
+                                <span>Loading VAT settings…</span>
+                            ) : vatOn ? (
+                                <span>
+                                    <b>VAT {formatRate(vatRate)}</b> · prices are{" "}
+                                    <b>{vatPricingMode === "INCLUSIVE" ? "VAT inclusive" : "VAT exclusive"}</b>
+                                    {savedVat
+                                        ? " (as saved on this receipt)"
+                                        : branchVat.source === "shop"
+                                            ? ` — from ${branchVat.branchName || "this branch"}'s tax settings`
+                                            : " — business-wide VAT setting"}
+                                </span>
+                            ) : (
+                                <span>VAT is off for {branchVat.branchName || "this branch"} — no VAT will be charged. Turn it on in the branch's tax settings.</span>
+                            )}
+                        </div>
                         <Table
                             dataSource={lines} columns={lineColumns} rowKey="key"
-                            pagination={false} size="small" scroll={{ x: 820 }}
+                            pagination={false} size="small" scroll={{ x: vatOn ? 760 : 640 }}
                         />
                         <Button
                             type="dashed" icon={<PlusOutlined />} block
-                            onClick={() => setLines((prev) => [...prev, emptyLine()])}
+                            onClick={() => setLines((prev) => [...prev, emptyLine(vatOn, vatRate)])}
                             style={{ marginTop: 12 }}
                         >
                             Add Line Item
@@ -507,7 +596,7 @@ const SalesReceiptFormModal: React.FC<Props> = ({ open, onClose, receiptId, onSu
                             background: "#f0fdf4", border: "1px solid #bbf7d0",
                         }}>
                             <Text style={{ fontSize: 12 }}>Subtotal {fmt2(subtotal)}</Text>
-                            <Text style={{ fontSize: 12 }}>VAT {fmt2(totalVat)}</Text>
+                            {vatOn && <Text style={{ fontSize: 12 }}>VAT {fmt2(totalVat)}</Text>}
                             {levyRate > 0 && <Text style={{ fontSize: 12 }}>Levy {fmt2(levyAmount)}</Text>}
                             <Text strong style={{ fontSize: 13, color: "#15803d" }}>Grand Total KES {fmt2(grandTotal)}</Text>
                         </div>
@@ -515,6 +604,7 @@ const SalesReceiptFormModal: React.FC<Props> = ({ open, onClose, receiptId, onSu
 
                     {/* ── Step 3: Review ─────────────────────────────────── */}
                     <div style={show(2)}>
+                        <SectionLabel first>Posting</SectionLabel>
                         <Row gutter={16}>
                             <Col xs={24} sm={14}>
                                 <Form.Item
@@ -528,27 +618,53 @@ const SalesReceiptFormModal: React.FC<Props> = ({ open, onClose, receiptId, onSu
                                 </Form.Item>
                             </Col>
                             <Col xs={24} sm={10}>
-                                <Form.Item name="status" label="Status" initialValue="Pending">
+                                <Form.Item name="status" label="Post to books" initialValue="Pending">
                                     <Select
                                         disabled={isEdit}
                                         options={[
-                                            { label: "Pending — post later", value: "Pending" },
-                                            { label: "Posted — post to books now", value: "Posted" },
+                                            { label: "Later — save as Pending", value: "Pending" },
+                                            { label: "Now — post immediately", value: "Posted" },
                                         ]}
                                     />
                                 </Form.Item>
                             </Col>
                         </Row>
-                        <Form.Item name="project_id" label="Project (optional)" tooltip="Tag this to a project so it shows in that project's Profit & Loss">
-                            <ProjectSelect placeholder="No project" />
-                        </Form.Item>
-                        <Form.Item name="notes" label="Notes">
-                            <TextArea rows={2} placeholder="Optional notes" />
-                        </Form.Item>
+
+                        <OptionalGroup label="Project & notes" open={showMoreOptions} onToggle={setShowMoreOptions}>
+                            <Row gutter={16}>
+                                <Col xs={24} sm={10}>
+                                    <Form.Item name="project_id" label="Project" tooltip="Tag this to a project so it shows in that project's Profit & Loss" style={{ marginBottom: 0 }}>
+                                        <ProjectSelect placeholder="No project" />
+                                    </Form.Item>
+                                </Col>
+                                <Col xs={24} sm={14}>
+                                    <Form.Item name="notes" label="Notes" style={{ marginBottom: 0 }}>
+                                        <TextArea rows={2} placeholder="Internal notes" />
+                                    </Form.Item>
+                                </Col>
+                            </Row>
+                        </OptionalGroup>
+                        <div style={{ height: 12 }} />
 
                         {step === 2 && (
                             <>
                                 <Divider orientation="left" plain style={{ fontSize: 12, margin: "4px 0 12px" }}>Summary</Divider>
+                                {isEdit && receipt?.status === "Posted" && (
+                                    <Alert
+                                        type="warning" showIcon style={{ marginBottom: 12 }}
+                                        message="This receipt is already posted"
+                                        description={
+                                            <>
+                                                If you change the amounts, date, customer or accounts, journal entry{" "}
+                                                {(receipt as any).journal_entry_id?.entry_no
+                                                    ? <Text code>{(receipt as any).journal_entry_id.entry_no}</Text>
+                                                    : "for this receipt"}{" "}
+                                                will be voided and a corrected entry posted in its place. Changes to notes,
+                                                reference, project or the linked invoice don't touch the journal.
+                                            </>
+                                        }
+                                    />
+                                )}
                                 {reviewValues.status === "Posted" && !isEdit && (
                                     <Alert
                                         type="info" showIcon style={{ marginBottom: 12 }}
@@ -570,7 +686,9 @@ const SalesReceiptFormModal: React.FC<Props> = ({ open, onClose, receiptId, onSu
                                         {labelOf(paymentAccountOptions, reviewValues.payment_account_id) || "—"}
                                     </Descriptions.Item>
                                     <Descriptions.Item label="Lines">{lines.length}</Descriptions.Item>
-                                    <Descriptions.Item label="VAT">{fmt2(totalVat)}</Descriptions.Item>
+                                    <Descriptions.Item label={vatOn ? `VAT (${formatRate(vatRate)})` : "VAT"}>
+                                        {vatOn ? fmt2(totalVat) : "Not charged"}
+                                    </Descriptions.Item>
                                     {levyRate > 0 && (
                                         <Descriptions.Item label={`Catering Levy (${levyPct}%)`} span={2}>
                                             {levyExempt ? "Exempt" : fmt2(levyAmount)}
