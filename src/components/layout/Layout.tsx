@@ -5,6 +5,7 @@ import { App } from "antd";
 import { useAppSelector } from "src/store";
 import AdminDashboard from "src/AdminDashboard/AdminDashboardLayout";
 import SubscriptionGuard from "./SubscriptionGuard";
+import ContractBanner from "./ContractBanner";
 
 import { ProductProvider } from "src/context/ProductContext";
 
@@ -58,6 +59,7 @@ function Layout() {
 
   return (
     <SubscriptionGuard>
+      {user && <ContractBanner />}
       <ProductProvider>
         {renderLayoutForRole(user?.role || "guest")}
       </ProductProvider>

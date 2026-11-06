@@ -1,5 +1,6 @@
 import React from "react";
 import Dashboard from "./Dashboard";
+import ContractStatusCard from "@components/billing/ContractStatusCard";
 
 const useIsMobile = () => {
   const [isMobile, setIsMobile] = React.useState(
@@ -30,6 +31,7 @@ const DukaDashboardPage: React.FC = () => {
         minHeight: "100%",
       }}
     >
+      <ContractStatusCard />
       <Dashboard />
     </div>
   );
