@@ -275,6 +275,7 @@ const PayrollManagement: React.FC = () => {
         withholding_tax_enabled: whtCfg.is_active !== false,
         withholding_tax_rate: (whtCfg.rate ?? 0.05) * 100,
         withholding_tax_non_resident_rate: (whtCfg.non_resident_rate ?? 0.20) * 100,
+        withholding_tax_exempt_below: whtCfg.exempt_below_amount ?? 24000,
       }),
     });
     setCustomDeductions(
@@ -905,6 +906,7 @@ const PayrollManagement: React.FC = () => {
       withholding_tax_enabled: true,
       withholding_tax_rate: 5,
       withholding_tax_non_resident_rate: 20,
+      withholding_tax_exempt_below: 24000,
     });
     message.success("Form filled with current Kenyan statutory rates — review then Save Settings");
   };
@@ -3551,9 +3553,26 @@ const PayrollManagement: React.FC = () => {
                         />
                       </Form.Item>
                     </Col>
+                    <Col span={12}>
+                      <Form.Item
+                        name="withholding_tax_exempt_below"
+                        label="No Deduction Below (Gross Pay)"
+                        initialValue={24000}
+                        rules={[{ required: true, message: "Required" }]}
+                        tooltip="Consultants paid less than this amount have no withholding tax deducted. Set 0 to deduct from everyone."
+                      >
+                        <InputNumber
+                          min={0}
+                          style={{ width: "100%" }}
+                          addonBefore="KES"
+                          formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                          parser={(v) => Number((v || "").replace(/,/g, "")) as any}
+                        />
+                      </Form.Item>
+                    </Col>
                   </Row>
                   <Text type="secondary" style={{ fontSize: 12 }}>
-                    Withholding tax applies to employees with the &quot;Consultant&quot; employment type — it is the only deduction withheld from their pay. The rate is chosen by the consultant&apos;s residential status (5% resident / 20% non-resident by default).
+                    Withholding tax applies to employees with the &quot;Consultant&quot; employment type — it is the only deduction withheld from their pay. The rate is chosen by the consultant&apos;s residential status (5% resident / 20% non-resident by default). Anyone paid below the &quot;No Deduction Below&quot; amount (KES 24,000 by default) has nothing withheld.
                   </Text>
                 </Form>
               </Tabs.TabPane>
