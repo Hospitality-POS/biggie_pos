@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { Button, Form, Input, Modal, Typography, message, Row, Col, AutoComplete, Radio, Select, DatePicker } from "antd";
+import { Button, Form, Input, Typography, message, Row, Col, AutoComplete, Radio, Select, DatePicker } from "antd";
 import dayjs, { type Dayjs } from "dayjs";
 import { useQueryClient } from "@tanstack/react-query";
 import { useHealthcareSettings } from "@hooks/useHealthcareSettings";
@@ -8,7 +8,9 @@ import { fetchPatient, savePatientProfile, type Allergy, type PatientProfile } f
 import {
     EditOutlined, EnvironmentOutlined, IdcardOutlined,
     MailOutlined, SaveOutlined, UserAddOutlined, UserOutlined, ShopOutlined,
+    MedicineBoxOutlined, FileTextOutlined,
 } from "@ant-design/icons";
+import StepperModal from "@components/MODALS/StepperModal";
 import { PhoneInput } from "@components/PhoneNumber/PhoneNumber";
 import { addNewCustomer, updateCustomer } from "@services/customers";
 import { THEME_C } from "@utils/getPrimaryColor";
@@ -185,6 +187,7 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
     const [form] = Form.useForm();
     const [loading, setLoading] = useState(false);
     const [entityType, setEntityType] = useState<'individual' | 'company'>('individual');
+    const [step, setStep] = useState(0);
     const { options, loading: placesLoading, getPlacePredictions, getPlaceDetails } = useGooglePlacesAutocomplete();
     const queryClient = useQueryClient();
 
@@ -254,6 +257,7 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
 
     useEffect(() => {
         if (!visible) return;
+        setStep(0);
 
         if (isFromLead) {
             const entityTypeValue = leadPrefill?.entity_type || 'individual';
@@ -360,6 +364,7 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                             : `${noun} added successfully!`
                 );
                 form.resetFields();
+                setStep(0);
                 onClose();
                 onSuccess?.(saved);
             }
@@ -377,32 +382,113 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
     const handleCancel = () => {
         if (loading) return;
         form.resetFields();
+        setStep(0);
         onClose();
     };
 
     const accentColor = isFromLead ? C.green : isEdit ? C.blue : C.primary;
-    const accentBg = isFromLead ? "#f0fdf4" : isEdit ? "#eff6ff" : C.primaryLight;
     const titleText = isFromLead ? "Convert Lead to Customer"
         : isEdit ? `Edit ${noun}`
             : `Add New ${noun}`;
 
+    // ── Steps (left side) ─────────────────────────────────────────────────────
+    // Patients get a Medical step when patient records are on; the tax step is
+    // not asked of patients.
+    const steps = [
+        { key: "basic", title: "Basic Info", description: "Name & contact", icon: <UserOutlined /> },
+        { key: "address", title: isHospital ? "Residence" : "Address", description: "Where they are", icon: <EnvironmentOutlined /> },
+        ...(askMedical ? [{ key: "medical", title: "Medical", description: "ID, allergies & next of kin", icon: <MedicineBoxOutlined /> }] : []),
+        {
+            key: "extra",
+            title: isHospital ? "Notes" : "Tax & Notes",
+            description: isHospital ? "Anything staff should know" : "KRA PIN & notes",
+            icon: <FileTextOutlined />,
+        },
+    ];
+    const stepKey = steps[step]?.key;
+    const isLast = step === steps.length - 1;
+    const show = (key: string) => ({ display: stepKey === key ? "block" : "none" });
+
+    // Fields checked before leaving each step
+    const fieldsFor = (key: string): any[] => {
+        if (key === "basic") {
+            return [
+                "entity_type",
+                entityType === "individual" ? "customer_name" : "company_name",
+                "phoneNumber",
+                "email",
+            ];
+        }
+        if (key === "extra" && !isHospital) return ["kra_pin"];
+        return [];
+    };
+
+    const validateStep = async (i: number) => {
+        const names = fieldsFor(steps[i].key);
+        if (names.length) await form.validateFields(names);
+    };
+
+    const next = async () => {
+        try {
+            await validateStep(step);
+            setStep((s) => s + 1);
+        } catch { /* field errors are shown inline */ }
+    };
+
+    // Save from any step — re-checks every step and jumps to the first with an error
+    const save = async () => {
+        for (let i = 0; i < steps.length; i++) {
+            try {
+                await validateStep(i);
+            } catch {
+                setStep(i);
+                return;
+            }
+        }
+        await handleSubmit(form.getFieldsValue(true));
+    };
+
+    const saveLabel = isFromLead ? "Create Customer from Lead" : isEdit ? `Update ${noun}` : `Add ${noun}`;
+
+    const footer = [
+        <Button key="cancel" onClick={handleCancel} disabled={loading}>Cancel</Button>,
+        step > 0 && <Button key="back" onClick={() => setStep((s) => s - 1)} disabled={loading}>Back</Button>,
+        // Only name and phone are required — save without stepping through the rest
+        !isLast && (
+            <Button key="save-now" icon={<SaveOutlined />} onClick={save} loading={loading}>
+                {isEdit ? "Save" : "Save now"}
+            </Button>
+        ),
+        isLast ? (
+            <Button
+                key="submit" type="primary" icon={<SaveOutlined />} loading={loading} onClick={save}
+                style={{ background: accentColor, borderColor: accentColor }}
+            >
+                {saveLabel}
+            </Button>
+        ) : (
+            <Button key="next" type="primary" onClick={next} disabled={loading}>Next</Button>
+        ),
+    ];
+
+    const sectionTitle = (text: string) => (
+        <Text strong style={{ fontSize: 13, color: C.darkText, marginBottom: 12, display: "block" }}>
+            {text}
+        </Text>
+    );
+
     return (
-        <Modal
+        <StepperModal
             open={visible}
             onCancel={handleCancel}
-            destroyOnClose
-            style={{ top: 20 }}
-            width="min(800px, 96vw)"
-            footer={null}
-            styles={{ body: { padding: "20px 24px 24px" } }}
-            title={
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={{ background: accentBg, borderRadius: 7, padding: "4px 6px", color: accentColor, fontSize: 14, lineHeight: 1 }}>
-                        {isEdit ? <EditOutlined /> : <UserAddOutlined />}
-                    </div>
-                    <Text strong style={{ fontSize: 14, color: C.darkText }}>{titleText}</Text>
-                </div>
-            }
+            icon={isEdit ? <EditOutlined /> : <UserAddOutlined />}
+            accent={accentColor}
+            title={titleText}
+            steps={steps}
+            current={step}
+            onStepClick={setStep}
+            footer={footer}
+            width={900}
         >
             {/* Lead conversion info banner */}
             {isFromLead && (
@@ -421,17 +507,12 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                 </div>
             )}
 
-            <Form form={form} layout="vertical" onFinish={handleSubmit} style={{ marginTop: 4 }}>
+            <Form form={form} layout="vertical">
 
-                {/* Basic Information Section */}
-                <div style={{
-                    background: "#fafafa", border: "1px solid #e8e8e8", borderRadius: 8,
-                    padding: 16, marginBottom: 16
-                }}>
-                    <Text strong style={{ fontSize: 13, color: C.darkText, marginBottom: 12, display: "block" }}>
-                        Basic Information
-                    </Text>
-                    
+                {/* ── Step: Basic Information ───────────────────────────── */}
+                <div style={show("basic")}>
+                    {sectionTitle("Basic Information")}
+
                     {/* Entity Type — patients are always individuals */}
                     <Form.Item name="entity_type" label="Entity Type" initialValue="individual" hidden={isHospital}>
                         <Radio.Group
@@ -447,100 +528,107 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                         </Radio.Group>
                     </Form.Item>
 
-                    {/* Name fields based on entity type */}
-                    {entityType === 'individual' ? (
-                        <Form.Item
-                            name="customer_name" label={`${noun} Name`}
-                            rules={[
-                                { required: true, message: `${noun} name is required` },
-                                { min: 2, message: "Name must be at least 2 characters" },
-                            ]}
-                        >
-                            <Input
-                                prefix={<UserOutlined style={{ color: C.subText }} />}
-                                placeholder={`Enter ${noun.toLowerCase()} full name`}
-                                style={{ borderRadius: 8 }}
-                                autoFocus
-                            />
-                        </Form.Item>
-                    ) : (
-                        <Form.Item
-                            name="company_name" label="Company Name"
-                            rules={[
-                                { required: true, message: "Company name is required for company customers" },
-                            ]}
-                        >
-                            <Input
-                                prefix={<ShopOutlined style={{ color: C.subText }} />}
-                                placeholder="Enter company name"
-                                style={{ borderRadius: 8 }}
-                                autoFocus
-                            />
-                        </Form.Item>
-                    )}
-
-                    {/* Contact Person (optional for both, recommended for company) — next of kin covers this for patients */}
-                    {!isHospital && (
-                        <Form.Item name="contact_person" label="Contact Person">
-                            <Input
-                                prefix={<UserOutlined style={{ color: C.subText }} />}
-                                placeholder={entityType === 'company' ? "Primary contact person" : "Contact person (optional)"}
-                                style={{ borderRadius: 8 }}
-                            />
-                        </Form.Item>
-                    )}
-
-                    {isHospital && (
-                        <Row gutter={12}>
-                            <Col xs={24} sm={12}>
-                                <Form.Item name="gender" label="Gender">
-                                    <Select
-                                        allowClear
-                                        placeholder="Select"
-                                        options={[
-                                            { value: "male", label: "Male" },
-                                            { value: "female", label: "Female" },
-                                            { value: "other", label: "Other" },
-                                        ]}
+                    <Row gutter={12}>
+                        <Col xs={24} md={12}>
+                            {/* Name fields based on entity type */}
+                            {entityType === 'individual' ? (
+                                <Form.Item
+                                    name="customer_name" label={`${noun} Name`}
+                                    rules={[
+                                        { required: true, message: `${noun} name is required` },
+                                        { min: 2, message: "Name must be at least 2 characters" },
+                                    ]}
+                                >
+                                    <Input
+                                        prefix={<UserOutlined style={{ color: C.subText }} />}
+                                        placeholder={`Enter ${noun.toLowerCase()} full name`}
+                                        style={{ borderRadius: 8 }}
+                                        autoFocus
+                                    />
+                                </Form.Item>
+                            ) : (
+                                <Form.Item
+                                    name="company_name" label="Company Name"
+                                    rules={[
+                                        { required: true, message: "Company name is required for company customers" },
+                                    ]}
+                                >
+                                    <Input
+                                        prefix={<ShopOutlined style={{ color: C.subText }} />}
+                                        placeholder="Enter company name"
+                                        style={{ borderRadius: 8 }}
+                                        autoFocus
+                                    />
+                                </Form.Item>
+                            )}
+                        </Col>
+                        {/* Contact Person — next of kin covers this for patients */}
+                        {!isHospital && (
+                            <Col xs={24} md={12}>
+                                <Form.Item name="contact_person" label="Contact Person">
+                                    <Input
+                                        prefix={<UserOutlined style={{ color: C.subText }} />}
+                                        placeholder={entityType === 'company' ? "Primary contact person" : "Contact person (optional)"}
+                                        style={{ borderRadius: 8 }}
                                     />
                                 </Form.Item>
                             </Col>
-                            <Col xs={24} sm={12}>
-                                <Form.Item name="date_of_birth" label="Date of Birth">
-                                    <DatePicker format="DD/MM/YYYY" style={{ width: "100%" }} disabledDate={(d) => d.isAfter(dayjs())} />
-                                </Form.Item>
-                            </Col>
-                        </Row>
-                    )}
+                        )}
+                        {isHospital && (
+                            <>
+                                <Col xs={24} sm={12} md={6}>
+                                    <Form.Item name="gender" label="Gender">
+                                        <Select
+                                            allowClear
+                                            placeholder="Select"
+                                            options={[
+                                                { value: "male", label: "Male" },
+                                                { value: "female", label: "Female" },
+                                                { value: "other", label: "Other" },
+                                            ]}
+                                        />
+                                    </Form.Item>
+                                </Col>
+                                <Col xs={24} sm={12} md={6}>
+                                    <Form.Item name="date_of_birth" label="Date of Birth">
+                                        <DatePicker format="DD/MM/YYYY" style={{ width: "100%" }} disabledDate={(d) => d.isAfter(dayjs())} />
+                                    </Form.Item>
+                                </Col>
+                            </>
+                        )}
+                        <Col xs={24} md={12}>
+                            <PhoneInput
+                                label="Phone Number"
+                                owner="phoneNumber"
+                                rules={[{ required: true, message: "Please enter phone number" }]}
+                            />
+                        </Col>
+                        <Col xs={24} md={12}>
+                            <Form.Item
+                                name="email" label="Email Address"
+                                rules={[{ type: "email", message: "Please enter a valid email" }]}
+                            >
+                                <Input
+                                    prefix={<MailOutlined style={{ color: C.subText }} />}
+                                    placeholder="customer@example.com"
+                                    type="email"
+                                    style={{ borderRadius: 8 }}
+                                />
+                            </Form.Item>
+                        </Col>
+                    </Row>
 
-                    <PhoneInput
-                        label="Phone Number"
-                        owner="phoneNumber"
-                        rules={[{ required: true, message: "Please enter phone number" }]}
-                    />
-
-                    <Form.Item
-                        name="email" label="Email Address"
-                        rules={[{ type: "email", message: "Please enter a valid email" }]}
-                    >
-                        <Input
-                            prefix={<MailOutlined style={{ color: C.subText }} />}
-                            placeholder="customer@example.com"
-                            type="email"
-                            style={{ borderRadius: 8 }}
-                        />
-                    </Form.Item>
+                    <Text style={{ fontSize: 11, color: C.subText, display: "block" }}>
+                        {isHospital
+                            ? `Only the name and phone are required.${askMedical ? " A patient number is given when the patient is saved." : ""}`
+                            : "Only the name and phone are required — email, address and KRA PIN are optional."}
+                    </Text>
                 </div>
 
-                {/* Address Information Section */}
-                <div style={{
-                    background: "#fafafa", border: "1px solid #e8e8e8", borderRadius: 8,
-                    padding: 16, marginBottom: 16
-                }}>
-                    <Text strong style={{ fontSize: 13, color: C.darkText, marginBottom: 12, display: "block" }}>
-                        {isHospital ? "Residence" : "Address Information"}
-                    </Text>
-                    
+                {/* ── Step: Address ─────────────────────────────────────── */}
+                <div style={show("address")}>
+                    {sectionTitle(isHospital ? "Residence" : "Address Information")}
+
                     <Row gutter={[12, 8]}>
                         <Col span={24}>
                             <Form.Item name={["address", "street"]} label="Street Address" style={{ marginBottom: 8 }}>
@@ -572,27 +660,27 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                                 </AutoComplete>
                             </Form.Item>
                         </Col>
-                        <Col span={12}>
+                        <Col xs={24} sm={12}>
                             <Form.Item name={["address", "building"]} label="Building/Landmark" style={{ marginBottom: 8 }}>
                                 <Input placeholder="e.g. Westgate Tower" />
                             </Form.Item>
                         </Col>
-                        <Col span={12}>
+                        <Col xs={24} sm={12}>
                             <Form.Item name={["address", "city"]} label="City/Town" style={{ marginBottom: 8 }}>
                                 <Input placeholder="e.g. Nairobi" />
                             </Form.Item>
                         </Col>
-                        <Col span={8}>
+                        <Col xs={24} sm={8}>
                             <Form.Item name={["address", "postal_code"]} label="Postal Code" style={{ marginBottom: 8 }}>
                                 <Input placeholder="e.g. 00100" />
                             </Form.Item>
                         </Col>
-                        <Col span={8}>
+                        <Col xs={24} sm={8}>
                             <Form.Item name={["address", "county"]} label="County/State" style={{ marginBottom: 8 }}>
                                 <Input placeholder="e.g. Nairobi" />
                             </Form.Item>
                         </Col>
-                        <Col span={8}>
+                        <Col xs={24} sm={8}>
                             <Form.Item name={["address", "country"]} label="Country" style={{ marginBottom: 8 }}>
                                 <Input placeholder="e.g. Kenya" />
                             </Form.Item>
@@ -600,91 +688,10 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                     </Row>
                 </div>
 
-                {/* Additional Address Fields - Hidden */}
-                {/* <div style={{
-                    background: "#fafafa", border: "1px solid #e8e8e8", borderRadius: 8,
-                    padding: 16, marginBottom: 16
-                }}>
-                    <Text strong style={{ fontSize: 13, color: C.darkText, marginBottom: 12, display: "block" }}>
-                        Additional Address Details
-                    </Text>
-                    
-                    <Row gutter={[12, 8]}>
-                        <Col span={8}>
-                            <Form.Item name={["address", "floor"]} label="Floor" style={{ marginBottom: 8 }}>
-                                <Input placeholder="e.g. 5th Floor" />
-                            </Form.Item>
-                        </Col>
-                        <Col span={8}>
-                            <Form.Item name={["address", "address_type"]} label="Address Type" style={{ marginBottom: 8 }}>
-                                <Input placeholder="billing/shipping/both" />
-                            </Form.Item>
-                        </Col>
-                        <Col span={8}>
-                            <Form.Item name={["address", "is_primary"]} label="Is Primary" style={{ marginBottom: 8 }}>
-                                <Input placeholder="true/false" />
-                            </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                            <Form.Item name={["address", "landmark"]} label="Landmark" style={{ marginBottom: 8 }}>
-                                <Input placeholder="e.g. Near City Mall" />
-                            </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                            <Form.Item name={["address", "directions"]} label="Directions" style={{ marginBottom: 8 }}>
-                                <Input placeholder="e.g. Take elevator to 5th floor" />
-                            </Form.Item>
-                        </Col>
-                    </Row>
-                </div> */}
-
-                {/* Business Information Section - Hidden */}
-                {/* <div style={{
-                    background: "#fafafa", border: "1px solid #e8e8e8", borderRadius: 8,
-                    padding: 16, marginBottom: 16
-                }}>
-                    <Text strong style={{ fontSize: 13, color: C.darkText, marginBottom: 12, display: "block" }}>
-                        Business Information
-                    </Text>
-                    
-                    <Row gutter={[12, 8]}>
-                        <Col span={12}>
-                            <Form.Item name="type" label="Customer Type" style={{ marginBottom: 8 }}>
-                                <Input placeholder="individual/company" />
-                            </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                            <Form.Item name="company_name" label="Company Name" style={{ marginBottom: 8 }}>
-                                <Input placeholder="e.g. Doe Enterprises" />
-                            </Form.Item>
-                        </Col>
-                        <Col span={8}>
-                            <Form.Item name="payment_terms" label="Payment Terms (days)" style={{ marginBottom: 8 }}>
-                                <Input placeholder="e.g. 30" type="number" />
-                            </Form.Item>
-                        </Col>
-                        <Col span={8}>
-                            <Form.Item name="credit_limit" label="Credit Limit (KES)" style={{ marginBottom: 8 }}>
-                                <Input placeholder="e.g. 50000" type="number" />
-                            </Form.Item>
-                        </Col>
-                        <Col span={8}>
-                            <Form.Item name="assigned_to" label="Assigned To" style={{ marginBottom: 8 }}>
-                                <Input placeholder="User ID" />
-                            </Form.Item>
-                        </Col>
-                    </Row>
-                </div> */}
-
-                {/* Medical Section — hospital mode with Healthcare patient records on */}
+                {/* ── Step: Medical — hospital mode with patient records on ── */}
                 {askMedical && (
-                    <div style={{
-                        background: "#fafafa", border: "1px solid #e8e8e8", borderRadius: 8,
-                        padding: 16, marginBottom: 16
-                    }}>
-                        <Text strong style={{ fontSize: 13, color: C.darkText, marginBottom: 12, display: "block" }}>
-                            Medical
-                        </Text>
+                    <div style={show("medical")}>
+                        {sectionTitle("Medical")}
                         <Row gutter={[12, 0]}>
                             <Col xs={24} sm={12}>
                                 <Form.Item name={["medical", "national_id"]} label="ID / Birth Cert. No.">
@@ -724,103 +731,68 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                         </Row>
                         {/* A chemist doesn't need a next of kin for a counter sale */}
                         {facilityType !== "pharmacy" && (
-                        <>
-                        <Text strong style={{ fontSize: 12, color: C.darkText, margin: "4px 0 8px", display: "block" }}>
-                            Next of Kin
-                        </Text>
-                        <Row gutter={[12, 0]}>
-                            <Col xs={24} sm={10}>
-                                <Form.Item name={["medical", "next_of_kin", "name"]} label="Name">
-                                    <Input style={{ borderRadius: 8 }} />
-                                </Form.Item>
-                            </Col>
-                            <Col xs={12} sm={6}>
-                                <Form.Item name={["medical", "next_of_kin", "relationship"]} label="Relationship">
-                                    <Input placeholder="e.g. Mother" style={{ borderRadius: 8 }} />
-                                </Form.Item>
-                            </Col>
-                            <Col xs={12} sm={8}>
-                                <Form.Item name={["medical", "next_of_kin", "phone"]} label="Phone">
-                                    <Input inputMode="tel" style={{ borderRadius: 8 }} />
-                                </Form.Item>
-                            </Col>
-                        </Row>
-                        </>
+                            <>
+                                <Text strong style={{ fontSize: 12, color: C.darkText, margin: "4px 0 8px", display: "block" }}>
+                                    Next of Kin
+                                </Text>
+                                <Row gutter={[12, 0]}>
+                                    <Col xs={24} sm={10}>
+                                        <Form.Item name={["medical", "next_of_kin", "name"]} label="Name">
+                                            <Input style={{ borderRadius: 8 }} />
+                                        </Form.Item>
+                                    </Col>
+                                    <Col xs={12} sm={6}>
+                                        <Form.Item name={["medical", "next_of_kin", "relationship"]} label="Relationship">
+                                            <Input placeholder="e.g. Mother" style={{ borderRadius: 8 }} />
+                                        </Form.Item>
+                                    </Col>
+                                    <Col xs={12} sm={8}>
+                                        <Form.Item name={["medical", "next_of_kin", "phone"]} label="Phone">
+                                            <Input inputMode="tel" style={{ borderRadius: 8 }} />
+                                        </Form.Item>
+                                    </Col>
+                                </Row>
+                            </>
                         )}
                     </div>
                 )}
 
-                {/* Tax Information Section — not asked of patients */}
-                {!isHospital && (
-                <div style={{
-                    background: "#fafafa", border: "1px solid #e8e8e8", borderRadius: 8,
-                    padding: 16, marginBottom: 16
-                }}>
-                    <Text strong style={{ fontSize: 13, color: C.darkText, marginBottom: 12, display: "block" }}>
-                        Tax Information
-                    </Text>
+                {/* ── Step: Tax & Notes ─────────────────────────────────── */}
+                <div style={show("extra")}>
+                    {/* Tax — not asked of patients */}
+                    {!isHospital && (
+                        <>
+                            {sectionTitle("Tax Information")}
+                            <Form.Item
+                                name="kra_pin" label="KRA PIN"
+                                rules={[{
+                                    pattern: /^[A-Z]\d{9}[A-Z]$/,
+                                    message: "Invalid KRA PIN format. Expected: A123456789Z",
+                                }]}
+                            >
+                                <Input
+                                    prefix={<IdcardOutlined style={{ color: C.subText }} />}
+                                    placeholder="e.g. A123456789Z (optional)"
+                                    style={{ borderRadius: 8, textTransform: "uppercase", maxWidth: 360 }}
+                                    onChange={(e) => form.setFieldsValue({ kra_pin: e.target.value.toUpperCase() })}
+                                />
+                            </Form.Item>
+                        </>
+                    )}
 
-                    <Form.Item
-                        name="kra_pin" label="KRA PIN"
-                        rules={[{
-                            pattern: /^[A-Z]\d{9}[A-Z]$/,
-                            message: "Invalid KRA PIN format. Expected: A123456789Z",
-                        }]}
-                    >
-                        <Input
-                            prefix={<IdcardOutlined style={{ color: C.subText }} />}
-                            placeholder="e.g. A123456789Z (optional)"
-                            style={{ borderRadius: 8, textTransform: "uppercase" }}
-                            onChange={(e) => form.setFieldsValue({ kra_pin: e.target.value.toUpperCase() })}
-                        />
-                    </Form.Item>
-                </div>
-                )}
-
-                {/* Notes Section */}
-                <div style={{
-                    background: "#fafafa", border: "1px solid #e8e8e8", borderRadius: 8,
-                    padding: 16, marginBottom: 16
-                }}>
-                    <Text strong style={{ fontSize: 13, color: C.darkText, marginBottom: 12, display: "block" }}>
-                        Notes
-                    </Text>
-
+                    {sectionTitle("Notes")}
                     <Form.Item name="notes" label={`${noun} Notes`} style={{ marginBottom: 8 }}>
                         <Input.TextArea
                             placeholder={isHospital
                                 ? "Anything staff should know, e.g. prefers Swahili, needs a wheelchair"
                                 : "Add any notes about customer preferences, special requirements, etc."}
-                            rows={3}
+                            rows={4}
                             style={{ borderRadius: 8 }}
                         />
                     </Form.Item>
                 </div>
-
-                <Text style={{ fontSize: 11, color: C.subText, display: "block", marginBottom: 20, marginTop: -8 }}>
-                    {isHospital
-                        ? `Only the name and phone are required.${askMedical ? " A patient number is given when the patient is saved." : ""}`
-                        : "Email, address and KRA PIN are optional."}
-                </Text>
-
-                <div style={{ display: "flex", gap: 10 }}>
-                    <Button block onClick={handleCancel} disabled={loading} style={{ borderRadius: 8, height: 38 }}>
-                        Cancel
-                    </Button>
-                    <Button
-                        block type="primary" htmlType="submit" icon={<SaveOutlined />}
-                        loading={loading}
-                        style={{
-                            background: accentColor,
-                            borderColor: accentColor,
-                            borderRadius: 8, height: 38, fontWeight: 500,
-                        }}
-                    >
-                        {isFromLead ? "Create Customer from Lead" : isEdit ? `Update ${noun}` : `Add ${noun}`}
-                    </Button>
-                </div>
             </Form>
-        </Modal>
+        </StepperModal>
     );
 };
 
