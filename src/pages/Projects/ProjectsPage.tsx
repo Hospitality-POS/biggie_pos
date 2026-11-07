@@ -335,8 +335,8 @@ const ProjectsPage: React.FC = () => {
                             </Form.Item>
                         </Col>
                         <Col span={8}>
-                            <Form.Item name="code" label="Code">
-                                <Input placeholder="e.g. PRJ-001" />
+                            <Form.Item name="code" label="Code" extra={editing ? undefined : "Leave blank to auto-generate"}>
+                                <Input placeholder={editing ? "e.g. PRJ-001" : "Auto (PRJ-001…)"} />
                             </Form.Item>
                         </Col>
                     </Row>

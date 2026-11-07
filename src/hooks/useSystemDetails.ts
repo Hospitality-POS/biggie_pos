@@ -1,5 +1,5 @@
 import { fetchSystemSetupDetailsById } from "@services/systemsetup";
-import { fetchShop } from "@services/shops";
+import { fetchShop, type ShopInvoiceSettings } from "@services/shops";
 import { useQuery } from "@tanstack/react-query";
 
 // Kenyan mobile numbers saved without the leading 0 (e.g. 791273923 from
@@ -77,6 +77,8 @@ function useSystemDetails() {
     // When off, Top Earners shows attributed revenue per staff instead of the
     // staff/platform percentage earnings split. Defaults on.
     report_percentage_enabled: (shopData?.report_percentage_enabled !== false) as boolean,
+    // Watermark + services banner on A4 invoice templates (System Setup → Invoice Appearance)
+    invoice_settings: shopData?.invoice_settings as ShopInvoiceSettings | undefined,
     warranty_settings: shopData?.warranty_settings as
       | { enabled?: boolean; duration?: string; line_1?: string; line_2?: string }
       | undefined,
