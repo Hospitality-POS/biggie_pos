@@ -20,7 +20,7 @@ import dayjs from "dayjs";
 import { getNotesByInvoice } from "@services/accounting/notes";
 import useSystemDetails from "@hooks/useSystemDetails";
 import {
-  TEMPLATES, TemplateId, InvoiceForPrint, SystemDetails,
+  TEMPLATES, TemplateId, TEMPLATE_IDS, templateById, InvoiceForPrint, SystemDetails,
 } from "./InvoiceTemplates";
 import { usePrimaryColor } from "../../../context/PrimaryColorContext";
 import { THEME_C, getPrimaryColor } from "../../../utils/getPrimaryColor";
@@ -294,7 +294,8 @@ const ReceiptTab = ({
   const ref4 = useRef<HTMLDivElement>(null);
   const ref5 = useRef<HTMLDivElement>(null);
   const ref6 = useRef<HTMLDivElement>(null);
-  const allRefs: Record<TemplateId, React.RefObject<HTMLDivElement>> = { 1: ref1, 2: ref2, 3: ref3, 4: ref4, 5: ref5, 6: ref6 };
+  const ref7 = useRef<HTMLDivElement>(null);
+  const allRefs: Record<TemplateId, React.RefObject<HTMLDivElement>> = { 1: ref1, 2: ref2, 3: ref3, 4: ref4, 5: ref5, 6: ref6, 7: ref7 };
 
   const handleDownloadPdf = async () => {
     const node = allRefs[selected]?.current;
@@ -441,8 +442,8 @@ const ReceiptTab = ({
         maxHeight: 520, overflowY: "auto",
         boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
       }}>
-        {([1, 2, 3, 4, 5, 6] as TemplateId[]).map((id) => {
-          const Tpl = TEMPLATES[id - 1].component;
+        {TEMPLATE_IDS.map((id) => {
+          const Tpl = templateById(id).component;
           return (
             <div key={id} style={{ display: id === selected ? "block" : "none" }}>
               <Tpl ref={allRefs[id]} inv={inv} sys={sys} accentColor={invoiceColor} />
