@@ -445,14 +445,14 @@ function ExpensesPage() {
             },
         },
         {
-            title: "Description",
+            title: "Description", width: 220,
             render: (_: any, row: Expense) => {
                 const lines = row.expense_lines || [];
                 const desc = lines[0]?.description || row.notes;
                 return (
-                    <Space size={4}>
+                    <Space size={4} style={{ maxWidth: "100%" }}>
                         {desc
-                            ? <Text style={{ fontSize: 12 }}>{desc}</Text>
+                            ? <Text style={{ fontSize: 12, maxWidth: 180 }} ellipsis={{ tooltip: desc }}>{desc}</Text>
                             : <Text style={{ color: C.subText }}>—</Text>}
                         {lines.length > 1 && (
                             <Tooltip title={lines.map((l) => l.description).filter(Boolean).join(" · ")}>
@@ -470,7 +470,7 @@ function ExpensesPage() {
                 : <Text style={{ color: C.subText }}>—</Text>,
         },
         {
-            title: "Expense Account (DR)",
+            title: "Expense Account (DR)", width: 210,
             render: (_: any, row: Expense) => {
                 const lines = row.expense_lines || [];
                 const extra = new Set(lines.map((l: any) => l.account_id?._id || l.account_id)).size - 1;
@@ -503,9 +503,10 @@ function ExpensesPage() {
             ),
         },
         {
-            title: "JE", dataIndex: "journal_entry_id", width: 100,
+            title: "JE", dataIndex: "journal_entry_id", width: 190,
             render: (je: any) => je ? (
                 <span style={{
+                    whiteSpace: "nowrap",
                     background: je.status === "Posted" ? "#f0fdf4" : "#fffbeb",
                     color: je.status === "Posted" ? C.green : C.orange,
                     border: `1px solid ${je.status === "Posted" ? "#bbf7d0" : "#fde68a"}`,
@@ -720,7 +721,10 @@ function ExpensesPage() {
                                 showTotal: (t) => `${t} entries`,
                                 style: { marginBottom: 0 },
                             }}
-                            scroll={{ x: 1200 }}
+                            // Sum of the column widths — below this the table scrolls
+                            // sideways instead of squeezing columns to one letter wide
+                            scroll={{ x: 1825 }}
+                            tableLayout="fixed"
                             style={{ border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden" }}
                         />
                     </Spin>

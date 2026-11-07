@@ -30,7 +30,11 @@ import {
   RollbackOutlined,
   ReloadOutlined,
   UserAddOutlined,
+  AppstoreOutlined,
+  CalendarOutlined,
+  FileTextOutlined,
 } from "@ant-design/icons";
+import StepperModal from "@components/MODALS/StepperModal";
 import dayjs from "dayjs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as assetsApi from "src/services/accounting/assetsApi";
@@ -38,6 +42,19 @@ import { fetchAllDepartments } from "src/services/crm/departments";
 
 const { RangePicker } = DatePicker;
 const { Option } = Select;
+
+const CREATE_STEPS = [
+  { title: "Basic Info", description: "Department & asset type", icon: <AppstoreOutlined /> },
+  { title: "Quantity & Timing", description: "How many & by when", icon: <CalendarOutlined /> },
+  { title: "Details", description: "Reason & justification", icon: <FileTextOutlined /> },
+];
+
+// Fields validated before leaving each step
+const CREATE_STEP_FIELDS: string[][] = [
+  ["department_id", "location", "asset_category", "asset_type"],
+  ["quantity_requested", "required_by_date"],
+  ["reason"],
+];
 
 const AssetRequestsPage = () => {
   const [filters, setFilters] = useState({
@@ -94,6 +111,9 @@ const AssetRequestsPage = () => {
       setModalVisible(false);
       form.resetFields();
       setCurrentStep(0);
+    },
+    onError: (error: any) => {
+      message.error(error?.response?.data?.message || error?.message || "Failed to create request");
     },
   });
 
@@ -199,7 +219,35 @@ const AssetRequestsPage = () => {
   const openModal = (type: typeof modalType, request?: any) => {
     setModalType(type);
     setSelectedRequest(request);
+    setCurrentStep(0);
     setModalVisible(true);
+  };
+
+  const closeModal = () => {
+    setModalVisible(false);
+    form.resetFields();
+    setCurrentStep(0);
+  };
+
+  // ── Create Request steps ───────────────────────────────────────────────────
+  const nextCreateStep = async () => {
+    try {
+      await form.validateFields(CREATE_STEP_FIELDS[currentStep]);
+      setCurrentStep((s) => s + 1);
+    } catch { /* field errors are shown inline */ }
+  };
+
+  const submitCreate = async () => {
+    // Re-check every step and jump back to the first one with an error
+    for (let s = 0; s < CREATE_STEP_FIELDS.length; s++) {
+      try {
+        await form.validateFields(CREATE_STEP_FIELDS[s]);
+      } catch {
+        setCurrentStep(s);
+        return;
+      }
+    }
+    createMutation.mutate(form.getFieldsValue(true));
   };
 
   const viewRequest = (request: any) => {
@@ -540,43 +588,40 @@ const AssetRequestsPage = () => {
         )}
       </Drawer>
 
-      <Modal
-        title={modalType.charAt(0).toUpperCase() + modalType.slice(1) + " Request"}
-        open={modalVisible}
-        onOk={modalType === "create" ? undefined : handleModalSubmit}
-        onCancel={() => {
-          setModalVisible(false);
-          form.resetFields();
-          setCurrentStep(0);
-        }}
-        confirmLoading={
-          createMutation.isLoading ||
-          approveMutation.isLoading ||
-          rejectMutation.isLoading ||
-          issueMutation.isLoading ||
-          cancelMutation.isLoading ||
-          returnMutation.isLoading ||
-          assignMutation.isLoading
-        }
-        width={modalType === "create" ? 800 : 600}
-        footer={modalType === "create" ? null : undefined}
-        okText={modalType === "return" ? "Return Assets" : modalType === "assign" ? "Assign Asset" : undefined}
+      {/* Create Request — multi-step with the steps on the left */}
+      <StepperModal
+        open={modalVisible && modalType === "create"}
+        onCancel={closeModal}
+        icon={<PlusOutlined />}
+        title="Create Asset Request"
+        steps={CREATE_STEPS}
+        current={currentStep}
+        onStepClick={setCurrentStep}
+        width={900}
+        footer={[
+          <Button key="cancel" onClick={closeModal}>Cancel</Button>,
+          currentStep > 0 && (
+            <Button key="back" onClick={() => setCurrentStep((s) => s - 1)}>Back</Button>
+          ),
+          currentStep < CREATE_STEPS.length - 1 ? (
+            <Button key="next" type="primary" onClick={nextCreateStep}>Next</Button>
+          ) : (
+            <Button key="submit" type="primary" loading={createMutation.isLoading} onClick={submitCreate}>
+              Create Request
+            </Button>
+          ),
+        ]}
       >
-        <Form form={form} layout="vertical">
-          {modalType === "create" && (
-            <>
-              <Steps current={currentStep} style={{ marginBottom: 24 }}>
-                <Steps.Step title="Basic Info" />
-                <Steps.Step title="Quantity & Timing" />
-                <Steps.Step title="Details" />
-              </Steps>
-              <div style={{ display: currentStep === 0 ? "block" : "none" }}>
+        <Form form={form} layout="vertical" initialValues={{ quantity_requested: 1 }}>
+          <div style={{ display: currentStep === 0 ? "block" : "none" }}>
+            <Row gutter={16}>
+              <Col xs={24} md={12}>
                 <Form.Item
                   name="department_id"
                   label="Department"
                   rules={[{ required: true, message: "Please select department" }]}
                 >
-                  <Select placeholder="Select department" loading={!departmentsData}>
+                  <Select placeholder="Select department" loading={!departmentsData} showSearch optionFilterProp="children">
                     {departmentsData?.departments?.map((dept: any) => (
                       <Option key={dept._id} value={dept._id}>
                         {dept.name}
@@ -584,13 +629,17 @@ const AssetRequestsPage = () => {
                     ))}
                   </Select>
                 </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
                 <Form.Item
                   name="location"
                   label="Location"
                   rules={[{ required: true, message: "Please enter location" }]}
                 >
-                  <Input placeholder="Enter location" />
+                  <Input placeholder="e.g. Head office, 2nd floor" />
                 </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
                 <Form.Item
                   name="asset_category"
                   label="Asset Category"
@@ -605,22 +654,30 @@ const AssetRequestsPage = () => {
                     <Option value="Land">Land</Option>
                   </Select>
                 </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
                 <Form.Item
                   name="asset_type"
                   label="Asset Type"
                   rules={[{ required: true, message: "Please enter asset type" }]}
                 >
-                  <Input placeholder="Enter asset type" />
+                  <Input placeholder="e.g. Laptop" />
                 </Form.Item>
-              </div>
-              <div style={{ display: currentStep === 1 ? "block" : "none" }}>
+              </Col>
+            </Row>
+          </div>
+          <div style={{ display: currentStep === 1 ? "block" : "none" }}>
+            <Row gutter={16}>
+              <Col xs={24} md={12}>
                 <Form.Item
                   name="quantity_requested"
                   label="Quantity"
                   rules={[{ required: true, message: "Please enter quantity" }]}
                 >
-                  <Input type="number" placeholder="Enter quantity" />
+                  <Input type="number" min={1} placeholder="Enter quantity" />
                 </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
                 <Form.Item
                   name="required_by_date"
                   label="Required By Date"
@@ -628,40 +685,45 @@ const AssetRequestsPage = () => {
                 >
                   <DatePicker style={{ width: "100%" }} />
                 </Form.Item>
-              </div>
-              <div style={{ display: currentStep === 2 ? "block" : "none" }}>
-                <Form.Item
-                  name="reason"
-                  label="Reason"
-                  rules={[{ required: true, message: "Please enter reason" }]}
-                >
-                  <Input.TextArea rows={3} placeholder="Enter reason" />
-                </Form.Item>
-                <Form.Item name="justification" label="Justification">
-                  <Input.TextArea rows={3} placeholder="Enter justification" />
-                </Form.Item>
-                <Form.Item name="notes" label="Notes">
-                  <Input.TextArea rows={2} placeholder="Enter notes" />
-                </Form.Item>
-              </div>
-              <div style={{ marginTop: 24, textAlign: "right" }}>
-                {currentStep > 0 && (
-                  <Button style={{ marginRight: 8 }} onClick={() => setCurrentStep(currentStep - 1)}>
-                    Previous
-                  </Button>
-                )}
-                {currentStep < 2 ? (
-                  <Button type="primary" onClick={() => setCurrentStep(currentStep + 1)}>
-                    Next
-                  </Button>
-                ) : (
-                  <Button type="primary" onClick={handleModalSubmit}>
-                    Create Request
-                  </Button>
-                )}
-              </div>
-            </>
-          )}
+              </Col>
+            </Row>
+          </div>
+          <div style={{ display: currentStep === 2 ? "block" : "none" }}>
+            <Form.Item
+              name="reason"
+              label="Reason"
+              rules={[{ required: true, message: "Please enter reason" }]}
+            >
+              <Input.TextArea rows={3} placeholder="Why is this asset needed?" />
+            </Form.Item>
+            <Form.Item name="justification" label="Justification">
+              <Input.TextArea rows={3} placeholder="Enter justification" />
+            </Form.Item>
+            <Form.Item name="notes" label="Notes">
+              <Input.TextArea rows={2} placeholder="Enter notes" />
+            </Form.Item>
+          </div>
+        </Form>
+      </StepperModal>
+
+      <Modal
+        title={modalType.charAt(0).toUpperCase() + modalType.slice(1) + " Request"}
+        open={modalVisible && modalType !== "create"}
+        onOk={handleModalSubmit}
+        onCancel={closeModal}
+        destroyOnClose
+        confirmLoading={
+          approveMutation.isLoading ||
+          rejectMutation.isLoading ||
+          issueMutation.isLoading ||
+          cancelMutation.isLoading ||
+          returnMutation.isLoading ||
+          assignMutation.isLoading
+        }
+        width={600}
+        okText={modalType === "return" ? "Return Assets" : modalType === "assign" ? "Assign Asset" : undefined}
+      >
+        <Form form={form} layout="vertical">
           {modalType === "approve" && (
             <Form.Item name="comments" label="Comments">
               <Input.TextArea rows={4} placeholder="Enter approval comments" />

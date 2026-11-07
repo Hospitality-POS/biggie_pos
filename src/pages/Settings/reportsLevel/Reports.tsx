@@ -146,6 +146,8 @@ const useUserOptions = () => {
     queryKey: ["reports-users-shop"],
     queryFn: () => fetchAllUsersByShopId(),
     networkMode: "always",
+    // API returns { users, pagination } — the code below needs the array
+    select: (d: any) => (Array.isArray(d) ? d : d?.users ?? []),
     enabled: !!shopId,
   });
   return (data ?? []).map((e: any) => ({ label: e.username, value: e._id }));

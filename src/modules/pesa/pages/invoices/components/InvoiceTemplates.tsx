@@ -1,6 +1,7 @@
 import React from "react";
 import dayjs from "dayjs";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
+import type { ShopInvoiceSettings } from "@services/shops";
 
 // ── Palette ────────────────────────────────────────────────────────────────
 const C = {
@@ -163,6 +164,8 @@ export interface SystemDetails {
     bank_details?: string[];
     // Name of the payment detail selected in System Profile (e.g. "Pochi")
     payment_detail_name?: string;
+    // Watermark + services banner (System Setup → Invoice Appearance)
+    invoice_settings?: ShopInvoiceSettings;
 }
 
 // Label for the till/number line — uses the payment mode selected in
@@ -827,6 +830,127 @@ const PaymentDetailsBlock = ({
     );
 };
 
+// ── Invoice appearance: watermark + services banner ────────────────────────
+const DEFAULT_PRIMARY = "#1F5C99";
+const DEFAULT_SECONDARY = "#F7941D";
+
+const brandColors = (sys: SystemDetails) => ({
+    primary: sys.invoice_settings?.primary_color || DEFAULT_PRIMARY,
+    secondary: sys.invoice_settings?.secondary_color || DEFAULT_SECONDARY,
+});
+
+// Image used for the watermark: the uploaded custom image, else the tenant logo
+const watermarkUrlFor = (sys: SystemDetails): string | null => {
+    const s = sys.invoice_settings;
+    if (!s?.watermark_enabled) return null;
+    if (s.watermark_source === "custom" && s.watermark_image_url) return s.watermark_image_url;
+    return sys.tenant_logo?.url || null;
+};
+
+// Faded image across the middle of the invoice. On paper it is fixed to the
+// page so it repeats on every page of a multi-page invoice.
+export const InvoiceWatermark = ({ sys }: { sys: SystemDetails }) => {
+    const src = watermarkUrlFor(sys);
+    if (!src) return null;
+    const s = sys.invoice_settings || {};
+    const opacity = Math.min(0.5, Math.max(0.02, s.watermark_opacity ?? 0.08));
+    const size = Math.min(100, Math.max(20, s.watermark_size ?? 70));
+    return (
+        <>
+            <style>{`@media print{.inv-watermark{position:fixed!important}}`}</style>
+            <img
+                className="inv-watermark"
+                src={src}
+                alt=""
+                aria-hidden
+                style={{
+                    position: "absolute",
+                    top: "50%",
+                    left: "50%",
+                    transform: "translate(-50%, -50%)",
+                    width: `${size}%`,
+                    maxHeight: "80%",
+                    objectFit: "contain",
+                    opacity,
+                    pointerEvents: "none",
+                    zIndex: 1,
+                }}
+            />
+        </>
+    );
+};
+
+const PinIcon = ({ color = "#fff" }: { color?: string }) => (
+    <svg width="12" height="14" viewBox="0 0 12 14" aria-hidden style={{ flexShrink: 0 }}>
+        <path d="M6 0a5 5 0 0 0-5 5c0 3.6 5 9 5 9s5-5.4 5-9a5 5 0 0 0-5-5Zm0 7a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z" fill={color} />
+    </svg>
+);
+
+// "We supply and service…" banner printed at the very bottom of the invoice
+export const ServicesBanner = ({ sys }: { sys: SystemDetails }) => {
+    const s = sys.invoice_settings;
+    if (!s?.services_enabled) return null;
+    const services = (s.services || []).map((x) => x.trim()).filter(Boolean);
+    const title = (s.services_title || "").trim();
+    const heading = (s.services_heading || "").trim();
+    const address = (s.services_address || "").trim();
+    if (!services.length && !title && !heading && !address) return null;
+    const { primary, secondary } = brandColors(sys);
+    // Two columns, filled top-to-bottom like the letterhead
+    const half = Math.ceil(services.length / 2);
+    const columns = services.length > 4 ? [services.slice(0, half), services.slice(half)] : [services];
+
+    return (
+        <div className="inv-services" style={{ marginTop: 14, breakInside: "avoid", pageBreakInside: "avoid" }}>
+            {(services.length > 0 || title || heading) && (
+                <div style={{ background: primary, color: "#fff", display: "flex", alignItems: "stretch", padding: "10px 16px", gap: 16 }}>
+                    {(title || heading) && (
+                        <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", paddingRight: 16, borderRight: services.length ? `3px solid ${secondary}` : "none", minWidth: 150 }}>
+                            {title && <div style={{ color: secondary, fontWeight: 700, fontSize: 14, lineHeight: 1.3 }}>{title}</div>}
+                            {heading && <div style={{ fontWeight: 800, fontSize: 17, lineHeight: 1.3 }}>{heading}</div>}
+                        </div>
+                    )}
+                    {services.length > 0 && (
+                        <div style={{ display: "flex", flex: 1, gap: 20 }}>
+                            {columns.map((col, ci) => (
+                                <ol
+                                    key={ci}
+                                    start={ci === 0 ? 1 : half + 1}
+                                    style={{ margin: 0, paddingLeft: 18, flex: 1, fontSize: 11, fontWeight: 600, lineHeight: 1.7 }}
+                                >
+                                    {col.map((svc, i) => <li key={i}>{svc}</li>)}
+                                </ol>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+            {address && (
+                <div style={{ background: secondary, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "7px 16px", fontWeight: 700, fontSize: 13 }}>
+                    <PinIcon />
+                    <span>{address}</span>
+                </div>
+            )}
+        </div>
+    );
+};
+
+// Adds the watermark to a template. The ref lands on this wrapper so printing
+// and PDF capture include the watermark layer.
+const withInvoiceExtras = (
+    Inner: React.ForwardRefExoticComponent<SharedProps & React.RefAttributes<HTMLDivElement>>,
+    name: string,
+) => {
+    const Wrapped = React.forwardRef<HTMLDivElement, SharedProps>((props, ref) => (
+        <div ref={ref} style={{ position: "relative", width: "100%", maxWidth: 730, background: "#fff" }}>
+            <Inner {...props} />
+            <InvoiceWatermark sys={props.sys} />
+        </div>
+    ));
+    Wrapped.displayName = name;
+    return Wrapped;
+};
+
 const Footer = ({ sys, borderColor = C.border, accentColor = C.primary }: { sys: SystemDetails; borderColor?: string; accentColor?: string }) => {
     // Determine which logo to use based on background color
     // Light backgrounds (Ocean: #ffffff, Forest: #f0fdf4) need dark logo
@@ -865,6 +989,9 @@ const Footer = ({ sys, borderColor = C.border, accentColor = C.primary }: { sys:
                 Printed {new Date().toLocaleDateString("en-KE")}
             </div>
         </div>
+
+        {/* Services offered — the last thing on the page when enabled */}
+        <ServicesBanner sys={sys} />
     </div>
     );
 };
@@ -910,7 +1037,7 @@ const LogoOrText = ({
 // ═══════════════════════════════════════════════════════════════
 // TEMPLATE 1 — Classic (Black Header)
 // ═══════════════════════════════════════════════════════════════
-export const Template1Classic = React.forwardRef<HTMLDivElement, SharedProps>(({ inv, sys, accentColor = C.primary }, ref) => {
+const Template1ClassicBase = React.forwardRef<HTMLDivElement, SharedProps>(({ inv, sys, accentColor = C.primary }, ref) => {
     const party = resolveParty(inv);
     const docLabel = inv.status === "Draft" ? "QUOTE" : inv.direction === "supplier" ? "BILL" : (inv.etr_enabled ? "TAX INVOICE" : "INVOICE");
 
@@ -1054,12 +1181,12 @@ export const Template1Classic = React.forwardRef<HTMLDivElement, SharedProps>(({
         </div>
     );
 });
-Template1Classic.displayName = "Template1Classic";
+Template1ClassicBase.displayName = "Template1Classic";
 
 // ═══════════════════════════════════════════════════════════════
 // TEMPLATE 2 — Slate Pro (Dark Navy, Left-Border Accents)
 // ═══════════════════════════════════════════════════════════════
-export const Template2SlatePro = React.forwardRef<HTMLDivElement, SharedProps>(({ inv, sys }, ref) => {
+const Template2SlateProBase = React.forwardRef<HTMLDivElement, SharedProps>(({ inv, sys }, ref) => {
     const party = resolveParty(inv);
     const navy = "#1e293b";
     const docLabel = inv.status === "Draft" ? "QUOTE" : inv.direction === "supplier" ? "BILL" : (inv.etr_enabled ? "TAX INVOICE" : "INVOICE");
@@ -1183,12 +1310,12 @@ export const Template2SlatePro = React.forwardRef<HTMLDivElement, SharedProps>((
         </div>
     );
 });
-Template2SlatePro.displayName = "Template2SlatePro";
+Template2SlateProBase.displayName = "Template2SlatePro";
 
 // ═══════════════════════════════════════════════════════════════
 // TEMPLATE 3 — Ocean (Minimal Black Header, Info Chips)
 // ═══════════════════════════════════════════════════════════════
-export const Template3Ocean = React.forwardRef<HTMLDivElement, SharedProps>(({ inv, sys }, ref) => {
+const Template3OceanBase = React.forwardRef<HTMLDivElement, SharedProps>(({ inv, sys }, ref) => {
     const party = resolveParty(inv);
     const docLabel = inv.status === "Draft" ? "QUOTE" : inv.direction === "supplier" ? "BILL" : (inv.etr_enabled ? "TAX INVOICE" : "INVOICE");
 
@@ -1277,12 +1404,12 @@ export const Template3Ocean = React.forwardRef<HTMLDivElement, SharedProps>(({ i
         </div>
     );
 });
-Template3Ocean.displayName = "Template3Ocean";
+Template3OceanBase.displayName = "Template3Ocean";
 
 // ═══════════════════════════════════════════════════════════════
 // TEMPLATE 4 — Minimal / Editorial (Serif, Clean Rules)
 // ═══════════════════════════════════════════════════════════════
-export const Template4Minimal = React.forwardRef<HTMLDivElement, SharedProps>(({ inv, sys }, ref) => {
+const Template4MinimalBase = React.forwardRef<HTMLDivElement, SharedProps>(({ inv, sys }, ref) => {
     const party = resolveParty(inv);
     const charcoal = C.darkText;
     const docLabel = inv.status === "Draft" ? "Quote" : inv.direction === "supplier" ? "Bill" : (inv.etr_enabled ? "Tax Invoice" : "Invoice");
@@ -1412,12 +1539,12 @@ export const Template4Minimal = React.forwardRef<HTMLDivElement, SharedProps>(({
         </div>
     );
 });
-Template4Minimal.displayName = "Template4Minimal";
+Template4MinimalBase.displayName = "Template4Minimal";
 
 // ═══════════════════════════════════════════════════════════════
 // TEMPLATE 5 — Forest (Deep Green, Tinted Cards)
 // ═══════════════════════════════════════════════════════════════
-export const Template5Forest = React.forwardRef<HTMLDivElement, SharedProps>(({ inv, sys }, ref) => {
+const Template5ForestBase = React.forwardRef<HTMLDivElement, SharedProps>(({ inv, sys }, ref) => {
     const party = resolveParty(inv);
     const forest = "#065f46";
     const docLabel = inv.status === "Draft" ? "QUOTE" : inv.direction === "supplier" ? "BILL" : (inv.etr_enabled ? "TAX INVOICE" : "INVOICE");
@@ -1520,7 +1647,7 @@ export const Template5Forest = React.forwardRef<HTMLDivElement, SharedProps>(({ 
         </div>
     );
 });
-Template5Forest.displayName = "Template5Forest";
+Template5ForestBase.displayName = "Template5Forest";
 
 // ═══════════════════════════════════════════════════════════════
 // TEMPLATE 6 — Clean (Professional multi-column, black & white)
@@ -1564,7 +1691,7 @@ const ItemsTableClean = ({ inv }: { inv: InvoiceForPrint }) => {
     );
 };
 
-export const Template6Clean = React.forwardRef<HTMLDivElement, SharedProps>(({ inv, sys }, ref) => {
+const Template6CleanBase = React.forwardRef<HTMLDivElement, SharedProps>(({ inv, sys }, ref) => {
     const party = resolveParty(inv);
     const companyAddress = [sys.ADDRESS_1, sys.ADDRESS_2, sys.CITY, sys.COUNTRY].filter(Boolean).join(", ");
 
@@ -1682,7 +1809,212 @@ export const Template6Clean = React.forwardRef<HTMLDivElement, SharedProps>(({ i
         </div>
     );
 });
-Template6Clean.displayName = "Template6Clean";
+Template6CleanBase.displayName = "Template6Clean";
+
+// ═══════════════════════════════════════════════════════════════
+// TEMPLATE 7 — Letterhead (logo + contacts header, brand colours,
+// account details and a services banner at the bottom)
+// ═══════════════════════════════════════════════════════════════
+const ContactIcon = ({ kind, color }: { kind: "phone" | "email" | "web"; color: string }) => {
+    const paths: Record<typeof kind, string> = {
+        phone: "M3.6 1.2 5.4 3c.3.3.3.8 0 1.1L4.3 5.2a8 8 0 0 0 4.5 4.5l1.1-1.1c.3-.3.8-.3 1.1 0l1.8 1.8c.3.3.3.8 0 1.1l-1 1A2 2 0 0 1 10 13 10 10 0 0 1 1 4a2 2 0 0 1 .5-1.8l1-1c.3-.3.8-.3 1.1 0Z",
+        email: "M1 3h12v8H1V3Zm1 1v.3l5 3.2 5-3.2V4H2Zm10 1.5L7 8.7 2 5.5V10h10V5.5Z",
+        web: "M7 1a6 6 0 1 0 0 12A6 6 0 0 0 7 1Zm4.9 5.5H9.6a9 9 0 0 0-.8-3.9 5 5 0 0 1 3.1 3.9ZM7 2.1c.6.8 1.4 2.2 1.6 4.4H5.4C5.6 4.3 6.4 2.9 7 2.1Zm-1.8.5a9 9 0 0 0-.8 3.9H2.1a5 5 0 0 1 3.1-3.9ZM2.1 7.5h2.3c.1 1.5.4 2.8.8 3.9a5 5 0 0 1-3.1-3.9ZM7 11.9c-.6-.8-1.4-2.2-1.6-4.4h3.2c-.2 2.2-1 3.6-1.6 4.4Zm1.8-.5c.4-1.1.7-2.4.8-3.9h2.3a5 5 0 0 1-3.1 3.9Z",
+    };
+    return (
+        <svg width="13" height="13" viewBox="0 0 14 14" aria-hidden style={{ flexShrink: 0 }}>
+            <path d={paths[kind]} fill={color} />
+        </svg>
+    );
+};
+
+const Template7LetterheadBase = React.forwardRef<HTMLDivElement, SharedProps>(({ inv, sys }, ref) => {
+    const party = resolveParty(inv);
+    const { primary, secondary } = brandColors(sys);
+    const website = (sys.invoice_settings?.website || "").trim();
+    const docLabel = inv.status === "Draft" ? "QUOTE" : inv.direction === "supplier" ? "BILL" : (inv.etr_enabled ? "TAX INVOICE" : "INVOICE");
+    const banks = (sys.bank_details || []).filter(Boolean);
+    const hasPaybill = !!(sys.Paybill_bs || sys.Paybill_ac);
+    const items = inv.items || [];
+    const contacts = [
+        sys.PHONE_NO && { kind: "phone" as const, text: sys.PHONE_NO },
+        sys.EMAIL_URL && { kind: "email" as const, text: sys.EMAIL_URL },
+        website && { kind: "web" as const, text: website },
+    ].filter(Boolean) as { kind: "phone" | "email" | "web"; text: string }[];
+    const cell: React.CSSProperties = { padding: "7px 10px", borderBottom: "1px solid #e2e8f0", color: "#000" };
+
+    return (
+        <div
+            ref={ref}
+            className="inv-root"
+            style={{
+                fontFamily: "'Segoe UI', Roboto, sans-serif",
+                color: "#000",
+                background: "#fff",
+                padding: 32,
+                width: "100%",
+                maxWidth: 730,
+                boxSizing: "border-box" as const,
+            }}
+        >
+            <style>{`@media print{@page{size:A4 portrait;margin:12mm}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}.inv-root{display:flex;flex-direction:column;min-height:273mm}.inv-footer{margin-top:auto!important}}`}</style>
+
+            {/* Letterhead: logo left, contacts right, two-tone rule */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16 }}>
+                <div>
+                    {sys.tenant_logo?.url ? (
+                        <img src={sys.tenant_logo.url} alt="logo" style={{ height: 64, maxWidth: 260, objectFit: "contain", display: "block" }} />
+                    ) : (
+                        <div style={{ fontSize: 24, fontWeight: 800, color: primary }}>{sys.BRAND_NAME1 || "Business"}</div>
+                    )}
+                    {sys.PIN && <div style={{ fontSize: 10, color: "#475569", marginTop: 4 }}>KRA PIN: {sys.PIN}</div>}
+                </div>
+                {contacts.length > 0 && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                        {contacts.map((c) => (
+                            <div key={c.kind} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 600, color: primary, letterSpacing: 0.3 }}>
+                                <ContactIcon kind={c.kind} color={secondary} />
+                                <span>{c.text}</span>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+            <div style={{ display: "flex", height: 3, margin: "12px 0 20px" }}>
+                <div style={{ flex: 3, background: primary }} />
+                <div style={{ flex: 2, background: secondary }} />
+            </div>
+
+            {/* Title + document meta */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 20, marginBottom: 20 }}>
+                <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 26, fontWeight: 800, color: primary, letterSpacing: 1, marginBottom: 10 }}>{docLabel}</div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: secondary, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>
+                        {party.label || "Bill To"}
+                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 700 }}>{party.name}</div>
+                    {party.phone && <div style={{ fontSize: 11 }}>{party.phone}</div>}
+                    {party.email && <div style={{ fontSize: 11 }}>{party.email}</div>}
+                    {party.address && (
+                        <div style={{ fontSize: 11 }}>
+                            {[party.address.street, party.address.city, party.address.county, party.address.country].filter(Boolean).join(", ")}
+                        </div>
+                    )}
+                    {party.location && <div style={{ fontSize: 11 }}>{party.location}</div>}
+                    {party.kra_pin && <div style={{ fontSize: 11 }}>KRA PIN: {party.kra_pin}</div>}
+                    {party.ref && <div style={{ fontSize: 11 }}>Ref: {party.ref}</div>}
+                </div>
+                <table style={{ fontSize: 12, borderCollapse: "collapse", minWidth: 230 }}>
+                    <tbody>
+                        {[
+                            ["Invoice No.", inv.order_no || inv.invoice_no || "—"],
+                            ["Date", fmtDateShort(inv.issue_date || inv.createdAt)],
+                            ...(inv.due_date ? [["Due Date", fmtDateShort(inv.due_date)]] : []),
+                            ["Status", inv.status || "—"],
+                        ].map(([k, v]) => (
+                            <tr key={k}>
+                                <td style={{ padding: "4px 10px", background: primary, color: "#fff", fontWeight: 600, border: "1px solid #fff" }}>{k}</td>
+                                <td style={{ padding: "4px 10px", textAlign: "right", fontWeight: 600, border: "1px solid #e2e8f0" }}>{v}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+
+            {/* Items */}
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                <thead>
+                    <tr style={{ background: primary }}>
+                        {["#", "Description", "Qty", "Unit (KES)", "VAT (KES)", "Total (KES)"].map((h, i) => (
+                            <th key={h} style={{ padding: "8px 10px", color: "#fff", fontWeight: 700, fontSize: 11, textAlign: i === 0 || i === 2 ? "center" : i >= 3 ? "right" : "left" }}>
+                                {h}
+                            </th>
+                        ))}
+                    </tr>
+                </thead>
+                <tbody>
+                    {items.length ? items.map((item, i) => (
+                        <tr key={item._id || i}>
+                            <td style={{ ...cell, textAlign: "center" }}>{i + 1}</td>
+                            <td style={{ ...cell, fontWeight: 600 }}>{item.product_id?.name || item.description || "—"}</td>
+                            <td style={{ ...cell, textAlign: "center" }}>{item.quantity}</td>
+                            <td style={{ ...cell, textAlign: "right" }}>{fmt(item.unit_price || item.price || 0)}</td>
+                            <td style={{ ...cell, textAlign: "right" }}>{(item.vat_amount || 0) > 0 ? fmt(item.vat_amount!) : "—"}</td>
+                            <td style={{ ...cell, textAlign: "right", fontWeight: 700 }}>{fmt(lineTotalOf(inv, item))}</td>
+                        </tr>
+                    )) : (
+                        <tr><td colSpan={6} style={{ ...cell, textAlign: "center", padding: 20 }}>No items</td></tr>
+                    )}
+                </tbody>
+            </table>
+
+            {/* Totals */}
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
+                <div style={{ width: 280, fontSize: 12 }}>
+                    {[
+                        ["Subtotal", `KES ${fmt(inv.subtotal || 0)}`],
+                        ...((inv.discount_amount || 0) > 0 ? [["Discount", `− KES ${fmt(inv.discount_amount)}`]] : []),
+                        ["VAT", `KES ${fmt(inv.total_vat_amount || 0)}`],
+                        ...((inv.notes_adjustment || 0) !== 0 ? [["Notes Adjustment", `KES ${fmt(inv.notes_adjustment!)}`]] : []),
+                    ].map(([k, v]) => (
+                        <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "3px 10px" }}>
+                            <span>{k}</span><span style={{ fontWeight: 600 }}>{v}</span>
+                        </div>
+                    ))}
+                    <div style={{ display: "flex", justifyContent: "space-between", background: primary, color: "#fff", padding: "7px 10px", marginTop: 6, fontWeight: 700, fontSize: 14 }}>
+                        <span>Grand Total</span><span>KES {fmt(inv.grand_total || 0)}</span>
+                    </div>
+                    {(inv.amount_paid || 0) > 0 && (
+                        <>
+                            <div style={{ display: "flex", justifyContent: "space-between", padding: "5px 10px 0" }}>
+                                <span>Amount Paid</span><span style={{ fontWeight: 700 }}>KES {fmt(inv.amount_paid || 0)}</span>
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "space-between", background: secondary, color: "#fff", padding: "5px 10px", marginTop: 4, fontWeight: 700 }}>
+                                <span>Balance Due</span><span>KES {fmt(inv.amount_due || 0)}</span>
+                            </div>
+                        </>
+                    )}
+                </div>
+            </div>
+
+            <PaymentDetailsBlock inv={inv} sys={sys} accentColor={primary} />
+
+            {/* Account details */}
+            {(banks.length > 0 || hasPaybill || sys.TILL_NO) && (
+                <div style={{ marginTop: 18, fontSize: 12, fontWeight: 700, lineHeight: 1.7, textTransform: "uppercase" }}>
+                    <div style={{ color: primary, textDecoration: "underline", marginBottom: 2 }}>Acc Details:</div>
+                    {banks.map((b, i) => (
+                        <pre key={i} style={{ margin: "0 0 6px", fontFamily: "inherit", whiteSpace: "pre-wrap" }}>{b}</pre>
+                    ))}
+                    {banks.length === 0 && hasPaybill && (
+                        <div>Paybill: {sys.Paybill_bs || "—"} · Acc: {sys.Paybill_ac || "—"}</div>
+                    )}
+                    {banks.length === 0 && !hasPaybill && sys.TILL_NO && (
+                        <div>{tillLabelFor(sys, "M-Pesa Till No.")}: {sys.TILL_NO}</div>
+                    )}
+                </div>
+            )}
+
+            <div style={{ marginTop: 16, textAlign: "center", fontSize: 13, fontWeight: 800, color: primary, letterSpacing: 0.5 }}>
+                THANK YOU FOR DOING BUSINESS WITH US.
+            </div>
+
+            <div style={{ marginTop: "auto", paddingTop: 16 }}>
+                <Footer sys={sys} borderColor="#e2e8f0" accentColor="#000000" />
+            </div>
+        </div>
+    );
+});
+Template7LetterheadBase.displayName = "Template7Letterhead";
+
+// Every template carries the watermark (when enabled in System Setup)
+export const Template1Classic = withInvoiceExtras(Template1ClassicBase, "Template1Classic");
+export const Template2SlatePro = withInvoiceExtras(Template2SlateProBase, "Template2SlatePro");
+export const Template3Ocean = withInvoiceExtras(Template3OceanBase, "Template3Ocean");
+export const Template4Minimal = withInvoiceExtras(Template4MinimalBase, "Template4Minimal");
+export const Template5Forest = withInvoiceExtras(Template5ForestBase, "Template5Forest");
+export const Template6Clean = withInvoiceExtras(Template6CleanBase, "Template6Clean");
+export const Template7Letterhead = withInvoiceExtras(Template7LetterheadBase, "Template7Letterhead");
 
 // ── Template meta ──────────────────────────────────────────────────────────
 export const TEMPLATES = [
@@ -1734,6 +2066,18 @@ export const TEMPLATES = [
         thumbBg: "#000000",
         thumbAccent: "#ffffff",
     },
+    {
+        id: 7,
+        name: "Letterhead",
+        description: "Logo & contacts letterhead, brand colours, services banner",
+        component: Template7Letterhead,
+        thumbBg: DEFAULT_PRIMARY,
+        thumbAccent: "#ffffff",
+    },
 ] as const;
 
-export type TemplateId = 1 | 2 | 3 | 4 | 5 | 6;
+export type TemplateId = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+export const TEMPLATE_IDS: TemplateId[] = [1, 2, 3, 4, 5, 6, 7];
+
+// Look up by id — TEMPLATES is in display order, not id order
+export const templateById = (id: TemplateId) => TEMPLATES.find((t) => t.id === id) ?? TEMPLATES[0];

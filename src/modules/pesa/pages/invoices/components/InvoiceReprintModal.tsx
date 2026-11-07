@@ -133,8 +133,9 @@ const InvoiceReprintModal: React.FC<InvoiceReprintModalProps> = ({
   const ref4 = useRef<HTMLDivElement>(null);
   const ref5 = useRef<HTMLDivElement>(null);
   const ref6 = useRef<HTMLDivElement>(null);
+  const ref7 = useRef<HTMLDivElement>(null);
   const allRefs: Record<TemplateId, React.RefObject<HTMLDivElement>> = {
-    1: ref1, 2: ref2, 3: ref3, 4: ref4, 5: ref5, 6: ref6,
+    1: ref1, 2: ref2, 3: ref3, 4: ref4, 5: ref5, 6: ref6, 7: ref7,
   };
 
   const sys: SystemDetails = useSystemDetails();
@@ -176,9 +177,10 @@ const InvoiceReprintModal: React.FC<InvoiceReprintModalProps> = ({
   const print4 = useReactToPrint({ content: () => ref4.current, documentTitle: `Invoice-${orderNo}`, pageStyle: PAGE_STYLE });
   const print5 = useReactToPrint({ content: () => ref5.current, documentTitle: `Invoice-${orderNo}`, pageStyle: PAGE_STYLE });
   const print6 = useReactToPrint({ content: () => ref6.current, documentTitle: `Invoice-${orderNo}`, pageStyle: PAGE_STYLE });
+  const print7 = useReactToPrint({ content: () => ref7.current, documentTitle: `Invoice-${orderNo}`, pageStyle: PAGE_STYLE });
 
   const printMap: Record<TemplateId, () => void> = {
-    1: print1, 2: print2, 3: print3, 4: print4, 5: print5, 6: print6,
+    1: print1, 2: print2, 3: print3, 4: print4, 5: print5, 6: print6, 7: print7,
   };
 
   const handlePrint = () => printMap[selectedTemplate]();

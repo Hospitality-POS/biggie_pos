@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from "react";
-import { Button, Form, Space, Upload, message, Typography } from "antd";
+import { Button, Form, Grid, Steps, Upload, message, Typography } from "antd";
 import {
   ModalForm,
   ProFormText,
@@ -15,6 +15,8 @@ import {
   PlusOutlined,
   TagsOutlined,
   InboxOutlined,
+  DollarOutlined,
+  PictureOutlined,
 } from "@ant-design/icons";
 import { ProFormMoney, ProFormTextArea } from "@ant-design/pro-components";
 import ShowConfirm from "@utils/ConfirmUtil";
@@ -208,6 +210,46 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data, onSuccess, trigger:
     }
   };
 
+  // ── Steps (left side) ───────────────────────────────────────────────────────
+  const STEPS = [
+    { title: "Details", description: "Name & category", icon: <TagsOutlined /> },
+    { title: "Pricing & Stock", description: "Price, VAT & inventory", icon: <DollarOutlined /> },
+    { title: "Add-ons & Image", description: "Optional extras", icon: <PictureOutlined /> },
+  ];
+  // Fields checked before leaving each step
+  const STEP_FIELDS: string[][] = [
+    ["name", "category"],
+    ["price", "vat_type", "activateInventory"],
+    [],
+  ];
+  const [step, setStep] = useState(0);
+  const screens = Grid.useBreakpoint();
+  const vertical = screens.md !== false;
+  const isLast = step === STEPS.length - 1;
+  const show = (i: number) => ({ display: step === i ? "block" : "none" });
+
+  const nextStep = async () => {
+    try {
+      const names = STEP_FIELDS[step];
+      if (names.length) await form.validateFields(names);
+      setStep((s) => s + 1);
+    } catch { /* field errors are shown inline */ }
+  };
+
+  // Every step stays mounted — check each in turn and jump to the first with an error
+  const submitAll = async (submit: () => void) => {
+    for (let i = 0; i < STEP_FIELDS.length; i++) {
+      if (!STEP_FIELDS[i].length) continue;
+      try {
+        await form.validateFields(STEP_FIELDS[i]);
+      } catch {
+        setStep(i);
+        return;
+      }
+    }
+    submit();
+  };
+
   return (
     <ModalForm
       form={form}
@@ -252,145 +294,208 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data, onSuccess, trigger:
       modalProps={{
         destroyOnClose: true,
         centered: true,
-        width: 800,
+        width: 900,
+        maskClosable: false,
       }}
       onFinish={HandleOnFinish}
-      onOpenChange={(visible) => !visible}
+      // Always start from the first step
+      onOpenChange={(visible) => { if (visible) setStep(0); }}
       submitter={{
         searchConfig: {
           resetText: "Cancel",
           submitText: edit ? "Edit Product" : "Add New Product",
         },
-        submitButtonProps: {
-          style: { background: C.primary, borderColor: C.primary, borderRadius: 8 },
-        },
+        render: (props, doms) => [
+          // doms[0] is the Cancel button (it closes the modal)
+          doms[0],
+          step > 0 && (
+            <Button key="back" onClick={() => setStep((s) => s - 1)} style={{ borderRadius: 8 }}>Back</Button>
+          ),
+          isLast ? (
+            <Button
+              key="submit" type="primary"
+              onClick={() => submitAll(() => props.submit())}
+              style={{ background: C.primary, borderColor: C.primary, borderRadius: 8 }}
+            >
+              {edit ? "Update Product" : "Add New Product"}
+            </Button>
+          ) : (
+            <Button key="next" type="primary" onClick={nextStep}
+              style={{ background: C.primary, borderColor: C.primary, borderRadius: 8 }}>
+              Next
+            </Button>
+          ),
+        ],
       }}
     >
-      <ProForm.Group title="Product Details">
-        <ProFormText
-          hasFeedback width="md" id="productName" name="name" label="Name"
-          rules={[{ required: true, message: "Product name is required" }]}
-          placeholder="Enter product name"
-        />
-        <ProFormSelect
-          hasFeedback width="md" name="category" label="Category"
-          rules={[{ required: true, message: "Product category is required" }]}
-          showSearch placeholder="Select product category"
-          request={CategoryRequest}
-        />
-        {edit && (
-          <ProFormText
-            hasFeedback disabled width="md" id="productcode" name="code" label="Code"
-            convertValue={(value, _) => value?.toUpperCase()}
-          />
-        )}
-        <ProFormMoney
-          key="price" hasFeedback width="md" name="price"
-          customSymbol="Ksh." label="Price"
-          rules={[{ required: true, message: "Product Price is required" }]}
-          placeholder="Enter Product Price"
-        />
-        <ProFormSelect
-          name="vat_type" showSearch width="md"
-          tooltip="VAT Type can be Standard(16%), Zero Rated(0%) or Exempt(0%)"
-          label="VAT Type"
-          rules={[{ required: true, message: "VAT type is required" }]}
-          placeholder="Select VAT type"
-          options={[
-            { label: "Standard", value: "STANDARD" },
-            { label: "Zero Rated", value: "ZERO" },
-            { label: "Exempt", value: "EXEMPT" },
-          ]}
-        />
-        <ProFormSwitch
-          width="md" id="activateInventory" name="activateInventory"
-          label="Activate Inventory"
-          rules={[{
-            validator: (_, value) =>
-              value === undefined
-                ? Promise.reject("Please select if the product should auto deduct Inventory")
-                : Promise.resolve(),
-          }]}
-          placeholder="Select if the product should auto deduct Inventory"
-          initialValue={false}
-        />
-      </ProForm.Group>
-
-      <ProForm.Group size="large" title="More Info*">
-        <ProFormTreeSelect
-          name="addons" width="md" key="addons"
-          label="Addons (optional)" request={AddonsRequest}
-          placeholder="Select addons" allowClear
-          fieldProps={{
-            id: "addons", treeLine: true,
-            suffixIcon: <TagsOutlined />, treeIcon: true,
-            filterTreeNode: true, showSearch: true,
-            popupMatchSelectWidth: false, labelInValue: true,
-            treeTitleRender: (value) => (
-              <span style={{ color: "black", fontWeight: "normal", fontSize: "14px" }}>
-                {value.title}
-              </span>
-            ),
-            autoClearSearchValue: true, multiple: true,
-            treeNodeFilterProp: "title",
-            fieldNames: { label: "title" },
-            getPopupContainer: () => document.body,
-          }}
-          style={{ width: "100%" }}
-        />
-        <ProFormTextArea
-          key="desc" hasFeedback width="md" name="desc" label="Description"
-          placeholder="Enter Product Description if any."
-        />
-      </ProForm.Group>
-
-      {/* Thumbnail upload */}
       <div style={{
-        margin: "0 0 24px",
-        padding: "16px 20px",
-        background: C.bg,
-        border: `1px solid ${C.border}`,
-        borderRadius: 10,
+        display: "flex", flexDirection: vertical ? "row" : "column",
+        borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`,
+        margin: "4px -24px 0",
       }}>
-        <Text style={{
-          display: "block", fontSize: 10, fontWeight: 700, color: C.subText,
-          textTransform: "uppercase", letterSpacing: "0.6px", marginBottom: 12,
+        <aside style={{
+          flex: vertical ? "0 0 210px" : "none",
+          background: C.bg,
+          borderRight: vertical ? `1px solid ${C.border}` : undefined,
+          borderBottom: vertical ? undefined : `1px solid ${C.border}`,
+          padding: vertical ? "20px 16px" : "12px 16px",
+          overflowX: vertical ? undefined : "auto",
         }}>
-          Product Thumbnail
-        </Text>
-        <Upload.Dragger
-          fileList={fileList}
-          beforeUpload={beforeUpload}
-          onChange={handleChange}
-          maxCount={1}
-          showUploadList={{ showRemoveIcon: true }}
-          accept="image/*"
-          style={{ width: "100%", borderRadius: 8 }}
-          customRequest={customRequest}
-        >
-          <p className="ant-upload-drag-icon">
-            <InboxOutlined style={{ fontSize: 40, color: C.primary }} />
-          </p>
-          <p className="ant-upload-text" style={{ color: C.darkText, fontWeight: 600 }}>
-            Click or drag file to upload
-          </p>
-          <p className="ant-upload-hint" style={{ color: C.subText }}>
-            Single image file · Maximum 5MB
-          </p>
-        </Upload.Dragger>
-
-        {previewImage && (
-          <div style={{
-            marginTop: 16, textAlign: "center",
-            padding: 12, background: "#fff",
-            border: `1px solid ${C.border}`, borderRadius: 8,
-          }}>
-            <img
-              src={previewImage} alt="Product preview"
-              style={{ maxHeight: 180, maxWidth: "100%", objectFit: "contain", borderRadius: 6 }}
+          <Steps
+            direction={vertical ? "vertical" : "horizontal"}
+            size="small"
+            current={step}
+            responsive={false}
+            onChange={(i) => { if (i < step) setStep(i); }}
+            items={STEPS.map((s, i) => ({
+              title: s.title,
+              description: vertical ? s.description : undefined,
+              icon: s.icon,
+              disabled: i >= step,
+            }))}
+          />
+        </aside>
+        <section style={{
+          flex: 1, minWidth: 0, padding: "20px 24px",
+          maxHeight: "calc(100vh - 240px)", overflowY: "auto",
+        }}>
+          {/* ── Step 1: Details ─────────────────────────────────────── */}
+          <div style={show(0)}>
+            <ProForm.Group>
+              <ProFormText
+                hasFeedback width="md" id="productName" name="name" label="Name"
+                rules={[{ required: true, message: "Product name is required" }]}
+                placeholder="Enter product name"
+              />
+              <ProFormSelect
+                hasFeedback width="md" name="category" label="Category"
+                rules={[{ required: true, message: "Product category is required" }]}
+                showSearch placeholder="Select product category"
+                request={CategoryRequest}
+              />
+              {edit && (
+                <ProFormText
+                  hasFeedback disabled width="md" id="productcode" name="code" label="Code"
+                  convertValue={(value, _) => value?.toUpperCase()}
+                />
+              )}
+            </ProForm.Group>
+            <ProFormTextArea
+              key="desc" hasFeedback name="desc" label="Description"
+              placeholder="Enter Product Description if any."
             />
           </div>
-        )}
+
+          {/* ── Step 2: Pricing & Stock ─────────────────────────────── */}
+          <div style={show(1)}>
+            <ProForm.Group>
+              <ProFormMoney
+                key="price" hasFeedback width="md" name="price"
+                customSymbol="Ksh." label="Price"
+                rules={[{ required: true, message: "Product Price is required" }]}
+                placeholder="Enter Product Price"
+              />
+              <ProFormSelect
+                name="vat_type" showSearch width="md"
+                tooltip="VAT Type can be Standard(16%), Zero Rated(0%) or Exempt(0%)"
+                label="VAT Type"
+                rules={[{ required: true, message: "VAT type is required" }]}
+                placeholder="Select VAT type"
+                options={[
+                  { label: "Standard", value: "STANDARD" },
+                  { label: "Zero Rated", value: "ZERO" },
+                  { label: "Exempt", value: "EXEMPT" },
+                ]}
+              />
+              <ProFormSwitch
+                width="md" id="activateInventory" name="activateInventory"
+                label="Activate Inventory"
+                tooltip="When on, selling this product deducts its linked inventory"
+                rules={[{
+                  validator: (_, value) =>
+                    value === undefined
+                      ? Promise.reject("Please select if the product should auto deduct Inventory")
+                      : Promise.resolve(),
+                }]}
+                placeholder="Select if the product should auto deduct Inventory"
+                initialValue={false}
+              />
+            </ProForm.Group>
+          </div>
+
+          {/* ── Step 3: Add-ons & Image ─────────────────────────────── */}
+          <div style={show(2)}>
+            <ProFormTreeSelect
+              name="addons" key="addons"
+              label="Addons (optional)" request={AddonsRequest}
+              placeholder="Select addons" allowClear
+              fieldProps={{
+                id: "addons", treeLine: true,
+                suffixIcon: <TagsOutlined />, treeIcon: true,
+                filterTreeNode: true, showSearch: true,
+                popupMatchSelectWidth: false, labelInValue: true,
+                treeTitleRender: (value) => (
+                  <span style={{ color: "black", fontWeight: "normal", fontSize: "14px" }}>
+                    {value.title}
+                  </span>
+                ),
+                autoClearSearchValue: true, multiple: true,
+                treeNodeFilterProp: "title",
+                fieldNames: { label: "title" },
+                getPopupContainer: () => document.body,
+              }}
+              style={{ width: "100%" }}
+            />
+
+            {/* Thumbnail upload */}
+            <div style={{
+              padding: "16px 20px",
+              background: C.bg,
+              border: `1px solid ${C.border}`,
+              borderRadius: 10,
+            }}>
+              <Text style={{
+                display: "block", fontSize: 10, fontWeight: 700, color: C.subText,
+                textTransform: "uppercase", letterSpacing: "0.6px", marginBottom: 12,
+              }}>
+                Product Thumbnail
+              </Text>
+              <Upload.Dragger
+                fileList={fileList}
+                beforeUpload={beforeUpload}
+                onChange={handleChange}
+                maxCount={1}
+                showUploadList={{ showRemoveIcon: true }}
+                accept="image/*"
+                style={{ width: "100%", borderRadius: 8 }}
+                customRequest={customRequest}
+              >
+                <p className="ant-upload-drag-icon">
+                  <InboxOutlined style={{ fontSize: 40, color: C.primary }} />
+                </p>
+                <p className="ant-upload-text" style={{ color: C.darkText, fontWeight: 600 }}>
+                  Click or drag file to upload
+                </p>
+                <p className="ant-upload-hint" style={{ color: C.subText }}>
+                  Single image file · Maximum 5MB
+                </p>
+              </Upload.Dragger>
+
+              {previewImage && (
+                <div style={{
+                  marginTop: 16, textAlign: "center",
+                  padding: 12, background: "#fff",
+                  border: `1px solid ${C.border}`, borderRadius: 8,
+                }}>
+                  <img
+                    src={previewImage} alt="Product preview"
+                    style={{ maxHeight: 180, maxWidth: "100%", objectFit: "contain", borderRadius: 6 }}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
       </div>
     </ModalForm>
   );
