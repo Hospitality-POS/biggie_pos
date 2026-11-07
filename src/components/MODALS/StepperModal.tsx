@@ -23,6 +23,8 @@ interface Props {
     onStepClick?: (index: number) => void;
     footer: React.ReactNode;
     width?: number;
+    /** Set false so a click outside doesn't close (and lose) a long form. */
+    maskClosable?: boolean;
     children: React.ReactNode;
 }
 
@@ -33,7 +35,7 @@ interface Props {
  */
 const StepperModal: React.FC<Props> = ({
     open, onCancel, title, icon, accent = C.primary, steps, current,
-    onStepClick, footer, width = 900, children,
+    onStepClick, footer, width = 900, maskClosable = true, children,
 }) => {
     const screens = Grid.useBreakpoint();
     const vertical = screens.md !== false;
@@ -61,6 +63,7 @@ const StepperModal: React.FC<Props> = ({
             title={<Space>{icon && <span style={{ color: accent }}>{icon}</span>}{title}</Space>}
             width={width}
             footer={footer}
+            maskClosable={maskClosable}
             destroyOnClose
             styles={{ body: { padding: 0 } }}
             style={{ top: 32 }}
