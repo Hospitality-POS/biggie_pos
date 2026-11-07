@@ -88,30 +88,49 @@ interface SendEmailValues {
     intro?: string;
 }
 
+// ── Business shown on the document ────────────────────────────────────────────
+interface Biz {
+    name: string;
+    logo?: string;
+    phone?: string;
+    email?: string;
+    pin?: string;
+    address?: string;
+}
+
+const fmtDate = (d?: string) => (d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—");
+
 // ── Style helpers ─────────────────────────────────────────────────────────────
-const cell = (extra: React.CSSProperties = {}): React.CSSProperties => ({
-    border: `1px solid ${C.tableBorder}`,
-    padding: "7px 10px",
+const LINE = "#e8edf3";
+
+const th = (extra: React.CSSProperties = {}): React.CSSProperties => ({
+    padding: "9px 10px",
+    background: C.primary,
+    color: "#fff",
+    fontWeight: 700,
+    fontSize: 10.5,
+    whiteSpace: "nowrap",
+    letterSpacing: "0.5px",
+    textTransform: "uppercase",
+    verticalAlign: "middle",
+    printColorAdjust: "exact",
+    WebkitPrintColorAdjust: "exact",
+    ...extra,
+} as React.CSSProperties);
+
+const td = (extra: React.CSSProperties = {}): React.CSSProperties => ({
+    padding: "9px 10px",
+    borderBottom: `1px solid ${LINE}`,
+    fontSize: 12,
+    color: "#334155",
     verticalAlign: "middle",
     ...extra,
 });
 
-const th = (extra: React.CSSProperties = {}): React.CSSProperties =>
-    cell({
-        background: `linear-gradient(135deg, ${C.primary} 0%, #8b2a3e 100%)`,
-        fontWeight: 700,
-        fontSize: 11,
-        color: C.white,
-        whiteSpace: "nowrap",
-        letterSpacing: "0.5px",
-        textTransform: "uppercase",
-        printColorAdjust: "exact",
-        WebkitPrintColorAdjust: "exact",
-        ...extra,
-    } as React.CSSProperties);
-
-const td = (extra: React.CSSProperties = {}): React.CSSProperties =>
-    cell({ fontSize: 12, color: "#374151", ...extra });
+const sectionLabel: React.CSSProperties = {
+    fontSize: 10, fontWeight: 700, color: C.primary,
+    textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 8,
+};
 
 const itemDeliveryStatus = (item: POItem) => {
     if (item.quantity_received === 0)
@@ -121,67 +140,87 @@ const itemDeliveryStatus = (item: POItem) => {
     return { label: "Delivered", color: C.green };
 };
 
-// ── Doc Header ────────────────────────────────────────────────────────────────
-const DocHeader: React.FC<{ brand: string; docTitle: string }> = ({ brand, docTitle }) => (
-    <div style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        borderBottom: `3px solid ${C.primary}`,
-        paddingBottom: 20,
-        marginBottom: 24,
-    }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <img 
-                src="/logo.png" 
-                alt="Company Logo" 
-                style={{ 
-                    width: 60, 
-                    height: 60, 
-                    objectFit: "contain",
-                    borderRadius: 8,
-                }}
-                onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = 'none';
-                }}
-            />
-            <div>
-                <div style={{ fontSize: 24, fontWeight: 800, color: C.darkText, lineHeight: 1.2 }}>{brand}</div>
-                <div style={{ fontSize: 12, color: C.subText, marginTop: 4, fontWeight: 500 }}>Powered by {COOP_NAME}</div>
+// ── Status pill ───────────────────────────────────────────────────────────────
+const STATUS_COLORS: Record<string, string> = {
+    pending: "#d97706",
+    approved: "#059669",
+    partially_delivered: "#2563eb",
+    fully_delivered: "#059669",
+    cancelled: "#dc2626",
+};
+
+const StatusPill: React.FC<{ status?: string }> = ({ status }) => {
+    if (!status) return null;
+    const color = STATUS_COLORS[status] || "#64748b";
+    return (
+        <span style={{
+            display: "inline-block", padding: "3px 10px", borderRadius: 999,
+            fontSize: 10, fontWeight: 700, letterSpacing: "0.5px", textTransform: "uppercase",
+            color, background: `${color}14`, border: `1px solid ${color}40`,
+            printColorAdjust: "exact", WebkitPrintColorAdjust: "exact",
+        } as React.CSSProperties}>
+            {status.replace(/_/g, " ")}
+        </span>
+    );
+};
+
+// ── Doc Header: business on the left, document title + key facts on the right ─
+const DocHeader: React.FC<{
+    biz: Biz; docTitle: string;
+    number?: string; date?: string; status?: string; subtitle?: string;
+}> = ({ biz, docTitle, number, date, status, subtitle }) => (
+    <div style={{ marginBottom: 22 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 20, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
+                {biz.logo && (
+                    <img
+                        src={biz.logo}
+                        alt=""
+                        style={{ height: 56, maxWidth: 140, objectFit: "contain" }}
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                    />
+                )}
+                <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: C.darkText, lineHeight: 1.2 }}>{biz.name || "Business"}</div>
+                    <div style={{ fontSize: 11, color: "#64748b", marginTop: 4, lineHeight: 1.6 }}>
+                        {[biz.phone, biz.email].filter(Boolean).join("  ·  ")}
+                        {(biz.pin || biz.address) && (
+                            <div>{[biz.pin && `KRA PIN: ${biz.pin}`, biz.address].filter(Boolean).join("  ·  ")}</div>
+                        )}
+                    </div>
+                </div>
+            </div>
+            <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: 22, fontWeight: 800, color: C.primary, letterSpacing: "1px", lineHeight: 1.1 }}>{docTitle}</div>
+                {subtitle && <div style={{ fontSize: 11, color: "#64748b", marginTop: 4, fontWeight: 600 }}>{subtitle}</div>}
+                {number && <div style={{ fontSize: 14, fontWeight: 700, color: C.darkText, marginTop: 6 }}>{number}</div>}
+                {date && <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>Date: {date}</div>}
+                {status && <div style={{ marginTop: 6 }}><StatusPill status={status} /></div>}
             </div>
         </div>
-        <div style={{
-            background: `linear-gradient(135deg, ${C.primary} 0%, #8b2a3e 100%)`, 
-            color: C.white,
-            padding: "10px 24px", 
-            borderRadius: 8,
-            fontWeight: 700, 
-            fontSize: 15, 
-            letterSpacing: "0.5px",
-            boxShadow: "0 2px 8px rgba(108, 28, 44, 0.3)",
-            printColorAdjust: "exact", 
-            WebkitPrintColorAdjust: "exact",
-        } as React.CSSProperties}>
-            {docTitle}
+        <div style={{ display: "flex", height: 3, marginTop: 16, borderRadius: 2, overflow: "hidden" }}>
+            <div style={{ flex: 3, background: C.primary, printColorAdjust: "exact", WebkitPrintColorAdjust: "exact" } as React.CSSProperties} />
+            <div style={{ flex: 1, background: C.primaryLight, printColorAdjust: "exact", WebkitPrintColorAdjust: "exact" } as React.CSSProperties} />
         </div>
     </div>
 );
 
-// ── Info Grid ─────────────────────────────────────────────────────────────────
-const InfoGrid: React.FC<{ left: [string, string][]; right: [string, string][] }> = ({ left, right }) => (
-    <div style={{
-        display: "flex", flexWrap: "wrap", gap: 16, marginBottom: 24,
-        background: "linear-gradient(to bottom, #f8fafc 0%, #f1f5f9 100%)", 
-        border: `1px solid ${C.tableBorder}`,
-        borderRadius: 12, padding: 16,
-        boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-    }}>
+// ── Info cards (e.g. Supplier / Order details) ────────────────────────────────
+const InfoGrid: React.FC<{
+    left: [string, React.ReactNode][]; right: [string, React.ReactNode][]; titles?: [string, string];
+}> = ({ left, right, titles = ["Details", "Order Details"] }) => (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 14, marginBottom: 20 }}>
         {[left, right].map((col, ci) => (
-            <div key={ci} style={{ flex: "1 1 160px", minWidth: 0 }}>
+            <div key={ci} style={{
+                flex: "1 1 220px", minWidth: 0,
+                border: `1px solid ${LINE}`, borderRadius: 10, padding: "12px 14px",
+                background: "#fff",
+            }}>
+                <div style={sectionLabel}>{titles[ci]}</div>
                 {col.map(([label, value]) => (
-                    <div key={label} style={{ marginBottom: 8, fontSize: 12 }}>
-                        <span style={{ fontWeight: 700, color: "#475569", textTransform: "uppercase", fontSize: 10, letterSpacing: "0.5px" }}>{label}: </span>
-                        <span style={{ color: "#1e293b", wordBreak: "break-word", fontWeight: 500 }}>{value}</span>
+                    <div key={label} style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 12, padding: "3px 0" }}>
+                        <span style={{ color: "#64748b" }}>{label}</span>
+                        <span style={{ color: "#0f172a", fontWeight: 600, textAlign: "right", wordBreak: "break-word" }}>{value}</span>
                     </div>
                 ))}
             </div>
@@ -189,35 +228,15 @@ const InfoGrid: React.FC<{ left: [string, string][]; right: [string, string][] }
     </div>
 );
 
-// ── Status Badge ──────────────────────────────────────────────────────────────
-const StatusText: React.FC<{ status: string }> = ({ status }) => {
-    const colors: Record<string, string> = {
-        pending: C.orange,
-        approved: C.green,
-        partially_delivered: C.blue,
-        fully_delivered: C.green,
-        cancelled: C.red,
-    };
-    return (
-        <span style={{ color: colors[status] || C.subText, fontWeight: 700, fontSize: 12 }}>
-            {status.replace(/_/g, " ").toUpperCase()}
-        </span>
-    );
-};
-
-// ── Summary Box ───────────────────────────────────────────────────────────────
+// ── Summary (delivery progress) ───────────────────────────────────────────────
 const SummaryBox: React.FC<{ items: [string, string | number][] }> = ({ items }) => (
-    <div style={{
-        background: "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)", 
-        border: "2px solid #0ea5e9",
-        borderRadius: 10, padding: 16, marginTop: 20,
-        boxShadow: "0 2px 8px rgba(14, 165, 233, 0.15)",
-    }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 24px" }}>
+    <div style={{ marginTop: 18 }}>
+        <div style={sectionLabel}>Delivery Summary</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 10 }}>
             {items.map(([label, value]) => (
-                <div key={label} style={{ fontSize: 12 }}>
-                    <span style={{ fontWeight: 700, color: "#0369a1", textTransform: "uppercase", fontSize: 10, letterSpacing: "0.5px" }}>{label}: </span>
-                    <span style={{ color: C.darkText, fontWeight: 600 }}>{value}</span>
+                <div key={label} style={{ border: `1px solid ${LINE}`, borderRadius: 8, padding: "8px 12px", background: "#f8fafc" }}>
+                    <div style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.4px" }}>{label}</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: C.darkText, marginTop: 2 }}>{value}</div>
                 </div>
             ))}
         </div>
@@ -228,44 +247,45 @@ const SummaryBox: React.FC<{ items: [string, string | number][] }> = ({ items })
 const NotesBlock: React.FC<{ notes?: string }> = ({ notes }) =>
     notes ? (
         <div style={{
-            marginTop: 16, fontSize: 12, padding: "12px 16px",
-            background: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)", 
-            border: "2px solid #f59e0b",
-            borderRadius: 10, color: "#374151",
-            boxShadow: "0 2px 8px rgba(245, 158, 11, 0.15)",
+            marginTop: 18, fontSize: 12, padding: "10px 14px",
+            background: "#f8fafc", borderLeft: `3px solid ${C.primary}`,
+            borderRadius: "0 8px 8px 0", color: "#334155",
         }}>
-            <strong style={{ color: "#b45309", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px" }}>Notes: </strong>
-            <span style={{ fontWeight: 500 }}>{notes}</span>
+            <div style={{ ...sectionLabel, marginBottom: 4 }}>Notes</div>
+            <div style={{ whiteSpace: "pre-wrap" }}>{notes}</div>
         </div>
     ) : null;
 
 // ── Footer ────────────────────────────────────────────────────────────────────
 const PrintFooter: React.FC<{ label?: string }> = ({ label }) => (
     <div style={{
-        marginTop: 24, paddingTop: 10,
-        borderTop: `1px solid ${C.tableBorder}`,
-        textAlign: "center", fontSize: 11, color: "#94a3b8",
+        marginTop: 28, paddingTop: 10,
+        borderTop: `1px solid ${LINE}`,
+        display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 6,
+        fontSize: 10.5, color: "#94a3b8",
     }}>
-        {label || "Generated on"} {new Date().toLocaleString()}
+        <span>{label || "Generated on"} {new Date().toLocaleString("en-GB")}</span>
+        <span>Powered by {COOP_NAME}</span>
     </div>
 );
 
-// ── PO Banner ─────────────────────────────────────────────────────────────────
+// ── PO Banner (bulk report, one per order) ────────────────────────────────────
 const POBanner: React.FC<{ po: PO; showMeta?: boolean }> = ({ po, showMeta }) => (
     <div style={{
-        background: `linear-gradient(135deg, ${C.primaryLight} 0%, #fce7eb 100%)`, 
-        border: `2px solid ${C.primary}`,
-        borderRadius: 10, padding: "14px 18px", marginBottom: 20,
+        borderLeft: `4px solid ${C.primary}`, background: "#f8fafc",
+        borderRadius: "0 10px 10px 0", padding: "12px 16px", marginBottom: 16,
         display: "flex", justifyContent: "space-between",
         alignItems: "center", flexWrap: "wrap", gap: 10,
-        boxShadow: "0 2px 8px rgba(108, 28, 44, 0.15)",
     }}>
-        <div style={{ fontSize: 18, fontWeight: 800, color: C.primary, letterSpacing: "0.3px" }}>{po.po_number}</div>
+        <div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: C.darkText }}>{po.po_number}</div>
+            <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>{fmtDate(po.createdAt)}</div>
+        </div>
         {showMeta && (
-            <div style={{ fontSize: 12, color: C.subText, fontWeight: 500 }}>
-                Status: <StatusText status={po.status} /> &nbsp;·&nbsp;
-                Items: <strong style={{ color: C.darkText }}>{po.po_items?.length || 0}</strong> &nbsp;·&nbsp;
-                Total: <strong style={{ color: C.primary }}>{fmt(po.total_amount || 0)}</strong>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 12, color: "#64748b" }}>
+                <StatusPill status={po.status} />
+                <span>Items: <strong style={{ color: C.darkText }}>{po.po_items?.length || 0}</strong></span>
+                <span>Total: <strong style={{ color: C.primary }}>{fmt(po.total_amount || 0)}</strong></span>
             </div>
         )}
     </div>
@@ -273,38 +293,65 @@ const POBanner: React.FC<{ po: PO; showMeta?: boolean }> = ({ po, showMeta }) =>
 
 // ── Mobile item card ──────────────────────────────────────────────────────────
 const MobileItemCard: React.FC<{ item: POItem; index: number; showDeliveryStatus?: boolean }> = ({
-    item, index, showDeliveryStatus,
+    item, showDeliveryStatus,
 }) => {
     const { label, color } = itemDeliveryStatus(item);
     const lineTotal = (item.quantity_ordered || 0) * (item.unit_price || 0);
     return (
         <div style={{
-            background: index % 2 === 0 ? "#fff" : "linear-gradient(to bottom, #f8fafc 0%, #f1f5f9 100%)",
-            border: `1px solid ${C.tableBorder}`,
-            borderRadius: 10, padding: "14px 16px", marginBottom: 10,
-            boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+            background: "#fff", border: `1px solid ${LINE}`,
+            borderRadius: 10, padding: "12px 14px", marginBottom: 8,
         }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-                <span style={{ fontSize: 14, fontWeight: 700, color: C.darkText, flex: 1, marginRight: 8, lineHeight: 1.3 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: C.darkText, flex: 1, marginRight: 8, lineHeight: 1.3 }}>
                     {item.inventory_id?.name || "N/A"}
                 </span>
                 {showDeliveryStatus && (
-                    <span style={{ 
+                    <span style={{
                         fontSize: 10, fontWeight: 700, color, whiteSpace: "nowrap",
-                        padding: "4px 10px", borderRadius: 12, background: `${color}15`,
-                        border: `1px solid ${color}40`
+                        padding: "3px 9px", borderRadius: 999, background: `${color}14`,
+                        border: `1px solid ${color}40`,
                     }}>{label}</span>
                 )}
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 16px", fontSize: 12 }}>
-                <div><span style={{ color: C.subText, fontWeight: 500 }}>Unit: </span>{item.unit_id?.abbreviation || item.unit_id?.name || "—"}</div>
-                <div><span style={{ color: C.subText, fontWeight: 500 }}>Ordered: </span><strong>{item.quantity_ordered}</strong></div>
-                <div><span style={{ color: C.subText, fontWeight: 500 }}>Received: </span>{item.quantity_received}</div>
-                <div><span style={{ color: C.subText, fontWeight: 500 }}>Pending: </span>{item.quantity_ordered - item.quantity_received}</div>
-                <div><span style={{ color: C.subText, fontWeight: 500 }}>Unit Price: </span>{fmt(item.unit_price)}</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5px 16px", fontSize: 12 }}>
+                <div><span style={{ color: "#64748b" }}>Unit: </span>{item.unit_id?.abbreviation || item.unit_id?.name || "—"}</div>
+                <div><span style={{ color: "#64748b" }}>Ordered: </span><strong>{item.quantity_ordered}</strong></div>
+                <div><span style={{ color: "#64748b" }}>Received: </span>{item.quantity_received}</div>
+                <div><span style={{ color: "#64748b" }}>Pending: </span>{item.quantity_ordered - item.quantity_received}</div>
+                <div><span style={{ color: "#64748b" }}>Unit Price: </span>{fmt(item.unit_price)}</div>
                 <div>
-                    <span style={{ color: C.subText, fontWeight: 500 }}>Total: </span>
-                    <strong style={{ color: C.primary, fontSize: 13 }}>{fmt(item.total_price || lineTotal)}</strong>
+                    <span style={{ color: "#64748b" }}>Total: </span>
+                    <strong style={{ color: C.primary }}>{fmt(item.total_price || lineTotal)}</strong>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// ── Totals panel (right-aligned, under the items) ─────────────────────────────
+const TotalsPanel: React.FC<{ po: PO }> = ({ po }) => {
+    const ordered = (po.po_items || []).reduce((s, i) => s + (Number(i.quantity_ordered) || 0), 0);
+    const received = (po.po_items || []).reduce((s, i) => s + (Number(i.quantity_received) || 0), 0);
+    return (
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
+            <div style={{ width: 300, maxWidth: "100%", fontSize: 12 }}>
+                {[
+                    ["Line items", String(po.po_items?.length || 0)],
+                    ["Quantity ordered", ordered.toLocaleString()],
+                    ["Quantity received", received.toLocaleString()],
+                ].map(([k, v]) => (
+                    <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "4px 12px", color: "#475569" }}>
+                        <span>{k}</span><span style={{ fontWeight: 600, color: "#0f172a" }}>{v}</span>
+                    </div>
+                ))}
+                <div style={{
+                    display: "flex", justifyContent: "space-between", alignItems: "center",
+                    marginTop: 6, padding: "9px 12px", borderRadius: 8,
+                    background: C.primary, color: "#fff", fontWeight: 800, fontSize: 14,
+                    printColorAdjust: "exact", WebkitPrintColorAdjust: "exact",
+                } as React.CSSProperties}>
+                    <span>Total Amount</span><span>{fmt(po.total_amount || 0)}</span>
                 </div>
             </div>
         </div>
@@ -318,148 +365,132 @@ const POItemsTable: React.FC<{
     if (isMobile) {
         return (
             <div style={{ marginBottom: 14 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: C.subText, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                    Items ({po.po_items?.length || 0})
-                </div>
+                <div style={sectionLabel}>Items ({po.po_items?.length || 0})</div>
                 {po.po_items?.length ? (
-                    <>
-                        {po.po_items.map((item, i) => (
-                            <MobileItemCard key={i} item={item} index={i} showDeliveryStatus={showDeliveryStatus} />
-                        ))}
-                        <div style={{
-                            display: "flex", justifyContent: "space-between", alignItems: "center",
-                            padding: "14px 18px", background: `linear-gradient(135deg, ${C.primaryLight} 0%, #fce7eb 100%)`,
-                            borderRadius: 10, border: `2px solid ${C.primary}`, marginTop: 8,
-                            boxShadow: "0 2px 8px rgba(108, 28, 44, 0.15)",
-                        }}>
-                            <span style={{ fontSize: 14, fontWeight: 800, color: C.primary, letterSpacing: "0.5px" }}>TOTAL AMOUNT</span>
-                            <span style={{ fontSize: 16, fontWeight: 800, color: C.primary }}>{fmt(po.total_amount)}</span>
-                        </div>
-                    </>
+                    po.po_items.map((item, i) => (
+                        <MobileItemCard key={i} item={item} index={i} showDeliveryStatus={showDeliveryStatus} />
+                    ))
                 ) : (
                     <div style={{ padding: "20px 0", textAlign: "center", color: "#94a3b8", fontSize: 12 }}>No items</div>
                 )}
+                <TotalsPanel po={po} />
             </div>
         );
     }
 
-    // Build column definitions — drives both headers and cells
+    // Column definitions drive both headers and cells
     const cols: { label: string; align: "left" | "right" | "center"; width?: string }[] = [
+        { label: "#", align: "center", width: "34px" },
         { label: "Item", align: "left" },
-        ...(showSKU ? [{ label: "SKU", align: "left" as const }] : []),
-        { label: "Unit", align: "left", width: "60px" },
-        { label: "Ordered", align: "right", width: "72px" },
-        { label: "Received", align: "right", width: "80px" },
-        { label: "Pending", align: "right", width: "72px" },
+        ...(showSKU ? [{ label: "SKU", align: "left" as const, width: "90px" }] : []),
+        { label: "Unit", align: "left", width: "64px" },
+        { label: "Ordered", align: "right", width: "70px" },
+        { label: "Received", align: "right", width: "76px" },
+        { label: "Pending", align: "right", width: "70px" },
         { label: "Unit Price", align: "right", width: "100px" },
         { label: "Total", align: "right", width: "110px" },
-        ...(showDeliveryStatus ? [{ label: "Status", align: "center" as const, width: "80px" }] : []),
+        ...(showDeliveryStatus ? [{ label: "Status", align: "center" as const, width: "84px" }] : []),
     ];
 
-    const totalColSpan = cols.length - 1;
-
     return (
-        <div style={{ overflowX: "auto", marginBottom: 14 }}>
-            <table style={{ width: "100%", minWidth: 520, borderCollapse: "collapse", tableLayout: "fixed" }}>
-                <colgroup>
-                    {cols.map((col, i) => (
-                        <col key={i} style={col.width ? { width: col.width } : {}} />
-                    ))}
-                </colgroup>
-                <thead>
-                    <tr>
-                        {cols.map((col) => (
-                            <th key={col.label} style={th({ textAlign: col.align })}>{col.label}</th>
+        <div style={{ marginBottom: 6 }}>
+            <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", minWidth: 560, borderCollapse: "collapse", tableLayout: "fixed" }}>
+                    <colgroup>
+                        {cols.map((col, i) => (
+                            <col key={i} style={col.width ? { width: col.width } : {}} />
                         ))}
-                    </tr>
-                </thead>
-                <tbody>
-                    {po.po_items?.length ? (
-                        <>
-                            {po.po_items.map((item, i) => {
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            {cols.map((col, i) => (
+                                <th key={col.label} style={th({
+                                    textAlign: col.align,
+                                    ...(i === 0 ? { borderRadius: "6px 0 0 0" } : {}),
+                                    ...(i === cols.length - 1 ? { borderRadius: "0 6px 0 0" } : {}),
+                                })}>{col.label}</th>
+                            ))}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {po.po_items?.length ? (
+                            po.po_items.map((item, i) => {
                                 const { label, color } = itemDeliveryStatus(item);
                                 return (
-                                    <tr key={i} style={{ background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
-                                        <td style={td({ fontWeight: 600 })}>{item.inventory_id?.name || "N/A"}</td>
-                                        {showSKU && <td style={td()}>{item.inventory_id?.sku || "—"}</td>}
+                                    <tr key={i}>
+                                        <td style={td({ textAlign: "center", color: "#94a3b8" })}>{i + 1}</td>
+                                        <td style={td({ fontWeight: 600, color: "#0f172a" })}>{item.inventory_id?.name || "N/A"}</td>
+                                        {showSKU && <td style={td({ color: "#64748b" })}>{item.inventory_id?.sku || "—"}</td>}
                                         <td style={td()}>{item.unit_id?.abbreviation || item.unit_id?.name || "—"}</td>
                                         <td style={td({ textAlign: "right" })}>{item.quantity_ordered}</td>
                                         <td style={td({ textAlign: "right" })}>{item.quantity_received}</td>
                                         <td style={td({ textAlign: "right" })}>{item.quantity_ordered - item.quantity_received}</td>
                                         <td style={td({ textAlign: "right" })}>{fmt(item.unit_price)}</td>
-                                        <td style={td({ textAlign: "right", fontWeight: 600 })}>{fmt(item.total_price)}</td>
+                                        <td style={td({ textAlign: "right", fontWeight: 700, color: "#0f172a" })}>{fmt(item.total_price)}</td>
                                         {showDeliveryStatus && (
-                                            <td style={td({ textAlign: "center", color, fontWeight: 700 })}>{label}</td>
+                                            <td style={td({ textAlign: "center" })}>
+                                                <span style={{ fontSize: 10, fontWeight: 700, color, padding: "2px 8px", borderRadius: 999, background: `${color}14` }}>{label}</span>
+                                            </td>
                                         )}
                                     </tr>
                                 );
-                            })}
-                            {/* Total row */}
-                            <tr style={{ background: `linear-gradient(135deg, ${C.primaryLight} 0%, #fce7eb 100%)` }}>
-                                <td
-                                    colSpan={totalColSpan}
-                                    style={td({ fontWeight: 800, textAlign: "right", color: C.primary, borderLeft: `3px solid ${C.primary}`, fontSize: 13, letterSpacing: "0.5px" })}
-                                >
-                                    TOTAL AMOUNT
-                                </td>
-                                <td style={td({ textAlign: "right", fontWeight: 800, color: C.primary, fontSize: 14 })}>
-                                    {fmt(po.total_amount)}
+                            })
+                        ) : (
+                            <tr>
+                                <td colSpan={cols.length} style={td({ textAlign: "center", color: "#94a3b8" })}>
+                                    No items
                                 </td>
                             </tr>
-                        </>
-                    ) : (
-                        <tr>
-                            <td colSpan={cols.length} style={td({ textAlign: "center", color: "#94a3b8" })}>
-                                No items
-                            </td>
-                        </tr>
-                    )}
-                </tbody>
-            </table>
+                        )}
+                    </tbody>
+                </table>
+            </div>
+            <TotalsPanel po={po} />
         </div>
     );
 };
 
 const deliverySummaryItems = (po: PO): [string, string | number][] => [
-    ["Total Items", po.po_items?.length || 0],
-    ["Total Amount", fmt(po.total_amount || 0)],
     ["Delivery Progress", `${po.delivery_percentage || 0}%`],
     ["Not Delivered", po.po_items?.filter((i) => i.quantity_received === 0).length || 0],
     ["Partial", po.po_items?.filter((i) => i.quantity_received > 0 && i.quantity_received < i.quantity_ordered).length || 0],
     ["Fully Delivered", po.po_items?.filter((i) => i.quantity_received >= i.quantity_ordered).length || 0],
 ];
 
-// ── Single PO render ──────────────────────────────────────────────────────────
-const renderSinglePO = (po: PO, brand: string, isMobile?: boolean) => {
-    const isCustomer = po.direction === 'customer';
-    const counterpartyName = isCustomer ? po.customer_id?.customer_name : po.supplier_id?.name;
-    const counterpartyContact = isCustomer ? po.customer_id?.phone : po.supplier_id?.phone;
-    const counterpartyEmail = isCustomer ? po.customer_id?.email : po.supplier_id?.email;
-    const counterpartyLabel = isCustomer ? 'Customer' : 'Supplier';
-    const directionLabel = isCustomer ? 'Customer (Sales)' : 'Supplier (Purchase)';
-    const docTitle = isCustomer ? 'SALES ORDER' : 'PURCHASE ORDER';
+const partyOf = (po: PO) => {
+    const isCustomer = po.direction === "customer";
+    return {
+        isCustomer,
+        label: isCustomer ? "Customer" : "Supplier",
+        name: (isCustomer ? po.customer_id?.customer_name : po.supplier_id?.name) || "—",
+        phone: (isCustomer ? po.customer_id?.phone : po.supplier_id?.phone) || "—",
+        email: (isCustomer ? po.customer_id?.email : po.supplier_id?.email) || "—",
+    };
+};
 
+const orderDetails = (po: PO, extra: [string, React.ReactNode][] = []): [string, React.ReactNode][] => [
+    ["Order type", po.direction === "customer" ? "Sales order" : "Purchase"],
+    ["Expected delivery", po.expected_delivery_date ? fmtDate(po.expected_delivery_date) : "Not set"],
+    ["Created by", po.created_by?.fullname || "—"],
+    ...extra,
+];
+
+// ── Single PO render ──────────────────────────────────────────────────────────
+const renderSinglePO = (po: PO, biz: Biz, isMobile?: boolean) => {
+    const p = partyOf(po);
     return (
         <div>
-            <DocHeader brand={brand} docTitle={docTitle} />
-            <div style={{ textAlign: "center", marginBottom: 16 }}>
-                <div style={{ fontSize: isMobile ? 15 : 18, fontWeight: 800, color: C.primary }}>{po.po_number}</div>
-                <div style={{ fontSize: 11, color: C.subText, marginTop: 4, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    {directionLabel}
-                </div>
-            </div>
+            <DocHeader
+                biz={biz}
+                docTitle={p.isCustomer ? "SALES ORDER" : "PURCHASE ORDER"}
+                number={po.po_number}
+                date={fmtDate(po.createdAt)}
+                status={po.status}
+            />
             <InfoGrid
-                left={[
-                    [counterpartyLabel, counterpartyName || "N/A"],
-                    ["Contact", counterpartyContact || "N/A"],
-                    ["Email", counterpartyEmail || "N/A"],
-                ]}
-                right={[
-                    ["Status", po.status?.replace(/_/g, " ").toUpperCase() || "N/A"],
-                    ["Expected", po.expected_delivery_date ? new Date(po.expected_delivery_date).toLocaleDateString() : "Not set"],
-                    ["Created By", po.created_by?.fullname || "Unknown"],
-                    ["Date", new Date(po.createdAt).toLocaleDateString()],
-                ]}
+                titles={[p.isCustomer ? "Bill To" : "Supplier", "Order Details"]}
+                left={[["Name", p.name], ["Phone", p.phone], ["Email", p.email]]}
+                right={orderDetails(po)}
             />
             <POItemsTable po={po} isMobile={isMobile} />
             <NotesBlock notes={po.notes} />
@@ -469,34 +500,21 @@ const renderSinglePO = (po: PO, brand: string, isMobile?: boolean) => {
 };
 
 // ── Items only render ─────────────────────────────────────────────────────────
-const renderItemsOnly = (po: PO, brand: string, isMobile?: boolean) => {
-    const isCustomer = po.direction === 'customer';
-    const counterpartyName = isCustomer ? po.customer_id?.customer_name : po.supplier_id?.name;
-    const counterpartyContact = isCustomer ? po.customer_id?.phone : po.supplier_id?.phone;
-    const counterpartyLabel = isCustomer ? 'Customer' : 'Supplier';
-    const directionLabel = isCustomer ? 'Customer (Sales)' : 'Supplier (Purchase)';
-    const docTitle = isCustomer ? 'SALES ORDER ITEMS' : 'PO ITEMS DETAIL';
-
+const renderItemsOnly = (po: PO, biz: Biz, isMobile?: boolean) => {
+    const p = partyOf(po);
     return (
         <div>
-            <DocHeader brand={brand} docTitle={docTitle} />
-            <div style={{ textAlign: "center", marginBottom: 16 }}>
-                <div style={{ fontSize: isMobile ? 15 : 18, fontWeight: 800, color: C.primary }}>{po.po_number}</div>
-                <div style={{ fontSize: 11, color: C.subText, marginTop: 4, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    {directionLabel}
-                </div>
-            </div>
+            <DocHeader
+                biz={biz}
+                docTitle={p.isCustomer ? "SALES ORDER ITEMS" : "PO ITEMS DETAIL"}
+                number={po.po_number}
+                date={fmtDate(po.createdAt)}
+                status={po.status}
+            />
             <InfoGrid
-                left={[
-                    [counterpartyLabel, counterpartyName || "N/A"],
-                    ["Contact", counterpartyContact || "N/A"],
-                    ["Status", po.status?.replace(/_/g, " ").toUpperCase() || "N/A"],
-                ]}
-                right={[
-                    ["Expected", po.expected_delivery_date ? new Date(po.expected_delivery_date).toLocaleDateString() : "Not set"],
-                    ["Created By", po.created_by?.fullname || "Unknown"],
-                    ["Date", new Date(po.createdAt).toLocaleDateString()],
-                ]}
+                titles={[p.isCustomer ? "Customer" : "Supplier", "Order Details"]}
+                left={[["Name", p.name], ["Phone", p.phone]]}
+                right={orderDetails(po)}
             />
             <POItemsTable po={po} showDeliveryStatus showSKU isMobile={isMobile} />
             <SummaryBox items={deliverySummaryItems(po)} />
@@ -507,43 +525,28 @@ const renderItemsOnly = (po: PO, brand: string, isMobile?: boolean) => {
 };
 
 // ── Bulk PO render ────────────────────────────────────────────────────────────
-const renderBulkPOs = (pos: PO[], brand: string, isMobile?: boolean) => (
+const renderBulkPOs = (pos: PO[], biz: Biz, isMobile?: boolean) => (
     <div>
-        <DocHeader brand={brand} docTitle="BULK PO REPORT" />
-        <div style={{ textAlign: "center", marginBottom: 20, fontSize: 13, color: C.subText }}>
-            {pos.length} Purchase Order{pos.length !== 1 ? "s" : ""} &nbsp;·&nbsp; Generated {new Date().toLocaleString()}
-        </div>
+        <DocHeader
+            biz={biz}
+            docTitle="PURCHASE ORDERS"
+            subtitle={`${pos.length} order${pos.length !== 1 ? "s" : ""}`}
+            date={fmtDate(new Date().toISOString())}
+        />
         {pos.map((po, index) => {
-            const isCustomer = po.direction === 'customer';
-            const counterpartyName = isCustomer ? po.customer_id?.customer_name : po.supplier_id?.name;
-            const counterpartyContact = isCustomer ? po.customer_id?.phone : po.supplier_id?.phone;
-            const counterpartyEmail = isCustomer ? po.customer_id?.email : po.supplier_id?.email;
-            const counterpartyLabel = isCustomer ? 'Customer' : 'Supplier';
-            const directionLabel = isCustomer ? 'Customer (Sales)' : 'Supplier (Purchase)';
-            
+            const p = partyOf(po);
             return (
                 <div key={po._id} style={{
-                    marginBottom: 40,
-                    border: `2px solid ${C.tableBorder}`,
-                    borderRadius: 12,
-                    padding: isMobile ? 16 : 24,
+                    marginBottom: 28,
+                    paddingBottom: 20,
+                    borderBottom: index < pos.length - 1 ? `1px dashed ${LINE}` : "none",
                     pageBreakBefore: index > 0 ? "always" : "auto",
-                    background: "#fff",
-                    boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
                 }}>
                     <POBanner po={po} showMeta />
                     <InfoGrid
-                        left={[
-                            [counterpartyLabel, counterpartyName || "N/A"],
-                            ["Contact", counterpartyContact || "N/A"],
-                            ["Email", counterpartyEmail || "N/A"],
-                        ]}
-                        right={[
-                            ["Expected", po.expected_delivery_date ? new Date(po.expected_delivery_date).toLocaleDateString() : "Not set"],
-                            ["Created By", po.created_by?.fullname || "Unknown"],
-                            ["Date", new Date(po.createdAt).toLocaleDateString()],
-                            ["Progress", `${po.delivery_percentage || 0}%`],
-                        ]}
+                        titles={[p.label, "Order Details"]}
+                        left={[["Name", p.name], ["Phone", p.phone], ["Email", p.email]]}
+                        right={orderDetails(po, [["Progress", `${po.delivery_percentage || 0}%`]])}
                     />
                     <POItemsTable po={po} showSKU isMobile={isMobile} />
                     <NotesBlock notes={po.notes} />
@@ -551,7 +554,7 @@ const renderBulkPOs = (pos: PO[], brand: string, isMobile?: boolean) => (
                 </div>
             );
         })}
-        <PrintFooter label="End of Report —" />
+        <PrintFooter label="End of report —" />
     </div>
 );
 
@@ -646,7 +649,15 @@ const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
     const [isPdf, setIsPdf] = useState(true);
     const [emailModalOpen, setEmailModalOpen] = useState(false);
     const [sending, setSending] = useState(false);
-    const { BRAND_NAME1 } = useSystemDetails();
+    const sys = useSystemDetails();
+    const biz: Biz = {
+        name: sys.BRAND_NAME1,
+        logo: sys.tenant_logo?.url,
+        phone: sys.PHONE_NO,
+        email: sys.EMAIL_URL,
+        pin: sys.PIN,
+        address: sys.PO_BOX,
+    };
     const isMobile = useIsMobile();
 
     const handlePrint = useReactToPrint({
@@ -660,9 +671,9 @@ const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
     const renderContent = () => {
         if (!data) return null;
         switch (type) {
-            case "single": return renderSinglePO(data as PO, BRAND_NAME1, isMobile);
-            case "bulk": return renderBulkPOs(data as PO[], BRAND_NAME1, isMobile);
-            case "items": return renderItemsOnly(data as PO, BRAND_NAME1, isMobile);
+            case "single": return renderSinglePO(data as PO, biz, isMobile);
+            case "bulk": return renderBulkPOs(data as PO[], biz, isMobile);
+            case "items": return renderItemsOnly(data as PO, biz, isMobile);
             default: return null;
         }
     };
@@ -738,31 +749,31 @@ const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
     // ── Inner layout ──────────────────────────────────────────────────────────
     const InnerLayout = (
         <>
-            {/* Toggle bar */}
-            <div style={{
+            {/* Toggle bar — mobile only; desktop shows it in the footer */}
+            {isMobile && <div style={{
                 display: "flex", justifyContent: "center", alignItems: "center", gap: 10,
                 padding: isMobile ? "10px 14px" : "8px 12px",
                 background: "#f8fafc", borderBottom: `1px solid ${C.tableBorder}`, flexShrink: 0,
             }}>
                 {PrintToggle}
-            </div>
+            </div>}
 
             {/* Scrollable preview */}
             <div style={{
                 flex: 1, overflowY: "auto", overflowX: "auto",
-                background: isMobile ? "#f1f5f9" : "#fff",
-                padding: isMobile ? "12px 8px" : 0,
+                background: "#f1f5f9",
+                padding: isMobile ? "12px 8px" : "24px 16px",
                 WebkitOverflowScrolling: "touch",
             }}>
                 <div
                     ref={componentRef}
                     style={{
                         fontFamily: isPdf ? "'Segoe UI', system-ui, Arial, sans-serif" : "'Courier New', Courier, monospace",
-                        padding: isMobile ? 12 : isPdf ? 28 : 16,
+                        padding: isMobile ? 14 : isPdf ? 36 : 16,
                         background: "#fff",
                         minHeight: 200,
-                        ...(isPdf && !isMobile
-                            ? { boxShadow: "0 0 0 1px rgba(0,0,0,0.04)", maxWidth: 920, margin: "0 auto" }
+                        ...(!isMobile
+                            ? { boxShadow: "0 1px 3px rgba(15,23,42,0.08), 0 8px 24px rgba(15,23,42,0.06)", borderRadius: 4, maxWidth: isPdf ? 860 : 420, margin: "0 auto" }
                             : {}),
                         ...(isMobile
                             ? { borderRadius: 10, boxShadow: "0 1px 6px rgba(0,0,0,0.08)" }

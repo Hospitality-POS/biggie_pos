@@ -14,6 +14,7 @@ import {
   Col,
   Divider,
   Form,
+  Grid,
   message,
   Radio,
   Row,
@@ -287,6 +288,10 @@ const AddEditPurchaseOrderModal: React.FC<AddEditPurchaseOrderModalProps> = ({
     }
   };
 
+  // Steps sit on the left from tablet width up
+  const screens = Grid.useBreakpoint();
+  const stepsVertical = screens.md !== false;
+
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <>
@@ -333,12 +338,33 @@ const AddEditPurchaseOrderModal: React.FC<AddEditPurchaseOrderModalProps> = ({
           // open on top. We handle cleanup manually in onOpenChange.
           destroyOnClose: false,
           centered: true,
-          width: "min(860px, 96vw)",
+          width: "min(1000px, 96vw)",
           styles: { body: { padding: "16px 20px" } },
         }}
         submitter={false}
       >
         <StepsForm
+          stepsProps={{ direction: stepsVertical ? "vertical" : "horizontal", size: "small" }}
+          layoutRender={({ stepsDom, formDom }) =>
+            stepsVertical ? (
+              <div style={{ display: "flex", margin: "-16px -20px", minHeight: 440 }}>
+                <aside style={{
+                  flex: "0 0 210px", background: C.bg,
+                  borderRight: `1px solid ${C.border}`, padding: "20px 16px",
+                }}>
+                  {stepsDom}
+                </aside>
+                <section style={{ flex: 1, minWidth: 0, padding: "16px 20px" }}>
+                  {formDom}
+                </section>
+              </div>
+            ) : (
+              <>
+                {stepsDom}
+                {formDom}
+              </>
+            )
+          }
           formProps={{
             validateMessages: { required: "${label} is required" },
             preserve: true,
@@ -370,6 +396,7 @@ const AddEditPurchaseOrderModal: React.FC<AddEditPurchaseOrderModalProps> = ({
           <StepsForm.StepForm
             name="basic"
             title="Basic Info"
+            stepProps={{ description: "Supplier & delivery" }}
             onFinish={async (values) => {
               setStepFormValues((prev: any) => ({ ...prev, ...values }));
               return true;
@@ -483,6 +510,7 @@ const AddEditPurchaseOrderModal: React.FC<AddEditPurchaseOrderModalProps> = ({
           <StepsForm.StepForm
             name="po_items"
             title="Order Items"
+            stepProps={{ description: "Products & quantities" }}
             onFinish={async (values) => {
               if (!values.po_items?.length) {
                 message.error("Please add at least one item to the purchase order");

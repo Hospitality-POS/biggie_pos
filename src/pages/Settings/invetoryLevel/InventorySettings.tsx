@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from "react";
-import { ActionType, ProTable } from "@ant-design/pro-components";
+import { ActionType, ProTable, type ProFormInstance } from "@ant-design/pro-components";
 import {
   Button, message, Popconfirm, Space, Tag, Image, Tooltip,
   Dropdown, Typography, Card, Skeleton, Empty, Modal, Upload, Alert, Checkbox, Spin,
@@ -11,15 +11,16 @@ import {
   analyseInventoryFile,
 } from "@services/inventory";
 import AddEditProInventoryModal from "@components/MODALS/pro/AddEditProInventoryModal";
+import { fetchAllCategories, fetchSubCategories } from "@services/categories";
 import {
   DeleteOutlined, ShoppingCartOutlined, ToolOutlined, SwapOutlined,
   WarningOutlined, CheckCircleOutlined, StopOutlined, EyeOutlined,
   DownloadOutlined, FileExcelOutlined, FilePdfOutlined, AppstoreOutlined,
   ReloadOutlined, UploadOutlined, InboxOutlined, CloseCircleOutlined,
   CheckCircleFilled, ArrowDownOutlined, ExclamationCircleOutlined,
-  InfoCircleOutlined, ArrowRightOutlined,
+  InfoCircleOutlined, ArrowRightOutlined, FilterOutlined, DownOutlined,
 } from "@ant-design/icons";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import jsPDF from "jspdf";
 import * as XLSX from "xlsx";
 import React from "react";
@@ -83,6 +84,53 @@ const variantStockState = (variant: any, minViable?: number): "out" | "low" | "o
   if (qty <= 0) return "out";
   const threshold = minViable && minViable > 0 ? minViable : 1;
   return qty <= threshold ? "low" : "ok";
+};
+
+// ── Inventory table filters (run in the browser — the API returns the full list) ──
+const INVENTORY_FILTER_KEYS = [
+  "code", "name", "stock_state", "subcategory_filter", "category_filter",
+  "usage_filter", "status_filter", "variants_filter", "missing_filter",
+];
+const matchesStockState = (i: any, state?: string): boolean => {
+  if (!state) return true;
+  const qty = Number(i.quantity ?? 0);
+  const min = Number(i.min_viable_quantity || 0);
+  switch (state) {
+    case "in_stock": return qty > 0 && (!min || qty > min);
+    case "low": return !!min && qty <= min;
+    case "critical": return !!min && qty <= min * 0.5;
+    case "out": return qty <= 0;
+    case "negative": return qty < 0;
+    case "no_min": return !min;
+    case "variant_out": return getVariants(i).some((v: any) => variantStockState(v, i.min_viable_quantity) === "out");
+    case "variant_low": return getVariants(i).some((v: any) => variantStockState(v, i.min_viable_quantity) !== "ok");
+    default: return true;
+  }
+};
+
+const matchesInventoryFilters = (i: any, f: {
+  category?: string; subCategory?: string; usage?: string; status?: string; variants?: string; missing?: string;
+  usageIn?: string[] | null; statusIn?: string[] | null;
+}): boolean => {
+  // Refs come back populated ({ _id, name }) or as a bare id
+  const idOf = (ref: any) => String((ref && typeof ref === "object" ? ref._id : ref) || "");
+  if (f.subCategory && idOf(i.subcategory_id) !== String(f.subCategory)) return false;
+  if (f.category && idOf(i.category_id) !== String(f.category)) return false;
+  if (f.usage && i.usage_type !== f.usage) return false;
+  if (f.usageIn?.length && !f.usageIn.includes(i.usage_type)) return false;
+  if (f.status && i.status !== f.status) return false;
+  if (f.statusIn?.length && !f.statusIn.includes(i.status)) return false;
+  if (f.variants === "with" && !hasVariants(i)) return false;
+  if (f.variants === "without" && hasVariants(i)) return false;
+  switch (f.missing) {
+    case "price": return !(Number(i.price) > 0);
+    case "cost": return !(Number(i.supplier_price) > 0);
+    case "category": return !i.subcategory_id && !i.category_id && !i.category;
+    case "barcode": return !String(i.barcode || "").trim();
+    case "image": return !i.thumbnail;
+    case "supplier": return !i.supplier_id;
+    default: return true;
+  }
 };
 
 const VARIANT_STATE_CONFIG: Record<string, { color: string; bg: string; label: string }> = {
@@ -744,7 +792,12 @@ const InventoryCard: React.FC<InventoryCardProps> = ({ record, onDelete, deletin
           })}
         </div>
       )}
-      {record?.subcategory_id?.name && <div style={{ marginBottom: 8 }}><Tag style={{ background: "#eff6ff", color: "#1d4ed8", border: "none", borderRadius: 5, fontSize: 11 }}>{record.subcategory_id.name}</Tag></div>}
+      {(record?.subcategory_id?.name || record?.category_id?.name) && (
+        <div style={{ marginBottom: 8, display: "flex", gap: 4, flexWrap: "wrap" }}>
+          {record?.subcategory_id?.name && <Tooltip title="Sub Category"><Tag style={{ background: "#eff6ff", color: "#1d4ed8", border: "none", borderRadius: 5, fontSize: 11, margin: 0 }}>{record.subcategory_id.name}</Tag></Tooltip>}
+          {record?.category_id?.name && <Tooltip title="Category"><Tag style={{ background: "#f5f3ff", color: "#6d28d9", border: "none", borderRadius: 5, fontSize: 11, margin: 0 }}>{record.category_id.name}</Tag></Tooltip>}
+        </div>
+      )}
       {!selectMode && (
         <div style={{ display: "flex", gap: 8 }}>
           <div style={{ flex: 1 }}><AddEditProInventoryModal actionRef={tableRef} data={record} edit={true} /></div>
@@ -908,6 +961,44 @@ const InventorySettings = () => {
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const shopId = localStorage.getItem("shopId") || "";
 
+  // ── Category / Sub Category filters ─────────────────────────────────────────
+  // Sub Category = SubCategory records (item.subcategory_id).
+  // Category = Category records (item.category_id); each one's `sub_category`
+  // is the sub category it belongs to.
+  const searchFormRef = useRef<ProFormInstance>();
+  // Filters sit in an accordion, closed by default; the bar shows how many are applied
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [activeFilterCount, setActiveFilterCount] = useState(0);
+  const [filterSubCategory, setFilterSubCategory] = useState<string | undefined>();
+  const { data: subCategoryList = [] } = useQuery({
+    queryKey: ["inventory-filter-subcategories"],
+    queryFn: async () => {
+      const subs = await fetchSubCategories({});
+      return (Array.isArray(subs) ? subs : [])
+        .map((s: any) => ({ label: String(s.name ?? ""), value: String(s._id) }))
+        .sort((a: any, b: any) => a.label.localeCompare(b.label));
+    },
+    enabled: !isMobile,
+  });
+  const { data: categoryList = [] } = useQuery({
+    queryKey: ["inventory-filter-categories"],
+    queryFn: async () => {
+      const cats = await fetchAllCategories({});
+      return (Array.isArray(cats) ? cats : [])
+        .map((c: any) => ({
+          label: String(c.name ?? ""),
+          value: String(c._id),
+          parent: c.sub_category ? String(typeof c.sub_category === "object" ? c.sub_category._id : c.sub_category) : undefined,
+        }))
+        .sort((a: any, b: any) => a.label.localeCompare(b.label));
+    },
+    enabled: !isMobile,
+  });
+  // A chosen Sub Category narrows the Category list to the categories under it
+  const categoryOptions = filterSubCategory
+    ? categoryList.filter((c: any) => c.parent === filterSubCategory)
+    : categoryList;
+
   const deleteInventoryMutation = useMutation(deleteInventory, {
     onSuccess: () => { paymentRef.current?.reload(); message.success("Item deleted"); },
     onError: () => message.error("Failed to delete"),
@@ -945,7 +1036,7 @@ const InventorySettings = () => {
   const exportToExcel = async () => {
     try {
       const data = await fetchAllInventory({});
-      const exportData = data.map((item: any) => ({ Code: item.code, Name: item.name, Price: item.price, "Supplier Cost": item.supplier_price, Subcategory: item.category_id?.name || "", Quantity: item.quantity, Status: item.min_viable_quantity >= item.quantity ? "Out of Stock" : "In Stock", Unit: item.unit_id?.name || "", "Min Viable Quantity": item.min_viable_quantity }));
+      const exportData = data.map((item: any) => ({ Code: item.code, Name: item.name, Price: item.price, "Supplier Cost": item.supplier_price, "Sub Category": item.subcategory_id?.name || "", Category: item.category_id?.name || "", Quantity: item.quantity, Status: item.min_viable_quantity >= item.quantity ? "Out of Stock" : "In Stock", Unit: item.unit_id?.name || "", "Min Viable Quantity": item.min_viable_quantity }));
       const ws = XLSX.utils.json_to_sheet(exportData); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Inventory");
       ws["!cols"] = Object.keys(exportData[0] || {}).map(() => ({ wch: 16 }));
       XLSX.writeFile(wb, `inventory_${new Date().toISOString().split("T")[0]}.xlsx`); message.success("Excel exported");
@@ -982,14 +1073,37 @@ const InventorySettings = () => {
   }
 
   return (
+    <>
+    <style>{`.inv-filters-collapsed{display:none!important}`}</style>
+    <button
+      type="button"
+      onClick={() => setFiltersOpen((o) => !o)}
+      aria-expanded={filtersOpen}
+      style={{
+        width: "100%", display: "flex", alignItems: "center", gap: 8,
+        padding: "10px 16px", marginBottom: filtersOpen ? 0 : 12,
+        background: "#fff", border: "1px solid #e2e8f0",
+        borderRadius: filtersOpen ? "12px 12px 0 0" : 12,
+        cursor: "pointer", font: "inherit", textAlign: "left",
+      }}
+    >
+      <FilterOutlined style={{ color: "#6366f1" }} />
+      <Text strong style={{ fontSize: 13, color: "#0f172a" }}>Filters</Text>
+      {activeFilterCount > 0 && (
+        <Tag color="purple" style={{ margin: 0, borderRadius: 10, fontSize: 11 }}>{activeFilterCount} active</Tag>
+      )}
+      <Text style={{ fontSize: 12, color: "#94a3b8", marginLeft: "auto" }}>{filtersOpen ? "Hide" : "Show"}</Text>
+      <DownOutlined style={{ fontSize: 11, color: "#94a3b8", transition: "transform .2s", transform: filtersOpen ? "rotate(180deg)" : "none" }} />
+    </button>
     <ProTable
-      rowKey="_id" cardBordered style={{ borderRadius: 12 }} scroll={{ x: 1200 }}
+      rowKey="_id" cardBordered style={{ borderRadius: 12 }} scroll={{ x: 1320 }}
       pagination={{ pageSize: 10, showQuickJumper: true, showSizeChanger: true, showTotal: (total, range) => <Text style={{ fontSize: 12, color: "#64748b" }}>{range[0]}–{range[1]} of {total} items</Text> }}
       columns={[
         { title: "Image", dataIndex: "thumbnail", hideInSearch: true, width: 70, render: (_: any, record: any) => <ProductThumbnail src={record.thumbnail} /> },
         { title: "Code", dataIndex: "code", hideInSearch: false, width: 110, sorter: true, fieldProps: { placeholder: "Enter code" }, render: (text: any) => <code style={{ background: "#f1f5f9", padding: "2px 6px", borderRadius: 4, fontSize: 12, color: "#64748b" }}>{text}</code> },
         { title: "Product Name", dataIndex: "name", hideInSearch: false, fixed: "left" as const, sorter: true, ellipsis: true, fieldProps: { placeholder: "Search name" }, render: (text: any, record: any) => <Space direction="vertical" size={2}><Text strong style={{ fontSize: 13, color: "#0f172a" }}>{text}</Text>{record.desc && <Text style={{ fontSize: 11, color: "#94a3b8", display: "block", maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{record.desc}</Text>}</Space> },
-        { title: "Category", dataIndex: "subcategory_id", hideInSearch: true, width: 120, render: (_: any, record: any) => record?.subcategory_id?.name ? <Tag style={{ background: "#eff6ff", color: "#1d4ed8", border: "none", borderRadius: 5, fontSize: 11 }}>{record.subcategory_id.name}</Tag> : <Text type="secondary" style={{ fontSize: 12 }}>—</Text> },
+        { title: "Sub Category", dataIndex: "subcategory_id", hideInSearch: true, width: 120, render: (_: any, record: any) => record?.subcategory_id?.name ? <Tag style={{ background: "#eff6ff", color: "#1d4ed8", border: "none", borderRadius: 5, fontSize: 11 }}>{record.subcategory_id.name}</Tag> : <Text type="secondary" style={{ fontSize: 12 }}>—</Text> },
+        { title: "Category", dataIndex: "category_id", hideInSearch: true, width: 120, render: (_: any, record: any) => record?.category_id?.name ? <Tag style={{ background: "#f5f3ff", color: "#6d28d9", border: "none", borderRadius: 5, fontSize: 11 }}>{record.category_id.name}</Tag> : <Text type="secondary" style={{ fontSize: 12 }}>—</Text> },
         { title: "Usage", dataIndex: "usage_type", hideInSearch: true, width: 110, render: (_: any, record: any) => renderUsageType(record.usage_type), filters: [{ text: "For Sale", value: "selling" }, { text: "Internal", value: "internal" }, { text: "Both", value: "both" }] },
         { title: "Stock", dataIndex: "quantity", hideInSearch: true, width: 170, sorter: true, render: (_: any, record: any) => <Space direction="vertical" size={2}>{renderStockLevel(record)}<Text style={{ fontSize: 11, color: "#94a3b8" }}>{record?.unit_id?.name || "units"}</Text>{record.min_viable_quantity && <Text style={{ fontSize: 11, color: "#94a3b8" }}>Min: {record.min_viable_quantity}</Text>}<VariantStockBadge record={record} /></Space> },
         { title: "Pricing", dataIndex: "price", hideInSearch: true, width: 130, render: (_: any, record: any) => renderPrice(record) },
@@ -998,11 +1112,80 @@ const InventorySettings = () => {
           title: "Stock State", dataIndex: "stock_state", hideInTable: true, hideInSearch: false,
           valueType: "select" as const,
           valueEnum: {
+            in_stock: { text: "In stock (above minimum)" },
+            low: { text: "Low stock (at or below minimum)" },
+            critical: { text: "Critical (half of minimum or less)" },
+            out: { text: "Out of stock (0)" },
+            negative: { text: "Negative stock (needs a count)" },
+            no_min: { text: "No minimum set" },
             variant_out: { text: "Variant out of stock" },
             variant_low: { text: "Variant low / out" },
-            low: { text: "Low stock (item)" },
           },
           fieldProps: { placeholder: "Filter by stock state", allowClear: true },
+        },
+        {
+          title: "Sub Category", dataIndex: "subcategory_filter", hideInTable: true, hideInSearch: false,
+          valueType: "select" as const,
+          fieldProps: {
+            placeholder: "Any sub category", allowClear: true, showSearch: true, optionFilterProp: "label",
+            options: subCategoryList,
+            // Narrow the Category list; drop a category from another sub category
+            onChange: (value?: string) => {
+              setFilterSubCategory(value || undefined);
+              const cat = searchFormRef.current?.getFieldValue("category_filter");
+              const catParent = categoryList.find((c: any) => c.value === cat)?.parent;
+              if (cat && value && catParent !== value) {
+                searchFormRef.current?.setFieldsValue({ category_filter: undefined });
+              }
+            },
+          },
+        },
+        {
+          title: "Category", dataIndex: "category_filter", hideInTable: true, hideInSearch: false,
+          valueType: "select" as const,
+          fieldProps: {
+            placeholder: "Any category", allowClear: true, showSearch: true, optionFilterProp: "label",
+            options: categoryOptions.map(({ label, value }: any) => ({ label, value })),
+            // Picking a category also selects the sub category it belongs to
+            onChange: (value?: string) => {
+              const parent = categoryList.find((c: any) => c.value === value)?.parent;
+              if (value && parent) {
+                searchFormRef.current?.setFieldsValue({ subcategory_filter: parent });
+                setFilterSubCategory(parent);
+              }
+            },
+          },
+        },
+        {
+          title: "Usage", dataIndex: "usage_filter", hideInTable: true, hideInSearch: false,
+          valueType: "select" as const,
+          valueEnum: { selling: { text: "For Sale" }, internal: { text: "Internal" }, both: { text: "Both" } },
+          fieldProps: { placeholder: "Any usage", allowClear: true },
+        },
+        {
+          title: "Status", dataIndex: "status_filter", hideInTable: true, hideInSearch: false,
+          valueType: "select" as const,
+          valueEnum: { active: { text: "Active" }, inactive: { text: "Inactive" }, discontinued: { text: "Discontinued" } },
+          fieldProps: { placeholder: "Any status", allowClear: true },
+        },
+        {
+          title: "Variants", dataIndex: "variants_filter", hideInTable: true, hideInSearch: false,
+          valueType: "select" as const,
+          valueEnum: { with: { text: "Has variants" }, without: { text: "No variants" } },
+          fieldProps: { placeholder: "Any", allowClear: true },
+        },
+        {
+          title: "Missing Info", dataIndex: "missing_filter", hideInTable: true, hideInSearch: false,
+          valueType: "select" as const,
+          valueEnum: {
+            price: { text: "No selling price" },
+            cost: { text: "No cost price" },
+            category: { text: "No category" },
+            barcode: { text: "No barcode" },
+            image: { text: "No image" },
+            supplier: { text: "No supplier" },
+          },
+          fieldProps: { placeholder: "Items missing…", allowClear: true },
         },
         {
           title: "Actions", dataIndex: "actions", hideInSearch: true, width: 140, fixed: "right" as const,
@@ -1020,14 +1203,25 @@ const InventorySettings = () => {
         try {
           const queryParams = { ...params, current: params.current || 1, pageSize: params.pageSize || 10, ...(sort && Object.keys(sort).length > 0 && { sortField: Object.keys(sort)[0], sortOrder: Object.values(sort)[0] === "ascend" ? "asc" : "desc" }), ...(filter && Object.keys(filter).length > 0 && { ...filter }) };
           const data = await fetchAllInventory(queryParams);
-          let filtered = Array.isArray(data) ? data : [];
-          if (params.stock_state === "variant_out") {
-            filtered = filtered.filter((i: any) => getVariants(i).some((v: any) => variantStockState(v, i.min_viable_quantity) === "out"));
-          } else if (params.stock_state === "variant_low") {
-            filtered = filtered.filter((i: any) => getVariants(i).some((v: any) => variantStockState(v, i.min_viable_quantity) !== "ok"));
-          } else if (params.stock_state === "low") {
-            filtered = filtered.filter((i: any) => i.min_viable_quantity && i.quantity <= i.min_viable_quantity);
-          }
+          setActiveFilterCount(INVENTORY_FILTER_KEYS.filter((k) => {
+            const v = (params as any)[k];
+            return Array.isArray(v) ? v.length > 0 : v !== undefined && v !== null && String(v).trim() !== "";
+          }).length);
+          // The API only filters by name/code — every other filter runs here
+          const filtered = (Array.isArray(data) ? data : []).filter((i: any) =>
+            matchesStockState(i, params.stock_state) &&
+            matchesInventoryFilters(i, {
+              category: params.category_filter,
+              subCategory: params.subcategory_filter,
+              usage: params.usage_filter,
+              status: params.status_filter,
+              variants: params.variants_filter,
+              missing: params.missing_filter,
+              // Column header filters (Usage / Status)
+              usageIn: filter?.usage_type as string[] | null | undefined,
+              statusIn: filter?.status as string[] | null | undefined,
+            })
+          );
           return { data: filtered, success: true, total: filtered.length };
         } catch { message.error("Failed to fetch inventory"); return { data: [], success: false, total: 0 }; }
       }}
@@ -1044,7 +1238,9 @@ const InventorySettings = () => {
       ) : null}
       tableAlertOptionRender={() => <Button type="link" danger size="small" onClick={() => setSelectedRowKeys([])}>Clear selection</Button>}
       actionRef={paymentRef}
-      search={{ searchText: "Search", resetText: "Reset", labelWidth: "auto", collapsed: false }}
+      formRef={searchFormRef}
+      onReset={() => setFilterSubCategory(undefined)}
+      search={{ searchText: "Search", resetText: "Reset", labelWidth: "auto", collapsed: false, className: filtersOpen ? undefined : "inv-filters-collapsed" }}
       dateFormatter="string"
       headerTitle={
         <Space size={8}>
@@ -1064,6 +1260,7 @@ const InventorySettings = () => {
       ]}
       options={{ setting: { listsHeight: 400 }, reload: true, density: true, fullScreen: true }}
     />
+    </>
   );
 };
 

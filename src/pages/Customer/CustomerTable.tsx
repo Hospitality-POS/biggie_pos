@@ -185,7 +185,7 @@ const LIFECYCLE_COLORS: Record<string, string> = {
     vip: '#f59e0b', at_risk: C.red, churned: C.subText,
 };
 
-const AnalyticsPanel = ({ customers }: { customers: any[] }) => {
+const AnalyticsPanel = ({ customers, showVisits = true }: { customers: any[]; showVisits?: boolean }) => {
     if (!customers.length) return null;
     const s = buildStats(customers);
 
@@ -273,8 +273,8 @@ const AnalyticsPanel = ({ customers }: { customers: any[] }) => {
                     }
                 </div>
 
-                {/* Visit health — only if visits exist */}
-                {(s.recent + s.overdue + s.never) > 0 && (
+                {/* Visit health — Duka only, and only if visits exist */}
+                {showVisits && (s.recent + s.overdue + s.never) > 0 && (
                     <div style={{
                         flex: "1 1 180px", background: "#fff",
                         border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 14px",
@@ -339,10 +339,11 @@ const TabNav = ({ active, onChange }: { active: GiftTab; onChange: (k: GiftTab) 
     </div>
 );
 
-const MobileCustomerCard = ({ record, onEdit, onIssueGiftCard, onViewGiftCards, showGiftCards }: {
+const MobileCustomerCard = ({ record, onEdit, onIssueGiftCard, onViewGiftCards, showGiftCards, showVisits = true }: {
     record: any; onEdit?: () => void;
     onIssueGiftCard: () => void; onViewGiftCards: () => void;
     showGiftCards: boolean;
+    showVisits?: boolean;
 }) => {
     const lv = (() => {
         const visits = record.visits || [];
@@ -364,7 +365,7 @@ const MobileCustomerCard = ({ record, onEdit, onIssueGiftCard, onViewGiftCards, 
                     </Text>
                     <Text copyable style={{ fontSize: 11, color: C.subText }}>{record.code}</Text>
                 </div>
-                <VisitBadge visits={record.visits || []} />
+                {showVisits && <VisitBadge visits={record.visits || []} />}
             </div>
             <div style={{ background: C.bg, borderRadius: 8, padding: "4px 10px", marginBottom: 10 }}>
                 {record.phone && (
@@ -393,11 +394,13 @@ const MobileCustomerCard = ({ record, onEdit, onIssueGiftCard, onViewGiftCards, 
                         </div>
                     </MetaRow>
                 )}
-                <MetaRow label="Last Visit" last>
-                    <Text style={{ fontSize: 12, color: C.subText }}>
-                        {lv ? new Date(lv).toLocaleString("en-GB") : "No visits"}
-                    </Text>
-                </MetaRow>
+                {showVisits && (
+                    <MetaRow label="Last Visit" last>
+                        <Text style={{ fontSize: 12, color: C.subText }}>
+                            {lv ? new Date(lv).toLocaleString("en-GB") : "No visits"}
+                        </Text>
+                    </MetaRow>
+                )}
             </div>
             <div style={{ display: "flex", gap: 8 }}>
                 {onEdit && (
@@ -510,6 +513,8 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
         // ── Gift cards are a POS feature — hide when accounting-only ──────────
         const { hasPOS, hasDala } = getModules();
         const giftCardsEnabled = nonCustomerEnabled && hasPOS;
+        // Visits are recorded by Duka (POS) — hide visit info without it
+        const showVisits = hasPOS && !hasDala;
 
         // ── Hospital mode: customers are patients ────────────────────────────
         const isHospital = (localStorage.getItem("posMode") ?? "") === "hospital";
@@ -807,7 +812,7 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
                     ) : <Text style={{ fontSize: 12, color: C.subText }}>—</Text>,
             },
             ]),
-            ...(!hasDala ? [
+            ...(showVisits ? [
                 {
                     title: "Status", dataIndex: "lastVisit", hideInSearch: true,
                     render: (_: any, record: any) => <VisitBadge visits={record.visits || []} />,
@@ -1021,7 +1026,7 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
         if (isMobile) {
             return (
                 <App>
-                    <AnalyticsPanel customers={allCustomers} />
+                    <AnalyticsPanel customers={allCustomers} showVisits={showVisits} />
 
                     {giftCardsEnabled && (
                         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
@@ -1099,6 +1104,7 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
                             onIssueGiftCard={() => openGiftCardModal(record)}
                             onViewGiftCards={() => openGiftCardsHistory(record)}
                             showGiftCards={giftCardsEnabled}
+                            showVisits={showVisits}
                         />
                     ))}
 
@@ -1118,7 +1124,7 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
         // ── Desktop layout ────────────────────────────────────────────────────
         return (
             <App>
-                <AnalyticsPanel customers={allCustomers} />
+                <AnalyticsPanel customers={allCustomers} showVisits={showVisits} />
 
                 {giftCardsEnabled && (
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
@@ -1154,7 +1160,8 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
                     tableAlertRender={({ selectedRowKeys }) => (
                         <Text style={{ fontSize: 12 }}>Selected: {selectedRowKeys.length}</Text>
                     )}
-                    expandable={{ expandedRowRender: (record) => <ExpandedRowContent record={record} /> }}
+                    // The expanded row is the visit history — Duka only
+                    expandable={showVisits ? { expandedRowRender: (record) => <ExpandedRowContent record={record} /> } : undefined}
                     options={{ fullScreen: true, reload: () => { actionRef.current?.reload(); loadAllForStats(); } }}
                     scroll={{ x: "100%" }}
                     rowSelection={{ alwaysShowAlert: false }}

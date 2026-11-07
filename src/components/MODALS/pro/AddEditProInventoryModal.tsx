@@ -7,7 +7,6 @@ import {
   message,
   Divider,
   Tag,
-  Steps,
   Modal,
   Select,
   Popconfirm,
@@ -18,7 +17,7 @@ import {
   Typography,
 } from "antd";
 import type { FormInstance } from "antd";
-import { ModalForm } from "@ant-design/pro-form";
+import StepperModal from "@components/MODALS/StepperModal";
 import {
   EditOutlined,
   PlusOutlined,
@@ -1087,16 +1086,6 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
     onExternalClose?.();
   }, [resetAll, onExternalClose]);
 
-  const handleOpenChange = useCallback(
-    (newOpen: boolean) => {
-      if (!newOpen) {
-        handleClose();
-      } else {
-        setOpen(true);
-      }
-    },
-    [handleClose]
-  );
 
   // ── Usage type options ────────────────────────────────────────────────────
   const UsageTypeOptions = useMemo(
@@ -1138,8 +1127,8 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
   // ─────────────────────────────────────────────────────────────────────────
   // STEP CONTENT
   // ─────────────────────────────────────────────────────────────────────────
-  const renderStepContent = useCallback(() => {
-    switch (currentStep) {
+  const renderStep = useCallback((step: number) => {
+    switch (step) {
       // ── Step 0: Basic Info ──────────────────────────────────────────────
       case 0:
         return (
@@ -1726,7 +1715,6 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
         return null;
     }
   }, [
-    currentStep,
     form,
     hasVariants,
     variants,
@@ -1747,70 +1735,53 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
   ]);
 
   // ─────────────────────────────────────────────────────────────────────────
-  // NAVIGATION FOOTER
+  // STEP NAVIGATION
   // ─────────────────────────────────────────────────────────────────────────
-  const renderFooter = () => (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        marginTop: 24,
-      }}
-    >
-      <Button
-        onClick={() => setCurrentStep((s) => Math.max(0, s - 1))}
-        disabled={currentStep === 0}
-        style={{ borderRadius: 8 }}
-      >
-        Previous
+  // Required fields checked before leaving each step
+  const STEP_FIELDS: string[][] = [
+    ["name", "usage_type", "category", "subcategory_id", "unit_id", "vat_type"],
+    ["quantity", "price"],
+    [],
+    ["status"],
+    [],
+  ];
+
+  const goNext = async () => {
+    try {
+      const names = STEP_FIELDS[currentStep] || [];
+      if (names.length) await form.validateFields(names);
+      setCurrentStep((s) => Math.min(steps.length - 1, s + 1));
+    } catch { /* field errors are shown inline */ }
+  };
+
+  // Every step stays mounted, so this checks them all; jump to the first with an error
+  const submitAll = async () => {
+    for (let i = 0; i < steps.length; i++) {
+      const names = STEP_FIELDS[i] || [];
+      if (!names.length) continue;
+      try {
+        await form.validateFields(names);
+      } catch {
+        setCurrentStep(i);
+        return;
+      }
+    }
+    await handleFormSubmit();
+  };
+
+  const footer = [
+    <Button key="cancel" onClick={handleClose}>Cancel</Button>,
+    currentStep > 0 && (
+      <Button key="back" onClick={() => setCurrentStep((s) => Math.max(0, s - 1))}>Back</Button>
+    ),
+    currentStep < steps.length - 1 ? (
+      <Button key="next" type="primary" onClick={goNext}>Next</Button>
+    ) : (
+      <Button key="submit" type="primary" onClick={submitAll}>
+        {edit ? "Update Inventory" : "Add Inventory"}
       </Button>
-
-      <Space>
-        {currentStep < steps.length - 1 ? (
-          <Button
-            type="primary"
-            onClick={() => setCurrentStep((s) => Math.min(steps.length - 1, s + 1))}
-            style={{ borderRadius: 8 }}
-          >
-            Next
-          </Button>
-        ) : (
-          <Button
-            type="primary"
-            onClick={handleFormSubmit}
-            style={{ borderRadius: 8 }}
-          >
-            {edit ? "Update Inventory" : "Add Inventory"}
-          </Button>
-        )}
-      </Space>
-    </div>
-  );
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // MODAL CONTENT (shared between controlled & uncontrolled modes)
-  // ─────────────────────────────────────────────────────────────────────────
-  const modalContent = (
-    <div style={{ maxWidth: "100%", margin: "0 auto" }}>
-      <Steps
-        current={currentStep}
-        items={steps}
-        style={{ marginBottom: 24 }}
-        size="small"
-      />
-      {renderStepContent()}
-      {renderFooter()}
-    </div>
-  );
-
-  const modalTitle = (
-    <Space>
-      <EditOutlined style={{ color: "#6366f1", fontSize: 18 }} />
-      <span style={{ fontWeight: 600, fontSize: 15 }}>
-        {edit ? "Edit Inventory" : "Add New Inventory"}
-      </span>
-    </Space>
-  );
+    ),
+  ];
 
   // ─────────────────────────────────────────────────────────────────────────
   // RENDER
@@ -1843,24 +1814,27 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
       )}
 
       {/* ── Main ModalForm ── */}
-      <ModalForm
-        title={modalTitle}
+      <StepperModal
         open={isOpen}
-        onOpenChange={handleOpenChange}
-        form={form}
-        onFinish={handleFormSubmit}
-        submitter={false}
+        onCancel={handleClose}
+        icon={edit ? <EditOutlined /> : <PlusOutlined />}
+        accent="#6366f1"
+        title={edit ? "Edit Inventory" : "Add New Inventory"}
+        steps={steps}
+        current={currentStep}
+        onStepClick={setCurrentStep}
+        footer={footer}
         width={1000}
-        modalProps={{
-          destroyOnClose: true,
-          centered: true,
-          maskClosable: false,
-          onCancel: handleClose,
-          styles: { body: { padding: "24px" } },
-        }}
+        maskClosable={false}
       >
-        {modalContent}
-      </ModalForm>
+        <Form form={form} layout="vertical">
+          {steps.map((_, i) => (
+            <div key={i} style={{ display: i === currentStep ? "block" : "none" }}>
+              {renderStep(i)}
+            </div>
+          ))}
+        </Form>
+      </StepperModal>
 
       {/* ── Camera barcode scanner ── */}
       <BarcodeScannerModal
