@@ -237,3 +237,37 @@ export const updateShopTaxSettings = async (shopId: string, taxSettings: ShopTax
   }
   return response.data;
 };
+
+// Invoice appearance — watermark and the services banner on A4 invoices.
+// Read by the invoice templates through useSystemDetails().invoice_settings.
+export interface ShopInvoiceSettings {
+  watermark_enabled?: boolean;
+  watermark_source?: "logo" | "custom";
+  watermark_image_url?: string | null;
+  watermark_opacity?: number;
+  watermark_size?: number;
+  services_enabled?: boolean;
+  services_title?: string;
+  services_heading?: string;
+  services?: string[];
+  services_address?: string;
+  website?: string;
+  primary_color?: string;
+  secondary_color?: string;
+}
+export const updateShopInvoiceSettings = async (shopId: string, settings: ShopInvoiceSettings) => {
+  const response = await axiosInstance.patch(`${url}/${shopId}`, { invoice_settings: settings });
+  return response.data;
+};
+export const uploadShopInvoiceWatermark = async (shopId: string, file: File) => {
+  const form = new FormData();
+  form.append("watermark", file);
+  const response = await axiosInstance.post(`${url}/${shopId}/invoice-watermark`, form, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return response.data;
+};
+export const removeShopInvoiceWatermark = async (shopId: string) => {
+  const response = await axiosInstance.delete(`${url}/${shopId}/invoice-watermark`);
+  return response.data;
+};

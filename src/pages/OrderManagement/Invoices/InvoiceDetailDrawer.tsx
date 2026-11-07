@@ -17,6 +17,8 @@ import { createSalesReceipt, getSalesReceipts } from "@services/accounting/sales
 import { getAllAccounts } from "@services/accounting/accounts";
 import {
   TEMPLATES,
+  TEMPLATE_IDS,
+  templateById,
   TemplateId,
   InvoiceForPrint,
   SystemDetails,
@@ -131,8 +133,9 @@ const InvoiceDetailDrawer: React.FC<InvoiceDetailDrawerProps> = ({
   const ref4 = useRef<HTMLDivElement>(null);
   const ref5 = useRef<HTMLDivElement>(null);
   const ref6 = useRef<HTMLDivElement>(null);
+  const ref7 = useRef<HTMLDivElement>(null);
   const allRefs: Record<TemplateId, React.RefObject<HTMLDivElement>> = {
-    1: ref1, 2: ref2, 3: ref3, 4: ref4, 5: ref5, 6: ref6,
+    1: ref1, 2: ref2, 3: ref3, 4: ref4, 5: ref5, 6: ref6, 7: ref7,
   };
 
   const sys: SystemDetails = useSystemDetails();
@@ -220,13 +223,18 @@ const InvoiceDetailDrawer: React.FC<InvoiceDetailDrawerProps> = ({
     pageStyle: PAGE_STYLE 
   });
   const print6 = useReactToPrint({ 
-    content: () => ref6.current, 
-    documentTitle: `Invoice-${inv?.order_no || inv?.invoice_no}`, 
-    pageStyle: PAGE_STYLE 
+    content: () => ref6.current,
+    documentTitle: `Invoice-${inv?.order_no || inv?.invoice_no}`,
+    pageStyle: PAGE_STYLE
+  });
+  const print7 = useReactToPrint({
+    content: () => ref7.current,
+    documentTitle: `Invoice-${inv?.order_no || inv?.invoice_no}`,
+    pageStyle: PAGE_STYLE
   });
 
   const printMap: Record<TemplateId, () => void> = {
-    1: print1, 2: print2, 3: print3, 4: print4, 5: print5, 6: print6,
+    1: print1, 2: print2, 3: print3, 4: print4, 5: print5, 6: print6, 7: print7,
   };
 
   const handlePrint = () => printMap[selectedTemplate]();
@@ -392,8 +400,8 @@ const InvoiceDetailDrawer: React.FC<InvoiceDetailDrawerProps> = ({
           overflowY: "auto",
           boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
         }}>
-          {([1, 2, 3, 4, 5, 6] as TemplateId[]).map((id) => {
-            const Tpl = TEMPLATES[id - 1].component;
+          {TEMPLATE_IDS.map((id) => {
+            const Tpl = templateById(id).component;
             return (
               <div key={id} style={{ display: id === selectedTemplate ? "block" : "none" }}>
                 <Tpl ref={allRefs[id]} inv={inv} sys={sys} accentColor={primaryColor} />

@@ -18,6 +18,7 @@ import {
   TagOutlined,
   FormOutlined,
   MedicineBoxOutlined,
+  FileTextOutlined,
 } from "@ant-design/icons";
 import { Tabs } from "antd";
 import { useQuery } from "@tanstack/react-query";
@@ -28,6 +29,7 @@ import PrinterSettings from "./PrinterSettings";
 import PrivacySettings from "./PrivacySettings";
 import ReceiptAppearanceSettings from "./ReceiptAppearanceSettings";
 import BankDetailsSettings from "./BankDetailsSettings";
+import InvoiceAppearanceSettings from "./InvoiceAppearanceSettings";
 import NotificationSettings from "./NotificationSettings";
 
 import HotelSettings from "./HotelSettings";
@@ -119,6 +121,16 @@ const SystemSetup: React.FC = () => {
         bg: "#eff6ff",
         group: "Payments",
         render: () => <BankDetailsSettings />,
+      },
+      {
+        key: "invoice-appearance",
+        label: "Invoice Appearance",
+        description: "Watermark, services banner & letterhead",
+        icon: <FileTextOutlined />,
+        color: "#1f5c99",
+        bg: "#eff6ff",
+        group: "Payments",
+        render: () => <InvoiceAppearanceSettings />,
       },
     ];
 
