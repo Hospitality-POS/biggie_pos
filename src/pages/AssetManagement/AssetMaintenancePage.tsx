@@ -17,7 +17,6 @@ import {
   Col,
   Statistic,
   Calendar,
-  Steps,
   Dropdown,
   MenuProps,
   Spin,
@@ -33,13 +32,23 @@ import {
   CalendarOutlined,
   ReloadOutlined,
   MoreOutlined,
+  ToolOutlined,
+  TeamOutlined,
+  DollarOutlined,
 } from "@ant-design/icons";
+import StepperModal from "@components/MODALS/StepperModal";
 import dayjs from "dayjs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as assetsApi from "src/services/accounting/assetsApi";
 
 const { RangePicker } = DatePicker;
 const { Option } = Select;
+
+const CREATE_STEPS = [
+  { title: "Asset & Type", description: "What and when", icon: <ToolOutlined /> },
+  { title: "Assignment", description: "Staff or vendor", icon: <TeamOutlined /> },
+  { title: "Cost & Details", description: "Cost, description & notes", icon: <DollarOutlined /> },
+];
 
 const AssetMaintenancePage = () => {
   const [filters, setFilters] = useState({
@@ -84,6 +93,8 @@ const AssetMaintenancePage = () => {
   const { data: usersData } = useQuery({
     queryKey: ["users"],
     queryFn: fetchAllUsersByShopId,
+    // API returns { users, pagination } — the code below needs the array
+    select: (d: any) => (Array.isArray(d) ? d : d?.users ?? []),
   });
 
   const { data: suppliersData } = useQuery({
@@ -98,6 +109,10 @@ const AssetMaintenancePage = () => {
       queryClient.invalidateQueries({ queryKey: ["asset-maintenance"] });
       setModalVisible(false);
       form.resetFields();
+      setCurrentStep(0);
+    },
+    onError: (error: any) => {
+      message.error(error?.response?.data?.message || error?.message || "Failed to schedule maintenance");
     },
   });
 
@@ -144,34 +159,49 @@ const AssetMaintenancePage = () => {
     }
   };
 
+  // Fields validated before leaving each step (step 1 depends on who does the work)
+  const validateStep = async (step: number) => {
+    const stepFields: Record<number, string[]> = {
+      0: ["asset_id", "maintenance_type", "scheduled_date"],
+      1: ["performed_by_type"],
+      2: ["cost", "currency", "description"],
+    };
+    await form.validateFields(stepFields[step]);
+    if (step === 1) {
+      const performedByType = form.getFieldValue("performed_by_type");
+      if (performedByType === "Internal") await form.validateFields(["performed_by_user"]);
+      else if (performedByType === "External") await form.validateFields(["vendor_id"]);
+    }
+  };
+
   const next = async () => {
     try {
-      const stepFields = {
-        0: ["asset_id", "maintenance_type", "scheduled_date"],
-        1: ["performed_by_type"],
-        2: ["cost", "currency", "description"],
-      };
-      
-      await form.validateFields(stepFields[currentStep as keyof typeof stepFields]);
-      
-      // Conditional validation for step 1
-      if (currentStep === 1) {
-        const performedByType = form.getFieldValue("performed_by_type");
-        if (performedByType === "Internal") {
-          await form.validateFields(["performed_by_user"]);
-        } else if (performedByType === "External") {
-          await form.validateFields(["vendor_id"]);
-        }
-      }
-      
+      await validateStep(currentStep);
       setCurrentStep(currentStep + 1);
-    } catch (error) {
-      console.error("Validation failed:", error);
-    }
+    } catch { /* field errors are shown inline */ }
   };
 
   const prev = () => {
     setCurrentStep(currentStep - 1);
+  };
+
+  const submitCreate = async () => {
+    // Re-check every step and jump back to the first one with an error
+    for (let s = 0; s < CREATE_STEPS.length; s++) {
+      try {
+        await validateStep(s);
+      } catch {
+        setCurrentStep(s);
+        return;
+      }
+    }
+    createMutation.mutate(form.getFieldsValue(true));
+  };
+
+  const closeModal = () => {
+    setModalVisible(false);
+    form.resetFields();
+    setCurrentStep(0);
   };
 
   const openModal = (type: typeof modalType, maintenance?: any) => {
@@ -532,40 +562,38 @@ const AssetMaintenancePage = () => {
         )}
       </Drawer>
 
-      <Modal
-        title={modalType.charAt(0).toUpperCase() + modalType.slice(1) + " Maintenance"}
-        open={modalVisible}
-        onCancel={() => {
-          setModalVisible(false);
-          form.resetFields();
-          setCurrentStep(0);
-        }}
-        confirmLoading={
-          createMutation.isLoading ||
-          completeMutation.isLoading ||
-          cancelMutation.isLoading
-        }
-        width={800}
-        footer={modalType === "create" ? null : undefined}
-        okText={modalType === "create" ? undefined : undefined}
-        onOk={modalType === "create" ? undefined : handleModalSubmit}
+      {/* Schedule Maintenance — multi-step with the steps on the left */}
+      <StepperModal
+        open={modalVisible && modalType === "create"}
+        onCancel={closeModal}
+        icon={<ToolOutlined />}
+        title="Schedule Maintenance"
+        steps={CREATE_STEPS}
+        current={currentStep}
+        onStepClick={setCurrentStep}
+        width={900}
+        footer={[
+          <Button key="cancel" onClick={closeModal}>Cancel</Button>,
+          currentStep > 0 && <Button key="back" onClick={prev}>Back</Button>,
+          currentStep < CREATE_STEPS.length - 1 ? (
+            <Button key="next" type="primary" onClick={next}>Next</Button>
+          ) : (
+            <Button key="submit" type="primary" loading={createMutation.isLoading} onClick={submitCreate}>
+              Schedule Maintenance
+            </Button>
+          ),
+        ]}
       >
-        <Form form={form} layout="vertical">
-          {modalType === "create" && (
-            <>
-              <Steps current={currentStep} style={{ marginBottom: 24 }}>
-                <Steps.Step title="Asset & Type" />
-                <Steps.Step title="Assignment" />
-                <Steps.Step title="Cost & Details" />
-              </Steps>
-
-              <div style={{ display: currentStep === 0 ? "block" : "none" }}>
+        <Form form={form} layout="vertical" initialValues={{ currency: "KES" }}>
+          <div style={{ display: currentStep === 0 ? "block" : "none" }}>
+            <Row gutter={16}>
+              <Col xs={24}>
                 <Form.Item
                   name="asset_id"
                   label="Asset"
                   rules={[{ required: true, message: "Please select asset" }]}
                 >
-                  <Select placeholder="Select asset" loading={!assetsData}>
+                  <Select placeholder="Select asset" loading={!assetsData} showSearch optionFilterProp="children">
                     {assetsData?.assets?.map((asset: any) => (
                       <Option key={asset._id} value={asset._id}>
                         {asset.asset_no} - {asset.asset_name}
@@ -573,6 +601,8 @@ const AssetMaintenancePage = () => {
                     ))}
                   </Select>
                 </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
                 <Form.Item
                   name="maintenance_type"
                   label="Maintenance Type"
@@ -585,6 +615,8 @@ const AssetMaintenancePage = () => {
                     <Option value="Upgrade">Upgrade</Option>
                   </Select>
                 </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
                 <Form.Item
                   name="scheduled_date"
                   label="Scheduled Date"
@@ -592,19 +624,25 @@ const AssetMaintenancePage = () => {
                 >
                   <DatePicker style={{ width: "100%" }} />
                 </Form.Item>
-              </div>
+              </Col>
+            </Row>
+          </div>
 
-              <div style={{ display: currentStep === 1 ? "block" : "none" }}>
+          <div style={{ display: currentStep === 1 ? "block" : "none" }}>
+            <Row gutter={16}>
+              <Col xs={24} md={12}>
                 <Form.Item
                   name="performed_by_type"
                   label="Performed By"
                   rules={[{ required: true, message: "Please select type" }]}
                 >
                   <Select placeholder="Select type">
-                    <Option value="Internal">Internal</Option>
-                    <Option value="External">External</Option>
+                    <Option value="Internal">Internal (staff)</Option>
+                    <Option value="External">External (vendor)</Option>
                   </Select>
                 </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
                 <Form.Item noStyle shouldUpdate={(prevValues, currentValues) => prevValues.performed_by_type !== currentValues.performed_by_type}>
                   {({ getFieldValue }) => {
                     const performedByType = getFieldValue("performed_by_type");
@@ -616,7 +654,7 @@ const AssetMaintenancePage = () => {
                             label="Technician/User"
                             rules={[{ required: true, message: "Please select technician" }]}
                           >
-                            <Select placeholder="Select technician" loading={!usersData}>
+                            <Select placeholder="Select technician" loading={!usersData} showSearch optionFilterProp="children">
                               {usersData?.map((user: any) => (
                                 <Option key={user._id} value={user._id}>
                                   {user.fullname || user.username}
@@ -631,7 +669,7 @@ const AssetMaintenancePage = () => {
                             label="Vendor"
                             rules={[{ required: true, message: "Please select vendor" }]}
                           >
-                            <Select placeholder="Select vendor" loading={!suppliersData}>
+                            <Select placeholder="Select vendor" loading={!suppliersData} showSearch optionFilterProp="children">
                               {suppliersData?.map((supplier: any) => (
                                 <Option key={supplier._id} value={supplier._id}>
                                   {supplier.name}
@@ -644,16 +682,22 @@ const AssetMaintenancePage = () => {
                     );
                   }}
                 </Form.Item>
-              </div>
+              </Col>
+            </Row>
+          </div>
 
-              <div style={{ display: currentStep === 2 ? "block" : "none" }}>
+          <div style={{ display: currentStep === 2 ? "block" : "none" }}>
+            <Row gutter={16}>
+              <Col xs={24} md={12}>
                 <Form.Item
                   name="cost"
                   label="Cost"
                   rules={[{ required: true, message: "Please enter cost" }]}
                 >
-                  <Input type="number" placeholder="Enter cost" />
+                  <Input type="number" min={0} placeholder="Enter cost" />
                 </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
                 <Form.Item
                   name="currency"
                   label="Currency"
@@ -665,37 +709,32 @@ const AssetMaintenancePage = () => {
                     <Option value="EUR">EUR</Option>
                   </Select>
                 </Form.Item>
-                <Form.Item
-                  name="description"
-                  label="Description"
-                  rules={[{ required: true, message: "Please enter description" }]}
-                >
-                  <Input.TextArea rows={3} placeholder="Enter description" />
-                </Form.Item>
-                <Form.Item name="notes" label="Notes">
-                  <Input.TextArea rows={2} placeholder="Enter notes" />
-                </Form.Item>
-              </div>
+              </Col>
+            </Row>
+            <Form.Item
+              name="description"
+              label="Description"
+              rules={[{ required: true, message: "Please enter description" }]}
+            >
+              <Input.TextArea rows={3} placeholder="What needs to be done?" />
+            </Form.Item>
+            <Form.Item name="notes" label="Notes">
+              <Input.TextArea rows={2} placeholder="Enter notes" />
+            </Form.Item>
+          </div>
+        </Form>
+      </StepperModal>
 
-              <div style={{ marginTop: 24 }}>
-                {currentStep > 0 && (
-                  <Button style={{ marginRight: 8 }} onClick={prev}>
-                    Previous
-                  </Button>
-                )}
-                {currentStep < 2 && (
-                  <Button type="primary" onClick={next}>
-                    Next
-                  </Button>
-                )}
-                {currentStep === 2 && (
-                  <Button type="primary" onClick={handleModalSubmit} loading={createMutation.isLoading}>
-                    Submit
-                  </Button>
-                )}
-              </div>
-            </>
-          )}
+      <Modal
+        title={modalType.charAt(0).toUpperCase() + modalType.slice(1) + " Maintenance"}
+        open={modalVisible && modalType !== "create"}
+        onCancel={closeModal}
+        destroyOnClose
+        confirmLoading={completeMutation.isLoading || cancelMutation.isLoading}
+        width={600}
+        onOk={handleModalSubmit}
+      >
+        <Form form={form} layout="vertical">
           {modalType === "complete" && (
             <Form.Item
               name="work_performed"

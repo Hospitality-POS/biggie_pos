@@ -16,7 +16,6 @@ import {
   Row,
   Col,
   Statistic,
-  Steps,
   Dropdown,
   Timeline,
 } from "antd";
@@ -31,7 +30,10 @@ import {
   PlusOutlined,
   MoreOutlined,
   DeleteOutlined,
+  TagOutlined,
+  FileTextOutlined,
 } from "@ant-design/icons";
+import StepperModal from "@components/MODALS/StepperModal";
 import dayjs from "dayjs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as assetsApi from "src/services/accounting/assetsApi";
@@ -39,6 +41,23 @@ import { fetchAllUsersByShopId } from "src/services/users";
 
 const { RangePicker } = DatePicker;
 const { Option } = Select;
+
+const ASSET_CATEGORIES = [
+  "Furniture", "Electronics", "Vehicles", "Machinery", "Buildings", "Land", "Equipment", "Other",
+];
+
+const CREATE_STEPS = [
+  { title: "Basic Info", description: "Name, number & location", icon: <TagOutlined /> },
+  { title: "Financial Info", description: "Cost & depreciation", icon: <DollarOutlined /> },
+  { title: "Additional Details", description: "Condition, warranty & notes", icon: <FileTextOutlined /> },
+];
+
+// Fields validated before leaving each step
+const CREATE_STEP_FIELDS: string[][] = [
+  ["asset_name", "asset_no", "asset_category", "current_location"],
+  ["purchase_date", "currency", "purchase_cost", "useful_life", "depreciation_method"],
+  ["condition"],
+];
 
 const AssetRegisterPage = () => {
   const [filters, setFilters] = useState({
@@ -78,6 +97,8 @@ const AssetRegisterPage = () => {
   const { data: usersData } = useQuery({
     queryKey: ["shop-users"],
     queryFn: fetchAllUsersByShopId,
+    // API returns { users, pagination } — the code below needs the array
+    select: (d: any) => (Array.isArray(d) ? d : d?.users ?? []),
   });
 
   const assignMutation = useMutation({
@@ -202,7 +223,35 @@ const AssetRegisterPage = () => {
   const openModal = (type: typeof modalType, asset?: any) => {
     setModalType(type);
     setSelectedAsset(asset || null);
+    setCurrentStep(0);
     setModalVisible(true);
+  };
+
+  const closeModal = () => {
+    setModalVisible(false);
+    form.resetFields();
+    setCurrentStep(0);
+  };
+
+  // ── Create Asset steps ─────────────────────────────────────────────────────
+  const nextCreateStep = async () => {
+    try {
+      await form.validateFields(CREATE_STEP_FIELDS[currentStep]);
+      setCurrentStep((s) => s + 1);
+    } catch { /* field errors are shown inline */ }
+  };
+
+  const submitCreate = async () => {
+    // Re-check every step and jump back to the first one with an error
+    for (let s = 0; s < CREATE_STEP_FIELDS.length; s++) {
+      try {
+        await form.validateFields(CREATE_STEP_FIELDS[s]);
+      } catch {
+        setCurrentStep(s);
+        return;
+      }
+    }
+    createMutation.mutate(form.getFieldsValue(true));
   };
 
   const viewAsset = (asset: any) => {
@@ -607,74 +656,76 @@ const AssetRegisterPage = () => {
         )}
       </Drawer>
 
-      <Modal
-        title={modalType.charAt(0).toUpperCase() + modalType.slice(1) + " Asset"}
-        open={modalVisible}
-        onOk={modalType === "create" ? undefined : handleModalSubmit}
-        onCancel={() => {
-          setModalVisible(false);
-          form.resetFields();
-          setCurrentStep(0);
-        }}
-        confirmLoading={
-          assignMutation.isLoading ||
-          transferMutation.isLoading ||
-          retireMutation.isLoading ||
-          disposeMutation.isLoading ||
-          revalueMutation.isLoading ||
-          createMutation.isLoading
-        }
-        width={modalType === "create" ? 800 : 600}
-        footer={modalType === "create" ? null : undefined}
+      {/* Create Asset — multi-step with the steps on the left */}
+      <StepperModal
+        open={modalVisible && modalType === "create"}
+        onCancel={closeModal}
+        icon={<PlusOutlined />}
+        title="Create Asset"
+        steps={CREATE_STEPS}
+        current={currentStep}
+        onStepClick={setCurrentStep}
+        width={900}
+        footer={[
+          <Button key="cancel" onClick={closeModal}>Cancel</Button>,
+          currentStep > 0 && (
+            <Button key="back" onClick={() => setCurrentStep((s) => s - 1)}>Back</Button>
+          ),
+          currentStep < CREATE_STEPS.length - 1 ? (
+            <Button key="next" type="primary" onClick={nextCreateStep}>Next</Button>
+          ) : (
+            <Button key="submit" type="primary" loading={createMutation.isLoading} onClick={submitCreate}>
+              Create Asset
+            </Button>
+          ),
+        ]}
       >
-        {modalType === "create" ? (
-          <>
-            <Steps current={currentStep} style={{ marginBottom: 24 }}>
-              <Steps.Step title="Basic Info" />
-              <Steps.Step title="Financial Info" />
-              <Steps.Step title="Additional Details" />
-            </Steps>
-            <Form form={form} layout="vertical">
-              <div style={{ display: currentStep === 0 ? "block" : "none" }}>
+        <Form form={form} layout="vertical" initialValues={{ currency: "KES", condition: "New" }}>
+          <div style={{ display: currentStep === 0 ? "block" : "none" }}>
+            <Row gutter={16}>
+              <Col xs={24} md={12}>
                 <Form.Item
                   name="asset_name"
                   label="Asset Name"
                   rules={[{ required: true, message: "Please enter asset name" }]}
                 >
-                  <Input placeholder="Enter asset name" />
+                  <Input placeholder="e.g. Dell Latitude 5440" />
                 </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
                 <Form.Item
                   name="asset_no"
                   label="Asset Number"
                   rules={[{ required: true, message: "Please enter asset number" }]}
                 >
-                  <Input placeholder="Enter asset number" />
+                  <Input placeholder="e.g. AST-001" />
                 </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
                 <Form.Item
                   name="asset_category"
                   label="Category"
                   rules={[{ required: true, message: "Please select category" }]}
                 >
                   <Select placeholder="Select category">
-                    <Option value="Furniture">Furniture</Option>
-                    <Option value="Electronics">Electronics</Option>
-                    <Option value="Vehicles">Vehicles</Option>
-                    <Option value="Machinery">Machinery</Option>
-                    <Option value="Buildings">Buildings</Option>
-                    <Option value="Land">Land</Option>
-                    <Option value="Equipment">Equipment</Option>
-                    <Option value="Other">Other</Option>
+                    {ASSET_CATEGORIES.map((c) => <Option key={c} value={c}>{c}</Option>)}
                   </Select>
                 </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
                 <Form.Item
                   name="current_location"
                   label="Location"
                   rules={[{ required: true, message: "Please enter location" }]}
                 >
-                  <Input placeholder="Enter location" />
+                  <Input placeholder="e.g. Head office, 2nd floor" />
                 </Form.Item>
-              </div>
-              <div style={{ display: currentStep === 1 ? "block" : "none" }}>
+              </Col>
+            </Row>
+          </div>
+          <div style={{ display: currentStep === 1 ? "block" : "none" }}>
+            <Row gutter={16}>
+              <Col xs={24} md={12}>
                 <Form.Item
                   name="purchase_date"
                   label="Purchase Date"
@@ -682,13 +733,8 @@ const AssetRegisterPage = () => {
                 >
                   <DatePicker style={{ width: "100%" }} />
                 </Form.Item>
-                <Form.Item
-                  name="purchase_cost"
-                  label="Purchase Cost"
-                  rules={[{ required: true, message: "Please enter purchase cost" }]}
-                >
-                  <Input type="number" placeholder="Enter purchase cost" />
-                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
                 <Form.Item
                   name="currency"
                   label="Currency"
@@ -701,13 +747,26 @@ const AssetRegisterPage = () => {
                     <Option value="GBP">GBP</Option>
                   </Select>
                 </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  name="purchase_cost"
+                  label="Purchase Cost"
+                  rules={[{ required: true, message: "Please enter purchase cost" }]}
+                >
+                  <Input type="number" min={0} placeholder="Enter purchase cost" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
                 <Form.Item
                   name="useful_life"
                   label="Useful Life (Years)"
                   rules={[{ required: true, message: "Please enter useful life" }]}
                 >
-                  <Input type="number" placeholder="Enter useful life in years" />
+                  <Input type="number" min={1} placeholder="e.g. 5" />
                 </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
                 <Form.Item
                   name="depreciation_method"
                   label="Depreciation Method"
@@ -719,8 +778,12 @@ const AssetRegisterPage = () => {
                     <Option value="units_of_production">Units of Production</Option>
                   </Select>
                 </Form.Item>
-              </div>
-              <div style={{ display: currentStep === 2 ? "block" : "none" }}>
+              </Col>
+            </Row>
+          </div>
+          <div style={{ display: currentStep === 2 ? "block" : "none" }}>
+            <Row gutter={16}>
+              <Col xs={24} md={12}>
                 <Form.Item
                   name="condition"
                   label="Condition"
@@ -733,35 +796,42 @@ const AssetRegisterPage = () => {
                     <Option value="Poor">Poor</Option>
                   </Select>
                 </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
                 <Form.Item name="warranty_expiry" label="Warranty Expiry">
                   <DatePicker style={{ width: "100%" }} />
                 </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
                 <Form.Item name="serial_number" label="Serial Number">
                   <Input placeholder="Enter serial number" />
                 </Form.Item>
+              </Col>
+              <Col xs={24}>
                 <Form.Item name="notes" label="Notes">
                   <Input.TextArea rows={4} placeholder="Enter additional notes" />
                 </Form.Item>
-              </div>
-            </Form>
-            <div style={{ marginTop: 24, textAlign: "right" }}>
-              {currentStep > 0 && (
-                <Button style={{ marginRight: 8 }} onClick={() => setCurrentStep(currentStep - 1)}>
-                  Previous
-                </Button>
-              )}
-              {currentStep < 2 ? (
-                <Button type="primary" onClick={() => setCurrentStep(currentStep + 1)}>
-                  Next
-                </Button>
-              ) : (
-                <Button type="primary" onClick={handleModalSubmit}>
-                  Create Asset
-                </Button>
-              )}
-            </div>
-          </>
-        ) : (
+              </Col>
+            </Row>
+          </div>
+        </Form>
+      </StepperModal>
+
+      <Modal
+        title={modalType.charAt(0).toUpperCase() + modalType.slice(1) + " Asset"}
+        open={modalVisible && modalType !== "create"}
+        onOk={handleModalSubmit}
+        onCancel={closeModal}
+        destroyOnClose
+        confirmLoading={
+          assignMutation.isLoading ||
+          transferMutation.isLoading ||
+          retireMutation.isLoading ||
+          disposeMutation.isLoading ||
+          revalueMutation.isLoading
+        }
+        width={600}
+      >
           <Form form={form} layout="vertical">
             {modalType === "assign" && (
             <>
@@ -853,7 +923,6 @@ const AssetRegisterPage = () => {
             </>
           )}
         </Form>
-        )}
       </Modal>
     </div>
   );
