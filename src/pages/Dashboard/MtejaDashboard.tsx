@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Tabs, Space, Badge } from "antd";
 import {
@@ -77,13 +77,14 @@ const fetchRecentLeads = async (params: { shop_id?: string; limit?: number; star
 
 const MtejaDashboard: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
 
   // Layout & Shop detection
   const storedShopId = getStoredShopId();
-  const isAdminLayout = !storedShopId;
-  const [selectedShopId, setSelectedShopId] = useState<string>(storedShopId);
+  const isAdminLayout = location.pathname.startsWith("/admin") || !storedShopId;
+  const [selectedShopId, setSelectedShopId] = useState<string>("");
 
   // Period filter state
   const [periodFilter, setPeriodFilter] = useState<string>("month");
@@ -102,10 +103,11 @@ const MtejaDashboard: React.FC = () => {
     queryKey: ["mteja-shops"],
     queryFn: fetchShops,
     enabled: isAdminLayout,
+    staleTime: 60_000,
   });
   const shops: any[] = Array.isArray(shopsData) ? shopsData : shopsData?.shops || [];
 
-  const shopId = selectedShopId || (shops.length > 0 ? shops[0]._id : "");
+  const shopId = isAdminLayout ? selectedShopId : storedShopId;
 
   // Date Range calculation
   const { start_date, end_date, dateRangeLabel } = useMemo(() => {
@@ -146,15 +148,14 @@ const MtejaDashboard: React.FC = () => {
   // Main Queries
   const { data: conversationsData, isLoading: convLoading, isRefetching: convRefetching } = useQuery({
     queryKey: ["mteja-conversations", shopId, start_date, end_date],
-    queryFn: () => fetchConversations({ shop_id: shopId, start_date, end_date, limit: 30 }),
-    enabled: !!shopId,
+    queryFn: () => fetchConversations({ shop_id: shopId || undefined, start_date, end_date, limit: 30 }),
     refetchInterval: 30_000,
   });
 
   const { data: channelsData } = useQuery({
     queryKey: ["mteja-channels", shopId],
-    queryFn: () => fetchWhatsappChannels(shopId),
-    enabled: !!shopId,
+    queryFn: () => fetchWhatsappChannels(shopId || undefined),
+    staleTime: 60_000,
   });
 
   const { data: recentCustomersData, isLoading: custLoading } = useQuery({
@@ -165,8 +166,7 @@ const MtejaDashboard: React.FC = () => {
 
   const { data: statsData, isLoading: statsLoading } = useQuery({
     queryKey: ["mteja-stats", shopId, start_date, end_date],
-    queryFn: () => fetchMtejaStats({ shop_id: shopId, start_date, end_date }),
-    enabled: !!shopId,
+    queryFn: () => fetchMtejaStats({ shop_id: shopId || undefined, start_date, end_date }),
     staleTime: 30_000,
   });
 
@@ -188,17 +188,19 @@ const MtejaDashboard: React.FC = () => {
     staleTime: 30_000,
   });
 
+  const campaignShopId = shopId || (shops.length > 0 ? shops[0]._id : "");
+
   const { data: smsAnalytics, isLoading: smsLoading } = useQuery({
-    queryKey: ["mteja-msg-analytics", shopId, "sms", start_date, end_date],
-    queryFn: () => fetchCampaignAnalytics({ shop_id: shopId, channel: "sms", start_date, end_date }),
-    enabled: !!shopId,
+    queryKey: ["mteja-msg-analytics", campaignShopId, "sms", start_date, end_date],
+    queryFn: () => fetchCampaignAnalytics({ shop_id: campaignShopId, channel: "sms", start_date, end_date }),
+    enabled: !!campaignShopId,
     staleTime: 30_000,
   });
 
   const { data: emailAnalytics, isLoading: emailLoading } = useQuery({
-    queryKey: ["mteja-msg-analytics", shopId, "email", start_date, end_date],
-    queryFn: () => fetchCampaignAnalytics({ shop_id: shopId, channel: "email", start_date, end_date }),
-    enabled: !!shopId,
+    queryKey: ["mteja-msg-analytics", campaignShopId, "email", start_date, end_date],
+    queryFn: () => fetchCampaignAnalytics({ shop_id: campaignShopId, channel: "email", start_date, end_date }),
+    enabled: !!campaignShopId,
     staleTime: 30_000,
   });
 

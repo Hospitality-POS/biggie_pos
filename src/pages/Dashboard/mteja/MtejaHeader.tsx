@@ -5,6 +5,7 @@ import {
   CalendarOutlined,
   ReloadOutlined,
   FilterOutlined,
+  ShopOutlined,
 } from "@ant-design/icons";
 import { CUSTOM_RANGE_PRESETS } from "src/utils/dateRangePresets";
 import { PERIOD_LABELS, C } from "./constants";
@@ -47,6 +48,15 @@ export const MtejaHeader: React.FC<MtejaHeaderProps> = ({
 }) => {
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
 
+  const branchOptions = [
+    { label: "All Branches & Outlets", value: "" },
+    ...shops.map((s: any) => ({ label: s.name, value: s._id })),
+  ];
+
+  const selectedShopName = selectedShopId
+    ? shops.find((s: any) => s._id === selectedShopId)?.name || "Selected Branch"
+    : "All Branches & Outlets";
+
   return (
     <>
       {/* ── Mobile Filter Drawer ── */}
@@ -59,10 +69,10 @@ export const MtejaHeader: React.FC<MtejaHeaderProps> = ({
         styles={{ body: { paddingBottom: 32 } }}
       >
         <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-          {isAdminLayout && shops.length > 0 && (
+          {isAdminLayout && (
             <div>
               <Text style={{ fontSize: 12, color: C.subtext, display: "block", marginBottom: 6 }}>
-                Branch
+                Branch / Outlet
               </Text>
               <Select
                 value={selectedShopId}
@@ -70,7 +80,13 @@ export const MtejaHeader: React.FC<MtejaHeaderProps> = ({
                   onShopChange(val);
                   setFilterDrawerOpen(false);
                 }}
-                options={shops.map((s: any) => ({ label: s.name, value: s._id }))}
+                showSearch
+                placeholder="Branch / Outlet"
+                suffixIcon={<ShopOutlined style={{ color: C.primary }} />}
+                options={branchOptions}
+                filterOption={(input, opt) =>
+                  String(opt?.label ?? "").toLowerCase().includes(input.toLowerCase())
+                }
                 style={{ width: "100%" }}
               />
             </div>
@@ -145,7 +161,7 @@ export const MtejaHeader: React.FC<MtejaHeaderProps> = ({
               Mteja CRM Dashboard
             </Title>
             <Text style={{ fontSize: 12, color: C.subtext }}>
-              {dateRangeLabel} · Customer Engagement & Omnichannel Leads
+              {dateRangeLabel} · {isAdminLayout ? selectedShopName : "Customer Engagement & Omnichannel Leads"}
             </Text>
           </div>
         </Space>
@@ -169,14 +185,19 @@ export const MtejaHeader: React.FC<MtejaHeaderProps> = ({
             </>
           ) : (
             <>
-              {isAdminLayout && shops.length > 0 && (
+              {isAdminLayout && (
                 <Select
                   value={selectedShopId}
                   onChange={onShopChange}
-                  options={shops.map((s: any) => ({ label: s.name, value: s._id }))}
-                  style={{ width: 160 }}
+                  showSearch
+                  placeholder="Branch / Outlet"
+                  suffixIcon={<ShopOutlined style={{ color: C.primary }} />}
+                  options={branchOptions}
+                  filterOption={(input, opt) =>
+                    String(opt?.label ?? "").toLowerCase().includes(input.toLowerCase())
+                  }
+                  style={{ minWidth: 175 }}
                   size="small"
-                  placeholder="Select branch"
                 />
               )}
               <div
