@@ -95,10 +95,7 @@ const MtejaDashboard: React.FC = () => {
   const [statusMixMode, setStatusMixMode] = useState<"status" | "channel">("status");
 
   // Dala real estate enablement
-  const [hasDala, setHasDala] = useState<boolean>(false);
-  useEffect(() => {
-    isDalaEnabled().then(setHasDala).catch(() => setHasDala(false));
-  }, []);
+  const hasDala = useMemo(() => isDalaEnabled(), []);
 
   // Fetch shops
   const { data: shopsData } = useQuery({
