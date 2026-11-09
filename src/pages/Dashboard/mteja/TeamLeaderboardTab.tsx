@@ -29,6 +29,7 @@ export interface TeamLeaderboardTabProps {
   leaderboard: any[];
   leadOwners: any[];
   isMobile: boolean;
+  isAdminLayout?: boolean;
   navTo: (path: string) => void;
 }
 
@@ -40,6 +41,7 @@ export const TeamLeaderboardTab: React.FC<TeamLeaderboardTabProps> = ({
   leaderboard,
   leadOwners,
   isMobile,
+  isAdminLayout = false,
   navTo,
 }) => {
   const [leaderMetric, setLeaderMetric] = useState<"won_value" | "won" | "target_pct">("won_value");
@@ -93,6 +95,13 @@ export const TeamLeaderboardTab: React.FC<TeamLeaderboardTabProps> = ({
                   </Tag>
                 )}
               </Space>
+            }
+            extra={
+              !isAdminLayout ? (
+                <Button type="link" size="small" onClick={() => navTo("/crm/sales-targets")} style={{ fontSize: 12 }}>
+                  {isMobile ? "All →" : "All Targets →"}
+                </Button>
+              ) : undefined
             }
             bodyStyle={{ padding: isMobile ? "10px 10px" : "14px 16px" }}
           >

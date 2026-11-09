@@ -56,6 +56,7 @@ export interface OmnichannelTabProps {
   onStatusMixModeChange: (mode: "status" | "channel") => void;
   convLoading: boolean;
   isMobile: boolean;
+  isAdminLayout?: boolean;
   navTo: (path: string) => void;
 }
 
@@ -77,6 +78,7 @@ export const OmnichannelTab: React.FC<OmnichannelTabProps> = ({
   onStatusMixModeChange,
   convLoading,
   isMobile,
+  isAdminLayout = false,
   navTo,
 }) => {
   const channelTiles = [
@@ -177,6 +179,13 @@ export const OmnichannelTab: React.FC<OmnichannelTabProps> = ({
                   </Tag>
                 )}
               </Space>
+            }
+            extra={
+              !isAdminLayout && !isMobile ? (
+                <Button type="link" size="small" onClick={() => navTo("/omnichannel")} style={{ fontSize: 12 }}>
+                  Open Messaging →
+                </Button>
+              ) : undefined
             }
             bodyStyle={{ padding: isMobile ? "10px 8px" : "14px 16px" }}
           >

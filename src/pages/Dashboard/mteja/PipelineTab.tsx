@@ -46,6 +46,7 @@ export interface PipelineTabProps {
   recentLeads: any[];
   stageColorMap: Record<string, string>;
   isMobile: boolean;
+  isAdminLayout?: boolean;
   navTo: (path: string) => void;
 }
 
@@ -64,6 +65,7 @@ export const PipelineTab: React.FC<PipelineTabProps> = ({
   recentLeads,
   stageColorMap,
   isMobile,
+  isAdminLayout = false,
   navTo,
 }) => {
   const [pipelineMetric, setPipelineMetric] = useState<"count" | "value">("count");
@@ -126,12 +128,14 @@ export const PipelineTab: React.FC<PipelineTabProps> = ({
           .map((x, i) => (
             <div
               key={i}
-              onClick={() => navTo(x.to)}
+              onClick={() => {
+                if (!isAdminLayout) navTo(x.to);
+              }}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 6,
-                cursor: "pointer",
+                cursor: !isAdminLayout ? "pointer" : "default",
                 background: x.bg,
                 color: x.color,
                 borderRadius: 20,
@@ -182,15 +186,22 @@ export const PipelineTab: React.FC<PipelineTabProps> = ({
               </Space>
             }
             extra={
-              <Segmented
-                size="small"
-                value={pipelineMetric}
-                onChange={(val) => setPipelineMetric(val as "count" | "value")}
-                options={[
-                  { label: isMobile ? "Count" : "Leads Count", value: "count", icon: isMobile ? undefined : <TeamOutlined /> },
-                  { label: isMobile ? "Value" : "Deal Value", value: "value", icon: isMobile ? undefined : <DollarOutlined /> },
-                ]}
-              />
+              <Space size={4}>
+                <Segmented
+                  size="small"
+                  value={pipelineMetric}
+                  onChange={(val) => setPipelineMetric(val as "count" | "value")}
+                  options={[
+                    { label: isMobile ? "Count" : "Leads Count", value: "count", icon: isMobile ? undefined : <TeamOutlined /> },
+                    { label: isMobile ? "Value" : "Deal Value", value: "value", icon: isMobile ? undefined : <DollarOutlined /> },
+                  ]}
+                />
+                {!isAdminLayout && !isMobile && (
+                  <Button type="link" size="small" onClick={() => navTo("/crm/leads")} style={{ fontSize: 12 }}>
+                    All Leads →
+                  </Button>
+                )}
+              </Space>
             }
             bodyStyle={{ padding: isMobile ? "10px 6px 6px" : "16px 14px 10px" }}
           >
@@ -386,6 +397,18 @@ export const PipelineTab: React.FC<PipelineTabProps> = ({
               {recentLeads.length} Recent
             </Tag>
           </Space>
+        }
+        extra={
+          !isAdminLayout ? (
+            <Button
+              type="link"
+              size="small"
+              onClick={() => navTo("/crm/leads")}
+              style={{ fontSize: 12 }}
+            >
+              View all leads ({totalLeads}) →
+            </Button>
+          ) : undefined
         }
         bodyStyle={{ padding: isMobile ? "10px 8px" : "14px 16px" }}
       >

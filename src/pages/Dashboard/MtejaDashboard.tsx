@@ -455,6 +455,7 @@ const MtejaDashboard: React.FC = () => {
                   recentLeads={recentLeads}
                   stageColorMap={stageColorMap}
                   isMobile={isMobile}
+                  isAdminLayout={isAdminLayout}
                   navTo={navigate}
                 />
               ),
@@ -476,6 +477,7 @@ const MtejaDashboard: React.FC = () => {
                   leaderboard={leaderboard}
                   leadOwners={leadOwners}
                   isMobile={isMobile}
+                  isAdminLayout={isAdminLayout}
                   navTo={navigate}
                 />
               ),
@@ -507,6 +509,7 @@ const MtejaDashboard: React.FC = () => {
                   onStatusMixModeChange={setStatusMixMode}
                   convLoading={convLoading}
                   isMobile={isMobile}
+                  isAdminLayout={isAdminLayout}
                   navTo={navigate}
                 />
               ),
@@ -531,6 +534,7 @@ const MtejaDashboard: React.FC = () => {
                   hasChatChannel={hasChatChannel}
                   dateRangeLabel={dateRangeLabel}
                   isMobile={isMobile}
+                  isAdminLayout={isAdminLayout}
                   navTo={navigate}
                 />
               ),
