@@ -204,7 +204,7 @@ export const useDalaPropertyTypes = () => {
 
 export const useDalaDashboard = () => {
   const { data: dashboard, refetch } = useDalaDashboardQuery();
-  return { data: dashboard, setDashboard: () => refetch() };
+  return { data: dashboard, setDashboard: (_data?: any) => { refetch(); } };
 };
 
 export const useDalaSelectedProperty = () => {
