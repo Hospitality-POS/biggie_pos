@@ -178,13 +178,6 @@ export const OmnichannelTab: React.FC<OmnichannelTabProps> = ({
                 )}
               </Space>
             }
-            extra={
-              !isMobile && (
-                <Button type="link" size="small" onClick={() => navTo("/omnichannel")} style={{ fontSize: 12 }}>
-                  Open Messaging →
-                </Button>
-              )
-            }
             bodyStyle={{ padding: isMobile ? "10px 8px" : "14px 16px" }}
           >
             {messagingLoading ? (

@@ -94,11 +94,6 @@ export const TeamLeaderboardTab: React.FC<TeamLeaderboardTabProps> = ({
                 )}
               </Space>
             }
-            extra={
-              <Button type="link" size="small" onClick={() => navTo("/crm/sales-targets")} style={{ fontSize: 12 }}>
-                {isMobile ? "All →" : "All Targets →"}
-              </Button>
-            }
             bodyStyle={{ padding: isMobile ? "10px 10px" : "14px 16px" }}
           >
             {targetsLoading ? (

@@ -182,22 +182,15 @@ export const PipelineTab: React.FC<PipelineTabProps> = ({
               </Space>
             }
             extra={
-              <Space size={4}>
-                <Segmented
-                  size="small"
-                  value={pipelineMetric}
-                  onChange={(val) => setPipelineMetric(val as "count" | "value")}
-                  options={[
-                    { label: isMobile ? "Count" : "Leads Count", value: "count", icon: isMobile ? undefined : <TeamOutlined /> },
-                    { label: isMobile ? "Value" : "Deal Value", value: "value", icon: isMobile ? undefined : <DollarOutlined /> },
-                  ]}
-                />
-                {!isMobile && (
-                  <Button type="link" size="small" onClick={() => navTo("/crm/leads")} style={{ fontSize: 12 }}>
-                    All Leads →
-                  </Button>
-                )}
-              </Space>
+              <Segmented
+                size="small"
+                value={pipelineMetric}
+                onChange={(val) => setPipelineMetric(val as "count" | "value")}
+                options={[
+                  { label: isMobile ? "Count" : "Leads Count", value: "count", icon: isMobile ? undefined : <TeamOutlined /> },
+                  { label: isMobile ? "Value" : "Deal Value", value: "value", icon: isMobile ? undefined : <DollarOutlined /> },
+                ]}
+              />
             }
             bodyStyle={{ padding: isMobile ? "10px 6px 6px" : "16px 14px 10px" }}
           >
@@ -393,16 +386,6 @@ export const PipelineTab: React.FC<PipelineTabProps> = ({
               {recentLeads.length} Recent
             </Tag>
           </Space>
-        }
-        extra={
-          <Button
-            type="link"
-            size="small"
-            onClick={() => navTo("/crm/leads")}
-            style={{ fontSize: 12 }}
-          >
-            View all leads ({totalLeads}) →
-          </Button>
         }
         bodyStyle={{ padding: isMobile ? "10px 8px" : "14px 16px" }}
       >

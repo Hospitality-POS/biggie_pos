@@ -1,12 +1,7 @@
 import React, { useState } from "react";
-import { Typography, Space, Button, Badge, Segmented, Empty, Tabs } from "antd";
+import { Typography, Space, Badge, Segmented, Empty, Tabs } from "antd";
 import { ProCard } from "@ant-design/pro-components";
-import {
-  TeamOutlined,
-  MessageOutlined,
-  CalendarOutlined,
-  ArrowRightOutlined,
-} from "@ant-design/icons";
+import { TeamOutlined, MessageOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { C, CH_COLORS, ST_COLORS } from "./constants";
 import { HubRow, Pill } from "./SharedUI";
@@ -133,16 +128,6 @@ export const CustomersHubTab: React.FC<CustomersHubTabProps> = ({
                     })}
                   </div>
                 )}
-                <Button
-                  block
-                  type="dashed"
-                  size="small"
-                  icon={<ArrowRightOutlined />}
-                  onClick={() => navTo("/customers")}
-                  style={{ marginTop: 12, borderRadius: 8, color: C.subtext }}
-                >
-                  View all customers ({customerList.length})
-                </Button>
               </div>
             ),
           },
@@ -201,16 +186,6 @@ export const CustomersHubTab: React.FC<CustomersHubTabProps> = ({
                           })}
                         </div>
                       )}
-                      <Button
-                        block
-                        type="dashed"
-                        size="small"
-                        icon={<ArrowRightOutlined />}
-                        onClick={() => navTo("/omnichannel")}
-                        style={{ marginTop: 12, borderRadius: 8, color: C.subtext }}
-                      >
-                        Open Omnichannel Inbox
-                      </Button>
                     </div>
                   ),
                 },
