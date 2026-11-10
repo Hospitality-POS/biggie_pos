@@ -403,16 +403,13 @@ export const useProLayoutNav = () => {
     { path: p("/pos/dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/pos/dashboard" },
     { path: p("/tables"), name: homeRouteName, icon: homeRouteIcon, _bare: "/tables" },
     { path: p("/orders"), name: "Orders", icon: <CalculatorFilled />, _bare: "/orders" },
-    ...(posMode !== "retail"
-      ? [
-          {
-            path: p("/store"),
-            name: isHospitalMode ? "Services" : "Services",
-            icon: isHospitalMode ? <ExperimentOutlined /> : <FolderFilled />,
-            _bare: "/store",
-          },
-        ]
-      : []),
+    // Shown in every mode, retail included
+    {
+      path: p("/store"),
+      name: "Services",
+      icon: isHospitalMode ? <ExperimentOutlined /> : <FolderFilled />,
+      _bare: "/store",
+    },
     { ...inventoryRoute },
     { path: p("/employee-shift"), name: "Crew", icon: <UsergroupAddOutlined />, _bare: "/employee-shift" },
     { path: p("/customers"), name: getCustomerLabel(), icon: <UserOutlined />, _bare: "/customers" },
