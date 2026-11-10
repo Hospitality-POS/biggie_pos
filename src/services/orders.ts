@@ -506,3 +506,34 @@ export const getTopEarners = async (params: TopEarnersParams = {}): Promise<{ to
     throw error;
   }
 };
+// ── Manual inventory deduction on a placed order ─────────────────────────────
+// Same rows as the cart drawer's "Deduct Inventory" (shop setting
+// cart_inventory_deduction_enabled), but applied to stock straight away.
+
+export interface OrderItemDeduction {
+  inventory_id: string;
+  inventory_name?: string;
+  variant_id?: string | null;
+  variant_name?: string | null;
+  quantity: number;
+  deducted_at?: string;
+  deducted_by_name?: string;
+}
+
+export const deductOrderItemInventory = async (
+  orderItemId: string,
+  deductions: Pick<OrderItemDeduction, "inventory_id" | "variant_id" | "quantity">[]
+) => {
+  try {
+    const response = await axiosInstance.post(
+      `${BASE_URL}/orders/items/${orderItemId}/deduct-inventory`,
+      { deductions },
+      { skipErrorToast: true } as any
+    );
+    message.success(response.data?.message || "Inventory deducted");
+    return response.data as { inventory_deductions: OrderItemDeduction[] };
+  } catch (error: any) {
+    message.error(error?.response?.data?.message || "Failed to deduct inventory");
+    throw error;
+  }
+};

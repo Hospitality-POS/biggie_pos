@@ -379,6 +379,10 @@ axiosInstance.interceptors.response.use(
         }
 
         const { response } = error;
+        // The caller shows this error itself (e.g. on a form field)
+        if (response && error.config?.skipErrorToast && response.status !== 401) {
+            return Promise.reject(error);
+        }
         if (response) {
             switch (response.status) {
                 case 401: {

@@ -82,11 +82,16 @@ export const fetchAdminAllCustomers = async (data: ParamsType = {}) => {
 };
 
 // Add customer
-export const addNewCustomer = async (params: ParamsType) => {
+/**
+ * With `silent`, no toast is shown and the axios error is rethrown as-is, so
+ * a form can put the API's message on the field it names (`data.field`).
+ */
+export const addNewCustomer = async (params: ParamsType, opts: { silent?: boolean } = {}) => {
   try {
-    const response = await axiosInstance.post(categ_url, params);
+    const response = await axiosInstance.post(categ_url, params, opts.silent ? { skipErrorToast: true } as any : undefined);
     return response;
   } catch (error: any) {
+    if (opts.silent) throw error;
     const errorMessage =
       error?.response?.data?.message || error?.message || "Failed to add customer";
 
@@ -112,14 +117,16 @@ export const deleteCustomer = async (customerId: string) => {
 };
 
 // Update customer
-export const updateCustomer = async (customerId: string, params: ParamsType) => {
+export const updateCustomer = async (customerId: string, params: ParamsType, opts: { silent?: boolean } = {}) => {
   try {
     const response = await axiosInstance.put(
       `${categ_url}/${customerId}`,
-      params
+      params,
+      opts.silent ? { skipErrorToast: true } as any : undefined
     );
     return response;
   } catch (error: any) {
+    if (opts.silent) throw error;
     const errorMessage =
       error?.response?.data?.message || error?.message || "Failed to update customer";
     message.error(errorMessage);

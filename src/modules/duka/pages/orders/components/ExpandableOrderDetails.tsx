@@ -6,12 +6,15 @@ import {
 } from "antd";
 import {
   CloseOutlined, DeleteOutlined, DollarOutlined,
-  EditOutlined, RedoOutlined, SaveOutlined,
+  EditOutlined, InboxOutlined, RedoOutlined, SaveOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
+import { useQuery } from "@tanstack/react-query";
 import axiosInstance from "@services/request";
 import { BASE_URL } from "@utils/config";
-import { repostOrderPayment } from "@services/orders";
+import { repostOrderPayment, OrderItemDeduction } from "@services/orders";
+import { fetchShop } from "@services/shops";
+import OrderItemDeductionModal from "./OrderItemDeductionModal";
 import { THEME_C } from "@utils/getPrimaryColor";
 
 const { Text } = Typography;
@@ -69,7 +72,25 @@ interface OrderItem {
   category_id: CategoryReference; price: number; quantity: number;
   vat_amount: number; is_subscription_item: boolean;
   createdAt: string; updatedAt: string;
+  /** Stock deducted by hand after the order was placed */
+  inventory_deductions?: OrderItemDeduction[];
 }
+
+const itemNameOf = (item: OrderItem) =>
+  item.product_type === "Miscellaneous"
+    ? item.miscellaneous_name || item.product_id?.name || "Custom Item"
+    : item.product_id?.name || "Item";
+
+// "Stock deducted" marker with what was deducted by hand
+const DeductedTag: React.FC<{ item: OrderItem }> = ({ item }) => {
+  const d = item.inventory_deductions || [];
+  if (!d.length) return null;
+  return (
+    <Tooltip title={d.map((x) => `${x.inventory_name}${x.variant_name ? ` — ${x.variant_name}` : ""}: ${x.quantity}`).join(" · ")}>
+      <span style={{ ...pill("#eff6ff", C.blue, "#bfdbfe"), marginLeft: 6 }}>Stock deducted · {d.length}</span>
+    </Tooltip>
+  );
+};
 interface OrderPayment { _id: string; name: string; amount: number; payment_status: string }
 interface UserReference { _id: string; username: string }
 interface VATDetail { rate: number; amount: number; net: number }
@@ -114,7 +135,9 @@ const MobileItemCard: React.FC<{
   onSave: () => void;
   onCancel: () => void;
   onDelete: (id: string) => void;
-}> = ({ item, isEditing, loading, deletingItemId, form, onEdit, onSave, onCancel, onDelete }) => {
+  /** Set when manual inventory deduction is on for the shop */
+  onDeduct?: (item: OrderItem) => void;
+}> = ({ item, isEditing, loading, deletingItemId, form, onEdit, onSave, onCancel, onDelete, onDeduct }) => {
   const getItemName = () => {
     if (item.product_type === "Miscellaneous") {
       return item.miscellaneous_name || item.product_id?.name || "Custom Item";
@@ -134,6 +157,7 @@ const MobileItemCard: React.FC<{
         {getItemName()}
       </Text>
       <ItemTypeTag isSubscription={item.is_subscription_item} isMiscellaneous={isMiscellaneous} />
+      <DeductedTag item={item} />
     </div>
     <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
       <MetaRow label="Category">
@@ -188,6 +212,12 @@ const MobileItemCard: React.FC<{
             style={{ borderRadius: 6, flex: 1, fontSize: 11 }}>
             Edit
           </Button>
+          {onDeduct && (
+            <Button size="small" icon={<InboxOutlined />} onClick={() => onDeduct(item)}
+              style={{ borderRadius: 6, flex: 1, fontSize: 11 }}>
+              Stock
+            </Button>
+          )}
           <Popconfirm
             title="Delete this item?"
             description="This will remove the item and recalculate totals."
@@ -232,6 +262,30 @@ const ExpandedRowContent = ({
   const [repostingPayment, setRepostingPayment] = useState(false);
   const [form] = Form.useForm();
   const [orderTimestampForm] = Form.useForm();
+
+  // Manual inventory deduction — same shop switch as the cart drawer's
+  const shopId = localStorage.getItem("shopId");
+  const { data: shopData } = useQuery({
+    queryKey: ["shop", shopId],
+    queryFn: () => fetchShop(shopId as string),
+    enabled: !!shopId && shopId !== "undefined",
+  });
+  const deductionEnabled = !!shopData?.cart_inventory_deduction_enabled;
+  const [deductItem, setDeductItem] = useState<OrderItem | null>(null);
+  const deductModal = (
+    <OrderItemDeductionModal
+      open={!!deductItem}
+      onClose={() => setDeductItem(null)}
+      orderNo={order_no}
+      item={deductItem ? {
+        _id: deductItem._id,
+        name: itemNameOf(deductItem),
+        quantity: deductItem.quantity,
+        inventory_deductions: deductItem.inventory_deductions,
+      } : null}
+      onDone={() => onRefresh?.()}
+    />
+  );
 
   const formattedCreatedAt = new Date(createdAt).toLocaleString();
   const hasPayments = order_payments?.length > 0;
@@ -383,7 +437,12 @@ const ExpandedRowContent = ({
         const itemName = item.product_type === "Miscellaneous"
           ? item.miscellaneous_name || item.product_id?.name || "Custom Item"
           : item.product_id?.name || "Item";
-        return <Text strong style={{ fontSize: 12 }}>{itemName}</Text>;
+        return (
+          <>
+            <Text strong style={{ fontSize: 12 }}>{itemName}</Text>
+            <DeductedTag item={item} />
+          </>
+        );
       },
     },
     {
@@ -434,7 +493,7 @@ const ExpandedRowContent = ({
         ) : <Text style={{ fontSize: 12, color: C.subText }}>{dayjs(date).format("MMM DD, YYYY HH:mm")}</Text>,
     },
     {
-      title: "Actions", key: "actions", align: "center" as const, width: 140,
+      title: "Actions", key: "actions", align: "center" as const, width: deductionEnabled ? 210 : 140,
       render: (_: any, item: OrderItem) =>
         editingItem?.itemId === item._id ? (
           <div style={{ display: "flex", gap: 4 }}>
@@ -447,6 +506,12 @@ const ExpandedRowContent = ({
           <div style={{ display: "flex", gap: 4 }}>
             <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(item)}
               style={{ padding: "0 4px", color: C.subText }}>Edit</Button>
+            {deductionEnabled && (
+              <Tooltip title="Deduct inventory for this item">
+                <Button type="link" size="small" icon={<InboxOutlined />} onClick={() => setDeductItem(item)}
+                  style={{ padding: "0 4px", color: C.primary }}>Stock</Button>
+              </Tooltip>
+            )}
             <Popconfirm
               title="Delete this item?"
               description="This will remove the item and recalculate totals."
@@ -621,6 +686,7 @@ const ExpandedRowContent = ({
 
     return (
       <div style={{ padding: "8px 0" }}>
+        {deductModal}
         <MissingPaymentAlert />
 
         {card(
@@ -691,6 +757,7 @@ const ExpandedRowContent = ({
                   loading={loading} deletingItemId={deletingItemId} form={form}
                   onEdit={handleEdit} onSave={handleSave} onCancel={handleCancel}
                   onDelete={handleDeleteItem}
+                  onDeduct={deductionEnabled ? setDeductItem : undefined}
                 />
               ))}
             </Form>
@@ -714,6 +781,7 @@ const ExpandedRowContent = ({
   // ── DESKTOP layout ────────────────────────────────────────────────────────
   return (
     <div style={{ padding: 16, background: C.bg }}>
+      {deductModal}
       <MissingPaymentAlert />
 
       {order_items.length > 0 && (

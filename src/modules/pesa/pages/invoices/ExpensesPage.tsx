@@ -449,6 +449,8 @@ function ExpensesPage() {
             render: (_: any, row: Expense) => {
                 const lines = row.expense_lines || [];
                 const desc = lines[0]?.description || row.notes;
+                const day = (d?: string | null) => dayjs(d || row.expense_date).format("DD MMM YYYY");
+                const dates = new Set(lines.map((l) => day(l.date)));
                 return (
                     <Space size={4} style={{ maxWidth: "100%" }}>
                         {desc
@@ -457,6 +459,13 @@ function ExpensesPage() {
                         {lines.length > 1 && (
                             <Tooltip title={lines.map((l) => l.description).filter(Boolean).join(" · ")}>
                                 <Tag color="blue" style={{ fontSize: 10, margin: 0 }}>Split · {lines.length}</Tag>
+                            </Tooltip>
+                        )}
+                        {dates.size > 1 && (
+                            <Tooltip
+                                title={lines.map((l) => `${day(l.date)} — ${l.description || ""} ${(l.amount + (l.vat_amount || 0)).toFixed(2)}`).join(" · ")}
+                            >
+                                <Tag color="purple" style={{ fontSize: 10, margin: 0 }}>{dates.size} dates</Tag>
                             </Tooltip>
                         )}
                     </Space>

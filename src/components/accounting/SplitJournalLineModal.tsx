@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { Select, Typography, message } from "antd";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import dayjs from "dayjs";
 import {
     getJournalEntryById,
     updateJournalEntry,
+    splitJournalLine,
     JournalLine,
 } from "@services/accounting/journals";
 import { getAllAccounts, ChartOfAccount } from "@services/accounting/accounts";
@@ -14,6 +16,9 @@ const { Text } = Typography;
 // Splits one line of a saved journal entry across several accounts on the
 // same side and saves the entry, so it stays balanced. Ledger only — a source
 // document (invoice, bill, bank transaction) isn't changed.
+//
+// Rows can carry other dates: the server then moves them to a new entry per
+// date, each taking a pro-rata share of the other lines so it balances.
 
 interface Props {
     /** The entry to split a line of; the modal is open while this is set. */
@@ -87,11 +92,27 @@ const SplitJournalLineModal: React.FC<Props> = ({ entryId, lineIndex, accountId,
     }, [open, entry?._id]);
 
     const line = entry && index !== null ? entry.lines[index] || null : null;
+    const entryDay = entry ? dayjs(entry.entry_date).format("YYYY-MM-DD") : undefined;
 
     const splitMutation = useMutation({
-        mutationFn: (rows: SplitRow[]) => {
+        mutationFn: (rows: SplitRow[]): Promise<unknown> => {
             const e = entry;
             if (!e) return Promise.reject(new Error("Entry not loaded"));
+            // Any row on another date → the server splits the entry by date
+            if (rows.some((r) => r.date && r.date !== entryDay)) {
+                const lineId = index !== null ? e.lines[index]?._id : undefined;
+                if (!lineId) return Promise.reject(new Error("Line not saved yet"));
+                return splitJournalLine(
+                    e._id,
+                    lineId,
+                    rows.map((r) => ({
+                        account_id: r.account_id,
+                        amount: r.amount,
+                        description: r.description || undefined,
+                        date: r.date || (entryDay as string),
+                    }))
+                );
+            }
             const lines = e.lines.flatMap((l, i) => {
                 const base = {
                     _id: l._id,
@@ -145,9 +166,11 @@ const SplitJournalLineModal: React.FC<Props> = ({ entryId, lineIndex, accountId,
             title={entry ? `Split ${entry.entry_no} across accounts` : "Split across accounts"}
             subtitle={
                 line
-                    ? `${(line.debit || 0) > 0 ? "Debit" : "Credit"} of ${fmtAmount(lineAmount(line))} — saved to the entry straight away`
+                    ? `${(line.debit || 0) > 0 ? "Debit" : "Credit"} of ${fmtAmount(lineAmount(line))} — saved straight away. Rows on another date become their own entry.`
                     : undefined
             }
+            withDates
+            defaultDate={entryDay}
             header={
                 splittable.length > 1 ? (
                     <div style={{ marginBottom: 4 }}>
