@@ -81,6 +81,7 @@ const ExpenseFormModal: React.FC<Props> = ({ open, onClose, onSuccess, expenseTo
                     description: l.description,
                     amount: l.amount,
                     vat_amount: l.vat_amount || 0,
+                    date: l.date ? dayjs(l.date) : undefined,
                 })),
                 notes: expenseToEdit.notes,
                 project_id: accountIdOf(expenseToEdit.project_id) || undefined,
@@ -297,6 +298,8 @@ const ExpenseFormModal: React.FC<Props> = ({ open, onClose, onSuccess, expenseTo
                 vat_amount: vatAmount,
                 vat_rate: vatAmount > 0 ? parseFloat((vatAmount / netAmount).toFixed(4)) : 0,
                 vat_inclusive: false,
+                // Empty = the expense date; another day posts as its own entry
+                date: l.date ? dayjs(l.date).format("YYYY-MM-DD") : null,
             };
         });
 
@@ -436,13 +439,14 @@ const ExpenseFormModal: React.FC<Props> = ({ open, onClose, onSuccess, expenseTo
                     <div style={show(1)}>
                         <Text type="secondary" style={{ display: "block", marginBottom: 12, fontSize: 12 }}>
                             One payment can cover several expenses — add a line per expense account (DR).
+                            Give a line its own date to post it on another day; each date gets its own journal entry.
                         </Text>
                         <Form.List name="lines">
                             {(fields, { add, remove }) => (
                                 <>
                                     {fields.map(({ key, name }) => (
                                         <Row gutter={8} key={key} align="top">
-                                            <Col span={8}>
+                                            <Col span={6}>
                                                 <Form.Item
                                                     name={[name, "account_id"]}
                                                     label={name === 0 ? "Expense Account" : undefined}
@@ -458,7 +462,7 @@ const ExpenseFormModal: React.FC<Props> = ({ open, onClose, onSuccess, expenseTo
                                                     />
                                                 </Form.Item>
                                             </Col>
-                                            <Col span={7}>
+                                            <Col span={6}>
                                                 <Form.Item
                                                     name={[name, "description"]}
                                                     label={name === 0 ? "Description" : undefined}
@@ -480,7 +484,7 @@ const ExpenseFormModal: React.FC<Props> = ({ open, onClose, onSuccess, expenseTo
                                                     />
                                                 </Form.Item>
                                             </Col>
-                                            <Col span={4}>
+                                            <Col span={3}>
                                                 <Form.Item
                                                     name={[name, "vat_amount"]}
                                                     label={name === 0 ? `VAT (${(standardVatRate * 100).toFixed(0)}%)` : undefined}
@@ -490,6 +494,18 @@ const ExpenseFormModal: React.FC<Props> = ({ open, onClose, onSuccess, expenseTo
                                                         style={{ width: "100%" }} min={0} precision={2}
                                                         placeholder="0.00" formatter={numFormatter} parser={numParser}
                                                         readOnly disabled
+                                                    />
+                                                </Form.Item>
+                                            </Col>
+                                            <Col span={4}>
+                                                <Form.Item
+                                                    name={[name, "date"]}
+                                                    label={name === 0 ? "Post On" : undefined}
+                                                    tooltip={name === 0 ? "Leave empty to post on the expense date" : undefined}
+                                                >
+                                                    <DatePicker
+                                                        style={{ width: "100%" }} format="DD MMM YYYY"
+                                                        placeholder="Expense date"
                                                     />
                                                 </Form.Item>
                                             </Col>
@@ -603,14 +619,19 @@ const ExpenseFormModal: React.FC<Props> = ({ open, onClose, onSuccess, expenseTo
                                         { title: "Account (DR)", render: (_: any, l: any) => labelOf(expenseAccountOptions, l?.account_id) || "—" },
                                         { title: "Description", dataIndex: "description" },
                                         {
+                                            title: "Posts On",
+                                            render: (_: any, l: any) =>
+                                                dayjs(l?.date || reviewValues.expense_date).format("DD MMM YYYY"),
+                                        },
+                                        {
                                             title: "Total", align: "right" as const,
                                             render: (_: any, l: any) => fmt2((Number(l?.amount) || 0) + (Number(l?.vat_amount) || 0)),
                                         },
                                     ]}
                                     summary={() => (
                                         <Table.Summary.Row>
-                                            <Table.Summary.Cell index={0} colSpan={2}><Text strong>Total expense (CR {labelOf(paymentAccountOptions, reviewValues.payment_account_id) || "Paid From"})</Text></Table.Summary.Cell>
-                                            <Table.Summary.Cell index={2} align="right">
+                                            <Table.Summary.Cell index={0} colSpan={3}><Text strong>Total expense (CR {labelOf(paymentAccountOptions, reviewValues.payment_account_id) || "Paid From"})</Text></Table.Summary.Cell>
+                                            <Table.Summary.Cell index={3} align="right">
                                                 <Text strong style={{ color: ACCENT }}>{fmt2(linesTotal)}</Text>
                                             </Table.Summary.Cell>
                                         </Table.Summary.Row>

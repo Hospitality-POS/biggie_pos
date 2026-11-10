@@ -23,6 +23,8 @@ export interface ExpenseLine {
     vat_amount?: number;
     vat_rate?: number;
     vat_inclusive?: boolean;
+    /** Set when the line posts on its own date instead of the expense date. */
+    date?: string | null;
 }
 
 export interface ExpenseAttachment {
@@ -117,6 +119,8 @@ export interface CreateExpenseLineParam {
     vat_rate?: number;
     vat_amount?: number;
     vat_inclusive?: boolean;
+    /** Posts this line on its own date; empty = the expense date. */
+    date?: string | null;
 }
 
 export interface CreateExpenseParams {
