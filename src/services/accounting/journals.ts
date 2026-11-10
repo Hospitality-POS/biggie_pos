@@ -70,6 +70,8 @@ export interface JournalEntry {
     createdAt?: string;
     updatedAt?: string;
     period_locked?: boolean;
+    /** Set on an entry split off another by date. */
+    split_from?: string | null;
 }
 
 export interface JournalEntrySummary {
@@ -250,6 +252,39 @@ export const updateJournalEntry = async (id: string, data: UpdateManualEntryPara
         } else {
             message.error("Error updating journal entry");
         }
+        throw error;
+    }
+};
+
+export interface SplitLineRow {
+    account_id: string;
+    amount: number;
+    description?: string;
+    /** YYYY-MM-DD */
+    date: string;
+}
+
+/**
+ * Split one line across accounts and dates. Rows on another date than the
+ * first row go to a new balanced entry per date, which takes a pro-rata share
+ * of the entry's other lines.
+ */
+export const splitJournalLine = async (id: string, line_id: string, rows: SplitLineRow[]) => {
+    try {
+        const response = await axiosInstance.post(
+            `${BASE_URL}/accounting/journal-entries/${id}/split-line`,
+            { line_id, rows }
+        );
+        const created = (response.data?.created || []) as JournalEntry[];
+        message.success(
+            created.length
+                ? `Line split — ${created.length} new entr${created.length === 1 ? "y" : "ies"} on other dates`
+                : "Line split"
+        );
+        return response.data as { message: string; entry: JournalEntry; created: JournalEntry[] };
+    } catch (error) {
+        const err = error as ApiError;
+        message.error(err.response?.data?.message || "Error splitting journal line");
         throw error;
     }
 };

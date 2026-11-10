@@ -45,6 +45,8 @@ import { fetchAllUnits } from "@services/products";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { addNewInventory, editInventory } from "@services/inventory";
 import { fetchShop } from "@services/shops";
+import { useQtyApprovalSetting } from "@hooks/useQtyApprovalSetting";
+import QtyChangeRequestPanel from "@components/inventory/QtyChangeRequestPanel";
 import { UploadFile } from "antd/lib/upload";
 import { ProCard } from "@ant-design/pro-components";
 import AddEditVariantModal from "./AddEditVariantModal";
@@ -677,6 +679,7 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
 }) => {
   const [form] = Form.useForm();
   const queryClient = useQueryClient();
+  const { requiresApproval: qtyNeedsApproval } = useQtyApprovalSetting();
 
   const [open, setOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
@@ -944,6 +947,32 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
     }
   }, [isOpen, edit, data, form, categoriesLoading, subCategoriesLoading, unitsLoading, categories, allSubCategories, units]);
 
+  // ── Quantity approval for variants ────────────────────────────────────────
+  // Stock as saved (not as edited here), keyed like the local variants
+  const savedVariantQty = useMemo(() => {
+    const map: Record<string, number> = {};
+    (data?.variants || []).forEach((v: any) => { map[String(v.id || v._id)] = Number(v.quantity) || 0; });
+    return map;
+  }, [data?.variants]);
+  // Saved variants still on the item — what a non-admin can request changes to
+  const savedVariantRows = useMemo(
+    () => variants
+      .filter((v) => savedVariantQty[String(v.id)] !== undefined)
+      .map((v) => ({ key: String(v.id), name: v.name, quantity: savedVariantQty[String(v.id)] })),
+    [variants, savedVariantQty]
+  );
+  const savedVariantTotal = savedVariantRows.reduce((s, v) => s + v.quantity, 0);
+
+  // Variants to send. A non-admin with approval on keeps each saved variant's
+  // stock unless they requested a change (the API holds it for approval);
+  // a new variant goes with the quantity entered, also held for approval.
+  const variantsForSave = (requested?: Record<string, number> | null) =>
+    variants.map((v) => {
+      const key = String(v.id);
+      if (!(edit && qtyNeedsApproval) || savedVariantQty[key] === undefined) return v;
+      return { ...v, quantity: requested?.[key] ?? savedVariantQty[key] };
+    });
+
   // ── Variant modal submit ──────────────────────────────────────────────────
   const handleVariantSubmit = useCallback(
     (variantData: any) => {
@@ -1014,7 +1043,11 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
         desc: values.desc,
         vat_type: values.vat_type,
         status: values.status,
-        quantity: Number(values.quantity) || 0,
+        // Non-admin with approval on: send only a requested quantity (the
+        // API holds it for approval); left out when nothing was asked for
+        quantity: edit && qtyNeedsApproval && !hasVariants
+          ? (values.requested_quantity != null ? Number(values.requested_quantity) : undefined)
+          : Number(values.quantity) || 0,
         min_viable_quantity: values.min_viable_quantity
           ? Number(values.min_viable_quantity)
           : undefined,
@@ -1031,7 +1064,7 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
           ? Number(values.reorder_quantity)
           : undefined,
         has_variants: hasVariants,
-        variants: hasVariants && variants.length > 0 ? variants : undefined,
+        variants: hasVariants && variants.length > 0 ? variantsForSave(values.requested_variant_quantities) : undefined,
         code: values.code,
       };
 
@@ -1042,14 +1075,23 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
 
       if (uploadedFile) payload.imageFile = uploadedFile;
 
+      let pendingApproval = false;
       if (edit) {
-        await editInventory({ values: payload, _id: data?._id });
+        if (qtyNeedsApproval && values.qty_change_reason) payload.qty_change_reason = values.qty_change_reason;
+        const res = await editInventory({ values: payload, _id: data?._id });
+        pendingApproval = !!res?.pending_approval;
       } else {
         await addNewInventory(payload);
       }
 
       actionRef?.current?.reload?.();
-      message.success(`Inventory ${edit ? "updated" : "added"} successfully`);
+      if (pendingApproval) {
+        queryClient.invalidateQueries({ queryKey: ["inventory-qty-requests-count"] });
+        queryClient.invalidateQueries({ queryKey: ["inventory-qty-requests"] });
+        message.info("Request sent — the stock updates as soon as an admin approves it.");
+      } else {
+        message.success(`Inventory ${edit ? "updated" : "added"} successfully`);
+      }
       handleClose();
       return true;
     } catch (e: any) {
@@ -1295,6 +1337,24 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
       case 1:
         return (
           <ProCard title="Inventory & Pricing" size="small">
+            {/* Non-admins with approval on: ask for the change instead of editing it */}
+            {edit && qtyNeedsApproval && !hasVariants && (
+              <QtyChangeRequestPanel
+                form={form}
+                inventoryId={data?._id}
+                currentQuantity={Number(data?.quantity) || 0}
+                unit={data?.unit_id?.name}
+              />
+            )}
+            {edit && qtyNeedsApproval && hasVariants && (
+              <QtyChangeRequestPanel
+                form={form}
+                inventoryId={data?._id}
+                currentQuantity={savedVariantTotal}
+                unit={data?.unit_id?.name}
+                variants={savedVariantRows}
+              />
+            )}
             <div
               style={{
                 display: "grid",
@@ -1313,6 +1373,11 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
                         Auto-calculated
                       </Tag>
                     )}
+                    {!hasVariants && edit && qtyNeedsApproval && (
+                      <Tag color="gold" style={{ marginLeft: 8 }}>
+                        Needs approval
+                      </Tag>
+                    )}
                   </span>
                 }
                 rules={[{ required: true, message: "Quantity is required" }]}
@@ -1321,7 +1386,7 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
                   placeholder="Enter quantity"
                   min={0}
                   style={{ width: "100%" }}
-                  disabled={hasVariants}
+                  disabled={hasVariants || (edit && qtyNeedsApproval)}
                   addonAfter={
                     hasVariants ? `(${totalVariantQuantity} total)` : undefined
                   }
@@ -1367,7 +1432,7 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
             </div>
 
             {/* Pack price → per-item supplier price, plus profit/margin */}
-            <BulkCostHelper form={form} canSetQuantity={!hasVariants} />
+            <BulkCostHelper form={form} canSetQuantity={!hasVariants && !(edit && qtyNeedsApproval)} />
 
             {/* Variants toggle */}
             <Form.Item
@@ -1859,6 +1924,7 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
         productName={form.getFieldValue("name")}
         zoneInventoryEnabled={zoneInventoryEnabled}
         productPrice={watchedPrice}
+        quantityNeedsApproval={!!edit && qtyNeedsApproval}
       />
 
       {/* ── Category add modal ── */}

@@ -11,6 +11,8 @@ import {
   analyseInventoryFile,
 } from "@services/inventory";
 import AddEditProInventoryModal from "@components/MODALS/pro/AddEditProInventoryModal";
+import { QtyApprovalSwitch, QtyApprovalsButton } from "@components/inventory/InventoryQtyApproval";
+import { onInventoryChanged } from "@hooks/useQtyApprovalSetting";
 import { fetchAllCategories, fetchSubCategories } from "@services/categories";
 import {
   DeleteOutlined, ShoppingCartOutlined, ToolOutlined, SwapOutlined,
@@ -297,6 +299,8 @@ interface ImportResult {
   message: string;
   summary: {
     total: number; created: number; updated: number; skipped: number; errors: number;
+    /** Quantity changes held for admin approval */
+    qty_pending_approval?: number;
     auto_created?: AutoCreated;
     format_detected?: { sheet: string; header_row: number; mapped_columns: number };
   };
@@ -650,6 +654,14 @@ const ImportInventoryModal: React.FC<{ onSuccess: () => void }> = ({ onSuccess }
           ))}
         </div>
 
+        {!!summary.qty_pending_approval && (
+          <div style={{ background: "#fffbeb", borderRadius: 8, padding: "8px 12px", marginBottom: 12, border: "1px solid #fde68a" }}>
+            <Text style={{ fontSize: 12, color: "#92400e" }}>
+              {summary.qty_pending_approval} quantity change{summary.qty_pending_approval === 1 ? "" : "s"} are waiting for admin approval — the other fields were updated.
+            </Text>
+          </div>
+        )}
+
         {summary.format_detected && (
           <div style={{ background: "#f0f9ff", borderRadius: 8, padding: "8px 12px", marginBottom: 12, border: "1px solid #bae6fd" }}>
             <Text style={{ fontSize: 12, color: "#0369a1" }}>
@@ -834,6 +846,8 @@ const MobileInventoryList: React.FC<{
   }, []);
 
   useEffect(() => { loadItems(); }, []);
+  // An approved quantity request changed stock
+  useEffect(() => onInventoryChanged(loadItems), [loadItems]);
 
   const deleteMutation = useMutation(deleteInventory, {
     onMutate: (id: string) => setDeletingId(id),
@@ -899,6 +913,11 @@ const MobileInventoryList: React.FC<{
         <ImportInventoryModal onSuccess={() => { loadItems(); onImportSuccess(); }} />
       </div>
 
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" as const, marginBottom: 10 }}>
+        <QtyApprovalSwitch />
+        <QtyApprovalsButton />
+      </div>
+
       <div style={{ background: "#fff1f2", borderRadius: 10, padding: "10px 14px", marginBottom: 14, border: "1px solid #fecdd3", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" as const }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <Button size="small" onClick={toggleSelectMode}
@@ -957,6 +976,8 @@ const MobileInventoryList: React.FC<{
 const InventorySettings = () => {
   const paymentRef = useRef<ActionType>();
   const isMobile = useIsMobile();
+  // An approved quantity request changed stock
+  useEffect(() => onInventoryChanged(() => paymentRef.current?.reload()), []);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const shopId = localStorage.getItem("shopId") || "";
@@ -1249,6 +1270,8 @@ const InventorySettings = () => {
         </Space>
       }
       toolBarRender={() => [
+        <QtyApprovalSwitch key="qty-approval" />,
+        <QtyApprovalsButton key="qty-requests" />,
         <ImportInventoryModal key="import" onSuccess={() => paymentRef.current?.reload()} />,
         <AddEditProInventoryModal actionRef={paymentRef} key="add" />,
         <Dropdown key="export" menu={{ items: exportMenuItems }} placement="bottomRight">
