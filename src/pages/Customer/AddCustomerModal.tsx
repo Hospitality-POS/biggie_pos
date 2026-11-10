@@ -352,8 +352,8 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
             });
 
             const response = isEdit && customer?._id
-                ? await updateCustomer(customer._id, payload)
-                : await addNewCustomer(payload);
+                ? await updateCustomer(customer._id, payload, { silent: true })
+                : await addNewCustomer(payload, { silent: true });
 
             if (response?.status === 200 || response?.status === 201) {
                 const saved = response?.data?.customer ?? response?.data;
@@ -369,11 +369,16 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                 onSuccess?.(saved);
             }
         } catch (error: any) {
-            message.error(
-                error?.response?.data?.message ||
-                error?.message ||
-                `Failed to ${isEdit ? "update" : "add"} customer`
-            );
+            const msg = error?.response?.data?.message || error?.message || `Failed to ${isEdit ? "update" : "add"} customer`;
+            // Phone already used in this branch: keep the modal open and show
+            // it on the phone field, on the step that has it
+            if (error?.response?.data?.field === "phone") {
+                setStep(0);
+                form.setFields([{ name: "phoneNumber", errors: [msg] }]);
+                form.scrollToField("phoneNumber");
+            } else {
+                message.error(msg);
+            }
         } finally {
             setLoading(false);
         }
