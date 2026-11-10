@@ -17,6 +17,10 @@ interface AddEditVariantModalProps {
   /** The product's current active selling price — pre-fills the variant's
    *  price when adding a new variant (still fully editable). */
   productPrice?: number;
+  /** Shop needs admin approval for this user's quantity edits: a saved
+   *  variant's quantity is changed through the item's request panel instead,
+   *  and a new variant's quantity waits for approval. */
+  quantityNeedsApproval?: boolean;
 }
 
 const AddEditVariantModal: React.FC<AddEditVariantModalProps> = ({
@@ -27,7 +31,10 @@ const AddEditVariantModal: React.FC<AddEditVariantModalProps> = ({
   productName = "PRODUCT",
   zoneInventoryEnabled = false,
   productPrice,
+  quantityNeedsApproval = false,
 }) => {
+  // A variant already saved on the item (not one just added in this form)
+  const isSavedVariant = !!editingVariant?._id;
   const [form] = Form.useForm();
   const [variantData, setVariantData] = useState({
     name: '',
@@ -240,11 +247,19 @@ const AddEditVariantModal: React.FC<AddEditVariantModalProps> = ({
             name="quantity"
             label="Quantity"
             rules={[{ required: true, message: "Quantity is required" }]}
+            extra={
+              quantityNeedsApproval
+                ? isSavedVariant
+                  ? "Needs admin approval — request a change under Request a stock change in Inventory & Pricing."
+                  : "Needs admin approval — the variant starts at 0 and this quantity applies once approved."
+                : undefined
+            }
           >
             <InputNumber
               placeholder="0"
               min={0}
               style={{ width: '100%' }}
+              disabled={quantityNeedsApproval && isSavedVariant}
               onChange={(value) => {
                 setVariantData(prev => ({ ...prev, quantity: value || 0 }));
               }}
