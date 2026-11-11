@@ -116,9 +116,20 @@ export interface PrintJobResult {
   agentsSent: number;
 }
 
+function printAgentHeaders(companyCode: string): Record<string, string> {
+  const headers: Record<string, string> = { "Content-Type": "application/json", companycode: companyCode };
+  try {
+    const token = JSON.parse(localStorage.getItem("user") || "null")?.Token;
+    if (token) headers.Authorization = `Bearer ${token}`;
+  } catch {
+    // no stored session: the request goes out unauthenticated and the API rejects it
+  }
+  return headers;
+}
+
 export async function getConnectedAgents(shopId: string, companyCode: string): Promise<PrintAgentStatus> {
   const res = await fetch(`${BASE_URL}/api/agents/connected?shop_id=${shopId}`, {
-    headers: { "Content-Type": "application/json", companycode: companyCode },
+    headers: printAgentHeaders(companyCode),
   });
   if (!res.ok) throw new Error("Failed to fetch agent status");
   return res.json();
@@ -161,7 +172,7 @@ export function groupItemsByMainCategory(
 export async function sendPrintJob(payload: PrintJobPayload, companyCode: string): Promise<PrintJobResult> {
   const res = await fetch(`${BASE_URL}/api/agents/print`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", companycode: companyCode },
+    headers: printAgentHeaders(companyCode),
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
@@ -174,7 +185,7 @@ export async function sendPrintJob(payload: PrintJobPayload, companyCode: string
 export async function sendPrintFromCart(cartId: string, shopId: string, companyCode: string): Promise<SendFromCartResult> {
   const res = await fetch(`${BASE_URL}/api/agents/send-from-cart`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", companycode: companyCode },
+    headers: printAgentHeaders(companyCode),
     body: JSON.stringify({ cart_id: cartId, shop_id: shopId }),
   });
   if (!res.ok) {
@@ -187,7 +198,7 @@ export async function sendPrintFromCart(cartId: string, shopId: string, companyC
 export async function printFromCart(cartId: string, shopId: string, companyCode: string): Promise<SendFromCartResult> {
   const res = await fetch(`${BASE_URL}/printer/print`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", companycode: companyCode },
+    headers: printAgentHeaders(companyCode),
     body: JSON.stringify({ cart_id: cartId, shop_id: shopId }),
   });
   if (!res.ok) {
