@@ -184,7 +184,7 @@ const MtejaDashboard: React.FC = () => {
 
   const { data: allTargetsData, isLoading: targetsLoading } = useQuery({
     queryKey: ["mteja-sales-targets", shopId, start_date, end_date],
-    queryFn: () => fetchAllSalesTargets({ shop_id: shopId || undefined, limit: 50, start_date, end_date }),
+    queryFn: () => fetchAllSalesTargets({ shop_id: shopId || undefined, limit: 50, start_date, end_date, recalculate: false }),
     staleTime: 30_000,
   });
 
@@ -210,7 +210,7 @@ const MtejaDashboard: React.FC = () => {
 
   const recentLeads: any[] = Array.isArray(recentLeadsData) ? recentLeadsData : [];
   const customerList: any[] = Array.isArray(recentCustomersData) ? recentCustomersData : [];
-  const targetsList: SalesTarget[] = Array.isArray(allTargetsData) ? allTargetsData : [];
+  const targetsList: SalesTarget[] = Array.isArray(allTargetsData) ? allTargetsData : (allTargetsData as any)?.targets || [];
 
   // Audio alerts on new unread messages
   const prevUnreadRef = useRef<number | null>(null);
