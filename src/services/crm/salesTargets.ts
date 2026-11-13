@@ -105,6 +105,9 @@ export interface FetchTargetsParams {
     is_active?: boolean;
     page?: number;
     limit?: number;
+    recalculate?: boolean | string;
+    start_date?: string;
+    end_date?: string;
 }
 
 export interface FetchLeaderboardParams {
