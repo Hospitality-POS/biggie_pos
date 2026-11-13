@@ -154,7 +154,7 @@ const MtejaDashboard: React.FC = () => {
 
   const { data: channelsData } = useQuery({
     queryKey: ["mteja-channels", shopId],
-    queryFn: () => fetchWhatsappChannels(shopId || undefined),
+    queryFn: () => fetchWhatsappChannels({ shop_id: shopId || undefined }),
     staleTime: 60_000,
   });
 
@@ -225,9 +225,9 @@ const MtejaDashboard: React.FC = () => {
   // Channel and Conversation calculations
   const connected = useMemo(() => {
     const list = Array.isArray(channelsData) ? channelsData : channelsData?.channels || [];
-    const wa = list.some((c: any) => c.status === "connected" || c.status === "active");
-    const fb = list.some((c: any) => c.channel === "messenger" && c.status === "connected");
-    const ig = list.some((c: any) => c.channel === "instagram" && c.status === "connected");
+    const wa = list.some((c: any) => (c.channel === "whatsapp" || !c.channel) && (c.status === "connected" || c.status === "active" || c.is_active));
+    const fb = list.some((c: any) => (c.channel === "messenger" || c.channel === "facebook") && (c.status === "connected" || c.status === "active" || c.is_active));
+    const ig = list.some((c: any) => c.channel === "instagram" && (c.status === "connected" || c.status === "active" || c.is_active));
     return { whatsapp: wa, messenger: fb, instagram: ig };
   }, [channelsData]);
 
