@@ -121,6 +121,7 @@ const FormBuilderPage = lazyWithReload(() => import("@pages/FormsPlans/forms/For
 const InStoreFillPage = lazyWithReload(() => import("@pages/FormsPlans/forms/fill/InStoreFillPage"));
 const PublicFormPage = lazyWithReload(() => import("@pages/FormsPlans/forms/fill/PublicFormPage"));
 const AccountRestrictedPage = lazyWithReload(() => import("@pages/AccountRestricted/AccountRestrictedPage"));
+const PaymentRequiredPage = lazyWithReload(() => import("@pages/PaymentRequired/PaymentRequiredPage"));
 const EmployeeFormsHubPage = () => <FormsHubPage audience="employee" />;
 // Mteja: consent, privacy, waivers… for leads and people who aren't customers
 const ContactFormsHubPage = () => <FormsHubPage audience="contact" />;
@@ -419,6 +420,13 @@ const routes = sentryCreateBrowserRouter(
         path="/account-restricted"
         errorElement={<NotFound />}
         element={<Suspense fallback={fullscreenSpin}><AccountRestrictedPage /></Suspense>}
+      />
+
+      {/* Public — the BasePoint payment is overdue and the system is locked (see services/request.ts) */}
+      <Route
+        path="/payment-required"
+        errorElement={<NotFound />}
+        element={<Suspense fallback={fullscreenSpin}><PaymentRequiredPage /></Suspense>}
       />
 
       {/* Public — a client or employee fills & signs a form from the link they were sent */}

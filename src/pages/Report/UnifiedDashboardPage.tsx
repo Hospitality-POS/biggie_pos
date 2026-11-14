@@ -7,6 +7,7 @@ import MtejaDashboard from "src/pages/Dashboard/MtejaDashboard";
 import BanduHRDashboard from "src/pages/BanduHR/BanduHRDashboard";
 import UnifiedDalaDashboard from "src/pages/dala/UnifiedDalaDashboard";
 import { useActiveDashboard } from "src/hooks/useActiveDashboard";
+import ContractStatusCard from "@components/billing/ContractStatusCard";
 
 // ── Module activation checks ─────────────────────────────────────────────────────
 const getModuleFlags = () => {
@@ -123,6 +124,7 @@ const UnifiedDashboardPage: React.FC = () => {
         boxSizing: "border-box",
       }}
     >
+      <ContractStatusCard />
       <Tabs
         activeKey={resolvedTab}
         onChange={(key) => setActiveDashboard(key)}
