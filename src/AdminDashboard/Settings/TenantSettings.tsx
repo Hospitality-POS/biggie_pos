@@ -8,6 +8,7 @@ import {
   PercentageOutlined,
   PhoneOutlined,
   PictureOutlined,
+  SafetyCertificateOutlined,
   SettingOutlined,
   TagOutlined,
   UploadOutlined,
@@ -34,6 +35,7 @@ import {
 import SettingsShell, { SettingSection } from "@components/Settings/SettingsShell";
 import VatPanel from "@pages/Settings/taxes/VatPanel";
 import CateringLevyPanel from "@pages/Settings/taxes/CateringLevyPanel";
+import SmartContractSettings from "./SmartContractSettings";
 import { CardLabel, PanelStack, panelCard } from "@pages/Settings/taxes/TaxPanelParts";
 import { THEME_C, getPrimaryColor } from "@utils/getPrimaryColor";
 
@@ -385,6 +387,16 @@ function TenantSettings() {
       bg: "#f0fdfa",
       group: "Taxes",
       render: () => <CateringLevyPanel scope="business" />,
+    },
+    {
+      key: "smart-contract",
+      label: "Smart Contract",
+      description: "Monthly service fee & activation",
+      icon: <SafetyCertificateOutlined />,
+      color: "#16a34a",
+      bg: "#f0fdf4",
+      group: "Billing",
+      render: () => <SmartContractSettings />,
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [tenant, colors, fileList, saving]);
