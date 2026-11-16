@@ -87,3 +87,27 @@ export const getProfitMarginColor = (margin: number): string => {
   return 'poor';
 };
 
+
+/**
+ * Prefixes a phone number with its country dialling code, e.g.
+ * (722362643, 254) => "+254722362643". Customers store only the local digits
+ * in `phone` and the code in `phone_code`; Kenya (254) is assumed when no
+ * code is known. Numbers that already carry a code ("+1…", "2547…") and a
+ * local leading 0 ("0722…") are handled.
+ */
+export const formatPhoneWithCode = (
+  phone: string | number | null | undefined,
+  code?: string | number | null
+): string => {
+  if (phone === null || phone === undefined) return "";
+  const raw = String(phone).trim();
+  if (!raw) return "";
+  if (raw.startsWith("+")) return raw.replace(/\s+/g, "");
+  let digits = raw.replace(/\D/g, "");
+  if (!digits) return raw;
+  const cc = String(code ?? "").replace(/\D/g, "") || "254";
+  // Already includes the country code (a local number is at least 9 digits)
+  if (digits.startsWith(cc) && digits.length >= cc.length + 9) return `+${digits}`;
+  if (digits.startsWith("0")) digits = digits.slice(1);
+  return `+${cc}${digits}`;
+};

@@ -98,10 +98,9 @@ function SystemSetup() {
   }, []);
 
   useEffect(() => {
-    if (data?.paymentDetails) {
-      setShowPaybillDetails(data.paymentDetails.name === "Paybill");
-      setPaymentDetailName(data.paymentDetails.name || "");
-    }
+    // Also reset when no payment method is saved (paymentDetails is null).
+    setShowPaybillDetails(data?.paymentDetails?.name === "Paybill");
+    setPaymentDetailName(data?.paymentDetails?.name || "");
   }, [data]);
 
   const onPaymentDetailsChange = (value: string, option: any) => {
@@ -134,7 +133,16 @@ function SystemSetup() {
     delete formData.phoneNumber;
     delete formData.paymentDetails; // Remove nested paymentDetails if present
 
-    // Remove undefined or null values to avoid overwriting with empty data
+    // Payment numbers are optional: a blank one is saved as null so clearing
+    // a till/paybill really removes it instead of keeping the old number.
+    const paymentNumberKeys = ["till_no", "account_no", "business_no"];
+    paymentNumberKeys.forEach((key) => {
+      if (formData[key] === "" || (typeof formData[key] === "string" && !formData[key].trim())) {
+        formData[key] = null;
+      }
+    });
+
+    // Remove undefined or empty values to avoid overwriting with empty data
     Object.keys(formData).forEach(key => {
       if (formData[key] === undefined || formData[key] === "") {
         delete formData[key];
@@ -143,7 +151,9 @@ function SystemSetup() {
 
     // Only one payment method is kept — clear the other method's numbers so
     // a till and a paybill never end up saved (and printed) together.
-    if (showPaybillDetails) {
+    if (!paymentDetailIdValue) {
+      paymentNumberKeys.forEach((key) => { formData[key] = null; });
+    } else if (showPaybillDetails) {
       formData.till_no = null;
     } else {
       formData.account_no = null;
@@ -160,18 +170,31 @@ function SystemSetup() {
         let newData;
         if (data?._id) {
           newData = await updateSystemSetup({ data: formData, _id: data._id });
+          // The service shows its own error and returns undefined on failure.
+          if (!newData) return false;
           message.success("System settings updated successfully");
         } else {
           newData = await createSystemSetup(formData);
+          if (!newData) return false;
           message.success("System settings created successfully");
         }
 
-        queryClient.setQueryData(["systemsettings"], (oldData: any) => ({
-          ...oldData,
-          ...newData,
-        }));
+        // Re-read from the server instead of merging into the cached copy: the
+        // save response has no populated `paymentDetails`, so a merge kept the
+        // old payment method on screen after it had been cleared in the DB.
+        let fresh = newData;
+        try {
+          fresh = (await fetchSystemSetupDetailsById(true)) ?? newData;
+        } catch {
+          /* fall back to the save response */
+        }
+        if (!fresh?.paymentDetailId) fresh = { ...fresh, paymentDetails: null };
+        queryClient.setQueryData(["systemsettings"], fresh);
 
+        setShowPaybillDetails(fresh?.paymentDetails?.name === "Paybill");
+        setPaymentDetailName(fresh?.paymentDetails?.name || "");
         form.resetFields();
+        form.setFieldsValue(getInitialValues(fresh));
         return true;
       } catch (error: any) {
         console.error("Error saving system settings:", error);
@@ -183,25 +206,25 @@ function SystemSetup() {
     return false;
   };
 
+  // Prepare initial values for the form
+  function getInitialValues(src: any = data) {
+    if (!src) return {};
+
+    return {
+      ...src,
+      till_no: withLeadingZero(src?.till_no),
+      phoneNumber: reversePhoneNumber(src?.phone),
+      paymentDetailId: src?.paymentDetails?._id
+        ? { value: src.paymentDetails._id, label: src.paymentDetails.name }
+        : undefined,
+      whatsapp_notify_secondary: src?.whatsapp_notify_secondary ?? false,
+      secondary_phones: src?.secondary_phones ?? [],
+    };
+  }
+
   if (isLoading) {
     return <Skeleton active />;
   }
-
-  // Prepare initial values for the form
-  const getInitialValues = () => {
-    if (!data) return {};
-
-    return {
-      ...data,
-      till_no: withLeadingZero(data?.till_no),
-      phoneNumber: reversePhoneNumber(data?.phone),
-      paymentDetailId: data?.paymentDetails?._id
-        ? { value: data.paymentDetails._id, label: data.paymentDetails.name }
-        : null,
-      whatsapp_notify_secondary: data?.whatsapp_notify_secondary ?? false,
-      secondary_phones: data?.secondary_phones ?? [],
-    };
-  };
 
   return (
     <Card
@@ -334,10 +357,14 @@ function SystemSetup() {
               name="paymentDetailId"
               label="Payment Method"
               placeholder="Select Payment Details"
-              rules={[{ required: true, message: "Payment detail is required" }]}
+              tooltip="Optional — leave empty if the business has no till or paybill"
               options={paymentDetailsList}
               fieldProps={{
                 onSelect: (value: string, option) => onPaymentDetailsChange(value, option),
+                onClear: () => {
+                  setShowPaybillDetails(false);
+                  setPaymentDetailName("");
+                },
                 size: "large",
                 allowClear: true,
               }}
@@ -350,13 +377,7 @@ function SystemSetup() {
                   <ProFormText
                     name="account_no"
                     label="Account No."
-                    placeholder="Enter account number"
-                    rules={[
-                      {
-                        required: showPaybillDetails,
-                        message: "Please enter the account number",
-                      },
-                    ]}
+                    placeholder="Enter account number (optional)"
                     fieldProps={{
                       size: "large",
                     }}
@@ -366,13 +387,7 @@ function SystemSetup() {
                   <ProFormText
                     name="business_no"
                     label="Business No."
-                    placeholder="Enter business number"
-                    rules={[
-                      {
-                        required: showPaybillDetails,
-                        message: "Please enter the business number",
-                      },
-                    ]}
+                    placeholder="Enter business number (optional)"
                     fieldProps={{
                       size: "large",
                     }}
@@ -387,13 +402,7 @@ function SystemSetup() {
                     ? `${paymentDetailName} No.`
                     : "Till No."
                 }
-                placeholder={`Enter ${paymentDetailName && !/paybill|till/i.test(paymentDetailName) ? paymentDetailName : "till"} number`}
-                rules={[
-                  {
-                    required: !showPaybillDetails && showPaybillDetails !== undefined,
-                    message: "Please enter the number",
-                  },
-                ]}
+                placeholder={`Enter ${paymentDetailName && !/paybill|till/i.test(paymentDetailName) ? paymentDetailName : "till"} number (optional)`}
                 fieldProps={{
                   size: "large",
                 }}

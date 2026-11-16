@@ -2,6 +2,7 @@ import React from "react";
 import dayjs from "dayjs";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import type { ShopInvoiceSettings } from "@services/shops";
+import { formatPhoneWithCode } from "@utils/formatters";
 
 // ── Palette ────────────────────────────────────────────────────────────────
 const C = {
@@ -73,6 +74,7 @@ export interface InvoiceForPrint {
         customer_name?: string;
         name?: string;
         phone?: string;
+        phone_code?: number | string;
         customer_phone?: string;
         email?: string;
         customer_email?: string;
@@ -206,7 +208,7 @@ export const resolveParty = (inv: InvoiceForPrint) => {
         return {
             label: "",
             name: c.company_name || c.customer_name || c.name || "—",
-            phone: c.phone || c.customer_phone || "",
+            phone: formatPhoneWithCode(c.phone || c.customer_phone, c.phone_code),
             email: c.email || c.customer_email || "",
             location: c.location || "",
             address: c.address || null,
@@ -217,7 +219,7 @@ export const resolveParty = (inv: InvoiceForPrint) => {
     return {
         label: "",
         name: inv.counterparty_name || "—",
-        phone: inv.counterparty_phone || "",
+        phone: formatPhoneWithCode(inv.counterparty_phone),
         email: inv.counterparty_email || "",
         location: "",
         kra_pin: inv.counterparty_kra_pin || "",
@@ -1039,7 +1041,7 @@ const LogoOrText = ({
 // ═══════════════════════════════════════════════════════════════
 const Template1ClassicBase = React.forwardRef<HTMLDivElement, SharedProps>(({ inv, sys, accentColor = C.primary }, ref) => {
     const party = resolveParty(inv);
-    const docLabel = inv.status === "Draft" ? "QUOTE" : inv.direction === "supplier" ? "BILL" : (inv.etr_enabled ? "TAX INVOICE" : "INVOICE");
+    const docLabel = inv.status === "Draft" ? "QUOTE" : inv.direction === "supplier" ? "BILL" : "INVOICE";
 
     return (
         <div
@@ -1189,7 +1191,7 @@ Template1ClassicBase.displayName = "Template1Classic";
 const Template2SlateProBase = React.forwardRef<HTMLDivElement, SharedProps>(({ inv, sys }, ref) => {
     const party = resolveParty(inv);
     const navy = "#1e293b";
-    const docLabel = inv.status === "Draft" ? "QUOTE" : inv.direction === "supplier" ? "BILL" : (inv.etr_enabled ? "TAX INVOICE" : "INVOICE");
+    const docLabel = inv.status === "Draft" ? "QUOTE" : inv.direction === "supplier" ? "BILL" : "INVOICE";
 
     return (
         <div
@@ -1317,7 +1319,7 @@ Template2SlateProBase.displayName = "Template2SlatePro";
 // ═══════════════════════════════════════════════════════════════
 const Template3OceanBase = React.forwardRef<HTMLDivElement, SharedProps>(({ inv, sys }, ref) => {
     const party = resolveParty(inv);
-    const docLabel = inv.status === "Draft" ? "QUOTE" : inv.direction === "supplier" ? "BILL" : (inv.etr_enabled ? "TAX INVOICE" : "INVOICE");
+    const docLabel = inv.status === "Draft" ? "QUOTE" : inv.direction === "supplier" ? "BILL" : "INVOICE";
 
     return (
         <div
@@ -1412,7 +1414,7 @@ Template3OceanBase.displayName = "Template3Ocean";
 const Template4MinimalBase = React.forwardRef<HTMLDivElement, SharedProps>(({ inv, sys }, ref) => {
     const party = resolveParty(inv);
     const charcoal = C.darkText;
-    const docLabel = inv.status === "Draft" ? "Quote" : inv.direction === "supplier" ? "Bill" : (inv.etr_enabled ? "Tax Invoice" : "Invoice");
+    const docLabel = inv.status === "Draft" ? "Quote" : inv.direction === "supplier" ? "Bill" : "Invoice";
 
     return (
         <div
@@ -1547,7 +1549,7 @@ Template4MinimalBase.displayName = "Template4Minimal";
 const Template5ForestBase = React.forwardRef<HTMLDivElement, SharedProps>(({ inv, sys }, ref) => {
     const party = resolveParty(inv);
     const forest = "#065f46";
-    const docLabel = inv.status === "Draft" ? "QUOTE" : inv.direction === "supplier" ? "BILL" : (inv.etr_enabled ? "TAX INVOICE" : "INVOICE");
+    const docLabel = inv.status === "Draft" ? "QUOTE" : inv.direction === "supplier" ? "BILL" : "INVOICE";
 
     return (
         <div
@@ -1801,7 +1803,8 @@ const Template6CleanBase = React.forwardRef<HTMLDivElement, SharedProps>(({ inv,
                         </>
                     )}
                 </div>
-            </div>
+            {/* Payment details + KRA eTIMS block (logo, QR, CU info) — same as the other templates */}
+            <PaymentDetailsBlock inv={inv} sys={sys} bgColor="#ffffff" borderColor="#e2e8f0" accentColor="#000000" />
 
             <div style={{ marginTop: "auto", paddingTop: 24 }}>
                 <Footer sys={sys} borderColor="#e2e8f0" accentColor="#000000" />
@@ -1832,7 +1835,7 @@ const Template7LetterheadBase = React.forwardRef<HTMLDivElement, SharedProps>(({
     const party = resolveParty(inv);
     const { primary, secondary } = brandColors(sys);
     const website = (sys.invoice_settings?.website || "").trim();
-    const docLabel = inv.status === "Draft" ? "QUOTE" : inv.direction === "supplier" ? "BILL" : (inv.etr_enabled ? "TAX INVOICE" : "INVOICE");
+    const docLabel = inv.status === "Draft" ? "QUOTE" : inv.direction === "supplier" ? "BILL" : "INVOICE";
     const banks = (sys.bank_details || []).filter(Boolean);
     const hasPaybill = !!(sys.Paybill_bs || sys.Paybill_ac);
     const items = inv.items || [];
