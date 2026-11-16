@@ -1803,6 +1803,8 @@ const Template6CleanBase = React.forwardRef<HTMLDivElement, SharedProps>(({ inv,
                         </>
                     )}
                 </div>
+            </div>
+
             {/* Payment details + KRA eTIMS block (logo, QR, CU info) — same as the other templates */}
             <PaymentDetailsBlock inv={inv} sys={sys} bgColor="#ffffff" borderColor="#e2e8f0" accentColor="#000000" />
 
