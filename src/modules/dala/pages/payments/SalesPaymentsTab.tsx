@@ -1,0 +1,399 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { Card, Table, Typography, Button, Space, Tag, message, DatePicker, Select, Input, Row, Col } from 'antd';
+import { SearchOutlined, ReloadOutlined, PlusOutlined, EyeOutlined, DeleteOutlined } from '@ant-design/icons';
+import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
+import dayjs, { Dayjs } from 'dayjs';
+import { useQueryClient, useMutation } from '@tanstack/react-query';
+import PaymentDrawer from './PaymentDrawer';
+import PaymentModal from './PaymentModal';
+import PaymentStats from './PaymentStats';
+import { fetchSalePayments, deleteSalePayment } from '@services/dala';
+
+const { Title } = Typography;
+const { RangePicker } = DatePicker;
+
+interface PaymentRecord {
+  _id?: string;
+  id?: string;
+  amount: number;
+  status?: string;
+  paymentDate?: string;
+  paymentMethod?: string;
+  paymentType?: string;
+  currency?: string;
+  reference?: string;
+  receiptNo?: string;
+  receiptNumber?: string;
+  etimsRefNumber?: string;
+  notes?: string;
+  customer?: {
+    name?: string;
+    phone?: string;
+    email?: string;
+    entity_type?: string;
+    company_name?: string;
+    customer_name?: string;
+    address?: any;
+  };
+  sale?: {
+    property?: any;
+    saleCode?: string;
+  };
+  saleId?: any;
+  propertyId?: any;
+  customerId?: any;
+  unitId?: any;
+  unit?: any;
+  property?: any;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+interface SalesPaymentsTabProps {
+  salesData?: any[];
+  propertiesData?: any[];
+  showAddButton?: boolean;
+}
+
+const SalesPaymentsTab: React.FC<SalesPaymentsTabProps> = ({
+  salesData = [],
+  propertiesData = [],
+  showAddButton = true,
+}) => {
+  const queryClient = useQueryClient();
+  const [loading, setLoading] = useState(false);
+  const [paymentsData, setPaymentsData] = useState<PaymentRecord[]>([]);
+  const [selectedPayment, setSelectedPayment] = useState<PaymentRecord | null>(null);
+  const [drawerVisible, setDrawerVisible] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null]>([null, null]);
+  const [selectedStatus, setSelectedStatus] = useState<string | undefined>(undefined);
+  const [selectedMethod, setSelectedMethod] = useState<string | undefined>(undefined);
+  const actionRef = useRef<any>(null);
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteSalePayment,
+    onSuccess: () => {
+      message.success('Payment deleted successfully');
+      fetchPayments();
+    },
+    onError: (error: any) => {
+      message.error(error?.response?.data?.error || 'Failed to delete payment');
+    },
+  });
+
+  // Fetch payments data from API
+  const fetchPayments = async () => {
+    setLoading(true);
+    try {
+      const response = await fetchSalePayments();
+      const payments = Array.isArray(response?.data) ? response.data : Array.isArray(response) ? response : [];
+      
+      // Map API response to PaymentRecord interface
+      const mappedPayments: PaymentRecord[] = payments.map((payment: any) => ({
+        _id: payment._id,
+        id: payment._id,
+        amount: payment.amount,
+        status: payment.status,
+        paymentDate: payment.paymentDate,
+        paymentMethod: payment.paymentMethod,
+        paymentType: payment.paymentType,
+        currency: payment.currency,
+        reference: payment.reference,
+        receiptNo: payment.receiptNumber,
+        receiptNumber: payment.receiptNumber,
+        etimsRefNumber: payment.etimsRefNumber,
+        notes: payment.notes,
+        customer: {
+          name: payment.customer?.name || payment.customer?.company_name || payment.customer?.customer_name || payment.customer?.email || 'Unknown',
+          email: payment.customer?.email,
+          phone: payment.customer?.phone,
+          entity_type: payment.customer?.entity_type,
+          company_name: payment.customer?.company_name,
+          customer_name: payment.customer?.customer_name,
+          address: payment.customer?.address,
+        },
+        sale: {
+          property: payment.sale?.property || payment.property,
+          saleCode: payment.saleId?.saleCode,
+        },
+        saleId: payment.saleId,
+        propertyId: payment.propertyId,
+        customerId: payment.customerId,
+        unitId: payment.unitId,
+        unit: payment.unit || payment.saleId?.unitTypeID,
+        property: payment.property,
+        createdAt: payment.createdAt,
+        updatedAt: payment.updatedAt,
+      }));
+      
+      setPaymentsData(mappedPayments);
+    } catch (error) {
+      console.error('Failed to fetch payments:', error);
+      message.error('Failed to fetch payments');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch payments on component mount
+  useEffect(() => {
+    fetchPayments();
+  }, []);
+
+  // Handle view payment details
+  const handleViewPayment = (record: PaymentRecord) => {
+    setSelectedPayment(record);
+    setDrawerVisible(true);
+  };
+
+  // Handle refresh
+  const handleRefresh = () => {
+    fetchPayments();
+  };
+
+  // Handle payment success - refresh sales data
+  const handlePaymentSuccess = () => {
+    // Invalidate sales query to refresh data in SalesManagement
+    queryClient.invalidateQueries(['dala-sales']);
+    // Refresh payments data
+    fetchPayments();
+  };
+
+  // Format currency
+  const formatCurrency = (amount: number | string) => {
+    const num = typeof amount === 'string' ? parseFloat(amount) : amount;
+    return `KES ${num.toLocaleString()}`;
+  };
+
+  // Format date
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return 'N/A';
+    return dayjs(dateString).format('DD MMM YYYY');
+  };
+
+  // Get payment method display
+  const getPaymentMethodDisplay = (method?: string) => {
+    if (!method) return <Tag>Unknown</Tag>;
+    const methodMap: Record<string, { color: string; label: string }> = {
+      mpesa: { color: 'green', label: 'M-Pesa' },
+      bank_transfer: { color: 'blue', label: 'Bank Transfer' },
+      cash: { color: 'gold', label: 'Cash' },
+      cheque: { color: 'purple', label: 'Cheque' },
+      card: { color: 'cyan', label: 'Card' },
+    };
+    const config = methodMap[method] || { color: 'default', label: method };
+    return <Tag color={config.color}>{config.label}</Tag>;
+  };
+
+  // Get status display
+  const getStatusDisplay = (status?: string) => {
+    if (!status) return <Tag>Unknown</Tag>;
+    const statusMap: Record<string, string> = {
+      pending: 'orange',
+      completed: 'green',
+      failed: 'red',
+      refunded: 'purple',
+    };
+    const color = statusMap[status] || 'default';
+    return <Tag color={color}>{status.charAt(0).toUpperCase() + status.slice(1)}</Tag>;
+  };
+
+  // Filter payments
+  const filteredPayments = paymentsData.filter((payment) => {
+    const customerName = String(payment.customer?.name || '').toLowerCase();
+    const reference = String(payment.reference || '').toLowerCase();
+    const receiptNo = String(payment.receiptNo || '').toLowerCase();
+    const searchLower = searchText.toLowerCase();
+    
+    const matchesSearch = 
+      customerName.includes(searchLower) ||
+      reference.includes(searchLower) ||
+      receiptNo.includes(searchLower);
+    
+    const matchesStatus = !selectedStatus || payment.status === selectedStatus;
+    const matchesMethod = !selectedMethod || payment.paymentMethod === selectedMethod;
+    
+    let matchesDate = true;
+    if (dateRange[0] && dateRange[1]) {
+      const paymentDate = dayjs(payment.paymentDate);
+      matchesDate = paymentDate.isAfter(dateRange[0]) && paymentDate.isBefore(dateRange[1].add(1, 'day'));
+    }
+    
+    return matchesSearch && matchesStatus && matchesMethod && matchesDate;
+  });
+
+  // Table columns
+  const columns: ColumnsType<PaymentRecord> = [
+    {
+      title: 'Receipt No',
+      dataIndex: 'receiptNo',
+      key: 'receiptNo',
+      render: (text, record) => text || record.receiptNumber || record._id?.slice(-8),
+    },
+    {
+      title: 'Customer',
+      dataIndex: ['customer', 'name'],
+      key: 'customer',
+    },
+    {
+      title: 'Property',
+      dataIndex: ['sale', 'property', 'name'],
+      key: 'property',
+    },
+    {
+      title: 'Amount',
+      dataIndex: 'amount',
+      key: 'amount',
+      align: 'right',
+      render: (text) => formatCurrency(text),
+      sorter: (a, b) => Number(a.amount) - Number(b.amount),
+    },
+    {
+      title: 'Payment Method',
+      dataIndex: 'paymentMethod',
+      key: 'paymentMethod',
+      render: (text) => getPaymentMethodDisplay(text),
+    },
+    {
+      title: 'Payment Date',
+      dataIndex: 'paymentDate',
+      key: 'paymentDate',
+      render: (text) => formatDate(text),
+      sorter: (a, b) => dayjs(a.paymentDate).unix() - dayjs(b.paymentDate).unix(),
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      render: (text) => getStatusDisplay(text),
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      render: (_, record) => (
+        <Space>
+          <Button
+            type="link"
+            icon={<EyeOutlined />}
+            onClick={() => handleViewPayment(record)}
+          >
+            View
+          </Button>
+          <Button
+            type="link"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => {
+              const confirmed = window.confirm(
+                `Are you sure you want to delete this payment of ${formatCurrency(record.amount)}? This action cannot be undone.`
+              );
+              if (confirmed) {
+                deleteMutation.mutate(record._id || record.id);
+              }
+            }}
+          >
+            Delete
+          </Button>
+        </Space>
+      ),
+    },
+  ];
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <Title level={4} style={{ margin: 0 }}>Sales Payments</Title>
+        {showAddButton && <PaymentModal actionRef={actionRef} salesData={salesData} onSuccess={handlePaymentSuccess} />}
+      </div>
+      
+      {/* Payment Statistics */}
+      <PaymentStats paymentsData={paymentsData} loading={loading} />
+
+      {/* Filters Card */}
+      <Card style={{ marginBottom: 16 }}>
+        <Row gutter={[16, 16]}>
+          <Col xs={24} sm={12} md={6}>
+            <Input
+              placeholder="Search by customer, receipt, or reference"
+              prefix={<SearchOutlined />}
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              allowClear
+            />
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <RangePicker
+              value={dateRange}
+              onChange={(dates) => setDateRange(dates as [Dayjs | null, Dayjs | null])}
+              style={{ width: '100%' }}
+              placeholder={['Start Date', 'End Date']}
+            />
+          </Col>
+          <Col xs={24} sm={12} md={4}>
+            <Select
+              placeholder="Status"
+              value={selectedStatus}
+              onChange={setSelectedStatus}
+              allowClear
+              style={{ width: '100%' }}
+            >
+              <Select.Option value="completed">Completed</Select.Option>
+              <Select.Option value="pending">Pending</Select.Option>
+              <Select.Option value="failed">Failed</Select.Option>
+              <Select.Option value="refunded">Refunded</Select.Option>
+            </Select>
+          </Col>
+          <Col xs={24} sm={12} md={4}>
+            <Select
+              placeholder="Payment Method"
+              value={selectedMethod}
+              onChange={setSelectedMethod}
+              allowClear
+              style={{ width: '100%' }}
+            >
+              <Select.Option value="mpesa">M-Pesa</Select.Option>
+              <Select.Option value="bank_transfer">Bank Transfer</Select.Option>
+              <Select.Option value="cash">Cash</Select.Option>
+              <Select.Option value="cheque">Cheque</Select.Option>
+              <Select.Option value="card">Card</Select.Option>
+            </Select>
+          </Col>
+          <Col xs={24} sm={12} md={4}>
+            <Button icon={<ReloadOutlined />} onClick={handleRefresh}>
+              Refresh
+            </Button>
+          </Col>
+        </Row>
+      </Card>
+
+      {/* Payments Table */}
+      <Card>
+        <Table
+          columns={columns}
+          dataSource={filteredPayments}
+          rowKey={(record) => record._id || record.id || 'temp-key'}
+          loading={loading}
+          pagination={{
+            pageSize: 10,
+            showSizeChanger: true,
+            showTotal: (total) => `Total ${total} payments`,
+          }}
+        />
+      </Card>
+
+      {/* Payment Details Drawer */}
+      <PaymentDrawer
+        record={selectedPayment}
+        visible={drawerVisible}
+        onClose={() => {
+          setDrawerVisible(false);
+          setSelectedPayment(null);
+        }}
+        onRefresh={handleRefresh}
+      />
+    </div>
+  );
+};
+
+export default SalesPaymentsTab;

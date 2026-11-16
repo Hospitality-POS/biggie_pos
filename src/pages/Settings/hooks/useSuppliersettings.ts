@@ -1,7 +1,6 @@
 // useSupplierActions.js
 import { useState } from "react";
-import { deleteSupplier } from "@features/Supplier/SupplierActions";
-import { useAppDispatch } from "../../../store";
+import { deleteSupplier } from "@services/supplier";
 import { Modal, message, notification } from "antd/lib";
 
 type Supplier =
@@ -14,9 +13,8 @@ type Supplier =
   | any;
 
 export const useSupplierSettings = () => {
-  const dispatch = useAppDispatch();
   const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
-  const [deleteCandidate, setDeleteCandidate] = useState("");
+  const [deleteCandidate, setDeleteCandidate] = useState<any>("");
 
   const handleDeleteClick = (supplier: Supplier) => {
     setDeleteCandidate(supplier);
@@ -26,7 +24,7 @@ export const useSupplierSettings = () => {
   const handleDeleteConfirm = async (ref) => {
     try {
       if (deleteCandidate) {
-        dispatch(deleteSupplier(deleteCandidate._id));
+        await deleteSupplier(deleteCandidate._id);
         setDeleteConfirmationOpen(false);
         ref?.current?.reload() && ref.current.reload();
         notification.success({

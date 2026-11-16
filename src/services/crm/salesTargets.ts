@@ -278,3 +278,47 @@ export const deleteSalesTarget = createAsyncThunk(
         }
     }
 );
+export const updateMilestones = createAsyncThunk(
+  'salesTargets/updateMilestones',
+  async (
+    {
+      id,
+      shop_id,
+      milestones,
+    }: { id: string; shop_id: string; milestones: TargetMilestone[] },
+    { rejectWithValue }
+  ) => {
+    try {
+      const response = await axiosInstance.patch(`${BASE}/${id}/milestones`, {
+        shop_id,
+        milestones,
+      });
+      message.success('Milestones updated');
+      return response.data;
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || error?.message || 'Failed to update milestones';
+      message.error(msg);
+      return rejectWithValue(msg);
+    }
+  }
+);
+
+export const recalculateTargetActual = createAsyncThunk(
+  'salesTargets/recalculate',
+  async (
+    { id, shop_id }: { id: string; shop_id: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      const response = await axiosInstance.post(`${BASE}/${id}/recalculate`, {
+        shop_id,
+      });
+      message.success('Actual value recalculated');
+      return response.data;
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || error?.message || 'Failed to recalculate';
+      message.error(msg);
+      return rejectWithValue(msg);
+    }
+  }
+);

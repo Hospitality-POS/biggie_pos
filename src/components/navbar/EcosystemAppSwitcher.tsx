@@ -624,9 +624,9 @@ export const EcosystemAppSwitcher: React.FC<EcosystemAppSwitcherProps> = ({
         <Dropdown
           open={open}
           onOpenChange={setOpen}
-          dropdownRender={() => <EcosystemAppMenu onClose={() => setOpen(false)} />}
+          popupRender={() => <EcosystemAppMenu onClose={() => setOpen(false)} />}
           trigger={["click"]}
-          placement={isMobile ? "bottomCenter" : "bottomLeft"}
+          placement={isMobile ? "bottom" : "bottomLeft"}
           overlayClassName="ecosystem-app-switcher-dropdown"
         >
           <div
@@ -692,9 +692,9 @@ export const EcosystemAppSwitcher: React.FC<EcosystemAppSwitcherProps> = ({
       <Dropdown
         open={open}
         onOpenChange={setOpen}
-        dropdownRender={() => <EcosystemAppMenu onClose={() => setOpen(false)} />}
+        popupRender={() => <EcosystemAppMenu onClose={() => setOpen(false)} />}
         trigger={["click"]}
-        placement={isMobile ? "bottomCenter" : "bottomLeft"}
+        placement={isMobile ? "bottom" : "bottomLeft"}
         overlayClassName="ecosystem-app-switcher-dropdown"
       >
       <div

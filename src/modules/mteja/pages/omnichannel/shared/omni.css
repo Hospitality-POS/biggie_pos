@@ -1,0 +1,21 @@
+/*
+ * The app forces every primary button to the theme colour:
+ *   .ant-btn-primary { background-color: var(--primary-color) !important; }
+ * Omnichannel buttons that must keep their own colour (WhatsApp green, flow
+ * colours) opt out with class "omni-btn-tint" + a --omni-btn colour — the
+ * extra class wins on specificity.
+ */
+.omni-btn-tint.ant-btn-primary:not(:disabled) {
+    background-color: var(--omni-btn) !important;
+    border-color: var(--omni-btn) !important;
+    color: #fff !important;
+}
+
+.omni-btn-tint.ant-btn-primary:not(:disabled):hover {
+    filter: brightness(0.94);
+}
+
+/* Sideways rows hide their scrollbar — HScroll adds arrows for mouse users. */
+.omni-hscroll::-webkit-scrollbar {
+    display: none;
+}

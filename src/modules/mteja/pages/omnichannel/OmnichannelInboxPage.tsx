@@ -1,0 +1,734 @@
+import React, { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { ProCard } from "@ant-design/pro-components";
+import {
+    Button,
+    Dropdown,
+    Grid,
+    Space,
+    Typography,
+    App,
+    Tooltip,
+    Alert,
+    Tabs,
+} from "antd";
+import {
+    PlusOutlined,
+    MessageOutlined,
+    ReloadOutlined,
+    SettingOutlined,
+    EditOutlined,
+} from "@ant-design/icons";
+
+const WhatsAppIcon = () => (
+    <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+    </svg>
+);
+
+const MessengerIcon = () => (
+    <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+        <path d="M12 0C5.373 0 0 4.373 0 9.75c0 2.884 1.624 5.456 4.128 7.094l-.641 3.156 3.723-1.549c1.536.392 3.18.392 4.716 0l3.723 1.549-.641-3.156C22.376 15.206 24 12.634 24 9.75 24 4.373 18.627 0 12 0zm-1.5 13.5l-3.75-3.75 1.5-1.5 2.25 2.25 6-6 1.5 1.5-7.5 7.5z"/>
+    </svg>
+);
+
+const InstagramIcon = () => (
+    <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+        <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+    </svg>
+);
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+    fetchAgents,
+    fetchConversations,
+    fetchQueue,
+    fetchWhatsappChannels,
+} from "@services/whatsappService";
+import { usePrimaryColor } from "@context/PrimaryColorContext";
+import { THEME_C } from "@utils/getPrimaryColor";
+import ConversationList from "./ConversationList";
+import MessageThread from "./MessageThread";
+import ScriptsManager from "./ScriptsManager";
+import WelcomeMessageManager from "./WelcomeMessageManager";
+import AnalyticsPage from "./AnalyticsPage";
+import AgentsManager from "./AgentsManager";
+import ConnectChannelDrawer from "./ConnectChannelDrawer";
+import NewMessageModal from "./NewMessageModal";
+import CampaignsManager from "./Campaigns/CampaignsManager";
+
+const { Text, Title } = Typography;
+const C = THEME_C;
+
+export type Channel = "all" | "whatsapp" | "messenger" | "instagram";
+export type ConversationStatus = "open" | "pending" | "pending_dispatch" | "resolved" | "closed";
+
+export interface Conversation {
+    _id: string;
+    channel: "whatsapp" | "messenger" | "instagram";
+    external_contact_name: string;
+    external_contact_phone?: string;
+    external_contact_id: string;
+    customer_id?: string;
+    lead_id?: string;
+    status: ConversationStatus;
+    last_message_at: string;
+    last_message_preview?: string;
+    unread_count: number;
+    phone_number_id?: string;
+    assigned_to?: { _id: string; fullname: string; thumbnail?: string };
+    is_window_open?: boolean;
+    // Present while the WhatsApp assistant is guiding the customer.
+    pending_marketplace_order?: { step?: string; flow?: string } | null;
+    pending_booking?: { step?: string; flow?: string } | null;
+}
+
+export const getShopId = (): string => {
+    try {
+        const shopId = localStorage.getItem("shopId");
+        return shopId && shopId !== "{}" && shopId !== "null" ? shopId : "";
+    } catch {
+        return "";
+    }
+};
+
+export const getCurrentUser = (): { _id?: string; id?: string; isAdmin?: boolean; role?: string } | null => {
+    try {
+        const raw = localStorage.getItem("user");
+        if (!raw || raw === "null") return null;
+        const parsed = JSON.parse(raw);
+        return {
+            _id: parsed._id || parsed.id,
+            id: parsed.id || parsed._id,
+            isAdmin: !!parsed.isAdmin,
+            role: parsed.role || "",
+        };
+    } catch {
+        return null;
+    }
+};
+
+export const CHANNEL_CONFIG: Record<
+    string,
+    { label: string; color: string; icon: React.ReactNode; bg: string }
+> = {
+    whatsapp: { label: "WhatsApp", color: "#25D366", bg: "#f0fdf4", icon: <WhatsAppIcon /> },
+    messenger: { label: "Messenger", color: "#0084FF", bg: "#eff6ff", icon: <MessengerIcon /> },
+    instagram: { label: "Instagram", color: "#E1306C", bg: "#fff0f5", icon: <InstagramIcon /> },
+};
+
+export const STATUS_CONFIG: Record<
+    ConversationStatus,
+    { label: string; badge: "success" | "processing" | "warning" | "error" | "default"; color: string }
+> = {
+    open: { label: "Open", badge: "success", color: "#52c41a" },
+    pending: { label: "Pending", badge: "warning", color: "#faad14" },
+    pending_dispatch: { label: "Pending Dispatch", badge: "processing", color: "#722ed1" },
+    resolved: { label: "Resolved", badge: "default", color: "#8c8c8c" },
+    closed: { label: "Closed", badge: "error", color: "#ff4d4f" },
+};
+
+const OmnichannelInboxPage: React.FC = () => {
+    const shopId = getShopId();
+    const currentUser = getCurrentUser();
+    const isAdmin = !!currentUser?.isAdmin;
+    const currentUserId = currentUser?._id || currentUser?.id || "";
+    const primaryColor = usePrimaryColor();
+    const screens = Grid.useBreakpoint();
+    const isMobile = !screens.md;
+    const queryClient = useQueryClient();
+
+    const [activeChannel] = useState<Channel>("whatsapp");
+    const [activeMainTab, setActiveMainTab] = useState<"inbox" | "scripts" | "welcome" | "analytics" | "agents" | "sms" | "email">("inbox");
+    const [activeStatus, setActiveStatus] = useState<ConversationStatus | "all" | "queue" | "needs_reply">("all");
+    const [selectedAgent, setSelectedAgent] = useState<string>("");
+    const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+    const [connectDrawerOpen, setConnectDrawerOpen] = useState(false);
+    const [newMessageOpen, setNewMessageOpen] = useState(false);
+    const [search, setSearch] = useState("");
+    const [page, setPage] = useState(1);
+
+    // Fill the viewport below whatever sits above (navbar, layout padding)
+    const rootRef = useRef<HTMLDivElement>(null);
+    const [availHeight, setAvailHeight] = useState<number | null>(null);
+    useEffect(() => {
+        const update = () => {
+            if (rootRef.current) {
+                setAvailHeight(Math.max(320, window.innerHeight - rootRef.current.getBoundingClientRect().top));
+            }
+        };
+        update();
+        window.addEventListener("resize", update);
+        return () => window.removeEventListener("resize", update);
+    }, []);
+
+    const {
+        data: channelsData,
+        isLoading: channelsLoading,
+    } = useQuery({
+        queryKey: ["omnichannel-channels", shopId],
+        queryFn: () => fetchWhatsappChannels({ shop_id: shopId }),
+        enabled: !!shopId,
+        staleTime: 60_000,
+        retry: 1,
+        refetchOnWindowFocus: false,
+    });
+
+    const channels = channelsData?.channels || [];
+
+    const { data: agentsData } = useQuery({
+        queryKey: ["omnichannel-agents", shopId],
+        queryFn: () => fetchAgents({ shop_id: shopId }),
+        enabled: !!shopId,
+        staleTime: 60_000,
+        refetchInterval: 60_000,
+    });
+
+    const agents = agentsData?.agents || [];
+
+    const connected = {
+        whatsapp: channels.some((c: any) => c.channel === "whatsapp" && c.is_active),
+        messenger: channels.some((c: any) => c.channel === "messenger" && c.is_active),
+        instagram: channels.some((c: any) => c.channel === "instagram" && c.is_active),
+    };
+    const anyConnected = connected.whatsapp || connected.messenger || connected.instagram;
+    // Only the official Cloud API (has a WABA id) enforces the 24-hour reply
+    // window — WhatsApp Web connections don't, so the badge would mislead.
+    const usesCloudApi = channels.some((c: any) => c.channel === "whatsapp" && c.is_active && !!c.waba_id);
+
+    const getAssignedTo = () => {
+        if (activeStatus === "queue" || !currentUserId) return undefined;
+        if (selectedAgent === "mine") return currentUserId;
+        return selectedAgent || undefined;
+    };
+
+    const {
+        data: conversationsData,
+        isLoading: conversationsLoading,
+        isFetching,
+        refetch,
+    } = useQuery({
+        queryKey: [
+            "omnichannel-conversations",
+            shopId,
+            activeChannel,
+            activeStatus,
+            selectedAgent,
+            page,
+            search,
+        ],
+        queryFn: async () => {
+            if (activeStatus === "queue") {
+                const data = await fetchQueue({ shop_id: shopId });
+                return { ...data, conversations: data.queue };
+            }
+            if (activeStatus === "needs_reply") {
+                // No single backend status covers "unanswered" conversations, so pull a
+                // larger page across open + pending and filter/sort them client-side.
+                const data = await fetchConversations({
+                    shop_id: shopId,
+                    channel: activeChannel === "all" ? undefined : activeChannel,
+                    assigned_to: getAssignedTo(),
+                    page: 1,
+                    limit: 100,
+                    search: search || undefined,
+                });
+                const needsReply = (data.conversations || [])
+                    .filter(
+                        (c: Conversation) =>
+                            c.unread_count > 0 &&
+                            (c.status === "open" || c.status === "pending" || c.status === "pending_dispatch")
+                    )
+                    .sort(
+                        (a: Conversation, b: Conversation) =>
+                            new Date(a.last_message_at).getTime() - new Date(b.last_message_at).getTime()
+                    );
+                return { ...data, conversations: needsReply, total: needsReply.length };
+            }
+            return fetchConversations({
+                shop_id: shopId,
+                channel: activeChannel === "all" ? undefined : activeChannel,
+                status: activeStatus === "all" ? undefined : activeStatus,
+                assigned_to: getAssignedTo(),
+                page,
+                limit: 30,
+                search: search || undefined,
+            });
+        },
+        enabled: !!shopId && anyConnected,
+        staleTime: 5_000,
+        retry: 1,
+        refetchInterval: anyConnected ? 5_000 : false,
+        refetchOnWindowFocus: true,
+    });
+
+    const rawConversations = conversationsData?.conversations || [];
+    const totalCount = conversationsData?.total || 0;
+
+    // Bubble unanswered conversations to the top of the list so they don't get
+    // buried under recently-active but already-answered chats. "Needs Reply" is
+    // already curated/sorted (oldest-unanswered-first) above, so leave it as-is.
+    const conversations = useMemo(() => {
+        if (activeStatus === "needs_reply" || activeStatus === "queue") return rawConversations;
+        return [...rawConversations].sort((a: Conversation, b: Conversation) => {
+            const aUnread = a.unread_count > 0 ? 1 : 0;
+            const bUnread = b.unread_count > 0 ? 1 : 0;
+            if (aUnread !== bUnread) return bUnread - aUnread;
+            return new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime();
+        });
+    }, [rawConversations, activeStatus]);
+
+    // Keep the selected conversation in sync with the list refetches
+    useEffect(() => {
+        if (selectedConversation && conversations.length > 0) {
+            const updated = conversations.find((c: any) => c._id === selectedConversation._id);
+            if (updated) setSelectedConversation(updated);
+        }
+    }, [conversations, selectedConversation]);
+
+    // Calculate status counts from conversations array
+    const statusCounts = useMemo(() => {
+        const counts = {
+            open: 0,
+            pending: 0,
+            pending_dispatch: 0,
+            resolved: 0,
+            closed: 0,
+            needs_reply: 0,
+            resolved_today: conversationsData?.status_counts?.resolved_today || 0
+        };
+
+        conversations.forEach((conv: Conversation) => {
+            if (conv.status === "open") counts.open++;
+            else if (conv.status === "pending") counts.pending++;
+            else if (conv.status === "pending_dispatch") counts.pending_dispatch++;
+            else if (conv.status === "resolved") counts.resolved++;
+            else if (conv.status === "closed") counts.closed++;
+            if (
+                conv.unread_count > 0 &&
+                (conv.status === "open" || conv.status === "pending" || conv.status === "pending_dispatch")
+            ) {
+                counts.needs_reply++;
+            }
+        });
+
+        return counts;
+    }, [conversations, conversationsData]);
+
+
+    const handleConversationSelect = useCallback((conv: Conversation) => {
+        setSelectedConversation(conv);
+    }, []);
+
+    const handleMessageSent = useCallback(() => {
+        queryClient.invalidateQueries({ queryKey: ["omnichannel-conversations"] });
+        queryClient.invalidateQueries({ queryKey: ["messages"] });
+    }, [queryClient]);
+
+    const handleConversationUpdate = useCallback(() => {
+        queryClient.invalidateQueries({ queryKey: ["omnichannel-conversations"] });
+        if (selectedConversation) {
+            queryClient.invalidateQueries({ queryKey: ["messages", selectedConversation._id] });
+        }
+    }, [queryClient, selectedConversation]);
+
+    const handleConnectSuccess = useCallback(() => {
+        queryClient.invalidateQueries({ queryKey: ["omnichannel-channels"] });
+        setConnectDrawerOpen(false);
+    }, [queryClient]);
+
+    if (!shopId) {
+        return (
+            <App>
+                <Alert
+                    type="warning"
+                    showIcon
+                    message="Shop not found"
+                    description="Could not determine your shop ID. Please log out and log back in."
+                />
+            </App>
+        );
+    }
+
+
+
+    return (
+        <App>
+            <div
+                ref={rootRef}
+                style={{
+                    height: availHeight ?? "100vh",
+                    boxSizing: "border-box",
+                    overflow: "hidden",
+                    padding: isMobile ? 0 : "16px 24px",
+                    background: isMobile ? "#fff" : C.bg,
+                    display: "flex",
+                    flexDirection: "column",
+                }}
+            >
+                {/* ── Dashboard-style page header ── */}
+                {!isMobile && (
+                    <div
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            gap: 12,
+                            flexWrap: "wrap",
+                            marginBottom: 14,
+                            flexShrink: 0,
+                        }}
+                    >
+                        <Space align="center" size={12}>
+                            <div
+                                style={{
+                                    background: C.primaryLight,
+                                    borderRadius: 10,
+                                    padding: "8px 10px",
+                                    color: C.primary,
+                                    fontSize: 20,
+                                    display: "flex",
+                                }}
+                            >
+                                <MessageOutlined />
+                            </div>
+                            <div>
+                                <Title level={4} style={{ margin: 0, color: C.darkText, fontWeight: 600 }}>
+                                    Omnichannel Inbox
+                                </Title>
+                                <Text style={{ fontSize: 12, color: C.subText }}>
+                                    WhatsApp · Messenger · Instagram — all your messages in one place
+                                </Text>
+                            </div>
+                        </Space>
+                        <Space size={8} wrap>
+                            <Tooltip title="Refresh">
+                                <Button
+                                    icon={<ReloadOutlined />}
+                                    loading={isFetching || channelsLoading}
+                                    onClick={() => {
+                                        queryClient.invalidateQueries({ queryKey: ["omnichannel-channels"] });
+                                        if (anyConnected) refetch();
+                                    }}
+                                />
+                            </Tooltip>
+                            {activeMainTab === "inbox" && anyConnected && (
+                                <Button icon={<EditOutlined />} onClick={() => setNewMessageOpen(true)}>
+                                    New Message
+                                </Button>
+                            )}
+                            <Button
+                                type="primary"
+                                icon={<PlusOutlined />}
+                                onClick={() => setConnectDrawerOpen(true)}
+                                style={{ background: primaryColor, borderColor: primaryColor }}
+                            >
+                                Connect Channel
+                            </Button>
+                            <Tooltip title="Channel Settings">
+                                <Button icon={<SettingOutlined />} onClick={() => setConnectDrawerOpen(true)} />
+                            </Tooltip>
+                        </Space>
+                    </div>
+                )}
+
+
+                <ProCard
+                    bordered={!isMobile}
+                    size="small"
+                    bodyStyle={{
+                        padding: 0,
+                        flex: 1,
+                        minHeight: 0,
+                        display: "flex",
+                        flexDirection: "column",
+                        overflow: "hidden",
+                    }}
+                    style={{
+                        borderRadius: isMobile ? 0 : 12,
+                        boxShadow: isMobile ? "none" : "0 1px 3px rgba(0,0,0,0.04)",
+                        overflow: "hidden",
+                        flex: 1,
+                        minHeight: 0,
+                        display: "flex",
+                        flexDirection: "column",
+                    }}
+                    title={
+                        isMobile ? null : (
+                            <Tabs
+                                activeKey={activeMainTab}
+                                onChange={(k) => setActiveMainTab(k as "inbox" | "scripts" | "welcome" | "analytics" | "agents" | "sms" | "email")}
+                                size="middle"
+                                style={{ minWidth: 200 }}
+                                items={[
+                                    { key: "inbox", label: "WhatsApp" },
+                                    { key: "sms", label: "SMS" },
+                                    { key: "email", label: "Email" },
+                                    { key: "scripts", label: "Scripts" },
+                                    { key: "welcome", label: "Auto-Reply" },
+                                    { key: "analytics", label: "Analytics" },
+                                    { key: "agents", label: "Agents" },
+                                ]}
+                            />
+                        )
+                    }
+                >
+                    <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+                    {/* On mobile the ProCard title/extra row can't be trusted to
+                        constrain the tabs, so the header lives inside the body
+                        where this container's width is bounded — the tabs get
+                        scroll arrows and the action buttons stay pinned. */}
+                    {isMobile && (
+                        <div
+                            style={{
+                                display: "flex",
+                                alignItems: "center",
+                                padding: "0 8px",
+                                borderBottom: "1px solid #e2e8f0",
+                                background: "#fff",
+                                flexShrink: 0,
+                            }}
+                        >
+                            <Tabs
+                                activeKey={activeMainTab}
+                                onChange={(k) => setActiveMainTab(k as "inbox" | "scripts" | "welcome" | "analytics" | "agents" | "sms" | "email")}
+                                size="small"
+                                style={{ flex: 1, minWidth: 0 }}
+                                items={[
+                                    { key: "inbox", label: "WhatsApp" },
+                                    { key: "sms", label: "SMS" },
+                                    { key: "email", label: "Email" },
+                                    { key: "scripts", label: "Scripts" },
+                                    { key: "welcome", label: "Auto" },
+                                    { key: "analytics", label: "Analytics" },
+                                    { key: "agents", label: "Agents" },
+                                ]}
+                            />
+                            <Space size={4} style={{ flexShrink: 0 }}>
+                                <Tooltip title="Refresh">
+                                    <Button
+                                        icon={<ReloadOutlined />}
+                                        size="small"
+                                        loading={isFetching || channelsLoading}
+                                        onClick={() => {
+                                            queryClient.invalidateQueries({ queryKey: ["omnichannel-channels"] });
+                                            if (anyConnected) {
+                                                refetch();
+                                            }
+                                        }}
+                                        style={{ borderRadius: 8, height: 32, width: 32 }}
+                                    />
+                                </Tooltip>
+                                {activeMainTab === "inbox" && anyConnected && (
+                                    <Tooltip title="New Message">
+                                        <Button
+                                            icon={<EditOutlined />}
+                                            size="small"
+                                            onClick={() => setNewMessageOpen(true)}
+                                            style={{ borderRadius: 8, height: 32, width: 32 }}
+                                        />
+                                    </Tooltip>
+                                )}
+                                <Dropdown
+                                    menu={{
+                                        items: [
+                                            { key: "connect", icon: <PlusOutlined />, label: "Connect Channel" },
+                                            { key: "settings", icon: <SettingOutlined />, label: "Channel Settings" },
+                                        ],
+                                        onClick: () => setConnectDrawerOpen(true),
+                                    }}
+                                    trigger={["click"]}
+                                    placement="bottomRight"
+                                >
+                                    <Button
+                                        icon={<PlusOutlined />}
+                                        size="small"
+                                        type="primary"
+                                        style={{
+                                            background: primaryColor,
+                                            borderColor: primaryColor,
+                                            borderRadius: 8,
+                                            height: 32,
+                                            width: 32,
+                                        }}
+                                    />
+                                </Dropdown>
+                            </Space>
+                        </div>
+                    )}
+                    <div
+                        style={{
+                            flex: 1,
+                            minHeight: 0,
+                            overflow: "hidden",
+                        }}
+                    >
+                    {activeMainTab === "inbox" ? (
+                    <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", height: "100%" }}>
+                        <div
+                            style={{
+                                width: isMobile ? "100%" : 380,
+                                height: isMobile ? (selectedConversation ? 0 : "100%") : "100%",
+                                borderRight: isMobile ? "none" : "1px solid #e2e8f0",
+                                borderBottom: isMobile ? "1px solid #e2e8f0" : "none",
+                                flexShrink: 0,
+                                overflow: "hidden",
+                                background: "#f8fafc",
+                                display: isMobile && selectedConversation ? "none" : "flex",
+                                flexDirection: "column",
+                            }}
+                        >
+                        {!anyConnected && !channelsLoading ? (
+                            <div style={{
+                                marginTop: 72,
+                                padding: 24,
+                                textAlign: "center"
+                            }}>
+                                <div style={{
+                                    width: 64,
+                                    height: 64,
+                                    margin: "0 auto 16px",
+                                    borderRadius: 16,
+                                    background: "#eff6ff",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center"
+                                }}>
+                                    <MessageOutlined style={{ fontSize: 30, color: "#3b82f6" }} />
+                                </div>
+                                <Title level={5} style={{ margin: "0 0 6px", color: "#0f172a", fontWeight: 600 }}>
+                                    No WhatsApp Connected
+                                </Title>
+                                <Text style={{ fontSize: 13, color: "#64748b", display: "block", marginBottom: 18 }}>
+                                    Connect your WhatsApp to start receiving messages
+                                </Text>
+                                <Button
+                                    type="primary"
+                                    icon={<PlusOutlined />}
+                                    onClick={() => setConnectDrawerOpen(true)}
+                                    style={{
+                                        background: primaryColor,
+                                        borderColor: primaryColor,
+                                        borderRadius: 8,
+                                        fontWeight: 500
+                                    }}
+                                >
+                                    Connect WhatsApp
+                                </Button>
+                            </div>
+                        ) : (
+                            <ConversationList
+                                conversations={conversations}
+                                loading={conversationsLoading}
+                                selectedId={selectedConversation?._id || null}
+                                activeStatus={activeStatus}
+                                total={totalCount}
+                                page={page}
+                                pageSize={30}
+                                search={search}
+                                isAdmin={isAdmin}
+                                agents={agents}
+                                selectedAgent={selectedAgent}
+                                onSearchChange={(v) => { setSearch(v); setPage(1); }}
+                                onStatusChange={(s) => { setActiveStatus(s); setPage(1); }}
+                                onAgentChange={(v) => { setSelectedAgent(v); setPage(1); }}
+                                onPageChange={setPage}
+                                onSelect={handleConversationSelect}
+                                statusCounts={statusCounts}
+                                showWindowBadge={usesCloudApi}
+                                primaryColor={primaryColor}
+                            />
+                        )}
+                    </div>
+
+                    <div
+                        style={{
+                            flex: 1,
+                            overflow: "hidden",
+                            background: "#fff",
+                            display: isMobile && !selectedConversation ? "none" : "flex",
+                            flexDirection: "column",
+                        }}
+                    >
+                        {selectedConversation ? (
+                            <MessageThread
+                                conversation={selectedConversation}
+                                shopId={shopId}
+                                onMessageSent={handleMessageSent}
+                                onConversationUpdate={handleConversationUpdate}
+                                onConversationDeleted={() => setSelectedConversation(null)}
+                                onBack={() => setSelectedConversation(null)}
+                                primaryColor={primaryColor}
+                            />
+                        ) : (
+                            <div
+                                style={{
+                                    height: "100%",
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    gap: 14,
+                                    background: "#f8fafc"
+                                }}
+                            >
+                                <div style={{
+                                    width: 72,
+                                    height: 72,
+                                    borderRadius: 18,
+                                    background: "#eff6ff",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center"
+                                }}>
+                                    <MessageOutlined style={{ fontSize: 34, color: "#93c5fd" }} />
+                                </div>
+                                <div style={{ textAlign: "center" }}>
+                                    <Title level={5} style={{ color: "#0f172a", margin: "0 0 6px", fontWeight: 600 }}>
+                                        Start a Conversation
+                                    </Title>
+                                    <Text style={{ fontSize: 13, color: "#64748b" }}>
+                                        Select a conversation from the list to start messaging
+                                    </Text>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            ) : activeMainTab === "sms" ? (
+                <CampaignsManager shopId={shopId} channel="sms" />
+            ) : activeMainTab === "email" ? (
+                <CampaignsManager shopId={shopId} channel="email" />
+            ) : activeMainTab === "scripts" ? (
+                <ScriptsManager shopId={shopId} />
+            ) : activeMainTab === "welcome" ? (
+                <WelcomeMessageManager shopId={shopId} />
+            ) : activeMainTab === "analytics" ? (
+                <AnalyticsPage shopId={shopId} />
+            ) : (
+                <AgentsManager shopId={shopId} />
+            )}
+                    </div>
+                    </div>
+            </ProCard>
+            </div>
+
+            <ConnectChannelDrawer
+                open={connectDrawerOpen}
+                onClose={() => setConnectDrawerOpen(false)}
+                onSuccess={handleConnectSuccess}
+                shopId={shopId}
+                connectedChannels={connected}
+            />
+
+            <NewMessageModal
+                open={newMessageOpen}
+                onClose={() => setNewMessageOpen(false)}
+                shopId={shopId}
+                onSent={() => {
+                    queryClient.invalidateQueries({ queryKey: ["omnichannel-conversations"] });
+                }}
+            />
+        </App>
+    );
+};
+
+export default OmnichannelInboxPage;

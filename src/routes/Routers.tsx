@@ -17,16 +17,17 @@ import { Spin } from "antd";
 import NubaLoader from "@components/spinner/NubaLoader";
 import PaymentCallback from "@components/payment/PaymentCallback";
 import PermissionRoute from "@components/PermissionRoute";
+import { ModuleGate } from "@shared/licensing/ModuleGate";
 
 // ─── Lazily Loaded Core & Admin Pages ─────────────────────────────────────────
 const StaffLoginPage = lazyWithReload(() => import("@pages/Login/login"));
 const MainCategory = lazyWithReload(() => import("@pages/main_category/Main_category"));
-const MainOrders = lazyWithReload(() => import("@pages/OrderManagement/MainOrders"));
+const MainOrders = lazyWithReload(() => import("@modules/duka/pages/orders/MainOrders"));
 const StaffClockTracker = lazyWithReload(() => import("@pages/staff/ClockInTracker"));
 const HelpCenter = lazyWithReload(() => import("src/AdminDashboard/HelpCenter/HelpCenterPage"));
 const AuditTrailPage = lazyWithReload(() => import("src/AdminDashboard/AuditTrail/AuditTrailPage"));
 const DashboardAdminPage = lazyWithReload(() => import("src/AdminDashboard/DashboardPage/DashboardPage"));
-const DukaDashboardPage = lazyWithReload(() => import("src/pages/Dashboard/DukaDashboardPage"));
+const DukaDashboardPage = lazyWithReload(() => import("@modules/duka/pages/dashboard/DukaDashboardPage"));
 const AdminDukaDashboardPage = lazyWithReload(() => import("src/AdminDashboard/DashboardPage/AdminDukaDashboardPage"));
 const UnifiedDashboardPage = lazyWithReload(() => import("src/pages/Report/UnifiedDashboardPage"));
 const UnifiedShopDashboardPage = lazyWithReload(() => import("src/pages/Report/UnifiedShopDashboardPage"));
@@ -89,9 +90,9 @@ const WagesList = lazyWithReload(() => import("src/AdminDashboard/Wages/WageList
 
 // ─── Core App ─────────────────────────────────────────────────────────────────
 const Layout = lazyWithReload(() => import("@components/layout/Layout"));
-const RestaurantPage = lazyWithReload(() => import("@pages/Restaurant/Restuarant"));
-const MainStore = lazyWithReload(() => import("@pages/store/MainStore"));
-const Table = lazyWithReload(() => import("@pages/Tables/TablePro"));
+const RestaurantPage = lazyWithReload(() => import("@modules/duka/pages/pos/Restuarant"));
+const MainStore = lazyWithReload(() => import("@modules/duka/pages/inventory/MainStore"));
+const Table = lazyWithReload(() => import("@modules/duka/pages/tables/TablePro"));
 const Faqs = lazyWithReload(() => import("@pages/Faqs/Faqs"));
 const Website = lazyWithReload(() => import("@pages/Website/website"));
 
@@ -105,15 +106,13 @@ const SystemSetup = lazyWithReload(() => import("@pages/Settings/systemSetup/Sys
 const CategoryMainSettings = lazyWithReload(() => import("@pages/Settings/categoryLevel/Category_main_settings"));
 const Profile = lazyWithReload(() => import("@pages/Profile/Profile"));
 const AdminProfile = lazyWithReload(() => import("src/AdminDashboard/Profile/AdminProfile"));
-const EmployeeShift = lazyWithReload(() => import("@pages/EmployeeShift/Employee"));
+const EmployeeShift = lazyWithReload(() => import("@modules/bandu/pages/shifts/Employee"));
 const Notification = lazyWithReload(() => import("@pages/Notification/NotificationPage"));
 
-// ─── Document Center ──────────────────────────────────────────────────────────
-const DocumentCenter = lazyWithReload(() => import("@pages/Documents/DocumentCenter"));
-
-// ─── E-Signature ───────────────────────────────────────────────────────────────
-const ESignPage = lazyWithReload(() => import("@pages/ESign/ESignPage"));
-const PublicSignPage = lazyWithReload(() => import("@pages/ESign/PublicSignPage"));
+// ─── E-Sign & Document Center (Modular Feature Slice) ─────────────────────────
+const DocumentCenter = lazyWithReload(() => import("@modules/esign/pages/documents/DocumentCenter"));
+const ESignPage = lazyWithReload(() => import("@modules/esign/pages/signatures/ESignPage"));
+const PublicSignPage = lazyWithReload(() => import("@modules/esign/pages/signatures/PublicSignPage"));
 
 // ─── Forms & Plans: client forms / plans (Duka) and employee forms / plans (Bandu) ──
 const FormsHubPage = lazyWithReload(() => import("@pages/FormsPlans/FormsHubPage"));
@@ -157,83 +156,83 @@ const HealthcareRedirect = () => {
   return <Navigate to={`${prefix}/tables${tab ? `?tab=${tab}` : ""}`} replace />;
 };
 
-// ─── Omnichannel Inbox ────────────────────────────────────────────────────────
-const OmnichannelInboxPage = lazyWithReload(() => import("src/pages/OmniChannel/OmnichannelInboxPage"));
-const OAuthCallbackPage = lazyWithReload(() => import("src/pages/OmniChannel/OAuthCallbackPage"));
+// ─── Omnichannel Inbox (Mteja Module Slice) ───────────────────────────────────
+const OmnichannelInboxPage = lazyWithReload(() => import("@modules/mteja/pages/omnichannel/OmnichannelInboxPage"));
+const OAuthCallbackPage = lazyWithReload(() => import("@modules/mteja/pages/omnichannel/OAuthCallbackPage"));
 
-// ─── Accounting Module ────────────────────────────────────────────────────────
-const ChartOfAccountsPage = lazyWithReload(() => import("src/pages/ChartOfAccounts/ChartOfAccountsPage"));
-const JournalEntriesPage = lazyWithReload(() => import("src/pages/JournalEntry/JournalEntriesPage"));
-const ProjectsPage = lazyWithReload(() => import("src/pages/Projects/ProjectsPage"));
-const SalesReceiptsPage = lazyWithReload(() => import("src/pages/SalesReceipts/SalesReceiptsPage"));
-const NotesPage = lazyWithReload(() => import("src/pages/Notes/NotesPage"));
-const BankStatementPage = lazyWithReload(() => import("src/pages/Banking/BankStatementPage"));
-const BankReconciliationPage = lazyWithReload(() => import("src/pages/Reconciliation/BankReconciliationPage"));
+// ─── Pesa / Financial Accounting (Modular Feature Slice) ──────────────────────
+const ChartOfAccountsPage = lazyWithReload(() => import("@modules/pesa/pages/accounts/ChartOfAccountsPage"));
+const JournalEntriesPage = lazyWithReload(() => import("@modules/pesa/pages/journals/JournalEntriesPage"));
+const ProjectsPage = lazyWithReload(() => import("@modules/pesa/pages/projects/ProjectsPage"));
+const SalesReceiptsPage = lazyWithReload(() => import("@modules/pesa/pages/invoices/SalesReceiptsPage"));
+const NotesPage = lazyWithReload(() => import("@modules/pesa/pages/invoices/NotesPage"));
+const BankStatementPage = lazyWithReload(() => import("@modules/pesa/pages/banking/BankStatementPage"));
+const BankReconciliationPage = lazyWithReload(() => import("@modules/pesa/pages/banking/BankReconciliationPage"));
 const UnifiedReportsPage = lazyWithReload(() => import("src/pages/Report/UnifiedReportsPage"));
 
 // Petty Cash & Refunds (Duka Only)
-const PettyCashListPage = lazyWithReload(() => import("src/pages/PettyCash/PettyCashListPage"));
-const RefundsListPage = lazyWithReload(() => import("src/pages/Refunds/RefundsListPage"));
+const PettyCashListPage = lazyWithReload(() => import("@modules/duka/pages/orders/PettyCashListPage"));
+const RefundsListPage = lazyWithReload(() => import("@modules/duka/pages/orders/RefundsListPage"));
 
 // ─── Expenses / Bills / Income ────────────────────────────────────────────────
-const ExpensesPage = lazyWithReload(() => import("@pages/OrderManagement/ExpensesPage"));
-const BillsPage = lazyWithReload(() => import("@pages/OrderManagement/BillsPage"));
-const IncomePage = lazyWithReload(() => import("@pages/OrderManagement/IncomePage"));
+const ExpensesPage = lazyWithReload(() => import("@modules/pesa/pages/invoices/ExpensesPage"));
+const BillsPage = lazyWithReload(() => import("@modules/pesa/pages/invoices/BillsPage"));
+const IncomePage = lazyWithReload(() => import("@modules/pesa/pages/invoices/IncomePage"));
 
 // ─── Currency ─────────────────────────────────────────────────────────────────
 const CurrencyPage = lazyWithReload(() => import("src/pages/Currency/CurrencyPage"));
 
-// ─── Asset Management ─────────────────────────────────────────────────────────
-const AssetRegisterPage = lazyWithReload(() => import("src/pages/AssetManagement/AssetRegisterPage"));
-const AssetRequestsPage = lazyWithReload(() => import("src/pages/AssetManagement/AssetRequestsPage"));
-const AssetMaintenancePage = lazyWithReload(() => import("src/pages/AssetManagement/AssetMaintenancePage"));
-const AssetReportsPage = lazyWithReload(() => import("src/pages/AssetManagement/AssetReportsPage"));
+// ─── Asset Management (Pesa Slice) ───────────────────────────────────────────
+const AssetRegisterPage = lazyWithReload(() => import("@modules/pesa/pages/assets/AssetRegisterPage"));
+const AssetRequestsPage = lazyWithReload(() => import("@modules/pesa/pages/assets/AssetRequestsPage"));
+const AssetMaintenancePage = lazyWithReload(() => import("@modules/pesa/pages/assets/AssetMaintenancePage"));
+const AssetReportsPage = lazyWithReload(() => import("@modules/pesa/pages/assets/AssetReportsPage"));
 
 // ─── CRM / Mteja Module ───────────────────────────────────────────────────────
 // All CRM pages are lazy-loaded and only reachable when hasMteja === true.
 // The MtejaRoute guard below enforces this at runtime.
-const LeadsPage = lazyWithReload(() => import("src/pages/Lead/Leads"));
-const CampaignsPage = lazyWithReload(() => import("src/pages/Campaign/Campaigns"));
-const SalesTargetsPage = lazyWithReload(() => import("src/pages/SalesTargets/SalesTargets"));
-const SalesBudgetsPage = lazyWithReload(() => import("src/pages/Salesbudgets/Salesbudgets"));
-const QuotesPage = lazyWithReload(() => import("src/pages/Quotes/QuotesPage"));
-const ActivityCalendarPage = lazyWithReload(() => import("src/pages/ActivityCalendar/ActivityCalendarPage"));
-const MtejaDashboard = lazyWithReload(() => import("src/pages/Dashboard/MtejaDashboard"));
-const AccountingDashboardPage = lazyWithReload(() => import("src/pages/AccountingDashboard/AccountingDashboardPage"));
+const LeadsPage = lazyWithReload(() => import("@modules/mteja/pages/leads/Leads"));
+const CampaignsPage = lazyWithReload(() => import("@modules/mteja/pages/campaigns/Campaigns"));
+const SalesTargetsPage = lazyWithReload(() => import("@modules/mteja/pages/targets/SalesTargets"));
+const SalesBudgetsPage = lazyWithReload(() => import("@modules/mteja/pages/targets/Salesbudgets"));
+const QuotesPage = lazyWithReload(() => import("@modules/mteja/pages/quotes/QuotesPage"));
+const ActivityCalendarPage = lazyWithReload(() => import("@modules/mteja/pages/calendar/ActivityCalendarPage"));
+const MtejaDashboard = lazyWithReload(() => import("@modules/mteja/pages/dashboard/MtejaDashboard"));
+const AccountingDashboardPage = lazyWithReload(() => import("@modules/pesa/pages/dashboard/AccountingDashboardPage"));
 
 // ─── Dala Real Estate Module ───────────────────────────────────────────────────
-// All Dala pages are lazy-loaded and only reachable when hasDala === true.
-const DalaDashboard = lazyWithReload(() => import("src/pages/dala/Dashboard"));
-const UnifiedDalaDashboard = lazyWithReload(() => import("src/pages/dala/UnifiedDalaDashboard"));
-const PropertiesList = lazyWithReload(() => import("src/pages/dala/properties/PropertiesList"));
-const PropertyDetail = lazyWithReload(() => import("src/pages/dala/properties/PropertyDetail"));
-const PropertyTypesList = lazyWithReload(() => import("src/pages/dala/property-types/PropertyTypesList"));
-const UnitsList = lazyWithReload(() => import("src/pages/dala/units/UnitsList"));
-const UnitDetail = lazyWithReload(() => import("src/pages/dala/units/UnitDetail"));
-const SalesManagement = lazyWithReload(() => import("src/pages/dala/sales/SalesManagement"));
-const SaleDetail = lazyWithReload(() => import("src/pages/dala/sales/SaleDetail"));
-const CommissionManagement = lazyWithReload(() => import("src/pages/dala/commissions/CommissionManagement"));
-const LeaseManagement = lazyWithReload(() => import("src/pages/dala/leases/LeaseManagement"));
-const LeaseDetail = lazyWithReload(() => import("src/pages/dala/leases/LeaseDetail"));
-const RentCollection = lazyWithReload(() => import("src/pages/dala/rent/RentCollection"));
-const MaintenanceManagement = lazyWithReload(() => import("src/pages/dala/maintenance/MaintenanceManagement"));
+// All Dala pages are lazy-loaded and gated via ModuleGate (moduleId="dala").
+const DalaDashboard = lazyWithReload(() => import("src/modules/dala/pages/Dashboard"));
+const UnifiedDalaDashboard = lazyWithReload(() => import("src/modules/dala/pages/UnifiedDalaDashboard"));
+const PropertiesList = lazyWithReload(() => import("src/modules/dala/pages/properties/PropertiesList"));
+const PropertyDetail = lazyWithReload(() => import("src/modules/dala/pages/properties/PropertyDetail"));
+const PropertyTypesList = lazyWithReload(() => import("src/modules/dala/pages/property-types/PropertyTypesList"));
+const UnitsList = lazyWithReload(() => import("src/modules/dala/pages/units/UnitsList"));
+const UnitDetail = lazyWithReload(() => import("src/modules/dala/pages/units/UnitDetail"));
+const SalesManagement = lazyWithReload(() => import("src/modules/dala/pages/sales/SalesManagement"));
+const SaleDetail = lazyWithReload(() => import("src/modules/dala/pages/sales/SaleDetail"));
+const CommissionManagement = lazyWithReload(() => import("src/modules/dala/pages/commissions/CommissionManagement"));
+const LeaseManagement = lazyWithReload(() => import("src/modules/dala/pages/leases/LeaseManagement"));
+const LeaseDetail = lazyWithReload(() => import("src/modules/dala/pages/leases/LeaseDetail"));
+const RentCollection = lazyWithReload(() => import("src/modules/dala/pages/rent/RentCollection"));
+const MaintenanceManagement = lazyWithReload(() => import("src/modules/dala/pages/maintenance/MaintenanceManagement"));
 
-// ─── Bandu HR Module ───────────────────────────────────────────────────────────
-const BanduHRDashboard = lazyWithReload(() => import("src/pages/BanduHR/BanduHRDashboard"));
-const EmployeeManagement = lazyWithReload(() => import("src/pages/BanduHR/EmployeeManagement"));
-const LeaveApplication = lazyWithReload(() => import("src/pages/BanduHR/LeaveApplication"));
-const LeavePolicies = lazyWithReload(() => import("src/pages/BanduHR/LeavePolicies"));
-const LeaveCalendar = lazyWithReload(() => import("src/pages/BanduHR/LeaveCalendar"));
-const PayrollManagement = lazyWithReload(() => import("src/pages/BanduHR/PayrollManagement"));
-const AttendanceTracking = lazyWithReload(() => import("src/pages/BanduHR/AttendanceTracking"));
-const PayslipView = lazyWithReload(() => import("src/pages/BanduHR/PayslipView"));
-const LeaveApprovals = lazyWithReload(() => import("src/pages/BanduHR/LeaveApprovals"));
+// ─── Bandu HR Module (Modular Feature Slice) ──────────────────────────────────
+const BanduHRDashboard = lazyWithReload(() => import("@modules/bandu/pages/dashboard/BanduHRDashboard"));
+const EmployeeManagement = lazyWithReload(() => import("@modules/bandu/pages/employees/EmployeeManagement"));
+const LeaveApplication = lazyWithReload(() => import("@modules/bandu/pages/leave/LeaveApplication"));
+const LeavePolicies = lazyWithReload(() => import("@modules/bandu/pages/leave/LeavePolicies"));
+const LeaveCalendar = lazyWithReload(() => import("@modules/bandu/pages/leave/LeaveCalendar"));
+const PayrollManagement = lazyWithReload(() => import("@modules/bandu/pages/payroll/PayrollManagement"));
+const AttendanceTracking = lazyWithReload(() => import("@modules/bandu/pages/attendance/AttendanceTracking"));
+const PayslipView = lazyWithReload(() => import("@modules/bandu/pages/payslips/PayslipView"));
+const LeaveApprovals = lazyWithReload(() => import("@modules/bandu/pages/leave/LeaveApprovals"));
 
-// ─── Mteja guard ─────────────────────────────────────────────────────────────
+// ─── Mteja guard (Dynamic SaaS License Gate) ─────────────────────────────────
 const getMtejaEnabled = (): boolean => {
   try {
     const tenant = JSON.parse(localStorage.getItem("tenant") || "{}");
-    return tenant?.modules?.crm === true;
+    return tenant?.modules?.crm === true || tenant?.modules?.mteja === true;
   } catch {
     return false;
   }
@@ -241,32 +240,21 @@ const getMtejaEnabled = (): boolean => {
 
 const MtejaRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   if (!getMtejaEnabled()) return <Navigate to="/customers" replace />;
-  return <>{children}</>;
+  return <ModuleGate moduleId="mteja">{children}</ModuleGate>;
 };
 
 const AdminMtejaRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   if (!getMtejaEnabled()) return <Navigate to="/admin/customers" replace />;
-  return <>{children}</>;
+  return <ModuleGate moduleId="mteja">{children}</ModuleGate>;
 };
 
-// ─── Dala guard ─────────────────────────────────────────────────────────────
-const getDalaEnabled = (): boolean => {
-  try {
-    const tenant = JSON.parse(localStorage.getItem("tenant") || "{}");
-    return tenant?.modules?.dala === true;
-  } catch {
-    return false;
-  }
-};
-
+// ─── Dala guard (Dynamic SaaS License Gate) ──────────────────────────────────
 const DalaRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  if (!getDalaEnabled()) return <Navigate to="/customers" replace />;
-  return <>{children}</>;
+  return <ModuleGate moduleId="dala">{children}</ModuleGate>;
 };
 
 const AdminDalaRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  if (!getDalaEnabled()) return <Navigate to="/admin/customers" replace />;
-  return <>{children}</>;
+  return <ModuleGate moduleId="dala">{children}</ModuleGate>;
 };
 
 // ─── Bandu HR guard ─────────────────────────────────────────────────────────────
@@ -281,13 +269,14 @@ const getBanduHREnabled = (): boolean => {
 
 const BanduHRRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   if (!getBanduHREnabled()) return <Navigate to="/home-dashboard" replace />;
-  return <>{children}</>;
+  return <ModuleGate moduleId="bandu">{children}</ModuleGate>;
 };
 
 const AdminBanduHRRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   if (!getBanduHREnabled()) return <Navigate to="/admin/dashboard" replace />;
-  return <>{children}</>;
+  return <ModuleGate moduleId="bandu">{children}</ModuleGate>;
 };
+
 
 // ─── CRM page wrapper — private + Mteja guard ────────────────────────────────
 const mtejaPage = (Component: React.ComponentType, permission: string | string[]) => (
@@ -340,8 +329,63 @@ const banduHRAdminPage = (Component: React.ComponentType, permission: string | s
   </AdminBanduHRRoute>
 );
 
-// ─── Accounting layout wrapper ────────────────────────────────────────────────
-const AccountingLayout = () => <Outlet />;
+// ─── E-Sign guard (Dynamic SaaS License Gate) ─────────────────────────────────
+const ESignRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  return <ModuleGate moduleId="esign">{children}</ModuleGate>;
+};
+
+const AdminESignRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  return <ModuleGate moduleId="esign">{children}</ModuleGate>;
+};
+
+const esignPage = (Component: React.ComponentType, permission: string | string[]) => (
+  <ESignRoute>
+    <PermissionRoute permission={permission}>
+      {privatePage(Component)}
+    </PermissionRoute>
+  </ESignRoute>
+);
+
+const esignAdminPage = (Component: React.ComponentType, permission: string | string[]) => (
+  <AdminESignRoute>
+    <PermissionRoute permission={permission}>
+      {adminPage(Component)}
+    </PermissionRoute>
+  </AdminESignRoute>
+);
+
+// ─── Duka guard (Dynamic SaaS License Gate) ──────────────────────────────────
+const DukaRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  return <ModuleGate moduleId="duka">{children}</ModuleGate>;
+};
+
+const AdminDukaRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  return <ModuleGate moduleId="duka">{children}</ModuleGate>;
+};
+
+const dukaPage = (Component: React.ComponentType, permission: string | string[]) => (
+  <DukaRoute>
+    <PermissionRoute permission={permission}>
+      {privatePage(Component)}
+    </PermissionRoute>
+  </DukaRoute>
+);
+
+const dukaAdminPage = (Component: React.ComponentType, permission: string | string[]) => (
+  <AdminDukaRoute>
+    <PermissionRoute permission={permission}>
+      {adminPage(Component)}
+    </PermissionRoute>
+  </AdminDukaRoute>
+);
+
+
+// ─── Accounting layout wrapper (Dynamic SaaS License Gate) ───────────────────
+const AccountingLayout = () => (
+  <ModuleGate moduleId="pesa">
+    <Outlet />
+  </ModuleGate>
+);
 
 // ─── CRM layout wrapper ───────────────────────────────────────────────────────
 const CrmLayout = () => <Outlet />;
@@ -350,14 +394,13 @@ const CrmLayout = () => <Outlet />;
 const SmartShopRouter = () => {
   const tenant = (() => { try { return JSON.parse(localStorage.getItem("tenant") || "{}"); } catch { return {}; } })();
   const hasPOS = !!(tenant?.pos_integration?.enabled ?? true);
-  const hasAccounting = !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting);
-  const hasMteja = tenant?.modules?.crm === true;
+  const hasAccounting = !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting || tenant?.modules?.pesa);
+  const hasMteja = tenant?.modules?.crm === true || tenant?.modules?.mteja === true;
   const hasDala = tenant?.modules?.dala === true;
 
   if (hasDala && !hasPOS && !hasAccounting && !hasMteja) return <Navigate to="/dala" replace />;
   if (hasMteja && !hasPOS && !hasAccounting) return <Navigate to="/home-dashboard?tab=mteja" replace />;
-  if (hasAccounting && !hasPOS) return <Navigate to="/home-dashboard?tab=accounting" replace />;
-  return privatePage(Table);
+  return <DukaRoute>{privatePage(Table)}</DukaRoute>;
 };
 
 const SmartDashboardRouter = () => {
@@ -367,8 +410,8 @@ const SmartDashboardRouter = () => {
   if (!user?.role) return <Navigate to="/login" replace />;
 
   const hasPOS = !!(tenant?.pos_integration?.enabled ?? true);
-  const hasAccounting = !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting);
-  const hasMteja = tenant?.modules?.crm === true;
+  const hasAccounting = !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting || tenant?.modules?.pesa);
+  const hasMteja = tenant?.modules?.crm === true || tenant?.modules?.mteja === true;
   const hasDala = tenant?.modules?.dala === true;
 
   if (hasMteja && !hasPOS && !hasAccounting && !hasDala) return <Navigate to="/admin/dashboard?tab=mteja" replace />;
@@ -459,25 +502,25 @@ const routes = sentryCreateBrowserRouter(
           element={<Suspense fallback={fullscreenSpin}><Notification /></Suspense>} />
 
         <Route path="tables" errorElement={<NotFound />}
-          element={guardedPage(Table, TABLES_PERMISSIONS)} />
+          element={dukaPage(Table, TABLES_PERMISSIONS)} />
 
         <Route path="main-category" errorElement={<NotFound />}
-          element={guardedPage(MainCategory, "CATEGORIES_VIEW")} />
+          element={dukaPage(MainCategory, "CATEGORIES_VIEW")} />
 
         <Route path="dashboard/:id" errorElement={<NotFound />}
-          element={guardedPage(RestaurantPage, "ORDERS_VIEW_DASHBOARD")} />
+          element={dukaPage(RestaurantPage, "ORDERS_VIEW_DASHBOARD")} />
 
         <Route path="dashboard" errorElement={<NotFound />}
           element={<Navigate to="/pos/dashboard" replace />} />
 
         <Route path="cart/cart/:cartId" errorElement={<NotFound />}
-          element={guardedPage(RestaurantPage, "ORDERS_VIEW_DASHBOARD")} />
+          element={dukaPage(RestaurantPage, "ORDERS_VIEW_DASHBOARD")} />
 
         <Route path="home-dashboard" errorElement={<NotFound />}
           element={guardedPage(UnifiedShopDashboardPage, "UNIFIED_DASHBOARD_VIEW")} />
 
         <Route path="esign" errorElement={<NotFound />}
-          element={guardedPage(ESignPage, "SIGNATURE_VIEW")} />
+          element={esignPage(ESignPage, "SIGNATURE_VIEW")} />
 
         <Route path="healthcare" errorElement={<NotFound />}
           element={<HealthcareRedirect />} />
@@ -495,10 +538,10 @@ const routes = sentryCreateBrowserRouter(
         <Route path="client-forms/:id" element={<RedirectWithParams to="/forms/builder/:id" />} />
 
         <Route path="store" errorElement={<NotFound />}
-          element={guardedPage(MainStore, "PRODUCTS_VIEW")} />
+          element={dukaPage(MainStore, "PRODUCTS_VIEW")} />
 
         <Route path="store/:id" errorElement={<NotFound />}
-          element={guardedPage(MainStore, "PRODUCTS_VIEW")} />
+          element={dukaPage(MainStore, "PRODUCTS_VIEW")} />
 
         <Route path="payment/callback" errorElement={<NotFound />}
           element={<Suspense fallback={fullscreenSpin}><PaymentCallback /></Suspense>} />
@@ -530,28 +573,28 @@ const routes = sentryCreateBrowserRouter(
           element={guardedPage(SupplierMainSettings, "SUPPLIERS_VIEW")} />
 
         <Route path="table-settings" errorElement={<NotFound />}
-          element={guardedPage(TableMainSettings, "TABLES_VIEW")} />
+          element={dukaPage(TableMainSettings, "TABLES_VIEW")} />
 
         <Route path="Category-settings" errorElement={<NotFound />}
-          element={guardedPage(CategoryMainSettings, "CATEGORIES_VIEW")} />
+          element={dukaPage(CategoryMainSettings, "CATEGORIES_VIEW")} />
 
         <Route path="category-settings" errorElement={<NotFound />}
-          element={guardedPage(CategoryMainSettings, "CATEGORIES_VIEW")} />
+          element={dukaPage(CategoryMainSettings, "CATEGORIES_VIEW")} />
 
         <Route path="reports" errorElement={<NotFound />}
           element={guardedPage(UnifiedReportsPage, ["REPORTS_ITEM_SALES", "REPORTS_VIEW", "ACCOUNTING_REPORT_PROFIT_LOSS", "HEALTHCARE_REPORTS_VIEW", "HEALTHCARE_ACCESS_LOG_VIEW"])} />
 
         <Route path="inventory-settings" errorElement={<NotFound />}
-          element={guardedPage(InventoryMainSettings, "INVENTORY_VIEW")} />
+          element={dukaPage(InventoryMainSettings, "INVENTORY_VIEW")} />
 
         <Route path="inventory" errorElement={<NotFound />}
-          element={guardedPage(InventoryMainSettings, "INVENTORY_VIEW")} />
+          element={dukaPage(InventoryMainSettings, "INVENTORY_VIEW")} />
 
         <Route path="profile/:id" errorElement={<NotFound />}
           element={privatePage(Profile)} />
 
         <Route path="orders" errorElement={<NotFound />}
-          element={guardedPage(MainOrders, ["ORDERS_VIEW", "ACCOUNTING_INVOICE_VIEW"])} />
+          element={dukaPage(MainOrders, ["ORDERS_VIEW", "ACCOUNTING_INVOICE_VIEW"])} />
 
         <Route path="customers" errorElement={<NotFound />}
           element={guardedPage(Customer, "CUSTOMERS_VIEW")} />
@@ -566,16 +609,16 @@ const routes = sentryCreateBrowserRouter(
           element={guardedPage(EmployeeShift, "SHIFTS_VIEW")} />
 
         <Route path="documents" errorElement={<NotFound />}
-          element={guardedPage(DocumentCenter, "DOCUMENTS_VIEW")} />
+          element={esignPage(DocumentCenter, "DOCUMENTS_VIEW")} />
 
         <Route path="help-center" errorElement={<NotFound />}
           element={<Suspense fallback={fullscreenSpin}><HelpCenter /></Suspense>} />
 
         {/* Petty Cash & Refunds (Duka Only) */}
         <Route path="petty-cash" errorElement={<NotFound />}
-          element={guardedPage(PettyCashListPage, "ORDERS_VIEW_DASHBOARD")} />
+          element={dukaPage(PettyCashListPage, "ORDERS_VIEW_DASHBOARD")} />
         <Route path="refunds" errorElement={<NotFound />}
-          element={guardedPage(RefundsListPage, "ORDERS_VIEW_DASHBOARD")} />
+          element={dukaPage(RefundsListPage, "ORDERS_VIEW_DASHBOARD")} />
 
         <Route path="omnichannel" errorElement={<NotFound />}
           element={guardedPage(OmnichannelInboxPage, "OMNICHANNEL_VIEW")} />
@@ -633,7 +676,7 @@ const routes = sentryCreateBrowserRouter(
         <Route path="bandu/dashboard" element={<Navigate to="/hr/dashboard" replace />} />
         <Route path="bandu" element={<Navigate to="/hr/dashboard" replace />} />
         <Route path="pos/dashboard" errorElement={<NotFound />}
-          element={guardedPage(DukaDashboardPage, DUKA_DASHBOARD_PERMISSIONS)} />
+          element={dukaPage(DukaDashboardPage, DUKA_DASHBOARD_PERMISSIONS)} />
         <Route path="pos" element={<Navigate to="/pos/dashboard" replace />} />
         <Route path="duka/dashboard" element={<Navigate to="/pos/dashboard" replace />} />
         <Route path="duka" element={<Navigate to="/pos/dashboard" replace />} />
@@ -756,25 +799,25 @@ const routes = sentryCreateBrowserRouter(
           element={<Suspense fallback={fullscreenSpin}><Notification /></Suspense>} />
 
         <Route path="tables" errorElement={<NotFound />}
-          element={guardedAdminPage(Table, TABLES_PERMISSIONS)} />
+          element={dukaAdminPage(Table, TABLES_PERMISSIONS)} />
 
         <Route path="home-dashboard" errorElement={<NotFound />}
           element={guardedAdminPage(DashboardAdminPage, "UNIFIED_DASHBOARD_VIEW")} />
 
         <Route path="orders" errorElement={<NotFound />}
-          element={guardedAdminPage(MainOrders, ["ORDERS_VIEW", "ACCOUNTING_INVOICE_VIEW"])} />
+          element={dukaAdminPage(MainOrders, ["ORDERS_VIEW", "ACCOUNTING_INVOICE_VIEW"])} />
 
         <Route path="store" errorElement={<NotFound />}
-          element={guardedAdminPage(MainStore, "PRODUCTS_VIEW")} />
+          element={dukaAdminPage(MainStore, "PRODUCTS_VIEW")} />
 
         <Route path="store/:id" errorElement={<NotFound />}
-          element={guardedAdminPage(MainStore, "PRODUCTS_VIEW")} />
+          element={dukaAdminPage(MainStore, "PRODUCTS_VIEW")} />
 
         <Route path="inventory" errorElement={<NotFound />}
-          element={guardedAdminPage(InventoryMainSettings, "INVENTORY_VIEW")} />
+          element={dukaAdminPage(InventoryMainSettings, "INVENTORY_VIEW")} />
 
         <Route path="inventory-settings" errorElement={<NotFound />}
-          element={guardedAdminPage(InventoryMainSettings, "INVENTORY_VIEW")} />
+          element={dukaAdminPage(InventoryMainSettings, "INVENTORY_VIEW")} />
 
         <Route path="customers" errorElement={<NotFound />}
           element={guardedAdminPage(Customer, "CUSTOMERS_VIEW")} />
@@ -860,14 +903,7 @@ const routes = sentryCreateBrowserRouter(
           element={<Suspense fallback={fullscreenSpin}><AdminRoute><AuditTrailPage /></AdminRoute></Suspense>} />
 
         <Route path="esign" errorElement={<NotFound />}
-          element={
-            <PermissionRoute permission="SIGNATURE_VIEW">
-              <Suspense fallback={fullscreenSpin}>
-                <AdminRoute><ESignPage /></AdminRoute>
-              </Suspense>
-            </PermissionRoute>
-          }
-        />
+          element={esignAdminPage(ESignPage, "SIGNATURE_VIEW")} />
 
         <Route path="healthcare" errorElement={<NotFound />}
           element={<HealthcareRedirect />} />
@@ -890,13 +926,13 @@ const routes = sentryCreateBrowserRouter(
           element={<Suspense fallback={fullscreenSpin}><AdminRoute><TenantSettings /></AdminRoute></Suspense>} />
 
         <Route path="Category-settings" errorElement={<NotFound />}
-          element={guardedAdminPage(CategoryMainSettings, "CATEGORIES_VIEW")} />
+          element={dukaAdminPage(CategoryMainSettings, "CATEGORIES_VIEW")} />
 
         <Route path="category-settings" errorElement={<NotFound />}
-          element={guardedAdminPage(CategoryMainSettings, "CATEGORIES_VIEW")} />
+          element={dukaAdminPage(CategoryMainSettings, "CATEGORIES_VIEW")} />
 
         <Route path="table-settings" errorElement={<NotFound />}
-          element={guardedAdminPage(TableMainSettings, "TABLES_VIEW")} />
+          element={dukaAdminPage(TableMainSettings, "TABLES_VIEW")} />
 
         <Route path="fss-faqs" errorElement={<NotFound />}
           element={guardedAdminPage(Faqs, "FAQ_VIEW")} />
@@ -905,7 +941,7 @@ const routes = sentryCreateBrowserRouter(
           element={guardedAdminPage(Website, "GALLERY_VIEW")} />
 
         <Route path="documents" errorElement={<NotFound />}
-          element={guardedAdminPage(DocumentCenter, "DOCUMENTS_VIEW")} />
+          element={esignAdminPage(DocumentCenter, "DOCUMENTS_VIEW")} />
 
         <Route path="omnichannel" errorElement={<NotFound />}
           element={guardedAdminPage(OmnichannelInboxPage, "OMNICHANNEL_VIEW")} />
@@ -927,7 +963,7 @@ const routes = sentryCreateBrowserRouter(
         <Route path="bandu/dashboard" element={<Navigate to="/admin/hr/dashboard" replace />} />
         <Route path="bandu" element={<Navigate to="/admin/hr/dashboard" replace />} />
         <Route path="pos/dashboard" errorElement={<NotFound />}
-          element={guardedAdminPage(AdminDukaDashboardPage, ["UNIFIED_DASHBOARD_VIEW", "ORDERS_VIEW_DASHBOARD"])} />
+          element={dukaAdminPage(AdminDukaDashboardPage, ["UNIFIED_DASHBOARD_VIEW", "ORDERS_VIEW_DASHBOARD"])} />
         <Route path="pos" element={<Navigate to="/admin/pos/dashboard" replace />} />
         <Route path="duka/dashboard" element={<Navigate to="/admin/pos/dashboard" replace />} />
         <Route path="duka" element={<Navigate to="/admin/pos/dashboard" replace />} />

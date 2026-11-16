@@ -680,11 +680,13 @@ const AdminDashboard: React.FC = () => {
         content={notificationsContent}
         placement="bottomRight"
         trigger={["hover", "click"]}
-        overlayInnerStyle={{
-          borderRadius: 12,
-          boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
-          border: "1px solid rgba(0,0,0,0.06)",
-          padding: 0,
+        styles={{
+          body: {
+            borderRadius: 12,
+            boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+            border: "1px solid rgba(0,0,0,0.06)",
+            padding: 0,
+          },
         }}
       >
         <Badge
