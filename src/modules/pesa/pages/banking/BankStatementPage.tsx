@@ -1,0 +1,567 @@
+import React, { useState, useCallback, useRef } from "react";
+import { ProTable, ActionType } from "@ant-design/pro-components";
+import {
+    Button, Space, Tag, Tooltip, Popconfirm,
+    Typography, Badge, Card, Tabs, App, Statistic, Row, Col, Progress, Select,
+} from "antd";
+import {
+    PlusOutlined, FileExcelOutlined, SettingOutlined,
+    EyeOutlined, StopOutlined, BankOutlined,
+    ThunderboltOutlined, CheckCircleOutlined, ClockCircleOutlined,
+    SafetyCertificateOutlined, DiffOutlined, ReloadOutlined, DeleteOutlined,
+} from "@ant-design/icons";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+    getAllImports,
+    getImportSummary,
+    voidImport,
+    deleteImport,
+    BankStatementImport,
+    ImportStatus,
+} from "@services/accounting/bankStatementImport";
+import { getBankAccounts } from "@services/accounting/accounts";
+import { fetchAllShops } from "@services/shops";
+import { usePrimaryColor } from "@context/PrimaryColorContext";
+import dayjs from "dayjs";
+import ImportStatementDrawer from "./ImportStatementDrawer";
+import TransactionReviewDrawer from "./TransactionReviewDrawer";
+import CategorizationRulesDrawer from "./CategorizationRulesDrawer";
+import VerifyPostingModal from "./VerifyPostingModal";
+import ReconcileStatementDrawer from "./ReconcileStatementDrawer";
+
+const { Text } = Typography;
+
+const STATUS_CONFIG: Record<ImportStatus, { color: string; label: string }> = {
+    Processing: { color: "processing", label: "Processing" },
+    Review: { color: "warning", label: "Needs Review" },
+    "Partially Pushed": { color: "cyan", label: "Partially Complete" },
+    "Fully Pushed": { color: "success", label: "Complete" },
+    Voided: { color: "default", label: "Voided" },
+};
+
+const ALL_STATUSES: (ImportStatus | "ALL")[] = [
+    "ALL", "Review", "Processing", "Partially Pushed", "Fully Pushed", "Voided",
+];
+
+const getImportAccountInfo = (r: BankStatementImport | null) => {
+    if (!r) return { id: undefined as string | undefined, label: undefined as string | undefined };
+    const id = typeof r.account_id === "object" ? r.account_id?._id : r.account_id;
+    const name = r.account_name || (typeof r.account_id === "object" ? r.account_id?.account_name : "") || "";
+    const code = r.account_code || (typeof r.account_id === "object" ? r.account_id?.account_code : "") || "";
+    return { id, label: code ? `${name} (${code})` : name };
+};
+
+const BankStatementPage: React.FC = () => {
+    const primaryColor = usePrimaryColor();
+    const queryClient = useQueryClient();
+    const actionRef = useRef<ActionType>();
+    const { modal } = App.useApp();
+
+    const [activeStatus, setActiveStatus] = useState<ImportStatus | "ALL">("Review");
+    const [page, setPage] = useState(1);
+    const [importOpen, setImportOpen] = useState(false);
+    const [reviewOpen, setReviewOpen] = useState(false);
+    const [rulesOpen, setRulesOpen] = useState(false);
+    const [verifyOpen, setVerifyOpen] = useState(false);
+    const [reconcileOpen, setReconcileOpen] = useState(false);
+    const [selectedImport, setSelectedImport] = useState<BankStatementImport | null>(null);
+    const [selectedAccountId, setSelectedAccountId] = useState<string | undefined>(undefined);
+
+    // Chart of Accounts / bank imports are scoped to the POS Shop record
+    // (localStorage.shopId, set at login), not the SaaS tenant record
+    // (getCurrentTenantId) — using the tenant id here made every import
+    // invisible since they're saved with the real shop_id.
+    //
+    // Reading localStorage.getItem("shopId") directly (as this page used to)
+    // isn't reactive: switching branches elsewhere in the app (the same shop
+    // switcher the Dashboard uses) doesn't re-render this page, so it can
+    // keep showing data for a stale/wrong branch — looking like "0 imports".
+    // Instead we pull the branch list from the same source as the Dashboard
+    // (fetchAllShops) and keep the active branch in state so this page stays
+    // in sync and the user can see/confirm exactly which branch they're on.
+    const [shopId, setShopId] = useState<string>(() => localStorage.getItem("shopId") || "");
+
+    const { data: shopsData } = useQuery({
+        queryKey: ["bank-statements-branch-options"],
+        queryFn: () => fetchAllShops({}),
+        staleTime: 60000,
+    });
+    const shopOptions = (shopsData || []).map((s: any) => ({ label: s.name, value: s._id }));
+
+    const handleShopChange = (value: string) => {
+        setShopId(value);
+        localStorage.setItem("shopId", value);
+        setSelectedAccountId(undefined);
+        setPage(1);
+    };
+
+    const { data, isLoading, isFetching, refetch } = useQuery({
+        queryKey: ["bank-imports", shopId, activeStatus, page, selectedAccountId],
+        queryFn: () =>
+            getAllImports({
+                shop_id: shopId,
+                status: activeStatus === "ALL" ? undefined : activeStatus,
+                account_id: selectedAccountId,
+                page,
+                limit: 20,
+            }),
+        enabled: !!shopId,
+        keepPreviousData: true,
+        refetchOnWindowFocus: false,
+        onError: (error: any) => {
+            console.error('Failed to fetch bank imports:', error);
+        },
+    });
+
+    const { data: bankAccountsData, refetch: refetchBankAccounts } = useQuery({
+        queryKey: ["bank-accounts", shopId],
+        queryFn: () => getBankAccounts(shopId),
+        enabled: !!shopId,
+    });
+
+    const { data: summaryData, refetch: refetchSummary } = useQuery({
+        queryKey: ["bank-imports-summary", shopId],
+        queryFn: () => getImportSummary(shopId),
+        enabled: !!shopId,
+        onError: (error: any) => {
+            console.error('Failed to fetch import summary:', error);
+        },
+    });
+
+    const bankAccounts = bankAccountsData?.accounts || [];
+    const bankAccountOptions = bankAccounts.map((a: any) => ({
+        label: `${a.account_name} (${a.account_code})${a.bank_details?.bank_name ? ` - ${a.bank_details.bank_name}` : ''}`,
+        value: a._id,
+    }));
+
+    const voidMutation = useMutation({
+        mutationFn: (id: string) => voidImport(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["bank-imports", shopId] });
+            queryClient.invalidateQueries({ queryKey: ["bank-imports-summary", shopId] });
+        },
+        onError: (error: any) => {
+            const errorMessage = error?.response?.data?.message || error?.message || 'Failed to void import';
+            console.error('Void import failed:', errorMessage);
+        },
+    });
+
+    const deleteMutation = useMutation({
+        mutationFn: (id: string) => deleteImport(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["bank-imports", shopId] });
+            queryClient.invalidateQueries({ queryKey: ["bank-imports-summary", shopId] });
+        },
+    });
+
+    const onSuccess = useCallback(() => {
+        queryClient.invalidateQueries({ queryKey: ["bank-imports", shopId] });
+        queryClient.invalidateQueries({ queryKey: ["bank-imports-summary", shopId] });
+    }, [queryClient, shopId]);
+
+    const handleRefresh = useCallback(() => {
+        refetch();
+        refetchSummary();
+        refetchBankAccounts();
+    }, [refetch, refetchSummary, refetchBankAccounts]);
+
+    if (!shopId) {
+        return <div>Shop not selected. Please select a shop to view bank statements.</div>;
+    }
+
+    const handleVoid = (record: BankStatementImport) => {
+        modal.confirm({
+            title: "Void this import?",
+            content: record.pushed_count
+                ? `This will mark the import as voided and void the ${record.pushed_count} journal entr${record.pushed_count === 1 ? "y" : "ies"} its completed transactions posted, removing them from the books.`
+                : "This will mark the import as voided.",
+            okText: "Void Import",
+            okButtonProps: { danger: true },
+            onOk: () => voidMutation.mutateAsync(record._id),
+        });
+    };
+
+    const openReview = (record: BankStatementImport) => {
+        setSelectedImport(record);
+        setReviewOpen(true);
+    };
+
+    const openVerify = (record: BankStatementImport) => {
+        setSelectedImport(record);
+        setVerifyOpen(true);
+    };
+
+    const openReconcile = (record: BankStatementImport) => {
+        setSelectedImport(record);
+        setReconcileOpen(true);
+    };
+
+    const imports = data?.imports || [];
+    const totalImports = data?.total || 0;
+    const byStatus = summaryData?.by_status || {};
+
+    const summaryStats = {
+        totalPending: (byStatus["Review"]?.uncategorized || 0),
+        totalImports: Object.values(byStatus).reduce((s, v: { count?: number }) => s + (v.count || 0), 0),
+        pushed: byStatus["Fully Pushed"]?.count || 0,
+        needsReview: byStatus["Review"]?.count || 0,
+    };
+
+    const columns = [
+        {
+            title: "Import No.",
+            dataIndex: "import_no",
+            key: "import_no",
+            width: 170,
+            render: (v: string) => <Text code style={{ fontSize: 12 }}>{v}</Text>,
+        },
+        {
+            title: "Account",
+            key: "account",
+            width: 200,
+            render: (_: unknown, r: BankStatementImport) => {
+                const code = r.account_code || (typeof r.account_id === "object" ? r.account_id?.account_code : "");
+                const name = r.account_name || (typeof r.account_id === "object" ? r.account_id?.account_name : "");
+                return (
+                    <Space direction="vertical" size={0}>
+                        <Text strong style={{ fontSize: 13 }}>{name}</Text>
+                        <Text type="secondary" style={{ fontSize: 11 }}>{code}</Text>
+                    </Space>
+                );
+            },
+        },
+        {
+            title: "File",
+            dataIndex: "original_filename",
+            key: "original_filename",
+            ellipsis: true,
+            render: (v: string, r: BankStatementImport) => (
+                <Space>
+                    <FileExcelOutlined style={{ color: "#52c41a" }} />
+                    <Text style={{ fontSize: 12 }}>{v || r.source_type?.toUpperCase()}</Text>
+                </Space>
+            ),
+        },
+        {
+            title: "Period",
+            key: "period",
+            width: 200,
+            render: (_: unknown, r: BankStatementImport) => (
+                <Text style={{ fontSize: 12 }}>
+                    {r.statement_from ? dayjs(r.statement_from).format("DD MMM YYYY") : "—"}
+                    {" → "}
+                    {r.statement_to ? dayjs(r.statement_to).format("DD MMM YYYY") : "—"}
+                </Text>
+            ),
+        },
+        {
+            title: "Transactions",
+            key: "transactions",
+            width: 180,
+            render: (_: unknown, r: BankStatementImport) => {
+                const total = r.imported_rows || 0;
+                const categorized = r.categorized_count || 0;
+                const pct = total > 0 ? Math.round((categorized / total) * 100) : 0;
+                return (
+                    <Space direction="vertical" size={2} style={{ width: "100%" }}>
+                        <Space>
+                            <Text style={{ fontSize: 12 }}>{categorized}/{total} categorized</Text>
+                            {r.uncategorized_count > 0 && (
+                                <Tag color="warning" style={{ fontSize: 10 }}>
+                                    {r.uncategorized_count} pending
+                                </Tag>
+                            )}
+                        </Space>
+                        <Progress percent={pct} size="small" showInfo={false} strokeColor={primaryColor} />
+                    </Space>
+                );
+            },
+        },
+        {
+            title: "Debits / Credits",
+            key: "amounts",
+            width: 170,
+            align: "right" as const,
+            render: (_: unknown, r: BankStatementImport) => (
+                <Space direction="vertical" size={0} style={{ textAlign: "right" }}>
+                    <Text style={{ color: "#cf1322", fontSize: 12 }}>
+                        DR {(r.total_debits || 0).toLocaleString("en-KE", { minimumFractionDigits: 2 })}
+                    </Text>
+                    <Text style={{ color: "#389e0d", fontSize: 12 }}>
+                        CR {(r.total_credits || 0).toLocaleString("en-KE", { minimumFractionDigits: 2 })}
+                    </Text>
+                </Space>
+            ),
+        },
+        {
+            title: "Status",
+            dataIndex: "status",
+            key: "status",
+            width: 120,
+            render: (s: ImportStatus) => {
+                const cfg = STATUS_CONFIG[s];
+                return <Badge status={cfg.color as any} text={cfg.label} />;
+            },
+        },
+        {
+            title: "Imported",
+            dataIndex: "createdAt",
+            key: "createdAt",
+            width: 120,
+            render: (v: string) => (
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                    {dayjs(v).format("DD MMM YYYY")}
+                </Text>
+            ),
+        },
+        {
+            title: "Actions",
+            key: "actions",
+            width: 195,
+            fixed: "right" as const,
+            render: (_: unknown, r: BankStatementImport) => (
+                <Space size={4}>
+                    <Tooltip title="Review Transactions">
+                        <Button icon={<EyeOutlined />} size="small" onClick={() => openReview(r)} />
+                    </Tooltip>
+                    <Tooltip title="Find Missing / Reconcile — check this account's transactions are complete and correctly categorized against the balance sheet">
+                        <Button icon={<DiffOutlined />} size="small" onClick={() => openReconcile(r)} />
+                    </Tooltip>
+                    {(r.status === "Fully Pushed" || r.status === "Partially Pushed") && (
+                        <Tooltip title="Verify Posting">
+                            <Button icon={<SafetyCertificateOutlined />} size="small" onClick={() => openVerify(r)} />
+                        </Tooltip>
+                    )}
+                    {r.status !== "Voided" && (
+                        <Tooltip title="Void Import">
+                            <Button icon={<StopOutlined />} size="small" danger onClick={() => handleVoid(r)} />
+                        </Tooltip>
+                    )}
+                    {/* Completed imports can only be voided, not deleted */}
+                    {r.status !== "Fully Pushed" && (
+                        <Popconfirm
+                            title="Delete this import?"
+                            description={
+                                r.pushed_count
+                                    ? `${r.imported_rows || 0} transactions will be removed permanently, and the ${r.pushed_count} journal entr${r.pushed_count === 1 ? "y" : "ies"} they posted will be deleted from the books.`
+                                    : `${r.imported_rows || 0} transactions will be removed permanently.`
+                            }
+                            onConfirm={() => deleteMutation.mutateAsync(r._id)}
+                            okText="Delete"
+                            okButtonProps={{ danger: true }}
+                            cancelText="Cancel"
+                        >
+                            <Tooltip title="Delete Import">
+                                <Button icon={<DeleteOutlined />} size="small" danger />
+                            </Tooltip>
+                        </Popconfirm>
+                    )}
+                </Space>
+            ),
+        },
+    ];
+
+    const tabItems = ALL_STATUSES.map((status) => {
+        const count = status === "ALL"
+            ? totalImports
+            : (byStatus[status as ImportStatus]?.count || 0);
+        const cfg = status !== "ALL" ? STATUS_CONFIG[status as ImportStatus] : null;
+        return {
+            key: status,
+            label: (
+                <Space size={4}>
+                    {status === "ALL" ? "All Imports" : cfg?.label}
+                    {count > 0 && (
+                        <Tag
+                            color={cfg?.color || "default"}
+                            style={{ fontSize: 10, lineHeight: "16px", padding: "0 5px" }}
+                        >
+                            {count}
+                        </Tag>
+                    )}
+                </Space>
+            ),
+        };
+    });
+
+    return (
+        <App>
+            {/* ── Header Section ── */}
+            <div style={{ marginBottom: 24 }}>
+                <Space style={{ width: "100%", justifyContent: "space-between" }}>
+                    <Space>
+                        <BankOutlined style={{ fontSize: 24, color: primaryColor }} />
+                        <Text strong style={{ fontSize: 20 }}>Bank Statement Imports</Text>
+                    </Space>
+                    <Space>
+                        <Select
+                            placeholder="Branch"
+                            options={shopOptions}
+                            value={shopId || undefined}
+                            onChange={handleShopChange}
+                            style={{ width: 220 }}
+                            showSearch
+                            optionFilterProp="label"
+                            size="large"
+                        />
+                        <Select
+                            placeholder="Filter by account"
+                            options={bankAccountOptions}
+                            value={selectedAccountId}
+                            onChange={setSelectedAccountId}
+                            style={{ width: 250 }}
+                            allowClear
+                            showSearch
+                            optionFilterProp="label"
+                            size="large"
+                        />
+                        <Tooltip title="Refresh">
+                            <Button
+                                icon={<ReloadOutlined />}
+                                onClick={handleRefresh}
+                                loading={isFetching}
+                                size="large"
+                            />
+                        </Tooltip>
+                        <Button
+                            icon={<SettingOutlined />}
+                            onClick={() => setRulesOpen(true)}
+                            size="large"
+                        >
+                            Categorization Rules
+                        </Button>
+                        <Button
+                            type="primary"
+                            icon={<PlusOutlined />}
+                            onClick={() => setImportOpen(true)}
+                            size="large"
+                        >
+                            Import Statement
+                        </Button>
+                    </Space>
+                </Space>
+            </div>
+
+            {/* ── Summary Stats ── */}
+            <Row gutter={16} style={{ marginBottom: 16 }}>
+                <Col span={6}>
+                    <Card size="small" bordered>
+                        <Statistic
+                            title="Total Imports"
+                            value={summaryStats.totalImports}
+                            prefix={<BankOutlined />}
+                            valueStyle={{ fontSize: 20 }}
+                        />
+                    </Card>
+                </Col>
+                <Col span={6}>
+                    <Card size="small" bordered>
+                        <Statistic
+                            title="Needs Review"
+                            value={summaryStats.needsReview}
+                            prefix={<ClockCircleOutlined />}
+                            valueStyle={{ fontSize: 20, color: "#faad14" }}
+                        />
+                    </Card>
+                </Col>
+                <Col span={6}>
+                    <Card size="small" bordered>
+                        <Statistic
+                            title="Uncategorized Txns"
+                            value={summaryStats.totalPending}
+                            prefix={<ThunderboltOutlined />}
+                            valueStyle={{ fontSize: 20, color: "#ff4d4f" }}
+                        />
+                    </Card>
+                </Col>
+                <Col span={6}>
+                    <Card size="small" bordered>
+                        <Statistic
+                            title="Completed"
+                            value={summaryStats.pushed}
+                            prefix={<CheckCircleOutlined />}
+                            valueStyle={{ fontSize: 20, color: "#52c41a" }}
+                        />
+                    </Card>
+                </Col>
+            </Row>
+
+            {/* ── Status Tabs ── */}
+            <Tabs
+                activeKey={activeStatus}
+                onChange={(k) => { setActiveStatus(k as ImportStatus | "ALL"); setPage(1); }}
+                items={tabItems}
+                style={{ marginBottom: 16 }}
+                size="large"
+            />
+
+            {/* ── Main Table ── */}
+            <Card bordered={false} bodyStyle={{ padding: 0 }}>
+                <ProTable<BankStatementImport>
+                    rowKey="_id"
+                    actionRef={actionRef}
+                    dataSource={imports}
+                    columns={columns}
+                    loading={isLoading}
+                    search={false}
+                    options={false}
+                    pagination={{
+                        current: page,
+                        total: totalImports,
+                        pageSize: 20,
+                        onChange: (p) => setPage(p),
+                        showTotal: (total) => `${total} imports`,
+                        showSizeChanger: false,
+                    }}
+                    scroll={{ x: 1200 }}
+                    size="middle"
+                    cardBordered={false}
+                    columnsState={{
+                        persistenceKey: "bank-imports-table-columns",
+                        persistenceType: "localStorage",
+                    }}
+                />
+            </Card>
+
+            <ImportStatementDrawer
+                open={importOpen}
+                onClose={() => setImportOpen(false)}
+                onSuccess={onSuccess}
+                shopId={shopId}
+            />
+
+            <TransactionReviewDrawer
+                open={reviewOpen}
+                onClose={() => { setReviewOpen(false); setSelectedImport(null); }}
+                onSuccess={onSuccess}
+                importRecord={selectedImport}
+                shopId={shopId}
+            />
+
+            <CategorizationRulesDrawer
+                open={rulesOpen}
+                onClose={() => setRulesOpen(false)}
+                shopId={shopId}
+            />
+
+            <VerifyPostingModal
+                open={verifyOpen}
+                onClose={() => { setVerifyOpen(false); setSelectedImport(null); }}
+                onSuccess={onSuccess}
+                importRecord={selectedImport}
+                shopId={shopId}
+            />
+
+            <ReconcileStatementDrawer
+                open={reconcileOpen}
+                onClose={() => { setReconcileOpen(false); setSelectedImport(null); }}
+                onSuccess={onSuccess}
+                shopId={shopId}
+                presetAccountId={getImportAccountInfo(selectedImport).id}
+                presetAccountName={getImportAccountInfo(selectedImport).label}
+            />
+        </App>
+    );
+};
+
+export default BankStatementPage;

@@ -14,7 +14,7 @@ import HRAnalytics from "./HRAnalytics";
 import Departments from "./Departments";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { getPrimaryColor } from "../../../utils/getPrimaryColor";
-import { HScroll } from "@pages/OmniChannel/shared/ui";
+import { HScroll } from "@modules/mteja/pages/omnichannel/shared/ui";
 
 const { Text } = Typography;
 

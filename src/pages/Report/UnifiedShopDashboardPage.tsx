@@ -5,7 +5,7 @@ import Dashboard from "src/pages/Dashboard/Dashboard";
 import AccountingDashboardPage from "src/pages/AccountingDashboard/AccountingDashboardPage";
 import MtejaDashboard from "src/pages/Dashboard/MtejaDashboard";
 import BanduHRDashboard from "src/pages/BanduHR/BanduHRDashboard";
-import DalaDashboard from "src/pages/dala/Dashboard";
+import DalaDashboard from "src/modules/dala/pages/Dashboard";
 import { useActiveDashboard } from "src/hooks/useActiveDashboard";
 
 // ── Module activation checks ─────────────────────────────────────────────────────

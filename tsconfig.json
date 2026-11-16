@@ -26,6 +26,30 @@
     "noFallthroughCasesInSwitch": true,
     /* Paths for absolute imports */
     "paths": {
+      "@shared/*": [
+        "./src/shared/*"
+      ],
+      "@modules/*": [
+        "./src/modules/*"
+      ],
+      "@duka/*": [
+        "./src/modules/duka/*"
+      ],
+      "@pesa/*": [
+        "./src/modules/pesa/*"
+      ],
+      "@bandu/*": [
+        "./src/modules/bandu/*"
+      ],
+      "@dala/*": [
+        "./src/modules/dala/*"
+      ],
+      "@mteja/*": [
+        "./src/modules/mteja/*"
+      ],
+      "@esign/*": [
+        "./src/modules/esign/*"
+      ],
       "@components/*": [
         "./src/components/*"
       ],
