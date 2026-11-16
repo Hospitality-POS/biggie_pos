@@ -188,9 +188,10 @@ export const completeOAuthConnect = async (params: {
  * Fetch all channels for the current shop
  * Returns: { channels: Channel[], total: number }
  */
-export const fetchChannels = async (params?: ParamsType) => {
+export const fetchChannels = async (params?: ParamsType | string) => {
     try {
-        const response = await axiosInstance.get(channelUrl, { params });
+        const queryParams = typeof params === "string" ? { shop_id: params } : params;
+        const response = await axiosInstance.get(channelUrl, { params: queryParams });
         return response.data;
     } catch (error: any) {
         console.warn("[fetchChannels] failed:", error?.response?.status, error?.message);

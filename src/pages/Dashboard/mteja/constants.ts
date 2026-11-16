@@ -100,7 +100,7 @@ export const formatSource = (s?: string) =>
 export const getStoredShopId = (): string => {
   try {
     const v = localStorage.getItem("shopId");
-    return v && v !== "{}" && v !== "null" ? v : "";
+    return v && v !== "{}" && v !== "null" && v !== "undefined" ? v : "";
   } catch {
     return "";
   }

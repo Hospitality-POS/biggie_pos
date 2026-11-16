@@ -28,6 +28,9 @@ export interface FetchSalesTargetsParams {
   search?: string;
   page?: number;
   limit?: number;
+  recalculate?: boolean | string;
+  start_date?: string;
+  end_date?: string;
 }
 
 export const fetchAllSalesTargets = async (

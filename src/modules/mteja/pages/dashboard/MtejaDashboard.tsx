@@ -154,7 +154,7 @@ const MtejaDashboard: React.FC = () => {
 
   const { data: channelsData } = useQuery({
     queryKey: ["mteja-channels", shopId],
-    queryFn: () => fetchWhatsappChannels(shopId || undefined),
+    queryFn: () => fetchWhatsappChannels({ shop_id: shopId || undefined }),
     staleTime: 60_000,
   });
 
@@ -184,7 +184,7 @@ const MtejaDashboard: React.FC = () => {
 
   const { data: allTargetsData, isLoading: targetsLoading } = useQuery({
     queryKey: ["mteja-sales-targets", shopId, start_date, end_date],
-    queryFn: () => fetchAllSalesTargets({ shop_id: shopId || undefined, limit: 50, start_date, end_date }),
+    queryFn: () => fetchAllSalesTargets({ shop_id: shopId || undefined, limit: 50, start_date, end_date, recalculate: false }),
     staleTime: 30_000,
   });
 
@@ -210,7 +210,7 @@ const MtejaDashboard: React.FC = () => {
 
   const recentLeads: any[] = Array.isArray(recentLeadsData) ? recentLeadsData : [];
   const customerList: any[] = Array.isArray(recentCustomersData) ? recentCustomersData : [];
-  const targetsList: SalesTarget[] = Array.isArray(allTargetsData) ? allTargetsData : [];
+  const targetsList: SalesTarget[] = Array.isArray(allTargetsData) ? allTargetsData : (allTargetsData as any)?.targets || [];
 
   // Audio alerts on new unread messages
   const prevUnreadRef = useRef<number | null>(null);
@@ -225,9 +225,9 @@ const MtejaDashboard: React.FC = () => {
   // Channel and Conversation calculations
   const connected = useMemo(() => {
     const list = Array.isArray(channelsData) ? channelsData : channelsData?.channels || [];
-    const wa = list.some((c: any) => c.status === "connected" || c.status === "active");
-    const fb = list.some((c: any) => c.channel === "messenger" && c.status === "connected");
-    const ig = list.some((c: any) => c.channel === "instagram" && c.status === "connected");
+    const wa = list.some((c: any) => (c.channel === "whatsapp" || !c.channel) && (c.status === "connected" || c.status === "active" || c.is_active));
+    const fb = list.some((c: any) => (c.channel === "messenger" || c.channel === "facebook") && (c.status === "connected" || c.status === "active" || c.is_active));
+    const ig = list.some((c: any) => c.channel === "instagram" && (c.status === "connected" || c.status === "active" || c.is_active));
     return { whatsapp: wa, messenger: fb, instagram: ig };
   }, [channelsData]);
 
@@ -258,7 +258,27 @@ const MtejaDashboard: React.FC = () => {
     return r;
   }, [conversations]);
 
-  const avgResolutionTime = statsData?.average_resolution_time ?? "1.4";
+  const avgResolutionTime = useMemo(() => {
+    if (statsData?.data?.average_resolution_time) {
+      return String(statsData.data.average_resolution_time);
+    }
+    if (statsData?.average_resolution_time) {
+      return String(statsData.average_resolution_time);
+    }
+    const resolvedConvs = conversations.filter(
+      (c: any) => (c.status === "resolved" || c.status === "closed") && c.createdAt
+    );
+    if (resolvedConvs.length === 0) return "0.0";
+
+    const totalHours = resolvedConvs.reduce((sum: number, c: any) => {
+      const start = dayjs(c.createdAt);
+      const end = dayjs(c.updatedAt || c.last_message_at);
+      const hours = end.diff(start, "hour", true);
+      return sum + (hours > 0 ? hours : 0);
+    }, 0);
+
+    return (totalHours / resolvedConvs.length).toFixed(1);
+  }, [statsData, conversations]);
 
   // Pipeline calculations
   const pipelineStages: any[] = pipelineData?.stages || [];
@@ -266,12 +286,12 @@ const MtejaDashboard: React.FC = () => {
   const totalLeadValue = pipelineData?.total_value || 0;
   const wonLeadValue = pipelineData?.won_value || 0;
   const conversionRate = pipelineData?.conversion_rate || 0;
-  const overdueFollowUps = pipelineData?.overdue_follow_ups || 0;
-  const dueFollowUps = pipelineData?.due_follow_ups || 0;
-  const repeatContacts = pipelineData?.repeat_contacts_count || 0;
-  const leadOwners: any[] = pipelineData?.lead_owners || [];
-  const leadSources: any[] = pipelineData?.lead_sources || [];
-  const leadProjects: any[] = pipelineData?.lead_projects || [];
+  const overdueFollowUps = pipelineData?.overdue_follow_ups ?? pipelineData?.follow_ups?.overdue ?? 0;
+  const dueFollowUps = pipelineData?.due_follow_ups ?? pipelineData?.follow_ups?.due_this_week ?? 0;
+  const repeatContacts = pipelineData?.repeat_contacts_count ?? pipelineData?.repeat_contacts ?? 0;
+  const leadOwners: any[] = pipelineData?.lead_owners || pipelineData?.by_owner || [];
+  const leadSources: any[] = pipelineData?.lead_sources || pipelineData?.by_source || [];
+  const leadProjects: any[] = pipelineData?.lead_projects || pipelineData?.by_project || [];
 
   const stageColorMap = useMemo(() => {
     return Object.fromEntries(LEAD_STAGES.map((s) => [s.key, s.color]));
