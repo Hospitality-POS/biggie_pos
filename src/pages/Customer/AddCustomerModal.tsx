@@ -12,6 +12,7 @@ import {
 } from "@ant-design/icons";
 import StepperModal from "@components/MODALS/StepperModal";
 import { PhoneInput } from "@components/PhoneNumber/PhoneNumber";
+import { getCountries, getCountryCallingCode, type CountryCode } from "libphonenumber-js";
 import { addNewCustomer, updateCustomer } from "@services/customers";
 import { THEME_C } from "@utils/getPrimaryColor";
 
@@ -55,14 +56,24 @@ interface MedicalValues {
     next_of_kin?: { name?: string; relationship?: string; phone?: string };
 }
 
-/** Parse a raw phone string into the { code, phone, short } shape PhoneInput expects */
-function parsePhoneForInput(raw?: string) {
+// Main country for calling codes shared by several countries
+const MAIN_COUNTRY_FOR_CODE: Record<number, CountryCode> = { 1: "US", 7: "RU", 44: "GB", 61: "AU", 39: "IT", 47: "NO", 212: "MA" };
+
+/** ISO country ("KE") for a calling code (254), for the phone input's flag */
+function countryForCallingCode(code: number): CountryCode {
+    if (MAIN_COUNTRY_FOR_CODE[code]) return MAIN_COUNTRY_FOR_CODE[code];
+    return getCountries().find((c) => Number(getCountryCallingCode(c)) === code) || "KE";
+}
+
+/** Parse a stored phone (+ its country code) into the { code, phone, short } shape PhoneInput expects */
+function parsePhoneForInput(raw?: string | number, phoneCode?: string | number) {
     if (!raw) return undefined;
+    const code = Number(phoneCode) || 254;
     const s = String(raw).replace(/\s/g, "");
-    const local = s.startsWith("+254") ? s.slice(4)
-        : s.startsWith("254") ? s.slice(3)
+    const local = s.startsWith(`+${code}`) ? s.slice(String(code).length + 1)
+        : s.startsWith(String(code)) && s.length >= String(code).length + 9 ? s.slice(String(code).length)
             : s;
-    return { code: 254, phone: local, short: "KE" };
+    return { code, phone: local, short: countryForCallingCode(code) };
 }
 
 // ── Google Places functionality ───────────────────────────────────────────────
@@ -279,7 +290,7 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                 customer_name: entityTypeValue === 'individual' ? (customer.customer_name || "") : undefined,
                 company_name: entityTypeValue === 'company' ? (customer.company_name || "") : undefined,
                 contact_person: customer.contact_person || "",
-                phoneNumber: parsePhoneForInput(customer.phone),
+                phoneNumber: parsePhoneForInput(customer.phone, customer.phone_code),
                 email: customer.email || "",
                 location: customer.location || "",
                 kra_pin: customer.kra_pin || "",
@@ -329,6 +340,7 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                 company_name: values.entity_type === 'company' ? values.company_name : undefined,
                 contact_person: values.contact_person,
                 phone: values.phoneNumber?.phone ? parseInt(values.phoneNumber.phone) : undefined,
+                phone_code: values.phoneNumber?.phone ? Number(values.phoneNumber?.code) || 254 : undefined,
                 email: values.email || undefined,
                 address: address,
                 billing_addresses: [],
