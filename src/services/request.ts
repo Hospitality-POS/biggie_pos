@@ -103,7 +103,7 @@ const NON_CACHEABLE_ROUTES = [
     '/audit-logs',
 ];
 
-// Routes that should NOT trigger logout on 401 (Meta/Webhook APIs)
+// Routes that should NOT trigger logout on 401 (Meta/Webhook APIs & Upstream Billing Gateway)
 const NON_AUTH_401_ROUTES = [
     '/omnichannel',
     '/webhook',
@@ -111,6 +111,8 @@ const NON_AUTH_401_ROUTES = [
     '/conversations',
     '/channels',
     '/users/register', // New Staff modal - don't logout on errors
+    '/api/billing',
+    '/billing',
 ];
 
 const isExcludedRoute = (url = ''): boolean =>
@@ -389,9 +391,12 @@ axiosInstance.interceptors.response.use(
                     // Check if this is a Meta API endpoint (should NOT logout)
                     const url = response.config?.url || '';
                     if (isNonAuth401Route(url)) {
-                        // For Meta API 401s, just show a channel-specific error
-                        console.warn('Meta API 401 error - channel token may be expired:', url);
-                        message.error('Channel connection expired. Please reconnect the channel in settings.');
+                        if (url.includes('/billing')) {
+                            console.warn('[Billing Gateway Notice] Upstream billing service authentication notice:', url);
+                        } else {
+                            console.warn('Channel/Meta API 401 error - token may be expired:', url);
+                            message.error('Channel connection expired. Please reconnect the channel in settings.');
+                        }
                         // Don't logout - just reject the error
                         return Promise.reject(error);
                     }
