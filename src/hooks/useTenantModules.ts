@@ -13,7 +13,7 @@
  *   const { hasHR, hasAccounting, hasMteja } = useTenantModules();
  */
 
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { useAppSelector } from "src/store";
 import {
     TenantModules,
@@ -40,8 +40,20 @@ function selectTenantFromRedux(state: any): any {
 
 // ── The hook ──────────────────────────────────────────────────────────────────
 export function useTenantModules(): TenantModules {
+    const [storageVersion, setStorageVersion] = useState(0);
+
+    useEffect(() => {
+        const handleUpdate = () => setStorageVersion((v) => v + 1);
+        window.addEventListener("tenantUpdated", handleUpdate);
+        window.addEventListener("storage", handleUpdate);
+        return () => {
+            window.removeEventListener("tenantUpdated", handleUpdate);
+            window.removeEventListener("storage", handleUpdate);
+        };
+    }, []);
+
     const reduxTenant = useAppSelector(selectTenantFromRedux);
-    const tenantModules = useTenantWideModules(reduxTenant);
+    const tenantModules = useTenantWideModules(reduxTenant, storageVersion);
 
     // Staff on a role limited to some products (e.g. Pesa only) see just those,
     // even when the business has more. Admins always see everything.
@@ -56,7 +68,7 @@ export function useTenantModules(): TenantModules {
     );
 }
 
-function useTenantWideModules(reduxTenant: any): TenantModules {
+function useTenantWideModules(reduxTenant: any, storageVersion: number): TenantModules {
     return useMemo(() => {
         // 1. localStorage first: Discover's Enable / Disable refreshes the
         //    stored tenant (then reloads), while the Redux copy keeps the
@@ -76,7 +88,7 @@ function useTenantWideModules(reduxTenant: any): TenantModules {
 
         // 3. No data at all
         return NO_TENANT_MODULES;
-    }, [reduxTenant]);
+    }, [reduxTenant, storageVersion]);
 }
 
 /**
