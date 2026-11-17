@@ -41,6 +41,7 @@ import TableStatsPanel from "./TableStats";
 
 const HospitalWorkspace = lazy(() => import("@pages/Hospital/HospitalWorkspace"));
 const HotelPage = lazy(() => import("@pages/Hotel/HotelPage"));
+const HospitalPage = lazy(() => import("@pages/Hospital/HospitalPage"));
 
 const { Text, Title } = Typography;
 
