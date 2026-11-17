@@ -34,7 +34,6 @@ export const PRODUCT_CONFIGS: Record<ProductKey, ProductConfig> = {
     color: "#0ea5e9", // Sky blue
     defaultPath: "/pos/dashboard",
     pathPrefixes: [
-      "/home-dashboard",
       "/pos",
       "/duka",
       "/tables",
@@ -177,7 +176,7 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({ child
         };
         if (tabMap[key]) return tabMap[key];
       }
-      return "duka";
+      return null;
     }
 
     for (const [key, config] of Object.entries(PRODUCT_CONFIGS)) {

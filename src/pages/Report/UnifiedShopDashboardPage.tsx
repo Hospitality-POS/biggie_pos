@@ -16,8 +16,8 @@ const getModuleFlags = () => {
     const tenant = JSON.parse(stored);
     return {
       hasDuka: tenant?.pos_integration?.enabled === true,
-      hasPesa: !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting),
-      hasMteja: tenant?.modules?.crm === true,
+      hasPesa: !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting || tenant?.modules?.pesa),
+      hasMteja: tenant?.modules?.crm === true || tenant?.modules?.mteja === true,
       hasBandu: tenant?.modules?.bandu_hr === true || tenant?.modules?.payroll === true, // Support both flags for backward compatibility
       hasDala: tenant?.modules?.dala === true,
     };
@@ -109,6 +109,16 @@ const UnifiedShopDashboardPage: React.FC = () => {
     );
   }
 
+  // Fall back to the first tab this page actually has if activeTab does not exist in tabItems.
+  const resolvedTab = tabItems.some((t) => t.key === activeTab) ? activeTab : tabItems[0].key;
+
+  // Sync back to useActiveDashboard and localStorage so activeProduct / activeTab stay consistent
+  React.useEffect(() => {
+    if (resolvedTab && resolvedTab !== activeTab) {
+      setActiveDashboard(resolvedTab);
+    }
+  }, [resolvedTab, activeTab, setActiveDashboard]);
+
   return (
     <div
       style={{
@@ -118,7 +128,7 @@ const UnifiedShopDashboardPage: React.FC = () => {
       }}
     >
       <Tabs
-        activeKey={activeTab}
+        activeKey={resolvedTab}
         onChange={(key) => setActiveDashboard(key)}
         items={tabItems}
         size={isMobile ? "middle" : "large"}

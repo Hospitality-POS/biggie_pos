@@ -16,8 +16,8 @@ const getModuleFlags = () => {
     const tenant = JSON.parse(stored);
     return {
       hasDuka: tenant?.pos_integration?.enabled === true,
-      hasPesa: !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting),
-      hasMteja: tenant?.modules?.crm === true,
+      hasPesa: !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting || tenant?.modules?.pesa),
+      hasMteja: tenant?.modules?.crm === true || tenant?.modules?.mteja === true,
       hasBandu: tenant?.modules?.bandu_hr === true || tenant?.modules?.payroll === true, // Support both flags for backward compatibility
       hasDala: tenant?.modules?.dala === true,
     };
@@ -112,6 +112,13 @@ const UnifiedDashboardPage: React.FC = () => {
   // disagree the resolved tab may not exist here, and Tabs then renders no pane
   // at all — a blank page. Fall back to the first tab this page actually has.
   const resolvedTab = tabItems.some((t) => t.key === activeTab) ? activeTab : tabItems[0].key;
+
+  // Sync back to useActiveDashboard and localStorage so activeProduct / activeTab stay consistent
+  React.useEffect(() => {
+    if (resolvedTab && resolvedTab !== activeTab) {
+      setActiveDashboard(resolvedTab);
+    }
+  }, [resolvedTab, activeTab, setActiveDashboard]);
 
   return (
     <div
