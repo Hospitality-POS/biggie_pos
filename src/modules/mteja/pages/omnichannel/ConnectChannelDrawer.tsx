@@ -183,8 +183,10 @@ const ConnectedCard: React.FC<{
     // can silently drop (e.g. needs a fresh QR scan) without the DB record
     // changing. Surface that distinction instead of always showing "Active".
     const isWhatsapp = channelType === "whatsapp";
-    const isLiveDisconnected = isWhatsapp && liveWhatsappReady === false;
     const viaCloudApi = isWhatsapp && !!channel.waba_id;
+    // Cloud API numbers don't depend on a linked phone session.
+    const isWhatsappWeb = isWhatsapp && !viaCloudApi;
+    const isLiveDisconnected = isWhatsappWeb && liveWhatsappReady === false;
     const health: Health = isLiveDisconnected ? "reconnect" : "live";
     const h = HEALTH[health];
 
@@ -273,9 +275,9 @@ const ConnectedCard: React.FC<{
                             ? viaCloudApi
                                 ? `WhatsApp Cloud API · WABA ${channel.waba_id}`
                                 : "Linked device · WhatsApp Web"
-                            : channel.page_id
-                                ? `Page ${channel.page_id}`
-                                : `Account ${channel.instagram_account_id || ""}`}
+                            : channelType === "instagram"
+                                ? `Instagram account · ID ${channel.instagram_account_id || ""}`
+                                : `Facebook Page · ID ${channel.page_id || ""}`}
                     </Text>
                 </div>
                 <span
@@ -326,7 +328,7 @@ const ConnectedCard: React.FC<{
             )}
 
             <div style={{ display: "flex", borderTop: "1px solid #f1f5f9" }}>
-                {isWhatsapp ? (
+                {isWhatsappWeb ? (
                     <>
                         {isLiveDisconnected ? (
                             <Button
@@ -400,7 +402,13 @@ const OAuthChannelRow: React.FC<{
     shopId: string;
     onSuccess: () => void;
     disabled?: boolean;
-}> = ({ channelKey, label, description, shopId, onSuccess, disabled }) => {
+    /** Plain-English explanation of what Meta access is requested and why. */
+    helpText?: string;
+    buttonLabel?: string;
+    /** Names of accounts already connected for this channel (Pages, IG usernames, numbers). */
+    connectedNames?: string[];
+}> = ({ channelKey, label, description, shopId, onSuccess, disabled, helpText, buttonLabel = "Connect", connectedNames = [] }) => {
+    const isConnected = connectedNames.length > 0;
     const { message: antMessage } = App.useApp();
     const [loading, setLoading] = useState(false);
 
@@ -454,15 +462,33 @@ const OAuthChannelRow: React.FC<{
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", opacity: disabled ? 0.75 : 1 }}>
             {channelIconTile(channelKey, 36)}
             <div style={{ flex: 1, minWidth: 0 }}>
-                <Text strong style={{ fontSize: 14, color: "#0f172a", display: "block" }}>{label}</Text>
-                <Text style={{ fontSize: 12, color: "#64748b" }}>{description}</Text>
+                <Space size={6} align="center">
+                    <Text strong style={{ fontSize: 14, color: "#0f172a" }}>{label}</Text>
+                    {isConnected && (
+                        <Tag
+                            icon={<CheckCircleFilled />}
+                            style={{ borderRadius: 999, margin: 0, color: "#16a34a", background: "#f0fdf4", borderColor: "#bbf7d0" }}
+                        >
+                            Connected
+                        </Tag>
+                    )}
+                </Space>
+                {isConnected ? (
+                    <Text style={{ fontSize: 12, color: "#475569", display: "block" }} ellipsis={{ tooltip: connectedNames.join(", ") }}>
+                        {connectedNames.join(" · ")}
+                    </Text>
+                ) : (
+                    <Text style={{ fontSize: 12, color: "#64748b", display: "block" }}>{description}</Text>
+                )}
             </div>
             {disabled ? (
                 <Tag style={{ borderRadius: 999, margin: 0, color: "#94a3b8" }}>Coming soon</Tag>
             ) : (
-                <Button size="small" loading={loading} onClick={handleConnect} style={{ borderRadius: 8 }}>
-                    Connect
-                </Button>
+                <Tooltip title={isConnected ? `Log in with Facebook again to connect another ${channelKey === "whatsapp" ? "number" : channelKey === "instagram" ? "account" : "Page"} or refresh access.` : helpText}>
+                    <Button size="small" loading={loading} onClick={handleConnect} style={{ borderRadius: 8 }}>
+                        {isConnected ? "Add another" : buttonLabel}
+                    </Button>
+                </Tooltip>
             )}
         </div>
     );
@@ -760,8 +786,10 @@ const ConnectChannelDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shopI
     };
 
     const health = (key: string): Health => {
-        if (key !== "whatsapp") return channelsByType[key].length ? "live" : "soon";
+        if (key !== "whatsapp") return channelsByType[key].length ? "live" : "off";
         if (!channelsByType.whatsapp.length) return "off";
+        // Cloud API numbers are always live; only WhatsApp Web links can drop.
+        if (channelsByType.whatsapp.some((c) => !!c.waba_id)) return "live";
         return liveWhatsappReady === false ? "reconnect" : "live";
     };
     const liveCount = (["whatsapp", "messenger", "instagram"] as const).filter((k) => health(k) === "live").length;
@@ -869,24 +897,41 @@ const ConnectChannelDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shopI
                         </>
                     )}
 
-                    {sectionLabel("More channels")}
+                    {sectionLabel("Connect with Meta")}
                     <div style={cardStyle}>
                         <OAuthChannelRow
-                            channelKey="messenger"
-                            label="Facebook Messenger"
-                            description="Chat with customers who message your Facebook Page"
+                            channelKey="whatsapp"
+                            connectedNames={channelsByType.whatsapp
+                                .filter((c) => !!c.waba_id)
+                                .map((c) => formatPhone(c.display_phone_number) || c.business_name || c.phone_number_id || "")}
+                            label="WhatsApp Business Platform"
+                            description="Log in with Facebook and pick your WhatsApp Business number (official Cloud API)"
+                            helpText="Opens Meta login. You choose your business and WhatsApp number, then allow Biggie POS to send and receive messages on that number."
+                            buttonLabel="Connect with Meta"
                             shopId={shopId}
                             onSuccess={handleConnectSuccess}
-                            disabled
+                        />
+                        <div style={{ height: 1, background: "#f1f5f9", margin: "0 14px" }} />
+                        <OAuthChannelRow
+                            channelKey="messenger"
+                            connectedNames={channelsByType.messenger.map((c) => c.business_name || c.page_id || "")}
+                            label="Facebook Messenger"
+                            description="Log in with Facebook, pick your Page, and reply to Page messages here"
+                            helpText="Opens Meta login. You choose which Facebook Page to connect, then allow Biggie POS to list your Pages, receive Page messages through webhooks and reply to them."
+                            buttonLabel="Connect with Meta"
+                            shopId={shopId}
+                            onSuccess={handleConnectSuccess}
                         />
                         <div style={{ height: 1, background: "#f1f5f9", margin: "0 14px" }} />
                         <OAuthChannelRow
                             channelKey="instagram"
+                            connectedNames={channelsByType.instagram.map((c) => c.business_name || c.instagram_account_id || "")}
                             label="Instagram DMs"
-                            description="Reply to Instagram direct messages from this inbox"
+                            description="Log in with Facebook, pick the Instagram business account, and reply to DMs here"
+                            helpText="Opens Meta login. You choose the Page and its linked Instagram professional account, then allow Biggie POS to read the account profile and send and receive Direct messages."
+                            buttonLabel="Connect with Meta"
                             shopId={shopId}
                             onSuccess={handleConnectSuccess}
-                            disabled
                         />
                     </div>
 
@@ -904,9 +949,9 @@ const ConnectChannelDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shopI
                     >
                         <LockOutlined style={{ color: "#16a34a", marginTop: 3 }} />
                         <Text style={{ fontSize: 12, color: "#64748b", lineHeight: 1.6 }}>
-                            <b style={{ color: "#0f172a" }}>Private and secure.</b> WhatsApp connects as a linked device —
-                            the same way WhatsApp Web does — and you can unlink it any time from the phone or here. Keep
-                            the phone connected to the internet now and then so the session stays active.
+                            <b style={{ color: "#0f172a" }}>Private and secure.</b> Channels connected with Meta use
+                            Facebook Login — you choose exactly which Page, Instagram account or WhatsApp number to share,
+                            and you can remove access any time here or in your Facebook Business settings.
                         </Text>
                     </div>
                 </>
