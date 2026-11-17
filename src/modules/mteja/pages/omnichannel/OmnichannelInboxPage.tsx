@@ -126,6 +126,85 @@ export const STATUS_CONFIG: Record<
     closed: { label: "Closed", badge: "error", color: "#ff4d4f" },
 };
 
+type MainTab = "inbox" | "scripts" | "welcome" | "analytics" | "agents" | "sms" | "email";
+
+const mainTabItems = (compact: boolean): { key: MainTab; label: string }[] => [
+    { key: "inbox", label: "Chats" },
+    { key: "sms", label: "SMS" },
+    { key: "email", label: "Email" },
+    { key: "scripts", label: "Scripts" },
+    { key: "welcome", label: compact ? "Auto" : "Auto-Reply" },
+    { key: "analytics", label: "Analytics" },
+    { key: "agents", label: "Agents" },
+];
+
+// Channel filter shown on the Chats tab — one inbox, filterable per channel.
+const ChannelFilterBar: React.FC<{
+    value: Channel;
+    onChange: (c: Channel) => void;
+    connected: Record<"whatsapp" | "messenger" | "instagram", boolean>;
+}> = ({ value, onChange, connected }) => {
+    const options: { key: Channel; label: string; color: string; icon?: React.ReactNode }[] = [
+        { key: "all", label: "All", color: "#334155" },
+        ...(["whatsapp", "messenger", "instagram"] as const).map((k) => ({
+            key: k as Channel,
+            label: CHANNEL_CONFIG[k].label,
+            color: CHANNEL_CONFIG[k].color,
+            icon: CHANNEL_CONFIG[k].icon,
+        })),
+    ];
+    return (
+        <div
+            style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 6,
+                padding: "8px 10px",
+                borderBottom: "1px solid #e2e8f0",
+                background: "#fff",
+                flexShrink: 0,
+            }}
+        >
+            {options.map((o) => {
+                const active = value === o.key;
+                const isConnected = o.key === "all" || connected[o.key as keyof typeof connected];
+                return (
+                    <Tooltip
+                        key={o.key}
+                        title={isConnected ? undefined : `${o.label} is not connected yet — use Connect Channel`}
+                    >
+                        <button
+                            type="button"
+                            onClick={() => onChange(o.key)}
+                            aria-pressed={active}
+                            style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 4,
+                                padding: "2px 9px",
+                                borderRadius: 999,
+                                border: `1px solid ${active ? o.color : "#e2e8f0"}`,
+                                background: active ? `${o.color}14` : "#fff",
+                                color: active ? o.color : "#475569",
+                                fontSize: 12,
+                                fontWeight: 600,
+                                cursor: "pointer",
+                                whiteSpace: "nowrap",
+                                opacity: isConnected ? 1 : 0.55,
+                            }}
+                        >
+                            {o.icon && (
+                                <span style={{ display: "flex", color: o.color, transform: "scale(0.8)" }}>{o.icon}</span>
+                            )}
+                            {o.label}
+                        </button>
+                    </Tooltip>
+                );
+            })}
+        </div>
+    );
+};
+
 const OmnichannelInboxPage: React.FC = () => {
     const shopId = getShopId();
     const currentUser = getCurrentUser();
@@ -136,8 +215,8 @@ const OmnichannelInboxPage: React.FC = () => {
     const isMobile = !screens.md;
     const queryClient = useQueryClient();
 
-    const [activeChannel] = useState<Channel>("whatsapp");
-    const [activeMainTab, setActiveMainTab] = useState<"inbox" | "scripts" | "welcome" | "analytics" | "agents" | "sms" | "email">("inbox");
+    const [activeChannel, setActiveChannel] = useState<Channel>("all");
+    const [activeMainTab, setActiveMainTab] = useState<MainTab>("inbox");
     const [activeStatus, setActiveStatus] = useState<ConversationStatus | "all" | "queue" | "needs_reply">("all");
     const [selectedAgent, setSelectedAgent] = useState<string>("");
     const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
@@ -455,18 +534,10 @@ const OmnichannelInboxPage: React.FC = () => {
                         isMobile ? null : (
                             <Tabs
                                 activeKey={activeMainTab}
-                                onChange={(k) => setActiveMainTab(k as "inbox" | "scripts" | "welcome" | "analytics" | "agents" | "sms" | "email")}
+                                onChange={(k) => setActiveMainTab(k as MainTab)}
                                 size="middle"
                                 style={{ minWidth: 200 }}
-                                items={[
-                                    { key: "inbox", label: "WhatsApp" },
-                                    { key: "sms", label: "SMS" },
-                                    { key: "email", label: "Email" },
-                                    { key: "scripts", label: "Scripts" },
-                                    { key: "welcome", label: "Auto-Reply" },
-                                    { key: "analytics", label: "Analytics" },
-                                    { key: "agents", label: "Agents" },
-                                ]}
+                                items={mainTabItems(false)}
                             />
                         )
                     }
@@ -489,18 +560,10 @@ const OmnichannelInboxPage: React.FC = () => {
                         >
                             <Tabs
                                 activeKey={activeMainTab}
-                                onChange={(k) => setActiveMainTab(k as "inbox" | "scripts" | "welcome" | "analytics" | "agents" | "sms" | "email")}
+                                onChange={(k) => setActiveMainTab(k as MainTab)}
                                 size="small"
                                 style={{ flex: 1, minWidth: 0 }}
-                                items={[
-                                    { key: "inbox", label: "WhatsApp" },
-                                    { key: "sms", label: "SMS" },
-                                    { key: "email", label: "Email" },
-                                    { key: "scripts", label: "Scripts" },
-                                    { key: "welcome", label: "Auto" },
-                                    { key: "analytics", label: "Analytics" },
-                                    { key: "agents", label: "Agents" },
-                                ]}
+                                items={mainTabItems(true)}
                             />
                             <Space size={4} style={{ flexShrink: 0 }}>
                                 <Tooltip title="Refresh">
@@ -558,6 +621,7 @@ const OmnichannelInboxPage: React.FC = () => {
                         style={{
                             flex: 1,
                             minHeight: 0,
+                            minWidth: 0,
                             overflow: "hidden",
                         }}
                     >
@@ -595,10 +659,10 @@ const OmnichannelInboxPage: React.FC = () => {
                                     <MessageOutlined style={{ fontSize: 30, color: "#3b82f6" }} />
                                 </div>
                                 <Title level={5} style={{ margin: "0 0 6px", color: "#0f172a", fontWeight: 600 }}>
-                                    No WhatsApp Connected
+                                    No channels connected
                                 </Title>
                                 <Text style={{ fontSize: 13, color: "#64748b", display: "block", marginBottom: 18 }}>
-                                    Connect your WhatsApp to start receiving messages
+                                    Connect WhatsApp, Messenger or Instagram to start receiving messages
                                 </Text>
                                 <Button
                                     type="primary"
@@ -611,10 +675,16 @@ const OmnichannelInboxPage: React.FC = () => {
                                         fontWeight: 500
                                     }}
                                 >
-                                    Connect WhatsApp
+                                    Connect Channel
                                 </Button>
                             </div>
                         ) : (
+                            <>
+                            <ChannelFilterBar
+                                value={activeChannel}
+                                onChange={(c) => { setActiveChannel(c); setPage(1); setSelectedConversation(null); }}
+                                connected={connected}
+                            />
                             <ConversationList
                                 conversations={conversations}
                                 loading={conversationsLoading}
@@ -636,6 +706,7 @@ const OmnichannelInboxPage: React.FC = () => {
                                 showWindowBadge={usesCloudApi}
                                 primaryColor={primaryColor}
                             />
+                            </>
                         )}
                     </div>
 
