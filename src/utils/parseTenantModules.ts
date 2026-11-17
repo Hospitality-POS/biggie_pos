@@ -128,8 +128,7 @@ export function parseTenantModules(tenant: any): TenantModules {
     );
     const hasPOS =
         tenant?.pos_integration?.enabled === true ||
-        isEnabled(mods.duka) ||
-        isEnabled(mods.pos);
+        (tenant?.pos_integration?.enabled !== false && (isEnabled(mods.duka) || isEnabled(mods.pos)));
     const hasSignature = anyEnabled(
         mods.esign,
         mods.signature,
