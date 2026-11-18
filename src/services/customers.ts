@@ -202,6 +202,104 @@ export const logCustomerVisit = async (params: ParamsType) => {
 };
 
 /* ============================
+   CUSTOMER QR PORTAL (public, no login)
+   The page has no session, so the tenant goes in the companycode header and
+   errors are left to the page to show.
+============================ */
+
+export interface PortalPackage {
+  _id: string;
+  name: string;
+  code?: string;
+  price: number;
+  total_visits: number;
+  validity_days?: number | null;
+  desc?: string;
+  thumbnail?: string;
+  is_active?: boolean;
+}
+
+export interface PortalPaymentMethod {
+  _id: string;
+  name: string;
+  payment_type?: string;
+}
+
+export interface PortalSubscription {
+  _id: string;
+  subscription_code: string;
+  package: PortalPackage | null;
+  status: "Active" | "Expired" | "Exhausted" | "Cancelled";
+  payment_status: string;
+  total_visits_allowed: number;
+  visits_used: number;
+  visits_remaining: number;
+  start_date: string;
+  end_date: string;
+  can_redeem: boolean;
+  needs_renewal: boolean;
+}
+
+export interface PortalPhone {
+  phone: string;
+  phone_code?: string | number;
+}
+
+const portalConfig = (tenantCode?: string | null) => ({
+  skipErrorToast: true,
+  headers: tenantCode ? { companycode: tenantCode } : undefined,
+}) as any;
+
+export const fetchPortalContext = async (tenantCode: string | null, shopId: string) => {
+  const { data } = await axiosInstance.get(`${categ_url}/portal/context`, {
+    ...portalConfig(tenantCode),
+    params: { shop_id: shopId },
+  });
+  return data as { packages: PortalPackage[]; payment_methods: PortalPaymentMethod[] };
+};
+
+export const lookupPortalCustomer = async (
+  tenantCode: string | null,
+  body: PortalPhone & { shop_id: string }
+) => {
+  const { data } = await axiosInstance.post(`${categ_url}/portal/lookup`, body, portalConfig(tenantCode));
+  return data as {
+    customer: { _id: string; customer_name: string; code?: string };
+    subscriptions: PortalSubscription[];
+  };
+};
+
+export const subscribeFromPortal = async (
+  tenantCode: string | null,
+  body: PortalPhone & { shop_id: string; package_id: string; payment_method_id: string }
+) => {
+  const { data } = await axiosInstance.post(`${categ_url}/portal/subscribe`, body, portalConfig(tenantCode));
+  return data as { message: string; order: { order_no: string; order_amount: number } };
+};
+
+export const redeemPortalVisit = async (
+  tenantCode: string | null,
+  body: PortalPhone & { shop_id: string; subscription_id: string; rating?: number; review?: string }
+) => {
+  const { data } = await axiosInstance.post(`${categ_url}/portal/redeem`, body, portalConfig(tenantCode));
+  return data as {
+    message: string;
+    subscription: {
+      package_name?: string;
+      visits_used: number;
+      visits_remaining: number;
+      total_visits_allowed: number;
+      status: string;
+      needs_renewal: boolean;
+    };
+    order: { order_no: string };
+  };
+};
+
+export const portalErrorMessage = (error: any, fallback: string) =>
+  error?.response?.data?.message || fallback;
+
+/* ============================
    FEEDBACK OPERATIONS
 ============================ */
 

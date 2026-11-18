@@ -7,6 +7,7 @@ import {
   Outlet,
   useLocation,
   useParams,
+  useSearchParams,
 } from "react-router-dom";
 import * as Sentry from "@sentry/react";
 import { Suspense } from "react";
@@ -33,6 +34,7 @@ const UnifiedDashboardPage = lazyWithReload(() => import("src/pages/Report/Unifi
 const UnifiedShopDashboardPage = lazyWithReload(() => import("src/pages/Report/UnifiedShopDashboardPage"));
 const ShopManagement = lazyWithReload(() => import("src/AdminDashboard/Shops/MainShopPage"));
 const Customer = lazyWithReload(() => import("src/pages/Customer/CustomerList"));
+const CustomerPortal = lazyWithReload(() => import("src/pages/Customer/CustomerPortal"));
 const PaymentSubscriptionPage = lazyWithReload(() => import("src/components/billing/Billing"));
 const AdminCustomersList = lazyWithReload(() => import("src/AdminDashboard/Customers/CustomerList"));
 const TenantSettings = lazyWithReload(() => import("src/AdminDashboard/Settings/TenantSettings"));
@@ -76,6 +78,20 @@ const guardedAdminPage = (Component: React.ComponentType, permission: string | s
     {adminPage(Component)}
   </PermissionRoute>
 );
+
+/**
+ * /admin/customers is also the target of the shop's customer QR code. A scanned
+ * link carries the shop and tenant, so it opens the public customer portal;
+ * staff opening the page normally get the customer list.
+ */
+const AdminCustomersRoute = () => {
+  const [search] = useSearchParams();
+  const isQrLink = !!search.get("shop_id") && !!(search.get("tenant_id") || search.get("tenant_code"));
+  if (isQrLink) {
+    return <Suspense fallback={fullscreenSpin}><CustomerPortal /></Suspense>;
+  }
+  return guardedAdminPage(Customer, "CUSTOMERS_VIEW");
+};
 
 /** Redirect an old link to its new path, keeping :params and the query string. */
 const RedirectWithParams: React.FC<{ to: string }> = ({ to }) => {
@@ -820,7 +836,7 @@ const routes = sentryCreateBrowserRouter(
           element={dukaAdminPage(InventoryMainSettings, "INVENTORY_VIEW")} />
 
         <Route path="customers" errorElement={<NotFound />}
-          element={guardedAdminPage(Customer, "CUSTOMERS_VIEW")} />
+          element={<AdminCustomersRoute />} />
 
         <Route path="suppliers" errorElement={<NotFound />}
           element={guardedAdminPage(SupplierMainSettings, "SUPPLIERS_VIEW")} />
