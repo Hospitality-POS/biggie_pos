@@ -964,3 +964,49 @@ export const exportPayeFiling = (payrolls: any[], employeeIds?: string[]) =>
     employeeIds,
     { csv: true, withHeader: false }
   );
+
+// HELB repayment on a payroll line — a custom deduction. The payroll engine
+// names it "HELB", but lines edited by hand carry whatever was picked or
+// typed ("HELB (Higher Education Loans Board)", "Helb Loan"…), so match the
+// name loosely.
+const HELB_NAME = /\bhelb\b|higher\s+education\s+loan/i;
+const helbAmountOf = (line: any) =>
+  (line.deductions?.custom || [])
+    .filter((c: any) => HELB_NAME.test(String(c?.name || '')))
+    .reduce((s: number, c: any) => s + num(c?.amount), 0);
+
+/**
+ * HELB remittance — CSV matching the HELB employer remittance template
+ * (ID_NUMBER, NAMES, STAFF_NUMBER, AMOUNT). Only employees with a HELB
+ * deduction are listed; one employee across several selected payrolls is
+ * combined into a single row.
+ */
+export const exportHelbFiling = (payrolls: any[], employeeIds?: string[]) => {
+  const byEmployee = new Map<string, { line: any; amount: number }>();
+  for (const line of filingLines(payrolls, employeeIds)) {
+    const amount = helbAmountOf(line);
+    if (amount <= 0) continue;
+    const key = String(line.employee_id?._id || line.employee_id || lineName(line));
+    const row = byEmployee.get(key);
+    if (row) row.amount += amount;
+    else byEmployee.set(key, { line, amount });
+  }
+
+  if (!byEmployee.size) {
+    message.warning('No HELB deductions in the selected payrolls');
+    return;
+  }
+
+  const rows = [...byEmployee.values()].map(({ line, amount }) => {
+    const emp = empOf(line);
+    return [
+      emp.id_number || '',
+      lineName(line).toUpperCase(),
+      emp.employee_number || line.employee_number || '',
+      Math.round(amount * 100) / 100,
+    ];
+  });
+  const period = payrolls[0]?.period_label?.replace(/\s+/g, '_') || 'export';
+  downloadCsv([['ID_NUMBER', 'NAMES', 'STAFF_NUMBER', 'AMOUNT'], ...rows], `HELB_Remittance_${period}.csv`);
+  message.success(`HELB remittance exported (${rows.length} employee${rows.length === 1 ? '' : 's'})`);
+};
