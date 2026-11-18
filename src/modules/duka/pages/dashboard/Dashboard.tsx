@@ -257,7 +257,8 @@ const Dashboard: React.FC = () => {
   const handleCopyCustomerUrl = useCallback(() => {
     const storedTenant = localStorage.getItem("tenant");
     const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-    const url = `${import.meta.env.VITE_APP_URL}/admin/customers?tenant_id=${tenant?._id}&shop_id=${shopId}`;
+    // tenant_code lets the public page reach the API without a login (older QR codes fall back to tenant_id)
+    const url = `${import.meta.env.VITE_APP_URL}/admin/customers?tenant_id=${tenant?._id}&tenant_code=${tenant?.tenant_code}&shop_id=${shopId}`;
     setUrlModalUrl(url);
     setUrlModalTitle(hospital ? "Patient Portal Link & QR" : hotel ? "Hotel Booking Link & QR" : "Customer Order Link & QR");
     setUrlModalShowCopy(true);

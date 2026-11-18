@@ -89,6 +89,7 @@ const EXCLUDED_ROUTES = [
     '/business-types',
     '/suppliers',
     '/customers/other-branches',
+    '/customers/portal/', // public QR page sends the scanned shop's id itself
     '/business-health',
     '/audit-logs', // admins see every branch; the page passes shop_id itself
 ];
@@ -312,7 +313,8 @@ axiosInstance.interceptors.request.use(
                 storedCode = null;
             }
         }
-        if (storedCode || config.data?.companyCode) {
+        // A caller-supplied header wins (public QR pages name the scanned tenant).
+        if (!config.headers['companycode'] && (storedCode || config.data?.companyCode)) {
             config.headers['companycode'] = storedCode || config.data?.companyCode;
         }
 
