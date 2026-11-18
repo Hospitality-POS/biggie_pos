@@ -83,6 +83,9 @@ const isHotelMode = (): boolean => getPosMode() === "hotel";
 // Direct APK download link (DigitalOcean) — scanning the QR opens this URL and downloads the app
 const APP_DOWNLOAD_URL = "https://reliatechdocs.nyc3.digitaloceanspaces.com/APKS/basepoint-on-going.apk";
 
+// Customer QR codes open the public customer page on the Duka domain
+const CUSTOMER_PORTAL_URL = "https://duka.basepoint.co.ke";
+
 const PERIOD_LABELS: Record<string, string> = {
   day: "Today",
   week: "This Week",
@@ -258,7 +261,7 @@ const Dashboard: React.FC = () => {
     const storedTenant = localStorage.getItem("tenant");
     const tenant = storedTenant ? JSON.parse(storedTenant) : null;
     // tenant_code lets the public page reach the API without a login (older QR codes fall back to tenant_id)
-    const url = `${import.meta.env.VITE_APP_URL}/admin/customers?tenant_id=${tenant?._id}&tenant_code=${tenant?.tenant_code}&shop_id=${shopId}`;
+    const url = `${CUSTOMER_PORTAL_URL}/admin/customers?tenant_id=${tenant?._id}&tenant_code=${tenant?.tenant_code}&shop_id=${shopId}`;
     setUrlModalUrl(url);
     setUrlModalTitle(hospital ? "Patient Portal Link & QR" : hotel ? "Hotel Booking Link & QR" : "Customer Order Link & QR");
     setUrlModalShowCopy(true);
