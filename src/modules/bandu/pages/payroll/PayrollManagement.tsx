@@ -57,7 +57,7 @@ import {
   CompressOutlined,
   UserOutlined,
 } from "@ant-design/icons";
-import { exportPayrollToExcel, exportPayrollToPDF, exportPayrollsToExcel, exportPayrollsToPDF, exportNssfFiling, exportShifFiling, exportPayeFiling, displayBasicPay } from "@utils/payrollExport";
+import { exportPayrollToExcel, exportPayrollToPDF, exportPayrollsToExcel, exportPayrollsToPDF, exportNssfFiling, exportShifFiling, exportPayeFiling, exportHelbFiling, displayBasicPay } from "@utils/payrollExport";
 import { useExportTemplate } from "@utils/exportTemplates";
 import { exportTemplateMenuItem } from "@components/ExportTemplate/exportTemplateMenu";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -147,6 +147,62 @@ const STATUS_CONFIG: Record<string, { color: string; label: string }> = {
   void: { color: "red", label: "Void" },
 };
 
+// ── Pay item filter ───────────────────────────────────────────────────────────
+// Every allowance, benefit and deduction on a payroll line, keyed so the
+// header filter can match lines that carry a given item (HELB, House
+// Allowance, PAYE…). Named items come from the line's allowance_items /
+// benefit_items (falling back to the employee record, like the table
+// columns); totals not covered by named items show as "Other …".
+type PayItemGroup = "Allowances" | "Benefits" | "Other pay" | "Deductions";
+interface PayItem { key: string; label: string; group: PayItemGroup; amount: number }
+
+const PAY_ITEM_GROUPS: PayItemGroup[] = ["Allowances", "Benefits", "Other pay", "Deductions"];
+const STATUTORY_DEDUCTION_ITEMS: [string, string][] = [
+  ["paye", "PAYE (Tax)"],
+  ["nhif", "S.H.I.F."],
+  ["nssf", "N.S.S.F."],
+  ["housing_levy", "Housing Levy"],
+  ["pension", "Pension"],
+  ["withholding_tax", "WHT"],
+];
+
+const payItemsOfLine = (line: any): PayItem[] => {
+  const items: PayItem[] = [];
+  const addNamed = (
+    lineKey: "allowance_items" | "benefit_items",
+    empKey: "allowances" | "benefits",
+    group: PayItemGroup,
+    prefix: string,
+    otherLabel: string,
+    total: any
+  ) => {
+    const list: any[] = Array.isArray(line?.[lineKey]) ? line[lineKey] : line?.employee_id?.[empKey] || [];
+    let named = 0;
+    for (const it of list) {
+      const label = String(it?.name || it?.allowance_type || it?.benefit_type || "").trim();
+      const amount = Number(it?.amount ?? it?.value) || 0;
+      named += amount;
+      if (label) items.push({ key: `${prefix}:${label.toLowerCase()}`, label, group, amount });
+    }
+    const other = Math.max(0, (Number(total) || 0) - named);
+    if (other > 0) items.push({ key: `${prefix}:__other`, label: otherLabel, group, amount: other });
+  };
+  addNamed("allowance_items", "allowances", "Allowances", "allowance", "Other Allowances", line?.allowances);
+  addNamed("benefit_items", "benefits", "Benefits", "benefit", "Other Benefits", line?.benefits);
+  if (Number(line?.overtime_pay) > 0) {
+    items.push({ key: "pay:overtime", label: "Overtime", group: "Other pay", amount: Number(line.overtime_pay) });
+  }
+  const d = line?.deductions || {};
+  for (const [field, label] of STATUTORY_DEDUCTION_ITEMS) {
+    items.push({ key: `deduction:${field}`, label, group: "Deductions", amount: Number(d[field]) || 0 });
+  }
+  for (const c of d.custom || []) {
+    const label = String(c?.name || "").trim();
+    if (label) items.push({ key: `custom:${label.toLowerCase()}`, label, group: "Deductions", amount: Number(c?.amount) || 0 });
+  }
+  return items;
+};
+
 // ── Payroll Management Component ───────────────────────────────────────────────
 
 const PayrollManagement: React.FC = () => {
@@ -173,6 +229,8 @@ const PayrollManagement: React.FC = () => {
   const [filterYear, setFilterYear] = useState<number | undefined>(new Date().getFullYear());
   const [filterMonth, setFilterMonth] = useState<number | undefined>(new Date().getMonth() + 1);
   const [filterDept, setFilterDept] = useState<string | undefined>(undefined);
+  // Pay item filter — show only employees with any of these allowances/benefits/deductions
+  const [filterPayItems, setFilterPayItems] = useState<string[]>([]);
   // Payroll detail drawer — toggle between employee names and numbers
   const [showEmployeeNames, setShowEmployeeNames] = useState(true);
   // Rounds every money figure shown in the payroll table (and passed to
@@ -325,9 +383,48 @@ const PayrollManagement: React.FC = () => {
   };
 
   // Department filter applies before the status tabs
-  const deptFilteredPayrolls = React.useMemo(
+  const deptOnlyPayrolls = React.useMemo(
     () => (filterDept ? payrolls.filter((p: Payroll) => p.department_id?._id === filterDept) : payrolls),
     [payrolls, filterDept]
+  );
+
+  // Pay item filter options — every item that is non-zero on at least one
+  // line in the department/period selection, grouped by kind.
+  const payItemOptions = React.useMemo(() => {
+    const seen = new Map<string, PayItem>();
+    for (const p of deptOnlyPayrolls as Payroll[]) {
+      for (const line of p.lines || []) {
+        for (const it of payItemsOfLine(line)) {
+          if (it.amount > 0 && !seen.has(it.key)) seen.set(it.key, it);
+        }
+      }
+    }
+    return PAY_ITEM_GROUPS.map((group) => ({
+      label: group,
+      options: [...seen.values()]
+        .filter((it) => it.group === group)
+        .sort((a, b) => a.label.localeCompare(b.label))
+        .map((it) => ({ value: it.key, label: it.label })),
+    })).filter((g) => g.options.length > 0);
+  }, [deptOnlyPayrolls]);
+
+  const lineMatchesPayItems = React.useCallback(
+    (line: any) => {
+      if (!filterPayItems.length) return true;
+      const wanted = new Set(filterPayItems);
+      return payItemsOfLine(line).some((it) => it.amount > 0 && wanted.has(it.key));
+    },
+    [filterPayItems]
+  );
+
+  // Department + pay item filters apply before the status tabs; a payroll
+  // stays listed when at least one of its employees matches.
+  const deptFilteredPayrolls = React.useMemo(
+    () =>
+      filterPayItems.length
+        ? deptOnlyPayrolls.filter((p: Payroll) => (p.lines || []).some(lineMatchesPayItems))
+        : deptOnlyPayrolls,
+    [deptOnlyPayrolls, filterPayItems, lineMatchesPayItems]
   );
 
   // Filing Templates tab — which payrolls/employees feed the NSSF/SHIF/PAYE
@@ -612,10 +709,35 @@ const PayrollManagement: React.FC = () => {
   const employeeRows = React.useMemo(
     () =>
       filteredPayrolls.flatMap((p: Payroll) =>
-        (p.lines || []).map((l: any) => ({ ...l, _payroll: p }))
+        (p.lines || []).filter(lineMatchesPayItems).map((l: any) => ({ ...l, _payroll: p }))
       ),
-    [filteredPayrolls]
+    [filteredPayrolls, lineMatchesPayItems]
   );
+
+  // Exports and totals follow the pay item filter: only matching employees.
+  // (Copies — the payrolls used by approve/process actions stay whole.)
+  const exportPayrolls = React.useMemo(
+    () =>
+      filterPayItems.length
+        ? filteredPayrolls.map((p: Payroll) => ({ ...p, lines: (p.lines || []).filter(lineMatchesPayItems) }))
+        : filteredPayrolls,
+    [filteredPayrolls, filterPayItems, lineMatchesPayItems]
+  );
+  const statTotals = React.useMemo(() => {
+    if (!filterPayItems.length) {
+      const sum = (f: "total_gross" | "total_net" | "total_deductions") =>
+        filteredPayrolls.reduce((s: number, p: any) => s + (p[f] || 0), 0);
+      return { gross: sum("total_gross"), net: sum("total_net"), deductions: sum("total_deductions") };
+    }
+    return employeeRows.reduce(
+      (t: { gross: number; net: number; deductions: number }, l: any) => ({
+        gross: t.gross + (Number(l.gross_salary) || 0),
+        net: t.net + (Number(l.net_pay) || 0),
+        deductions: t.deductions + (Number(l.deductions?.total) || 0),
+      }),
+      { gross: 0, net: 0, deductions: 0 }
+    );
+  }, [filterPayItems, filteredPayrolls, employeeRows]);
 
   const lineKey = (r: any) =>
     r._id || `${r._payroll?._id}-${r.employee_id?._id || r.employee_id}`;
@@ -2325,6 +2447,21 @@ const PayrollManagement: React.FC = () => {
               label: d.code ? `${d.name} (${d.code})` : d.name,
             }))}
           />
+          <Tooltip title="Show only employees with any of these allowances, benefits or deductions (e.g. HELB, House Allowance)">
+            <Select
+              mode="multiple"
+              value={filterPayItems}
+              onChange={(v) => { setFilterPayItems(v); setSelectedPayrollIds([]); setSelectedLineKeys([]); }}
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              maxTagCount="responsive"
+              placeholder="All pay items"
+              notFoundContent="No allowances, benefits or deductions in these payrolls"
+              style={{ width: 240 }}
+              options={payItemOptions}
+            />
+          </Tooltip>
           <Select
             value={filterMonth}
             onChange={setFilterMonth}
@@ -2367,17 +2504,17 @@ const PayrollManagement: React.FC = () => {
                       {
                         key: "excel-default",
                         label: "Default header",
-                        onClick: () => exportPayrollsToExcel(filteredPayrolls, { rounded: roundOff }),
+                        onClick: () => exportPayrollsToExcel(exportPayrolls, { rounded: roundOff }),
                       },
                       {
                         key: "excel-company",
                         label: "Company name header",
-                        onClick: () => exportPayrollsToExcel(filteredPayrolls, { rounded: roundOff, headerMode: "company" }),
+                        onClick: () => exportPayrollsToExcel(exportPayrolls, { rounded: roundOff, headerMode: "company" }),
                       },
                       {
                         key: "excel-dept",
                         label: "Department name header",
-                        onClick: () => exportPayrollsToExcel(filteredPayrolls, { rounded: roundOff, headerMode: "department" }),
+                        onClick: () => exportPayrollsToExcel(exportPayrolls, { rounded: roundOff, headerMode: "department" }),
                       },
                     ],
                   },
@@ -2389,17 +2526,17 @@ const PayrollManagement: React.FC = () => {
                       {
                         key: "pdf-default",
                         label: "Default header",
-                        onClick: () => exportPayrollsToPDF(filteredPayrolls, { rounded: roundOff }),
+                        onClick: () => exportPayrollsToPDF(exportPayrolls, { rounded: roundOff }),
                       },
                       {
                         key: "pdf-company",
                         label: "Company name header",
-                        onClick: () => exportPayrollsToPDF(filteredPayrolls, { rounded: roundOff, headerMode: "company" }),
+                        onClick: () => exportPayrollsToPDF(exportPayrolls, { rounded: roundOff, headerMode: "company" }),
                       },
                       {
                         key: "pdf-dept",
                         label: "Department name header",
-                        onClick: () => exportPayrollsToPDF(filteredPayrolls, { rounded: roundOff, headerMode: "department" }),
+                        onClick: () => exportPayrollsToPDF(exportPayrolls, { rounded: roundOff, headerMode: "department" }),
                       },
                     ],
                   },
@@ -2481,7 +2618,7 @@ const PayrollManagement: React.FC = () => {
               <Col xs={24} sm={12} md={6}>
                 <StatCard
                   title="Total Gross"
-                  value={`KES ${filteredPayrolls.reduce((sum: number, p: Payroll) => sum + (p.total_gross || 0), 0).toLocaleString()}`}
+                  value={`KES ${statTotals.gross.toLocaleString()}`}
                   icon={<DollarOutlined />}
                   color="#3b82f6"
                 />
@@ -2489,7 +2626,7 @@ const PayrollManagement: React.FC = () => {
               <Col xs={24} sm={12} md={6}>
                 <StatCard
                   title="Total Net"
-                  value={`KES ${filteredPayrolls.reduce((sum: number, p: Payroll) => sum + (p.total_net || 0), 0).toLocaleString()}`}
+                  value={`KES ${statTotals.net.toLocaleString()}`}
                   icon={<CheckCircleOutlined />}
                   color="#10b981"
                 />
@@ -2497,7 +2634,7 @@ const PayrollManagement: React.FC = () => {
               <Col xs={24} sm={12} md={6}>
                 <StatCard
                   title="Total Deductions"
-                  value={`KES ${filteredPayrolls.reduce((sum: number, p: Payroll) => sum + (p.total_deductions || 0), 0).toLocaleString()}`}
+                  value={`KES ${statTotals.deductions.toLocaleString()}`}
                   icon={<DeleteOutlined />}
                   color="#ef4444"
                 />
@@ -2895,7 +3032,7 @@ const PayrollManagement: React.FC = () => {
               showIcon
               style={{ marginBottom: 16 }}
               message="Statutory filing files"
-              description="Download NSSF, SHIF (Excel) and PAYE (CSV) filing files — prefilled from the selected payrolls, ready to update and upload to the respective portals."
+              description="Download NSSF, SHIF (Excel), PAYE and HELB (CSV) filing files — prefilled from the selected payrolls, ready to update and upload to the respective portals."
             />
             <div style={{ marginBottom: 16, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
               <Text strong>Departments:</Text>
@@ -2985,8 +3122,16 @@ const PayrollManagement: React.FC = () => {
                   onClick: () => exportPayeFiling(filingPayrolls, filingEmployeeIds),
                   format: "CSV",
                 },
+                {
+                  key: "helb",
+                  title: "HELB Remittance",
+                  desc: "HELB employer remittance as CSV — ID number, names, staff number and the HELB amount deducted. Only employees with a HELB deduction are listed.",
+                  color: "#d97706",
+                  onClick: () => exportHelbFiling(filingPayrolls, filingEmployeeIds),
+                  format: "CSV",
+                },
               ].map((t) => (
-                <Col xs={24} md={8} key={t.key}>
+                <Col xs={24} md={12} xl={6} key={t.key}>
                   <Card
                     size="small"
                     style={{ borderTop: `3px solid ${t.color}`, height: "100%" }}
