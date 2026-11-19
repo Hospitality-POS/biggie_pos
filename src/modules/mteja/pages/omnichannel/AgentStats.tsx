@@ -26,11 +26,23 @@ import {
     fetchAgents,
     fetchAnalytics,
 } from "@services/whatsappService";
+import {
+    ChannelBadge,
+    ChannelBreakdown,
+    ChannelPicker,
+    channelLabel,
+    effectiveChoice,
+    visibleChannels,
+    type ChannelChoice,
+    type ConnectedChannels,
+} from "./shared/channelStats";
 
 const { Title, Text } = Typography;
 
 interface Props {
     shopId: string;
+    /** Which channels the shop has connected; Messenger/Instagram stats show only when on. */
+    connected?: Partial<ConnectedChannels>;
 }
 
 const DAYS_OPTIONS = [
@@ -39,16 +51,22 @@ const DAYS_OPTIONS = [
     { value: 90, label: "Last 90 days" },
 ];
 
-const AgentStats: React.FC<Props> = ({ shopId }) => {
+const AgentStats: React.FC<Props> = ({ shopId, connected }) => {
     const screens = Grid.useBreakpoint();
     const isMobile = !screens.md;
     const [days, setDays] = useState(30);
 
+    const channels = visibleChannels(connected);
+    const [pickedChannel, setChannel] = useState<ChannelChoice>("all");
+    const channel = effectiveChoice(pickedChannel, channels);
+
     const { data: analytics, isLoading: analyticsLoading } = useQuery({
-        queryKey: ["omnichannel-analytics", shopId, days],
-        queryFn: () => fetchAnalytics({ shop_id: shopId, days }),
+        queryKey: ["omnichannel-analytics", shopId, days, channel],
+        queryFn: () =>
+            fetchAnalytics({ shop_id: shopId, days, ...(channel === "all" ? {} : { channel }) }),
         enabled: !!shopId,
         staleTime: 60_000,
+        keepPreviousData: true,
     });
 
     const { data: agentsData, isLoading: agentsLoading } = useQuery({
@@ -118,6 +136,23 @@ const AgentStats: React.FC<Props> = ({ shopId }) => {
             dataIndex: "conversations",
             sorter: (a: any, b: any) => a.conversations - b.conversations,
         },
+        // Per-channel split of each agent's conversations — only with "All
+        // channels" picked and more than one channel on.
+        ...(channel === "all" && channels.length > 1
+            ? channels.map((ch) => ({
+                  key: `ch-${ch}`,
+                  title: (
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                          <ChannelBadge channel={ch} size={14} />
+                          {channelLabel(ch)}
+                      </span>
+                  ),
+                  dataIndex: ["conversationsByChannel", ch],
+                  sorter: (a: any, b: any) =>
+                      (a.conversationsByChannel?.[ch] || 0) - (b.conversationsByChannel?.[ch] || 0),
+                  render: (v: number | undefined) => v || 0,
+              }))
+            : []),
         {
             title: "Messages sent",
             dataIndex: "messages",
@@ -173,22 +208,33 @@ const AgentStats: React.FC<Props> = ({ shopId }) => {
                     </Title>
                 </Col>
                 <Col>
-                    <Select
-                        value={days}
-                        onChange={(value) => setDays(value)}
-                        options={DAYS_OPTIONS}
-                        style={{ width: 140 }}
-                        size="small"
-                    />
+                    <Space size={8} wrap>
+                        <ChannelPicker channels={channels} value={channel} onChange={setChannel} />
+                        <Select
+                            value={days}
+                            onChange={(value) => setDays(value)}
+                            options={DAYS_OPTIONS}
+                            style={{ width: 140 }}
+                            size="small"
+                        />
+                    </Space>
                 </Col>
             </Row>
+
+            <ChannelBreakdown
+                channels={channels}
+                breakdown={analytics?.channelBreakdown}
+                selected={channel}
+                onSelect={setChannel}
+                formatMinutes={fmtMinutes}
+            />
 
             <Row gutter={isMobile ? [8, 8] : [12, 12]} style={{ marginBottom: isMobile ? 12 : 16 }}>
                 {[
                     { title: "Total conversations", value: analytics?.totalConversations || 0, icon: <MessageOutlined />, color: "#3b82f6", bg: "#eff6ff", border: "#bfdbfe" },
                     { title: "Resolved / closed", value: analytics?.resolvedOrClosed || 0, icon: <CheckCircleOutlined />, color: "#10b981", bg: "#f0fdf4", border: "#bbf7d0" },
                     { title: "Upsell messages", value: analytics?.upsellMessages || 0, icon: <RiseOutlined />, color: "#8b5cf6", bg: "#f5f3ff", border: "#ddd6fe" },
-                    { title: "Conversion rate", value: `${Math.round((analytics?.conversionRate || 0) * 100)}%`, icon: <ShoppingCartOutlined />, color: "#0d9488", bg: "#f0fdfa", border: "#99f6e4" },
+                    { title: "Conversion rate", value: `${analytics?.conversionRate || 0}%`, icon: <ShoppingCartOutlined />, color: "#0d9488", bg: "#f0fdfa", border: "#99f6e4" },
                     { title: "Resolution rate", value: `${resolutionRate}%`, icon: <ThunderboltOutlined />, color: "#6366f1", bg: "#eef2ff", border: "#c7d2fe" },
                     { title: "Avg first response", value: fmtMinutes(analytics?.averageFirstResponseMinutes), icon: <ClockCircleOutlined />, color: "#f59e0b", bg: "#fffbeb", border: "#fde68a" },
                     { title: "Median first response", value: fmtMinutes(analytics?.medianFirstResponseMinutes), icon: <FieldTimeOutlined />, color: "#f97316", bg: "#fff7ed", border: "#fed7aa" },

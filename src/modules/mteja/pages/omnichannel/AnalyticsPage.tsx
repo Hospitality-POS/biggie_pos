@@ -37,17 +37,27 @@ import {
     Line,
 } from "recharts";
 import { fetchAnalytics, type AnalyticsData } from "@services/whatsappService";
+import {
+    ChannelBreakdown,
+    ChannelPicker,
+    effectiveChoice,
+    visibleChannels,
+    type ChannelChoice,
+    type ConnectedChannels,
+} from "./shared/channelStats";
 
 const { Text } = Typography;
 const { Option } = Select;
 
 interface Props {
     shopId: string;
+    /** Which channels the shop has connected; Messenger/Instagram stats show only when on. */
+    connected?: Partial<ConnectedChannels>;
 }
 
 const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#6366f1", "#0d9488"];
 
-const AnalyticsPage: React.FC<Props> = ({ shopId }) => {
+const AnalyticsPage: React.FC<Props> = ({ shopId, connected }) => {
     const [days, setDays] = useState(30);
     const isMobile = !Grid.useBreakpoint().md;
     const { enabled: marketplaceOn, shopName } = useMarketplace(shopId);
@@ -56,11 +66,21 @@ const AnalyticsPage: React.FC<Props> = ({ shopId }) => {
     const [view, setView] = useState<"inbox" | "marketplace">("inbox");
     const activeView = marketplaceOn ? view : "inbox";
 
+    const channels = visibleChannels(connected);
+    const [pickedChannel, setChannel] = useState<ChannelChoice>("all");
+    const channel = effectiveChoice(pickedChannel, channels);
+
     const { data, isLoading, isFetching, refetch } = useQuery({
-        queryKey: ["omnichannel-analytics", shopId, days],
+        queryKey: ["omnichannel-analytics", shopId, days, channel],
         queryFn: () =>
-            fetchAnalytics({ shop_id: shopId, days }) as Promise<AnalyticsData>,
+            fetchAnalytics({
+                shop_id: shopId,
+                days,
+                ...(channel === "all" ? {} : { channel }),
+            }) as Promise<AnalyticsData>,
         enabled: !!shopId,
+        // Keep the previous numbers on screen while switching channel.
+        keepPreviousData: true,
     });
 
     const stats = data;
@@ -161,6 +181,9 @@ const AnalyticsPage: React.FC<Props> = ({ shopId }) => {
                                 ]}
                             />
                         )}
+                        {activeView === "inbox" && (
+                            <ChannelPicker channels={channels} value={channel} onChange={setChannel} />
+                        )}
                         <Select value={days} onChange={setDays} size="small" style={{ width: 130 }}>
                             <Option value={7}>Last 7 days</Option>
                             <Option value={30}>Last 30 days</Option>
@@ -178,6 +201,13 @@ const AnalyticsPage: React.FC<Props> = ({ shopId }) => {
                 </div>
             ) : stats ? (
                 <>
+                    <ChannelBreakdown
+                        channels={channels}
+                        breakdown={stats.channelBreakdown}
+                        selected={channel}
+                        onSelect={setChannel}
+                        formatMinutes={formatMinutes}
+                    />
                     {[
                         {
                             label: "Conversations",
