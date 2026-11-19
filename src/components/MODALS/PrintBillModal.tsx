@@ -75,6 +75,7 @@ import {
 } from "./print/printHelpers";
 import SendEmailModal from "./print/SendEmailModal";
 import ReprintReasonModal from "./print/ReprintReasonModal";
+import { cartItemName } from "@utils/cartItemName";
 
 // ── Props ──────────────────────────────────────────────────────────────────
 export interface PrintBillProps {
@@ -1216,7 +1217,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
                     overflowWrap: "break-word",
                     whiteSpace: "normal",
                   }}>
-                    {item?.product_id?.name || item?.description || 'Item'}
+                    {cartItemName(item)}
                     {item.notes && (
                       <span style={{ ...S.tblSub, display: "block", color: "#666" }}>({item.notes})</span>
                     )}
@@ -1513,7 +1514,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
                         {/* Name + description stacked in one cell */}
                         <td style={pdfTD}>
                           <div style={{ fontWeight: 600, color: "#1a1a1a", fontSize: "14px" }}>
-                            {item?.product_id?.name || item?.description || 'Item'}
+                            {cartItemName(item)}
                           </div>
                           {item.notes && (
                             <div style={{

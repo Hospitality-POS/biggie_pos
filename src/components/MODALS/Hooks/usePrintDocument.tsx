@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { message } from "antd";
 import axiosInstance from "@services/request";
 import { BASE_URL } from "@utils/config";
+import { withVariantName } from "@utils/cartItemName";
 import { useAppSelector } from "src/store";
 import { getCurrentVatConfig } from "@utils/taxConfig";
 
@@ -298,7 +299,7 @@ export function usePrintDocument({
             const qty = item.quantity ?? 1;
             return {
                 product_id: item.product_id?._id || item.product_id,
-                product_name: item.product_id?.name || item.name || "Unknown",
+                product_name: withVariantName(item.product_id?.name || item.name || "Unknown", item?.variant_name),
                 quantity: qty,
                 unit_price: qty > 0 ? parseFloat((lineTotal / qty).toFixed(2)) : lineTotal,
                 line_total: lineTotal,

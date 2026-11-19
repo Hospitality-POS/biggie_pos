@@ -551,6 +551,30 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem, cartDeductionEnab
 
               </div>
 
+              {/* Variant sold, e.g. "Ruby Red" */}
+              {cartItem?.variant_name && (
+                <span
+                  title={`Variant: ${cartItem.variant_name}`}
+                  style={{
+                    display: "inline-block",
+                    maxWidth: "100%",
+                    marginTop: 3,
+                    padding: "0 7px",
+                    borderRadius: 6,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    lineHeight: "18px",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    background: isSent ? "rgba(255,255,255,0.2)" : `${primaryColor}14`,
+                    color: isSent ? "#ffffff" : primaryColor,
+                  }}
+                >
+                  {cartItem.variant_name}
+                </span>
+              )}
+
               {/* Inventory deduction button — gated by shop-level flag */}
               {cartDeductionEnabled && !cartLocked && (
                 <Tooltip
