@@ -248,11 +248,14 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem, cartDeductionEnab
     if (cartDetails.discount_type === "percentage") {
       discountAmount = itemPrice * (cartDetails.discount / 100);
     } else {
+      // Share a fixed discount across lines by line total (price × qty),
+      // and never more than the cart total — the API rejects that anyway.
       const totalCartAmount = (cartDetails?.items || []).reduce(
-        (acc: number, item: any) => acc + (item?.price || 0), 0
+        (acc: number, item: any) => acc + (item?.price || 0) * (item?.quantity || 1), 0
       );
       if (totalCartAmount > 0) {
-        discountAmount = (itemPrice / totalCartAmount) * cartDetails.discount;
+        const effectiveDiscount = Math.min(cartDetails.discount, totalCartAmount);
+        discountAmount = (itemPrice / totalCartAmount) * effectiveDiscount;
       }
     }
     const newPrice = itemPrice - discountAmount;

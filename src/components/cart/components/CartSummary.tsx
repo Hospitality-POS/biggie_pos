@@ -86,6 +86,8 @@ interface CartSummaryProps {
   onOpenAssignStaffModal?: () => void;
   /** Clears the cart discount; shown to admins and cashiers */
   onRemoveDiscount?: () => void;
+  /** Saved fixed discount is larger than the order total */
+  discountExceedsTotal?: boolean;
 }
 
 export const CartSummary: React.FC<CartSummaryProps> = ({
@@ -103,6 +105,7 @@ export const CartSummary: React.FC<CartSummaryProps> = ({
   onOpenEarningsModal,
   onOpenAssignStaffModal,
   onRemoveDiscount,
+  discountExceedsTotal = false,
 }) => {
   const canManage = userRole === "admin" || userRole === "cashier";
 
@@ -185,6 +188,12 @@ export const CartSummary: React.FC<CartSummaryProps> = ({
             accent="#10b981"
             muted
           />
+          {discountExceedsTotal && (
+            <Text type="danger" style={{ display: "block", fontSize: 11, lineHeight: 1.4, margin: "2px 0 4px" }}>
+              The {fmtKsh(cartDetails.discount)} discount is more than this order. Payment will be
+              refused until you remove or change it.
+            </Text>
+          )}
         </>
       ) : (
         <SummaryRow label="Subtotal" value={fmtKsh(grandTotal)} muted />

@@ -198,7 +198,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails, holdForP
     if (cartDetails.discount_type === "percentage") {
       return parseFloat((subtotal * cartDetails.discount / 100).toFixed(2));
     }
-    return cartDetails.discount;
+    return Math.min(cartDetails.discount, subtotal);
   }, [cartDetails?.discount, cartDetails?.discount_type, subtotal]);
 
   const grossBeforeDiscount = useMemo(

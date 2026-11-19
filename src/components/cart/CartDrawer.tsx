@@ -216,8 +216,16 @@ const CartDrawer: React.FC = () => {
     if (cartDetails.discount_type === "percentage") {
       return parseFloat(((subtotal * cartDetails.discount) / 100).toFixed(2));
     }
-    return cartDetails.discount;
+    // Same cap as the cart totals: a discount can't exceed the order
+    return Math.min(cartDetails.discount, subtotal);
   }, [cartDetails?.discount, cartDetails?.discount_type, subtotal]);
+
+  // A fixed discount bigger than the order (e.g. left over from an earlier
+  // order on this cart). The API refuses to place such an order.
+  const discountExceedsTotal =
+    !!cartDetails?.discount &&
+    cartDetails.discount_type !== "percentage" &&
+    cartDetails.discount > subtotal;
 
   const grossBeforeDiscount = useMemo(
     () => parseFloat((grandTotal + discountAmount).toFixed(2)),
@@ -909,6 +917,7 @@ const CartDrawer: React.FC = () => {
             onOpenEarningsModal={() => setEarningsModalOpen(true)}
             onOpenAssignStaffModal={() => setEditingServedBy(true)}
             onRemoveDiscount={isAwaitingPrintCart ? undefined : handleRemoveDiscount}
+            discountExceedsTotal={discountExceedsTotal}
           />
         )}
 
