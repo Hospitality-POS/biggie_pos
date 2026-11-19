@@ -37,6 +37,7 @@ import {
 } from "@services/whatsappService";
 import { fetchAllUsersByShopId } from "@services/users";
 import AgentStats from "./AgentStats";
+import type { ConnectedChannels } from "./shared/channelStats";
 
 const { Title, Text } = Typography;
 
@@ -57,9 +58,11 @@ interface Agent {
 
 interface Props {
     shopId: string;
+    /** Connected channels, passed on to the performance stats. */
+    connected?: Partial<ConnectedChannels>;
 }
 
-const AgentsManager: React.FC<Props> = ({ shopId }) => {
+const AgentsManager: React.FC<Props> = ({ shopId, connected }) => {
     const queryClient = useQueryClient();
     const screens = Grid.useBreakpoint();
     const isMobile = !screens.md;
@@ -386,7 +389,7 @@ const AgentsManager: React.FC<Props> = ({ shopId }) => {
                     {
                         key: "performance",
                         label: "Performance",
-                        children: <AgentStats shopId={shopId} />,
+                        children: <AgentStats shopId={shopId} connected={connected} />,
                     },
                 ]}
             />
