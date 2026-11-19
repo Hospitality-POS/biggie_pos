@@ -28,10 +28,8 @@ import {
   Segmented,
   Tooltip,
 } from "antd";
-import Lottie from "lottie-react";
 import React, { useState, useEffect, useMemo, useCallback, Suspense, lazy } from "react";
 import { useAppSelector } from "src/store";
-import fssanimation from "@components/Loaders/tables.json";
 import EmptyPage from "@routes/EmptyPage";
 import { useNavigate } from "react-router-dom";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
@@ -382,7 +380,7 @@ export default function TablePro() {
   const queryClient = useQueryClient();
 
   const { user } = useAppSelector((state) => state.auth);
-  const { openModal: successmodal, loading } = useAppSelector((state) => state.order);
+  const { openModal: successmodal } = useAppSelector((state) => state.order);
   const navigate = useNavigate();
   const primaryColor = usePrimaryColor();
   const { isRetailMode, isHospitalMode, isHotelMode, isModeLoading } = usePOSMode();
@@ -660,15 +658,9 @@ export default function TablePro() {
     ) : null;
 
   // ── Early returns ─────────────────────────────────────────────────────────
+  // While an order request is in flight the page stays as it is (buttons show
+  // their own spinners) instead of being replaced by a full-page cart animation.
   if (successmodal) return <SuccesssModal />;
-
-  if (loading) {
-    return (
-      <div style={{ display: "grid", placeContent: "center", marginTop: 80 }}>
-        <Lottie animationData={fssanimation} loop={true} height={20} width={20} />
-      </div>
-    );
-  }
 
   if (isModeLoading) {
     return (
