@@ -28,7 +28,7 @@ import {
 } from "@services/whatsappService";
 import {
     ChannelBadge,
-    ChannelBreakdown,
+    ChannelFilterNotice,
     ChannelPicker,
     channelLabel,
     effectiveChoice,
@@ -221,13 +221,7 @@ const AgentStats: React.FC<Props> = ({ shopId, connected }) => {
                 </Col>
             </Row>
 
-            <ChannelBreakdown
-                channels={channels}
-                breakdown={analytics?.channelBreakdown}
-                selected={channel}
-                onSelect={setChannel}
-                formatMinutes={fmtMinutes}
-            />
+            <ChannelFilterNotice requested={channel} served={analytics?.channel} />
 
             <Row gutter={isMobile ? [8, 8] : [12, 12]} style={{ marginBottom: isMobile ? 12 : 16 }}>
                 {[

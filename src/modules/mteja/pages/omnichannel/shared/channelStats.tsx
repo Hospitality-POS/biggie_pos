@@ -1,13 +1,11 @@
 import React from "react";
-import { Col, Grid, Row, Segmented, Typography } from "antd";
+import { Alert, Segmented } from "antd";
 import { CHANNEL_CONFIG } from "../OmnichannelInboxPage";
-import type { ChannelStat, OmniChannelKey } from "@services/whatsappService";
-
-const { Text } = Typography;
+import type { OmniChannelKey } from "@services/whatsappService";
 
 /**
- * Channel-aware pieces for the Analytics and Agents tabs: a switcher to
- * narrow the stats to one channel, and a per-channel summary row.
+ * Channel-aware pieces for the Analytics and Agents tabs: a switcher that
+ * narrows every stat on the tab to one channel.
  */
 
 export type ConnectedChannels = Record<OmniChannelKey, boolean>;
@@ -79,75 +77,20 @@ export const ChannelPicker: React.FC<PickerProps> = ({ channels, value, onChange
     );
 };
 
-interface BreakdownProps {
-    channels: OmniChannelKey[];
-    breakdown?: Partial<Record<OmniChannelKey, ChannelStat>>;
-    selected: ChannelChoice;
-    onSelect: (v: ChannelChoice) => void;
-    formatMinutes: (v?: number | null) => string;
-}
-
 /**
- * One card per visible channel. Clicking a card narrows the page to that
- * channel; clicking the selected one goes back to all channels. Hidden when
- * only one channel is on, since it would just repeat the totals.
+ * Shown when a channel is picked but the server answered with all-channel
+ * numbers (an API without the channel filter), so the tiles aren't silently
+ * showing the wrong channel.
  */
-export const ChannelBreakdown: React.FC<BreakdownProps> = ({ channels, breakdown, selected, onSelect, formatMinutes }) => {
-    const isMobile = !Grid.useBreakpoint().md;
-    if (channels.length < 2) return null;
-
+export const ChannelFilterNotice: React.FC<{ requested: ChannelChoice; served?: string }> = ({ requested, served }) => {
+    if (requested === "all" || served === requested) return null;
     return (
-        <div style={{ marginBottom: isMobile ? 8 : 12 }}>
-            <Text
-                type="secondary"
-                style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", display: "block", marginBottom: 6 }}
-            >
-                By channel
-            </Text>
-            <Row gutter={isMobile ? [8, 8] : [12, 12]}>
-                {channels.map((ch) => {
-                    const cfg = CHANNEL_CONFIG[ch];
-                    const s = breakdown?.[ch];
-                    const active = selected === ch;
-                    return (
-                        <Col xs={24} sm={12} lg={24 / channels.length} key={ch}>
-                            <button
-                                type="button"
-                                onClick={() => onSelect(active ? "all" : ch)}
-                                aria-pressed={active}
-                                style={{
-                                    width: "100%",
-                                    textAlign: "left",
-                                    cursor: "pointer",
-                                    background: cfg?.bg || "#fff",
-                                    border: `1px solid ${active ? cfg?.color : "#e2e8f0"}`,
-                                    boxShadow: active ? `0 0 0 2px ${cfg?.color}33` : "none",
-                                    borderRadius: 12,
-                                    padding: isMobile ? "10px 12px" : "12px 16px",
-                                    font: "inherit",
-                                }}
-                            >
-                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                                    <ChannelBadge channel={ch} size={22} />
-                                    <Text strong style={{ fontSize: 13 }}>{cfg?.label}</Text>
-                                </div>
-                                <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 6 }}>
-                                    <Text strong style={{ fontSize: isMobile ? 20 : 22, color: "#0f172a", lineHeight: 1.1 }}>
-                                        {(s?.conversations ?? 0).toLocaleString()}
-                                    </Text>
-                                    <Text type="secondary" style={{ fontSize: 12 }}>conversations</Text>
-                                </div>
-                                <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 14px", fontSize: 12, color: "#475569" }}>
-                                    <span>{(s?.messages ?? 0).toLocaleString()} messages</span>
-                                    <span>{s?.resolutionRate ?? 0}% resolved</span>
-                                    <span>1st reply {formatMinutes(s?.averageFirstResponseMinutes)}</span>
-                                </div>
-                            </button>
-                        </Col>
-                    );
-                })}
-            </Row>
-        </div>
+        <Alert
+            type="warning"
+            showIcon
+            style={{ marginBottom: 12, borderRadius: 10 }}
+            message={`Showing all channels — the server doesn't support filtering by ${CHANNEL_CONFIG[requested]?.label || requested} yet.`}
+        />
     );
 };
 

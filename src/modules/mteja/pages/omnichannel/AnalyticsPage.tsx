@@ -38,7 +38,7 @@ import {
 } from "recharts";
 import { fetchAnalytics, type AnalyticsData } from "@services/whatsappService";
 import {
-    ChannelBreakdown,
+    ChannelFilterNotice,
     ChannelPicker,
     effectiveChoice,
     visibleChannels,
@@ -201,13 +201,7 @@ const AnalyticsPage: React.FC<Props> = ({ shopId, connected }) => {
                 </div>
             ) : stats ? (
                 <>
-                    <ChannelBreakdown
-                        channels={channels}
-                        breakdown={stats.channelBreakdown}
-                        selected={channel}
-                        onSelect={setChannel}
-                        formatMinutes={formatMinutes}
-                    />
+                    <ChannelFilterNotice requested={channel} served={stats?.channel} />
                     {[
                         {
                             label: "Conversations",
