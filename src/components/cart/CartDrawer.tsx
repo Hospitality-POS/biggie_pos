@@ -31,6 +31,7 @@ import {
   Tooltip,
   Select,
   Popconfirm,
+  Modal,
   message,
 } from "antd";
 import {
@@ -536,6 +537,23 @@ const CartDrawer: React.FC = () => {
     }
   };
 
+  // A discount stays on the cart until removed, so one applied earlier can
+  // carry into the next order on the same table/slot. Let the cashier clear it.
+  const handleRemoveDiscount = () => {
+    if (!cartDetails?._id) return;
+    Modal.confirm({
+      title: "Remove discount?",
+      content: "The full amount will be charged for this order.",
+      okText: "Remove",
+      okButtonProps: { danger: true },
+      centered: true,
+      onOk: async () => {
+        await dispatch(updateCart({ cart: cartDetails, data: { discount: 0, discount_type: "" } } as any));
+        message.success("Discount removed");
+      },
+    });
+  };
+
   const handleDelinkCustomer = async () => {
     const cartId = cartDetails?._id;
     if (!cartId) return;
@@ -890,6 +908,7 @@ const CartDrawer: React.FC = () => {
             userRole={user?.role}
             onOpenEarningsModal={() => setEarningsModalOpen(true)}
             onOpenAssignStaffModal={() => setEditingServedBy(true)}
+            onRemoveDiscount={isAwaitingPrintCart ? undefined : handleRemoveDiscount}
           />
         )}
 

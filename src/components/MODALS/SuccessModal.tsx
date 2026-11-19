@@ -3,6 +3,7 @@ import { Button } from "antd";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { closeModal } from "../../features/Order/OrderSlice";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
+import OrderCompleteCheck, { ORDER_COMPLETE_KEYFRAMES } from "./OrderCompleteCheck";
 
 /** How long the confirmation stays before returning to the tables view */
 const AUTO_CLOSE_MS = 2600;
@@ -48,17 +49,7 @@ export default function SuccesssModal() {
         background: `radial-gradient(circle at 50% 40%, ${primaryColor}12 0%, transparent 60%)`,
       }}
     >
-      <style>{`
-        @keyframes os-card { from { opacity: 0; transform: translateY(12px) scale(.97) } to { opacity: 1; transform: none } }
-        @keyframes os-ring { from { transform: scale(.6); opacity: 0 } to { transform: scale(1); opacity: 1 } }
-        @keyframes os-pulse { 0% { transform: scale(1); opacity: .5 } 100% { transform: scale(1.6); opacity: 0 } }
-        @keyframes os-draw { to { stroke-dashoffset: 0 } }
-        @keyframes os-fade { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: none } }
-        @keyframes os-bar { from { transform: scaleX(1) } to { transform: scaleX(0) } }
-        @media (prefers-reduced-motion: reduce) {
-          .os-anim, .os-anim * { animation-duration: 1ms !important; animation-delay: 0ms !important; }
-        }
-      `}</style>
+      <style>{ORDER_COMPLETE_KEYFRAMES}</style>
 
       <div
         className="os-anim"
@@ -78,52 +69,8 @@ export default function SuccesssModal() {
         }}
       >
         {/* Check mark */}
-        <div style={{ position: "relative", width: 84, height: 84, margin: "0 auto 20px" }}>
-          <span
-            style={{
-              position: "absolute",
-              inset: 0,
-              borderRadius: "50%",
-              background: primaryColor,
-              animation: "os-pulse 1.4s ease-out .5s both",
-            }}
-          />
-          <div
-            style={{
-              position: "relative",
-              width: 84,
-              height: 84,
-              borderRadius: "50%",
-              background: `${primaryColor}17`,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              animation: "os-ring .5s cubic-bezier(.2,.8,.2,1) .1s both",
-            }}
-          >
-            <svg width="44" height="44" viewBox="0 0 44 44" fill="none" aria-hidden="true">
-              <circle
-                cx="22"
-                cy="22"
-                r="20"
-                stroke={primaryColor}
-                strokeWidth="2.5"
-                strokeDasharray="126"
-                strokeDashoffset="126"
-                style={{ animation: "os-draw .6s ease-out .25s forwards" }}
-              />
-              <path
-                d="M13.5 22.5l6 6 11-12"
-                stroke={primaryColor}
-                strokeWidth="3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeDasharray="30"
-                strokeDashoffset="30"
-                style={{ animation: "os-draw .4s ease-out .7s forwards" }}
-              />
-            </svg>
-          </div>
+        <div style={{ marginBottom: 20 }}>
+          <OrderCompleteCheck color={primaryColor} />
         </div>
 
         <div style={{ animation: "os-fade .4s ease-out .55s both" }}>

@@ -84,6 +84,8 @@ interface CartSummaryProps {
   userRole?: string;
   onOpenEarningsModal?: () => void;
   onOpenAssignStaffModal?: () => void;
+  /** Clears the cart discount; shown to admins and cashiers */
+  onRemoveDiscount?: () => void;
 }
 
 export const CartSummary: React.FC<CartSummaryProps> = ({
@@ -100,6 +102,7 @@ export const CartSummary: React.FC<CartSummaryProps> = ({
   userRole,
   onOpenEarningsModal,
   onOpenAssignStaffModal,
+  onRemoveDiscount,
 }) => {
   const canManage = userRole === "admin" || userRole === "cashier";
 
@@ -165,6 +168,17 @@ export const CartSummary: React.FC<CartSummaryProps> = ({
                     ? `${cartDetails.discount}% off`
                     : fmtKsh(cartDetails.discount)}
                 </Tag>
+                {canManage && onRemoveDiscount && (
+                  <Button
+                    type="link"
+                    danger
+                    size="small"
+                    onClick={onRemoveDiscount}
+                    style={{ padding: 0, height: "auto", fontSize: 11 }}
+                  >
+                    Remove
+                  </Button>
+                )}
               </Flex>
             }
             value={`- ${fmtKsh(discountAmount)}`}
