@@ -19,6 +19,7 @@ import NubaLoader from "@components/spinner/NubaLoader";
 import PaymentCallback from "@components/payment/PaymentCallback";
 import PermissionRoute from "@components/PermissionRoute";
 import { ModuleGate } from "@shared/licensing/ModuleGate";
+import { useModuleLicense } from "@shared/licensing/useModuleLicense";
 
 // ─── Lazily Loaded Core & Admin Pages ─────────────────────────────────────────
 const StaffLoginPage = lazyWithReload(() => import("@pages/Login/login"));
@@ -395,6 +396,32 @@ const dukaAdminPage = (Component: React.ComponentType, permission: string | stri
   </AdminDukaRoute>
 );
 
+// ─── Orders & Invoices guard ─────────────────────────────────────────────────
+// /orders hosts both Duka's order tabs and Pesa's Invoices tab (MainOrders
+// hides the tabs a tenant hasn't got), so a Pesa-only tenant must get through
+// instead of hitting the Duka paywall.
+const OrdersRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isLicensed: hasPesa } = useModuleLicense("pesa");
+  if (hasPesa) return <>{children}</>;
+  return <ModuleGate moduleId="duka">{children}</ModuleGate>;
+};
+
+const ordersPage = (Component: React.ComponentType, permission: string | string[]) => (
+  <OrdersRoute>
+    <PermissionRoute permission={permission}>
+      {privatePage(Component)}
+    </PermissionRoute>
+  </OrdersRoute>
+);
+
+const ordersAdminPage = (Component: React.ComponentType, permission: string | string[]) => (
+  <OrdersRoute>
+    <PermissionRoute permission={permission}>
+      {adminPage(Component)}
+    </PermissionRoute>
+  </OrdersRoute>
+);
+
 
 // ─── Accounting layout wrapper (Dynamic SaaS License Gate) ───────────────────
 const AccountingLayout = () => (
@@ -610,7 +637,7 @@ const routes = sentryCreateBrowserRouter(
           element={privatePage(Profile)} />
 
         <Route path="orders" errorElement={<NotFound />}
-          element={dukaPage(MainOrders, ["ORDERS_VIEW", "ACCOUNTING_INVOICE_VIEW"])} />
+          element={ordersPage(MainOrders, ["ORDERS_VIEW", "ACCOUNTING_INVOICE_VIEW"])} />
 
         <Route path="customers" errorElement={<NotFound />}
           element={guardedPage(Customer, "CUSTOMERS_VIEW")} />
@@ -821,7 +848,7 @@ const routes = sentryCreateBrowserRouter(
           element={guardedAdminPage(DashboardAdminPage, "UNIFIED_DASHBOARD_VIEW")} />
 
         <Route path="orders" errorElement={<NotFound />}
-          element={dukaAdminPage(MainOrders, ["ORDERS_VIEW", "ACCOUNTING_INVOICE_VIEW"])} />
+          element={ordersAdminPage(MainOrders, ["ORDERS_VIEW", "ACCOUNTING_INVOICE_VIEW"])} />
 
         <Route path="store" errorElement={<NotFound />}
           element={dukaAdminPage(MainStore, "PRODUCTS_VIEW")} />

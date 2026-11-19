@@ -248,11 +248,14 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem, cartDeductionEnab
     if (cartDetails.discount_type === "percentage") {
       discountAmount = itemPrice * (cartDetails.discount / 100);
     } else {
+      // Share a fixed discount across lines by line total (price × qty),
+      // and never more than the cart total — the API rejects that anyway.
       const totalCartAmount = (cartDetails?.items || []).reduce(
-        (acc: number, item: any) => acc + (item?.price || 0), 0
+        (acc: number, item: any) => acc + (item?.price || 0) * (item?.quantity || 1), 0
       );
       if (totalCartAmount > 0) {
-        discountAmount = (itemPrice / totalCartAmount) * cartDetails.discount;
+        const effectiveDiscount = Math.min(cartDetails.discount, totalCartAmount);
+        discountAmount = (itemPrice / totalCartAmount) * effectiveDiscount;
       }
     }
     const newPrice = itemPrice - discountAmount;
@@ -550,6 +553,30 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem, cartDeductionEnab
                 </Tooltip>
 
               </div>
+
+              {/* Variant sold, e.g. "Ruby Red" */}
+              {cartItem?.variant_name && (
+                <span
+                  title={`Variant: ${cartItem.variant_name}`}
+                  style={{
+                    display: "inline-block",
+                    maxWidth: "100%",
+                    marginTop: 3,
+                    padding: "0 7px",
+                    borderRadius: 6,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    lineHeight: "18px",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    background: isSent ? "rgba(255,255,255,0.2)" : `${primaryColor}14`,
+                    color: isSent ? "#ffffff" : primaryColor,
+                  }}
+                >
+                  {cartItem.variant_name}
+                </span>
+              )}
 
               {/* Inventory deduction button — gated by shop-level flag */}
               {cartDeductionEnabled && !cartLocked && (

@@ -15,6 +15,7 @@ import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { usePOSMode } from "@context/POSModeContext";
 import { useRetailQueue } from "@context/RetailQueueContext";
 import AddonSelectionModal from "../MODALS/pro/AddonSelectionModal";
+import VariantSelectionModal, { SellableVariant } from "../MODALS/pro/VariantSelectionModal";
 
 interface menudetails {
   quantity?: number;
@@ -32,6 +33,8 @@ interface menudetails {
   addons?: unknown[];
   category?: unknown;
   subcategory_id?: unknown;
+  has_variants?: boolean;
+  variants?: SellableVariant[];
 }
 
 interface ProductCardProps {
@@ -63,6 +66,9 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu, handleCart, style, bloc
   const [isProcessing, setIsProcessing] = useState(false);
   const [addonModalOpen, setAddonModalOpen] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [variantModalOpen, setVariantModalOpen] = useState(false);
+  // Variant picked before the addon modal opens, so both choices reach the cart
+  const [pendingVariant, setPendingVariant] = useState<SellableVariant | null>(null);
 
   const primaryColor = usePrimaryColor() || "#10b981";
   const { isRetailMode } = usePOSMode();
@@ -85,6 +91,27 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu, handleCart, style, bloc
     );
   }, [cartItems, menu._id]);
 
+  // Sellable variants of an inventory item. When every variant is tied to a
+  // table zone, the API picks the variant from the table's zone, so no prompt.
+  const sellableVariants = useMemo(() => {
+    if (menu.type !== "product" || !Array.isArray(menu.variants)) return [];
+    return menu.variants.filter((v) => v && v._id && v.status !== "discontinued");
+  }, [menu.type, menu.variants]);
+  const needsVariantPick =
+    sellableVariants.length > 0 && !sellableVariants.every((v) => !!v.location_id);
+
+  // Quantity of each variant of this product already in the cart
+  const variantQtyInCart = useMemo(() => {
+    const map: Record<string, number> = {};
+    cartItems?.forEach((item) => {
+      const pid = (item.product_id as any)?._id ?? item.product_id;
+      if (pid === menu._id && item.variant_id) {
+        map[item.variant_id] = (map[item.variant_id] || 0) + (item.quantity || 0);
+      }
+    });
+    return map;
+  }, [cartItems, menu._id]);
+
   const cartQty = existingCartItem?.quantity ?? 0;
   const currency = (cartDetails as { currency?: string } | null)?.currency || "KES";
 
@@ -105,7 +132,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu, handleCart, style, bloc
   );
 
   const handleAddToCart = useCallback(
-    async (addons?: string[]) => {
+    async (addons?: string[], variant?: SellableVariant | null) => {
       if (loading || isProcessing) return;
       if (blockAdd) {
         message.warning("This table is being served by another staff member — you can't add items to it.");
@@ -140,18 +167,27 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu, handleCart, style, bloc
           }
         }
 
-        const existingHasAddons = existingCartItem?.addons && existingCartItem.addons.length > 0;
+        // With a variant, only a cart line of that same variant can be topped up
+        const existingLine = variant
+          ? cartItems?.find((item) => {
+              const pid = (item.product_id as any)?._id ?? item.product_id;
+              return pid === menu._id && item.variant_id === variant._id;
+            })
+          : existingCartItem;
+        const existingHasAddons = existingLine?.addons && existingLine.addons.length > 0;
         const addingWithAddons = addons && addons.length > 0;
+        const unitPrice = variant?.price != null && variant.price > 0 ? variant.price : menu.price;
 
-        if (existingCartItem && !existingHasAddons && !addingWithAddons) {
-          await dispatch(addQtyCart(existingCartItem));
+        if (existingLine && !existingHasAddons && !addingWithAddons) {
+          await dispatch(addQtyCart(existingLine));
         } else {
           await dispatch(
             addItemToCart({
               cart_id: cartId,
               product_id: menu._id,
               product_type: menu.type === "product" ? "Product_Inventory" : "Product",
-              price: menu.price,
+              price: unitPrice,
+              ...(variant && { variant_id: variant._id, variant_name: variant.name }),
               created_by: user?.id || user?._id,
               quantity: formattedQuantity,
               desc: menu.desc,
@@ -188,6 +224,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu, handleCart, style, bloc
       formattedQuantity,
       invalidate,
       existingCartItem,
+      cartItems,
       handleCart,
       blockAdd,
     ]
@@ -203,19 +240,34 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu, handleCart, style, bloc
         message.error(stockBlockMessage);
         return;
       }
+      if (needsVariantPick) {
+        setVariantModalOpen(true);
+        return;
+      }
       const existingHasAddons = existingCartItem?.addons && existingCartItem.addons.length > 0;
       const productHasAddons = menu.addons && menu.addons.length > 0;
 
       if (productHasAddons || existingHasAddons) {
+        setPendingVariant(null);
         setAddonModalOpen(true);
       } else {
         handleAddToCart();
       }
     }
-  }, [loading, isProcessing, tableId, menu.addons, existingCartItem, handleAddToCart, stockBlockMessage, blockAdd]);
+  }, [loading, isProcessing, tableId, menu.addons, existingCartItem, handleAddToCart, stockBlockMessage, blockAdd, needsVariantPick]);
+
+  const handleVariantSelect = (variant: SellableVariant) => {
+    if (menu.addons && menu.addons.length > 0) {
+      setPendingVariant(variant);
+      setAddonModalOpen(true);
+    } else {
+      handleAddToCart(undefined, variant);
+    }
+  };
 
   const handleAddonModalConfirm = (selectedAddonIds: string[]) => {
-    handleAddToCart(selectedAddonIds);
+    handleAddToCart(selectedAddonIds, pendingVariant);
+    setPendingVariant(null);
   };
 
   return (
@@ -464,6 +516,19 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu, handleCart, style, bloc
         product={menu}
         onConfirm={handleAddonModalConfirm}
       />
+
+      {needsVariantPick && (
+        <VariantSelectionModal
+          open={variantModalOpen}
+          onClose={() => setVariantModalOpen(false)}
+          productName={menu.name}
+          basePrice={menu.price}
+          currency={currency}
+          variants={sellableVariants}
+          inCart={variantQtyInCart}
+          onSelect={handleVariantSelect}
+        />
+      )}
     </>
   );
 };

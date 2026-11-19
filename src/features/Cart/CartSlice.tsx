@@ -47,6 +47,9 @@ interface CartItem {
   quantity: number;
   price: number;        // ← UNIT price (price of one unit)
   vat_type: "STANDARD" | "ZERO" | "EXEMPT";
+  variant_id?: string | null;
+  variant_name?: string | null;
+  addons?: string[];
 }
 
 interface CartState {

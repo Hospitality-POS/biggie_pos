@@ -1,4 +1,5 @@
 import { BASE_URL } from "@utils/config";
+import { cartItemName } from "@utils/cartItemName";
 
 export interface ConnectedAgent {
   _id: string;
@@ -254,7 +255,7 @@ export function buildKitchenLines(
   
   // Items
   cartItems.forEach((item) => {
-    const itemName = item?.product_id?.name ?? item?.product_name ?? item?.name ?? "Item";
+    const itemName = cartItemName(item);
     const qty = item.quantity ?? 1;
     lines.push({
       type: "item" as const,
@@ -309,7 +310,7 @@ export function buildReceiptLines(
     { type: "divider", text: "" },
     ...cartItems.map((item) => ({
       type: "item" as const,
-      text: item?.product_id?.name ?? item?.product_name ?? item?.name ?? "Item",
+      text: cartItemName(item),
       qty: item.quantity ?? 1,
       price: `KES ${((item.price ?? 0) * (item.quantity ?? 1)).toFixed(2)}`,
     })),

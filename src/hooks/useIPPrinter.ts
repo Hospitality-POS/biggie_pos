@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { App } from 'antd';
+import { withVariantName } from '@utils/cartItemName';
 
 interface OrderData {
   shopName: string;
@@ -130,7 +131,7 @@ export const useIPPrinter = () => {
         orderDate: new Date().toISOString(),
         // Use the items array from the data prop (which contains the actual cart items)
         items: (cartDetails?.items || []).map((item: any) => ({
-          name: item?.product_id?.name || item.product_name || item.name || item.item_name,
+          name: withVariantName(item?.product_id?.name || item.product_name || item.name || item.item_name, item?.variant_name),
           quantity: item.quantity,
           price: item.price || item.unit_price || item.selling_price,
           // Add additional formatting info for thermal printer

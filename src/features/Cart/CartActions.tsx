@@ -20,6 +20,8 @@ interface CartItemInfo {
   desc: string;
   table_id: string;
   duration?: number;
+  variant_id?: string | null;
+  variant_name?: string | null;
 }
 
 interface UpdatedCartItems {

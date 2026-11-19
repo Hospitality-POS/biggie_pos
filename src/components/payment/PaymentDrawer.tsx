@@ -28,6 +28,7 @@ import SubscriptionPaymentOption from "./SubscriptionPaymentOption";
 import { usePOSMode } from "@context/POSModeContext";
 import { useRetailQueue } from "@context/RetailQueueContext";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
+import OrderCompleteCheck, { ORDER_COMPLETE_KEYFRAMES } from "@components/MODALS/OrderCompleteCheck";
 import { fmtKSH as fmtKsh } from "@utils/formatters";
 import { useNavigate } from "react-router-dom";
 import { saveOfflineOrder } from "../../services/offlineSync";
@@ -197,7 +198,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails, holdForP
     if (cartDetails.discount_type === "percentage") {
       return parseFloat((subtotal * cartDetails.discount / 100).toFixed(2));
     }
-    return cartDetails.discount;
+    return Math.min(cartDetails.discount, subtotal);
   }, [cartDetails?.discount, cartDetails?.discount_type, subtotal]);
 
   const grossBeforeDiscount = useMemo(
@@ -1136,16 +1137,32 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails, holdForP
       {/* ── Success modal ─────────────────────────────────────────────────── */}
       <Modal
         title={null} open={stkPaymentStatus === "success"} footer={null}
-        closable={false} width={300} centered zIndex={1400} getContainer={() => document.body}
+        closable={false} width={340} centered zIndex={1400} getContainer={() => document.body}
+        styles={{ content: { borderRadius: 24, padding: "32px 24px 24px" } }}
       >
-        <Space direction="vertical" style={{ width: "100%", textAlign: "center", padding: "16px 0" }} size={12}>
-          <div style={{ width: 72, height: 72, borderRadius: "50%", background: "#f0fdf4", border: "2px solid #bbf7d0", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto" }}>
-            <CheckCircleOutlined style={{ fontSize: 36, color: "#10b981" }} />
+        <style>{ORDER_COMPLETE_KEYFRAMES}</style>
+        <div className="os-anim" style={{ textAlign: "center" }}>
+          <OrderCompleteCheck color={primaryColor} size={76} />
+          <div style={{ animation: "os-fade .4s ease-out .55s both", marginTop: 18 }}>
+            <div style={{ fontSize: 19, fontWeight: 700, color: "#0f172a" }}>Payment received</div>
+            <div
+              style={{
+                margin: "14px auto 0",
+                display: "inline-block",
+                padding: "7px 16px",
+                borderRadius: 999,
+                background: "#f8fafc",
+                border: "1px solid #eef2f6",
+                fontSize: 17,
+                fontWeight: 700,
+                color: "#0f172a",
+              }}
+            >
+              {fmtKsh(grandTotal)}
+            </div>
+            <div style={{ fontSize: 13, color: "#94a3b8", marginTop: 12 }}>Finishing up…</div>
           </div>
-          <Title level={3} style={{ color: "#10b981", margin: 0 }}>Payment Successful!</Title>
-          <Text style={{ fontSize: 14 }}>{fmtKsh(grandTotal)} confirmed</Text>
-          <Text type="secondary" style={{ fontSize: 13 }}>Redirecting…</Text>
-        </Space>
+        </div>
       </Modal>
     </>
   );

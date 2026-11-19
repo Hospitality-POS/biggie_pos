@@ -31,6 +31,7 @@ import {
   Tooltip,
   Select,
   Popconfirm,
+  Modal,
   message,
 } from "antd";
 import {
@@ -215,8 +216,16 @@ const CartDrawer: React.FC = () => {
     if (cartDetails.discount_type === "percentage") {
       return parseFloat(((subtotal * cartDetails.discount) / 100).toFixed(2));
     }
-    return cartDetails.discount;
+    // Same cap as the cart totals: a discount can't exceed the order
+    return Math.min(cartDetails.discount, subtotal);
   }, [cartDetails?.discount, cartDetails?.discount_type, subtotal]);
+
+  // A fixed discount bigger than the order (e.g. left over from an earlier
+  // order on this cart). The API refuses to place such an order.
+  const discountExceedsTotal =
+    !!cartDetails?.discount &&
+    cartDetails.discount_type !== "percentage" &&
+    cartDetails.discount > subtotal;
 
   const grossBeforeDiscount = useMemo(
     () => parseFloat((grandTotal + discountAmount).toFixed(2)),
@@ -534,6 +543,23 @@ const CartDrawer: React.FC = () => {
     } finally {
       setUpdatingServedBy(false);
     }
+  };
+
+  // A discount stays on the cart until removed, so one applied earlier can
+  // carry into the next order on the same table/slot. Let the cashier clear it.
+  const handleRemoveDiscount = () => {
+    if (!cartDetails?._id) return;
+    Modal.confirm({
+      title: "Remove discount?",
+      content: "The full amount will be charged for this order.",
+      okText: "Remove",
+      okButtonProps: { danger: true },
+      centered: true,
+      onOk: async () => {
+        await dispatch(updateCart({ cart: cartDetails, data: { discount: 0, discount_type: "" } } as any));
+        message.success("Discount removed");
+      },
+    });
   };
 
   const handleDelinkCustomer = async () => {
@@ -890,6 +916,8 @@ const CartDrawer: React.FC = () => {
             userRole={user?.role}
             onOpenEarningsModal={() => setEarningsModalOpen(true)}
             onOpenAssignStaffModal={() => setEditingServedBy(true)}
+            onRemoveDiscount={isAwaitingPrintCart ? undefined : handleRemoveDiscount}
+            discountExceedsTotal={discountExceedsTotal}
           />
         )}
 
