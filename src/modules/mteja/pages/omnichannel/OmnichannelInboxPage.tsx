@@ -773,9 +773,9 @@ const OmnichannelInboxPage: React.FC = () => {
             ) : activeMainTab === "welcome" ? (
                 <WelcomeMessageManager shopId={shopId} />
             ) : activeMainTab === "analytics" ? (
-                <AnalyticsPage shopId={shopId} />
+                <AnalyticsPage shopId={shopId} connected={connected} />
             ) : (
-                <AgentsManager shopId={shopId} />
+                <AgentsManager shopId={shopId} connected={connected} />
             )}
                     </div>
                     </div>

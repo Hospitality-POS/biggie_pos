@@ -449,9 +449,24 @@ export const suggestReply = async (params: { conversation_id: string; shop_id: s
 
 // ── Analytics ─────────────────────────────────────────────────────────────────
 
+export type OmniChannelKey = "whatsapp" | "messenger" | "instagram";
+
 export interface FetchAnalyticsParams {
     shop_id: string;
     days?: number;
+    /** Limit the stats to one channel; omit for all channels. */
+    channel?: OmniChannelKey;
+}
+
+/** Summary for one channel, over the selected period. */
+export interface ChannelStat {
+    conversations: number;
+    messages: number;
+    inbound: number;
+    outbound: number;
+    resolved: number;
+    resolutionRate: number;
+    averageFirstResponseMinutes: number | null;
 }
 
 export interface AgentStat {
@@ -462,6 +477,8 @@ export interface AgentStat {
 }
 
 export interface PerAgentStat extends AgentStat {
+    /** Assigned conversations per channel (always across all channels). */
+    conversationsByChannel?: Record<OmniChannelKey, number>;
     upsellMessages: number;
     conversations: number;
     resolved: number;
@@ -504,6 +521,10 @@ export interface ResponseTimeBuckets {
 
 export interface AnalyticsData {
     days: number;
+    /** Which channel the totals below cover. */
+    channel?: OmniChannelKey | "all";
+    /** Per-channel summary — always covers every channel. */
+    channelBreakdown?: Record<OmniChannelKey, ChannelStat>;
     totalConversations: number;
     totalMessages: number;
     totalInbound: number;
