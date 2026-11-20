@@ -50,6 +50,7 @@ import {
 } from "src/components/dashboard";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { fmtK } from "@utils/formatters";
+import { tenantAppUrl } from "@utils/config";
 import { useHealthcareSettings } from "@hooks/useHealthcareSettings";
 import { facilityTitle } from "@utils/healthcareFacility";
 import HospitalDashboard from "@pages/Healthcare/HospitalDashboard";
@@ -83,8 +84,8 @@ const isHotelMode = (): boolean => getPosMode() === "hotel";
 // Direct APK download link (DigitalOcean) — scanning the QR opens this URL and downloads the app
 const APP_DOWNLOAD_URL = "https://reliatechdocs.nyc3.digitaloceanspaces.com/APKS/basepoint-on-going.apk";
 
-// Customer QR codes open the public customer page on the Duka domain
-const CUSTOMER_PORTAL_URL = "https://duka.basepoint.co.ke";
+// Customer and staff QR codes open on the business's own address
+// (tenantAppUrl, e.g. https://nuba.basepoint.co.ke)
 
 const PERIOD_LABELS: Record<string, string> = {
   day: "Today",
@@ -250,7 +251,8 @@ const Dashboard: React.FC = () => {
   const handleCopyStaffUrl = useCallback(() => {
     const storedTenant = localStorage.getItem("tenant");
     const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-    const staffUrl = `${import.meta.env.VITE_APP_URL}/admin/staff-clock-in?tenant_id=${tenant?._id}&tenant_code=${tenant?.tenant_code}&shop_id=${shopId}`;
+    // On the business's own address, e.g. https://nuba.basepoint.co.ke
+    const staffUrl = `${tenantAppUrl(tenant)}/admin/staff-clock-in?tenant_id=${tenant?._id}&tenant_code=${tenant?.tenant_code}&shop_id=${shopId}`;
     setUrlModalUrl(staffUrl);
     setUrlModalTitle("Staff Clock-In Link & QR");
     setUrlModalShowCopy(true);
@@ -261,7 +263,7 @@ const Dashboard: React.FC = () => {
     const storedTenant = localStorage.getItem("tenant");
     const tenant = storedTenant ? JSON.parse(storedTenant) : null;
     // tenant_code lets the public page reach the API without a login (older QR codes fall back to tenant_id)
-    const url = `${CUSTOMER_PORTAL_URL}/admin/customers?tenant_id=${tenant?._id}&tenant_code=${tenant?.tenant_code}&shop_id=${shopId}`;
+    const url = `${tenantAppUrl(tenant)}/admin/customers?tenant_id=${tenant?._id}&tenant_code=${tenant?.tenant_code}&shop_id=${shopId}`;
     setUrlModalUrl(url);
     setUrlModalTitle(hospital ? "Patient Portal Link & QR" : hotel ? "Hotel Booking Link & QR" : "Customer Order Link & QR");
     setUrlModalShowCopy(true);
