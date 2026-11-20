@@ -24,6 +24,7 @@ import { getAllAccounts, ChartOfAccount } from "@services/accounting/accounts";
 import AccountLedgerDrawer from "../ChartOfAccounts/AccountLedgerDrawer";
 import ProjectSelect from "@components/accounting/ProjectSelect";
 import ProjectsReport from "./ProjectsReport";
+import IncomeCoverageStats, { incomeCoverageExportRows } from "./IncomeCoverageStats";
 import { getProjectsReport } from "@services/accounting/projects";
 import {
     PeriodFilter, AsOfFilter, GLPeriodFilter,
@@ -278,6 +279,8 @@ const AccountingReportsPage: React.FC = () => {
 
     // ── Filter state ──────────────────────────────────────────────────────────
     const [plPeriod, setPlPeriod] = useState<ComparativePeriod>(makeDefaultPeriod());
+    // P&L sub-tab: the statement itself, or Stats (share of income per spending type)
+    const [plView, setPlView] = useState<"report" | "stats">("report");
     const [tbPeriod, setTbPeriod] = useState<ComparativePeriod>(makeDefaultPeriod());
     const [vatPeriod, setVatPeriod] = useState<ComparativePeriod>(makeDefaultPeriod());
     const [levyPeriod, setLevyPeriod] = useState<ComparativePeriod>(makeDefaultPeriod());
@@ -666,7 +669,20 @@ const AccountingReportsPage: React.FC = () => {
 
             case "profit-loss": return <>
                 <PeriodFilter value={plPeriod} onChange={setPlPeriod} onRun={() => run("profit-loss")} loading={isLoading(plQ, plQC, plPeriod.enabled)} supportComparative extra={<Space wrap size={8}><ProjectSelect includeClosed placeholder="All projects" value={plProjectId} onChange={(v) => { setPlProjectId(v); run("profit-loss"); }} style={{ width: 200 }} /><FilterControls /></Space>} />
-                {plQ.isFetching ? <Loading /> : plPeriod.enabled && plQ.data && plQC.data ? renderComparativePL() : plQ.data ? <ProfitAndLossTable data={plQ.data} period={{ from: plPeriod.primary[0]?.toISOString(), to: plPeriod.primary[1]?.toISOString() }} /> : <EmptyState />}
+                <Tabs
+                    size="small"
+                    activeKey={plView}
+                    onChange={(k) => setPlView(k as "report" | "stats")}
+                    style={{ marginTop: 4 }}
+                    items={[
+                        { key: "report", label: "Statement" },
+                        { key: "stats", label: "Stats" },
+                    ]}
+                />
+                {plQ.isFetching ? <Loading />
+                    : plView === "stats"
+                        ? (plQ.data ? <IncomeCoverageStats data={plQ.data} periodLabel={buildPeriodLabel(plPeriod.primary)} /> : <EmptyState />)
+                        : plPeriod.enabled && plQ.data && plQC.data ? renderComparativePL() : plQ.data ? <ProfitAndLossTable data={plQ.data} period={{ from: plPeriod.primary[0]?.toISOString(), to: plPeriod.primary[1]?.toISOString() }} /> : <EmptyState />}
             </>;
 
             case "balance-sheet": return <>
@@ -770,6 +786,7 @@ const AccountingReportsPage: React.FC = () => {
         switch (tab) {
             case "profit-loss":
                 if (!plQ.data) return empty;
+                if (plView === "stats") return incomeCoverageExportRows(plQ.data);
                 return [
                     ...plQ.data.revenue.accounts.map((a: any) => ({ Section: "Revenue", Code: a.account_code, Account: a.account_name, Amount: a.amount })),
                     ...plQ.data.expenses.accounts.map((a: any) => ({ Section: "Expenses", Code: a.account_code, Account: a.account_name, Amount: a.amount })),

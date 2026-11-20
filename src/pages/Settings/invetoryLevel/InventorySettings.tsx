@@ -12,6 +12,7 @@ import {
 } from "@services/inventory";
 import AddEditProInventoryModal from "@components/MODALS/pro/AddEditProInventoryModal";
 import { QtyApprovalSwitch, QtyApprovalsButton } from "@components/inventory/InventoryQtyApproval";
+import { MeterReadingsButton } from "@components/inventory/WaterMeter";
 import { onInventoryChanged } from "@hooks/useQtyApprovalSetting";
 import { fetchAllCategories, fetchSubCategories } from "@services/categories";
 import {
@@ -27,6 +28,7 @@ import jsPDF from "jspdf";
 import * as XLSX from "xlsx";
 import React from "react";
 import { fmtK } from "@utils/formatters";
+import { htmlToText } from "@utils/htmlToText";
 
 const { Text, Title } = Typography;
 const { Dragger } = Upload;
@@ -774,7 +776,7 @@ const InventoryCard: React.FC<InventoryCardProps> = ({ record, onDelete, deletin
             {renderStatus(record.status)}
           </div>
           {record.code && <code style={{ background: "#f1f5f9", padding: "1px 6px", borderRadius: 4, fontSize: 11, color: "#64748b", marginTop: 3, display: "inline-block" }}>{record.code}</code>}
-          {record.desc && <Text style={{ fontSize: 11, color: "#94a3b8", display: "block", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{record.desc}</Text>}
+          {record.desc && <Text style={{ fontSize: 11, color: "#94a3b8", display: "block", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{htmlToText(record.desc)}</Text>}
         </div>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, padding: "8px 10px", background: "#f8fafc", borderRadius: 8, marginBottom: 10 }}>
@@ -813,6 +815,7 @@ const InventoryCard: React.FC<InventoryCardProps> = ({ record, onDelete, deletin
       {!selectMode && (
         <div style={{ display: "flex", gap: 8 }}>
           <div style={{ flex: 1 }}><AddEditProInventoryModal actionRef={tableRef} data={record} edit={true} /></div>
+          <MeterReadingsButton record={record} size="middle" onChanged={() => tableRef.current?.reload()} />
           <Popconfirm title="Delete inventory item?" description="This action cannot be undone." onConfirm={() => onDelete(record._id)} okText="Delete" okButtonProps={{ danger: true }} cancelText="Cancel" placement="topRight">
             <Button danger size="middle" icon={<DeleteOutlined />} loading={deleting} style={{ borderRadius: 8, width: 38, padding: 0 }} />
           </Popconfirm>
@@ -1122,7 +1125,7 @@ const InventorySettings = () => {
       columns={[
         { title: "Image", dataIndex: "thumbnail", hideInSearch: true, width: 70, render: (_: any, record: any) => <ProductThumbnail src={record.thumbnail} /> },
         { title: "Code", dataIndex: "code", hideInSearch: false, width: 110, sorter: true, fieldProps: { placeholder: "Enter code" }, render: (text: any) => <code style={{ background: "#f1f5f9", padding: "2px 6px", borderRadius: 4, fontSize: 12, color: "#64748b" }}>{text}</code> },
-        { title: "Product Name", dataIndex: "name", hideInSearch: false, fixed: "left" as const, sorter: true, ellipsis: true, fieldProps: { placeholder: "Search name" }, render: (text: any, record: any) => <Space direction="vertical" size={2}><Text strong style={{ fontSize: 13, color: "#0f172a" }}>{text}</Text>{record.desc && <Text style={{ fontSize: 11, color: "#94a3b8", display: "block", maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{record.desc}</Text>}</Space> },
+        { title: "Product Name", dataIndex: "name", hideInSearch: false, fixed: "left" as const, sorter: true, ellipsis: true, fieldProps: { placeholder: "Search name" }, render: (text: any, record: any) => <Space direction="vertical" size={2}><Text strong style={{ fontSize: 13, color: "#0f172a" }}>{text}</Text>{record.desc && <Text style={{ fontSize: 11, color: "#94a3b8", display: "block", maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{htmlToText(record.desc)}</Text>}</Space> },
         { title: "Sub Category", dataIndex: "subcategory_id", hideInSearch: true, width: 120, render: (_: any, record: any) => record?.subcategory_id?.name ? <Tag style={{ background: "#eff6ff", color: "#1d4ed8", border: "none", borderRadius: 5, fontSize: 11 }}>{record.subcategory_id.name}</Tag> : <Text type="secondary" style={{ fontSize: 12 }}>—</Text> },
         { title: "Category", dataIndex: "category_id", hideInSearch: true, width: 120, render: (_: any, record: any) => record?.category_id?.name ? <Tag style={{ background: "#f5f3ff", color: "#6d28d9", border: "none", borderRadius: 5, fontSize: 11 }}>{record.category_id.name}</Tag> : <Text type="secondary" style={{ fontSize: 12 }}>—</Text> },
         { title: "Usage", dataIndex: "usage_type", hideInSearch: true, width: 110, render: (_: any, record: any) => renderUsageType(record.usage_type), filters: [{ text: "For Sale", value: "selling" }, { text: "Internal", value: "internal" }, { text: "Both", value: "both" }] },
@@ -1209,10 +1212,11 @@ const InventorySettings = () => {
           fieldProps: { placeholder: "Items missing…", allowClear: true },
         },
         {
-          title: "Actions", dataIndex: "actions", hideInSearch: true, width: 140, fixed: "right" as const,
+          title: "Actions", dataIndex: "actions", hideInSearch: true, width: 170, fixed: "right" as const,
           render: (_: any, record: any) => (
             <Space size={6}>
               <AddEditProInventoryModal actionRef={paymentRef} data={record} edit={true} />
+              <MeterReadingsButton record={record} onChanged={() => paymentRef.current?.reload()} />
               <Popconfirm title="Delete inventory item?" description="This action cannot be undone." onConfirm={() => deleteInventoryMutation.mutate(record._id)} okText="Delete" okButtonProps={{ danger: true }} cancelText="Cancel">
                 <Button danger size="small" icon={<DeleteOutlined />} style={{ borderRadius: 6, height: 28, width: 28, padding: 0 }} />
               </Popconfirm>

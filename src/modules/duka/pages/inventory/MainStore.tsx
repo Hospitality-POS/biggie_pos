@@ -15,6 +15,7 @@ import { usePrimaryColor } from "src/context/PrimaryColorContext";
 import { deleteProduct as deleteProductService } from "@services/products";
 import ShowConfirm from "@utils/ConfirmUtil";
 import RecipeModal from "@components/MODALS/pro/RecipeModal";
+import { htmlToText } from "@utils/htmlToText";
 
 const { Text } = Typography;
 const { Search } = Input;
@@ -513,7 +514,7 @@ export default function MainStore() {
         "Category": category.name,
         "Price": product.price,
         "Quantity": product.quantity || 0,
-        "Description": product.desc || "",
+        "Description": htmlToText(product.desc),
         "Status": product.is_disabled ? "Disabled" : "Active",
       }));
     });
