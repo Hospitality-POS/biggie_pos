@@ -12,6 +12,7 @@ import { fetchHRDashboard, type HRDashboardData } from "@services/bandu/dashboar
 import { clockIn, clockOut, fetchClockStatus } from "@services/hr/leave";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import dayjs from "dayjs";
+import { tenantAppUrl } from "@utils/config";
 
 import {
   getShopId,
@@ -65,7 +66,7 @@ const BanduHRDashboard: React.FC = () => {
   const clockLinkUrl = (() => {
     try {
       const tenant = JSON.parse(localStorage.getItem("tenant") || "null");
-      return `${import.meta.env.VITE_APP_URL}/admin/staff-clock-in?tenant_id=${tenant?._id}&tenant_code=${tenant?.tenant_code}&shop_id=${ownShopId}`;
+      return `${tenantAppUrl(tenant)}/admin/staff-clock-in?tenant_id=${tenant?._id}&tenant_code=${tenant?.tenant_code}&shop_id=${ownShopId}`;
     } catch {
       return "";
     }

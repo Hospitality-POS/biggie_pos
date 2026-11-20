@@ -21,7 +21,7 @@ import {
   FileTextOutlined,
   InboxOutlined,
 } from "@ant-design/icons";
-import { QtyApprovalSettingCard } from "@components/inventory/InventoryQtyApproval";
+import InventoryControlsSettings from "./InventoryControlsSettings";
 import { Tabs } from "antd";
 import { useQuery } from "@tanstack/react-query";
 import Profile from "./Profile";
@@ -220,12 +220,12 @@ const SystemSetup: React.FC = () => {
       {
         key: "inventory-controls",
         label: "Inventory Controls",
-        description: "Admin approval for stock quantity edits",
+        description: "Stock approvals, deductions, zones & water meters",
         icon: <InboxOutlined />,
         color: "#d97706",
         bg: "#fffbeb",
         group: "General",
-        render: () => <QtyApprovalSettingCard />,
+        render: () => <InventoryControlsSettings />,
       },
     );
 

@@ -727,3 +727,52 @@ export const fetchInventoryCategories = async (shopId: string) => {
     throw new Error("Failed to fetch inventory categories");
   }
 };
+// ── Water meter readings (shop setting water_meter_enabled) ─────────────────
+export interface InventoryMeter {
+  enabled: boolean;
+  name?: string;
+  unit_label?: string;
+  conversion_rate?: number;
+  direction?: "in" | "out";
+  initial_reading?: number;
+  last_reading?: number | null;
+  last_reading_at?: string | null;
+}
+
+export interface MeterReading {
+  _id: string;
+  reading_date: string;
+  previous_reading: number;
+  reading: number;
+  units_used: number;
+  conversion_rate: number;
+  direction: "in" | "out";
+  quantity_change: number;
+  qty_before: number;
+  qty_after: number;
+  is_reset?: boolean;
+  note?: string;
+  recorded_by_name?: string;
+  createdAt: string;
+}
+
+export const fetchMeterReadings = async (inventoryId: string) => {
+  const response = await axiosInstance.get(`${inventoryUrl}/${inventoryId}/meter-readings`);
+  return response.data as {
+    item: { _id: string; name: string; quantity: number; unit_id?: any; meter: InventoryMeter };
+    readings: MeterReading[];
+  };
+};
+
+export const addMeterReading = async (
+  inventoryId: string,
+  body: { reading: number; reading_date?: string; note?: string; reset_start?: number }
+) => {
+  const response = await axiosInstance.post(`${inventoryUrl}/${inventoryId}/meter-readings`, body);
+  return response.data;
+};
+
+export const undoLatestMeterReading = async (inventoryId: string) => {
+  const response = await axiosInstance.delete(`${inventoryUrl}/${inventoryId}/meter-readings/latest`);
+  return response.data;
+};

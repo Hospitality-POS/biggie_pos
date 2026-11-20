@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Switch, Space, Typography, Alert, Spin, Input, Button } from "antd";
 import { ProCard } from "@ant-design/pro-components";
-import { LockOutlined, UnlockOutlined, DollarOutlined, PrinterOutlined, InboxOutlined, SafetyCertificateOutlined, EyeInvisibleOutlined, EnvironmentOutlined, AppstoreOutlined, TeamOutlined, BarChartOutlined } from "@ant-design/icons";
+import { LockOutlined, UnlockOutlined, DollarOutlined, PrinterOutlined, SafetyCertificateOutlined, EyeInvisibleOutlined, AppstoreOutlined, TeamOutlined, BarChartOutlined } from "@ant-design/icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { fetchSystemSetupDetailsById, updateSystemSetup } from "../../../services/systemsetup";
 import { fetchShop, updateShop } from "../../../services/shops";
@@ -13,7 +13,7 @@ const { Text } = Typography;
 const C = THEME_C;
 
 // Small uppercase heading used to group related toggles together.
-const SectionLabel: React.FC<{ text: string }> = ({ text }) => (
+export const SectionLabel: React.FC<{ text: string }> = ({ text }) => (
   <Text
     style={{
       fontSize: 11,
@@ -32,7 +32,7 @@ const SectionLabel: React.FC<{ text: string }> = ({ text }) => (
 // One on/off setting: a colored icon, a plain-language title + description,
 // and the switch itself. `children` can render extra fields that only show
 // up while the setting is turned on (e.g. the warranty text boxes).
-const ToggleRow: React.FC<{
+export const ToggleRow: React.FC<{
   icon: React.ReactNode;
   color: string;
   bg: string;
@@ -96,13 +96,10 @@ const PrivacySettings: React.FC = () => {
   const [staffEarningEnabled, setStaffEarningEnabled] = useState(false);
   const [requirePaymentBeforePrint, setRequirePaymentBeforePrint] = useState(false);
   const [printOnlySentItems, setPrintOnlySentItems] = useState(false);
-  const [cartDeductionEnabled, setCartDeductionEnabled] = useState(false);
   const [hideServedByOthers, setHideServedByOthers] = useState(false);
-  const [zoneInventoryEnabled, setZoneInventoryEnabled] = useState(false);
   const [showAllItemsOnPos, setShowAllItemsOnPos] = useState(false);
   const [allowCashierAddToOthersTables, setAllowCashierAddToOthersTables] = useState(true);
   const [reportPercentageEnabled, setReportPercentageEnabled] = useState(true);
-  const [categoryZoneRestrictionEnabled, setCategoryZoneRestrictionEnabled] = useState(false);
   const [warrantyEnabled, setWarrantyEnabled] = useState(false);
   const [warrantyDuration, setWarrantyDuration] = useState("6 MONTHS");
   const [warrantyLine1, setWarrantyLine1] = useState("This receipt is your warranty certificate");
@@ -112,13 +109,10 @@ const PrivacySettings: React.FC = () => {
   const [updatingStaffEarning, setUpdatingStaffEarning] = useState(false);
   const [updatingPaymentBeforePrint, setUpdatingPaymentBeforePrint] = useState(false);
   const [updatingPrintOnlySent, setUpdatingPrintOnlySent] = useState(false);
-  const [updatingCartDeduction, setUpdatingCartDeduction] = useState(false);
   const [updatingHideTables, setUpdatingHideTables] = useState(false);
-  const [updatingZoneInventory, setUpdatingZoneInventory] = useState(false);
   const [updatingShowAllItems, setUpdatingShowAllItems] = useState(false);
   const [updatingCashierAddToOthers, setUpdatingCashierAddToOthers] = useState(false);
   const [updatingReportPercentage, setUpdatingReportPercentage] = useState(false);
-  const [updatingCategoryZone, setUpdatingCategoryZone] = useState(false);
   const [updatingWarranty, setUpdatingWarranty] = useState(false);
   const [systemSettingsId, setSystemSettingsId] = useState<string | null>(null);
   const [shopId, setShopId] = useState<string | null>(null);
@@ -138,13 +132,10 @@ const PrivacySettings: React.FC = () => {
         setStaffEarningEnabled(shopData?.staff_earning_enabled || false);
         setRequirePaymentBeforePrint(shopData?.require_payment_before_print || false);
         setPrintOnlySentItems(shopData?.print_only_sent_items || false);
-        setCartDeductionEnabled(shopData?.cart_inventory_deduction_enabled || false);
         setHideServedByOthers(shopData?.hide_tables_served_by_others || false);
-        setZoneInventoryEnabled(shopData?.zone_inventory_enabled || false);
         setShowAllItemsOnPos(shopData?.pos_show_all_items || false);
         setAllowCashierAddToOthersTables(shopData?.allow_cashier_add_to_others_tables !== false);
         setReportPercentageEnabled(shopData?.report_percentage_enabled !== false);
-        setCategoryZoneRestrictionEnabled(shopData?.category_zone_restriction_enabled || false);
         const ws = shopData?.warranty_settings;
         setWarrantyEnabled(ws?.enabled || false);
         if (ws?.duration) setWarrantyDuration(ws.duration);
@@ -210,33 +201,6 @@ const PrivacySettings: React.FC = () => {
       message.error("Failed to update hide-tables setting");
     } finally {
       setUpdatingHideTables(false);
-    }
-  };
-
-  const handleToggleCategoryZone = async (checked: boolean) => {
-    if (!shopId) {
-      message.error("Shop not found");
-      return;
-    }
-
-    setUpdatingCategoryZone(true);
-    try {
-      await updateShop({
-        _id: shopId,
-        category_zone_restriction_enabled: checked,
-      });
-      setCategoryZoneRestrictionEnabled(checked);
-      queryClient.invalidateQueries({ queryKey: ["shop", shopId] });
-      message.success(
-        checked
-          ? "Category zone restrictions enabled — set zones per main category in Category settings"
-          : "Category zone restrictions disabled — all items can be sold in every zone"
-      );
-    } catch (error) {
-      console.error("Failed to update category zone restriction setting:", error);
-      message.error("Failed to update category zone restriction setting");
-    } finally {
-      setUpdatingCategoryZone(false);
     }
   };
 
@@ -448,60 +412,6 @@ const PrivacySettings: React.FC = () => {
     }
   };
 
-  const handleToggleCartDeduction = async (checked: boolean) => {
-    if (!shopId) {
-      message.error("Shop not found");
-      return;
-    }
-
-    setUpdatingCartDeduction(true);
-    try {
-      await updateShop({
-        _id: shopId,
-        cart_inventory_deduction_enabled: checked,
-      });
-      setCartDeductionEnabled(checked);
-      queryClient.invalidateQueries({ queryKey: ["shop", shopId] });
-      message.success(
-        checked
-          ? "Cart-level inventory deductions enabled"
-          : "Cart-level inventory deductions disabled"
-      );
-    } catch (error) {
-      console.error("Failed to update cart deduction setting:", error);
-      message.error("Failed to update cart deduction setting");
-    } finally {
-      setUpdatingCartDeduction(false);
-    }
-  };
-
-  const handleToggleZoneInventory = async (checked: boolean) => {
-    if (!shopId) {
-      message.error("Shop not found");
-      return;
-    }
-
-    setUpdatingZoneInventory(true);
-    try {
-      await updateShop({
-        _id: shopId,
-        zone_inventory_enabled: checked,
-      });
-      setZoneInventoryEnabled(checked);
-      queryClient.invalidateQueries({ queryKey: ["shop", shopId] });
-      message.success(
-        checked
-          ? "Zone-based inventory enabled"
-          : "Zone-based inventory disabled"
-      );
-    } catch (error) {
-      console.error("Failed to update zone inventory setting:", error);
-      message.error("Failed to update zone inventory setting");
-    } finally {
-      setUpdatingZoneInventory(false);
-    }
-  };
-
   if (loading) {
     return (
       <div style={{ display: "flex", justifyContent: "center", padding: 40 }}>
@@ -666,45 +576,6 @@ const PrivacySettings: React.FC = () => {
                 </div>
               )}
             </ToggleRow>
-          </Space>
-        </div>
-
-        {/* ── Inventory ────────────────────────────────────────────────── */}
-        <div>
-          <SectionLabel text="Inventory" />
-          <Space direction="vertical" size={10} style={{ width: "100%" }}>
-            <ToggleRow
-              icon={<InboxOutlined />}
-              color="#6366f1"
-              bg="#eef2ff"
-              title={cartDeductionEnabled ? "Manual Stock Deduction Allowed" : "Manual Stock Deduction Off"}
-              description="Turn this on to let cashiers attach stock items to a cart item (e.g. ingredients for a dish) so they're used up automatically when the order is placed."
-              checked={cartDeductionEnabled}
-              onChange={handleToggleCartDeduction}
-              loading={updatingCartDeduction}
-            />
-
-            <ToggleRow
-              icon={<EnvironmentOutlined />}
-              color="#f97316"
-              bg="#fff7ed"
-              title={zoneInventoryEnabled ? "Stock Divided by Zone" : "Stock Not Divided by Zone"}
-              description="Turn this on to track stock separately for each area, like Bar, Patio or Store Room. Add a zone to a product's variants in Inventory, then sales and transfers will target that specific zone."
-              checked={zoneInventoryEnabled}
-              onChange={handleToggleZoneInventory}
-              loading={updatingZoneInventory}
-            />
-
-            <ToggleRow
-              icon={<EnvironmentOutlined />}
-              color="#0ea5e9"
-              bg="#f0f9ff"
-              title={categoryZoneRestrictionEnabled ? "Category Zone Restrictions On" : "Category Zone Restrictions Off"}
-              description={`Turn this on to link main categories to zones — from Category settings → Main Categories ("Sell only in zones") or from each location's form in Table settings. A linked category can only be sold in its zones, and a zone with linked categories only sells those categories. Applies to both products and services.`}
-              checked={categoryZoneRestrictionEnabled}
-              onChange={handleToggleCategoryZone}
-              loading={updatingCategoryZone}
-            />
           </Space>
         </div>
 

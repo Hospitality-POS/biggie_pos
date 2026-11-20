@@ -76,6 +76,7 @@ import {
 import SendEmailModal from "./print/SendEmailModal";
 import ReprintReasonModal from "./print/ReprintReasonModal";
 import { cartItemName } from "@utils/cartItemName";
+import { htmlToText } from "@utils/htmlToText";
 
 // ── Props ──────────────────────────────────────────────────────────────────
 export interface PrintBillProps {
@@ -1506,7 +1507,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
                     const itemVat = (vatMode === "INCLUSIVE" && VAT_RATE > 0) ? lineExcl * VAT_RATE : 0;
                     const lineTotal = lineExcl + itemVat;
                     // Support both nested product_id.desc and flat item.desc
-                    const itemDesc = item?.product_id?.desc || item?.product_id?.description || item?.desc || item?.description || "";
+                    const itemDesc = htmlToText(item?.product_id?.desc || item?.product_id?.description || item?.desc || item?.description || "");
                     return (
                       <tr key={item._id || index}>
                         <td style={pdfTD}>{index + 1}</td>

@@ -40,6 +40,7 @@ import CartDrawer from "@components/cart/CartDrawer";
 import { getCart, createCart, addItemToCart } from "@features/Cart/CartActions";
 import { useAppDispatch } from "src/store";
 import { message } from "antd";
+import { htmlToText } from "@utils/htmlToText";
 
 const { Text } = Typography;
 
@@ -224,7 +225,7 @@ const HotelPage: React.FC = () => {
           price: product.price,
           created_by: userId as string,
           quantity: 1,
-          desc: product.desc || product.name,
+          desc: htmlToText(product.desc) || product.name,
           table_id: selectedRoomId,
         })
       );
