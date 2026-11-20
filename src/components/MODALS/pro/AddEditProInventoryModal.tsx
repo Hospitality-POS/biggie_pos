@@ -47,6 +47,8 @@ import { addNewInventory, editInventory } from "@services/inventory";
 import { fetchShop } from "@services/shops";
 import { useQtyApprovalSetting } from "@hooks/useQtyApprovalSetting";
 import QtyChangeRequestPanel from "@components/inventory/QtyChangeRequestPanel";
+import { WaterMeterFields, meterFormValues, meterPayload } from "@components/inventory/WaterMeter";
+import { useWaterMeterSetting } from "@hooks/useWaterMeterSetting";
 import { UploadFile } from "antd/lib/upload";
 import { ProCard } from "@ant-design/pro-components";
 import AddEditVariantModal from "./AddEditVariantModal";
@@ -710,10 +712,13 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
     staleTime: 60 * 1000,
   });
   const zoneInventoryEnabled = !!shopData?.zone_inventory_enabled;
+  // Water meter tracking (retail shops, System Setup → Privacy)
+  const waterMeterOn = useWaterMeterSetting();
 
   // Tracks the product's current selling price so a new variant can be
   // pre-filled with it (still editable in the variant modal).
   const watchedPrice = Form.useWatch("price", form);
+  const watchedUnitId = Form.useWatch("unit_id", form);
 
   // ── Sync external open prop ───────────────────────────────────────────────
   useEffect(() => {
@@ -789,6 +794,13 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
     enabled: isOpen,
     staleTime: 0,
   });
+
+  // Stock unit name, for the water meter conversion ("1 m³ equals 1000 Litres")
+  const stockUnitName = useMemo(() => {
+    const id = extractId(watchedUnitId) ?? watchedUnitId;
+    const list = Array.isArray(units) ? units : (units as any)?.data ?? [];
+    return list.find((u: any) => u?._id === id)?.name as string | undefined;
+  }, [watchedUnitId, units]);
 
   // ── Invalidation helpers ──────────────────────────────────────────────────
   const refetchSuppliers = useCallback(() => {
@@ -912,6 +924,7 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
             reorder_level: data?.reorder_level || undefined,
             reorder_quantity: data?.reorder_quantity || undefined,
             code: data?.code || "",
+            ...meterFormValues(data?.meter),
           };
           // Don't clobber anything the user already typed while the lookup
           // queries were still resolving — keep their value instead.
@@ -938,6 +951,7 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
         has_variants: false,
         vat_type: "STANDARD",
         status: "active",
+        ...meterFormValues(null),
       });
       setUsageType("both");
       setHasVariants(false);
@@ -1066,6 +1080,7 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
         has_variants: hasVariants,
         variants: hasVariants && variants.length > 0 ? variantsForSave(values.requested_variant_quantities) : undefined,
         code: values.code,
+        meter: waterMeterOn ? meterPayload(values, data?.meter) : undefined,
       };
 
       // Strip undefined/empty-string fields
@@ -1434,6 +1449,17 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
             {/* Pack price → per-item supplier price, plus profit/margin */}
             <BulkCostHelper form={form} canSetQuantity={!hasVariants && !(edit && qtyNeedsApproval)} />
 
+            {/* Water meter: readings update this item's quantity */}
+            {waterMeterOn && (
+              <WaterMeterFields
+                form={form}
+                hasVariants={hasVariants}
+                stockUnit={stockUnitName}
+                hasReadings={!!data?.meter?.last_reading_at}
+                lastReading={data?.meter?.last_reading}
+              />
+            )}
+
             {/* Variants toggle */}
             <Form.Item
               label="Track Inventory by Variants"
@@ -1797,6 +1823,8 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
     handleCategoryChange,
     handleDeleteVariant,
     fileList,
+    waterMeterOn,
+    stockUnitName,
   ]);
 
   // ─────────────────────────────────────────────────────────────────────────
