@@ -28,6 +28,7 @@ import jsPDF from "jspdf";
 import * as XLSX from "xlsx";
 import React from "react";
 import { fmtK } from "@utils/formatters";
+import { htmlToText } from "@utils/htmlToText";
 
 const { Text, Title } = Typography;
 const { Dragger } = Upload;
@@ -775,7 +776,7 @@ const InventoryCard: React.FC<InventoryCardProps> = ({ record, onDelete, deletin
             {renderStatus(record.status)}
           </div>
           {record.code && <code style={{ background: "#f1f5f9", padding: "1px 6px", borderRadius: 4, fontSize: 11, color: "#64748b", marginTop: 3, display: "inline-block" }}>{record.code}</code>}
-          {record.desc && <Text style={{ fontSize: 11, color: "#94a3b8", display: "block", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{record.desc}</Text>}
+          {record.desc && <Text style={{ fontSize: 11, color: "#94a3b8", display: "block", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{htmlToText(record.desc)}</Text>}
         </div>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, padding: "8px 10px", background: "#f8fafc", borderRadius: 8, marginBottom: 10 }}>
@@ -1124,7 +1125,7 @@ const InventorySettings = () => {
       columns={[
         { title: "Image", dataIndex: "thumbnail", hideInSearch: true, width: 70, render: (_: any, record: any) => <ProductThumbnail src={record.thumbnail} /> },
         { title: "Code", dataIndex: "code", hideInSearch: false, width: 110, sorter: true, fieldProps: { placeholder: "Enter code" }, render: (text: any) => <code style={{ background: "#f1f5f9", padding: "2px 6px", borderRadius: 4, fontSize: 12, color: "#64748b" }}>{text}</code> },
-        { title: "Product Name", dataIndex: "name", hideInSearch: false, fixed: "left" as const, sorter: true, ellipsis: true, fieldProps: { placeholder: "Search name" }, render: (text: any, record: any) => <Space direction="vertical" size={2}><Text strong style={{ fontSize: 13, color: "#0f172a" }}>{text}</Text>{record.desc && <Text style={{ fontSize: 11, color: "#94a3b8", display: "block", maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{record.desc}</Text>}</Space> },
+        { title: "Product Name", dataIndex: "name", hideInSearch: false, fixed: "left" as const, sorter: true, ellipsis: true, fieldProps: { placeholder: "Search name" }, render: (text: any, record: any) => <Space direction="vertical" size={2}><Text strong style={{ fontSize: 13, color: "#0f172a" }}>{text}</Text>{record.desc && <Text style={{ fontSize: 11, color: "#94a3b8", display: "block", maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{htmlToText(record.desc)}</Text>}</Space> },
         { title: "Sub Category", dataIndex: "subcategory_id", hideInSearch: true, width: 120, render: (_: any, record: any) => record?.subcategory_id?.name ? <Tag style={{ background: "#eff6ff", color: "#1d4ed8", border: "none", borderRadius: 5, fontSize: 11 }}>{record.subcategory_id.name}</Tag> : <Text type="secondary" style={{ fontSize: 12 }}>—</Text> },
         { title: "Category", dataIndex: "category_id", hideInSearch: true, width: 120, render: (_: any, record: any) => record?.category_id?.name ? <Tag style={{ background: "#f5f3ff", color: "#6d28d9", border: "none", borderRadius: 5, fontSize: 11 }}>{record.category_id.name}</Tag> : <Text type="secondary" style={{ fontSize: 12 }}>—</Text> },
         { title: "Usage", dataIndex: "usage_type", hideInSearch: true, width: 110, render: (_: any, record: any) => renderUsageType(record.usage_type), filters: [{ text: "For Sale", value: "selling" }, { text: "Internal", value: "internal" }, { text: "Both", value: "both" }] },

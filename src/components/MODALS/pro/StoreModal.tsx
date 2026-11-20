@@ -18,7 +18,7 @@ import {
   DollarOutlined,
   PictureOutlined,
 } from "@ant-design/icons";
-import { ProFormMoney, ProFormTextArea } from "@ant-design/pro-components";
+import { ProFormMoney } from "@ant-design/pro-components";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { useCategoriesQuery } from "@hooks/queries";
 import { addNewProduct, editProduct } from "@services/products";
@@ -29,6 +29,7 @@ import { useAppSelector } from "src/store";
 import { RcFile } from "antd/lib/upload";
 
 import { THEME_C } from "@utils/getPrimaryColor";
+import TinyMCEInput from "@components/TinyMCEInput";
 
 const { Text } = Typography;
 
@@ -380,10 +381,12 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data, onSuccess, trigger:
                 />
               )}
             </ProForm.Group>
-            <ProFormTextArea
-              key="desc" hasFeedback name="desc" label="Description"
-              placeholder="Enter Product Description if any."
-            />
+            <ProForm.Item
+              key="desc" name="desc" label="Description"
+              extra="Formatting (paragraphs, bold, lists) shows on the website's service page."
+            >
+              <TinyMCEInput rich height={280} placeholder="Describe the service: what happens, what's included, benefits..." />
+            </ProForm.Item>
           </div>
 
           {/* ── Step 2: Pricing & Stock ─────────────────────────────── */}

@@ -16,6 +16,7 @@ import { usePOSMode } from "@context/POSModeContext";
 import { useRetailQueue } from "@context/RetailQueueContext";
 import AddonSelectionModal from "../MODALS/pro/AddonSelectionModal";
 import VariantSelectionModal, { SellableVariant } from "../MODALS/pro/VariantSelectionModal";
+import { htmlToText } from "@utils/htmlToText";
 
 interface menudetails {
   quantity?: number;
@@ -190,7 +191,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu, handleCart, style, bloc
               ...(variant && { variant_id: variant._id, variant_name: variant.name }),
               created_by: user?.id || user?._id,
               quantity: formattedQuantity,
-              desc: menu.desc,
+              desc: htmlToText(menu.desc),
               table_id: tableId,
               ...(menu.type === "service" && menu.duration && { duration: menu.duration }),
               ...(addingWithAddons && { addons }),
