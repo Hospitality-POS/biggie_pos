@@ -7,6 +7,16 @@ import type { PrintLine } from "./printAgent";
 const printerUrl = `${BASE_URL}/printer`;
 const printerServiceUrl = `${BASE_URL}/printer-service`;
 
+const printerServiceHeaders = (tenantCode: string): Record<string, string> => {
+  const storedUser = localStorage.getItem("user");
+  const token = storedUser ? (JSON.parse(storedUser).Token as string | undefined) : undefined;
+  return {
+    'Content-Type': 'application/json',
+    'companycode': tenantCode,
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+};
+
 export const getAllPrinters = async (params: ParamsType) => {
   try {
     const response = await axiosInstance.get(`${printerUrl}`, { params });
@@ -106,10 +116,7 @@ export interface DiscoveredPrinter {
 export const getPrinterConfig = async (shopId: string, tenantCode: string): Promise<{ success: boolean; printer_config?: PrinterConfig; error?: string }> => {
   try {
     const response = await fetch(`${printerServiceUrl}/config?shop_id=${shopId}`, {
-      headers: { 
-        'Content-Type': 'application/json',
-        'companycode': tenantCode
-      }
+      headers: printerServiceHeaders(tenantCode)
     });
     
     const contentType = response.headers.get('content-type');
@@ -129,10 +136,7 @@ export const savePrinterConfig = async (shopId: string, tenantCode: string, prin
   try {
     const response = await fetch(`${printerServiceUrl}/config?shop_id=${shopId}`, {
       method: 'PUT',
-      headers: { 
-        'Content-Type': 'application/json',
-        'companycode': tenantCode
-      },
+      headers: printerServiceHeaders(tenantCode),
       body: JSON.stringify({ printer_config: printerConfig })
     });
 
@@ -152,10 +156,7 @@ export const savePrinterConfig = async (shopId: string, tenantCode: string, prin
 export const getLocalSubnet = async (tenantCode: string): Promise<{ success: boolean; subnet: string }> => {
   try {
     const response = await fetch(`${printerServiceUrl}/subnet`, {
-      headers: { 
-        'Content-Type': 'application/json',
-        'companycode': tenantCode
-      }
+      headers: printerServiceHeaders(tenantCode)
     });
     
     const contentType = response.headers.get('content-type');
@@ -175,10 +176,7 @@ export const discoverPrinters = async (tenantCode: string, subnet: string, timeo
   try {
     const response = await fetch(`${printerServiceUrl}/discover`, {
       method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'companycode': tenantCode
-      },
+      headers: printerServiceHeaders(tenantCode),
       body: JSON.stringify({ 
         subnet,
         timeout,
@@ -203,10 +201,7 @@ export const testPrinterConnection = async (tenantCode: string, ipAddress: strin
   try {
     const response = await fetch(`${printerServiceUrl}/test-connection`, {
       method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'companycode': tenantCode
-      },
+      headers: printerServiceHeaders(tenantCode),
       body: JSON.stringify({
         ip_address: ipAddress,
         port,
@@ -231,10 +226,7 @@ export const printTestPage = async (shopId: string, tenantCode: string): Promise
   try {
     const response = await fetch(`${printerServiceUrl}/test-print?shop_id=${shopId}`, {
       method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'companycode': tenantCode
-      }
+      headers: printerServiceHeaders(tenantCode)
     });
 
     const contentType = response.headers.get('content-type');
