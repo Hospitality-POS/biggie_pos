@@ -731,6 +731,7 @@ export const fetchInventoryCategories = async (shopId: string) => {
 export interface InventoryMeter {
   enabled: boolean;
   name?: string;
+  /** Standard water-meter unit: m³, L, kL, gal (UK), gal (US) */
   unit_label?: string;
   conversion_rate?: number;
   direction?: "in" | "out";

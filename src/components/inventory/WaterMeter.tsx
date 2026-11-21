@@ -10,6 +10,7 @@ import {
   Modal,
   Popconfirm,
   Segmented,
+  Select,
   Space,
   Switch,
   Table,
@@ -75,6 +76,21 @@ export const meterPayload = (values: Record<string, any>, savedMeter?: Inventory
   };
 };
 
+/**
+ * The units water meters count in, with how many litres each one is.
+ * Picking one fills "1 unit equals … litres" when the item is kept in litres.
+ */
+export const WATER_METER_UNITS: { value: string; label: string; litres: number }[] = [
+  { value: "m³", label: "Cubic metres (m³)", litres: 1000 },
+  { value: "L", label: "Litres (L)", litres: 1 },
+  { value: "kL", label: "Kilolitres (kL)", litres: 1000 },
+  { value: "gal (UK)", label: "Gallons, imperial (gal)", litres: 4.54609 },
+  { value: "gal (US)", label: "Gallons, US (gal)", litres: 3.78541 },
+];
+
+/** Is the item's stock unit litres? ("Litres", "Liter", "L", "Ltrs"…) */
+const isLitres = (name?: string) => /^(l|lt|ltr|ltrs|lit(re|er)s?)$/i.test((name || "").trim());
+
 export const WaterMeterFields: React.FC<{
   form: FormInstance;
   hasVariants: boolean;
@@ -88,6 +104,9 @@ export const WaterMeterFields: React.FC<{
   const rate = Form.useWatch("meter_conversion_rate", form);
   const direction = Form.useWatch("meter_direction", form);
   const unit = stockUnit || "stock units";
+  // Worked example: a reading going from 100 to 102
+  const perUnit = Number(rate) || 0;
+  const exampleChange = 2 * perUnit;
 
   return (
     <div
@@ -133,18 +152,33 @@ export const WaterMeterFields: React.FC<{
             </Form.Item>
             <Form.Item
               name="meter_unit_label"
-              label="Meter unit"
-              tooltip="What the meter counts, e.g. m³, litres or units"
-              rules={[{ required: true, message: "Enter the meter unit" }]}
+              label="Meter counts in"
+              tooltip="The unit printed on the meter's dial. Most water meters count in cubic metres (m³)."
+              rules={[{ required: true, message: "Pick the unit the meter counts in" }]}
               style={{ marginBottom: 8 }}
             >
-              <Input placeholder="m³" maxLength={20} />
+              <Select
+                options={[
+                  ...WATER_METER_UNITS.map((u) => ({ value: u.value, label: u.label })),
+                  // A meter saved earlier with a unit typed by hand keeps showing it
+                  ...(unitLabel && !WATER_METER_UNITS.some((u) => u.value === unitLabel)
+                    ? [{ value: unitLabel, label: unitLabel }]
+                    : []),
+                ]}
+                onChange={(value) => {
+                  const picked = WATER_METER_UNITS.find((u) => u.value === value);
+                  // Stock kept in litres: fill in how many litres one meter unit is
+                  if (picked && isLitres(stockUnit)) {
+                    form.setFieldValue("meter_conversion_rate", picked.litres);
+                  }
+                }}
+              />
             </Form.Item>
             <Form.Item
               name="meter_conversion_rate"
-              label={`1 ${unitLabel} equals`}
-              tooltip={`How much stock (${unit}) one meter unit is. 1 m³ = 1000 litres.`}
-              rules={[{ required: true, message: "Enter the conversion" }]}
+              label={`1 ${unitLabel} on the meter equals`}
+              tooltip={`How many ${unit} of water one ${unitLabel} on the meter is (e.g. 1 m³ = 1000 litres).`}
+              rules={[{ required: true, message: "Enter how much water one meter unit is" }]}
               style={{ marginBottom: 8 }}
             >
               <InputNumber min={0.0001} style={{ width: "100%" }} addonAfter={unit} />
@@ -169,11 +203,32 @@ export const WaterMeterFields: React.FC<{
             />
           </Form.Item>
 
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            Example: a reading that goes up by 2 {unitLabel} {direction === "out" ? "removes" : "adds"}{" "}
-            {fmt(2 * (Number(rate) || 0))} {unit} {direction === "out" ? "from" : "to"} stock.
-            {hasReadings && lastReading != null && <> Last reading: <b>{fmt(lastReading, 3)} {unitLabel}</b>.</>}
-          </Text>
+          <Alert
+            type="info"
+            showIcon
+            style={{ borderRadius: 8 }}
+            message={
+              <span>
+                Example: reading <b>100</b> → next reading <b>102</b> = 2 {unitLabel} × {fmt(perUnit, 4)} {unit} ={" "}
+                <b>{fmt(exampleChange)} {unit}</b> {direction === "out" ? "taken from" : "added to"} stock.
+              </span>
+            }
+            description={
+              hasReadings && lastReading != null
+                ? <>Last reading: <b>{fmt(lastReading, 3)} {unitLabel}</b>.</>
+                : undefined
+            }
+          />
+          {(() => {
+            // Stock in litres but the figure doesn't match the standard size
+            const std = WATER_METER_UNITS.find((u) => u.value === unitLabel);
+            if (!std || !isLitres(stockUnit) || !perUnit || Math.abs(perUnit - std.litres) < 0.001) return null;
+            return (
+              <Text type="warning" style={{ fontSize: 12, display: "block", marginTop: 6 }}>
+                1 {std.value} is normally {fmt(std.litres, 5)} litres — check the figure above.
+              </Text>
+            );
+          })()}
         </div>
       )}
     </div>
