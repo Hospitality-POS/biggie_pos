@@ -37,7 +37,10 @@ import {
   getDashboardAnalysis,
   getBestSellers,
   getSalesChartData,
+  getCreditSettings,
+  getCreditSummary,
 } from "@services/orders";
+import DashboardPayLaterCard from "src/components/dashboard/DashboardPayLaterCard";
 import dayjs from "dayjs";
 import quarterOfYear from "dayjs/plugin/quarterOfYear";
 import { fetchShop } from "@services/shops";
@@ -230,14 +233,36 @@ const Dashboard: React.FC = () => {
     retry: 1,
   });
 
+  // 4. Pay later (credit sales) — only when switched on for this shop
+  const { data: creditSettings } = useQuery({
+    queryKey: ["creditSettings", shopId],
+    queryFn: () => getCreditSettings(shopId as string),
+    enabled: !!shopId && canSeeSales,
+    staleTime: 60_000,
+  });
+  const payLaterOn = !!creditSettings?.enabled;
+  const { data: creditSummary, isLoading: creditLoading, refetch: refetchCredit } = useQuery({
+    queryKey: ["creditSummaryDashboard", shopId, startDate.format(), endDate.format()],
+    queryFn: () =>
+      getCreditSummary(shopId ?? undefined, {
+        start_date: startDate.format("YYYY-MM-DD"),
+        end_date: endDate.format("YYYY-MM-DD"),
+      }),
+    enabled: canSeeSales && payLaterOn,
+    refetchOnWindowFocus: false,
+    staleTime: 30000,
+    retry: 1,
+  });
+
   const handleRefresh = useCallback(async () => {
     try {
+      if (payLaterOn) refetchCredit();
       await refetch();
       messageApi.success({ content: "Dashboard refreshed!", duration: 2 });
     } catch {
       messageApi.error({ content: "Refresh failed.", duration: 3 });
     }
-  }, [refetch, messageApi]);
+  }, [refetch, refetchCredit, payLaterOn, messageApi]);
 
   const handlePeriodChange = useCallback(
     (value: string) => {
@@ -551,6 +576,17 @@ const Dashboard: React.FC = () => {
           hotel={hotel}
           isAdmin={false}
           onOrdersClick={() => navigate("/orders")}
+        />
+      )}
+
+      {/* ── Pay later: debts, credit sold, collections (System Setup → Pay Later) ── */}
+      {canSeeSales && payLaterOn && (
+        <DashboardPayLaterCard
+          summary={creditSummary}
+          loading={creditLoading}
+          periodLabel={PERIOD_LABELS[periodFilter] || "Period"}
+          isMobile={isMobile}
+          onOpenUnpaid={() => navigate("/orders?tab=unpaid")}
         />
       )}
 

@@ -25,6 +25,9 @@ interface OrderDetails {
   customer_email?: string;
   enable_stk_push?: boolean;
   stk_phone_number?: string;
+  // Pay later: close with nothing / part paid; payment_splits = paid now
+  credit_sale?: boolean;
+  payment_splits?: { method_id: string; amount: number }[];
 }
 
 interface DateRange {
@@ -45,6 +48,8 @@ export const createOrder = createAsyncThunk(
       // Handle subscription orders
       if (orderDetails.use_subscription) {
         message.success("Order placed successfully using subscription visit!");
+      } else if (response.data?.order_completion_status?.credit_sale) {
+        message.success(response.data.message || "Order placed — balance owed by the customer");
       } else if (response.data?.payment?.stk_push) {
         // Handle STK Push orders
         message.success("STK Push sent successfully!");

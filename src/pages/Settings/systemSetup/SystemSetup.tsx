@@ -20,8 +20,10 @@ import {
   MedicineBoxOutlined,
   FileTextOutlined,
   InboxOutlined,
+  CreditCardOutlined,
 } from "@ant-design/icons";
 import InventoryControlsSettings from "./InventoryControlsSettings";
+import PayLaterSettings from "./PayLaterSettings";
 import { Tabs } from "antd";
 import { useQuery } from "@tanstack/react-query";
 import Profile from "./Profile";
@@ -228,6 +230,19 @@ const SystemSetup: React.FC = () => {
         render: () => <InventoryControlsSettings />,
       },
     );
+
+    if (hasPOS) {
+      list.push({
+        key: "pay-later",
+        label: "Pay Later",
+        description: "Let customers pay part or all of a bill later",
+        icon: <CreditCardOutlined />,
+        color: "#7c3aed",
+        bg: "#f5f3ff",
+        group: "General",
+        render: () => <PayLaterSettings />,
+      });
+    }
 
     if (hasBandu) {
       list.push(
