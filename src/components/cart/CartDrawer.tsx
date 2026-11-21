@@ -794,6 +794,8 @@ const CartDrawer: React.FC = () => {
           onDelinkCustomer={handleDelinkCustomer}
           sendingHotelInfo={sendingHotelInfo}
           onResendHotelInfo={handleResendHotelInfo}
+          creditLimit={Number((customerData as any)?.credit_limit) || 0}
+          balanceOwed={Number((customerData as any)?.current_balance) || 0}
         />
 
         {/* Column headers */}

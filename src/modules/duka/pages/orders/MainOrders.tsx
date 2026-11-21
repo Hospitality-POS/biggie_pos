@@ -1,7 +1,10 @@
 import React, { useState, useMemo } from "react";
 import { Typography } from "antd";
-import { OrderedListOutlined, ShoppingCartOutlined, FileDoneOutlined , LockOutlined, CheckCircleOutlined } from "@ant-design/icons";
+import { OrderedListOutlined, ShoppingCartOutlined, FileDoneOutlined , LockOutlined, CheckCircleOutlined, WalletOutlined } from "@ant-design/icons";
+import { useQuery } from "@tanstack/react-query";
 import OrdersTable from "./components/OrdersTable";
+import CreditOrdersPanel from "./components/CreditOrdersPanel";
+import { getCreditSettings } from "@services/orders";
 import OrdersByLocation from "./components/OrdersByLocation";
 import InvoiceTable from "@modules/pesa/pages/invoices/components/InvoiceTable";
 import ManualInvoiceModal from "@modules/pesa/pages/invoices/components/ManualInvoiceModal";
@@ -29,6 +32,13 @@ const TAB_CFG = [
     icon: <CheckCircleOutlined />,
     iconColor: C.green,
     label: "Order Analysis",
+    permissionKey: "ORDERS_VIEW",
+  },
+  {
+    key: "unpaid",
+    icon: <WalletOutlined />,
+    iconColor: C.orange,
+    label: "Unpaid",
     permissionKey: "ORDERS_VIEW",
   },
   {
@@ -112,16 +122,26 @@ function MainOrders() {
   // Admin users get can() === true for every key via makePermissionChecker
   const can = useMemo(() => getPermissionChecker(), []);
 
+  // Unpaid tab: only when pay later is on (System Setup → Pay Later)
+  const { data: creditSettings } = useQuery({
+    queryKey: ["creditSettings", shopId],
+    queryFn: () => getCreditSettings(shopId as string),
+    enabled: !!shopId && hasDuka,
+    staleTime: 60_000,
+  });
+  const payLaterOn = !!creditSettings?.enabled;
+
   const visibleTabs = useMemo(
     () =>
       TAB_CFG
         .filter((t) => {
           // Orders list and Order Analysis need Duka (POS) or chat selling.
           if (t.key === "orders" || t.key === "done") return hasPOS;
+          if (t.key === "unpaid") return hasDuka && payLaterOn;
           return true;
         })
         .map((t) => ({ ...t, allowed: can(t.permissionKey) })),
-    [hasPOS, can]
+    [hasPOS, hasDuka, payLaterOn, can]
   );
 
   const getDefaultTab = () => {
@@ -134,7 +154,10 @@ function MainOrders() {
 
   // The shop settings load after first paint, so the default tab is derived
   // until the user picks one — otherwise Orders would never become the default.
-  const [pickedTab, setActiveTab] = useState<string | null>(null);
+  // ?tab=unpaid (e.g. from the dashboard's Pay Later card) opens that tab
+  const [pickedTab, setActiveTab] = useState<string | null>(
+    () => new URLSearchParams(window.location.search).get("tab")
+  );
   const activeTab =
     pickedTab && visibleTabs.some((t) => t.key === pickedTab) ? pickedTab : getDefaultTab();
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
@@ -150,6 +173,8 @@ function MainOrders() {
         return <OrdersTable />;
       case "done":
         return <OrdersByLocation />;
+      case "unpaid":
+        return <CreditOrdersPanel canCollect={!!creditSettings?.can_collect} />;
       case "invoices":
         return <AccountingInvoicesTab />;
       default:

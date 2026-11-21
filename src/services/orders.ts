@@ -12,11 +12,149 @@ export const getAllOrders = async (data: ParamsType) => {
         start_date: data?.start_date,
         end_date: data?.end_date,
         shop_id: data?.shop_id,
+        customer_id: data?.customer_id,
+        // Pay later: "unpaid" → balance still owed, "all" → every pay-later sale
+        credit: data?.credit,
       },
     });
     return Array.isArray(response.data) ? response.data : [];
   } catch (error) {
     return [];
+  }
+};
+
+// ── Pay later (credit sales) ────────────────────────────────────────────────
+
+export interface CreditSettings {
+  enabled: boolean;
+  can_sell: boolean;
+  can_collect: boolean;
+}
+
+export const getCreditSettings = async (shopId: string): Promise<CreditSettings> => {
+  try {
+    const response = await axiosInstance.get(`${BASE_URL}/orders/credit-settings`, {
+      params: { shop_id: shopId },
+    });
+    return response.data?.data ?? { enabled: false, can_sell: false, can_collect: false };
+  } catch {
+    return { enabled: false, can_sell: false, can_collect: false };
+  }
+};
+
+export interface CreditDebtor {
+  _id: string | null;
+  customer_name?: string;
+  customer_phone?: string;
+  owed: number;
+  orders: number;
+  oldest: string;
+}
+
+export interface CreditSummary {
+  total_owed: number;
+  open_orders: number;
+  debtors: CreditDebtor[];
+  /** Open debt by sale age */
+  aging?: { d0_7: number; d8_30: number; d30_plus: number };
+  /** Customers whose debt has reached their credit limit */
+  customers_at_limit?: number;
+  /** Only when a date range is passed */
+  period?: {
+    credit_orders: number;
+    credit_sales_value: number;
+    still_owed_from_period: number;
+    collected: number;
+    collections: number;
+  } | null;
+}
+
+export const getCreditSummary = async (
+  shopId?: string,
+  range?: { start_date?: string; end_date?: string }
+): Promise<CreditSummary> => {
+  const response = await axiosInstance.get(`${BASE_URL}/orders/credit-summary`, {
+    params: { shop_id: shopId, ...(range || {}) },
+  });
+  return response.data?.data ?? { total_owed: 0, open_orders: 0, debtors: [] };
+};
+
+export interface CreditReportRow {
+  _id: string;
+  order_no: string;
+  sold_at: string;
+  customer_id?: string;
+  customer_name: string;
+  customer_phone: string;
+  table: string;
+  served_by: string;
+  bill: number;
+  paid: number;
+  owed: number;
+  status: "Paid" | "Part paid" | "Unpaid";
+  days_outstanding: number;
+  last_paid_at: string | null;
+}
+
+export interface CreditReportCustomer {
+  customer_id?: string;
+  customer_name: string;
+  customer_phone: string;
+  orders: number;
+  bill: number;
+  paid: number;
+  owed: number;
+  oldest_unpaid: string | null;
+  credit_limit: number;
+  total_balance: number;
+}
+
+export interface CreditReportCollection {
+  _id: string;
+  paid_at: string;
+  amount: number;
+  method: string;
+  reference: string;
+  order_no: string;
+  customer_name: string;
+}
+
+export interface CreditReport {
+  filters: { start_date: string | null; end_date: string | null; status: string };
+  totals: { orders: number; unpaid_orders: number; bill: number; paid: number; owed: number; collected: number };
+  rows: CreditReportRow[];
+  by_customer: CreditReportCustomer[];
+  collections: CreditReportCollection[];
+}
+
+/** Debts report (Reports → Duka → Debts) */
+export const getCreditReport = async (params: {
+  shop_id?: string;
+  start_date?: string;
+  end_date?: string;
+  status?: "unpaid" | "paid" | "all";
+  customer_id?: string;
+}): Promise<CreditReport> => {
+  const response = await axiosInstance.get(`${BASE_URL}/orders/credit-report`, { params });
+  return response.data?.data;
+};
+
+export interface ReceiveOrderPaymentParams {
+  method_id?: string;
+  amount?: number;
+  payment_splits?: { method_id: string; amount: number }[];
+  reference?: string;
+  notes?: string;
+}
+
+export const receiveOrderPayment = async (orderId: string, params: ReceiveOrderPaymentParams) => {
+  try {
+    const response = await axiosInstance.post(`${BASE_URL}/orders/${orderId}/receive-payment`, params);
+    message.success(response.data?.message || "Payment received");
+    return response.data;
+  } catch (error: any) {
+    message.error(error?.response?.data?.message || "Failed to receive payment");
+    throw error;
   }
 };
 

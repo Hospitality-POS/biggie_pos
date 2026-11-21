@@ -20,12 +20,11 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import {
-  addNewCustomer, fetchPortalContext, logCustomerVisit, lookupPortalCustomer, portalErrorMessage,
-  redeemPortalVisit, subscribeFromPortal,
+  fetchPortalContext, logCustomerVisit, lookupPortalCustomer, portalErrorMessage,
+  redeemPortalVisit, registerFromPortal, subscribeFromPortal,
   type PortalPackage, type PortalPhone, type PortalSubscription,
 } from "@services/customers";
 import { PhoneInput } from "@components/PhoneNumber/PhoneNumber";
-import { fetchTenantById } from "@services/users";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { formatCurrency } from "@utils/formatters";
 
@@ -76,7 +75,7 @@ const FieldLabel = ({ icon, text, color }: { icon: React.ReactNode; text: string
 
 const Logo = ({ tenant, size }: { tenant: any; size: number }) => (
   <img
-    src={tenant?.tenant_logo?.url || (tenant?.tenant_code === "RPOS-000004" ? "/logo.png" : "/relia.png")}
+    src={tenant?.tenant_logo?.url || "/logo.png"}
     alt="store logo"
     style={{ width: size, maxHeight: size, objectFit: "contain", display: "block", margin: "0 auto" }}
   />
@@ -154,18 +153,13 @@ const CustomerPortal = () => {
   const tenantId = params.get("tenant_id");
   const shopId = params.get("shop_id") || "";
 
+  // On a customer's own phone nothing about the business is stored, so its
+  // name and logo come from the public portal context (by tenant_code). A
+  // staff device that opens the link may already have the tenant stored.
   const storedTenant = useMemo(readStoredTenant, []);
   const storedMatches = !!storedTenant && (!tenantId || storedTenant._id === tenantId);
-  const { data: fetchedTenant } = useQuery({
-    queryKey: ["portal-tenant", tenantId],
-    queryFn: () => fetchTenantById(tenantId as string),
-    enabled: !storedMatches && !!tenantId,
-    retry: 1,
-    staleTime: 5 * 60 * 1000,
-  });
-  const tenant = storedMatches ? storedTenant : fetchedTenant;
+  const tenant = storedMatches ? storedTenant : null;
   const tenantCode: string | null = params.get("tenant_code") || tenant?.tenant_code || null;
-  const clientName = tenant?.name || "us";
   const welcome = useMemo(() => WELCOME_MSGS[Math.floor(Math.random() * WELCOME_MSGS.length)], []);
 
   const { data: context, isLoading: contextLoading } = useQuery({
@@ -174,6 +168,13 @@ const CustomerPortal = () => {
     enabled: !!tenantCode && !!shopId,
     staleTime: 60 * 1000,
   });
+  const clientName: string | null = context?.business?.name || tenant?.name || null;
+  const logoTenant = { tenant_logo: { url: context?.business?.logo || tenant?.tenant_logo?.url || null } };
+
+  // Browser tab shows the business, not the app
+  useEffect(() => {
+    if (clientName) document.title = clientName;
+  }, [clientName]);
   const packages = context?.packages ?? [];
   const paymentMethods = context?.payment_methods ?? [];
 
@@ -214,14 +215,14 @@ const CustomerPortal = () => {
     if (!p) return message.warning("Please enter your phone number");
     setLoading(true);
     try {
-      await addNewCustomer({
+      // Public sign-up endpoint: works on a customer's phone with no login
+      await registerFromPortal(tenantCode, {
         customer_name: values.name,
-        email: values.email,
-        phone: Number(p.phone),
+        email: values.email || undefined,
+        phone: p.phone,
         phone_code: Number(p.phone_code) || 254,
         shop_id: shopId,
-        source: "qr_portal",
-      }, { silent: true });
+      });
       await loadAccount(p);
       message.success("You're registered!");
       setView("account");
@@ -234,7 +235,7 @@ const CustomerPortal = () => {
     } finally {
       setLoading(false);
     }
-  }, [loadAccount, shopId]);
+  }, [loadAccount, shopId, tenantCode]);
 
   const handleSubscribe = useCallback(async () => {
     if (!buying || !phone) return;
@@ -458,8 +459,15 @@ const CustomerPortal = () => {
           alignItems: "center", justifyContent: "center", textAlign: "center",
           background: `linear-gradient(135deg, ${primary} 0%, ${primary}cc 100%)`,
         }}>
-          <div className="cp-logo"><Logo tenant={tenant} size={150} /></div>
-          <Title level={3} style={{ color: "#fff", margin: "20px 0 8px" }}>Welcome to {clientName}</Title>
+          {/* Wait for the business's own logo rather than flashing the default */}
+          <div className="cp-logo">
+            {contextLoading && !logoTenant.tenant_logo.url
+              ? <div style={{ height: 120 }} />
+              : <Logo tenant={logoTenant} size={150} />}
+          </div>
+          <Title level={3} style={{ color: "#fff", margin: "20px 0 8px" }}>
+            {clientName ? `Welcome to ${clientName}` : "Welcome"}
+          </Title>
           <Text style={{ color: "rgba(255,255,255,0.9)" }}>{welcome}</Text>
         </div>
 

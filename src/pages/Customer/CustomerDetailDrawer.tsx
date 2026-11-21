@@ -212,8 +212,22 @@ const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ open, onClo
                                     {customer.payment_terms && (
                                         <InfoRow icon={<UserOutlined />} label="Payment Terms" value={`${customer.payment_terms} days`} />
                                     )}
-                                    {customer.credit_limit && (
+                                    {customer.credit_limit > 0 && (
                                         <InfoRow icon={<UserOutlined />} label="Credit Limit" value={`KES ${customer.credit_limit.toLocaleString()}`} />
+                                    )}
+                                    {(Number(customer.current_balance) || 0) > 0 && (
+                                        <InfoRow icon={<UserOutlined />} label="Owes" value={`KES ${Number(customer.current_balance).toLocaleString()}`} />
+                                    )}
+                                    {customer.credit_limit > 0 && (
+                                        <InfoRow
+                                            icon={<UserOutlined />}
+                                            label="Credit Left"
+                                            value={
+                                                Number(customer.current_balance) >= customer.credit_limit
+                                                    ? "None — limit reached, no more pay later"
+                                                    : `KES ${(customer.credit_limit - (Number(customer.current_balance) || 0)).toLocaleString()}`
+                                            }
+                                        />
                                     )}
                                 </div>
 

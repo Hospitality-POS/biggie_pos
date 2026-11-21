@@ -315,6 +315,8 @@ export const PERMISSIONS: Record<string, Permission> = {
     ORDERS_VIEW_BEST_SELLERS: { key: "ORDERS_VIEW_BEST_SELLERS", label: "View Best Sellers", module: MODULES.ORDERS, action: "read", moduleScope: "pos" },
     ORDERS_VIEW_SALES_CHART: { key: "ORDERS_VIEW_SALES_CHART", label: "View Sales Chart", module: MODULES.ORDERS, action: "read", moduleScope: "pos" },
     ORDERS_REPOST_PAYMENT: { key: "ORDERS_REPOST_PAYMENT", label: "Repost Order Payment", module: MODULES.ORDERS, action: "special", moduleScope: "pos" },
+    ORDERS_CREDIT_SALE: { key: "ORDERS_CREDIT_SALE", label: "Sell on Credit (Pay Later)", module: MODULES.ORDERS, action: "special", moduleScope: "pos" },
+    ORDERS_RECEIVE_PAYMENT: { key: "ORDERS_RECEIVE_PAYMENT", label: "Receive Order Payment", module: MODULES.ORDERS, action: "special", moduleScope: "pos" },
 
     // ── PAYMENT METHODS ───────────────────────────────────────────────────────
 

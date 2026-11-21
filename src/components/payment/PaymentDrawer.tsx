@@ -9,7 +9,7 @@ import { useAppDispatch, useAppSelector } from "../../store";
 import {
   Alert, Button, Col, Form, Modal, Row, Space, Spin, Statistic,
   Typography, message, Input, Select, Divider, Tag, Flex,
-  Empty, Avatar,
+  Empty, Avatar, Switch, InputNumber,
 } from "antd";
 import {
   CloseCircleOutlined, CreditCardOutlined, DollarOutlined,
@@ -22,7 +22,7 @@ import { DrawerForm } from "@ant-design/pro-components";
 import { fetchAllPaymentMethods } from "@services/paymentMethod";
 import DiscountModal from "@components/MODALS/pro/DiscountModal";
 import pesapalApi from "@services/pesapalApi";
-import { fetchAllCustomers, addNewCustomer } from "@services/customers";
+import { fetchAllCustomers, addNewCustomer, getCustomerById } from "@services/customers";
 import { fetchAllPackages } from "@services/subscription";
 import SubscriptionPaymentOption from "./SubscriptionPaymentOption";
 import { usePOSMode } from "@context/POSModeContext";
@@ -32,6 +32,7 @@ import OrderCompleteCheck, { ORDER_COMPLETE_KEYFRAMES } from "@components/MODALS
 import { fmtKSH as fmtKsh } from "@utils/formatters";
 import { useNavigate } from "react-router-dom";
 import { saveOfflineOrder } from "../../services/offlineSync";
+import { getCreditSettings } from "@services/orders";
 
 const { Text, Title } = Typography;
 
@@ -233,6 +234,11 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails, holdForP
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [isNewCustomer, setIsNewCustomer] = useState(false);
 
+  // Pay later (System Setup → Pay Later): close the table with nothing or
+  // only part paid; the rest is owed by the selected customer.
+  const [payLater, setPayLater] = useState(false);
+  const [paidNow, setPaidNow] = useState<number>(0);
+
   const [stkPaymentStatus, setStkPaymentStatus] = useState<STKPaymentStatus>("idle");
   const [stkTrackingId, setStkTrackingId] = useState<string>("");
   const [countdown, setCountdown] = useState(0);
@@ -395,8 +401,41 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails, holdForP
     if (!drawerVisible) {
       setSearchTerm(""); setCustomers([]); setSelectedCustomerId(null);
       setSelectedCustomer(null); setCustomerInfo({ phone: "", name: "", email: "" });
+      setPayLater(false); setPaidNow(0);
     }
   }, [drawerVisible]);
+
+  const shopIdForCredit = localStorage.getItem("shopId") || "";
+  const { data: creditSettings } = useQuery({
+    queryKey: ["creditSettings", shopIdForCredit],
+    queryFn: () => getCreditSettings(shopIdForCredit),
+    enabled: drawerVisible && !!shopIdForCredit,
+    staleTime: 60_000,
+  });
+  const canPayLater = !!creditSettings?.can_sell;
+
+  const creditOwed = useMemo(
+    () => Math.max(0, parseFloat((grandTotal - (paidNow || 0)).toFixed(2))),
+    [grandTotal, paidNow]
+  );
+  // Credit-limit preview for the picked customer (the server enforces it too).
+  // A credit limit of 0 means no limit.
+  // Fresh customer record (search results can be stale or trimmed). Covers a
+  // customer picked here and one already linked on the cart.
+  const creditCustomerId = resolveCustomerId();
+  const { data: creditCustomer, isFetching: creditCustomerLoading } = useQuery({
+    queryKey: ["customerCredit", creditCustomerId],
+    queryFn: () => getCustomerById(creditCustomerId as string),
+    enabled: drawerVisible && !!creditSettings?.enabled && !!creditCustomerId && /^[a-f0-9]{24}$/i.test(String(creditCustomerId)),
+    staleTime: 0,
+  });
+  const creditSource = creditCustomer ?? selectedCustomer;
+  const creditCustomerName = creditSource?.customer_name || creditSource?.company_name || resolveCustomerName() || "Customer";
+  const creditLimit = Number(creditSource?.credit_limit) || 0;
+  const customerBalance = Number(creditSource?.current_balance) || 0;
+  const creditLeft = Math.max(0, creditLimit - customerBalance);
+  const limitReached = creditLimit > 0 && customerBalance >= creditLimit - 0.01;
+  const overCreditLimit = creditLimit > 0 && customerBalance + creditOwed > creditLimit + 0.01;
 
   const handleRemoveDiscount = () => {
     dispatch(updateCart({ cart: cartDetails, data: { discount: 0, discount_type: "" } } as any));
@@ -426,6 +465,12 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails, holdForP
     if (useSubscription) { message.info("Deselect subscription to use a payment method"); return; }
     if (isPesapalMethod(method) && !pesapalEnabled) {
       message.info("STK Push is not configured. Contact your administrator."); return;
+    }
+    // Pay later takes one method for the amount paid now — no split, no STK
+    if (payLater) {
+      if (isPesapalMethod(method)) { message.info("STK Push can't be used with pay later."); return; }
+      setSelectedMethod(selectedMethod === method ? null : method);
+      return;
     }
     if (!selectedMethod) setSelectedMethod(method);
     else if (!secondMethod) { setSecondMethod(method); setOpenModal(true); }
@@ -528,6 +573,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails, holdForP
       }
       return;
     }
+    if (payLater) { await handleCreditSale(); return; }
     if (!selectedMethod) { message.error("Please select a payment method."); return; }
     if (isPesapalMethod(selectedMethod)) { setPesapalModalVisible(true); return; }
     if (secondMethod) { setOpenModal(true); return; }
@@ -595,6 +641,40 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails, holdForP
     }
   };
 
+  const handleCreditSale = async () => {
+    if (!id) { message.error("No active table or slot."); return; }
+    const customerId = resolveCustomerId();
+    if (!customerId) { message.error("Pick the customer who will owe the balance."); return; }
+    const paid = parseFloat((paidNow || 0).toFixed(2));
+    if (paid < 0 || paid > grandTotal) { message.error("Amount paid now can't be more than the bill."); return; }
+    if (paid > 0 && !selectedMethod) { message.error("Pick how the amount paid now was paid."); return; }
+    if (overCreditLimit) {
+      message.error("This would take the customer over their credit limit.");
+      return;
+    }
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      message.error("Pay later needs an internet connection.");
+      return;
+    }
+    const result = await dispatch(createOrder({
+      cart_id: cartDetails?._id,
+      order_amount: grandTotal,
+      table_id: id,
+      updated_by: user?.id, order_no: cartDetails?.order_no, cart_items: cartDetails.items,
+      method_id: paid > 0 ? selectedMethod : null,
+      credit_sale: true,
+      payment_splits: paid > 0 && selectedMethod ? [{ method_id: selectedMethod, amount: paid }] : [],
+      customer_id: customerId,
+      customer_name: resolveCustomerName(), customer_phone: resolveCustomerPhone(),
+      customer_email: resolveCustomerEmail(),
+    }));
+    if (result.type.endsWith("/fulfilled")) {
+      setDrawerVisible(false); setSelectedCustomerId(null);
+      setPayLater(false); setPaidNow(0);
+      finalizeAfterPayment();
+    }
+  };
+
   const handleSTKPushPayment = async () => {
     if (!id) { message.error("No active table or slot."); return; }
     if (!customerInfo.phone) { message.error("Customer phone is required for STK Push"); return; }
@@ -648,6 +728,58 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails, holdForP
     });
   };
 
+  // Credit limit & balance for the chosen customer (pay later on)
+  const creditStat = (label: string, value: React.ReactNode, color = "#0f172a") => (
+    <div style={{ flex: "1 1 0", minWidth: 90 }}>
+      <Text style={{ fontSize: 11, color: "#64748b", display: "block" }}>{label}</Text>
+      <Text strong style={{ fontSize: 15, color }}>{value}</Text>
+    </div>
+  );
+  const creditPanel = creditSettings?.enabled && creditCustomerId ? (
+    <div
+      style={{
+        borderRadius: 10,
+        border: `1px solid ${limitReached ? "#fecaca" : "#e9d5ff"}`,
+        background: limitReached ? "#fef2f2" : "#faf5ff",
+        padding: "10px 12px",
+      }}
+    >
+      <Flex align="center" justify="space-between" gap={8} style={{ marginBottom: 8 }}>
+        <Text strong style={{ fontSize: 13 }}>
+          <UserOutlined style={{ marginRight: 6, color: "#7c3aed" }} />
+          {creditCustomerName}'s credit
+        </Text>
+        {creditCustomerLoading ? (
+          <Spin size="small" />
+        ) : limitReached ? (
+          <Tag color="error" style={{ margin: 0, borderRadius: 10 }}>Limit reached</Tag>
+        ) : creditLimit > 0 ? (
+          <Tag color="purple" style={{ margin: 0, borderRadius: 10 }}>Within limit</Tag>
+        ) : (
+          <Tag style={{ margin: 0, borderRadius: 10 }}>No limit set</Tag>
+        )}
+      </Flex>
+      <Flex gap={12} wrap="wrap">
+        {creditStat("Owes now", fmtKsh(customerBalance), customerBalance > 0 ? "#c2410c" : "#0f172a")}
+        {creditStat("Credit limit", creditLimit > 0 ? fmtKsh(creditLimit) : "None")}
+        {creditStat(
+          "Credit left",
+          creditLimit > 0 ? fmtKsh(creditLeft) : "Unlimited",
+          limitReached ? "#dc2626" : "#15803d"
+        )}
+      </Flex>
+      {payLater && (
+        <Text style={{ fontSize: 12, color: "#64748b", display: "block", marginTop: 8 }}>
+          After this sale they'll owe{" "}
+          <Text strong style={{ fontSize: 12, color: overCreditLimit ? "#dc2626" : "#7c3aed" }}>
+            {fmtKsh(customerBalance + creditOwed)}
+          </Text>
+          {creditLimit > 0 && ` of ${fmtKsh(creditLimit)}`}
+        </Text>
+      )}
+    </div>
+  ) : null;
+
   if (isLoading || packagesLoading) return (
     <Flex justify="center" style={{ width: "100%", padding: "4px 0" }}><Spin /></Flex>
   );
@@ -690,11 +822,21 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails, holdForP
             <Flex gap={10} style={{ width: "100%" }}>
               <Button
                 type="primary" size="large" block onClick={handlePayment} loading={loading}
-                disabled={useSubscription ? !selectedSubscription : !selectedMethod}
+                disabled={
+                  useSubscription
+                    ? !selectedSubscription
+                    : payLater
+                      ? !resolveCustomerId() || (paidNow > 0 && !selectedMethod) || overCreditLimit
+                      : !selectedMethod
+                }
                 icon={useSubscription ? <GiftOutlined /> : <FileOutlined />}
                 style={{ borderRadius: 8 }}
               >
-                {useSubscription ? "Confirm Subscription" : "Confirm Payment"}
+                {useSubscription
+                  ? "Confirm Subscription"
+                  : payLater
+                    ? `Confirm — ${fmtKsh(creditOwed)} owed`
+                    : "Confirm Payment"}
               </Button>
               <Button
                 size="large" block
@@ -787,8 +929,67 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails, holdForP
             />
           )}
 
+          {/* ── Pay later ────────────────────────────────────────────────── */}
+          {canPayLater && !useSubscription && (
+            <div style={{ borderRadius: 12, border: payLater ? "2px solid #7c3aed" : "1px solid #e2e8f0", overflow: "hidden" }}>
+              <Flex
+                align="center" justify="space-between" gap={8}
+                style={{ padding: "10px 14px", background: payLater ? "#f5f3ff" : "#fafafa" }}
+              >
+                <Flex align="center" gap={8}>
+                  <WalletOutlined style={{ color: "#7c3aed", fontSize: 13 }} />
+                  <div>
+                    <Text strong style={{ fontSize: 13, display: "block" }}>Pay later</Text>
+                    <Text type="secondary" style={{ fontSize: 11 }}>
+                      Customer pays nothing or part now; the rest is owed
+                    </Text>
+                  </div>
+                </Flex>
+                <Switch
+                  checked={payLater}
+                  onChange={(on) => {
+                    setPayLater(on);
+                    setPaidNow(0);
+                    setSecondMethod(null);
+                    if (on && selectedMethod && isPesapalMethod(selectedMethod)) setSelectedMethod(null);
+                  }}
+                />
+              </Flex>
+              {payLater && (
+                <Space direction="vertical" style={{ width: "100%", padding: "12px 14px" }} size={10}>
+                  <Flex align="center" justify="space-between" gap={12} wrap="wrap">
+                    <Text style={{ fontSize: 13 }}>Paid now</Text>
+                    <InputNumber
+                      min={0} max={grandTotal} precision={2} value={paidNow}
+                      onChange={(v) => setPaidNow(Number(v) || 0)}
+                      prefix="KSh" style={{ width: 180 }}
+                    />
+                  </Flex>
+                  {paidNow > 0 && !selectedMethod && (
+                    <Text type="warning" style={{ fontSize: 12 }}>
+                      Pick a payment method below for the amount paid now.
+                    </Text>
+                  )}
+                  <Flex justify="space-between">
+                    <Text strong style={{ fontSize: 14 }}>Owed after this sale</Text>
+                    <Text strong style={{ fontSize: 15, color: "#7c3aed" }}>{fmtKsh(creditOwed)}</Text>
+                  </Flex>
+                  {!resolveCustomerId() && (
+                    <Alert type="warning" showIcon style={{ borderRadius: 8 }}
+                      message="Pick the customer who will owe the balance (search below)." />
+                  )}
+                  {overCreditLimit && (
+                    <Alert type="error" showIcon style={{ borderRadius: 8 }}
+                      message="Over credit limit"
+                      description={`This sale would bring the total owed to ${fmtKsh(customerBalance + creditOwed)}, above the ${fmtKsh(creditLimit)} limit. Take more payment now or raise the limit on the customer.`} />
+                  )}
+                </Space>
+              )}
+            </div>
+          )}
+
           {/* ── Customer search ──────────────────────────────────────────── */}
-          {hasActivePackages && (
+          {(hasActivePackages || canPayLater) && (
             <>
               <div style={{ borderRadius: 12, border: selectedCustomerId ? `2px solid ${primaryColor}` : "1px solid #e2e8f0", overflow: "hidden", transition: "border-color 0.2s" }}>
                 <div style={{ padding: "10px 14px 8px", borderBottom: `1px solid ${primaryColor}20`, background: `${primaryColor}08` }}>
@@ -810,6 +1011,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails, holdForP
                     }
                     showSearch allowClear
                     value={selectedCustomerId}
+                    optionLabelProp="label"
                     onChange={handleCustomerSelect}
                     onSearch={handleSearch}
                     onClear={() => {
@@ -839,8 +1041,17 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails, holdForP
                     suffixIcon={<SearchOutlined />}
                     dropdownStyle={{ maxHeight: 360, overflow: "auto" }}
                   >
-                    {customers.map((customer: any) => (
-                      <Select.Option key={customer._id} value={customer._id}>
+                    {/* Keep the picked customer as an option once the search list
+                        clears, so the box shows their name instead of the raw id */}
+                    {(selectedCustomer && !customers.some((c) => c._id === selectedCustomer._id)
+                      ? [selectedCustomer, ...customers]
+                      : customers
+                    ).map((customer: any) => (
+                      <Select.Option
+                        key={customer._id}
+                        value={customer._id}
+                        label={customer.customer_name || customer.company_name || String(customer.phone || "")}
+                      >
                         <Flex align="center" gap={10} style={{ padding: "6px 0" }}>
                           <Avatar icon={<UserOutlined />} size={28} style={{ background: primaryColor, flexShrink: 0 }} />
                           <div style={{ flex: 1, minWidth: 0 }}>
@@ -874,10 +1085,12 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails, holdForP
                       </div>
                     </Flex>
                   )}
+
+                  {creditPanel && <div style={{ marginTop: 10 }}>{creditPanel}</div>}
                 </div>
               </div>
 
-              {selectedCustomerId && (
+              {selectedCustomerId && hasActivePackages && !payLater && (
                 <SubscriptionPaymentOption
                   customerId={selectedCustomerId}
                   onSubscriptionSelect={handleSubscriptionSelect}
@@ -894,7 +1107,9 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails, holdForP
               <div style={{ padding: "10px 14px 8px", borderBottom: `1px solid ${primaryColor}20`, background: `${primaryColor}08` }}>
                 <Flex align="center" gap={8}>
                   <WalletOutlined style={{ color: primaryColor, fontSize: 13 }} />
-                  <Text strong style={{ fontSize: 13 }}>Payment Method</Text>
+                  <Text strong style={{ fontSize: 13 }}>
+                    {payLater ? "Payment Method (for amount paid now)" : "Payment Method"}
+                  </Text>
                   {selectedMethod && (
                     <Tag color="blue" style={{ fontSize: 11, margin: 0, borderRadius: 10 }}>
                       {getMethodLabel(paymentMethods?.find((m) => m._id === selectedMethod)?.name || "")}

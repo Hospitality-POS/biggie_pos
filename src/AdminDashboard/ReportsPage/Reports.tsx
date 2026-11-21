@@ -18,7 +18,10 @@ import {
   EnvironmentOutlined,
   TagOutlined,
   ClockCircleOutlined,
+  WalletOutlined,
 } from "@ant-design/icons";
+import DebtsReportModal, { type DebtStatus } from "@components/Reports/DebtsReport";
+import { getCreditSummary } from "@services/orders";
 import PurchaseReportModal from "@components/Reports/PurchaseReport";
 import VoidReportModal from "@components/Reports/VoidReport";
 import VATReportModal from "@components/Reports/VATReport";
@@ -82,6 +85,7 @@ const TAB_CFG = [
   { key: "delivery", icon: <CarOutlined />, iconColor: C.blue, label: "Delivery" },
   { key: "inventory_usage", icon: <BarChartOutlined />, iconColor: C.purple, label: "Inventory Usage" },
   { key: "vat", icon: <DollarOutlined />, iconColor: C.green, label: "VAT Summary" },
+  { key: "debts", icon: <WalletOutlined />, iconColor: C.orange, label: "Debts (Pay Later)" },
   { key: "product_type", icon: <TagOutlined />, iconColor: C.blue, label: "Top sellers" },
   { key: "top_earners", icon: <TrophyOutlined />, iconColor: C.orange, label: "Top Earners" },
   { key: "staff_hours", icon: <ClockCircleOutlined />, iconColor: C.purple, label: "Staff Hours" },
@@ -229,6 +233,15 @@ const AdminReports: React.FC = () => {
     setActiveTab((current) => (current === "sale" ? healthcareTabs[0].key : current));
   }, [healthcareTabs]);
   const [form] = Form.useForm();
+  // Debts (pay later) report
+  const [debtsOpen, setDebtsOpen] = useState(false);
+  const [debtsRange, setDebtsRange] = useState<[string, string]>(["", ""]);
+  const [debtsFilters, setDebtsFilters] = useState<{ status: DebtStatus; customer_id?: string; shop_id?: string }>({ status: "unpaid" });
+  const { data: debtsSummary } = useQuery({
+    queryKey: ["creditSummary", localStorage.getItem("shopId")],
+    queryFn: () => getCreditSummary(localStorage.getItem("shopId") || undefined),
+    enabled: activeTab === "debts",
+  });
   const [queryKey, setQueryKey] = useState<any>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [groupBy, setGroupBy] = useState<string | null>(null);
@@ -290,6 +303,8 @@ const AdminReports: React.FC = () => {
 
   const handleTabChange = (key: string) => {
     setActiveTab(key);
+    setDebtsOpen(false);
+    setDebtsRange(["", ""]);
     setOpenSalesModal(false);
     setOpenPurchaseModal(false);
     setOpenVoidedModal(false);
@@ -1096,6 +1111,74 @@ const AdminReports: React.FC = () => {
               loading={staffHoursLoading && !!staffHoursQueryKey}
               startDate={staffHoursDateRange[0]}
               endDate={staffHoursDateRange[1]}
+            />
+          </Form>
+        );
+
+      case "debts":
+        return (
+          <Form form={form} layout="vertical" initialValues={{ debt_status: "unpaid" }} onFinish={(values) => {
+            setDebtsFilters({
+              status: values.debt_status || "unpaid",
+              customer_id: values.debt_customer_id || undefined,
+              shop_id: values.shop_id || localStorage.getItem("shopId") || undefined,
+            });
+            setDebtsOpen(true);
+          }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "0 16px" }}>
+              <div style={{ flex: "1 1 300px", minWidth: 0 }}>
+                <DateRangeField rangePresets={rangePresets}
+                  onChange={(dates) => setDebtsRange([
+                    dates?.[0]?.format("YYYY-MM-DD HH:mm") || "",
+                    dates?.[1]?.format("YYYY-MM-DD HH:mm") || "",
+                  ])} />
+              </div>
+              {isAdminRoute && (
+                <div style={{ flex: "1 1 200px", minWidth: 0 }}>
+                  <ShopField />
+                </div>
+              )}
+              <div style={{ flex: "1 1 200px", minWidth: 0 }}>
+                <Form.Item
+                  name="debt_status"
+                  label={<span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.subText }}><WalletOutlined /> Status</span>}
+                  style={{ marginBottom: 14 }}
+                >
+                  <Select
+                    style={{ width: "100%", borderRadius: 8 }}
+                    options={[
+                      { value: "unpaid", label: "Still owed" },
+                      { value: "paid", label: "Fully paid" },
+                      { value: "all", label: "All pay-later sales" },
+                    ]}
+                  />
+                </Form.Item>
+              </div>
+              <div style={{ flex: "1 1 200px", minWidth: 0 }}>
+                <Form.Item
+                  name="debt_customer_id"
+                  label={<span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.subText }}><UserOutlined /> Customer</span>}
+                  style={{ marginBottom: 14 }}
+                >
+                  <Select
+                    showSearch allowClear placeholder="All customers" style={{ width: "100%", borderRadius: 8 }}
+                    options={(debtsSummary?.debtors || [])
+                      .filter((d) => d._id)
+                      .map((d) => ({ value: d._id as string, label: `${d.customer_name || "Customer"} — owes KES ${d.owed.toLocaleString()}` }))}
+                    filterOption={(i, o) => String(o?.label ?? "").toLowerCase().includes(i.toLowerCase())}
+                  />
+                </Form.Item>
+              </div>
+            </div>
+            <GenerateButton label="Generate Debts Report" icon={<WalletOutlined />} disabled={!debtsRange[0] || !debtsRange[1]} />
+            <DebtsReportModal
+              openM={debtsOpen}
+              onCloseM={() => setDebtsOpen(false)}
+              startDate={debtsRange[0]}
+              endDate={debtsRange[1]}
+              status={debtsFilters.status}
+              customerId={debtsFilters.customer_id}
+              shopId={debtsFilters.shop_id}
             />
           </Form>
         );
