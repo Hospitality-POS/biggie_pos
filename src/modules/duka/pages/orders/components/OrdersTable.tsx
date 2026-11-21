@@ -69,11 +69,21 @@ const OrderTypeTag: React.FC<{ type: string }> = ({ type }) => {
   return <span style={badge(s.bg, s.color, s.border)}>{s.icon} {displayType}</span>;
 };
 
-const PaymentStatusTag: React.FC<{ payments: any[]; orderType: string; orderAmount: any }> = ({
-  payments, orderType, orderAmount,
+const PaymentStatusTag: React.FC<{ payments: any[]; orderType: string; orderAmount: any; record?: any }> = ({
+  payments, orderType, orderAmount, record,
 }) => {
   if (orderType === "Subscription_Visit")
     return <span style={badge("#faf5ff", C.purple, "#e9d5ff")}>Pre-paid</span>;
+  if (record?.is_credit_sale) {
+    const owed = Number(record.amount_due) || 0;
+    return owed > 0.01 && record.payment_status === "PENDING"
+      ? (
+        <Tooltip title="Pay later — collect it from the Unpaid tab">
+          <span style={badge("#fff7ed", C.orange, "#fed7aa")}>Owes {fmtKES(owed)}</span>
+        </Tooltip>
+      )
+      : <span style={badge("#f0fdf4", C.green, "#bbf7d0")}>✓ Paid (pay later)</span>;
+  }
   if (!payments || payments.length === 0)
     return (
       <Tooltip title="No payment records found. Click repost to fix.">
@@ -306,7 +316,8 @@ const MobileOrderCard: React.FC<{
   expanded: boolean; onRefresh: () => void;
 }> = ({ record, isAdmin, repostingPaymentId, onEditDate, onRepost, onDelete, onExpand, expanded, onRefresh }) => {
   const hasPayments = record.order_payments?.length > 0;
-  const isRegular = record.order_type === "Regular";
+  // Pay-later orders are collected from the Unpaid tab, never reposted
+  const isRegular = record.order_type === "Regular" && !record.is_credit_sale;
   const needsPayment = isRegular && !hasPayments;
 
   return (
@@ -330,7 +341,7 @@ const MobileOrderCard: React.FC<{
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <Text style={{ fontSize: 11, color: C.subText }}>Payment</Text>
-          <PaymentStatusTag payments={record.order_payments} orderType={record.order_type} orderAmount={record.order_amount} />
+          <PaymentStatusTag payments={record.order_payments} orderType={record.order_type} orderAmount={record.order_amount} record={record} />
         </div>
         <div style={{ display: "flex", justifyContent: "space-between" }}>
           <Text style={{ fontSize: 11, color: C.subText }}>Time</Text>
@@ -585,7 +596,9 @@ const OrdersTable = () => {
       // FIX: use safeFormatDate instead of dayjs(order.createdAt).format(...)
       "Time Closed": safeFormatDate(order?.createdAt, "MMM DD, YYYY h:mm A"),
       "Order Type": order?.order_type || "Regular",
-      "Payment Status": order?.order_payments?.length > 0 ? "Paid" : "Missing Payment",
+      "Payment Status": order?.is_credit_sale && order?.payment_status === "PENDING"
+        ? `Owes KES ${(Number(order.amount_due) || 0).toFixed(2)}`
+        : order?.order_payments?.length > 0 ? "Paid" : "Missing Payment",
     };
   });
 
@@ -778,7 +791,7 @@ const OrdersTable = () => {
     {
       title: "Payment Status", dataIndex: "order_payments", key: "payment_status", hideInSearch: true,
       render: (payments: any[], record: any) => (
-        <PaymentStatusTag payments={payments} orderType={record.order_type} orderAmount={record.order_amount} />
+        <PaymentStatusTag payments={payments} orderType={record.order_type} orderAmount={record.order_amount} record={record} />
       ),
     },
     {
@@ -804,7 +817,8 @@ const OrdersTable = () => {
       title: "Actions", search: false, key: "action", width: 220, fixed: "right",
       render: (_text: any, record: any) => {
         const hasPayments = record.order_payments?.length > 0;
-        const isRegular = record.order_type === "Regular";
+        // Pay-later orders are collected from the Unpaid tab, never reposted
+        const isRegular = record.order_type === "Regular" && !record.is_credit_sale;
         const needsPayment = isRegular && !hasPayments;
         const hasCustomer = record.customer_id || record.customer_name;
         return (

@@ -255,7 +255,21 @@ export const fetchPortalContext = async (tenantCode: string | null, shopId: stri
     ...portalConfig(tenantCode),
     params: { shop_id: shopId },
   });
-  return data as { packages: PortalPackage[]; payment_methods: PortalPaymentMethod[] };
+  return data as {
+    packages: PortalPackage[];
+    payment_methods: PortalPaymentMethod[];
+    /** The business's public name and logo, for the page header */
+    business?: { name: string | null; logo: string | null; shop_name: string | null };
+  };
+};
+
+/** A new customer signs themselves up from the QR page (no login needed) */
+export const registerFromPortal = async (
+  tenantCode: string | null,
+  body: { customer_name: string; phone: string | number; phone_code?: number; email?: string; shop_id: string }
+) => {
+  const { data } = await axiosInstance.post(`${categ_url}/portal/register`, body, portalConfig(tenantCode));
+  return data as { message: string; customer: { _id: string; customer_name: string; code?: string } };
 };
 
 export const lookupPortalCustomer = async (

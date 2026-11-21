@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
-import { Button, Form, Input, Typography, message, Row, Col, AutoComplete, Radio, Select, DatePicker } from "antd";
+import { Button, Form, Input, InputNumber, Typography, message, Row, Col, AutoComplete, Radio, Select, DatePicker } from "antd";
 import dayjs, { type Dayjs } from "dayjs";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { getCreditSettings } from "@services/orders";
 import { useHealthcareSettings } from "@hooks/useHealthcareSettings";
 import { useHealthcareAccess } from "@pages/Healthcare/shared";
 import { fetchPatient, savePatientProfile, type Allergy, type PatientProfile } from "@services/healthcare";
@@ -202,6 +203,16 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
     const { options, loading: placesLoading, getPlacePredictions, getPlaceDetails } = useGooglePlacesAutocomplete();
     const queryClient = useQueryClient();
 
+    // Pay later on (System Setup → Pay Later) → ask for a credit limit
+    const creditShopId = localStorage.getItem("shopId") || "";
+    const { data: creditSettings } = useQuery({
+        queryKey: ["creditSettings", creditShopId],
+        queryFn: () => getCreditSettings(creditShopId),
+        enabled: visible && !!creditShopId,
+        staleTime: 60_000,
+    });
+    const payLaterOn = !!creditSettings?.enabled;
+
     // leadPrefill always forces create mode regardless of mode prop
     const isFromLead = !!leadPrefill;
     const isEdit = mode === "edit" && !isFromLead;
@@ -347,7 +358,10 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                 type: values.type || "individual",
                 kra_pin: values.kra_pin || undefined,
                 payment_terms: values.payment_terms ? parseInt(values.payment_terms) : undefined,
-                credit_limit: values.credit_limit ? parseFloat(values.credit_limit) : undefined,
+                // 0 is a real value here (no limit), so only skip when blank
+                credit_limit: values.credit_limit === null || values.credit_limit === undefined || values.credit_limit === ""
+                    ? undefined
+                    : Math.max(0, parseFloat(values.credit_limit) || 0),
                 assigned_to: values.assigned_to || undefined,
                 notes: values.notes || undefined,
                 ...(isHospital ? {
@@ -793,6 +807,25 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                                     style={{ borderRadius: 8, textTransform: "uppercase", maxWidth: 360 }}
                                     onChange={(e) => form.setFieldsValue({ kra_pin: e.target.value.toUpperCase() })}
                                 />
+                            </Form.Item>
+                        </>
+                    )}
+
+                    {payLaterOn && (
+                        <>
+                            {sectionTitle("Pay Later")}
+                            <Form.Item
+                                name="credit_limit" label="Credit limit"
+                                extra={
+                                    <Text style={{ fontSize: 11, color: C.subText }}>
+                                        The most this {noun.toLowerCase()} can owe on pay-later sales. Once they reach it, checkout won't allow more on credit until they pay. Leave at 0 for no limit.
+                                        {isEdit && customer
+                                            ? ` They owe KES ${(Number(customer.current_balance) || 0).toLocaleString()} now.`
+                                            : ""}
+                                    </Text>
+                                }
+                            >
+                                <InputNumber min={0} precision={2} prefix="KSh" placeholder="0 = no limit" style={{ width: "100%", maxWidth: 360, borderRadius: 8 }} />
                             </Form.Item>
                         </>
                     )}
