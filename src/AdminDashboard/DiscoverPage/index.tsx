@@ -1056,6 +1056,11 @@ const DiscoverPage: React.FC = () => {
             {tab === "imagine" && (
             <ImagineWithout
                 onLearnMore={(id) => {
+                    // Base One is an app, not a product: show how to get it
+                    if (id === "base_one") {
+                        setParams({ tab: "access" }, { replace: true });
+                        return;
+                    }
                     const integration = INTEGRATIONS.find((i) => i.id === id);
                     if (integration) {
                         setSelectedIntegration(integration);

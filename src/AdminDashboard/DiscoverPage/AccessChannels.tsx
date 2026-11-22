@@ -7,16 +7,25 @@ import {
   DownloadOutlined,
   GlobalOutlined,
   MobileOutlined,
-  CustomerServiceOutlined,
   CheckCircleOutlined,
 } from "@ant-design/icons";
+import { QRCodeSVG } from "qrcode.react";
 import { THEME_C } from "@utils/getPrimaryColor";
+import { BASE_ONE_PLAY_STORE_URL } from "@utils/appLinks";
 
 const { Text, Title } = Typography;
 const C = THEME_C;
 
 const BASE_DOMAIN = "basepoint.co.ke";
-const OWNER_APP_DOWNLOAD_URL = "https://reliatechdocs.nyc3.digitaloceanspaces.com/APKS/basepoint-owner.apk";
+const BASE_ONE_COLOR = "#10b981";
+
+// What each role does in Base One (it follows the products and permissions they have)
+const BASE_ONE_ROLES: { who: string; what: string }[] = [
+  { who: "Owners & managers", what: "Sales, branch performance, P&L and business health" },
+  { who: "Cashiers & waiters", what: "Sell, take table orders, receive payments and manage stock" },
+  { who: "Every staff member", what: "Clock in, request leave and download payslips" },
+  { who: "Sales & property teams", what: "WhatsApp chats and targets in Mteja, rent and meter readings in Dala" },
+];
 
 interface Channel {
   key: string;
@@ -35,7 +44,7 @@ const webAddress = () => {
   return host.endsWith(`.${BASE_DOMAIN}`) ? host : `yourbusiness.${BASE_DOMAIN}`;
 };
 
-/** "Ways to access Basepoint": web, PWA, desktop, Owner app and Waiter app. */
+/** "Ways to access Basepoint": the Base One mobile app, web, PWA and desktop. */
 const AccessChannels: React.FC = () => {
   const screens = Grid.useBreakpoint();
   const isPhone = !screens.md;
@@ -129,39 +138,78 @@ const AccessChannels: React.FC = () => {
         </Button>
       ),
     },
-    {
-      key: "owner",
-      icon: <AndroidOutlined />,
-      color: "#10b981",
-      title: "Business Owner app",
-      who: "Owners & managers",
-      text: "Sales, branches and reports on your phone, wherever you are.",
-      steps: [
-        "Download the app on your Android phone",
-        "Allow install from this source if asked",
-        "Sign in with your owner account",
-      ],
-      action: (
-        <Button icon={<DownloadOutlined />} href={OWNER_APP_DOWNLOAD_URL} target="_blank" rel="noopener noreferrer">
-          Download for Android
-        </Button>
-      ),
-    },
-    {
-      key: "waiter",
-      icon: <CustomerServiceOutlined />,
-      color: "#f59e0b",
-      title: "Restaurant Waiter app",
-      who: "Waiters & service staff",
-      text: "Take orders at the table and send them straight to the kitchen and bar.",
-      steps: [
-        "Install the Waiter app on the waiter's phone",
-        "Sign in with the waiter's staff details",
-        "Pick a table and start taking orders",
-      ],
-      action: <Text style={{ fontSize: 12.5, color: C.subText }}>Contact support to get the Waiter app.</Text>,
-    },
   ];
+
+  const baseOne = (
+    <div
+      style={{
+        background: `linear-gradient(135deg, ${BASE_ONE_COLOR}10 0%, #fff 60%)`,
+        border: `1px solid ${BASE_ONE_COLOR}40`,
+        borderTop: `3px solid ${BASE_ONE_COLOR}`,
+        borderRadius: 14,
+        padding: isPhone ? 14 : 20,
+        marginBottom: 16,
+        display: "flex",
+        flexDirection: isPhone ? "column" : "row",
+        gap: isPhone ? 14 : 24,
+        alignItems: isPhone ? "stretch" : "center",
+      }}
+    >
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+          <div style={{ background: `${BASE_ONE_COLOR}15`, color: BASE_ONE_COLOR, borderRadius: 10, padding: "7px 9px", fontSize: 18, lineHeight: 1 }}>
+            <AndroidOutlined />
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <Text strong style={{ fontSize: 16, color: C.darkText, display: "block", lineHeight: 1.25 }}>
+              Base One app <span style={{ fontSize: 11, fontWeight: 700, color: "#fff", background: BASE_ONE_COLOR, borderRadius: 999, padding: "1px 8px", marginLeft: 6, verticalAlign: 2 }}>NEW</span>
+            </Text>
+            <Text style={{ fontSize: 12, color: BASE_ONE_COLOR, fontWeight: 600 }}>One app for owners and every staff member</Text>
+          </div>
+        </div>
+
+        <Text style={{ fontSize: 13, color: C.subText, display: "block", marginBottom: 12 }}>
+          Your whole business on Android. Everyone signs in with their staff details and sees only the products and
+          tools their role allows. It replaces the separate Owner and Waiter apps.
+        </Text>
+
+        <div style={{ display: "grid", gridTemplateColumns: isPhone ? "1fr" : "1fr 1fr", gap: 8, marginBottom: 14 }}>
+          {BASE_ONE_ROLES.map((r) => (
+            <div key={r.who} style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, padding: "8px 10px" }}>
+              <Text strong style={{ fontSize: 12.5, color: C.darkText, display: "block" }}>{r.who}</Text>
+              <Text style={{ fontSize: 12, color: C.subText, lineHeight: 1.4 }}>{r.what}</Text>
+            </div>
+          ))}
+        </div>
+
+        <ol style={{ paddingLeft: 18, margin: "0 0 14px", color: C.darkText, fontSize: 12.5, lineHeight: 1.7 }}>
+          <li>Get Base One from Google Play</li>
+          <li>Enter your company code</li>
+          <li>Sign in with your password, PIN or email code</li>
+        </ol>
+
+        <Button
+          type="primary"
+          icon={<DownloadOutlined />}
+          href={BASE_ONE_PLAY_STORE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ background: BASE_ONE_COLOR, borderColor: BASE_ONE_COLOR }}
+        >
+          Get it on Google Play
+        </Button>
+      </div>
+
+      {!isPhone && (
+        <div style={{ textAlign: "center", flexShrink: 0 }}>
+          <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 12, padding: 12, display: "inline-block" }}>
+            <QRCodeSVG value={BASE_ONE_PLAY_STORE_URL} size={148} level="M" />
+          </div>
+          <Text style={{ fontSize: 12, color: C.subText, display: "block", marginTop: 6 }}>Scan with your phone</Text>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <section>
@@ -170,9 +218,11 @@ const AccessChannels: React.FC = () => {
           One account, every screen
         </Title>
         <Text style={{ fontSize: 13, color: C.subText }}>
-          Your team can reach Basepoint in five ways — pick what suits each person and device.
+          Your team can reach Basepoint in four ways. Pick what suits each person and device.
         </Text>
       </div>
+
+      {baseOne}
 
       <div
         style={{
