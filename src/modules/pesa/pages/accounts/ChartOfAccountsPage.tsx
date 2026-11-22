@@ -18,6 +18,7 @@ import { fetchSystemSetupDetailsById } from "@services/systemsetup";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import AccountFormDrawer from "./AccountFormDrawer";
 import AccountLedgerDrawer from "./AccountLedgerDrawer";
+import { getPermissionChecker } from "@utils/getPermissionChecker";
 
 const { Text } = Typography;
 
@@ -114,6 +115,10 @@ const ChartOfAccountsPage: React.FC = () => {
     // Chart of Accounts is scoped to the POS Shop record (localStorage.shopId,
     // set at login), not the SaaS tenant record (getCurrentTenantId).
     const shopId = localStorage.getItem("shopId") || "";
+
+    // Main accounts are locked, except for admins (who pass every check) and
+    // roles granted "Edit Main Accounts". Deactivating and deleting stay locked.
+    const canEditMain = React.useMemo(() => getPermissionChecker()("ACCOUNTING_COA_UPDATE_MAIN"), []);
 
     const [activeType, setActiveType] = useState<AccountType | "ALL">("ALL");
     const [searchText, setSearchText] = useState("");
@@ -302,16 +307,17 @@ const ChartOfAccountsPage: React.FC = () => {
             title: "Actions", key: "actions", width: 150, fixed: "right" as const,
             render: (_: any, r: ChartOfAccount) => {
                 const isMain = isMainAccount(r);
+                const editLocked = isMain && !canEditMain;
                 return (
                     <Space size={4}>
                         <Tooltip title="View Ledger">
                             <Button icon={<BookOutlined />} size="small" onClick={() => openLedger(r)} />
                         </Tooltip>
-                        <Tooltip title={isMain ? "Main accounts cannot be edited" : "Edit"}>
+                        <Tooltip title={editLocked ? "You don't have permission to edit main accounts" : isMain ? "Edit main account" : "Edit"}>
                             <Button
                                 icon={<EditOutlined />} size="small"
-                                onClick={() => !isMain && openEdit(r)}
-                                disabled={isMain}
+                                onClick={() => !editLocked && openEdit(r)}
+                                disabled={editLocked}
                             />
                         </Tooltip>
                         <Tooltip title={isMain ? "Main accounts cannot be deactivated" : (r.is_active ? "Deactivate" : "Activate")}>
@@ -452,7 +458,9 @@ const ChartOfAccountsPage: React.FC = () => {
                     toolbar={{
                         // FIX: was `accounts.length` (undefined) — now filteredAccounts.length
                         title: `${filteredAccounts.length} ${activeType === "ALL" ? "total" : activeType.toLowerCase()} accounts`,
-                        tooltip: "Main & system accounts cannot be edited, deactivated or deleted",
+                        tooltip: canEditMain
+                            ? "Main accounts can't be deactivated or deleted. System accounts keep their code and type."
+                            : "Main & system accounts cannot be edited, deactivated or deleted",
                     }}
                     rowClassName={(r) => !r.is_active ? "opacity-50" : ""}
                     columnsState={{
