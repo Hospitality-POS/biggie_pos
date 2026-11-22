@@ -10,11 +10,22 @@
   box-sizing: border-box;
 }
 
-/* Apply Poppins font */
+/* Brand fonts: --font-body / --font-heading are set from Settings → Logo & Branding
+   (src/utils/brandFonts.ts); Poppins is the default */
 body, input, button, select, textarea {
-  font-family: var(--font-poppins);
+  font-family: var(--font-body, var(--font-poppins));
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6,
+.ant-typography:is(h1, h2, h3, h4, h5, h6),
+.ant-card-head-title,
+.ant-pro-card-title,
+.ant-modal-title,
+.ant-drawer-title,
+.ant-page-header-heading-title {
+  font-family: var(--font-heading, var(--font-body, var(--font-poppins)));
 }
 
 body {

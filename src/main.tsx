@@ -18,7 +18,11 @@ import { reloadForNewVersion } from "@utils/lazyWithReload";
 import { initDesktopZoom } from "@utils/desktopZoom";
 import { initDesktopUpdater } from "@utils/desktopUpdater";
 import { initPwaFreshness } from "@utils/pwaFreshness";
+import { applyBrandFonts, fontStack, useBrandFonts } from "@utils/brandFonts";
 import dayjs from "dayjs";
+
+// Apply the saved brand fonts before first paint, so text doesn't jump
+applyBrandFonts();
 
 // ProComponents set dayjs's GLOBAL locale to "zh-cn" whenever one renders
 // without an antd locale above it (static Modal.confirm, portals), which turns
@@ -63,13 +67,14 @@ export const queryClient = new QueryClient();
 
 const AppWithColor = () => {
   const primaryColor = usePrimaryColor();
+  const fonts = useBrandFonts();
   return (
     <ConfigProvider
       locale={enUS}
       theme={{
         token: {
           colorPrimary: primaryColor,
-          fontFamily: "Inter, sans-serif",
+          fontFamily: fontStack(fonts.body),
         },
         components: {
           Card: { actionsBg: primaryColor },
