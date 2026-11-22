@@ -533,6 +533,7 @@ export const PERMISSIONS: Record<string, Permission> = {
     ACCOUNTING_COA_CREATE: { key: "ACCOUNTING_COA_CREATE", label: "Create Account", module: MODULES.ACCOUNTING_COA, action: "create", moduleScope: "accounting" },
     ACCOUNTING_COA_UPDATE: { key: "ACCOUNTING_COA_UPDATE", label: "Update Account", module: MODULES.ACCOUNTING_COA, action: "update", moduleScope: "accounting" },
     ACCOUNTING_COA_UPDATE_OPENING_BALANCE: { key: "ACCOUNTING_COA_UPDATE_OPENING_BALANCE", label: "Update Account Opening Balance", module: MODULES.ACCOUNTING_COA, action: "update", moduleScope: "accounting" },
+    ACCOUNTING_COA_UPDATE_MAIN: { key: "ACCOUNTING_COA_UPDATE_MAIN", label: "Edit Main Accounts", module: MODULES.ACCOUNTING_COA, action: "update", moduleScope: "accounting" },
     ACCOUNTING_COA_TOGGLE_ACTIVE: { key: "ACCOUNTING_COA_TOGGLE_ACTIVE", label: "Activate / Deactivate Account", module: MODULES.ACCOUNTING_COA, action: "special", moduleScope: "accounting" },
     ACCOUNTING_COA_DELETE: { key: "ACCOUNTING_COA_DELETE", label: "Delete Account", module: MODULES.ACCOUNTING_COA, action: "delete", moduleScope: "accounting" },
     ACCOUNTING_COA_SEED_DEFAULTS: { key: "ACCOUNTING_COA_SEED_DEFAULTS", label: "Seed Default Chart of Accounts", module: MODULES.ACCOUNTING_COA, action: "special", moduleScope: "accounting" },
