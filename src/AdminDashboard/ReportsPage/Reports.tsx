@@ -19,8 +19,11 @@ import {
   TagOutlined,
   ClockCircleOutlined,
   WalletOutlined,
+  ExperimentOutlined,
 } from "@ant-design/icons";
 import DebtsReportModal, { type DebtStatus } from "@components/Reports/DebtsReport";
+import RefillReportModal from "@components/Reports/RefillReport";
+import { useRefillSetting } from "@hooks/useRefillSetting";
 import { getCreditSummary } from "@services/orders";
 import PurchaseReportModal from "@components/Reports/PurchaseReport";
 import VoidReportModal from "@components/Reports/VoidReport";
@@ -223,7 +226,18 @@ const GenerateButton: React.FC<{
 const AdminReports: React.FC = () => {
   // Hospital mode: the healthcare registers come first, beside the store reports
   const healthcareTabs = useHealthcareReportTabs();
-  const tabs = useMemo(() => [...healthcareTabs, ...TAB_CFG], [healthcareTabs]);
+  // Refills turned on (System Setup → Inventory Controls) add a Refills report
+  const refillOn = useRefillSetting();
+  const tabs = useMemo(
+    () => [
+      ...healthcareTabs,
+      ...TAB_CFG,
+      ...(refillOn
+        ? [{ key: "refills", icon: <ExperimentOutlined />, iconColor: C.blue, label: "Refills" }]
+        : []),
+    ],
+    [healthcareTabs, refillOn]
+  );
   const [activeTab, setActiveTab] = useState<string>("sale");
   // Open on the first healthcare register once, when they load
   const defaultedToHealthcare = useRef(false);
@@ -233,6 +247,10 @@ const AdminReports: React.FC = () => {
     setActiveTab((current) => (current === "sale" ? healthcareTabs[0].key : current));
   }, [healthcareTabs]);
   const [form] = Form.useForm();
+  // Refills report
+  const [refillsOpen, setRefillsOpen] = useState(false);
+  const [refillsRange, setRefillsRange] = useState<[string, string]>(["", ""]);
+  const [refillsShop, setRefillsShop] = useState<string | undefined>();
   // Debts (pay later) report
   const [debtsOpen, setDebtsOpen] = useState(false);
   const [debtsRange, setDebtsRange] = useState<[string, string]>(["", ""]);
@@ -305,6 +323,8 @@ const AdminReports: React.FC = () => {
     setActiveTab(key);
     setDebtsOpen(false);
     setDebtsRange(["", ""]);
+    setRefillsOpen(false);
+    setRefillsRange(["", ""]);
     setOpenSalesModal(false);
     setOpenPurchaseModal(false);
     setOpenVoidedModal(false);
@@ -1111,6 +1131,37 @@ const AdminReports: React.FC = () => {
               loading={staffHoursLoading && !!staffHoursQueryKey}
               startDate={staffHoursDateRange[0]}
               endDate={staffHoursDateRange[1]}
+            />
+          </Form>
+        );
+
+      case "refills":
+        return (
+          <Form form={form} layout="vertical" onFinish={(values) => {
+            setRefillsShop(values.shop_id || localStorage.getItem("shopId") || undefined);
+            setRefillsOpen(true);
+          }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "0 16px" }}>
+              <div style={{ flex: "1 1 300px", minWidth: 0 }}>
+                <DateRangeField rangePresets={rangePresets}
+                  onChange={(dates) => setRefillsRange([
+                    dates?.[0]?.format("YYYY-MM-DD HH:mm") || "",
+                    dates?.[1]?.format("YYYY-MM-DD HH:mm") || "",
+                  ])} />
+              </div>
+              {isAdminRoute && (
+                <div style={{ flex: "1 1 200px", minWidth: 0 }}>
+                  <ShopField />
+                </div>
+              )}
+            </div>
+            <GenerateButton label="Generate Refill Report" icon={<ExperimentOutlined />} disabled={!refillsRange[0] || !refillsRange[1]} />
+            <RefillReportModal
+              openM={refillsOpen}
+              onCloseM={() => setRefillsOpen(false)}
+              startDate={refillsRange[0]}
+              endDate={refillsRange[1]}
+              shopId={refillsShop}
             />
           </Form>
         );
