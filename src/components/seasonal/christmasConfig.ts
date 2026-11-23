@@ -4,14 +4,14 @@
  * Set VITE_CHRISTMAS_MODE in the env to:
  *   "on"   – always show the hat
  *   "off"  – never show the hat
- *   "auto" – (default) show it from 1 December to 6 January
+ *   "auto" – (default) show it from 23 November to 6 January
  */
 export type ChristmasMode = "on" | "off" | "auto";
 
 export const CHRISTMAS_CONFIG = {
   mode: ((import.meta.env.VITE_CHRISTMAS_MODE as string | undefined)?.toLowerCase() ?? "auto") as ChristmasMode,
   // Inclusive season window used by "auto" (months are 1-based).
-  start: { month: 12, day: 1 },
+  start: { month: 11, day: 23 },
   end: { month: 1, day: 6 },
 };
 
