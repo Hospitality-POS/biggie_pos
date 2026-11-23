@@ -13,6 +13,7 @@ import {
 import AddEditProInventoryModal from "@components/MODALS/pro/AddEditProInventoryModal";
 import { QtyApprovalSwitch, QtyApprovalsButton } from "@components/inventory/InventoryQtyApproval";
 import { MeterReadingsButton } from "@components/inventory/WaterMeter";
+import { RefillButton, inBales } from "@components/inventory/Refill";
 import { onInventoryChanged } from "@hooks/useQtyApprovalSetting";
 import { fetchAllCategories, fetchSubCategories } from "@services/categories";
 import {
@@ -784,6 +785,9 @@ const InventoryCard: React.FC<InventoryCardProps> = ({ record, onDelete, deletin
           <Text style={{ fontSize: 10, color: "#94a3b8", display: "block" }}>Stock</Text>
           {renderStockLevel(record)}
           <Text style={{ fontSize: 10, color: "#94a3b8" }}>{record?.unit_id?.name || "units"}</Text>
+          {record?.refill?.enabled && record.refill.bale_size > 0 && (
+            <Text style={{ fontSize: 10, color: "#4f46e5", display: "block" }}>{inBales(record.quantity || 0, record.refill.bale_size)}</Text>
+          )}
         </div>
         <div style={{ textAlign: "center", borderLeft: "1px solid #e2e8f0", borderRight: "1px solid #e2e8f0" }}>
           <Text style={{ fontSize: 10, color: "#94a3b8", display: "block" }}>Price</Text>
@@ -816,6 +820,7 @@ const InventoryCard: React.FC<InventoryCardProps> = ({ record, onDelete, deletin
         <div style={{ display: "flex", gap: 8 }}>
           <div style={{ flex: 1 }}><AddEditProInventoryModal actionRef={tableRef} data={record} edit={true} /></div>
           <MeterReadingsButton record={record} size="middle" onChanged={() => tableRef.current?.reload()} />
+          <RefillButton record={record} size="middle" onChanged={() => tableRef.current?.reload()} />
           <Popconfirm title="Delete inventory item?" description="This action cannot be undone." onConfirm={() => onDelete(record._id)} okText="Delete" okButtonProps={{ danger: true }} cancelText="Cancel" placement="topRight">
             <Button danger size="middle" icon={<DeleteOutlined />} loading={deleting} style={{ borderRadius: 8, width: 38, padding: 0 }} />
           </Popconfirm>
@@ -1129,7 +1134,7 @@ const InventorySettings = () => {
         { title: "Sub Category", dataIndex: "subcategory_id", hideInSearch: true, width: 120, render: (_: any, record: any) => record?.subcategory_id?.name ? <Tag style={{ background: "#eff6ff", color: "#1d4ed8", border: "none", borderRadius: 5, fontSize: 11 }}>{record.subcategory_id.name}</Tag> : <Text type="secondary" style={{ fontSize: 12 }}>—</Text> },
         { title: "Category", dataIndex: "category_id", hideInSearch: true, width: 120, render: (_: any, record: any) => record?.category_id?.name ? <Tag style={{ background: "#f5f3ff", color: "#6d28d9", border: "none", borderRadius: 5, fontSize: 11 }}>{record.category_id.name}</Tag> : <Text type="secondary" style={{ fontSize: 12 }}>—</Text> },
         { title: "Usage", dataIndex: "usage_type", hideInSearch: true, width: 110, render: (_: any, record: any) => renderUsageType(record.usage_type), filters: [{ text: "For Sale", value: "selling" }, { text: "Internal", value: "internal" }, { text: "Both", value: "both" }] },
-        { title: "Stock", dataIndex: "quantity", hideInSearch: true, width: 170, sorter: true, render: (_: any, record: any) => <Space direction="vertical" size={2}>{renderStockLevel(record)}<Text style={{ fontSize: 11, color: "#94a3b8" }}>{record?.unit_id?.name || "units"}</Text>{record.min_viable_quantity && <Text style={{ fontSize: 11, color: "#94a3b8" }}>Min: {record.min_viable_quantity}</Text>}<VariantStockBadge record={record} /></Space> },
+        { title: "Stock", dataIndex: "quantity", hideInSearch: true, width: 170, sorter: true, render: (_: any, record: any) => <Space direction="vertical" size={2}>{renderStockLevel(record)}<Text style={{ fontSize: 11, color: "#94a3b8" }}>{record?.unit_id?.name || "units"}</Text>{record?.refill?.enabled && record.refill.bale_size > 0 && <Text style={{ fontSize: 11, color: "#4f46e5" }}>{inBales(record.quantity || 0, record.refill.bale_size)}</Text>}{record.min_viable_quantity && <Text style={{ fontSize: 11, color: "#94a3b8" }}>Min: {record.min_viable_quantity}</Text>}<VariantStockBadge record={record} /></Space> },
         { title: "Pricing", dataIndex: "price", hideInSearch: true, width: 130, render: (_: any, record: any) => renderPrice(record) },
         { title: "Status", dataIndex: "status", hideInSearch: true, width: 110, render: (_: any, record: any) => renderStatus(record.status), filters: [{ text: "Active", value: "active" }, { text: "Inactive", value: "inactive" }, { text: "Discontinued", value: "discontinued" }] },
         {
@@ -1217,6 +1222,7 @@ const InventorySettings = () => {
             <Space size={6}>
               <AddEditProInventoryModal actionRef={paymentRef} data={record} edit={true} />
               <MeterReadingsButton record={record} onChanged={() => paymentRef.current?.reload()} />
+              <RefillButton record={record} onChanged={() => paymentRef.current?.reload()} />
               <Popconfirm title="Delete inventory item?" description="This action cannot be undone." onConfirm={() => deleteInventoryMutation.mutate(record._id)} okText="Delete" okButtonProps={{ danger: true }} cancelText="Cancel">
                 <Button danger size="small" icon={<DeleteOutlined />} style={{ borderRadius: 6, height: 28, width: 28, padding: 0 }} />
               </Popconfirm>
