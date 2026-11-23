@@ -82,6 +82,37 @@ export const createShop = async (params: ParamsType) => {
   }
 };
 
+/** What can be copied from one branch into another (see copyShopSetup). */
+export type BranchCopyType =
+  | "main_categories"
+  | "sub_categories"
+  | "categories"
+  | "services"
+  | "inventory"
+  | "formulas"
+  | "payment_methods"
+  | "payment_details"
+  | "bank_details";
+
+export interface BranchCopyResult {
+  message: string;
+  types: BranchCopyType[];
+  results: Partial<Record<BranchCopyType, { copied: number; skipped?: string }>>;
+}
+
+/**
+ * Copy another branch's setup into branch `shopId` (admins only). The API adds
+ * whatever the chosen types need (e.g. formulas → services + inventory) and
+ * skips a type the branch already has.
+ */
+export const copyShopSetup = async (
+  shopId: string,
+  body: { from_shop_id: string; include: Partial<Record<BranchCopyType, boolean>>; copy_stock?: boolean }
+): Promise<BranchCopyResult> => {
+  const response = await axiosInstance.post(`${url}/${shopId}/copy-setup`, body);
+  return response.data;
+};
+
 export const updateShop = async (params: ParamsType) => {
   try {
     const response = await axiosInstance.put(`${url}/${params?._id}`, params);

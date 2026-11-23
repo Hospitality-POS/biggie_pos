@@ -1,13 +1,13 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
-import { Button, Form, Input, InputNumber, Modal, Segmented, Space, Switch, Tag, Typography } from "antd";
+import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { Button, Checkbox, Form, Input, InputNumber, Modal, Segmented, Select, Space, Switch, Tag, Typography, message } from "antd";
 import {
   CheckCircleFilled, EditOutlined,
   EnvironmentOutlined, HomeOutlined, LoadingOutlined, MedicineBoxOutlined,
   PercentageOutlined, SearchOutlined, ShopOutlined, SolutionOutlined, TagOutlined,
-  ExperimentOutlined, BankOutlined,
+  ExperimentOutlined, BankOutlined, CopyOutlined,
 } from "@ant-design/icons";
 import ShowConfirm from "@utils/ConfirmUtil";
-import { createShop, updateShop } from "@services/shops";
+import { createShop, updateShop, fetchAllShops, copyShopSetup, type BranchCopyType, type BranchCopyResult } from "@services/shops";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { DEFAULT_CATERING_LEVY_RATE, ShopTaxSettings, formatRate } from "@utils/taxConfig";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -16,6 +16,140 @@ import { FACILITY_PRESETS, type FacilityPreset } from "@utils/healthcareFacility
 import { HEALTHCARE_SETTINGS_QUERY_KEY } from "@hooks/useHealthcareSettings";
 
 interface ShopModalProps { actionRef: any; edit?: boolean; data?: any; }
+
+// ── Copy setup from another branch (new branches only) ─────────────────────
+const COPY_OPTIONS: { key: BranchCopyType; label: string }[] = [
+  { key: "main_categories", label: "Main categories" },
+  { key: "sub_categories", label: "Sub categories" },
+  { key: "categories", label: "Categories" },
+  { key: "services", label: "Services" },
+  { key: "inventory", label: "Inventory" },
+  { key: "formulas", label: "Formulas" },
+  { key: "payment_methods", label: "Payment methods" },
+  { key: "payment_details", label: "Payment details" },
+  { key: "bank_details", label: "Bank details" },
+];
+const COPY_LABEL = Object.fromEntries(COPY_OPTIONS.map((o) => [o.key, o.label])) as Record<BranchCopyType, string>;
+
+// What each choice needs copied with it (mirrors the API)
+const COPY_DEPENDS_ON: Partial<Record<BranchCopyType, BranchCopyType[]>> = {
+  sub_categories: ["main_categories"],
+  categories: ["sub_categories"],
+  services: ["categories"],
+  formulas: ["services", "inventory"],
+};
+
+/** The chosen items plus everything they need, and why each extra was added. */
+const resolveCopy = (chosen: BranchCopyType[]) => {
+  const all = new Set<BranchCopyType>(chosen);
+  const neededBy: Partial<Record<BranchCopyType, BranchCopyType>> = {};
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const t of [...all]) {
+      for (const dep of COPY_DEPENDS_ON[t] || []) {
+        if (!all.has(dep)) { all.add(dep); neededBy[dep] = t; grew = true; }
+      }
+    }
+  }
+  return { all, neededBy };
+};
+
+interface CopySetupValue { fromShopId?: string; chosen: BranchCopyType[]; copyStock: boolean; }
+
+const CopySetupSection: React.FC<{
+  value: CopySetupValue;
+  onChange: (v: CopySetupValue) => void;
+  shops: { _id: string; name: string }[];
+  primaryColor: string;
+}> = ({ value, onChange, shops, primaryColor }) => {
+  const { all, neededBy } = useMemo(() => resolveCopy(value.chosen), [value.chosen]);
+  const set = (patch: Partial<CopySetupValue>) => onChange({ ...value, ...patch });
+  const toggle = (key: BranchCopyType, on: boolean) =>
+    set({ chosen: on ? [...value.chosen, key] : value.chosen.filter((k) => k !== key) });
+  const copiesStock = all.has("inventory") || all.has("services");
+
+  return (
+    <Form.Item
+      label={<Space size={4}><CopyOutlined style={{ color: primaryColor }} /><span>Copy setup from another branch</span></Space>}
+      extra="Optional. Copies are linked to each other in the new branch — categories, services, inventory and formulas all point at the new branch's copies."
+      style={{ marginTop: 8 }}
+    >
+      <div style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+        <Select
+          allowClear
+          placeholder="Don't copy — start empty"
+          value={value.fromShopId}
+          onChange={(v) => set({ fromShopId: v || undefined })}
+          options={shops.map((s) => ({ value: s._id, label: s.name }))}
+          showSearch
+          optionFilterProp="label"
+          style={{ width: "100%" }}
+        />
+        {value.fromShopId && (
+          <>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "6px 12px" }}>
+              {COPY_OPTIONS.map((o) => {
+                const auto = all.has(o.key) && !value.chosen.includes(o.key);
+                return (
+                  <Checkbox
+                    key={o.key}
+                    checked={all.has(o.key)}
+                    disabled={auto}
+                    onChange={(e) => toggle(o.key, e.target.checked)}
+                  >
+                    {o.label}
+                    {auto && neededBy[o.key] && (
+                      <Typography.Text type="secondary" style={{ fontSize: 11, marginLeft: 4 }}>
+                        (needed for {COPY_LABEL[neededBy[o.key]!].toLowerCase()})
+                      </Typography.Text>
+                    )}
+                  </Checkbox>
+                );
+              })}
+            </div>
+            <Space size={6} wrap>
+              <Button size="small" onClick={() => set({ chosen: COPY_OPTIONS.map((o) => o.key) })}>Select all</Button>
+              <Button size="small" onClick={() => set({ chosen: [] })}>Clear</Button>
+            </Space>
+            {copiesStock && (
+              <Space size={8} align="start">
+                <Switch size="small" checked={value.copyStock} onChange={(v) => set({ copyStock: v })} />
+                <Typography.Text style={{ fontSize: 12 }}>
+                  Copy stock quantities too
+                  <Typography.Text type="secondary" style={{ fontSize: 12, display: "block" }}>
+                    Off: items are copied with 0 in stock, so the new branch counts its own stock.
+                  </Typography.Text>
+                </Typography.Text>
+              </Space>
+            )}
+          </>
+        )}
+      </div>
+    </Form.Item>
+  );
+};
+
+/** Pop-up listing what was copied and anything skipped. */
+const showCopySummary = (branchName: string, res: BranchCopyResult) => {
+  Modal.success({
+    title: `Setup copied into ${branchName}`,
+    width: 480,
+    content: (
+      <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 8 }}>
+        {res.types.map((t) => {
+          const r = res.results[t];
+          return (
+            <div key={t} style={{ fontSize: 13 }}>
+              <b>{COPY_LABEL[t]}:</b> {r?.copied ?? 0} copied
+              {r?.skipped && <Typography.Text type="secondary" style={{ fontSize: 12 }}> — {r.skipped}</Typography.Text>}
+            </div>
+          );
+        })}
+      </div>
+    ),
+  });
+};
 
 type PosMode = "restaurant" | "retail" | "hospital" | "hotel";
 
@@ -427,7 +561,17 @@ const AddEditShopModal: React.FC<ShopModalProps> = ({ actionRef, edit, data }) =
   const [facility, setFacility] = useState<FacilityChoice | undefined>();
   const [savedFacility, setSavedFacility] = useState<FacilityChoice | undefined>();
   const [facilityError, setFacilityError] = useState(false);
+  // New branch: optionally copy another branch's setup into it
+  const EMPTY_COPY: CopySetupValue = { fromShopId: undefined, chosen: [], copyStock: false };
+  const [copySetup, setCopySetup] = useState<CopySetupValue>(EMPTY_COPY);
   const queryClient = useQueryClient();
+  const { data: allShops } = useQuery({
+    queryKey: ["shops-for-copy"],
+    queryFn: () => fetchAllShops({}),
+    enabled: open && !edit,
+    refetchOnWindowFocus: false,
+  });
+  const copyShops = (Array.isArray(allShops) ? allShops : []).filter((s: any) => s?._id);
   const primaryColor = usePrimaryColor();
   // Business-wide levy (system settings) — only to tell the user it already applies
   const { data: businessLevy } = useQuery({
@@ -458,6 +602,7 @@ const AddEditShopModal: React.FC<ShopModalProps> = ({ actionRef, edit, data }) =
     setFacility(undefined);
     setSavedFacility(undefined);
     setFacilityError(false);
+    setCopySetup(EMPTY_COPY);
     if (edit && data) {
       form.setFieldsValue({ name: data.name, location: data.location });
       setPosMode(normalisePosMode(data?.pos_mode));
@@ -486,6 +631,7 @@ const AddEditShopModal: React.FC<ShopModalProps> = ({ actionRef, edit, data }) =
     setPosMode("restaurant");
     setTax(DEFAULT_TAX);
     setFacility(undefined);
+    setCopySetup(EMPTY_COPY);
   };
 
   const handleOk = async () => {
@@ -505,9 +651,27 @@ const AddEditShopModal: React.FC<ShopModalProps> = ({ actionRef, edit, data }) =
       // doesn't undo features someone adjusted in System Setup
       const healthcare =
         posMode === "hospital" && facility && facility !== savedFacility ? { healthcare_facility_type: facility } : {};
-      edit
+      const saved = edit
         ? await updateShop({ ...values, _id: data?._id, pos_mode: posMode, tax_settings: tax, ...healthcare })
         : await createShop({ ...values, pos_mode: posMode, tax_settings: tax, ...healthcare });
+
+      // New branch: copy the chosen setup from another branch into it. The
+      // branch is already saved, so a failed copy doesn't lose it.
+      const newShopId = saved?.data?._id;
+      if (!edit && newShopId && copySetup.fromShopId && copySetup.chosen.length > 0) {
+        try {
+          const res = await copyShopSetup(newShopId, {
+            from_shop_id: copySetup.fromShopId,
+            include: Object.fromEntries(copySetup.chosen.map((k) => [k, true])),
+            copy_stock: copySetup.copyStock,
+          });
+          showCopySummary(values.name, res);
+        } catch (err: any) {
+          message.error(
+            `The branch was created, but copying its setup failed: ${err?.response?.data?.message || err?.message || "unknown error"}`
+          );
+        }
+      }
       if (healthcare.healthcare_facility_type) {
         clearSystemSetupCache();
         queryClient.invalidateQueries({ queryKey: [HEALTHCARE_SETTINGS_QUERY_KEY] });
@@ -673,6 +837,16 @@ const AddEditShopModal: React.FC<ShopModalProps> = ({ actionRef, edit, data }) =
               />
             </div>
           </Form.Item>
+          )}
+
+          {/* New branch only: start it with another branch's setup */}
+          {!edit && copyShops.length > 0 && (
+            <CopySetupSection
+              value={copySetup}
+              onChange={setCopySetup}
+              shops={copyShops}
+              primaryColor={primaryColor}
+            />
           )}
         </Form>
       </Modal>
