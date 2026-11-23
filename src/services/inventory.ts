@@ -854,7 +854,11 @@ export const fetchRefillSummary = async (params: { shop_id?: string; start_date?
   return response.data?.data as { items: RefillSummaryItem[]; water: RefillSummaryWater[] };
 };
 
-
+/** Link, edit or unlink an item's water meter (System Setup → Inventory Controls) */
+export const updateMeterSettings = async (inventoryId: string, meter: Partial<InventoryMeter>) => {
+  const response = await axiosInstance.put(`${inventoryUrl}/${inventoryId}/meter`, { meter });
+  return response.data;
+};
 
 export const fetchMeterReadings = async (inventoryId: string) => {
   const response = await axiosInstance.get(`${inventoryUrl}/${inventoryId}/meter-readings`);
