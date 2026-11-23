@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { Button, Typography, Tag, Row, Col, Space, Spin, Segmented } from 'antd';
 import { ProCard } from '@ant-design/pro-components';
 import {
@@ -30,6 +30,8 @@ import {
   isRecommendedPlan,
   sortSubscriptionPlans,
 } from '../types/pricing';
+import { Navigate, useLocation } from 'react-router-dom';
+import { useAppSelector } from '../../store';
 import { useModuleLicense } from './useModuleLicense';
 import { useModulePricing } from '../hooks/usePricing';
 import { useResponsive } from '../hooks/useResponsive';
@@ -106,6 +108,14 @@ export const ModuleGate: React.FC<ModuleGateProps> = ({
   const { isMobile } = useResponsive();
 
   const [billingCycle, setBillingCycle] = useState<'Monthly' | 'Yearly'>('Monthly');
+  const user = useAppSelector((state) => state.auth.user);
+  const location = useLocation();
+
+  // Signed-out visitors have no tenant modules, so they'd always land on the
+  // paywall. Send them to login first; the license check runs once they're in.
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
 
   if (isLicensed) {
     return <>{children}</>;
@@ -138,10 +148,11 @@ export const ModuleGate: React.FC<ModuleGateProps> = ({
   });
 
   // Fallback to official Kenyan pricing matrix if no matching plans from backend
-  const displayPlans = useMemo(() => {
-    const raw = modulePlans.length > 0 ? modulePlans : (DEFAULT_BASE_PLANS[moduleId] || []);
-    return sortSubscriptionPlans(raw);
-  }, [modulePlans, moduleId]);
+  // Plain value, not useMemo: a hook here would run after the early returns
+  // above and break React's hook order when the user or license changes.
+  const displayPlans = sortSubscriptionPlans(
+    modulePlans.length > 0 ? modulePlans : (DEFAULT_BASE_PLANS[moduleId] || []),
+  );
 
   const handleActivate = async (plan?: SaaSSubscriptionPlan) => {
     try {
