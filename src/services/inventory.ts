@@ -757,6 +757,105 @@ export interface MeterReading {
   createdAt: string;
 }
 
+// ── Refills (water refill points) ────────────────────────────────────────────
+
+export type RefillRole = "container" | "water" | "other";
+
+/** What one filled unit uses, e.g. 1 empty bottle + 20 L water + 1 cap */
+export interface RefillSetup {
+  enabled: boolean;
+  bale_size?: number | null;
+  inputs: { inventory_id: string | { _id: string; name?: string }; quantity: number; role?: RefillRole }[];
+}
+
+export interface RefillBatch {
+  _id: string;
+  refill_date: string;
+  units: number;
+  rejects: number;
+  bale_size?: number | null;
+  bales?: number | null;
+  inputs: {
+    inventory_id: string; name: string; unit_name?: string; role: RefillRole;
+    per_unit: number; used: number; wasted: number; qty_before: number; qty_after: number;
+  }[];
+  qty_before: number;
+  qty_after: number;
+  note?: string;
+  created_by_name?: string;
+  createdAt: string;
+}
+
+export interface RefillInfo {
+  item: { _id: string; name: string; quantity: number; unit_name: string; bale_size: number | null };
+  inputs: {
+    inventory_id: string; name: string; unit_name: string; role: RefillRole;
+    per_unit: number; on_hand: number; can_make: number; missing?: boolean;
+  }[];
+  can_make_now: number;
+  batches: RefillBatch[];
+}
+
+export const fetchRefills = async (inventoryId: string) => {
+  const response = await axiosInstance.get(`${inventoryUrl}/${inventoryId}/refills`);
+  return response.data as RefillInfo;
+};
+
+export const addRefill = async (
+  inventoryId: string,
+  body: { units?: number; bales?: number; rejects?: number; refill_date?: string; note?: string }
+) => {
+  const response = await axiosInstance.post(`${inventoryUrl}/${inventoryId}/refills`, body);
+  return response.data;
+};
+
+export const undoLatestRefill = async (inventoryId: string) => {
+  const response = await axiosInstance.delete(`${inventoryUrl}/${inventoryId}/refills/latest`);
+  return response.data;
+};
+
+export interface RefillSummaryItem {
+  _id: string;
+  name: string;
+  unit_name: string;
+  bale_size: number | null;
+  on_hand: number;
+  on_hand_bales: number | null;
+  on_hand_loose: number | null;
+  made: number;
+  rejects: number;
+  batches: number;
+  sold: number;
+  can_make_now: number;
+  inputs: {
+    inventory_id: string; name: string; unit_name: string; role: RefillRole; per_unit: number;
+    on_hand: number; on_hand_bales: number | null; on_hand_loose: number | null;
+    used_in_period: number; can_make: number;
+  }[];
+}
+
+export interface RefillSummaryWater {
+  inventory_id: string;
+  name: string;
+  unit_name: string;
+  on_hand: number;
+  used_in_refills: number;
+  meter: {
+    direction: "in" | "out";
+    water_in: number | null;
+    dispensed: number | null;
+    readings: number;
+    unaccounted: number | null;
+  } | null;
+}
+
+export const fetchRefillSummary = async (params: { shop_id?: string; start_date?: string; end_date?: string }) => {
+  const response = await axiosInstance.get(`${inventoryUrl}/refills/summary`, { params });
+  return response.data?.data as { items: RefillSummaryItem[]; water: RefillSummaryWater[] };
+};
+
+
+
 export const fetchMeterReadings = async (inventoryId: string) => {
   const response = await axiosInstance.get(`${inventoryUrl}/${inventoryId}/meter-readings`);
   return response.data as {
