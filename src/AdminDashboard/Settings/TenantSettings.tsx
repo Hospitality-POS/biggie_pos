@@ -20,6 +20,7 @@ import {
   Input,
   message,
   Result,
+  Select,
   Skeleton,
   Typography,
   Upload,
@@ -36,6 +37,7 @@ import VatPanel from "@pages/Settings/taxes/VatPanel";
 import CateringLevyPanel from "@pages/Settings/taxes/CateringLevyPanel";
 import { CardLabel, PanelStack, panelCard } from "@pages/Settings/taxes/TaxPanelParts";
 import { THEME_C, getPrimaryColor } from "@utils/getPrimaryColor";
+import { DEFAULT_BODY_FONT, FONT_OPTIONS, fontStack, loadFonts } from "@utils/brandFonts";
 
 const { Text } = Typography;
 
@@ -109,6 +111,8 @@ function TenantSettings() {
   const [form] = Form.useForm();
   const [fileList, setFileList] = useState<any[]>([]);
   const [colors, setColors] = useState(getDefaultColors);
+  // "" heading font = same as body
+  const [fonts, setFonts] = useState({ body: DEFAULT_BODY_FONT, heading: "" });
   const [activeTab, setActiveTab] = useState("basic");
 
   const params = useParams();
@@ -141,7 +145,16 @@ function TenantSettings() {
     const t = tenantDetails.data;
     form.setFieldsValue({ name: t.name, email: t.email, phone: t.phone });
     if (t.color_scheme) setColors({ ...getDefaultColors(), ...t.color_scheme });
+    setFonts({
+      body: t.typography?.body_font || DEFAULT_BODY_FONT,
+      heading: t.typography?.heading_font || "",
+    });
   }, [tenantDetails, form]);
+
+  // Load every option's font on the branding tab, so the pickers show each one
+  useEffect(() => {
+    if (activeTab === "branding") loadFonts(FONT_OPTIONS.map((f) => f.name));
+  }, [activeTab]);
 
   // ── Load colors from localStorage on mount ────────────────────────────────
   useEffect(() => {
@@ -167,6 +180,20 @@ function TenantSettings() {
       data: { color_scheme: colors, primary_color: colors.primary },
     });
   };
+
+  const handleUpdateFonts = () => {
+    if (!tenantId) { message.error("Tenant ID not found"); return; }
+    updateMutation.mutate({
+      id: tenantId,
+      data: { typography: { body_font: fonts.body, heading_font: fonts.heading || null } },
+    });
+  };
+
+  const fontSelectOptions = FONT_OPTIONS.map((f) => ({
+    value: f.name,
+    label: <span style={{ fontFamily: fontStack(f.name) }}>{f.name}</span>,
+    category: f.category,
+  }));
 
   const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/svg+xml", "image/webp"];
 
@@ -342,6 +369,54 @@ function TenantSettings() {
           Save Colors
         </Button>
       </div>
+
+      {/* Fonts */}
+      <div style={panelCard}>
+        <CardLabel>Fonts</CardLabel>
+        <Text style={{ fontSize: 12, color: C.subText, display: "block", marginTop: 4 }}>
+          Used across the whole app for everyone in your business.
+        </Text>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginTop: 12 }}>
+          <div>
+            <Text style={{ fontSize: 12, color: C.subText, display: "block", marginBottom: 4 }}>Body text</Text>
+            <Select
+              value={fonts.body}
+              onChange={(v) => setFonts((p) => ({ ...p, body: v }))}
+              options={fontSelectOptions}
+              showSearch
+              optionFilterProp="value"
+              style={{ width: "100%" }}
+            />
+          </div>
+          <div>
+            <Text style={{ fontSize: 12, color: C.subText, display: "block", marginBottom: 4 }}>Headings</Text>
+            <Select
+              value={fonts.heading}
+              onChange={(v) => setFonts((p) => ({ ...p, heading: v }))}
+              options={[{ value: "", label: <span>Same as body text</span>, category: "" }, ...fontSelectOptions]}
+              showSearch
+              optionFilterProp="value"
+              style={{ width: "100%" }}
+            />
+          </div>
+        </div>
+
+        <div style={{ marginTop: 14, background: colors.background, border: `1px solid ${C.border}`, borderRadius: 10, padding: 16 }}>
+          <div style={{ fontFamily: fontStack(fonts.heading || fonts.body), fontSize: 20, fontWeight: 600, color: C.darkText, marginBottom: 6 }}>
+            {tenant?.name || "Your business"} · Today's sales
+          </div>
+          <div style={{ fontFamily: fontStack(fonts.body), fontSize: 14, color: C.subText, lineHeight: 1.6 }}>
+            Ksh 76,900 from 16 orders across 3 branches. Receipts, reports and menus will use this font.
+            <span style={{ display: "block", marginTop: 4, fontVariantNumeric: "tabular-nums" }}>0123456789 · ABCDEFGHIJKLM · abcdefghijklm</span>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <Button type="primary" onClick={handleUpdateFonts} loading={saving} icon={<CheckCircleOutlined />} style={{ borderRadius: 8 }}>
+          Save Fonts
+        </Button>
+      </div>
     </PanelStack>
   );
 
@@ -359,7 +434,7 @@ function TenantSettings() {
     {
       key: "branding",
       label: "Logo & Branding",
-      description: "Logo and app colors",
+      description: "Logo, colors and fonts",
       icon: <PictureOutlined />,
       color: "#8b5cf6",
       bg: "#f5f3ff",
@@ -387,7 +462,7 @@ function TenantSettings() {
       render: () => <CateringLevyPanel scope="business" />,
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [tenant, colors, fileList, saving]);
+  ], [tenant, colors, fonts, fileList, saving]);
 
   // ── Guards ────────────────────────────────────────────────────────────────
   if (!tenantId) {

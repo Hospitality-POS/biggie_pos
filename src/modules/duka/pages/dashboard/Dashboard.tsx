@@ -58,6 +58,7 @@ import { useHealthcareSettings } from "@hooks/useHealthcareSettings";
 import { facilityTitle } from "@utils/healthcareFacility";
 import HospitalDashboard from "@pages/Healthcare/HospitalDashboard";
 import { getPermissionChecker } from "@utils/getPermissionChecker";
+import { BASE_ONE_PLAY_STORE_URL } from "@utils/appLinks";
 
 dayjs.extend(quarterOfYear);
 
@@ -84,8 +85,8 @@ const getPosMode = (): string => localStorage.getItem("posMode") ?? "service";
 const isHospitalMode = (): boolean => getPosMode() === "hospital";
 const isHotelMode = (): boolean => getPosMode() === "hotel";
 
-// Direct APK download link (DigitalOcean) — scanning the QR opens this URL and downloads the app
-const APP_DOWNLOAD_URL = "https://reliatechdocs.nyc3.digitaloceanspaces.com/APKS/basepoint-on-going.apk";
+// Base One on Google Play — scanning the QR opens the store page
+const APP_DOWNLOAD_URL = BASE_ONE_PLAY_STORE_URL;
 
 // Customer and staff QR codes open on the business's own address
 // (tenantAppUrl, e.g. https://nuba.basepoint.co.ke)

@@ -23,7 +23,7 @@ interface Piece {
   tidy: { x: number; y: number };
 }
 
-// Eight tools a growing business juggles, and what each becomes in Basepoint
+// Nine tools a growing business juggles, and what each becomes in Basepoint
 const PIECES: Piece[] = [
   {
     key: "stock",
@@ -43,7 +43,7 @@ const PIECES: Piece[] = [
     need: "A POS & billing system",
     with: { app: "Duka", text: "POS, tables, rooms & receipts", color: "#3b82f6" },
     mess: { x: 76, y: 16, r: 6 },
-    tidy: { x: 78, y: 25 },
+    tidy: { x: 73, y: 20 },
   },
   {
     key: "books",
@@ -53,7 +53,7 @@ const PIECES: Piece[] = [
     need: "Accounting software",
     with: { app: "Pesa", text: "Sales post to the books automatically", color: "#10b981" },
     mess: { x: 47, y: 38, r: 4 },
-    tidy: { x: 84, y: 50 },
+    tidy: { x: 85.5, y: 43 },
   },
   {
     key: "payroll",
@@ -63,7 +63,7 @@ const PIECES: Piece[] = [
     need: "Payroll software",
     with: { app: "Bandu HR", text: "Payroll, payslips, P9s & leave", color: "#f59e0b" },
     mess: { x: 80, y: 48, r: -5 },
-    tidy: { x: 78, y: 76 },
+    tidy: { x: 81, y: 69.5 },
   },
   {
     key: "forms",
@@ -73,7 +73,7 @@ const PIECES: Piece[] = [
     need: "An e-signature & forms tool",
     with: { app: "Forms & Plans", text: "E-signed forms, onboarding & treatment plans", color: "#8b5cf6" },
     mess: { x: 18, y: 56, r: 8 },
-    tidy: { x: 50, y: 88 },
+    tidy: { x: 62.3, y: 86.7 },
   },
   {
     key: "chats",
@@ -83,7 +83,7 @@ const PIECES: Piece[] = [
     need: "A shared WhatsApp inbox / CRM",
     with: { app: "Mteja", text: "One shared WhatsApp inbox that sells", color: "#6366f1" },
     mess: { x: 56, y: 68, r: -4 },
-    tidy: { x: 22, y: 76 },
+    tidy: { x: 19, y: 69.5 },
   },
   {
     key: "rent",
@@ -93,7 +93,7 @@ const PIECES: Piece[] = [
     need: "Property management software",
     with: { app: "Dala", text: "Units, tenants & rent collection", color: "#14b8a6" },
     mess: { x: 28, y: 84, r: 5 },
-    tidy: { x: 16, y: 50 },
+    tidy: { x: 14.5, y: 43 },
   },
   {
     key: "kra",
@@ -103,23 +103,34 @@ const PIECES: Piece[] = [
     need: "An eTIMS invoicing system",
     with: { app: "eTIMS", text: "Tax invoices sent to KRA as you sell", color: "#4f46e5" },
     mess: { x: 78, y: 82, r: -8 },
-    tidy: { x: 22, y: 25 },
+    tidy: { x: 27, y: 20 },
+  },
+  {
+    key: "staff",
+    // Not a product in the catalogue; the Discover page opens the Access tab for it
+    integrationId: "base_one",
+    emoji: "📱",
+    without: { title: "Staff requests on WhatsApp", pain: "Leave, payslips & clock-ins chased by hand" },
+    need: "A staff & owner mobile app",
+    with: { app: "Base One", text: "One phone app for owners & every staff member", color: "#c026d3" },
+    mess: { x: 48, y: 14, r: -3 },
+    tidy: { x: 37.7, y: 86.7 },
   },
 ];
 
 // Tangled links between the scattered tools (indexes into PIECES)
 const TANGLE: [number, number][] = [
-  [0, 2], [1, 3], [2, 5], [0, 6], [3, 4], [1, 5], [4, 7], [6, 2], [7, 0], [5, 3],
+  [0, 2], [1, 3], [2, 5], [0, 6], [3, 4], [1, 5], [4, 7], [6, 2], [7, 0], [5, 3], [8, 1], [8, 4],
 ];
 
 const STATS: Record<Mode, { value: string; label: string }[]> = {
   without: [
-    { value: "8+", label: "separate tools & notebooks" },
+    { value: "9+", label: "separate tools & notebooks" },
     { value: "Hours", label: "of re-typing every week" },
     { value: "?", label: "numbers that never match" },
   ],
   with: [
-    { value: "1", label: "login for the whole business" },
+    { value: "1", label: "login and one phone app for the team" },
     { value: "0", label: "re-typing between apps" },
     { value: "Live", label: "reports across every branch" },
   ],
@@ -312,7 +323,7 @@ const ImagineWithout: React.FC<{ onLearnMore: (integrationId: string) => void }>
         }}
       >
         <img src="/relia.png" alt="Basepoint" style={{ width: 104, height: "auto", objectFit: "contain" }} />
-        <div style={{ fontSize: 11, opacity: 0.85, marginTop: 2 }}>one system, one login</div>
+        <div style={{ fontSize: 11, opacity: 0.85, marginTop: 2 }}>one system, one app</div>
       </div>
 
       {/* The pieces */}

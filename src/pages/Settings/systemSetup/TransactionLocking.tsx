@@ -17,10 +17,10 @@ import {
 const { Text, Title } = Typography;
 
 const MODULES: { key: LockModule; label: string; description: string }[] = [
-    { key: "Sales", label: "Sales", description: "Invoices, quotes, sales receipts and related payments" },
-    { key: "Purchases", label: "Purchases", description: "Bills, expenses and supplier payments" },
-    { key: "Banking", label: "Banking", description: "Bank reconciliations, statement imports and transfers" },
-    { key: "Accountant", label: "Accountant", description: "Manual journals, adjustments and chart-of-accounts changes" },
+    { key: "Sales", label: "Sales", description: "POS sales, invoices, sales receipts, income, credit notes and their payments" },
+    { key: "Purchases", label: "Purchases", description: "Bills, expenses, debit notes and supplier payments" },
+    { key: "Banking", label: "Banking", description: "Bank reconciliations and statement imports" },
+    { key: "Accountant", label: "Accountant (close the books)", description: "Every journal entry from any source, plus opening balances and account-type changes in the chart of accounts" },
 ];
 
 const TransactionLocking: React.FC = () => {
@@ -87,7 +87,8 @@ const TransactionLocking: React.FC = () => {
         await setMutation.mutateAsync({
             shop_id: shopId,
             module: editing.module,
-            lock_date: values.lock_date.toISOString(),
+            // The whole chosen day is locked; send the day, not "that day at the current time"
+            lock_date: values.lock_date.format("YYYY-MM-DD"),
             reason: values.reason,
             password: values.password,
         });
@@ -138,7 +139,7 @@ const TransactionLocking: React.FC = () => {
                                 {isLocked ? (
                                     <>
                                         <Text strong style={{ color: "#cf1322" }}>
-                                            Locked up to {dayjs(lock.lock_date).format("DD MMM YYYY")}
+                                            Locked up to and including {dayjs(lock.lock_date).format("DD MMM YYYY")}
                                         </Text>
                                         {lock.reason && (
                                             <Text type="secondary" style={{ fontSize: 12, display: "block", marginTop: 4 }}>
@@ -169,6 +170,7 @@ const TransactionLocking: React.FC = () => {
                     <Form.Item
                         name="lock_date"
                         label="Lock Date"
+                        extra="Everything dated on or before this day is locked, including the whole of this day."
                         rules={[{ required: true, message: "Lock date is required" }]}
                     >
                         <DatePicker style={{ width: "100%" }} format="DD MMM YYYY" />

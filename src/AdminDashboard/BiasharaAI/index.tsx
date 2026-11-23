@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { useTenantModules } from "@hooks/useTenantModules";
+import { useActiveProduct } from "src/context/ProductContext";
 import { useIsMobile } from "./hooks/useIsMobile";
 import { useShopSelector } from "./hooks/useShopSelector";
 import { useSoundPlayer } from "./hooks/useSoundPlayer";
@@ -76,9 +77,14 @@ export const BiasharaAI: React.FC = () => {
     [hasPOS, hasAccounting]
   );
 
+  // For now the assistant is only offered in Duka. The drawer stays mounted so
+  // an open chat isn't cut off when the user switches to another product.
+  const { activeProduct } = useActiveProduct();
+  const showFab = activeProduct === "duka";
+
   return (
     <>
-      <BiasharaFabButton
+      {showFab && <BiasharaFabButton
         fabRef={fabRef}
         fabPos={fabPos}
         onFabStart={onFabStart}
@@ -87,7 +93,7 @@ export const BiasharaAI: React.FC = () => {
         onClick={() => handleFabClick(() => setOpen(true))}
         loading={loading}
         isMobile={isMobile}
-      />
+      />}
 
       <BiasharaDrawer
         open={open}
