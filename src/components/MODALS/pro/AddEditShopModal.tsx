@@ -55,39 +55,72 @@ const resolveCopy = (chosen: BranchCopyType[]) => {
   return { all, neededBy };
 };
 
-interface CopySetupValue { fromShopId?: string; chosen: BranchCopyType[]; copyStock: boolean; }
+interface CopySetupValue { enabled: boolean; fromShopId?: string; chosen: BranchCopyType[]; copyStock: boolean; }
 
+/**
+ * Asked only when the business already has at least one branch: copy data
+ * from an existing branch (which one, and which data) or start empty.
+ */
 const CopySetupSection: React.FC<{
   value: CopySetupValue;
   onChange: (v: CopySetupValue) => void;
   shops: { _id: string; name: string }[];
   primaryColor: string;
-}> = ({ value, onChange, shops, primaryColor }) => {
+  showError?: boolean;
+}> = ({ value, onChange, shops, primaryColor, showError }) => {
   const { all, neededBy } = useMemo(() => resolveCopy(value.chosen), [value.chosen]);
   const set = (patch: Partial<CopySetupValue>) => onChange({ ...value, ...patch });
   const toggle = (key: BranchCopyType, on: boolean) =>
     set({ chosen: on ? [...value.chosen, key] : value.chosen.filter((k) => k !== key) });
   const copiesStock = all.has("inventory") || all.has("services");
+  const onlyOne = shops.length === 1;
+  const errorText = !showError || !value.enabled
+    ? undefined
+    : !value.fromShopId
+      ? "Choose the branch to copy from"
+      : value.chosen.length === 0
+        ? "Tick what to copy, or choose No"
+        : undefined;
 
   return (
     <Form.Item
-      label={<Space size={4}><CopyOutlined style={{ color: primaryColor }} /><span>Copy setup from another branch</span></Space>}
-      extra="Optional. Copies are linked to each other in the new branch — categories, services, inventory and formulas all point at the new branch's copies."
+      label={<Space size={4}><CopyOutlined style={{ color: primaryColor }} /><span>Copy data from an existing branch?</span></Space>}
+      extra={value.enabled
+        ? "Copies are linked to each other in the new branch — categories, services, inventory and formulas all point at the new branch's copies."
+        : "Choose Yes to start this branch with another branch's categories, services, inventory, formulas, payment and bank details."}
+      validateStatus={errorText ? "error" : undefined}
+      help={errorText}
       style={{ marginTop: 8 }}
     >
       <div style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
-        <Select
-          allowClear
-          placeholder="Don't copy — start empty"
-          value={value.fromShopId}
-          onChange={(v) => set({ fromShopId: v || undefined })}
-          options={shops.map((s) => ({ value: s._id, label: s.name }))}
-          showSearch
-          optionFilterProp="label"
-          style={{ width: "100%" }}
+        <Segmented
+          value={value.enabled ? "yes" : "no"}
+          onChange={(v) => set(v === "yes"
+            // Only one existing branch: it's the one to copy from
+            ? { enabled: true, fromShopId: value.fromShopId || (onlyOne ? shops[0]._id : undefined) }
+            : { enabled: false })}
+          options={[
+            { value: "no", label: "No, start empty" },
+            { value: "yes", label: "Yes, copy data" },
+          ]}
         />
-        {value.fromShopId && (
+        {value.enabled && (
+          <div>
+            <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 4 }}>From which branch?</Typography.Text>
+            <Select
+              placeholder="Choose a branch"
+              value={value.fromShopId}
+              onChange={(v) => set({ fromShopId: v || undefined })}
+              options={shops.map((s) => ({ value: s._id, label: s.name }))}
+              showSearch
+              optionFilterProp="label"
+              style={{ width: "100%" }}
+            />
+          </div>
+        )}
+        {value.enabled && value.fromShopId && (
           <>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>Which data?</Typography.Text>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "6px 12px" }}>
               {COPY_OPTIONS.map((o) => {
                 const auto = all.has(o.key) && !value.chosen.includes(o.key);
@@ -562,8 +595,9 @@ const AddEditShopModal: React.FC<ShopModalProps> = ({ actionRef, edit, data }) =
   const [savedFacility, setSavedFacility] = useState<FacilityChoice | undefined>();
   const [facilityError, setFacilityError] = useState(false);
   // New branch: optionally copy another branch's setup into it
-  const EMPTY_COPY: CopySetupValue = { fromShopId: undefined, chosen: [], copyStock: false };
+  const EMPTY_COPY: CopySetupValue = { enabled: false, fromShopId: undefined, chosen: [], copyStock: false };
   const [copySetup, setCopySetup] = useState<CopySetupValue>(EMPTY_COPY);
+  const [copyError, setCopyError] = useState(false);
   const queryClient = useQueryClient();
   const { data: allShops } = useQuery({
     queryKey: ["shops-for-copy"],
@@ -603,6 +637,7 @@ const AddEditShopModal: React.FC<ShopModalProps> = ({ actionRef, edit, data }) =
     setSavedFacility(undefined);
     setFacilityError(false);
     setCopySetup(EMPTY_COPY);
+    setCopyError(false);
     if (edit && data) {
       form.setFieldsValue({ name: data.name, location: data.location });
       setPosMode(normalisePosMode(data?.pos_mode));
@@ -632,12 +667,19 @@ const AddEditShopModal: React.FC<ShopModalProps> = ({ actionRef, edit, data }) =
     setTax(DEFAULT_TAX);
     setFacility(undefined);
     setCopySetup(EMPTY_COPY);
+    setCopyError(false);
   };
 
   const handleOk = async () => {
     try {
       if (posMode === "hospital" && !facility) {
         setFacilityError(true);
+        return;
+      }
+      // Chose to copy data: a branch and at least one thing must be picked
+      const wantsCopy = !edit && copyShops.length > 0 && copySetup.enabled;
+      if (wantsCopy && (!copySetup.fromShopId || copySetup.chosen.length === 0)) {
+        setCopyError(true);
         return;
       }
       const values = await form.validateFields();
@@ -658,7 +700,7 @@ const AddEditShopModal: React.FC<ShopModalProps> = ({ actionRef, edit, data }) =
       // New branch: copy the chosen setup from another branch into it. The
       // branch is already saved, so a failed copy doesn't lose it.
       const newShopId = saved?.data?._id;
-      if (!edit && newShopId && copySetup.fromShopId && copySetup.chosen.length > 0) {
+      if (wantsCopy && newShopId && copySetup.fromShopId) {
         try {
           const res = await copyShopSetup(newShopId, {
             from_shop_id: copySetup.fromShopId,
@@ -839,13 +881,16 @@ const AddEditShopModal: React.FC<ShopModalProps> = ({ actionRef, edit, data }) =
           </Form.Item>
           )}
 
-          {/* New branch only: start it with another branch's setup */}
+          {/* New branch, and the business already has a branch: ask whether to
+              copy data from one (which branch, which data). No other branch
+              yet → nothing to copy, so it isn't asked. */}
           {!edit && copyShops.length > 0 && (
             <CopySetupSection
               value={copySetup}
-              onChange={setCopySetup}
+              onChange={(v) => { setCopySetup(v); setCopyError(false); }}
               shops={copyShops}
               primaryColor={primaryColor}
+              showError={copyError}
             />
           )}
         </Form>
