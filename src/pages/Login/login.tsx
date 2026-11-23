@@ -468,7 +468,7 @@ const StaffLoginPage = () => {
             }}
         >
             <div style={{ marginBottom: "0.75rem", display: "flex", justifyContent: "center", alignItems: "center" }}>
-                <ChristmasHat size={44}>
+                <ChristmasHat size={28}>
                 {tenant?.tenant_logo?.url ? (
                     <img
                         src={tenant.tenant_logo.url}

@@ -1339,7 +1339,7 @@ const AdminDashboard: React.FC = () => {
       <ProLayout
         style={{ maxWidth: "1920px" }}
         logo={
-          <ChristmasHat size={26}>
+          <ChristmasHat size={16}>
           {tenant?.tenant_logo?.url ? (
             <img
               src={tenant.tenant_logo.url}
@@ -1544,7 +1544,7 @@ const AdminDashboard: React.FC = () => {
                       justifyContent: "center",
                     }}
                   >
-                    <ChristmasHat size={24}>
+                    <ChristmasHat size={14}>
                     {tenant?.tenant_logo?.url ? (
                       <Image
                         src={tenant.tenant_logo.url}

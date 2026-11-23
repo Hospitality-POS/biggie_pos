@@ -1134,7 +1134,7 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
       <ProLayout
         style={{ maxWidth: "1920px" }}
         logo={
-          <ChristmasHat size={36}>
+          <ChristmasHat size={22}>
           {tenant?.tenant_logo?.url ? (
             <Image src={tenant.tenant_logo.url} height={isMobile ? 40 : 60} preview={false} alt="tenant-logo"
               style={{ padding: isMobile ? 3 : 5, objectFit: "contain", maxWidth: isMobile ? 100 : 140 }} />
@@ -1184,7 +1184,7 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
                   <EcosystemAppSwitcher triggerType="waffle" />
                 </div>
                 <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-                  <ChristmasHat size={18}>
+                  <ChristmasHat size={12}>
                   {tenant?.tenant_logo?.url ? (
                     <img src={tenant.tenant_logo.url} alt="logo" style={{ height: 28, maxWidth: 70, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
                   ) : (
