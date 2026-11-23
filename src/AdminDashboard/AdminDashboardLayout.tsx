@@ -1,3 +1,4 @@
+import { ChristmasHat } from "@components/seasonal";
 import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { beginLogout } from "@services/request";
 import {
@@ -1338,7 +1339,8 @@ const AdminDashboard: React.FC = () => {
       <ProLayout
         style={{ maxWidth: "1920px" }}
         logo={
-          tenant?.tenant_logo?.url ? (
+          <ChristmasHat size={16}>
+          {tenant?.tenant_logo?.url ? (
             <img
               src={tenant.tenant_logo.url}
               alt="tenant-logo"
@@ -1366,7 +1368,8 @@ const AdminDashboard: React.FC = () => {
               }}
               onClick={() => navigate("/admin/dashboard")}
             />
-          )
+          )}
+          </ChristmasHat>
         }
         title=""
         menuHeaderRender={(logo: any) => (
@@ -1541,6 +1544,7 @@ const AdminDashboard: React.FC = () => {
                       justifyContent: "center",
                     }}
                   >
+                    <ChristmasHat size={14}>
                     {tenant?.tenant_logo?.url ? (
                       <Image
                         src={tenant.tenant_logo.url}
@@ -1570,6 +1574,7 @@ const AdminDashboard: React.FC = () => {
                         onClick={() => navigate("/admin/dashboard")}
                       />
                     )}
+                    </ChristmasHat>
                   </div>
 
                   {headerActions}
