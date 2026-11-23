@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Space, Spin, message } from "antd";
-import { DashboardOutlined, EnvironmentOutlined, InboxOutlined } from "@ant-design/icons";
+import { DashboardOutlined, EnvironmentOutlined, ExperimentOutlined, InboxOutlined } from "@ant-design/icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { QtyApprovalSettingCard } from "@components/inventory/InventoryQtyApproval";
 import { fetchShop, updateShop } from "../../../services/shops";
@@ -11,7 +11,8 @@ type ShopFlag =
   | "cart_inventory_deduction_enabled"
   | "zone_inventory_enabled"
   | "category_zone_restriction_enabled"
-  | "water_meter_enabled";
+  | "water_meter_enabled"
+  | "refill_enabled";
 
 const MESSAGES: Record<ShopFlag, [string, string]> = {
   cart_inventory_deduction_enabled: ["Cart-level inventory deductions enabled", "Cart-level inventory deductions disabled"],
@@ -21,6 +22,7 @@ const MESSAGES: Record<ShopFlag, [string, string]> = {
     "Category zone restrictions disabled — all items can be sold in every zone",
   ],
   water_meter_enabled: ["Water meter tracking enabled", "Water meter tracking disabled"],
+  refill_enabled: ["Refills turned on", "Refills turned off"],
 };
 
 const InventoryControlsSettings: React.FC = () => {
@@ -38,6 +40,7 @@ const InventoryControlsSettings: React.FC = () => {
     zone_inventory_enabled: false,
     category_zone_restriction_enabled: false,
     water_meter_enabled: false,
+    refill_enabled: false,
   });
   const [saving, setSaving] = useState<ShopFlag | null>(null);
 
@@ -48,6 +51,7 @@ const InventoryControlsSettings: React.FC = () => {
       zone_inventory_enabled: !!shop.zone_inventory_enabled,
       category_zone_restriction_enabled: !!shop.category_zone_restriction_enabled,
       water_meter_enabled: !!shop.water_meter_enabled,
+      refill_enabled: !!shop.refill_enabled,
     });
   }, [shop]);
 
@@ -127,6 +131,19 @@ const InventoryControlsSettings: React.FC = () => {
           checked={flags.water_meter_enabled}
           onChange={toggle("water_meter_enabled")}
           loading={saving === "water_meter_enabled"}
+        />
+      )}
+
+      {isRetailShop && (
+        <ToggleRow
+          icon={<ExperimentOutlined />}
+          color="#4f46e5"
+          bg="#eef2ff"
+          title={flags.refill_enabled ? "Refills On" : "Refills Off"}
+          description="For refill points. Turn this on to make filled items by refilling: on the filled item (e.g. Filled bottle 20L) set what one unit uses — empty bottle, water, cap — and how many bottles come in a bale. Each refill takes those off stock and adds the filled bottles, so filled bottles are counted until they're sold. Adds a Refill button in Inventory and a Refills report."
+          checked={flags.refill_enabled}
+          onChange={toggle("refill_enabled")}
+          loading={saving === "refill_enabled"}
         />
       )}
     </Space>
