@@ -98,8 +98,11 @@ export const WaterMeterFields: React.FC<{
   /** Readings already recorded — the starting reading can no longer change */
   hasReadings?: boolean;
   lastReading?: number | null;
-}> = ({ form, hasVariants, stockUnit, hasReadings, lastReading }) => {
-  const enabled = Form.useWatch("meter_enabled", form);
+  /** Settings' "Link a water meter" window: always on, no switch */
+  hideSwitch?: boolean;
+}> = ({ form, hasVariants, stockUnit, hasReadings, lastReading, hideSwitch }) => {
+  const watchedEnabled = Form.useWatch("meter_enabled", form);
+  const enabled = hideSwitch ? true : watchedEnabled;
   const unitLabel = Form.useWatch("meter_unit_label", form) || "m³";
   const rate = Form.useWatch("meter_conversion_rate", form);
   const direction = Form.useWatch("meter_direction", form);
@@ -118,25 +121,27 @@ export const WaterMeterFields: React.FC<{
         marginBottom: 16,
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <div
-          style={{
-            width: 36, height: 36, borderRadius: 9, background: "#e0f2fe", color: "#0284c7",
-            display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0,
-          }}
-        >
-          <DashboardOutlined />
+      {!hideSwitch && (
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div
+            style={{
+              width: 36, height: 36, borderRadius: 9, background: "#e0f2fe", color: "#0284c7",
+              display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0,
+            }}
+          >
+            <DashboardOutlined />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <Text strong style={{ display: "block" }}>Track with a water meter</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              Record the meter reading each day and the water quantity updates from the difference.
+            </Text>
+          </div>
+          <Form.Item name="meter_enabled" valuePropName="checked" style={{ margin: 0 }}>
+            <Switch disabled={hasVariants} checkedChildren="ON" unCheckedChildren="OFF" />
+          </Form.Item>
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <Text strong style={{ display: "block" }}>Track with a water meter</Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            Record the meter reading each day and the water quantity updates from the difference.
-          </Text>
-        </div>
-        <Form.Item name="meter_enabled" valuePropName="checked" style={{ margin: 0 }}>
-          <Switch disabled={hasVariants} checkedChildren="ON" unCheckedChildren="OFF" />
-        </Form.Item>
-      </div>
+      )}
 
       {hasVariants && (
         <Text type="secondary" style={{ fontSize: 12, display: "block", marginTop: 8 }}>
@@ -145,7 +150,7 @@ export const WaterMeterFields: React.FC<{
       )}
 
       {enabled && !hasVariants && (
-        <div style={{ marginTop: 14 }}>
+        <div style={{ marginTop: hideSwitch ? 0 : 14 }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
             <Form.Item name="meter_name" label="Meter name / number" style={{ marginBottom: 8 }}>
               <Input placeholder="e.g. Main inlet meter" maxLength={80} />

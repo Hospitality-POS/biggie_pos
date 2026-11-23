@@ -48,7 +48,9 @@ import { fetchShop } from "@services/shops";
 import { useQtyApprovalSetting } from "@hooks/useQtyApprovalSetting";
 import QtyChangeRequestPanel from "@components/inventory/QtyChangeRequestPanel";
 import { WaterMeterFields, meterFormValues, meterPayload } from "@components/inventory/WaterMeter";
+import { RefillFields, refillFormValues, refillPayload } from "@components/inventory/Refill";
 import { useWaterMeterSetting } from "@hooks/useWaterMeterSetting";
+import { useRefillSetting } from "@hooks/useRefillSetting";
 import { UploadFile } from "antd/lib/upload";
 import { ProCard } from "@ant-design/pro-components";
 import AddEditVariantModal from "./AddEditVariantModal";
@@ -714,6 +716,7 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
   const zoneInventoryEnabled = !!shopData?.zone_inventory_enabled;
   // Water meter tracking (retail shops, System Setup → Privacy)
   const waterMeterOn = useWaterMeterSetting();
+  const refillOn = useRefillSetting();
 
   // Tracks the product's current selling price so a new variant can be
   // pre-filled with it (still editable in the variant modal).
@@ -925,6 +928,7 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
             reorder_quantity: data?.reorder_quantity || undefined,
             code: data?.code || "",
             ...meterFormValues(data?.meter),
+            ...refillFormValues(data?.refill),
           };
           // Don't clobber anything the user already typed while the lookup
           // queries were still resolving — keep their value instead.
@@ -952,6 +956,7 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
         vat_type: "STANDARD",
         status: "active",
         ...meterFormValues(null),
+        ...refillFormValues(null),
       });
       setUsageType("both");
       setHasVariants(false);
@@ -1081,6 +1086,7 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
         variants: hasVariants && variants.length > 0 ? variantsForSave(values.requested_variant_quantities) : undefined,
         code: values.code,
         meter: waterMeterOn ? meterPayload(values, data?.meter) : undefined,
+        refill: refillOn ? refillPayload(values, data?.refill) : undefined,
       };
 
       // Strip undefined/empty-string fields
@@ -1460,6 +1466,16 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
               />
             )}
 
+            {/* Refill: filled bottles made from empties + water (opt-in) */}
+            {refillOn && (
+              <RefillFields
+                form={form}
+                hasVariants={hasVariants}
+                itemId={edit ? data?._id : undefined}
+                stockUnit={stockUnitName}
+              />
+            )}
+
             {/* Variants toggle */}
             <Form.Item
               label="Track Inventory by Variants"
@@ -1824,6 +1840,7 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
     handleDeleteVariant,
     fileList,
     waterMeterOn,
+    refillOn,
     stockUnitName,
   ]);
 
