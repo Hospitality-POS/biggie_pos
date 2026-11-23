@@ -503,7 +503,6 @@ const AdminDashboard: React.FC = () => {
 
         {/* Logo */}
         <div style={{ marginBottom: 20 }}>
-          <ChristmasHat size={34}>
           {tenant?.tenant_logo?.url ? (
             <Image
               src={tenant.tenant_logo.url}
@@ -529,7 +528,6 @@ const AdminDashboard: React.FC = () => {
               }}
             />
           )}
-          </ChristmasHat>
         </div>
 
         {/* User profile strip */}

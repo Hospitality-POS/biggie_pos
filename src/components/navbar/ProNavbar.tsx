@@ -647,7 +647,6 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         </button>
 
         <div style={{ marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <ChristmasHat size={30}>
           {tenant?.tenant_logo?.url ? (
             <img src={tenant.tenant_logo.url} alt="logo"
               style={{ height: 48, maxWidth: 140, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
@@ -655,7 +654,6 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
             <img src="/relia.png" alt="logo"
               style={{ height: 44, maxWidth: 140, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
           )}
-          </ChristmasHat>
         </div>
 
         {user && (
