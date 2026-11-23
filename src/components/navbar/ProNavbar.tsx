@@ -1,3 +1,4 @@
+import { ChristmasHat } from "@components/seasonal";
 import { ProLayout } from "@ant-design/pro-components";
 import {
   Badge,
@@ -646,6 +647,7 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         </button>
 
         <div style={{ marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <ChristmasHat size={30}>
           {tenant?.tenant_logo?.url ? (
             <img src={tenant.tenant_logo.url} alt="logo"
               style={{ height: 48, maxWidth: 140, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
@@ -653,6 +655,7 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
             <img src="/relia.png" alt="logo"
               style={{ height: 44, maxWidth: 140, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
           )}
+          </ChristmasHat>
         </div>
 
         {user && (
@@ -1133,13 +1136,15 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
       <ProLayout
         style={{ maxWidth: "1920px" }}
         logo={
-          tenant?.tenant_logo?.url ? (
+          <ChristmasHat size={36}>
+          {tenant?.tenant_logo?.url ? (
             <Image src={tenant.tenant_logo.url} height={isMobile ? 40 : 60} preview={false} alt="tenant-logo"
               style={{ padding: isMobile ? 3 : 5, objectFit: "contain", maxWidth: isMobile ? 100 : 140 }} />
           ) : (
             <Image src="/relia.png" height={isMobile ? 34 : 90} preview={false} alt="relia-logo"
               style={{ padding: isMobile ? 4 : 12, objectFit: "contain", maxWidth: isMobile ? 100 : 140 }} />
-          )
+          )}
+          </ChristmasHat>
         }
         title=""
         menuHeaderRender={(logo: any, title: any) => (
@@ -1181,11 +1186,13 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
                   <EcosystemAppSwitcher triggerType="waffle" />
                 </div>
                 <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+                  <ChristmasHat size={18}>
                   {tenant?.tenant_logo?.url ? (
                     <img src={tenant.tenant_logo.url} alt="logo" style={{ height: 28, maxWidth: 70, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
                   ) : (
                     <img src="/relia.png" alt="logo" style={{ height: 26, maxWidth: 70, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
                   )}
+                  </ChristmasHat>
                 </div>
                 {user ? headerActions : (
                   <StaffModal setOpen={setStaffModalOpen} open={staffModalOpen} tbl="staff" showButton />

@@ -1,3 +1,4 @@
+import { ChristmasHat } from "@components/seasonal";
 import { useEffect, useState } from "react";
 import { Button, Dropdown, Input, Space, Row, Col, Typography, Segmented, Tooltip } from "antd";
 import {
@@ -467,6 +468,7 @@ const StaffLoginPage = () => {
             }}
         >
             <div style={{ marginBottom: "0.75rem", display: "flex", justifyContent: "center", alignItems: "center" }}>
+                <ChristmasHat size={44}>
                 {tenant?.tenant_logo?.url ? (
                     <img
                         src={tenant.tenant_logo.url}
@@ -494,6 +496,7 @@ const StaffLoginPage = () => {
                         }}
                     />
                 )}
+                </ChristmasHat>
             </div>
             {!companyName && (
                 <h2
