@@ -128,8 +128,8 @@ const SystemSetup: React.FC = () => {
       },
       {
         key: "invoice-appearance",
-        label: "Invoice Appearance",
-        description: "Watermark, services banner & letterhead",
+        label: "Invoice Settings",
+        description: "Numbering, watermark, services banner & letterhead",
         icon: <FileTextOutlined />,
         color: "#1f5c99",
         bg: "#eff6ff",

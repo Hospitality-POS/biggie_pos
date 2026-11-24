@@ -285,7 +285,37 @@ export interface ShopInvoiceSettings {
   website?: string;
   primary_color?: string;
   secondary_color?: string;
+  // Invoice numbering, e.g. JEL/26/229 (prefix "JEL", separator "/", year "YY")
+  number_prefix?: string;
+  number_separator?: string;
+  number_year_format?: "none" | "YY" | "YYYY";
+  // Minimum digits; shorter numbers are zero-padded (1 = no padding)
+  number_padding?: number;
+  // Number the next invoice gets; null = continue from existing invoices
+  number_next?: number | null;
 }
+
+// Mirrors formatInvoiceNumber in biggie_api utils/invoice-number.js
+export const formatInvoiceNumber = (s: ShopInvoiceSettings, n: number, date = new Date()) => {
+  const parts: string[] = [];
+  const prefix = (s.number_prefix ?? "INV").trim();
+  if (prefix) parts.push(prefix);
+  const year = String(date.getFullYear());
+  const yf = s.number_year_format ?? "YYYY";
+  if (yf === "YYYY") parts.push(year);
+  else if (yf === "YY") parts.push(year.slice(-2));
+  const pad = Math.min(10, Math.max(1, Math.floor(s.number_padding ?? 5)));
+  parts.push(String(n).padStart(pad, "0"));
+  return parts.join(s.number_separator ?? "-");
+};
+// The number the next invoice will get (configured=false while it still
+// follows the existing invoice count)
+export const fetchNextInvoiceNumber = async (
+  shopId: string
+): Promise<{ next_number: number; preview: string; configured: boolean }> => {
+  const response = await axiosInstance.get(`${url}/${shopId}/invoice-number`);
+  return response.data;
+};
 export const updateShopInvoiceSettings = async (shopId: string, settings: ShopInvoiceSettings) => {
   const response = await axiosInstance.patch(`${url}/${shopId}`, { invoice_settings: settings });
   return response.data;

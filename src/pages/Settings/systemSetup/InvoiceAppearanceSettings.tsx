@@ -5,7 +5,9 @@ import {
   ColorPicker,
   Form,
   Input,
+  InputNumber,
   Segmented,
+  Select,
   Slider,
   Space,
   Spin,
@@ -17,7 +19,9 @@ import {
 import { DeleteOutlined, FileTextOutlined, UploadOutlined } from "@ant-design/icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  fetchNextInvoiceNumber,
   fetchShop,
+  formatInvoiceNumber,
   removeShopInvoiceWatermark,
   updateShopInvoiceSettings,
   uploadShopInvoiceWatermark,
@@ -31,7 +35,10 @@ import {
 
 const { Text } = Typography;
 
-const DEFAULTS: Required<Omit<ShopInvoiceSettings, "watermark_image_url">> & { watermark_image_url: string | null } = {
+const DEFAULTS: Required<Omit<ShopInvoiceSettings, "watermark_image_url" | "number_next">> & {
+  watermark_image_url: string | null;
+  number_next: number | null;
+} = {
   watermark_enabled: false,
   watermark_source: "logo",
   watermark_image_url: null,
@@ -45,7 +52,21 @@ const DEFAULTS: Required<Omit<ShopInvoiceSettings, "watermark_image_url">> & { w
   website: "",
   primary_color: "#1F5C99",
   secondary_color: "#F7941D",
+  number_prefix: "INV",
+  number_separator: "-",
+  number_year_format: "YYYY",
+  number_padding: 5,
+  number_next: null,
 };
+
+// Saved together with the "Save numbering" button
+const NUMBER_KEYS = [
+  "number_prefix",
+  "number_separator",
+  "number_year_format",
+  "number_padding",
+  "number_next",
+] as const;
 
 const tenantLogoUrl = (): string | undefined => {
   try {
@@ -75,7 +96,9 @@ const ToggleRow: React.FC<{
   </div>
 );
 
-const InvoiceAppearanceSettings: React.FC = () => {
+// `embedded` drops the page title and padding, for use inside a drawer
+// (Orders → Invoices → Invoice Settings)
+const InvoiceAppearanceSettings: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
   const shopId = localStorage.getItem("shopId");
   const queryClient = useQueryClient();
   const logoUrl = tenantLogoUrl();
@@ -83,6 +106,14 @@ const InvoiceAppearanceSettings: React.FC = () => {
   const { data: shopData, isLoading } = useQuery({
     queryKey: ["shop", shopId],
     queryFn: () => fetchShop(shopId!),
+    enabled: !!shopId,
+  });
+
+  // What the next invoice will actually be numbered (the API also skips
+  // numbers already in use), shown when no next number has been saved
+  const { data: nextInfo } = useQuery({
+    queryKey: ["shop-invoice-number", shopId],
+    queryFn: () => fetchNextInvoiceNumber(shopId!),
     enabled: !!shopId,
   });
 
@@ -100,17 +131,21 @@ const InvoiceAppearanceSettings: React.FC = () => {
 
   const set = <K extends keyof typeof s>(k: K, v: (typeof s)[K]) => setS((p) => ({ ...p, [k]: v }));
 
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ["shop", shopId] });
+  const refresh = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["shop", shopId] }),
+      queryClient.invalidateQueries({ queryKey: ["shop-invoice-number", shopId] }),
+    ]);
 
-  const save = async (patch: ShopInvoiceSettings, key: string, okMsg = "Invoice appearance saved") => {
+  const save = async (patch: ShopInvoiceSettings, key: string, okMsg = "Invoice settings saved") => {
     if (!shopId) return;
     setSavingKey(key);
     try {
       await updateShopInvoiceSettings(shopId, patch);
       await refresh();
       message.success(okMsg);
-    } catch {
-      message.error("Failed to save invoice appearance");
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || "Failed to save invoice settings");
       refresh();
     } finally {
       setSavingKey(null);
@@ -177,15 +212,116 @@ const InvoiceAppearanceSettings: React.FC = () => {
   const watermarkMissing =
     s.watermark_enabled && (s.watermark_source === "custom" ? !customUrl : !logoUrl);
 
+  // A saved next number wins; otherwise show where the count will continue
+  const effectiveNext = s.number_next ?? nextInfo?.next_number ?? null;
+  const numberPreview = formatInvoiceNumber(s, effectiveNext ?? 1);
+
   return (
-    <div style={{ padding: 24 }}>
-      <Typography.Title level={5} style={{ marginBottom: 4 }}>
-        <FileTextOutlined style={{ marginRight: 8 }} />
-        Invoice Appearance
-      </Typography.Title>
-      <Text type="secondary" style={{ display: "block", marginBottom: 20, fontSize: 13 }}>
-        Applies to all A4 invoice templates under Orders → Invoices. The Letterhead template also uses the brand colours below.
-      </Text>
+    <div style={{ padding: embedded ? 0 : 24 }}>
+      {!embedded && (
+        <>
+          <Typography.Title level={5} style={{ marginBottom: 4 }}>
+            <FileTextOutlined style={{ marginRight: 8 }} />
+            Invoice Settings
+          </Typography.Title>
+          <Text type="secondary" style={{ display: "block", marginBottom: 20, fontSize: 13 }}>
+            Numbering and look of the invoices under Orders → Invoices. The Letterhead template also uses the brand colours below.
+          </Text>
+        </>
+      )}
+
+      {/* ── Numbering ─────────────────────────────────────────── */}
+      <Card size="small" title="Invoice Numbering" style={{ maxWidth: 760, marginBottom: 16 }}>
+        <Text type="secondary" style={{ display: "block", marginBottom: 12, fontSize: 12 }}>
+          How new invoice numbers look, e.g. JEL/26/229. Existing invoices keep their numbers.
+        </Text>
+        <Form layout="vertical">
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <Form.Item label="Prefix" style={{ flex: "1 1 140px", marginBottom: 12 }}>
+              <Input
+                value={s.number_prefix}
+                maxLength={20}
+                placeholder="e.g. JEL"
+                onChange={(e) => set("number_prefix", e.target.value.toUpperCase())}
+              />
+            </Form.Item>
+            <Form.Item label="Separator" style={{ flex: "1 1 120px", marginBottom: 12 }}>
+              <Select
+                value={s.number_separator}
+                onChange={(v) => set("number_separator", v)}
+                options={[
+                  { value: "/", label: "/  (JEL/26/229)" },
+                  { value: "-", label: "-  (JEL-26-229)" },
+                  { value: ".", label: ".  (JEL.26.229)" },
+                  { value: "", label: "None (JEL26229)" },
+                ]}
+              />
+            </Form.Item>
+            <Form.Item label="Year" style={{ flex: "1 1 150px", marginBottom: 12 }}>
+              <Select
+                value={s.number_year_format}
+                onChange={(v) => set("number_year_format", v)}
+                options={[
+                  { value: "YY", label: "2 digits (26)" },
+                  { value: "YYYY", label: "4 digits (2026)" },
+                  { value: "none", label: "Don't include" },
+                ]}
+              />
+            </Form.Item>
+          </div>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <Form.Item
+              label="Next invoice number"
+              tooltip="The number the next invoice gets. Numbers already used are skipped."
+              style={{ flex: "1 1 200px", marginBottom: 12 }}
+            >
+              <InputNumber
+                value={effectiveNext ?? undefined}
+                min={1}
+                precision={0}
+                style={{ width: "100%" }}
+                placeholder="Continue from existing invoices"
+                onChange={(v) => set("number_next", typeof v === "number" ? v : null)}
+              />
+            </Form.Item>
+            <Form.Item
+              label="Minimum digits"
+              tooltip="Pads short numbers with zeros: 3 digits turns 7 into 007. Use 1 for no padding."
+              style={{ flex: "1 1 140px", marginBottom: 12 }}
+            >
+              <InputNumber
+                value={s.number_padding}
+                min={1}
+                max={10}
+                precision={0}
+                style={{ width: "100%" }}
+                onChange={(v) => set("number_padding", typeof v === "number" ? v : 1)}
+              />
+            </Form.Item>
+          </div>
+        </Form>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <div>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {effectiveNext ? "Next invoice: " : "Format: "}
+            </Text>
+            <Text strong code style={{ fontSize: 14 }}>{numberPreview}</Text>
+          </div>
+          <Button
+            type="primary"
+            loading={savingKey === "numbering"}
+            onClick={() =>
+              save(
+                Object.fromEntries(NUMBER_KEYS.map((k) => [k, s[k] ?? null])) as ShopInvoiceSettings,
+                "numbering",
+                "Invoice numbering saved"
+              )
+            }
+          >
+            Save numbering
+          </Button>
+        </div>
+      </Card>
 
       {/* ── Watermark ─────────────────────────────────────────── */}
       <Card size="small" title="Watermark" style={{ maxWidth: 760, marginBottom: 16 }}>

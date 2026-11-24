@@ -7,15 +7,16 @@ import {
 } from "@ant-design/pro-components";
 import ExpandedRowContent from "./ExpandableInvoice";
 import {
-  Button, DatePicker, Form, Input, InputNumber,
+  Button, DatePicker, Drawer, Form, Input, InputNumber,
   Modal, Select, App, Tooltip, Typography, Dropdown, Tag, Divider,
 } from "antd";
 import {
   DollarOutlined, EditOutlined, FileDoneOutlined,
   FileTextOutlined, FilePdfOutlined, MoreOutlined,
   PrinterOutlined, UserOutlined, SafetyCertificateOutlined,
-  DeleteOutlined, PlusOutlined, CopyOutlined, StopOutlined,
+  DeleteOutlined, PlusOutlined, CopyOutlined, StopOutlined, SettingOutlined,
 } from "@ant-design/icons";
+import InvoiceAppearanceSettings from "@pages/Settings/systemSetup/InvoiceAppearanceSettings";
 import { getAllInvoices } from "@services/cart";
 import { fetchAllCustomers } from "@services/customers";
 import { convertQuoteToInvoice, recordInvoicePayment, deleteInvoice, duplicateInvoice, voidInvoice, postInvoice } from "@services/accounting/invoice";
@@ -680,6 +681,7 @@ const InvoicesTable = ({ quotesOnly = false }: { quotesOnly?: boolean }) => {
   const [mobilePage, setMobilePage] = useState(1);
   const [mobileTotal, setMobileTotal] = useState(0);
   const [manualModalOpen, setManualModalOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [noteDetailOpen, setNoteDetailOpen] = useState(false);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [etrSubmitting, setEtrSubmitting] = useState<string | null>(null);
@@ -1287,6 +1289,16 @@ const InvoicesTable = ({ quotesOnly = false }: { quotesOnly?: boolean }) => {
         params={filterParams}
         search={false}
         toolBarRender={() => (quotesOnly || hasPesa ? [
+            ...(quotesOnly ? [] : [
+              <Button
+                key="invoice-settings"
+                icon={<SettingOutlined />}
+                onClick={() => setSettingsOpen(true)}
+                style={{ borderRadius: 8 }}
+              >
+                Invoice Settings
+              </Button>,
+            ]),
             <Button
               key="new-invoice"
               type="primary"
@@ -1354,6 +1366,16 @@ const InvoicesTable = ({ quotesOnly = false }: { quotesOnly?: boolean }) => {
         dateFormatter="string"
         rowClassName={(record) => record.status === "Draft" ? "row-quote" : ""}
       />
+
+      <Drawer
+        title="Invoice Settings"
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        width={820}
+        destroyOnHidden
+      >
+        <InvoiceAppearanceSettings embedded />
+      </Drawer>
 
       {convertTarget && (
         <ConvertModal invoice={convertTarget} open={!!convertTarget}
