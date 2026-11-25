@@ -578,7 +578,9 @@ const WhatsAppConnectCard: React.FC<{ shopId: string; onSuccess: () => void }> =
                 } else if (currentStatus?.status === "error") {
                     stopped = true;
                     setLoading(false);
-                    antMessage.error("WhatsApp Web failed to start.");
+                    // The API explains known failures (e.g. WhatsApp rate-limiting
+                    // the server) — show that instead of a generic error.
+                    antMessage.error(currentStatus?.message || "WhatsApp Web failed to start.");
                 }
             } catch (err: any) {
                 const errorMessage = err?.response?.data?.message || err?.message || JSON.stringify(err);
