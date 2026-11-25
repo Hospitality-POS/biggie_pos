@@ -14,7 +14,7 @@ import {
   DollarOutlined, EditOutlined, FileDoneOutlined,
   FileTextOutlined, FilePdfOutlined, MoreOutlined,
   PrinterOutlined, UserOutlined, SafetyCertificateOutlined,
-  DeleteOutlined, PlusOutlined, CopyOutlined, StopOutlined, SettingOutlined,
+  DeleteOutlined, PlusOutlined, CopyOutlined, StopOutlined, SettingOutlined, NumberOutlined,
 } from "@ant-design/icons";
 import InvoiceAppearanceSettings from "@pages/Settings/systemSetup/InvoiceAppearanceSettings";
 import { getAllInvoices } from "@services/cart";
@@ -28,6 +28,7 @@ import useSystemDetails from "@hooks/useSystemDetails";
 import { useTenantModules } from "@hooks/useTenantModules";
 import { Template6Clean } from "./InvoiceTemplates";
 import ManualInvoiceModal from "./ManualInvoiceModal";
+import EditInvoiceNumberModal from "./EditInvoiceNumberModal";
 import NoteDetailDrawer from "../NoteDetailDrawer";
 import NoteFormDrawer from "../NoteFormDrawer";
 import ProjectTagCell from "@components/accounting/ProjectTagCell";
@@ -227,11 +228,22 @@ const InvoiceSummaryCards: React.FC<{ rows: any[]; quotesOnly: boolean }> = ({ r
 };
 
 // ── Zoho-style Mobile Invoice Card (entire card clickable) ─────────────────
+// Matches the API's rules (PATCH /accounting/invoices/:id with order_no):
+// not POS sales, voided/cancelled invoices, or ones already on eTIMS
+const canRenumber = (record: any) => {
+  const dt = record?.digitax || {};
+  return record?.source !== "pos"
+    && !["Voided", "Cancelled"].includes(record?.status)
+    && !dt.sale_id
+    && !["Verified", "COMPLETED", "Submitted"].includes(dt.submission_status);
+};
+
 const MobileInvoiceCard: React.FC<{
   record: any;
   onConvert: (r: any) => void;
   onPay: (r: any) => void;
   onEdit: (r: any) => void;
+  onRenumber: (r: any) => void;
   onExpand: (r: any) => void;
   onOpenNote: (noteId: string) => void;
   onEtr: (r: any) => void;
@@ -239,7 +251,7 @@ const MobileInvoiceCard: React.FC<{
   onPaymentsChanged?: () => void;
   expanded: boolean;
   isAdmin: boolean;
-}> = ({ record, onConvert, onPay, onEdit, onExpand, onOpenNote, onEtr, onDelete, onPaymentsChanged, expanded, isAdmin }) => {
+}> = ({ record, onConvert, onPay, onEdit, onRenumber, onExpand, onOpenNote, onEtr, onDelete, onPaymentsChanged, expanded, isAdmin }) => {
   const isDraft = record.status === "Draft";
   const payable = isPayable(record);
   const needsEtr = !isDraft && !record.etr_enabled;
@@ -252,6 +264,7 @@ const MobileInvoiceCard: React.FC<{
     ...(payable ? [{ key: "pay", label: "Make Payment", icon: <DollarOutlined /> }] : []),
     ...(needsEtr ? [{ key: "etr", label: "Submit Etims", icon: <SafetyCertificateOutlined /> }] : []),
     { key: "edit", label: "Edit", icon: <EditOutlined /> },
+    ...(canRenumber(record) ? [{ key: "renumber", label: isDraft ? "Edit Quote No." : "Edit Invoice No.", icon: <NumberOutlined /> }] : []),
     ...(isAdmin && !record.etr_enabled ? [{ key: "delete", label: "Delete", icon: <DeleteOutlined />, danger: true }] : []),
   ];
 
@@ -260,6 +273,7 @@ const MobileInvoiceCard: React.FC<{
     if (key === "convert") onConvert(record);
     if (key === "pay") onPay(record);
     if (key === "edit") onEdit(record);
+    if (key === "renumber") onRenumber(record);
     if (key === "etr") onEtr(record);
     if (key === "delete") onDelete(record);
   };
@@ -672,6 +686,7 @@ const InvoicesTable = ({ quotesOnly = false }: { quotesOnly?: boolean }) => {
   const [convertTarget, setConvertTarget] = useState<any>(null);
   const [payTarget, setPayTarget] = useState<any>(null);
   const [editTarget, setEditTarget] = useState<any>(null);
+  const [renumberTarget, setRenumberTarget] = useState<any>(null);
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const [voidTarget, setVoidTarget] = useState<any>(null);
   const [voidReason, setVoidReason] = useState("");
@@ -886,6 +901,7 @@ const InvoicesTable = ({ quotesOnly = false }: { quotesOnly?: boolean }) => {
   // Row action menu for desktop
   const getRowActionItems = (record: any) => [
     { key: "edit", label: "Edit", icon: <EditOutlined /> },
+    ...(canRenumber(record) ? [{ key: "renumber", label: quotesOnly || record.status === "Draft" ? "Edit Quote No." : "Edit Invoice No.", icon: <NumberOutlined /> }] : []),
     ...(record.status !== "Voided" ? [{ key: "duplicate", label: "Duplicate", icon: <CopyOutlined /> }] : []),
     ...(record.status === "Draft" ? [
       { key: "print", label: "Print Quote", icon: <PrinterOutlined /> },
@@ -912,6 +928,7 @@ const InvoicesTable = ({ quotesOnly = false }: { quotesOnly?: boolean }) => {
 
   const handleRowMenuClick = (key: any, record: any) => {
     if (key === "edit") setEditTarget(record);
+    if (key === "renumber") setRenumberTarget(record);
     if (key === "duplicate") handleDuplicate(record);
     if (key === "print") printQuote(record);
     if (key === "convert") setConvertTarget(record);
@@ -1238,6 +1255,7 @@ const InvoicesTable = ({ quotesOnly = false }: { quotesOnly?: boolean }) => {
                 onConvert={setConvertTarget}
                 onPay={setPayTarget}
                 onEdit={setEditTarget}
+                onRenumber={setRenumberTarget}
                 expanded={expandedId === record._id}
                 onExpand={(r) => setExpandedId(expandedId === r._id ? null : r._id)}
                 onOpenNote={handleOpenNote}
@@ -1402,6 +1420,15 @@ const InvoicesTable = ({ quotesOnly = false }: { quotesOnly?: boolean }) => {
           onClose={() => setEditTarget(null)}
           onSuccess={refreshTable}
           invoiceToEdit={editTarget}
+        />
+      )}
+
+      {renumberTarget && (
+        <EditInvoiceNumberModal
+          open={!!renumberTarget}
+          invoice={renumberTarget}
+          onClose={() => setRenumberTarget(null)}
+          onSuccess={refreshTable}
         />
       )}
 
