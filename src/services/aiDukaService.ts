@@ -90,7 +90,9 @@ export const fetchDukaDashboard = async (shopId: string): Promise<any> => {
   if (rawUser) {
     try {
       token = JSON.parse(rawUser)?.Token;
-    } catch {}
+    } catch {
+      // unreadable stored user: send the request without a token
+    }
   }
 
   const headers: Record<string, string> = {};
@@ -118,7 +120,9 @@ export const applyDukaInsight = async (
   if (rawUser) {
     try {
       token = JSON.parse(rawUser)?.Token;
-    } catch {}
+    } catch {
+      // unreadable stored user: send the request without a token
+    }
   }
 
   const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -148,7 +152,9 @@ export const recordDukaAlertAction = async (
   if (rawUser) {
     try {
       token = JSON.parse(rawUser)?.Token;
-    } catch {}
+    } catch {
+      // unreadable stored user: send the request without a token
+    }
   }
 
   const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -170,7 +176,7 @@ export const recordDukaAlertAction = async (
  */
 export const synthesizeDukaSpeech = async (
   text: string,
-  voice: string = "en-KE-AsiliaNeural"
+  voice = "en-KE-AsiliaNeural"
 ): Promise<string> => {
   const res = await axios.post(
     `${AI_DUKA_URL}/tts`,

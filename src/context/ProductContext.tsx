@@ -264,7 +264,7 @@ export const useActiveProduct = () => {
       activeProduct: "duka" as ProductKey,
       activeProductConfig: PRODUCT_CONFIGS.duka,
       availableProducts: [PRODUCT_CONFIGS.duka],
-      switchProduct: () => {},
+      switchProduct: () => undefined,
       isMultiProduct: false,
     };
   }

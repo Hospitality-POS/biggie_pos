@@ -39,7 +39,7 @@ const isLogoutFallout = (error: any) => {
 
 // A request that never settles: nothing downstream sees an error to report.
 // The pages that made it are unmounting, so nothing waits on it.
-const dropSilently = () => new Promise<never>(() => {});
+const dropSilently = () => new Promise<never>(() => undefined);
 
 const handleError = (errorMessage: string) => {
     message.error(`${errorMessage}`);

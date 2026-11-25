@@ -251,7 +251,9 @@ const MapView: React.FC<{ shops: any[]; height?: number }> = ({ shops, height = 
       markersRef.current.forEach(m => {
         try {
           m.setMap(null);
-        } catch (_) {}
+        } catch {
+          // marker already removed from the map
+        }
       });
       markersRef.current = [];
 

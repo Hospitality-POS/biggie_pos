@@ -39,7 +39,7 @@ export const initDesktopZoom = (): void => {
     if (!isTauri()) return;
 
     const stored = getDesktopZoom();
-    if (stored !== 1) applyZoom(stored).catch(() => {});
+    if (stored !== 1) applyZoom(stored).catch(() => undefined);
 
     window.addEventListener("keydown", (e) => {
         if (!e.ctrlKey) return;

@@ -28,13 +28,17 @@ export const useSoundPlayer = (drawerOpen: boolean): UseSoundPlayerReturn => {
       try {
         audioElementRef.current.pause();
         audioElementRef.current.src = "";
-      } catch {}
+      } catch {
+        // already stopped
+      }
       audioElementRef.current = null;
     }
     if (activeAudioUrlRef.current) {
       try {
         URL.revokeObjectURL(activeAudioUrlRef.current);
-      } catch {}
+      } catch {
+        // already released
+      }
       activeAudioUrlRef.current = null;
     }
     setSpeakingMessageId(null);

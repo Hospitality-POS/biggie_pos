@@ -30,7 +30,7 @@ export type BuiltInCategory =
   | "other";
 
 /** A built-in category or the key of one the shop added. */
-export type FormCategory = BuiltInCategory | (string & {});
+export type FormCategory = BuiltInCategory | (string & NonNullable<unknown>);
 
 /**
  * Who fills the form in: a customer, an employee (Bandu HR), or a contact
