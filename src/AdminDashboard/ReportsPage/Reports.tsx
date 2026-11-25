@@ -20,10 +20,14 @@ import {
   ClockCircleOutlined,
   WalletOutlined,
   ExperimentOutlined,
+  WarningOutlined,
 } from "@ant-design/icons";
 import DebtsReportModal, { type DebtStatus } from "@components/Reports/DebtsReport";
 import RefillReportModal from "@components/Reports/RefillReport";
 import { useRefillSetting } from "@hooks/useRefillSetting";
+import DamageReportModal from "@components/Reports/DamageReport";
+import { useDamagesSetting } from "@hooks/useDamagesSetting";
+import { DAMAGE_REASONS, type DamageItemType } from "@services/damages";
 import { getCreditSummary } from "@services/orders";
 import PurchaseReportModal from "@components/Reports/PurchaseReport";
 import VoidReportModal from "@components/Reports/VoidReport";
@@ -228,6 +232,8 @@ const AdminReports: React.FC = () => {
   const healthcareTabs = useHealthcareReportTabs();
   // Refills turned on (System Setup → Inventory Controls) add a Refills report
   const refillOn = useRefillSetting();
+  // Damage tracking (System Setup → Inventory Controls) adds a Damages report
+  const damagesOn = useDamagesSetting();
   const tabs = useMemo(
     () => [
       ...healthcareTabs,
@@ -235,8 +241,11 @@ const AdminReports: React.FC = () => {
       ...(refillOn
         ? [{ key: "refills", icon: <ExperimentOutlined />, iconColor: C.blue, label: "Refills" }]
         : []),
+      ...(damagesOn
+        ? [{ key: "damages", icon: <WarningOutlined />, iconColor: C.red, label: "Damages" }]
+        : []),
     ],
-    [healthcareTabs, refillOn]
+    [healthcareTabs, refillOn, damagesOn]
   );
   const [activeTab, setActiveTab] = useState<string>("sale");
   // Open on the first healthcare register once, when they load
@@ -251,6 +260,10 @@ const AdminReports: React.FC = () => {
   const [refillsOpen, setRefillsOpen] = useState(false);
   const [refillsRange, setRefillsRange] = useState<[string, string]>(["", ""]);
   const [refillsShop, setRefillsShop] = useState<string | undefined>();
+  // Damages report
+  const [damagesOpen, setDamagesOpen] = useState(false);
+  const [damagesRange, setDamagesRange] = useState<[string, string]>(["", ""]);
+  const [damagesFilters, setDamagesFilters] = useState<{ shop_id?: string; item_type?: DamageItemType; reason?: string; include_voided?: boolean }>({});
   // Debts (pay later) report
   const [debtsOpen, setDebtsOpen] = useState(false);
   const [debtsRange, setDebtsRange] = useState<[string, string]>(["", ""]);
@@ -325,6 +338,8 @@ const AdminReports: React.FC = () => {
     setDebtsRange(["", ""]);
     setRefillsOpen(false);
     setRefillsRange(["", ""]);
+    setDamagesOpen(false);
+    setDamagesRange(["", ""]);
     setOpenSalesModal(false);
     setOpenPurchaseModal(false);
     setOpenVoidedModal(false);
@@ -1162,6 +1177,89 @@ const AdminReports: React.FC = () => {
               startDate={refillsRange[0]}
               endDate={refillsRange[1]}
               shopId={refillsShop}
+            />
+          </Form>
+        );
+
+      case "damages":
+        return (
+          <Form form={form} layout="vertical" initialValues={{ damage_item_type: "all", damage_voided: "hide" }} onFinish={(values) => {
+            setDamagesFilters({
+              shop_id: values.shop_id || localStorage.getItem("shopId") || undefined,
+              item_type: values.damage_item_type === "all" ? undefined : values.damage_item_type,
+              reason: values.damage_reason || undefined,
+              include_voided: values.damage_voided === "show",
+            });
+            setDamagesOpen(true);
+          }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "0 16px" }}>
+              <div style={{ flex: "1 1 300px", minWidth: 0 }}>
+                <DateRangeField rangePresets={rangePresets}
+                  onChange={(dates) => setDamagesRange([
+                    dates?.[0]?.format("YYYY-MM-DD HH:mm") || "",
+                    dates?.[1]?.format("YYYY-MM-DD HH:mm") || "",
+                  ])} />
+              </div>
+              {isAdminRoute && (
+                <div style={{ flex: "1 1 200px", minWidth: 0 }}>
+                  <ShopField />
+                </div>
+              )}
+              <div style={{ flex: "1 1 200px", minWidth: 0 }}>
+                <Form.Item
+                  name="damage_item_type"
+                  label={<span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.subText }}><AppstoreOutlined /> Items</span>}
+                  style={{ marginBottom: 14 }}
+                >
+                  <Select
+                    style={{ width: "100%", borderRadius: 8 }}
+                    options={[
+                      { value: "all", label: "Services & inventory" },
+                      { value: "product", label: "Services only" },
+                      { value: "inventory", label: "Inventory only" },
+                    ]}
+                  />
+                </Form.Item>
+              </div>
+              <div style={{ flex: "1 1 200px", minWidth: 0 }}>
+                <Form.Item
+                  name="damage_reason"
+                  label={<span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.subText }}><TagOutlined /> Reason</span>}
+                  style={{ marginBottom: 14 }}
+                >
+                  <Select
+                    allowClear placeholder="All reasons" style={{ width: "100%", borderRadius: 8 }}
+                    options={DAMAGE_REASONS.map((r) => ({ value: r.value, label: r.label }))}
+                  />
+                </Form.Item>
+              </div>
+              <div style={{ flex: "1 1 200px", minWidth: 0 }}>
+                <Form.Item
+                  name="damage_voided"
+                  label={<span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.subText }}><FileExclamationOutlined /> Voided</span>}
+                  style={{ marginBottom: 14 }}
+                >
+                  <Select
+                    style={{ width: "100%", borderRadius: 8 }}
+                    options={[
+                      { value: "hide", label: "Leave out voided" },
+                      { value: "show", label: "Include voided" },
+                    ]}
+                  />
+                </Form.Item>
+              </div>
+            </div>
+            <GenerateButton label="Generate Damage Report" icon={<WarningOutlined />} disabled={!damagesRange[0] || !damagesRange[1]} />
+            <DamageReportModal
+              openM={damagesOpen}
+              onCloseM={() => setDamagesOpen(false)}
+              startDate={damagesRange[0]}
+              endDate={damagesRange[1]}
+              shopId={damagesFilters.shop_id}
+              itemType={damagesFilters.item_type}
+              reason={damagesFilters.reason}
+              includeVoided={damagesFilters.include_voided}
+              isAdmin={user?.role === "admin"}
             />
           </Form>
         );

@@ -106,9 +106,11 @@ export const fetchDamages = async (params: {
   reason?: string;
   product_id?: string;
   include_voided?: boolean;
+  // Defaults to the current branch
+  shop_id?: string;
 }): Promise<DamagesResponse> => {
   try {
-    const shopId = localStorage.getItem("shopId");
+    const shopId = params.shop_id || localStorage.getItem("shopId");
     const res = await axiosInstance.get(url, {
       params: { ...params, shop_id: shopId || undefined, include_voided: params.include_voided ? "true" : undefined },
     });

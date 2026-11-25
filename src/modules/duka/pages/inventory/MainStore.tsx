@@ -18,7 +18,6 @@ import RecipeModal from "@components/MODALS/pro/RecipeModal";
 import { htmlToText } from "@utils/htmlToText";
 import { fetchShop } from "@services/shops";
 import RecordDamageModal from "@components/store/RecordDamageModal";
-import DamagesPanel from "@components/store/DamagesPanel";
 
 const { Text } = Typography;
 const { Search } = Input;
@@ -390,11 +389,11 @@ export default function MainStore() {
   const [showDisabled, setShowDisabled] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [viewMode, setViewMode] = useState<"card" | "list">("card");
-  const [pageTab, setPageTab] = useState<"services" | "formulas" | "damages">("services");
+  const [pageTab, setPageTab] = useState<"services" | "formulas">("services");
   const [damageTarget, setDamageTarget] = useState<any>(null);
 
   // Damage tracking (System Setup → Inventory Controls) adds Record damage
-  // to each item and a Damages tab
+  // to each item (the report is in Reports → Duka → Damages)
   const shopId = localStorage.getItem("shopId");
   const { data: shop } = useQuery({
     queryKey: ["shop", shopId],
@@ -402,9 +401,6 @@ export default function MainStore() {
     enabled: !!shopId,
   });
   const damagesEnabled = !!shop?.damages_enabled;
-  useEffect(() => {
-    if (!damagesEnabled && pageTab === "damages") setPageTab("services");
-  }, [damagesEnabled, pageTab]);
 
   // Get tenant primary color from global context (stays in sync with app-wide theme)
   const primaryColor = usePrimaryColor();
@@ -806,8 +802,7 @@ export default function MainStore() {
           {([
             { key: "services", label: "Services", icon: <AppstoreOutlined /> },
             { key: "formulas", label: "Formulas", icon: <ExperimentOutlined /> },
-            ...(damagesEnabled ? [{ key: "damages", label: "Damages", icon: <WarningOutlined /> }] : []),
-          ] as { key: "services" | "formulas" | "damages"; label: string; icon: React.ReactNode }[]).map((t) => (
+          ] as const).map((t) => (
             <button
               key={t.key}
               onClick={() => setPageTab(t.key)}
@@ -826,9 +821,7 @@ export default function MainStore() {
           ))}
         </div>
 
-        {pageTab === "damages" ? (
-          <DamagesPanel palette={palette} searchTerm={searchTerm} isAdmin={isAdmin} />
-        ) : pageTab === "formulas" ? (
+        {pageTab === "formulas" ? (
           <FormulasPanel
             products={allProducts}
             palette={palette}
