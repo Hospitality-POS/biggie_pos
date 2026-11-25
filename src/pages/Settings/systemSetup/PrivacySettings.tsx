@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Switch, Space, Typography, Alert, Spin, Input, Button } from "antd";
 import { ProCard } from "@ant-design/pro-components";
-import { LockOutlined, UnlockOutlined, DollarOutlined, PrinterOutlined, SafetyCertificateOutlined, EyeInvisibleOutlined, AppstoreOutlined, TeamOutlined, BarChartOutlined } from "@ant-design/icons";
+import { LockOutlined, UnlockOutlined, DollarOutlined, PrinterOutlined, SafetyCertificateOutlined, EyeInvisibleOutlined, AppstoreOutlined, TeamOutlined, BarChartOutlined, FieldTimeOutlined } from "@ant-design/icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { fetchSystemSetupDetailsById, updateSystemSetup } from "../../../services/systemsetup";
 import { fetchShop, updateShop } from "../../../services/shops";
@@ -100,6 +100,8 @@ const PrivacySettings: React.FC = () => {
   const [showAllItemsOnPos, setShowAllItemsOnPos] = useState(false);
   const [allowCashierAddToOthersTables, setAllowCashierAddToOthersTables] = useState(true);
   const [reportPercentageEnabled, setReportPercentageEnabled] = useState(true);
+  const [orderTrackingEnabled, setOrderTrackingEnabled] = useState(false);
+  const [updatingOrderTracking, setUpdatingOrderTracking] = useState(false);
   const [warrantyEnabled, setWarrantyEnabled] = useState(false);
   const [warrantyDuration, setWarrantyDuration] = useState("6 MONTHS");
   const [warrantyLine1, setWarrantyLine1] = useState("This receipt is your warranty certificate");
@@ -136,6 +138,7 @@ const PrivacySettings: React.FC = () => {
         setShowAllItemsOnPos(shopData?.pos_show_all_items || false);
         setAllowCashierAddToOthersTables(shopData?.allow_cashier_add_to_others_tables !== false);
         setReportPercentageEnabled(shopData?.report_percentage_enabled !== false);
+        setOrderTrackingEnabled(shopData?.order_tracking_enabled || false);
         const ws = shopData?.warranty_settings;
         setWarrantyEnabled(ws?.enabled || false);
         if (ws?.duration) setWarrantyDuration(ws.duration);
@@ -385,6 +388,34 @@ const PrivacySettings: React.FC = () => {
     }
   };
 
+  const handleToggleOrderTracking = async (checked: boolean) => {
+    if (!shopId) {
+      message.error("Shop not found");
+      return;
+    }
+
+    setUpdatingOrderTracking(true);
+    try {
+      await updateShop({
+        _id: shopId,
+        order_tracking_enabled: checked,
+      });
+      setOrderTrackingEnabled(checked);
+      queryClient.invalidateQueries({ queryKey: ["shop", shopId] });
+      queryClient.invalidateQueries({ queryKey: ["orderTrackingSettings", shopId] });
+      message.success(
+        checked
+          ? "Order tracking on — kitchen and bar can now mark orders Ready"
+          : "Order tracking off"
+      );
+    } catch (error) {
+      console.error("Failed to update order tracking setting:", error);
+      message.error("Failed to update order tracking setting");
+    } finally {
+      setUpdatingOrderTracking(false);
+    }
+  };
+
   const handleToggleReportPercentage = async (checked: boolean) => {
     if (!shopId) {
       message.error("Shop not found");
@@ -484,6 +515,17 @@ const PrivacySettings: React.FC = () => {
               checked={showAllItemsOnPos}
               onChange={handleToggleShowAllItems}
               loading={updatingShowAllItems}
+            />
+
+            <ToggleRow
+              icon={<FieldTimeOutlined />}
+              color="#0891b2"
+              bg="#ecfeff"
+              title={orderTrackingEnabled ? "Tracking Speed of Service" : "Not Tracking Speed of Service"}
+              description="Turn this on so kitchen and bar staff tap Ready when an order they were sent is done. Orders gets an Order Tracking tab showing when each order was placed, sent, ready and closed, so you can see where orders wait."
+              checked={orderTrackingEnabled}
+              onChange={handleToggleOrderTracking}
+              loading={updatingOrderTracking}
             />
           </Space>
         </div>

@@ -1,10 +1,12 @@
 import React, { useState, useMemo } from "react";
 import { Typography } from "antd";
-import { OrderedListOutlined, ShoppingCartOutlined, FileDoneOutlined , LockOutlined, CheckCircleOutlined, WalletOutlined } from "@ant-design/icons";
+import { OrderedListOutlined, ShoppingCartOutlined, FileDoneOutlined , LockOutlined, CheckCircleOutlined, WalletOutlined, FieldTimeOutlined } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import OrdersTable from "./components/OrdersTable";
 import CreditOrdersPanel from "./components/CreditOrdersPanel";
+import OrderTrackingPanel from "./components/OrderTrackingPanel";
 import { getCreditSettings } from "@services/orders";
+import { getOrderTrackingSettings } from "@services/orderTracking";
 import OrdersByLocation from "./components/OrdersByLocation";
 import InvoiceTable from "@modules/pesa/pages/invoices/components/InvoiceTable";
 import ManualInvoiceModal from "@modules/pesa/pages/invoices/components/ManualInvoiceModal";
@@ -32,6 +34,13 @@ const TAB_CFG = [
     icon: <CheckCircleOutlined />,
     iconColor: C.green,
     label: "Order Analysis",
+    permissionKey: "ORDERS_VIEW",
+  },
+  {
+    key: "tracking",
+    icon: <FieldTimeOutlined />,
+    iconColor: "#0891b2",
+    label: "Order Tracking",
     permissionKey: "ORDERS_VIEW",
   },
   {
@@ -131,17 +140,28 @@ function MainOrders() {
   });
   const payLaterOn = !!creditSettings?.enabled;
 
+  // Order Tracking tab: only when System Setup → Privacy → speed of service
+  // tracking is on
+  const { data: trackingSettings } = useQuery({
+    queryKey: ["orderTrackingSettings", shopId],
+    queryFn: () => getOrderTrackingSettings(shopId as string),
+    enabled: !!shopId && hasDuka,
+    staleTime: 60_000,
+  });
+  const trackingOn = !!trackingSettings?.enabled;
+
   const visibleTabs = useMemo(
     () =>
       TAB_CFG
         .filter((t) => {
           // Orders list and Order Analysis need Duka (POS) or chat selling.
           if (t.key === "orders" || t.key === "done") return hasPOS;
+          if (t.key === "tracking") return hasDuka && trackingOn;
           if (t.key === "unpaid") return hasDuka && payLaterOn;
           return true;
         })
         .map((t) => ({ ...t, allowed: can(t.permissionKey) })),
-    [hasPOS, hasDuka, payLaterOn, can]
+    [hasPOS, hasDuka, payLaterOn, trackingOn, can]
   );
 
   const getDefaultTab = () => {
@@ -173,6 +193,8 @@ function MainOrders() {
         return <OrdersTable />;
       case "done":
         return <OrdersByLocation />;
+      case "tracking":
+        return <OrderTrackingPanel />;
       case "unpaid":
         return <CreditOrdersPanel canCollect={!!creditSettings?.can_collect} />;
       case "invoices":
