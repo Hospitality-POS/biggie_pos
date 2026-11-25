@@ -14,6 +14,7 @@ Skills live in `.agents/skills/` and are symlinked into `.claude/skills/`, so th
 
 - **Bug, error, or slowdown** reported → `diagnosing-bugs` before editing code.
 - **Screens inside the POS app** (dashboards, tables, forms, settings) → `ui-taste`. Public/marketing pages → `design-taste-frontend`.
+- **Seeing a changed screen** in the browser → `run-app`. It runs against production, so look, don't touch.
 - **Reviewing a branch or PR** → `code-review`. Writing a PR description → `pr`.
 - **Naming domain concepts** (orders, tables, zones, stock transfers) or recording a decision → `domain-modeling`.
 - **Restructuring a module or its interface** → `codebase-design`.
