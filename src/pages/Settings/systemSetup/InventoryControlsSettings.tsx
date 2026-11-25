@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Space, Spin, message } from "antd";
-import { DashboardOutlined, EnvironmentOutlined, ExperimentOutlined, InboxOutlined } from "@ant-design/icons";
+import { DashboardOutlined, EnvironmentOutlined, ExperimentOutlined, InboxOutlined, WarningOutlined } from "@ant-design/icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { QtyApprovalSettingCard } from "@components/inventory/InventoryQtyApproval";
 import { fetchShop, updateShop } from "../../../services/shops";
@@ -12,7 +12,8 @@ type ShopFlag =
   | "zone_inventory_enabled"
   | "category_zone_restriction_enabled"
   | "water_meter_enabled"
-  | "refill_enabled";
+  | "refill_enabled"
+  | "damages_enabled";
 
 const MESSAGES: Record<ShopFlag, [string, string]> = {
   cart_inventory_deduction_enabled: ["Cart-level inventory deductions enabled", "Cart-level inventory deductions disabled"],
@@ -23,6 +24,7 @@ const MESSAGES: Record<ShopFlag, [string, string]> = {
   ],
   water_meter_enabled: ["Water meter tracking enabled", "Water meter tracking disabled"],
   refill_enabled: ["Refills turned on", "Refills turned off"],
+  damages_enabled: ["Damage tracking turned on", "Damage tracking turned off"],
 };
 
 const InventoryControlsSettings: React.FC = () => {
@@ -41,6 +43,7 @@ const InventoryControlsSettings: React.FC = () => {
     category_zone_restriction_enabled: false,
     water_meter_enabled: false,
     refill_enabled: false,
+    damages_enabled: false,
   });
   const [saving, setSaving] = useState<ShopFlag | null>(null);
 
@@ -52,6 +55,7 @@ const InventoryControlsSettings: React.FC = () => {
       category_zone_restriction_enabled: !!shop.category_zone_restriction_enabled,
       water_meter_enabled: !!shop.water_meter_enabled,
       refill_enabled: !!shop.refill_enabled,
+      damages_enabled: !!shop.damages_enabled,
     });
   }, [shop]);
 
@@ -146,6 +150,17 @@ const InventoryControlsSettings: React.FC = () => {
           loading={saving === "refill_enabled"}
         />
       )}
+
+      <ToggleRow
+        icon={<WarningOutlined />}
+        color="#dc2626"
+        bg="#fef2f2"
+        title={flags.damages_enabled ? "Damage Tracking On" : "Damage Tracking Off"}
+        description="Turn this on to record services and inventory items that get damaged, spoilt or expire (e.g. a dropped cake, a cracked crate of eggs). Adds a Record damage button to each item in Services and in Inventory, and a Damages report in Reports. A damaged service takes its recipe ingredients off stock; a damaged inventory item comes off stock itself. Both are logged as waste, and with accounting on, the cost is written off as an expense."
+        checked={flags.damages_enabled}
+        onChange={toggle("damages_enabled")}
+        loading={saving === "damages_enabled"}
+      />
     </Space>
   );
 };

@@ -1,7 +1,7 @@
 import React from "react";
 import { useAppSelector } from "../../store";
 import { Card, Typography, Switch, Tooltip, message } from "antd";
-import { DeleteFilled, EditOutlined } from "@ant-design/icons";
+import { DeleteFilled, EditOutlined, WarningOutlined } from "@ant-design/icons";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { deleteProduct as deleteProductService, editProduct } from "@services/products";
 import StoreModal from "@components/MODALS/pro/StoreModal";
@@ -17,10 +17,12 @@ interface StoreProductCardProps {
   productId: string;
   activateInventory: boolean;
   onSuccess?: () => void;
+  // Set when damage tracking is on (System Setup → Inventory Controls)
+  onDamage?: (product: any) => void;
 }
 
 const StoreProductCard: React.FC<StoreProductCardProps> = ({
-  name, price, bowls, product, productId, activateInventory, onSuccess,
+  name, price, bowls, product, productId, activateInventory, onSuccess, onDamage,
 }) => {
   const [isDisabled, setIsDisabled] = React.useState<boolean>(
     product?.is_disabled ?? false
@@ -135,6 +137,14 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
       activateInventory={product?.activateInventory}
       productName={name}
     />,
+    ...(onDamage ? [
+      <Tooltip key="damage-tooltip" title="Record damage">
+        <WarningOutlined
+          onClick={() => onDamage(product)}
+          style={{ fontSize: 18, color: isHovered ? "#fff" : "#dc2626", cursor: "pointer" }}
+        />
+      </Tooltip>,
+    ] : []),
     canEdit ? (
       <Tooltip
         key="edit-tooltip"
