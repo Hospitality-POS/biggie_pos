@@ -818,13 +818,6 @@ const PropertiesList: React.FC = () => {
                         return total + apartmentsTotal;
                       }
                       const currentPrice = unit?.basePrice || unit?.price || unit?.listPrice || 0;
-
-      {/* Import Properties Modal */}
-      <ImportPropertiesModal
-        open={importModalVisible}
-        onClose={() => setImportModalVisible(false)}
-        onSuccess={() => actionRef.current?.reload()}
-      />
                       return total + currentPrice * (unit?.totalUnits || 0);
                     }, 0);
                     return `KES ${totalValue.toLocaleString()}`;

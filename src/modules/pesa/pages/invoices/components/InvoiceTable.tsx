@@ -235,9 +235,11 @@ const MobileInvoiceCard: React.FC<{
   onExpand: (r: any) => void;
   onOpenNote: (noteId: string) => void;
   onEtr: (r: any) => void;
+  onDelete: (r: any) => void;
   onPaymentsChanged?: () => void;
   expanded: boolean;
-}> = ({ record, onConvert, onPay, onEdit, onExpand, onOpenNote, onEtr, onPaymentsChanged, expanded }) => {
+  isAdmin: boolean;
+}> = ({ record, onConvert, onPay, onEdit, onExpand, onOpenNote, onEtr, onDelete, onPaymentsChanged, expanded, isAdmin }) => {
   const isDraft = record.status === "Draft";
   const payable = isPayable(record);
   const needsEtr = !isDraft && !record.etr_enabled;
@@ -259,7 +261,7 @@ const MobileInvoiceCard: React.FC<{
     if (key === "pay") onPay(record);
     if (key === "edit") onEdit(record);
     if (key === "etr") onEtr(record);
-    if (key === "delete") setDeleteTarget(record);
+    if (key === "delete") onDelete(record);
   };
 
   return (
@@ -361,7 +363,7 @@ const MobileInvoiceCard: React.FC<{
           style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.border}` }}
           onClick={(e) => e.stopPropagation()}
         >
-          <ExpandedRowContent record={record} onOpenNote={handleOpenNote} onPaymentsChanged={onPaymentsChanged} />
+          <ExpandedRowContent record={record} onOpenNote={onOpenNote} onPaymentsChanged={onPaymentsChanged} />
         </div>
       )}
     </div>
@@ -1240,7 +1242,9 @@ const InvoicesTable = ({ quotesOnly = false }: { quotesOnly?: boolean }) => {
                 onExpand={(r) => setExpandedId(expandedId === r._id ? null : r._id)}
                 onOpenNote={handleOpenNote}
                 onEtr={handleEtrSubmit}
+                onDelete={setDeleteTarget}
                 onPaymentsChanged={refreshTable}
+                isAdmin={isAdmin}
               />
             ))}
             {mobilePage * MOBILE_PAGE < mobileTotal && (

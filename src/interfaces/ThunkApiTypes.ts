@@ -1,6 +1,4 @@
-import { Dispatch } from "@reduxjs/toolkit";
+import type { AsyncThunkPayloadCreator } from "@reduxjs/toolkit";
 
-export interface ThunkApi {
-  dispatch: Dispatch<Action<any>>;
-  rejectWithValue<T>(value: T): RejectWithValue<T>;
-}
+/** The thunk API object that createAsyncThunk passes to a payload creator. */
+export type ThunkApi = Parameters<AsyncThunkPayloadCreator<unknown, unknown>>[1];

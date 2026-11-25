@@ -219,7 +219,7 @@ export const fetchTableUsequery = async (params: any) => {
         }
         const servedByCurrentUser = item.served_by === currentUser || item.served_by === user.name;
         const isServedByCurrentUser = item.served_by ? servedByCurrentUser : false;
-        const isEmpty = !table.isOccupied && table.status !== 'occupied';
+        const isEmpty = !item.isOccupied && item.status !== 'occupied';
         const isLocked = !isServedByCurrentUser && !isEmpty;
         return { ...item, isLocked };
       });
