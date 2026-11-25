@@ -18,3 +18,17 @@ Skills live in `.agents/skills/` and are symlinked into `.claude/skills/`, so th
 - **Naming domain concepts** (orders, tables, zones, stock transfers) or recording a decision → `domain-modeling`.
 - **Restructuring a module or its interface** → `codebase-design`.
 - **Editing this file or any skill** → `writing-for-agents`.
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues in Hospitality-POS/biggie_pos, via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five default labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
