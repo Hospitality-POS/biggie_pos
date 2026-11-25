@@ -22,6 +22,7 @@ import {
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { THEME_C } from "@utils/getPrimaryColor";
 import { inlineImages } from "@utils/inlineImages";
+import { saveCanvasAsA4Pdf } from "@utils/invoicePdf";
 
 const { Text } = Typography;
 
@@ -190,7 +191,6 @@ const InvoiceReprintModal: React.FC<InvoiceReprintModalProps> = ({
     if (!node) return;
     try {
       const html2canvas = (await import("html2canvas")).default;
-      const { default: jsPDF } = await import("jspdf");
       const clone = node.cloneNode(true) as HTMLElement;
       clone.style.position = "fixed";
       clone.style.top = "-9999px";
@@ -203,22 +203,7 @@ const InvoiceReprintModal: React.FC<InvoiceReprintModalProps> = ({
       await inlineImages(clone);
       const canvas = await html2canvas(clone, { scale: 2, useCORS: true, allowTaint: true });
       document.body.removeChild(clone);
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      const pageWidth = 210;
-      const imgWidth = pageWidth;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      let heightLeft = imgHeight;
-      let position = 0;
-      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-      heightLeft -= 297;
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-        heightLeft -= 297;
-      }
-      pdf.save(`Invoice-${orderNo}_${dayjs().format("YYYYMMDD")}.pdf`);
+      await saveCanvasAsA4Pdf(canvas, `Invoice-${orderNo}_${dayjs().format("YYYYMMDD")}.pdf`);
     } catch (e) {
       console.error("PDF download failed", e);
     }

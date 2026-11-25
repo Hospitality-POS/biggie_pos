@@ -953,12 +953,40 @@ const withInvoiceExtras = (
     return Wrapped;
 };
 
-const Footer = ({ sys, borderColor = C.border, accentColor = C.primary }: { sys: SystemDetails; borderColor?: string; accentColor?: string }) => {
+// `letterhead` drops the contact line and thank-you: the Letterhead template
+// already shows the email, phone and KRA PIN at the top and its own
+// "Thank you for doing business with us" above the footer.
+const Footer = ({ sys, borderColor = C.border, accentColor = C.primary, letterhead = false }: { sys: SystemDetails; borderColor?: string; accentColor?: string; letterhead?: boolean }) => {
     // Determine which logo to use based on background color
     // Light backgrounds (Ocean: #ffffff, Forest: #f0fdf4) need dark logo
     // Dark backgrounds (Classic: #0E388A, Slate: #1e293b, Minimal: #374151) need light logo
     const isLightBackground = accentColor === '#3b82f6' || accentColor === '#16a34a';
     const logoSrc = isLightBackground ? '/relia2.png' : '/relia.png';
+
+    const printed = (
+        <div style={{ fontSize: 11, color: C.subText }}>
+            Printed {new Date().toLocaleDateString("en-KE")}
+        </div>
+    );
+    const poweredBy = (
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <img src={logoSrc} alt="Relia" style={{ height: letterhead ? 16 : 20 }} />
+            <span style={{ fontSize: 11, fontWeight: 600, color: C.darkText }}>POWERED BY Basepoint</span>
+        </div>
+    );
+
+    // Letterhead: one compact row, so the invoice fits on a single A4 page
+    if (letterhead) {
+        return (
+            <div className="inv-footer" style={{ marginTop: 12, borderTop: `1px solid ${borderColor}`, paddingTop: 8 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                    {poweredBy}
+                    {printed}
+                </div>
+                <ServicesBanner sys={sys} />
+            </div>
+        );
+    }
 
     return (
     <div
@@ -970,15 +998,8 @@ const Footer = ({ sys, borderColor = C.border, accentColor = C.primary }: { sys:
         }}
     >
         {/* Row 1: Logo and POWERED BY */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 8 }}>
-            <img 
-                src={logoSrc} 
-                alt="Relia" 
-                style={{ height: 20 }} 
-            />
-            <span style={{ fontSize: 11, fontWeight: 600, color: C.darkText }}>POWERED BY Basepoint</span>
-        </div>
-        
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 8 }}>{poweredBy}</div>
+
         {/* Row 2: Contact info, thank you, printed date */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" as const, gap: 8 }}>
             <div style={{ fontSize: 11, color: C.subText }}>
@@ -987,9 +1008,7 @@ const Footer = ({ sys, borderColor = C.border, accentColor = C.primary }: { sys:
                 {sys.PIN && <span> · KRA PIN: {sys.PIN}</span>}
             </div>
             <div style={{ fontSize: 11, fontWeight: 600, color: C.darkText }}>Thank you for your business!</div>
-            <div style={{ fontSize: 11, color: C.subText }}>
-                Printed {new Date().toLocaleDateString("en-KE")}
-            </div>
+            {printed}
         </div>
 
         {/* Services offered — the last thing on the page when enabled */}
@@ -2004,8 +2023,8 @@ const Template7LetterheadBase = React.forwardRef<HTMLDivElement, SharedProps>(({
                 THANK YOU FOR DOING BUSINESS WITH US.
             </div>
 
-            <div style={{ marginTop: "auto", paddingTop: 16 }}>
-                <Footer sys={sys} borderColor="#e2e8f0" accentColor="#000000" />
+            <div style={{ marginTop: "auto" }}>
+                <Footer sys={sys} borderColor="#e2e8f0" accentColor="#000000" letterhead />
             </div>
         </div>
     );
