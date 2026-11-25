@@ -126,15 +126,6 @@ const TableCard: React.FC<itemProps> = ({ item, openModal, enablePrivacy }) => {
     filter: createColorFilter(currentColor),
   };
 
-  const textOverlayStyles: React.CSSProperties = {
-    position: "absolute",
-    top: "47%",
-    left: "50%",
-    width: "100%",
-    transform: "translate(-50%, -50%)",
-    zIndex: 2,
-  };
-
   return (
     <div
       style={cardStyles}
@@ -143,7 +134,7 @@ const TableCard: React.FC<itemProps> = ({ item, openModal, enablePrivacy }) => {
         handleOpen();
       }}
     >
-      <div style={{ position: "relative" }}>
+      <div className={classes.tableTop}>
         <img
           style={imageStyles}
           alt="Table"
@@ -151,48 +142,17 @@ const TableCard: React.FC<itemProps> = ({ item, openModal, enablePrivacy }) => {
           className={classes.image}
         />
 
-        <div style={textOverlayStyles}>
-          {isLocked && (
-            <LockOutlined
-              style={{
-                fontSize: 32,
-                color: "white",
-                textShadow: "2px 2px 4px rgba(0,0,0,0.8)",
-                marginBottom: "8px",
-              }}
-            />
-          )}
-          <div
-            style={{
-              fontSize: "1.25rem",
-              fontWeight: "bold",
-              color: "white",
-              textShadow: "2px 2px 4px rgba(0,0,0,0.5)",
-              marginBottom: "8px",
-            }}
-          >
+        <div className={classes.overlay}>
+          <div className={classes.tableName} title={item.name}>
+            {isLocked && <LockOutlined className={classes.lock} aria-label="Locked" />}
             {item.name}
           </div>
-          <div
-            style={{
-              fontSize: "0.875rem",
-              fontWeight: "bold",
-              color: "white",
-              textShadow: "1px 1px 3px rgba(0,0,0,0.5)",
-              marginBottom: "4px",
-            }}
-          >
-            Amount: KES {item.cart_amount.toLocaleString()}
+          <div className={classes.amount}>
+            <span className={classes.amountLabel}>Amount:&nbsp;</span>
+            <span className={classes.amountValue}>KES {item.cart_amount.toLocaleString()}</span>
           </div>
           {item?.served_by && item.cart_amount > 0 && (
-            <div
-              style={{
-                fontSize: "0.75rem",
-                fontWeight: "bold",
-                color: "white",
-                textShadow: "1px 1px 2px rgba(0,0,0,0.5)",
-              }}
-            >
+            <div className={classes.servedBy} title={item.served_by}>
               {item.served_by}
             </div>
           )}

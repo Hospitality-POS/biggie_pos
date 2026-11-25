@@ -8,6 +8,8 @@
     "build": "vite build",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "lint:oxlint": "oxlint src",
+    "lint:errors": "eslint src --ext ts,tsx --quiet",
+    "typecheck": "node scripts/check-types.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

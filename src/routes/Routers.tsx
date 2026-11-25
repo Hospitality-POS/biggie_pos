@@ -15,7 +15,6 @@ import { lazyWithReload } from "@utils/lazyWithReload";
 import Private, { AdminRoute } from "@components/layout/private/Private";
 import NotFound from "@routes/NotFound";
 import { Spin } from "antd";
-import NubaLoader from "@components/spinner/NubaLoader";
 import PaymentCallback from "@components/payment/PaymentCallback";
 import PermissionRoute from "@components/PermissionRoute";
 import { ModuleGate } from "@shared/licensing/ModuleGate";
@@ -46,11 +45,17 @@ const TermsAndConditions = lazyWithReload(() => import("@pages/Legal/TermsAndCon
 const DownloadPage = lazyWithReload(() => import("@pages/Download/DownloadPage"));
 
 // ─── Fallback spinners ────────────────────────────────────────────────────────
-const fullscreenSpin = <NubaLoader />;
+// Shown while a page's code downloads. The same antd Spin the pages use for
+// their own loading, so the two read as one loader.
+const fullscreenSpin = (
+  <div style={{ display: "grid", placeItems: "center", height: "80svh" }}>
+    <Spin size="large" />
+  </div>
+);
 
 // ─── Page wrappers ────────────────────────────────────────────────────────────
 const adminPage = (Component: React.ComponentType) => (
-  <Suspense fallback={<NubaLoader />}>
+  <Suspense fallback={fullscreenSpin}>
     <AdminRoute>
       <Component />
     </AdminRoute>

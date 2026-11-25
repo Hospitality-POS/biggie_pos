@@ -24,6 +24,7 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
+    "allowUnreachableCode": false,
     /* Paths for absolute imports */
     "paths": {
       "@shared/*": [

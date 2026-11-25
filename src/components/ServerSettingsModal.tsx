@@ -91,7 +91,7 @@ const ServerSettingsModal = ({ open, onClose }: ServerSettingsModalProps) => {
     };
 
     const changeZoom = (factor: number) => {
-        setDesktopZoom(factor).then(setZoom).catch(() => {});
+        setDesktopZoom(factor).then(setZoom).catch(() => undefined);
     };
 
     return (

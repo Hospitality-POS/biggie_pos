@@ -221,18 +221,21 @@ export const useDalaBlocksByProperty = (_propertyId?: string) => {
   return [];
 };
 
+// Setters kept for callers of the old store API; the data now lives in React Query.
+const noop = () => undefined;
+
 export const useDalaActions = () => {
   const queryClient = useQueryClient();
   return useMemo(
     () => ({
-      setLoading: () => {},
-      setSelectedProperty: () => {},
-      setSelectedUnit: () => {},
-      setSelectedSale: () => {},
-      setSelectedLease: () => {},
-      setFilter: () => {},
-      clearFilters: () => {},
-      setPagination: () => {},
+      setLoading: noop,
+      setSelectedProperty: noop,
+      setSelectedUnit: noop,
+      setSelectedSale: noop,
+      setSelectedLease: noop,
+      setFilter: noop,
+      clearFilters: noop,
+      setPagination: noop,
       resetStore: () => {
         queryClient.invalidateQueries({ queryKey: ['dala'] });
       },

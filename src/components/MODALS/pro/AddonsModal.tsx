@@ -5,6 +5,8 @@ import { EditOutlined, TagsOutlined } from "@ant-design/icons";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { createAddon, editAddon } from "@services/modifierAddons";
 
+type AddonFormValues = { name?: string };
+
 interface AddonsModalProps {
   actionRef: any;
   edit?: boolean;
@@ -34,7 +36,7 @@ const AddonsModal: React.FC<AddonsModalProps> = ({ actionRef, edit, data, modifi
     }
   };
 
-  const HandleOnAddonsFinish = async (values: Partial<AddonsType>) => {
+  const HandleOnAddonsFinish = async (values: AddonFormValues) => {
     const payload = { name: values?.name, modifier: modifierId };
     const confirmed = await ShowConfirm({
       title: `Are you sure you want to ${
@@ -70,12 +72,7 @@ const AddonsModal: React.FC<AddonsModalProps> = ({ actionRef, edit, data, modifi
           <Button
             size="small"
             key="button"
-            icon={
-              <EditOutlined
-                style={{ color: "var(--primary-color)" }}
-                onClick={() => form.setFieldsValue(editAddonsPayload)}
-              />
-            }
+            icon={<EditOutlined style={{ color: "var(--primary-color)" }} />}
           >
             Edit
           </Button>

@@ -7,7 +7,6 @@ export const ORDER_COMPLETE_KEYFRAMES = `
   @keyframes os-pulse { 0% { transform: scale(1); opacity: .45 } 100% { transform: scale(1.6); opacity: 0 } }
   @keyframes os-draw { to { stroke-dashoffset: 0 } }
   @keyframes os-fade { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: none } }
-  @keyframes os-bar { from { transform: scaleX(1) } to { transform: scaleX(0) } }
   @media (prefers-reduced-motion: reduce) {
     .os-anim, .os-anim * { animation-duration: 1ms !important; animation-delay: 0ms !important; }
   }

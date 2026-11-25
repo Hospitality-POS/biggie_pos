@@ -142,7 +142,7 @@ const ImportPropertiesModal: React.FC<Props> = ({ onSuccess, open, onClose }) =>
     onSuccess: () => {
       message.success("Properties imported successfully");
       onSuccess();
-      setOpen(false);
+      onClose();
       resetState();
     },
     onError: (error: any) => {

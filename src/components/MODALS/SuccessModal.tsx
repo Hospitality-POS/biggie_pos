@@ -1,5 +1,4 @@
 import { useCallback, useEffect } from "react";
-import { Button } from "antd";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { closeModal } from "../../features/Order/OrderSlice";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
@@ -9,8 +8,9 @@ import OrderCompleteCheck, { ORDER_COMPLETE_KEYFRAMES } from "./OrderCompleteChe
 const AUTO_CLOSE_MS = 2600;
 
 /**
- * Shown on /tables after an order is placed and paid: a soft card with a
- * check that draws itself, the order number and amount, then auto-closes.
+ * Shown on /tables after an order is placed and paid, in place of the tables:
+ * a check that draws itself, the order number and amount. It returns to the
+ * tables on its own, or sooner on a tap anywhere.
  */
 export default function SuccesssModal() {
   const dispatch = useAppDispatch();
@@ -39,32 +39,26 @@ export default function SuccesssModal() {
     <div
       role="status"
       aria-live="polite"
+      className="os-anim"
       onClick={close}
       style={{
-        minHeight: "80vh",
+        // Fills the page area under the top bar (its height plus the page
+        // padding is about 160px), with no card around the content.
+        minHeight: "calc(100vh - 160px)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         padding: 16,
-        background: `radial-gradient(circle at 50% 40%, ${primaryColor}12 0%, transparent 60%)`,
+        background: `radial-gradient(circle at 50% 45%, ${primaryColor}12 0%, transparent 60%)`,
       }}
     >
       <style>{ORDER_COMPLETE_KEYFRAMES}</style>
 
       <div
-        className="os-anim"
-        onClick={(e) => e.stopPropagation()}
         style={{
           width: "100%",
           maxWidth: 360,
-          background: "#ffffff",
-          borderRadius: 24,
-          padding: "36px 28px 24px",
           textAlign: "center",
-          border: "1px solid #eef2f6",
-          boxShadow: "0 24px 60px rgba(15, 23, 42, 0.08), 0 4px 14px rgba(15, 23, 42, 0.04)",
-          position: "relative",
-          overflow: "hidden",
           animation: "os-card .45s cubic-bezier(.2,.8,.2,1) both",
         }}
       >
@@ -100,39 +94,6 @@ export default function SuccesssModal() {
             KES {amount.toLocaleString(undefined, { maximumFractionDigits: 2 })}
           </div>
         )}
-
-        <div style={{ marginTop: 22, animation: "os-fade .4s ease-out .85s both" }}>
-          <Button
-            type="primary"
-            size="large"
-            block
-            onClick={close}
-            style={{
-              height: 44,
-              borderRadius: 12,
-              fontWeight: 600,
-              background: primaryColor,
-              borderColor: primaryColor,
-              boxShadow: `0 6px 16px ${primaryColor}33`,
-            }}
-          >
-            Back to tables
-          </Button>
-        </div>
-
-        {/* Auto-close countdown */}
-        <span
-          style={{
-            position: "absolute",
-            left: 0,
-            bottom: 0,
-            height: 3,
-            width: "100%",
-            background: `${primaryColor}66`,
-            transformOrigin: "left",
-            animation: `os-bar ${AUTO_CLOSE_MS}ms linear both`,
-          }}
-        />
       </div>
     </div>
   );

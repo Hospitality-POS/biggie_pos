@@ -58,7 +58,7 @@ export const buildCuratedPrompts = (
 export const exportMessageToPdf = async (
   messageId: number,
   shopName?: string,
-  primaryColor: string = "#2563eb"
+  primaryColor = "#2563eb"
 ): Promise<void> => {
   const el = document.getElementById(`duka-bubble-${messageId}`);
   if (!el) return;

@@ -1,0 +1,8 @@
+{
+  "private": true,
+  "description": "Browser driver for the run-app skill. Kept out of the app's dependencies and lockfile.",
+  "type": "module",
+  "dependencies": {
+    "playwright-core": "1.65.0"
+  }
+}
