@@ -410,6 +410,8 @@ export const patchInvoice = async (id: string, data: Partial<{
     etr_enabled: boolean;
     status: InvoiceStatus;
     internal_notes: string;
+    /** Renumber the invoice (must be unused; not for POS sales or eTIMS invoices) */
+    order_no: string;
 }>) => {
     try {
         const response = await axiosInstance.patch(
