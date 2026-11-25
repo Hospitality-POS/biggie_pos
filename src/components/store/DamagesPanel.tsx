@@ -4,7 +4,7 @@ import { StopOutlined, WarningOutlined } from "@ant-design/icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import PeriodFilter, { defaultPeriod, periodRange, type PeriodValue } from "@components/PeriodFilter";
-import { DAMAGE_REASONS, fetchDamages, reasonLabel, voidDamage, type Damage } from "@services/damages";
+import { DAMAGE_REASONS, fetchDamages, reasonLabel, voidDamage, type Damage, type DamageItemType } from "@services/damages";
 
 const { Text } = Typography;
 const kes = (n: number) => `KES ${(n || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -15,11 +15,12 @@ interface Props {
   isAdmin: boolean;
 }
 
-// Services → Damages: what was damaged, why, and what it cost
+// Services → Damages: services and inventory items damaged, why, and what it cost
 const DamagesPanel: React.FC<Props> = ({ palette, searchTerm = "", isAdmin }) => {
   const queryClient = useQueryClient();
   const [period, setPeriod] = useState<PeriodValue>(defaultPeriod);
   const [reason, setReason] = useState<string | undefined>();
+  const [itemType, setItemType] = useState<DamageItemType | undefined>();
   const [showVoided, setShowVoided] = useState(false);
   const [voidTarget, setVoidTarget] = useState<Damage | null>(null);
   const [voidReason, setVoidReason] = useState("");
@@ -30,6 +31,7 @@ const DamagesPanel: React.FC<Props> = ({ palette, searchTerm = "", isAdmin }) =>
     start: from.format("YYYY-MM-DD"),
     end: to.format("YYYY-MM-DD"),
     reason,
+    item_type: itemType,
     include_voided: showVoided,
   };
   const { data, isLoading } = useQuery({
@@ -69,7 +71,12 @@ const DamagesPanel: React.FC<Props> = ({ palette, searchTerm = "", isAdmin }) =>
       title: "Item", dataIndex: "product_name",
       render: (n: string, r: Damage) => (
         <div>
-          <Text strong style={{ fontSize: 12, textDecoration: r.status === "voided" ? "line-through" : undefined }}>{n}</Text>
+          <Text strong style={{ fontSize: 12, textDecoration: r.status === "voided" ? "line-through" : undefined }}>
+            {r.variant_name ? `${n} (${r.variant_name})` : n}
+          </Text>
+          <Tag style={{ marginLeft: 6, fontSize: 10, lineHeight: "16px" }} color={r.item_type === "inventory" ? "blue" : "geekblue"}>
+            {r.item_type === "inventory" ? "Inventory" : "Service"}
+          </Tag>
           {r.note && <div style={{ fontSize: 11, color: palette.subText }}>{r.note}</div>}
           {r.status === "voided" && (
             <div style={{ fontSize: 11, color: "#dc2626" }}>
@@ -79,21 +86,26 @@ const DamagesPanel: React.FC<Props> = ({ palette, searchTerm = "", isAdmin }) =>
         </div>
       ),
     },
-    { title: "Qty", dataIndex: "quantity", width: 60, align: "right" as const },
+    {
+      title: "Qty", dataIndex: "quantity", width: 80, align: "right" as const,
+      render: (q: number, r: Damage) => <span style={{ fontSize: 12 }}>{q}{r.unit_name ? ` ${r.unit_name}` : ""}</span>,
+    },
     {
       title: "Reason", dataIndex: "reason", width: 140,
       render: (v: string) => <Tag color={DAMAGE_REASONS.find((x) => x.value === v)?.color}>{reasonLabel(v)}</Tag>,
     },
     {
       title: "Stock used", dataIndex: "ingredients",
-      render: (ings: Damage["ingredients"]) => ings?.length
-        ? <span style={{ fontSize: 11 }}>{ings.map((i) => `${i.name} ${Math.round(i.quantity * 1000) / 1000}`).join(", ")}</span>
-        : <Text type="secondary" style={{ fontSize: 11 }}>No recipe</Text>,
+      render: (ings: Damage["ingredients"], r: Damage) => r.item_type === "inventory"
+        ? <Text type="secondary" style={{ fontSize: 11 }}>The item itself</Text>
+        : ings?.length
+          ? <span style={{ fontSize: 11 }}>{ings.map((i) => `${i.name} ${Math.round(i.quantity * 1000) / 1000}`).join(", ")}</span>
+          : <Text type="secondary" style={{ fontSize: 11 }}>No recipe</Text>,
     },
     {
       title: "Cost", dataIndex: "value_at_cost", width: 120, align: "right" as const,
       render: (v: number | null, r: Damage) => v != null ? (
-        <Tooltip title={r.cost_source === "recipe" ? "From recipe buying prices" : "Typed in"}>
+        <Tooltip title={r.cost_source === "recipe" ? "From recipe buying prices" : r.cost_source === "buying_price" ? "From the item's buying price" : "Typed in"}>
           <span style={{ fontSize: 12 }}>{kes(v)}</span>
         </Tooltip>
       ) : <Text type="secondary">—</Text>,
@@ -118,6 +130,17 @@ const DamagesPanel: React.FC<Props> = ({ palette, searchTerm = "", isAdmin }) =>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
         <Space wrap>
           <PeriodFilter value={period} onChange={setPeriod} />
+          <Select
+            allowClear
+            placeholder="Services & inventory"
+            style={{ width: 180 }}
+            value={itemType}
+            onChange={setItemType}
+            options={[
+              { label: "Services only", value: "product" },
+              { label: "Inventory only", value: "inventory" },
+            ]}
+          />
           <Select
             allowClear
             placeholder="All reasons"
@@ -171,7 +194,7 @@ const DamagesPanel: React.FC<Props> = ({ palette, searchTerm = "", isAdmin }) =>
           emptyText: (
             <Empty
               image={<WarningOutlined style={{ fontSize: 32, color: "#cbd5e1" }} />}
-              description="No damages in this period. Record one from an item's Record damage button."
+              description="No damages in this period. Record one with the ⚠ button on an item in Services or Inventory."
             />
           ),
         }}

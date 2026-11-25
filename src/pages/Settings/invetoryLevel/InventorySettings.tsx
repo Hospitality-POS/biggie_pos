@@ -14,6 +14,7 @@ import AddEditProInventoryModal from "@components/MODALS/pro/AddEditProInventory
 import { QtyApprovalSwitch, QtyApprovalsButton } from "@components/inventory/InventoryQtyApproval";
 import { MeterReadingsButton } from "@components/inventory/WaterMeter";
 import { RefillButton, inBales } from "@components/inventory/Refill";
+import { DamageButton } from "@components/inventory/DamageButton";
 import { onInventoryChanged } from "@hooks/useQtyApprovalSetting";
 import { fetchAllCategories, fetchSubCategories } from "@services/categories";
 import {
@@ -821,6 +822,7 @@ const InventoryCard: React.FC<InventoryCardProps> = ({ record, onDelete, deletin
           <div style={{ flex: 1 }}><AddEditProInventoryModal actionRef={tableRef} data={record} edit={true} /></div>
           <MeterReadingsButton record={record} size="middle" onChanged={() => tableRef.current?.reload()} />
           <RefillButton record={record} size="middle" onChanged={() => tableRef.current?.reload()} />
+          <DamageButton record={record} size="middle" onChanged={() => tableRef.current?.reload()} />
           <Popconfirm title="Delete inventory item?" description="This action cannot be undone." onConfirm={() => onDelete(record._id)} okText="Delete" okButtonProps={{ danger: true }} cancelText="Cancel" placement="topRight">
             <Button danger size="middle" icon={<DeleteOutlined />} loading={deleting} style={{ borderRadius: 8, width: 38, padding: 0 }} />
           </Popconfirm>
@@ -1217,12 +1219,13 @@ const InventorySettings = () => {
           fieldProps: { placeholder: "Items missing…", allowClear: true },
         },
         {
-          title: "Actions", dataIndex: "actions", hideInSearch: true, width: 170, fixed: "right" as const,
+          title: "Actions", dataIndex: "actions", hideInSearch: true, width: 200, fixed: "right" as const,
           render: (_: any, record: any) => (
             <Space size={6}>
               <AddEditProInventoryModal actionRef={paymentRef} data={record} edit={true} />
               <MeterReadingsButton record={record} onChanged={() => paymentRef.current?.reload()} />
               <RefillButton record={record} onChanged={() => paymentRef.current?.reload()} />
+              <DamageButton record={record} onChanged={() => paymentRef.current?.reload()} />
               <Popconfirm title="Delete inventory item?" description="This action cannot be undone." onConfirm={() => deleteInventoryMutation.mutate(record._id)} okText="Delete" okButtonProps={{ danger: true }} cancelText="Cancel">
                 <Button danger size="small" icon={<DeleteOutlined />} style={{ borderRadius: 6, height: 28, width: 28, padding: 0 }} />
               </Popconfirm>

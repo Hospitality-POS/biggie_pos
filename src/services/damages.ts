@@ -5,6 +5,8 @@ import axiosInstance from "./request";
 // (System Setup → Inventory Controls → Damage Tracking)
 const url = `${BASE_URL}/damages`;
 
+export type DamageItemType = "product" | "inventory";
+
 export type DamageReason = "dropped" | "expired" | "spoilt" | "broken_in_delivery" | "other";
 
 export const DAMAGE_REASONS: { value: DamageReason; label: string; color: string }[] = [
@@ -27,8 +29,13 @@ export interface DamageIngredient {
 
 export interface Damage {
   _id: string;
-  product_id: string;
+  item_type?: DamageItemType;
+  product_id?: string;
+  inventory_id?: string;
+  // The item's name (service or inventory item)
   product_name: string;
+  variant_name?: string | null;
+  unit_name?: string | null;
   quantity: number;
   reason: DamageReason;
   note?: string;
@@ -37,7 +44,7 @@ export interface Damage {
   unit_cost: number | null;
   value_at_price: number;
   value_at_cost: number | null;
-  cost_source?: "recipe" | "entered" | null;
+  cost_source?: "recipe" | "buying_price" | "entered" | null;
   ingredients: DamageIngredient[];
   journal_entry_id?: string | null;
   recorded_by_name?: string;
@@ -69,9 +76,16 @@ export interface DamagesResponse {
 }
 
 export interface DamageEstimate {
+  item_type: DamageItemType;
   price: number;
+  // Cost of one item from buying prices (recipe ingredients for a service,
+  // the item's own buying price for an inventory item)
+  suggested_unit_cost: number | null;
+  cost_basis: "recipe" | "buying_price" | null;
   recipe_unit_cost: number | null;
   last_entered_unit_cost: number | null;
+  unit?: string;
+  variants: { _id: string; name: string; quantity: number; price: number | null }[];
   ingredients: {
     inventory_id: string;
     name: string;
@@ -88,6 +102,7 @@ const apiError = (e: any, fallback: string) =>
 export const fetchDamages = async (params: {
   start?: string;
   end?: string;
+  item_type?: DamageItemType;
   reason?: string;
   product_id?: string;
   include_voided?: boolean;
@@ -103,9 +118,9 @@ export const fetchDamages = async (params: {
   }
 };
 
-export const fetchDamageEstimate = async (productId: string): Promise<DamageEstimate> => {
+export const fetchDamageEstimate = async (kind: DamageItemType, id: string): Promise<DamageEstimate> => {
   try {
-    const res = await axiosInstance.get(`${url}/product/${productId}/estimate`);
+    const res = await axiosInstance.get(`${url}/${kind === "inventory" ? "inventory" : "product"}/${id}/estimate`);
     return res.data;
   } catch (e) {
     throw apiError(e, "Failed to load item details");
@@ -113,7 +128,10 @@ export const fetchDamageEstimate = async (productId: string): Promise<DamageEsti
 };
 
 export const recordDamage = async (body: {
-  product_id: string;
+  item_type: DamageItemType;
+  product_id?: string;
+  inventory_id?: string;
+  variant_id?: string;
   quantity: number;
   reason: DamageReason;
   note?: string;

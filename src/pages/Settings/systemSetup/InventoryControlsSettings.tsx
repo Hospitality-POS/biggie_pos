@@ -156,7 +156,7 @@ const InventoryControlsSettings: React.FC = () => {
         color="#dc2626"
         bg="#fef2f2"
         title={flags.damages_enabled ? "Damage Tracking On" : "Damage Tracking Off"}
-        description="Turn this on to record items that get damaged, spoilt or expire (e.g. a dropped cake). Adds a Record damage action to each item in Services and a Damages report. Recording a damage takes the item's recipe ingredients off stock as waste, and with accounting on, writes its cost off as an expense."
+        description="Turn this on to record services and inventory items that get damaged, spoilt or expire (e.g. a dropped cake, a cracked crate of eggs). Adds a Record damage button to each item in Services and in Inventory, and a Damages report in Services. A damaged service takes its recipe ingredients off stock; a damaged inventory item comes off stock itself. Both are logged as waste, and with accounting on, the cost is written off as an expense."
         checked={flags.damages_enabled}
         onChange={toggle("damages_enabled")}
         loading={saving === "damages_enabled"}

@@ -1034,7 +1034,7 @@ export default function MainStore() {
 
       <RecordDamageModal
         open={!!damageTarget}
-        product={damageTarget}
+        item={damageTarget ? { kind: "product", _id: damageTarget._id, name: damageTarget.name, price: damageTarget.price } : null}
         onClose={() => setDamageTarget(null)}
       />
     </div>
