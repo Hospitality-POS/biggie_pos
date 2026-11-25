@@ -49,6 +49,7 @@ import {
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { fmtK } from "@utils/formatters";
 import URLShareModal from "src/components/URLShareModal";
+import { BASE_ONE_PLAY_STORE_URL } from "@utils/appLinks";
 
 dayjs.extend(quarterOfYear);
 
@@ -64,7 +65,6 @@ const PERIOD_LABELS: Record<string, string> = {
 };
 
 // Direct owner-app APK download link (DigitalOcean) — scanning the QR opens this URL and downloads the app
-const OWNER_APP_DOWNLOAD_URL = "https://reliatechdocs.nyc3.digitaloceanspaces.com/APKS/basepoint-owner.apk";
 
 const useIsMobile = () => {
   const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);
@@ -87,7 +87,7 @@ const DashboardAdminPage: React.FC = () => {
   const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
   const [shopFilter, setShopFilter] = useState<string>("all");
-  const [ownerAppModalOpen, setOwnerAppModalOpen] = useState(false);
+  const [appModalOpen, setAppModalOpen] = useState(false);
 
   const { data: shops } = useQuery({
     queryKey: ["dashboard-branch-options"],
@@ -252,12 +252,12 @@ const DashboardAdminPage: React.FC = () => {
     <div style={{ paddingBottom: 24 }}>
       {contextHolder}
 
-      {/* ── Owner App Download QR ── */}
+      {/* ── Base One download QR ── */}
       <URLShareModal
-        open={ownerAppModalOpen}
-        onClose={() => setOwnerAppModalOpen(false)}
-        url={OWNER_APP_DOWNLOAD_URL}
-        title="Scan to Download Owner App"
+        open={appModalOpen}
+        onClose={() => setAppModalOpen(false)}
+        url={BASE_ONE_PLAY_STORE_URL}
+        title="Scan to Download Base One"
         showCopy={false}
       />
 
@@ -347,7 +347,7 @@ const DashboardAdminPage: React.FC = () => {
                 </Button>
                 <Button
                   icon={<AndroidOutlined />}
-                  onClick={() => setOwnerAppModalOpen(true)}
+                  onClick={() => setAppModalOpen(true)}
                   size="middle"
                 />
                 <Button
@@ -410,11 +410,11 @@ const DashboardAdminPage: React.FC = () => {
 
                 <Button
                   icon={<AndroidOutlined />}
-                  onClick={() => setOwnerAppModalOpen(true)}
+                  onClick={() => setAppModalOpen(true)}
                   size="small"
                   style={{ fontWeight: 500 }}
                 >
-                  Owner App
+                  Base One
                 </Button>
 
                 <Button
