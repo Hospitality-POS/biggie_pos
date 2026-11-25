@@ -35,7 +35,7 @@ export const lazyWithReload = <T extends ComponentType<any>>(
       if (isChunkLoadError(error) && reloadForNewVersion()) {
         // Keep suspense fallback visible during reload instead of flashing
         // error boundary or logging false-alarm errors to Sentry
-        return new Promise<{ default: T }>(() => {});
+        return new Promise<{ default: T }>(() => undefined);
       }
       throw error;
     })

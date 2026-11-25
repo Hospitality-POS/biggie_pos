@@ -1,17 +1,6 @@
-import axios from 'axios';
-import { BASE_URL } from '@utils/config';
+import axiosInstance from '@services/request';
 
-export const axiosInstance = axios.create({
-  baseURL: BASE_URL,
-  timeout: 30000,
-});
-
-axiosInstance.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
+// The shared client: it adds the signed-in session, company code and branch to
+// every request, and handles sign-out and permission checks.
+export { axiosInstance };
 export default axiosInstance;

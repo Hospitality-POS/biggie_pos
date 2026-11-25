@@ -35,6 +35,7 @@ import {
     getNotes,
     type Note,
     type NoteStatus,
+    type NoteDirection,
     type NoteType,
 } from "@services/accounting/notes";
 import { getAllAccounts } from "@services/accounting/accounts";

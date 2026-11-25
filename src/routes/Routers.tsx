@@ -15,7 +15,6 @@ import { lazyWithReload } from "@utils/lazyWithReload";
 import Private, { AdminRoute } from "@components/layout/private/Private";
 import NotFound from "@routes/NotFound";
 import { Spin } from "antd";
-import NubaLoader from "@components/spinner/NubaLoader";
 import PaymentCallback from "@components/payment/PaymentCallback";
 import PermissionRoute from "@components/PermissionRoute";
 import { ModuleGate } from "@shared/licensing/ModuleGate";
@@ -25,6 +24,7 @@ import { useModuleLicense } from "@shared/licensing/useModuleLicense";
 const StaffLoginPage = lazyWithReload(() => import("@pages/Login/login"));
 const MainCategory = lazyWithReload(() => import("@pages/main_category/Main_category"));
 const MainOrders = lazyWithReload(() => import("@modules/duka/pages/orders/MainOrders"));
+const OrderTrackingPage = lazyWithReload(() => import("@modules/duka/pages/orders/OrderTrackingPage"));
 const StaffClockTracker = lazyWithReload(() => import("@pages/staff/ClockInTracker"));
 const HelpCenter = lazyWithReload(() => import("src/AdminDashboard/HelpCenter/HelpCenterPage"));
 const AuditTrailPage = lazyWithReload(() => import("src/AdminDashboard/AuditTrail/AuditTrailPage"));
@@ -46,11 +46,17 @@ const TermsAndConditions = lazyWithReload(() => import("@pages/Legal/TermsAndCon
 const DownloadPage = lazyWithReload(() => import("@pages/Download/DownloadPage"));
 
 // ─── Fallback spinners ────────────────────────────────────────────────────────
-const fullscreenSpin = <NubaLoader />;
+// Shown while a page's code downloads. The same antd Spin the pages use for
+// their own loading, so the two read as one loader.
+const fullscreenSpin = (
+  <div style={{ display: "grid", placeItems: "center", height: "80svh" }}>
+    <Spin size="large" />
+  </div>
+);
 
 // ─── Page wrappers ────────────────────────────────────────────────────────────
 const adminPage = (Component: React.ComponentType) => (
-  <Suspense fallback={<NubaLoader />}>
+  <Suspense fallback={fullscreenSpin}>
     <AdminRoute>
       <Component />
     </AdminRoute>
@@ -639,6 +645,9 @@ const routes = sentryCreateBrowserRouter(
         <Route path="orders" errorElement={<NotFound />}
           element={ordersPage(MainOrders, ["ORDERS_VIEW", "ACCOUNTING_INVOICE_VIEW"])} />
 
+        <Route path="order-tracking" errorElement={<NotFound />}
+          element={dukaPage(OrderTrackingPage, "ORDERS_VIEW")} />
+
         <Route path="customers" errorElement={<NotFound />}
           element={guardedPage(Customer, "CUSTOMERS_VIEW")} />
 
@@ -849,6 +858,9 @@ const routes = sentryCreateBrowserRouter(
 
         <Route path="orders" errorElement={<NotFound />}
           element={ordersAdminPage(MainOrders, ["ORDERS_VIEW", "ACCOUNTING_INVOICE_VIEW"])} />
+
+        <Route path="order-tracking" errorElement={<NotFound />}
+          element={dukaAdminPage(OrderTrackingPage, "ORDERS_VIEW")} />
 
         <Route path="store" errorElement={<NotFound />}
           element={dukaAdminPage(MainStore, "PRODUCTS_VIEW")} />

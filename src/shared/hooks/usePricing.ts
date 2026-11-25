@@ -135,7 +135,9 @@ export function useSubscribeModule() {
               const parsed = JSON.parse(stored);
               parsed.modules = { ...(parsed.modules || {}), [moduleKey]: true };
               localStorage.setItem('tenant', JSON.stringify(parsed));
-            } catch (_) {}
+            } catch {
+              // best effort: a stored tenant that can't be parsed is left as it is
+            }
           }
           return { success: true, module: moduleKey, fallback: true };
         }
@@ -158,7 +160,9 @@ export function useSubscribeModule() {
             parsed.modules = { ...(parsed.modules || {}), [variables.moduleKey]: true };
             localStorage.setItem('tenant', JSON.stringify(parsed));
             queryClient.setQueryData(['tenant-details'], parsed);
-          } catch (_) {}
+          } catch {
+            // best effort: a stored tenant that can't be parsed is left as it is
+          }
         }
       }
 

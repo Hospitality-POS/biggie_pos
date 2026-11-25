@@ -491,14 +491,19 @@ const DeliveryRateReport: React.FC<{ deliveries: any[] }> = ({ deliveries }) => 
     }))
   );
 
+  // Date-range part of an export's file name, shared by the Excel and PDF exports
+  const exportDateLabel = (type: string) => {
+    const dateRange = type === 'Supplier' ? supplierDateRange : customerDateRange;
+    return dateRange && dateRange[0] && dateRange[1]
+      ? `${dateRange[0].toISOString().split('T')[0]}_to_${dateRange[1].toISOString().split('T')[0]}`
+      : 'all';
+  };
+
   const exportToExcel = (items: any[], type: string) => {
     const ws = XLSX.utils.json_to_sheet(items);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, `${type} Delivery Items`);
-    const dateRange = type === 'Supplier' ? supplierDateRange : customerDateRange;
-    const dateStr = dateRange && dateRange[0] && dateRange[1]
-      ? `${dateRange[0].toISOString().split('T')[0]}_to_${dateRange[1].toISOString().split('T')[0]}`
-      : 'all';
+    const dateStr = exportDateLabel(type);
     XLSX.writeFile(wb, `${type.toLowerCase()}_delivery_items_${dateStr}.xlsx`);
     message.success(`Exported ${type} delivery items to Excel successfully`);
   };
@@ -536,7 +541,7 @@ const DeliveryRateReport: React.FC<{ deliveries: any[] }> = ({ deliveries }) => 
       headStyles: { fillColor: [108, 28, 44] }
     });
 
-    doc.save(`${type.toLowerCase()}_delivery_items_${dateStr}.pdf`);
+    doc.save(`${type.toLowerCase()}_delivery_items_${exportDateLabel(type)}.pdf`);
     message.success(`Exported ${type} delivery items to PDF successfully`);
   };
 

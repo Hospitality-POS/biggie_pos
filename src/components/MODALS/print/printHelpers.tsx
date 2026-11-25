@@ -1,4 +1,5 @@
 import { getPrimaryColor } from "@utils/getPrimaryColor";
+import type { PrintFormat, SavePrintResult } from "@services/printedDocuments";
 
 export const C = {
   get primary() {

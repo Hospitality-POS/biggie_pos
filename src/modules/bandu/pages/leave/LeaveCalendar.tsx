@@ -58,7 +58,7 @@ const StatCard: React.FC<{
 );
 
 // ── Status Colors ─────────────────────────────────────────────────────────────
-const STATUS_COLORS: Record<LeaveStatus | "Scheduled" | (string & {}), string> = {
+const STATUS_COLORS: Record<LeaveStatus | "Scheduled" | (string & NonNullable<unknown>), string> = {
   Pending: "#f59e0b",
   Approved: "#10b981",
   Rejected: "#ef4444",

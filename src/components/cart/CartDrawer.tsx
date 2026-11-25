@@ -65,6 +65,19 @@ import StaffAssignModal from "./components/StaffAssignModal";
 
 const { Text } = Typography;
 
+// The cart's action buttons (Client Details, Custom Item, Send, Print Bill)
+// share one row and grow to fill it. When the cart is too narrow for all of
+// them, the icons go first, then the font shrinks; labels truncate only as a
+// last resort. Two of the buttons are built inside ClientPin and PrintBillModal,
+// and the steps follow the cart's width rather than the window's (a container
+// query), so this is CSS rather than antd props.
+const CART_ACTIONS_CSS = `
+  .cart-actions-row > .ant-btn { flex: 1 1 auto; min-width: 0; padding-inline: 8px; }
+  .cart-actions-row > .ant-btn > span:not(.ant-btn-icon) { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  @container (max-width: 520px) { .cart-actions-row > .ant-btn > .ant-btn-icon { display: none; } }
+  @container (max-width: 380px) { .cart-actions-row > .ant-btn { font-size: 13px; padding-inline: 6px; } }
+`;
+
 const formatCartDate = (dateString: string) => {
   if (!dateString) return null;
   const d = dayjs(dateString);
@@ -970,12 +983,11 @@ const CartDrawer: React.FC = () => {
               </>
             ) : (
               <Flex
-                gap={8}
-                wrap="wrap"
-                justify="space-evenly"
-                align="center"
-                style={{ width: "100%" }}
+                gap={6}
+                className="cart-actions-row"
+                style={{ width: "100%", containerType: "inline-size" }}
               >
+                <style>{CART_ACTIONS_CSS}</style>
                 <ClientPin cart={cartDetails} />
                 <Button
                   icon={<PlusCircleOutlined />}
@@ -1002,10 +1014,10 @@ const CartDrawer: React.FC = () => {
                   printLocked={printLocked}
                   {...printProps}
                 />
-                {(user?.role === "admin" || user?.role === "cashier") && (
-                  <DiscountModal data={cartDetails} />
-                )}
               </Flex>
+            )}
+            {!isAwaitingPrintCart && (user?.role === "admin" || user?.role === "cashier") && (
+              <DiscountModal data={cartDetails} />
             )}
             {can("CART_DELETE_ALL_ITEMS") && !isAwaitingPrintCart && (
               <Popconfirm
