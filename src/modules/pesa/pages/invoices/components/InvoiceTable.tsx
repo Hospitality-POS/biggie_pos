@@ -36,6 +36,7 @@ import AccountFormDrawer from "@pages/ChartOfAccounts/AccountFormDrawer";
 import dayjs from "dayjs";
 import { THEME_C } from "@utils/getPrimaryColor";
 import { inlineImages } from "@utils/inlineImages";
+import { saveCanvasAsA4Pdf } from "@utils/invoicePdf";
 import PeriodFilter, { defaultPeriod, periodRange, isDefaultPeriod, type PeriodValue } from "@components/PeriodFilter";
 import { SearchOutlined } from "@ant-design/icons";
 
@@ -805,26 +806,10 @@ const InvoicesTable = ({ quotesOnly = false }: { quotesOnly?: boolean }) => {
     const capture = async () => {
       try {
         const html2canvas = (await import("html2canvas")).default;
-        const { default: jsPDF } = await import("jspdf");
         // Logos are cross-origin — inline them so they aren't dropped from the capture
         await inlineImages(pdfRef.current!);
         const canvas = await html2canvas(pdfRef.current!, { scale: 2, useCORS: true, allowTaint: true });
-        const imgData = canvas.toDataURL("image/png");
-        const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-        const pageWidth = 210;
-        const imgWidth = pageWidth;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        let heightLeft = imgHeight;
-        let position = 0;
-        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-        heightLeft -= 297;
-        while (heightLeft > 0) {
-          position = heightLeft - imgHeight;
-          pdf.addPage();
-          pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-          heightLeft -= 297;
-        }
-        pdf.save(`Invoice-${pdfRecord.order_no || pdfRecord.invoice_no}_${dayjs().format("YYYYMMDD")}.pdf`);
+        await saveCanvasAsA4Pdf(canvas, `Invoice-${pdfRecord.order_no || pdfRecord.invoice_no}_${dayjs().format("YYYYMMDD")}.pdf`);
       } catch (e) {
         console.error("PDF download failed", e);
         message.error("Failed to download PDF");
