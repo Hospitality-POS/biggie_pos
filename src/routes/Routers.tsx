@@ -24,7 +24,6 @@ import { useModuleLicense } from "@shared/licensing/useModuleLicense";
 const StaffLoginPage = lazyWithReload(() => import("@pages/Login/login"));
 const MainCategory = lazyWithReload(() => import("@pages/main_category/Main_category"));
 const MainOrders = lazyWithReload(() => import("@modules/duka/pages/orders/MainOrders"));
-const OrderTrackingPage = lazyWithReload(() => import("@modules/duka/pages/orders/OrderTrackingPage"));
 const StaffClockTracker = lazyWithReload(() => import("@pages/staff/ClockInTracker"));
 const HelpCenter = lazyWithReload(() => import("src/AdminDashboard/HelpCenter/HelpCenterPage"));
 const AuditTrailPage = lazyWithReload(() => import("src/AdminDashboard/AuditTrail/AuditTrailPage"));
@@ -645,9 +644,6 @@ const routes = sentryCreateBrowserRouter(
         <Route path="orders" errorElement={<NotFound />}
           element={ordersPage(MainOrders, ["ORDERS_VIEW", "ACCOUNTING_INVOICE_VIEW"])} />
 
-        <Route path="order-tracking" errorElement={<NotFound />}
-          element={dukaPage(OrderTrackingPage, "ORDERS_VIEW")} />
-
         <Route path="customers" errorElement={<NotFound />}
           element={guardedPage(Customer, "CUSTOMERS_VIEW")} />
 
@@ -858,9 +854,6 @@ const routes = sentryCreateBrowserRouter(
 
         <Route path="orders" errorElement={<NotFound />}
           element={ordersAdminPage(MainOrders, ["ORDERS_VIEW", "ACCOUNTING_INVOICE_VIEW"])} />
-
-        <Route path="order-tracking" errorElement={<NotFound />}
-          element={dukaAdminPage(OrderTrackingPage, "ORDERS_VIEW")} />
 
         <Route path="store" errorElement={<NotFound />}
           element={dukaAdminPage(MainStore, "PRODUCTS_VIEW")} />
