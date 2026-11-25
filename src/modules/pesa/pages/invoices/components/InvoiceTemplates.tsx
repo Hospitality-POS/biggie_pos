@@ -888,15 +888,24 @@ const PinIcon = ({ color = "#fff" }: { color?: string }) => (
     </svg>
 );
 
+// Whether ServicesBanner has anything to show
+const hasServicesBanner = (sys: SystemDetails) => {
+    const s = sys.invoice_settings;
+    if (!s?.services_enabled) return false;
+    return (s.services || []).some((x) => x.trim())
+        || !!(s.services_title || "").trim()
+        || !!(s.services_heading || "").trim()
+        || !!(s.services_address || "").trim();
+};
+
 // "We supply and service…" banner printed at the very bottom of the invoice
 export const ServicesBanner = ({ sys }: { sys: SystemDetails }) => {
     const s = sys.invoice_settings;
-    if (!s?.services_enabled) return null;
+    if (!s || !hasServicesBanner(sys)) return null;
     const services = (s.services || []).map((x) => x.trim()).filter(Boolean);
     const title = (s.services_title || "").trim();
     const heading = (s.services_heading || "").trim();
     const address = (s.services_address || "").trim();
-    if (!services.length && !title && !heading && !address) return null;
     const { primary, secondary } = brandColors(sys);
     // Two columns, filled top-to-bottom like the letterhead
     const half = Math.ceil(services.length / 2);
@@ -975,15 +984,26 @@ const Footer = ({ sys, borderColor = C.border, accentColor = C.primary, letterhe
         </div>
     );
 
-    // Letterhead: one compact row, so the invoice fits on a single A4 page
+    // Letterhead: one compact row, so the invoice fits on a single A4 page.
+    // With a services banner the row goes below it, as the last line.
     if (letterhead) {
+        const row = (
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                {poweredBy}
+                {printed}
+            </div>
+        );
+        if (hasServicesBanner(sys)) {
+            return (
+                <div className="inv-footer" style={{ marginTop: 4 }}>
+                    <ServicesBanner sys={sys} />
+                    <div style={{ paddingTop: 6 }}>{row}</div>
+                </div>
+            );
+        }
         return (
             <div className="inv-footer" style={{ marginTop: 12, borderTop: `1px solid ${borderColor}`, paddingTop: 8 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                    {poweredBy}
-                    {printed}
-                </div>
-                <ServicesBanner sys={sys} />
+                {row}
             </div>
         );
     }
