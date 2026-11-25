@@ -469,8 +469,6 @@ const DetailsTab = ({
 }) => {
   const [editing, setEditing] = useState(false);
   const [form] = Form.useForm();
-  const [addressForm] = Form.useForm();
-  const [addressEditOpen, setAddressEditOpen] = useState(false);
 
   const {
     items = [], served_by, created_by, subtotal, total_vat_amount,
@@ -675,18 +673,6 @@ const DetailsTab = ({
           title={
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px" }}>
               <Text strong style={{ fontSize: 12 }}>{party.label} Information</Text>
-              {party.address && (
-                <Button 
-                  size="small" 
-                  icon={<EditOutlined />} 
-                  onClick={() => {
-                    addressForm.setFieldsValue(party.address);
-                    setAddressEditOpen(true);
-                  }}
-                >
-                  Edit Address
-                </Button>
-              )}
             </div>
           }
         >
@@ -2171,139 +2157,6 @@ const ExpandableInvoice = ({ record, onOpenNote, defaultTab = "receipt", onPayme
         />
       </Modal>
     </div>
-  );
-
-  return (
-    <>
-      <div style={{ padding: 16, background: C.bg }}>
-        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>{editBtn}</div>
-        <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden", marginBottom: 12 }}>
-          <ProDescriptions column={2} bordered size="small"
-            title={
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px" }}>
-                <Text strong style={{ fontSize: 12 }}>{party.label} Information</Text>
-                {party.address && (
-                  <Button 
-                    size="small" 
-                    icon={<EditOutlined />} 
-                    onClick={() => {
-                      addressForm.setFieldsValue(party.address);
-                      setAddressEditOpen(true);
-                    }}
-                  >
-                    Edit Address
-                  </Button>
-                )}
-              </div>
-            }
-          >
-            <ProDescriptions.Item label="Name"><Text strong style={{ fontSize: 12 }}>{party.name}</Text></ProDescriptions.Item>
-            <ProDescriptions.Item label="Phone"><Text style={{ fontSize: 12 }}>{party.phone || "—"}</Text></ProDescriptions.Item>
-            <ProDescriptions.Item label="Email"><Text style={{ fontSize: 12, color: C.subText }}>{party.email || "—"}</Text></ProDescriptions.Item>
-            <ProDescriptions.Item label="Location"><Text style={{ fontSize: 12 }}>{party.location || "—"}</Text></ProDescriptions.Item>
-            {party.address && (
-              <>
-                <ProDescriptions.Item label="Street Address"><Text style={{ fontSize: 12 }}>{party.address.street || "—"}</Text></ProDescriptions.Item>
-                <ProDescriptions.Item label="City"><Text style={{ fontSize: 12 }}>{party.address.city || "—"}</Text></ProDescriptions.Item>
-                <ProDescriptions.Item label="County"><Text style={{ fontSize: 12 }}>{party.address.county || "—"}</Text></ProDescriptions.Item>
-                <ProDescriptions.Item label="Country"><Text style={{ fontSize: 12 }}>{party.address.country || "—"}</Text></ProDescriptions.Item>
-                {party.address.postal_code && <ProDescriptions.Item label="Postal Code"><Text style={{ fontSize: 12 }}>{party.address.postal_code}</Text></ProDescriptions.Item>}
-              </>
-            )}
-            {party.kra_pin && <ProDescriptions.Item label="KRA PIN" span={2}><Text style={{ fontSize: 12 }}>{party.kra_pin}</Text></ProDescriptions.Item>}
-            {party.ref && <ProDescriptions.Item label="Supplier Ref" span={2}><Text style={{ fontSize: 12 }}>{party.ref}</Text></ProDescriptions.Item>}
-          </ProDescriptions>
-        </div>
-        <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden" }}>
-          <ProDescriptions column={2} bordered size="small"
-            title={<Text strong style={{ fontSize: 12, padding: "8px 12px", display: "block" }}>Invoice Details</Text>}
-          >
-            <ProDescriptions.Item label="Invoice Number"><Text strong style={{ fontSize: 12 }}>{order_no}</Text></ProDescriptions.Item>
-            <ProDescriptions.Item label="Date"><Text style={{ fontSize: 12, color: C.subText }}>{dayjs(issue_date || createdAt).format("DD MMM YYYY HH:mm")}</Text></ProDescriptions.Item>
-            {due_date && <ProDescriptions.Item label="Due Date"><Text style={{ fontSize: 12, color: C.red }}>{dayjs(due_date).format("DD MMM YYYY")}</Text></ProDescriptions.Item>}
-            <ProDescriptions.Item label="Status">
-              <span style={{ background: statusBg, color: statusColor, border: `1px solid ${statusColor}30`, borderRadius: 5, padding: "2px 8px", fontSize: 10, fontWeight: 700 }}>{status || "—"}</span>
-            </ProDescriptions.Item>
-            <ProDescriptions.Item label="Pricing Mode"><Text style={{ fontSize: 12 }}>{vat_pricing_mode || "—"}</Text></ProDescriptions.Item>
-            {served_by && <ProDescriptions.Item label="Served By"><Text style={{ fontSize: 12 }}>{served_by.username}</Text></ProDescriptions.Item>}
-            {created_by && <ProDescriptions.Item label="Created By"><Text style={{ fontSize: 12 }}>{created_by.username}</Text></ProDescriptions.Item>}
-            {terms && <ProDescriptions.Item label="Terms" span={2}><Text style={{ fontSize: 12 }}>{terms}</Text></ProDescriptions.Item>}
-            {notes && <ProDescriptions.Item label="Notes" span={2}><Text style={{ fontSize: 12 }}>{notes}</Text></ProDescriptions.Item>}
-            <ProDescriptions.Item label="Items" span={2}>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6, width: "100%" }}>
-                {items.map((item) => <ItemRow key={item._id} item={item} />)}
-              </div>
-            </ProDescriptions.Item>
-            <ProDescriptions.Item label="Subtotal" span={2}><Text strong style={{ fontSize: 12 }}>KES {fmt(subtotal)}</Text></ProDescriptions.Item>
-            {vatRows.map((r, i) => <ProDescriptions.Item key={i} label={r.label}><Text style={{ fontSize: 12 }}>{r.value}</Text></ProDescriptions.Item>)}
-            {total_vat_amount > 0 && (
-              <ProDescriptions.Item label="Total VAT" span={2}>
-                <span style={{ background: "#eff6ff", color: C.blue, border: "1px solid #bfdbfe", borderRadius: 5, padding: "2px 8px", fontSize: 11, fontWeight: 700 }}>
-                  KES {fmt(total_vat_amount)}
-                </span>
-              </ProDescriptions.Item>
-            )}
-            {discount_amount > 0 && (
-              <ProDescriptions.Item label="Discount" span={2}>
-                <span style={{ background: "#fffbeb", color: C.orange, border: "1px solid #fde68a", borderRadius: 5, padding: "2px 8px", fontSize: 11, fontWeight: 700 }}>
-                  −KES {fmt(discount_amount)}
-                </span>
-              </ProDescriptions.Item>
-            )}
-            <ProDescriptions.Item label="Grand Total" span={2}><Text strong style={{ fontSize: 14, color: C.primary }}>KES {fmt(grand_total)}</Text></ProDescriptions.Item>
-            {(amount_paid || 0) > 0 && (
-              <>
-                <ProDescriptions.Item label="Amount Paid"><Text strong style={{ fontSize: 12, color: C.green }}>KES {fmt(amount_paid || 0)}</Text></ProDescriptions.Item>
-                <ProDescriptions.Item label="Balance Due"><Text strong style={{ fontSize: 12, color: (amount_due || 0) > 0 ? C.orange : C.green }}>KES {fmt(amount_due || 0)}</Text></ProDescriptions.Item>
-              </>
-            )}
-          </ProDescriptions>
-        </div>
-      </div>
-
-      {/* Address Edit Modal */}
-      <Modal
-        title="Edit Customer Address"
-        open={addressEditOpen}
-        onCancel={() => setAddressEditOpen(false)}
-        onOk={() => {
-          // TODO: Implement address update functionality
-          console.log('Address update:', addressForm.getFieldsValue());
-          setAddressEditOpen(false);
-        }}
-        width={600}
-      >
-        <Form form={addressForm} layout="vertical">
-          <Row gutter={16}>
-            <Col span={24}>
-              <Form.Item name="street" label="Street Address">
-                <Input placeholder="e.g. 123 Main Street" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="city" label="City">
-                <Input placeholder="e.g. Nairobi" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="county" label="County">
-                <Input placeholder="e.g. Nairobi County" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="country" label="Country">
-                <Input placeholder="e.g. Kenya" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="postal_code" label="Postal Code">
-                <Input placeholder="e.g. 00100" />
-              </Form.Item>
-            </Col>
-          </Row>
-        </Form>
-      </Modal>
-    </>
   );
 };
 
