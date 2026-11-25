@@ -30,6 +30,8 @@ const STAGES: { key: StageKey; label: string; hint: string; color: string }[] = 
 ];
 const stageOf = (k: StageKey | null) => STAGES.find((s) => s.key === k);
 
+const STATION_KEY = "orderTrackingStation";
+
 // Waiting time colour on the live board
 const ageColor = (mins: number) => (mins < 10 ? C.green : mins < 20 ? C.orange : "#ef4444");
 
@@ -56,7 +58,15 @@ const LiveBoard: React.FC = () => {
   const queryClient = useQueryClient();
   const isCompact = useIsCompact();
   const shopId = localStorage.getItem("shopId") || "";
-  const [station, setStation] = useState<string>("");
+  // One station at a time (Bar or Kitchen — each table location is served by
+  // one of them). Remembered per device so a bar tablet stays on the bar.
+  const [station, setStationState] = useState<string>(
+    () => localStorage.getItem(STATION_KEY) || ""
+  );
+  const setStation = (s: string) => {
+    localStorage.setItem(STATION_KEY, s);
+    setStationState(s);
+  };
   const [status, setStatus] = useState<"Pending" | "Ready">("Pending");
   const [busyId, setBusyId] = useState<string | null>(null);
   // Re-render every 15s so waiting times stay current between fetches
@@ -66,15 +76,25 @@ const LiveBoard: React.FC = () => {
     return () => clearInterval(t);
   }, []);
 
+  // The station list comes back with the tickets, so the first load also
+  // tells us which stations exist; a remembered station no longer in the
+  // list falls back to the first one.
+  const [stations, setStations] = useState<string[]>([]);
+  const activeStation = stations.includes(station) ? station : stations[0] || "";
+
   const query = useQuery({
-    queryKey: ["kitchenTickets", shopId, status, station],
-    queryFn: () => getKitchenTickets(shopId, status, station),
+    queryKey: ["kitchenTickets", shopId, status, activeStation],
+    queryFn: () => getKitchenTickets(shopId, status, activeStation),
     enabled: !!shopId,
     refetchInterval: 15_000,
+    keepPreviousData: true,
+    onSuccess: (d) => setStations(d.stations || []),
   });
 
-  const tickets = query.data?.tickets || [];
-  const stations = query.data?.stations || [];
+  // Never mix stations, even while a station switch is loading
+  const tickets = (query.data?.tickets || []).filter(
+    (t) => !activeStation || t.station === activeStation
+  );
 
   const toggleReady = async (t: KitchenTicket, ready: boolean) => {
     setBusyId(t._id);
@@ -94,11 +114,13 @@ const LiveBoard: React.FC = () => {
     <Space direction="vertical" size={12} style={{ width: "100%" }}>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", justifyContent: "space-between" }}>
         <Space wrap size={8}>
-          <Segmented
-            value={station}
-            onChange={(v) => setStation(String(v))}
-            options={[{ label: "All stations", value: "" }, ...stations.map((s) => ({ label: s, value: s }))]}
-          />
+          {stations.length > 0 && (
+            <Segmented
+              value={activeStation}
+              onChange={(v) => setStation(String(v))}
+              options={stations.map((s) => ({ label: s, value: s }))}
+            />
+          )}
           <Segmented
             value={status}
             onChange={(v) => setStatus(v as "Pending" | "Ready")}
@@ -119,8 +141,8 @@ const LiveBoard: React.FC = () => {
         <Empty
           description={
             status === "Pending"
-              ? "Nothing waiting. New orders appear here when a waiter taps Send."
-              : "No tickets marked ready in the last 12 hours."
+              ? `Nothing waiting${activeStation ? ` at ${activeStation}` : ""}. New orders appear here when a waiter taps Send.`
+              : `Nothing marked ready${activeStation ? ` at ${activeStation}` : ""} in the last 12 hours.`
           }
         />
       ) : (
