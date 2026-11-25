@@ -13,6 +13,7 @@ import {
 import AddEditProInventoryModal from "@components/MODALS/pro/AddEditProInventoryModal";
 import { QtyApprovalSwitch, QtyApprovalsButton } from "@components/inventory/InventoryQtyApproval";
 import { MeterReadingsButton } from "@components/inventory/WaterMeter";
+import { WaterDeliveryButton, LowWaterAlert } from "@components/inventory/WaterDelivery";
 import { RefillButton, inBales } from "@components/inventory/Refill";
 import { onInventoryChanged } from "@hooks/useQtyApprovalSetting";
 import { fetchAllCategories, fetchSubCategories } from "@services/categories";
@@ -820,6 +821,7 @@ const InventoryCard: React.FC<InventoryCardProps> = ({ record, onDelete, deletin
         <div style={{ display: "flex", gap: 8 }}>
           <div style={{ flex: 1 }}><AddEditProInventoryModal actionRef={tableRef} data={record} edit={true} /></div>
           <MeterReadingsButton record={record} size="middle" onChanged={() => tableRef.current?.reload()} />
+          <WaterDeliveryButton record={record} size="middle" onChanged={() => tableRef.current?.reload()} />
           <RefillButton record={record} size="middle" onChanged={() => tableRef.current?.reload()} />
           <Popconfirm title="Delete inventory item?" description="This action cannot be undone." onConfirm={() => onDelete(record._id)} okText="Delete" okButtonProps={{ danger: true }} cancelText="Cancel" placement="topRight">
             <Button danger size="middle" icon={<DeleteOutlined />} loading={deleting} style={{ borderRadius: 8, width: 38, padding: 0 }} />
@@ -1096,6 +1098,7 @@ const InventorySettings = () => {
             <div><Title level={5} style={{ margin: 0, color: "#0f172a" }}>Product Inventory</Title><Text style={{ fontSize: 12, color: "#64748b" }}>Stock levels, pricing & status</Text></div>
           </Space>
         </div>
+        <LowWaterAlert onChanged={() => paymentRef.current?.reload()} />
         <MobileInventoryList tableRef={paymentRef} onExportExcel={exportToExcel} onExportPDF={exportToPDF} onImportSuccess={() => paymentRef.current?.reload()} />
       </div>
     );
@@ -1104,6 +1107,7 @@ const InventorySettings = () => {
   return (
     <>
     <style>{`.inv-filters-collapsed{display:none!important}`}</style>
+    <LowWaterAlert onChanged={() => paymentRef.current?.reload()} />
     <button
       type="button"
       onClick={() => setFiltersOpen((o) => !o)}
@@ -1217,11 +1221,12 @@ const InventorySettings = () => {
           fieldProps: { placeholder: "Items missing…", allowClear: true },
         },
         {
-          title: "Actions", dataIndex: "actions", hideInSearch: true, width: 170, fixed: "right" as const,
+          title: "Actions", dataIndex: "actions", hideInSearch: true, width: 210, fixed: "right" as const,
           render: (_: any, record: any) => (
             <Space size={6}>
               <AddEditProInventoryModal actionRef={paymentRef} data={record} edit={true} />
               <MeterReadingsButton record={record} onChanged={() => paymentRef.current?.reload()} />
+              <WaterDeliveryButton record={record} onChanged={() => paymentRef.current?.reload()} />
               <RefillButton record={record} onChanged={() => paymentRef.current?.reload()} />
               <Popconfirm title="Delete inventory item?" description="This action cannot be undone." onConfirm={() => deleteInventoryMutation.mutate(record._id)} okText="Delete" okButtonProps={{ danger: true }} cancelText="Cancel">
                 <Button danger size="small" icon={<DeleteOutlined />} style={{ borderRadius: 6, height: 28, width: 28, padding: 0 }} />
