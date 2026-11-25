@@ -1,0 +1,37 @@
+name: Checks
+
+on:
+  pull_request:
+    branches:
+      - dev
+      - master
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 10
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Type check
+        run: pnpm run typecheck
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+
+      - name: Lint errors
+        run: pnpm run lint:errors

@@ -1021,7 +1021,9 @@ const BillingDashboard: React.FC = () => {
                     amount: payingInvoice.amount,
                   });
                   setPayingInvoice(null);
-                } catch (_) {}
+                } catch {
+                  // useInitiatePayment's onError has told the user; keep the dialog open to retry
+                }
               }}
             >
               Pay KES {(payingInvoice.amount || 0).toLocaleString()} via M-Pesa

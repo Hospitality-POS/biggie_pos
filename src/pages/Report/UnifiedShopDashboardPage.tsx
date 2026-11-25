@@ -98,6 +98,16 @@ const UnifiedShopDashboardPage: React.FC = () => {
       : []),
   ];
 
+  // Fall back to the first tab this page actually has if activeTab does not exist in tabItems.
+  const resolvedTab = tabItems.some((t) => t.key === activeTab) ? activeTab : tabItems[0]?.key;
+
+  // Sync back to useActiveDashboard and localStorage so activeProduct / activeTab stay consistent
+  React.useEffect(() => {
+    if (resolvedTab && resolvedTab !== activeTab) {
+      setActiveDashboard(resolvedTab);
+    }
+  }, [resolvedTab, activeTab, setActiveDashboard]);
+
   // Fallback: if no tabs, show message instead of defaulting to Duka
   if (tabItems.length === 0) {
     return (
@@ -108,16 +118,6 @@ const UnifiedShopDashboardPage: React.FC = () => {
       </div>
     );
   }
-
-  // Fall back to the first tab this page actually has if activeTab does not exist in tabItems.
-  const resolvedTab = tabItems.some((t) => t.key === activeTab) ? activeTab : tabItems[0].key;
-
-  // Sync back to useActiveDashboard and localStorage so activeProduct / activeTab stay consistent
-  React.useEffect(() => {
-    if (resolvedTab && resolvedTab !== activeTab) {
-      setActiveDashboard(resolvedTab);
-    }
-  }, [resolvedTab, activeTab, setActiveDashboard]);
 
   return (
     <div

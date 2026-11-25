@@ -488,10 +488,13 @@ function ClientPin({ cart }: ClientPinProps) {
         return true;
       }}
       submitter={{
-        submitButtonProps: {
-          loading: savingCustomer,
-          children: savingCustomer ? "Saving customer…" : "Confirm",
+        // ModalForm ignores the button's children and falls back to Chinese
+        // labels unless the text is set here.
+        searchConfig: {
+          submitText: savingCustomer ? "Saving customer…" : "Confirm",
+          resetText: "Cancel",
         },
+        submitButtonProps: { loading: savingCustomer },
       }}
     >
       <Form.Item name="input_mode" label="Input Method">

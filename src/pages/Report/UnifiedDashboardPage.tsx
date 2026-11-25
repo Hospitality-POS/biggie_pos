@@ -96,6 +96,19 @@ const UnifiedDashboardPage: React.FC = () => {
       : []),
   ];
 
+  // useActiveDashboard resolves its tab from useTenantModules, which reads more
+  // module flags than getModuleFlags above (e.g. modules.pos). When the two
+  // disagree the resolved tab may not exist here, and Tabs then renders no pane
+  // at all — a blank page. Fall back to the first tab this page actually has.
+  const resolvedTab = tabItems.some((t) => t.key === activeTab) ? activeTab : tabItems[0]?.key;
+
+  // Sync back to useActiveDashboard and localStorage so activeProduct / activeTab stay consistent
+  React.useEffect(() => {
+    if (resolvedTab && resolvedTab !== activeTab) {
+      setActiveDashboard(resolvedTab);
+    }
+  }, [resolvedTab, activeTab, setActiveDashboard]);
+
   // Fallback: if no tabs, show message instead of defaulting to Duka
   if (tabItems.length === 0) {
     return (
@@ -106,19 +119,6 @@ const UnifiedDashboardPage: React.FC = () => {
       </div>
     );
   }
-
-  // useActiveDashboard resolves its tab from useTenantModules, which reads more
-  // module flags than getModuleFlags above (e.g. modules.pos). When the two
-  // disagree the resolved tab may not exist here, and Tabs then renders no pane
-  // at all — a blank page. Fall back to the first tab this page actually has.
-  const resolvedTab = tabItems.some((t) => t.key === activeTab) ? activeTab : tabItems[0].key;
-
-  // Sync back to useActiveDashboard and localStorage so activeProduct / activeTab stay consistent
-  React.useEffect(() => {
-    if (resolvedTab && resolvedTab !== activeTab) {
-      setActiveDashboard(resolvedTab);
-    }
-  }, [resolvedTab, activeTab, setActiveDashboard]);
 
   return (
     <div

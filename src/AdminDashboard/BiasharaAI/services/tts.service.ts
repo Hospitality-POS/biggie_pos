@@ -23,7 +23,7 @@ export const cleanTextForSpeech = (rawText: string): string => {
  */
 export const fetchSpeechAudioUrl = async (
   text: string,
-  voice: string = "en-KE-AsiliaNeural"
+  voice = "en-KE-AsiliaNeural"
 ): Promise<string> => {
   const clean = cleanTextForSpeech(text);
   if (!clean) return "";

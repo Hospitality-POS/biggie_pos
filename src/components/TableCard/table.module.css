@@ -21,6 +21,97 @@
   position: absolute;
 }
 
+/* The table name, amount and waiter sit on the tabletop, which is about 75%
+   of the drawing's width and a third of it in height. Text sizes follow the
+   card's width (cqi) and stop at the desktop sizes, so a phone's narrow card
+   still fits all three lines on the tabletop. */
+.tableTop {
+  position: relative;
+  container-type: inline-size;
+  /* A size container can't take its width from its content: fill the card,
+     up to the drawing's natural 247px, and let the drawing fill it. */
+  width: 100%;
+  max-width: 247px;
+}
+
+.tableTop > img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.overlay {
+  position: absolute;
+  top: 47%;
+  left: 50%;
+  width: 66cqi;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: white;
+  font-weight: bold;
+  line-height: 1.25;
+}
+
+.overlay > div {
+  max-width: 100%;
+  white-space: nowrap;
+}
+
+.tableName,
+.servedBy {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The name sits highest, where the oval is narrowest. */
+.overlay > .tableName {
+  max-width: 58cqi;
+}
+
+.tableName {
+  font-size: clamp(0.75rem, 9cqi, 1.25rem);
+  margin-bottom: clamp(1px, 3.2cqi, 8px);
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* The number never truncates: only the "Amount:" label gives way. */
+.amount {
+  display: flex;
+  justify-content: center;
+  font-size: clamp(0.625rem, 6.5cqi, 0.875rem);
+  margin-bottom: clamp(1px, 1.6cqi, 4px);
+  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.amountLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.amountValue {
+  flex-shrink: 0;
+}
+
+.servedBy {
+  font-size: clamp(0.5625rem, 5.5cqi, 0.75rem);
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* Sits in front of the name, so a locked table still has three lines. */
+.lock {
+  margin-right: 0.3em;
+}
+
+@container (max-width: 239px) {
+  .amountLabel {
+    display: none;
+  }
+}
+
 .cardContent {
   display: flex;
   align-items: center;
