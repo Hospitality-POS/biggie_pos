@@ -159,7 +159,7 @@ const useLocationOptions = () => {
 
 // ── Shared field components ───────────────────────────────────────────────────
 const DateRangeField: React.FC<{
-  rangePresets: any[];
+  rangePresets?: React.ComponentProps<typeof RangePicker>["presets"];
   onChange?: (dates: any) => void;
 }> = ({ rangePresets, onChange }) => (
   <Form.Item
