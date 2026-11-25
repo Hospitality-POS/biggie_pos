@@ -81,6 +81,10 @@ const RefillReportModal: React.FC<{
         "Empties waiting": container ? container.on_hand : "",
         "Empties waiting (bales)": container && i.bale_size ? inBales(container.on_hand / (container.per_unit || 1), i.bale_size) : "",
         "Water used": w ? w.used_in_period : "",
+        "Water bought by truck": (() => {
+          const t = w && water.find((x) => String(x.inventory_id) === String(w.inventory_id))?.delivered_by_truck;
+          return t ? t.quantity : "";
+        })(),
         "Can refill now": i.can_make_now,
       };
     }));
@@ -120,6 +124,17 @@ const RefillReportModal: React.FC<{
 
   const waterColumns: ColumnsType<RefillSummaryWater> = [
     { title: "Water", dataIndex: "name", render: (v, r) => <div><Text strong>{v}</Text><Text type="secondary" style={{ display: "block", fontSize: 11 }}>{fmt(r.on_hand)} {r.unit_name} in stock now</Text></div> },
+    {
+      title: "Bought by truck", key: "truck", align: "right",
+      render: (_, r) => r.delivered_by_truck ? (
+        <div>
+          <Text strong style={{ color: C.blue }}>{fmt(r.delivered_by_truck.quantity)} {r.unit_name}</Text>
+          <Text type="secondary" style={{ display: "block", fontSize: 11 }}>
+            {r.delivered_by_truck.trucks} {r.delivered_by_truck.trucks === 1 ? "truck" : "trucks"}{r.delivered_by_truck.cost ? ` · KES ${fmt(r.delivered_by_truck.cost)}` : ""}
+          </Text>
+        </div>
+      ) : <Text type="secondary">—</Text>,
+    },
     { title: "Used in refills", dataIndex: "used_in_refills", align: "right", render: (v, r) => `${fmt(v)} ${r.unit_name}` },
     {
       title: "Meter", key: "meter", align: "right",
@@ -186,7 +201,7 @@ const RefillReportModal: React.FC<{
             <Table<RefillSummaryItem> rowKey="_id" size="small" dataSource={items} columns={columns} pagination={false} scroll={{ x: 900 }} />
             {water.length > 0 && (
               <>
-                <Text strong style={{ marginTop: 6 }}>Water: refills vs the meter</Text>
+                <Text strong style={{ marginTop: 6 }}>Water: bought, used in refills and the meter</Text>
                 <Table<RefillSummaryWater> rowKey="inventory_id" size="small" dataSource={water} columns={waterColumns} pagination={false} scroll={{ x: 700 }} />
                 {water.some((w) => w.meter?.direction === "in") && (
                   <Alert

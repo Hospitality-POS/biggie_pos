@@ -24,6 +24,7 @@ import { fetchAllPaymentMethods } from "@services/paymentMethod";
 import { fetchTenantDetails, getCurrentTenantId } from "@services/tenants";
 import AddCustomerModal from "@pages/Customer/AddCustomerModal";
 import AccountFormDrawer from "@pages/ChartOfAccounts/AccountFormDrawer";
+import QuickAddItemModal, { type QuickAddKind, type QuickAddedItem } from "./QuickAddItemModal";
 import { fetchSystemSetupDetailsById } from "@services/systemsetup";
 import { useCurrency } from "@context/CurrencyContext";
 import { CurrencySelector } from "@components/Currency/CurrencySelector";
@@ -143,6 +144,10 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
     const [addCustomerOpen, setAddCustomerOpen] = useState(false);
     const [addAccountOpen, setAddAccountOpen] = useState(false);
     const [addDepositAccountOpen, setAddDepositAccountOpen] = useState(false);
+    // New service / inventory item from a line's item picker; `name` is what
+    // was typed in the picker's search
+    const [quickAdd, setQuickAdd] = useState<{ lineKey: string; kind: QuickAddKind; name: string; price?: number } | null>(null);
+    const [itemSearch, setItemSearch] = useState<Record<string, string>>({});
 
     const navigate = useNavigate();
     const shopId = localStorage.getItem("shopId") || "";
@@ -287,7 +292,8 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
     // Services (using products endpoint)
     const { data: servicesData, isFetching: servicesFetching } = useQuery({
         queryKey: ["services"],
-        queryFn: () => getAllProducts(),
+        // Bypass the cached list so services added from an invoice show up
+        queryFn: () => getAllProducts(true),
         enabled: open,
         select: (res: any) => {
             console.log('API Response:', res);
@@ -519,6 +525,24 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
         setLines((prev) =>
             prev.map((l) => (l.key === key ? { ...l, [field]: val } : l))
         );
+
+    // A service / inventory item was just created from a line: add it to the
+    // picker lists and put it on that line
+    const handleQuickAdded = (item: QuickAddedItem) => {
+        if (item.type === "service") setServices((prev) => [item, ...prev.filter((s) => s.id !== item.id)]);
+        else setInventoryItems((prev) => [item, ...prev.filter((s) => s.id !== item.id)]);
+        if (quickAdd) {
+            setLines((prev) => prev.map((l) => (l.key === quickAdd.lineKey ? {
+                ...l,
+                item_id: item.id,
+                item_type: item.type,
+                description: item.name,
+                unit_price: item.price,
+                account_id: l.account_id || item.account_id || "",
+            } : l)));
+        }
+        queryClient.invalidateQueries({ queryKey: [item.type === "service" ? "services" : "inventory-items"] });
+    };
 
     const addLine = () =>
         setLines((prev) => [
@@ -900,18 +924,31 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
                         value={r.description}
                         onChange={(e) => updateLine(r.key, "description", e.target.value)}
                         addonAfter={
-                            <Button
-                                type="text"
-                                size="small"
-                                onClick={() => {
-                                    updateLine(r.key, "item_type", "inventory");
-                                    updateLine(r.key, "item_id", null);
-                                    updateLine(r.key, "description", "");
-                                    updateLine(r.key, "unit_price", 0);
-                                }}
-                            >
-                                <SelectOutlined />
-                            </Button>
+                            <Space size={0}>
+                                <Tooltip title="Save as a new service or inventory item, to pick next time">
+                                    <Button
+                                        type="text"
+                                        size="small"
+                                        onClick={() => setQuickAdd({ lineKey: r.key, kind: "service", name: r.description || "", price: r.unit_price || undefined })}
+                                    >
+                                        <PlusOutlined />
+                                    </Button>
+                                </Tooltip>
+                                <Tooltip title="Pick a saved service or inventory item">
+                                    <Button
+                                        type="text"
+                                        size="small"
+                                        onClick={() => {
+                                            updateLine(r.key, "item_type", "inventory");
+                                            updateLine(r.key, "item_id", null);
+                                            updateLine(r.key, "description", "");
+                                            updateLine(r.key, "unit_price", 0);
+                                        }}
+                                    >
+                                        <SelectOutlined />
+                                    </Button>
+                                </Tooltip>
+                            </Space>
                         }
                     />
                 ) : (
@@ -943,6 +980,16 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
                         filterOption={(input, option) =>
                             (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
                         }
+                        onSearch={(text) => setItemSearch((p) => ({ ...p, [r.key]: text }))}
+                        dropdownRender={(menu) => (
+                            <>
+                                {menu}
+                                {dropdownFooter("New service", () =>
+                                    setQuickAdd({ lineKey: r.key, kind: "service", name: itemSearch[r.key] || "" }))}
+                                {dropdownFooter("New inventory item", () =>
+                                    setQuickAdd({ lineKey: r.key, kind: "inventory", name: itemSearch[r.key] || "" }))}
+                            </>
+                        )}
                         options={[
                             ...(inventoryItems.length > 0 ? [{
                                 label: "Inventory Items",
@@ -2108,6 +2155,15 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
                 onClose={() => setAddCustomerOpen(false)}
                 onSuccess={handleCustomerAdded}
                 mode="add"
+            />
+
+            <QuickAddItemModal
+                open={!!quickAdd}
+                kind={quickAdd?.kind || "service"}
+                initialName={quickAdd?.name}
+                initialPrice={quickAdd?.price}
+                onClose={() => setQuickAdd(null)}
+                onCreated={handleQuickAdded}
             />
 
             <AccountFormDrawer

@@ -1,4 +1,4 @@
-import { FolderAddOutlined, HolderOutlined, SearchOutlined, ReloadOutlined, DownloadOutlined, AppstoreOutlined, BarsOutlined, EditOutlined, DeleteFilled, ExperimentOutlined } from "@ant-design/icons";
+import { FolderAddOutlined, HolderOutlined, SearchOutlined, ReloadOutlined, DownloadOutlined, AppstoreOutlined, BarsOutlined, EditOutlined, DeleteFilled, ExperimentOutlined, WarningOutlined } from "@ant-design/icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Empty, Input, Skeleton, Switch, Typography, Popconfirm, notification, Tooltip, message } from "antd";
 import React, { useEffect, useRef, useState } from "react";
@@ -16,6 +16,8 @@ import { deleteProduct as deleteProductService } from "@services/products";
 import ShowConfirm from "@utils/ConfirmUtil";
 import RecipeModal from "@components/MODALS/pro/RecipeModal";
 import { htmlToText } from "@utils/htmlToText";
+import { fetchShop } from "@services/shops";
+import RecordDamageModal from "@components/store/RecordDamageModal";
 
 const { Text } = Typography;
 const { Search } = Input;
@@ -232,7 +234,8 @@ const ListProductRow: React.FC<{
   palette: ReturnType<typeof getPalette>;
   canManageProducts: boolean;
   onSuccess: () => void;
-}> = ({ prod, idx, total, palette, canManageProducts, onSuccess }) => {
+  onDamage?: (prod: any) => void;
+}> = ({ prod, idx, total, palette, canManageProducts, onSuccess, onDamage }) => {
   const [isDisabled, setIsDisabled] = React.useState<boolean>(prod?.is_disabled ?? false);
   const [toggling, setToggling] = React.useState(false);
 
@@ -335,6 +338,15 @@ const ListProductRow: React.FC<{
           disabled={isDisabled}
         />
 
+        {onDamage && (
+          <Tooltip title="Record damage">
+            <WarningOutlined
+              onClick={() => onDamage(prod)}
+              style={{ fontSize: 16, color: "#dc2626", cursor: "pointer" }}
+            />
+          </Tooltip>
+        )}
+
         {canManageProducts && (
           <Tooltip title="Edit product">
             <StoreModal
@@ -378,6 +390,17 @@ export default function MainStore() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [viewMode, setViewMode] = useState<"card" | "list">("card");
   const [pageTab, setPageTab] = useState<"services" | "formulas">("services");
+  const [damageTarget, setDamageTarget] = useState<any>(null);
+
+  // Damage tracking (System Setup → Inventory Controls) adds Record damage
+  // to each item (the report is in Reports → Duka → Damages)
+  const shopId = localStorage.getItem("shopId");
+  const { data: shop } = useQuery({
+    queryKey: ["shop", shopId],
+    queryFn: () => fetchShop(shopId!),
+    enabled: !!shopId,
+  });
+  const damagesEnabled = !!shop?.damages_enabled;
 
   // Get tenant primary color from global context (stays in sync with app-wide theme)
   const primaryColor = usePrimaryColor();
@@ -974,6 +997,7 @@ export default function MainStore() {
                 productId={prod?._id}
                 activateInventory={prod?.activateInventory}
                 onSuccess={() => setRefreshKey(prev => prev + 1)}
+                onDamage={damagesEnabled ? setDamageTarget : undefined}
               />
             ))}
           </div>
@@ -992,6 +1016,7 @@ export default function MainStore() {
                 palette={palette}
                 canManageProducts={canManageProducts}
                 onSuccess={() => setRefreshKey(prev => prev + 1)}
+                onDamage={damagesEnabled ? setDamageTarget : undefined}
               />
             ))}
           </div>
@@ -999,6 +1024,12 @@ export default function MainStore() {
         </>
         )}
       </div>
+
+      <RecordDamageModal
+        open={!!damageTarget}
+        item={damageTarget ? { kind: "product", _id: damageTarget._id, name: damageTarget.name, price: damageTarget.price } : null}
+        onClose={() => setDamageTarget(null)}
+      />
     </div>
   );
 }
