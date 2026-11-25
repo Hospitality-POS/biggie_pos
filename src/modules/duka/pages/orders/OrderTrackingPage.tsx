@@ -13,7 +13,7 @@ const C = THEME_C;
 
 // /order-tracking — its own page in the nav, next to Orders. Kitchen and bar
 // staff keep the live board open here and tap Ready; managers read the stage
-// times. Same panel as the Orders → Order Tracking tab.
+// times.
 const OrderTrackingPage: React.FC = () => {
   const isCompact = useIsCompact();
   const navigate = useNavigate();

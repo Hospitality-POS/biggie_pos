@@ -2,7 +2,7 @@ import { BASE_URL } from "@utils/config";
 import axiosInstance from "./request";
 
 // Order tracking (speed of service). On/off per shop in
-// System Setup → Privacy; Orders → Order Tracking shows the live station
+// System Setup → Privacy; the Order Tracking page (nav, next to Orders) shows the live station
 // board (kitchen/bar tap Ready) and how long each order stage takes.
 
 export interface KitchenTicketItem {

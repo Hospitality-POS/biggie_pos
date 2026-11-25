@@ -522,7 +522,7 @@ const PrivacySettings: React.FC = () => {
               color="#0891b2"
               bg="#ecfeff"
               title={orderTrackingEnabled ? "Tracking Speed of Service" : "Not Tracking Speed of Service"}
-              description="Turn this on so kitchen and bar staff tap Ready when an order they were sent is done. Orders gets an Order Tracking tab showing when each order was placed, sent, ready and closed, so you can see where orders wait."
+              description="Turn this on so kitchen and bar staff tap Ready when an order they were sent is done. Order Tracking appears in the menu next to Orders, showing when each order was placed, sent, ready and closed, so you can see where orders wait."
               checked={orderTrackingEnabled}
               onChange={handleToggleOrderTracking}
               loading={updatingOrderTracking}

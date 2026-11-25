@@ -16,7 +16,7 @@ import { useIsCompact } from "@hooks/useIsCompact";
 const { Text } = Typography;
 const C = THEME_C;
 
-// Orders → Order Tracking (shown while System Setup → Privacy → speed of
+// Order Tracking page (in the nav next to Orders while System Setup → Privacy → speed of
 // service tracking is on).
 //   Live board — tickets each Send put in front of a station; kitchen/bar
 //                staff tap Ready when done.
