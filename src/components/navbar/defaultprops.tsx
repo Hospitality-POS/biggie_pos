@@ -5,7 +5,6 @@ import {
   ApartmentOutlined,
   CalculatorFilled,
   DashboardOutlined,
-  FieldTimeOutlined,
   ExperimentOutlined,
   FileDoneOutlined,
   FileSearchOutlined,
@@ -47,7 +46,6 @@ import { useActiveProduct, ProductKey, PRODUCT_CONFIGS } from "@context/ProductC
 import { PRODUCT_TO_DASHBOARD_TAB } from "src/hooks/useActiveDashboard";
 import { useQuery } from "@tanstack/react-query";
 import { fetchShop } from "@services/shops";
-import { getOrderTrackingSettings } from "@services/orderTracking";
 import { useTenantModules } from "@hooks/useTenantModules";
 import { useFormsSettings } from "@hooks/useFormsSettings";
 import { useHealthcareSettings } from "@hooks/useHealthcareSettings";
@@ -148,7 +146,6 @@ const POS_ROUTE_PERMISSIONS: Record<string, string> = {
   "/dashboard": "UNIFIED_DASHBOARD_VIEW|ORDERS_VIEW_DASHBOARD",
   "/tables": "CART_VIEW_ITEMS|HEALTHCARE_VISITS_VIEW|HEALTHCARE_PRESCRIPTIONS_VIEW|HEALTHCARE_LAB_VIEW|HEALTHCARE_CLAIMS_VIEW|HEALTHCARE_INPATIENT_VIEW",
   "/orders": "ORDERS_VIEW",
-  "/order-tracking": "ORDERS_VIEW",
   "/store": "PRODUCTS_VIEW",
   "/inventory": "INVENTORY_VIEW",
   "/employee-shift": "SHIFTS_VIEW",
@@ -340,15 +337,6 @@ export const useProLayoutNav = () => {
   const whatsappMarketplaceOn = !!(navShop as any)?.whatsapp_marketplace?.enabled;
   const { hasPOS: hasDuka } = useTenantModules();
   const mtejaSellsInChat = whatsappMarketplaceOn && !hasDuka;
-  // Order Tracking sits next to Orders while System Setup → Privacy →
-  // speed of service tracking is on (same cache key the toggle refreshes)
-  const { data: orderTracking } = useQuery({
-    queryKey: ["orderTrackingSettings", navShopId],
-    queryFn: () => getOrderTrackingSettings(navShopId),
-    enabled: !!navShopId && hasDuka,
-    staleTime: 60_000,
-  });
-  const orderTrackingOn = !!orderTracking?.enabled;
   // Forms & Plans add-on — only shops that switched it on in System Setup
   const formsAddOn = useFormsSettings();
   // Healthcare: a chemist calls them Customers, clinics and hospitals Patients
@@ -415,9 +403,6 @@ export const useProLayoutNav = () => {
     { path: p("/pos/dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/pos/dashboard" },
     { path: p("/tables"), name: homeRouteName, icon: homeRouteIcon, _bare: "/tables" },
     { path: p("/orders"), name: "Orders", icon: <CalculatorFilled />, _bare: "/orders" },
-    ...(orderTrackingOn
-      ? [{ path: p("/order-tracking"), name: "Order Tracking", icon: <FieldTimeOutlined />, _bare: "/order-tracking" }]
-      : []),
     // Shown in every mode, retail included
     {
       path: p("/store"),
