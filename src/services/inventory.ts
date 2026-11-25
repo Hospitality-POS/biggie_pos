@@ -840,6 +840,8 @@ export interface RefillSummaryWater {
   unit_name: string;
   on_hand: number;
   used_in_refills: number;
+  // Water bought from trucks in the period
+  delivered_by_truck: { quantity: number; cost: number; trucks: number } | null;
   meter: {
     direction: "in" | "out";
     water_in: number | null;
@@ -858,6 +860,80 @@ export const fetchRefillSummary = async (params: { shop_id?: string; start_date?
 export const updateMeterSettings = async (inventoryId: string, meter: Partial<InventoryMeter>) => {
   const response = await axiosInstance.put(`${inventoryUrl}/${inventoryId}/meter`, { meter });
   return response.data;
+};
+
+// ── Water truck deliveries (metered water items) ─────────────────────────────
+export type WaterPaidFrom = "cash" | "mpesa" | "bank";
+
+export interface WaterDelivery {
+  _id: string;
+  inventory_id: string;
+  inventory_name: string;
+  delivered_at: string;
+  supplier_id?: string | null;
+  supplier_name?: string;
+  vehicle_plate?: string;
+  driver_name?: string;
+  quantity: number;
+  unit_name?: string;
+  // meter: added through the inlet meter's reading; direct: added as given
+  mode: "meter" | "direct";
+  meter_reading?: number | null;
+  qty_before: number;
+  qty_after: number;
+  unit_cost: number | null;
+  total_cost: number | null;
+  paid: boolean;
+  paid_from?: WaterPaidFrom | null;
+  journal_entry_id?: string | null;
+  note?: string;
+  recorded_by_name?: string;
+  status: "active" | "voided";
+  voided_by_name?: string;
+  void_reason?: string;
+}
+
+export const fetchWaterDeliveries = async (inventoryId: string) => {
+  const response = await axiosInstance.get(`${inventoryUrl}/${inventoryId}/water-deliveries`);
+  return response.data as {
+    item: {
+      _id: string;
+      name: string;
+      quantity: number;
+      min_viable_quantity: number | null;
+      supplier_price: number | null;
+      unit_name: string;
+      meter: InventoryMeter;
+    };
+    deliveries: WaterDelivery[];
+  };
+};
+
+export const addWaterDelivery = async (
+  inventoryId: string,
+  body: {
+    quantity?: number;
+    meter_reading?: number;
+    bypassed_meter?: boolean;
+    supplier_id?: string;
+    supplier_name?: string;
+    vehicle_plate?: string;
+    driver_name?: string;
+    unit_cost?: number;
+    total_cost?: number;
+    paid: boolean;
+    paid_from?: WaterPaidFrom;
+    delivered_at?: string;
+    note?: string;
+  }
+) => {
+  const response = await axiosInstance.post(`${inventoryUrl}/${inventoryId}/water-deliveries`, body);
+  return response.data as { delivery: WaterDelivery; warning?: string | null };
+};
+
+export const voidWaterDelivery = async (inventoryId: string, deliveryId: string, reason?: string) => {
+  const response = await axiosInstance.patch(`${inventoryUrl}/${inventoryId}/water-deliveries/${deliveryId}/void`, { reason });
+  return response.data as { delivery: WaterDelivery; warning?: string | null };
 };
 
 export const fetchMeterReadings = async (inventoryId: string) => {
