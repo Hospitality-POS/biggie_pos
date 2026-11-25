@@ -4,7 +4,9 @@ Basepointcloud frontend: React + TypeScript on Vite, Ant Design (incl. pro-compo
 
 ## Checks
 
-There is no test script. `npm run lint` is the gate (it fails on any warning) and `npm run build` catches type errors; run both before calling a change done.
+There is no test script. Before calling a change done, run `pnpm run typecheck` and `pnpm run lint:errors`; CI runs both on every pull request to `dev` and `master`.
+
+`typecheck` fails on any missing name or unreachable code, and on more type errors than `scripts/typecheck-baseline.json` allows. After removing errors, lower the baseline with `pnpm run typecheck --update-baseline`. `pnpm run build` doesn't type-check, and the full `pnpm run lint` still fails on older warnings.
 
 ## Skills
 
