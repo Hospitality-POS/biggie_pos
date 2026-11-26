@@ -20,7 +20,6 @@ import { AudioMutedOutlined, AudioOutlined, PhoneFilled, PhoneOutlined } from "@
 import {
     acceptCloudCall,
     CloudCall,
-    Conversation,
     fetchCallPermission,
     fetchCloudCall,
     fetchCloudCalls,
@@ -42,6 +41,16 @@ const OUTBOUND_POLL_MS = 1000;
 const OUTBOUND_RING_TIMEOUT_MS = 60_000;
 const ENDED = new Set(["ended", "missed", "rejected", "failed"]);
 
+// Only what a call needs, so any conversation shape (the inbox page's or the
+// service's) can be passed.
+export interface CallableConversation {
+    _id: string;
+    channel: string;
+    external_contact_id: string;
+    external_contact_name?: string;
+    external_contact_phone?: string;
+}
+
 type Phase = "preparing" | "ringing" | "connecting" | "active";
 
 interface Session {
@@ -60,7 +69,7 @@ interface CallsContextValue {
     available: boolean;
     /** A call is in progress in this tab. */
     busy: boolean;
-    callConversation: (conversation: Conversation) => Promise<void>;
+    callConversation: (conversation: CallableConversation) => Promise<void>;
 }
 
 const CallsContext = createContext<CallsContextValue>({
@@ -262,7 +271,7 @@ export const WhatsAppCallsProvider: React.FC<ProviderProps> = ({ shopId, enabled
     // ── Outgoing ─────────────────────────────────────────────────────────────
 
     const placeCall = useCallback(
-        async (conversation: Conversation) => {
+        async (conversation: CallableConversation) => {
             updateSession({
                 callId: "",
                 direction: "outbound",
@@ -315,7 +324,7 @@ export const WhatsAppCallsProvider: React.FC<ProviderProps> = ({ shopId, enabled
     );
 
     const callConversation = useCallback(
-        async (conversation: Conversation) => {
+        async (conversation: CallableConversation) => {
             if (sessionRef.current) {
                 message.warning("Finish your current call first.");
                 return;
