@@ -81,6 +81,7 @@ import ScriptsManager from "./ScriptsManager";
 import ChatOrderDrawer from "./ChatOrderDrawer";
 import GuidedFlowBanner from "./GuidedFlowBanner";
 import { ContactAvatar, HScroll, tintStyle } from "./shared/ui";
+import { prepareMediaForWhatsApp, readAsDataUrl } from "./shared/mediaPrep";
 import { startGuidedFlow, type GuidedFlow } from "@services/omnichannel/marketplace";
 
 const { Text } = Typography;
@@ -845,41 +846,45 @@ const MessageThread: React.FC<Props> = ({
         }
     };
 
-    const handleSendMedia = async (file: File) => {
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            const media_url = e.target?.result as string;
-            if (!media_url) return;
-            const media_type = file.type.startsWith("image/")
-                ? "image"
-                : file.type.startsWith("video/")
-                    ? "video"
-                    : "document";
-            setSendingMedia(true);
+    const handleSendMedia = async (original: File) => {
+        if (!original) return;
+        setSendingMedia(true);
+        try {
+            // Re-encode photos WhatsApp won't take; reject videos it can't send.
+            let prepared;
             try {
-                const result = await sendMediaMessage({
-                    conversation_id: conversation._id,
-                    media_type,
-                    media_url,
-                    caption: "",
-                    filename: file.name,
-                    context_message_id: replyingTo?._id,
-                });
-                if (result) {
-                    antMessage.success("Media sent");
-                    setReplyingTo(null);
-                    refetch();
-                    onMessageSent();
-                    onConversationUpdate();
-                }
-            } catch {
-                // sendMediaMessage already toasts the error
-            } finally {
-                setSendingMedia(false);
+                prepared = await prepareMediaForWhatsApp(original);
+            } catch (err: any) {
+                antMessage.warning(err?.message || "This file can't be sent on WhatsApp.");
+                return;
             }
-        };
-        reader.readAsDataURL(file);
+            const { file, mediaType } = prepared;
+            const media_url = await readAsDataUrl(file);
+            if (!media_url) return;
+            const result = await sendMediaMessage({
+                conversation_id: conversation._id,
+                media_type: mediaType,
+                media_url,
+                caption: "",
+                filename: file.name,
+                context_message_id: replyingTo?._id,
+            });
+            if (result) {
+                antMessage.success(mediaType === "image" ? "Photo sent" : mediaType === "video" ? "Video sent" : "File sent");
+                setReplyingTo(null);
+                refetch();
+                onMessageSent();
+                onConversationUpdate();
+            }
+        } catch (err: any) {
+            // sendMediaMessage already toasts the API's message; a 413 comes
+            // from the web server before the API, so explain that one here.
+            if (err?.status === 413 || err?.response?.status === 413 || /413/.test(String(err?.message || ""))) {
+                antMessage.error("The server refused this file as too large. Ask your admin to raise the upload limit (nginx client_max_body_size).");
+            }
+        } finally {
+            setSendingMedia(false);
+        }
     };
 
     // ── Suggest / send PDF documents from the Document Center ───────────────────
@@ -1646,7 +1651,7 @@ const MessageThread: React.FC<Props> = ({
                             }}
                         >
                             <Upload
-                                accept="image/*,video/*,.pdf,application/pdf"
+                                accept="image/*,video/mp4,video/3gpp,.mp4,.3gp,.pdf,application/pdf"
                                 showUploadList={false}
                                 beforeUpload={(file) => {
                                     handleSendMedia(file as File);
