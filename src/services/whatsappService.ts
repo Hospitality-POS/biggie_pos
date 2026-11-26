@@ -912,6 +912,27 @@ export const sendMediaMessage = async (params: {
     }
 };
 
+/**
+ * The file of a received WhatsApp message that only has Meta's media_id
+ * (voice note, photo, video). The API keeps a copy for next time.
+ */
+export const fetchMessageMediaBlob = async (messageId: string): Promise<Blob> => {
+    try {
+        const response = await axiosInstance.get(`${messageUrl}/${encodeURIComponent(messageId)}/media`, { responseType: "blob" });
+        return response.data;
+    } catch (error: any) {
+        // The error body is a Blob too (responseType: "blob"); read its message.
+        let reason = "Couldn't load this file";
+        try {
+            const text = await error?.response?.data?.text?.();
+            reason = JSON.parse(text)?.message || reason;
+        } catch {
+            /* keep the default */
+        }
+        throw new Error(reason);
+    }
+};
+
 export const sendLocationMessage = async (params: {
     conversation_id: string;
     latitude: number;
@@ -1021,6 +1042,111 @@ export const rejectWhatsAppCall = async (callId: string) => {
         return response.data;
     } catch (error: any) {
         handleError(error, "Could not reject call");
+    }
+};
+
+// ── Calls on Meta (Cloud API) numbers ─────────────────────────────────────────
+// Voice calls answered/placed in the browser over WebRTC. The browser sends
+// its SDP; the API relays it to Meta and returns the other side's SDP.
+
+const cloudCallsUrl = `${BASE_URL}/omnichannel/calls/cloud`;
+
+export type CloudCallStatus = "ringing" | "connecting" | "active" | "ended" | "missed" | "rejected" | "failed";
+
+export interface CloudCall {
+    call_id: string;
+    direction: "inbound" | "outbound";
+    status: CloudCallStatus;
+    contact_wa_id: string;
+    contact_name: string;
+    conversation_id: string | null;
+    shop_id: string;
+    created_at: number;
+    answered_at: number | null;
+    ended_at: number | null;
+    duration: number | null;
+    answered_by: string | null;
+    end_reason: string | null;
+    /** Customer's SDP offer — inbound calls while ringing. */
+    offer_sdp: string | null;
+    /** Customer's SDP answer — outbound calls once they pick up. */
+    answer_sdp: string | null;
+}
+
+export interface CallPermission {
+    status: "no_permission" | "temporary" | "permanent";
+    expiration_time: number | null;
+    can_call: boolean;
+    can_request: boolean;
+}
+
+// The API's error message (Meta's reason) for the caller to show.
+const callError = (error: any, fallback: string) => {
+    const err = new Error(error?.response?.data?.message || error?.message || fallback) as Error & { code?: string | number };
+    err.code = error?.response?.data?.code;
+    return err;
+};
+
+/** Ringing/active calls for a shop. Polled — fails quietly. */
+export const fetchCloudCalls = async (shopId: string): Promise<CloudCall[]> => {
+    const response = await axiosInstance.get(cloudCallsUrl, { params: { shop_id: shopId } });
+    return response.data?.calls || [];
+};
+
+export const fetchCloudCall = async (callId: string): Promise<CloudCall | null> => {
+    const response = await axiosInstance.get(`${cloudCallsUrl}/${encodeURIComponent(callId)}`);
+    return response.data?.call || null;
+};
+
+export const acceptCloudCall = async (callId: string, sdp: string): Promise<CloudCall> => {
+    try {
+        const response = await axiosInstance.post(`${cloudCallsUrl}/${encodeURIComponent(callId)}/accept`, { sdp });
+        return response.data.call;
+    } catch (error: any) {
+        throw callError(error, "Could not answer the call");
+    }
+};
+
+export const rejectCloudCall = async (callId: string) => {
+    try {
+        await axiosInstance.post(`${cloudCallsUrl}/${encodeURIComponent(callId)}/reject`);
+    } catch (error: any) {
+        throw callError(error, "Could not decline the call");
+    }
+};
+
+export const terminateCloudCall = async (callId: string) => {
+    try {
+        await axiosInstance.post(`${cloudCallsUrl}/${encodeURIComponent(callId)}/terminate`);
+    } catch (error: any) {
+        throw callError(error, "Could not end the call");
+    }
+};
+
+export const fetchCallPermission = async (conversationId: string): Promise<{ permission: CallPermission; window_open: boolean }> => {
+    try {
+        const response = await axiosInstance.get(`${cloudCallsUrl}/permission`, { params: { conversation_id: conversationId } });
+        return response.data;
+    } catch (error: any) {
+        throw callError(error, "Could not check whether this customer can be called");
+    }
+};
+
+export const requestCallPermission = async (conversationId: string, text?: string) => {
+    try {
+        const response = await axiosInstance.post(`${cloudCallsUrl}/permission-request`, { conversation_id: conversationId, text });
+        return response.data;
+    } catch (error: any) {
+        throw callError(error, "Could not send the call request");
+    }
+};
+
+export const startCloudCall = async (conversationId: string, sdp: string): Promise<CloudCall> => {
+    try {
+        const response = await axiosInstance.post(`${cloudCallsUrl}/start`, { conversation_id: conversationId, sdp });
+        return response.data.call;
+    } catch (error: any) {
+        throw callError(error, "Could not start the call");
     }
 };
 
