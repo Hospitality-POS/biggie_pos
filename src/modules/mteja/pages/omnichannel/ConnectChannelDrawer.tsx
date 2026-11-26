@@ -90,6 +90,8 @@ const STATUS_TEXT: Record<string, string> = {
     initializing: "Starting a secure session…",
     qr: "Waiting for you to scan",
     pairing: "Waiting for you to enter the code",
+    // The API reports "code" once a pairing code is showing.
+    code: "Waiting for you to enter the code",
     authenticated: "Linked — syncing your chats…",
     loading: "Loading your chats…",
     ready: "Connected",
