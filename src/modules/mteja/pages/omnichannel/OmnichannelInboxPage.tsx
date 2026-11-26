@@ -54,6 +54,7 @@ import AgentsManager from "./AgentsManager";
 import ConnectChannelDrawer from "./ConnectChannelDrawer";
 import NewMessageModal from "./NewMessageModal";
 import CampaignsManager from "./Campaigns/CampaignsManager";
+import WhatsAppCallsProvider from "./WhatsAppCalls";
 
 const { Text, Title } = Typography;
 const C = THEME_C;
@@ -263,6 +264,9 @@ const OmnichannelInboxPage: React.FC = () => {
 
     const agents = agentsData?.agents || [];
 
+    // WhatsApp calling works only on numbers connected with Meta (Cloud API).
+    const hasCloudWhatsapp = channels.some((c: any) => c.channel === "whatsapp" && c.is_active && !!c.waba_id);
+
     const connected = {
         whatsapp: channels.some((c: any) => c.channel === "whatsapp" && c.is_active),
         messenger: channels.some((c: any) => c.channel === "messenger" && c.is_active),
@@ -431,6 +435,7 @@ const OmnichannelInboxPage: React.FC = () => {
 
     return (
         <App>
+            <WhatsAppCallsProvider shopId={shopId} enabled={hasCloudWhatsapp}>
             <div
                 ref={rootRef}
                 style={{
@@ -798,6 +803,7 @@ const OmnichannelInboxPage: React.FC = () => {
                     queryClient.invalidateQueries({ queryKey: ["omnichannel-conversations"] });
                 }}
             />
+            </WhatsAppCallsProvider>
         </App>
     );
 };
