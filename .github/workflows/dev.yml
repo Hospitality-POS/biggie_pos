@@ -63,7 +63,7 @@ jobs:
           script: |
             set -euo pipefail
 
-            cd /opt/basepoint/biggie_pos
+            cd /opt/basepoint-dev/biggie_pos
 
             grep -q '^IMAGE_TAG=' .env || { echo "IMAGE_TAG= line missing from .env"; exit 1; }
             sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=${IMAGE_TAG}/" .env
