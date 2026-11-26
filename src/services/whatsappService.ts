@@ -817,18 +817,38 @@ export const sendTextMessage = async (params: { conversation_id: string; content
 
 // ── Send to phone number / Broadcast ───────────────────────────────────────────
 
+export interface SendToNumberTemplate {
+    name: string;
+    language_code: string;
+    params?: string[];
+}
+
+/**
+ * Start (or continue) a chat with a phone number.
+ * - WhatsApp Web channels send `content` as plain text.
+ * - Cloud API channels can only open a chat with an approved `template`;
+ *   plain `content` is only allowed inside the 24-hour window.
+ */
 export const sendToPhoneNumber = async (params: {
     shop_id: string;
     phone_number: string;
-    content: string;
+    content?: string;
     contact_name?: string;
+    channel_id?: string;
+    template?: SendToNumberTemplate;
 }) => {
     try {
         const response = await axiosInstance.post(`${messageUrl}/send-to-number`, params);
-        message.success("Message sent");
+        message.success(params.template ? "Template message sent" : "Message sent");
         return response.data;
     } catch (error: any) {
-        handleError(error, "Error sending message");
+        // Show the server's reason (e.g. no channel connected, template not approved)
+        // instead of a generic message, so the user knows what to fix.
+        const status = error?.response?.status;
+        const reason = error?.response?.data?.message;
+        if (status === 403) throw error;
+        message.error(reason || "Error sending message");
+        throw error?.response?.data || error;
     }
 };
 

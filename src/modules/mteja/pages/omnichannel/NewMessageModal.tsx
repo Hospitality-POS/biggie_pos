@@ -17,6 +17,7 @@ import {
 import { UserOutlined, SendOutlined, TeamOutlined } from "@ant-design/icons";
 import {
     sendToPhoneNumber,
+    fetchChannels,
     fetchBroadcastRecipients,
     sendBroadcastMessage,
     type BroadcastAudience,
@@ -47,6 +48,25 @@ const NewMessageModal: React.FC<Props> = ({ open, onClose, shopId, onSent }) => 
     // ── Send to number state ───────────────────────────────────────────────
     const [phoneForm] = Form.useForm();
     const [sendingToNumber, setSendingToNumber] = useState(false);
+    // Cloud API numbers can only open a chat with an approved template.
+    const [cloudChannel, setCloudChannel] = useState<{ _id: string } | null>(null);
+    const [numberMode, setNumberMode] = useState<"text" | "template">("text");
+
+    useEffect(() => {
+        if (!open || !shopId) return;
+        let cancelled = false;
+        fetchChannels({ shop_id: shopId }).then((data) => {
+            if (cancelled) return;
+            const cloud = (data?.channels ?? []).find(
+                (c: any) => c.channel === "whatsapp" && c.is_active && c.waba_id && c.phone_number_id,
+            );
+            setCloudChannel(cloud ? { _id: cloud._id } : null);
+            setNumberMode(cloud ? "template" : "text");
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [open, shopId]);
 
     // ── Broadcast state ─────────────────────────────────────────────────────
     const [audience, setAudience] = useState<BroadcastAudience>("both");
@@ -100,11 +120,24 @@ const NewMessageModal: React.FC<Props> = ({ open, onClose, shopId, onSent }) => 
         try {
             const values = await phoneForm.validateFields();
             setSendingToNumber(true);
+            const useTemplate = numberMode === "template";
             const result = await sendToPhoneNumber({
                 shop_id: shopId,
-                phone_number: values.phone_number,
-                content: values.content,
+                phone_number: String(values.phone_number).replace(/\D/g, ""),
                 contact_name: values.contact_name || undefined,
+                channel_id: cloudChannel?._id,
+                ...(useTemplate
+                    ? {
+                          template: {
+                              name: values.template_name.trim(),
+                              language_code: (values.language_code || "en_US").trim(),
+                              params: (values.template_params || "")
+                                  .split("\n")
+                                  .map((p: string) => p.trim())
+                                  .filter(Boolean),
+                          },
+                      }
+                    : { content: values.content }),
             });
             if (result) {
                 onSent?.();
@@ -182,13 +215,44 @@ const NewMessageModal: React.FC<Props> = ({ open, onClose, shopId, onSent }) => 
                                 <Form.Item name="contact_name" label="Contact name (optional)">
                                     <Input placeholder="e.g. Jane Doe" size="large" />
                                 </Form.Item>
-                                <Form.Item
-                                    name="content"
-                                    label="Message"
-                                    rules={[{ required: true, message: "Message is required" }]}
-                                >
-                                    <TextArea rows={4} placeholder="Type your message…" />
-                                </Form.Item>
+                                {cloudChannel && (
+                                    <Radio.Group
+                                        value={numberMode}
+                                        onChange={(e) => setNumberMode(e.target.value)}
+                                        style={{ marginBottom: 12 }}
+                                    >
+                                        <Radio.Button value="template">Template (new chat)</Radio.Button>
+                                        <Radio.Button value="text">Text (24h window)</Radio.Button>
+                                    </Radio.Group>
+                                )}
+                                {numberMode === "template" ? (
+                                    <>
+                                        <Paragraph type="secondary" style={{ fontSize: 12 }}>
+                                            WhatsApp only lets a business start a chat with an approved template.
+                                        </Paragraph>
+                                        <Form.Item
+                                            name="template_name"
+                                            label="Template name"
+                                            rules={[{ required: true, message: "Template name is required" }]}
+                                        >
+                                            <Input placeholder="e.g. order_update" />
+                                        </Form.Item>
+                                        <Form.Item name="language_code" label="Language code" initialValue="en_US">
+                                            <Input placeholder="en_US" />
+                                        </Form.Item>
+                                        <Form.Item name="template_params" label="Variables (one per line, in order)">
+                                            <TextArea rows={3} placeholder={"Jane\n#1042"} />
+                                        </Form.Item>
+                                    </>
+                                ) : (
+                                    <Form.Item
+                                        name="content"
+                                        label="Message"
+                                        rules={[{ required: true, message: "Message is required" }]}
+                                    >
+                                        <TextArea rows={4} placeholder="Type your message…" />
+                                    </Form.Item>
+                                )}
                                 <Button
                                     type="primary"
                                     icon={<SendOutlined />}
