@@ -80,6 +80,7 @@ import {
 import ScriptsManager from "./ScriptsManager";
 import ChatOrderDrawer from "./ChatOrderDrawer";
 import GuidedFlowBanner from "./GuidedFlowBanner";
+import { useWhatsAppCalls } from "./WhatsAppCalls";
 import { ContactAvatar, HScroll, tintStyle } from "./shared/ui";
 import { startGuidedFlow, type GuidedFlow } from "@services/omnichannel/marketplace";
 
@@ -1054,6 +1055,16 @@ const MessageThread: React.FC<Props> = ({
         antMessage.info("WhatsApp calls are coming soon");
     };
 
+    // Voice calls work on WhatsApp numbers connected with Meta (Cloud API).
+    const whatsappCalls = useWhatsAppCalls();
+    const startVoiceCall = () => {
+        if (!whatsappCalls.available) {
+            antMessage.info("WhatsApp calls need a WhatsApp number connected with Meta (Connect Channels → Connect with Meta).");
+            return;
+        }
+        whatsappCalls.callConversation(conversation);
+    };
+
     const handleDelete = () => {
         Modal.confirm({
             title: "Delete conversation?",
@@ -1169,9 +1180,10 @@ const MessageThread: React.FC<Props> = ({
                 ? [
                       {
                           key: "voice-call",
-                          label: "Voice call · Coming soon",
+                          label: whatsappCalls.available ? "Voice call" : "Voice call · Needs Meta connection",
                           icon: <PhoneOutlined />,
-                          onClick: showCallComingSoon,
+                          disabled: whatsappCalls.busy,
+                          onClick: startVoiceCall,
                       },
                       {
                           key: "video-call",
