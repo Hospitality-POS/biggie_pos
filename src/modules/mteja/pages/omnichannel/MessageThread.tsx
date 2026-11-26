@@ -82,6 +82,8 @@ import ChatOrderDrawer from "./ChatOrderDrawer";
 import GuidedFlowBanner from "./GuidedFlowBanner";
 import { ContactAvatar, HScroll, tintStyle } from "./shared/ui";
 import { prepareMediaForWhatsApp, readAsDataUrl } from "./shared/mediaPrep";
+import MessageMedia from "./shared/MessageMedia";
+import VoiceRecorder, { VoiceNote } from "./VoiceRecorder";
 import { startGuidedFlow, type GuidedFlow } from "@services/omnichannel/marketplace";
 
 const { Text } = Typography;
@@ -96,6 +98,8 @@ interface Message {
     message_type: string;
     content: string;
     media_url?: string;
+    /** Meta's id for received media that has no stored file yet. */
+    media_id?: string;
     media_filename?: string;
     media_mime_type?: string;
     template_name?: string;
@@ -299,6 +303,8 @@ const MessageBubble: React.FC<{
                             marginBottom: msg.content ? 6 : 0,
                         }}
                     />
+                ) : msg.media_id ? (
+                    <MessageMedia messageId={msg._id} kind="image" mime={msg.media_mime_type} />
                 ) : null;
 
             case "video":
@@ -313,6 +319,8 @@ const MessageBubble: React.FC<{
                             display: "block",
                         }}
                     />
+                ) : msg.media_id ? (
+                    <MessageMedia messageId={msg._id} kind="video" mime={msg.media_mime_type} />
                 ) : (
                     <Text style={{ color: "#667781" }}>
                         Video message
@@ -342,9 +350,11 @@ const MessageBubble: React.FC<{
 
             case "audio":
                 return msg.media_url ? (
-                    <audio controls style={{ maxWidth: 220, height: 36 }}>
-                        <source src={msg.media_url} type={msg.media_mime_type} />
+                    <audio controls preload="metadata" style={{ maxWidth: 240, height: 36 }}>
+                        <source src={msg.media_url} type={msg.media_mime_type?.split(";")[0]} />
                     </audio>
+                ) : msg.media_id ? (
+                    <MessageMedia messageId={msg._id} kind="audio" mime={msg.media_mime_type?.split(";")[0]} />
                 ) : (
                     <Space>
                         <AudioOutlined />
@@ -843,6 +853,34 @@ const MessageThread: React.FC<Props> = ({
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
             handleSend();
+        }
+    };
+
+    // Voice note recorded in the inbox (Ogg/Opus, which WhatsApp expects).
+    const handleSendVoice = async (note: VoiceNote) => {
+        setSendingMedia(true);
+        try {
+            const result = await sendMediaMessage({
+                conversation_id: conversation._id,
+                media_type: "audio",
+                media_url: note.dataUrl,
+                caption: "",
+                filename: note.filename,
+                context_message_id: replyingTo?._id,
+            });
+            if (result) {
+                antMessage.success("Voice note sent");
+                setReplyingTo(null);
+                refetch();
+                onMessageSent();
+                onConversationUpdate();
+            }
+        } catch (err: any) {
+            if (err?.status === 413 || err?.response?.status === 413 || /413/.test(String(err?.message || err || ""))) {
+                antMessage.error("The server refused this voice note as too large. Ask your admin to raise the upload limit (nginx client_max_body_size).");
+            }
+        } finally {
+            setSendingMedia(false);
         }
     };
 
@@ -1697,24 +1735,29 @@ const MessageThread: React.FC<Props> = ({
                                 />
                             </Tooltip>
                         </div>
-                        <Button
-                            type="primary"
-                            shape="circle"
-                            size="large"
-                            icon={<SendOutlined />}
-                            onClick={handleSend}
-                            loading={sendMutation.isLoading || sendingMedia}
-                            disabled={!text.trim()}
-                            className="omni-btn-tint"
-                            style={{
-                                ...tintStyle("#25D366"),
-                                background: text.trim() ? "#25D366" : undefined,
-                                borderColor: text.trim() ? "#25D366" : undefined,
-                                width: 44,
-                                height: 44,
-                                flexShrink: 0,
-                            }}
-                        />
+                        {/* Empty box on WhatsApp → record a voice note, like the WhatsApp app. */}
+                        {!text.trim() && conversation.channel === "whatsapp" ? (
+                            <VoiceRecorder onSend={handleSendVoice} disabled={sendingMedia || sendMutation.isLoading} />
+                        ) : (
+                            <Button
+                                type="primary"
+                                shape="circle"
+                                size="large"
+                                icon={<SendOutlined />}
+                                onClick={handleSend}
+                                loading={sendMutation.isLoading || sendingMedia}
+                                disabled={!text.trim()}
+                                className="omni-btn-tint"
+                                style={{
+                                    ...tintStyle("#25D366"),
+                                    background: text.trim() ? "#25D366" : undefined,
+                                    borderColor: text.trim() ? "#25D366" : undefined,
+                                    width: 44,
+                                    height: 44,
+                                    flexShrink: 0,
+                                }}
+                            />
+                        )}
                     </div>
                 </div>
             </div>

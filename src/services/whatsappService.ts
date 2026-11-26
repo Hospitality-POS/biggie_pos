@@ -912,6 +912,27 @@ export const sendMediaMessage = async (params: {
     }
 };
 
+/**
+ * The file of a received WhatsApp message that only has Meta's media_id
+ * (voice note, photo, video). The API keeps a copy for next time.
+ */
+export const fetchMessageMediaBlob = async (messageId: string): Promise<Blob> => {
+    try {
+        const response = await axiosInstance.get(`${messageUrl}/${encodeURIComponent(messageId)}/media`, { responseType: "blob" });
+        return response.data;
+    } catch (error: any) {
+        // The error body is a Blob too (responseType: "blob"); read its message.
+        let reason = "Couldn't load this file";
+        try {
+            const text = await error?.response?.data?.text?.();
+            reason = JSON.parse(text)?.message || reason;
+        } catch {
+            /* keep the default */
+        }
+        throw new Error(reason);
+    }
+};
+
 export const sendLocationMessage = async (params: {
     conversation_id: string;
     latitude: number;
