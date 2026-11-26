@@ -505,6 +505,8 @@ const WhatsAppConnectCard: React.FC<{ shopId: string; onSuccess: () => void }> =
     const [qr, setQr] = useState<string | null>(null);
     const [pairingCode, setPairingCode] = useState<string | null>(null);
     const [status, setStatus] = useState<string>("idle");
+    // Why the API says a start failed (e.g. WhatsApp is blocking the server).
+    const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
     const handleConnect = async () => {
         if (method === "phone" && phoneNumber.replace(/\D/g, "").length < 9) {
@@ -514,6 +516,7 @@ const WhatsAppConnectCard: React.FC<{ shopId: string; onSuccess: () => void }> =
         setLoading(true);
         setShowPanel(true);
         setStatus("starting");
+        setStatusMessage(null);
         try {
             await startWhatsAppWeb(
                 method === "phone"
@@ -533,6 +536,7 @@ const WhatsAppConnectCard: React.FC<{ shopId: string; onSuccess: () => void }> =
         setQr(null);
         setPairingCode(null);
         setStatus("idle");
+        setStatusMessage(null);
         try {
             await disconnectWhatsAppWeb(shopId);
         } catch {
@@ -559,6 +563,7 @@ const WhatsAppConnectCard: React.FC<{ shopId: string; onSuccess: () => void }> =
                 setQr(qrValue || null);
                 setPairingCode(codeValue || null);
                 setStatus(currentStatus?.status || "idle");
+                setStatusMessage(currentStatus?.status === "error" ? currentStatus?.message || null : null);
 
                 if (currentStatus?.ready && currentStatus?.phone) {
                     stopped = true;
@@ -647,6 +652,11 @@ const WhatsAppConnectCard: React.FC<{ shopId: string; onSuccess: () => void }> =
                                     <Spin />
                                     <Text style={{ fontSize: 12.5, color: WA_DARK }}>Linked — syncing chats…</Text>
                                 </Space>
+                            ) : status === "error" ? (
+                                // Polling has stopped — don't leave a spinner that will never resolve.
+                                <Text type="secondary" style={{ fontSize: 12.5, textAlign: "center", maxWidth: 180 }}>
+                                    {statusMessage || "Couldn't start WhatsApp Web."} Press Cancel, then try again.
+                                </Text>
                             ) : method === "qr" ? (
                                 qr ? (
                                     <QRCodeSVG value={qr} size={200} />
@@ -676,7 +686,7 @@ const WhatsAppConnectCard: React.FC<{ shopId: string; onSuccess: () => void }> =
                                         flexShrink: 0,
                                     }}
                                 />
-                                <Text style={{ fontSize: 12, color: "#475569" }}>{STATUS_TEXT[status] || status}</Text>
+                                <Text style={{ fontSize: 12, color: "#475569" }}>{(status === "error" && statusMessage) || STATUS_TEXT[status] || status}</Text>
                             </div>
                             {method === "qr" && qr && !linked && (
                                 <Text type="secondary" style={{ fontSize: 11, display: "block", marginTop: 4 }}>
