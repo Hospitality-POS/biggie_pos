@@ -1,12 +1,13 @@
 import React, { useState, useMemo } from "react";
 import { Typography } from "antd";
-import { OrderedListOutlined, ShoppingCartOutlined, FileDoneOutlined , LockOutlined, CheckCircleOutlined, WalletOutlined } from "@ant-design/icons";
+import { OrderedListOutlined, ShoppingCartOutlined, FileDoneOutlined, FileTextOutlined, LockOutlined, CheckCircleOutlined, WalletOutlined } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import OrdersTable from "./components/OrdersTable";
 import CreditOrdersPanel from "./components/CreditOrdersPanel";
 import { getCreditSettings } from "@services/orders";
 import OrdersByLocation from "./components/OrdersByLocation";
 import InvoiceTable from "@modules/pesa/pages/invoices/components/InvoiceTable";
+import QuotationsTab from "./quotations/QuotationsTab";
 import ManualInvoiceModal from "@modules/pesa/pages/invoices/components/ManualInvoiceModal";
 import { getPermissionChecker } from "@utils/getPermissionChecker";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
@@ -46,6 +47,13 @@ const TAB_CFG = [
     icon: <FileDoneOutlined />,
     iconColor: C.green,
     label: "Invoices",
+    permissionKey: "ACCOUNTING_INVOICE_VIEW",
+  },
+  {
+    key: "quotations",
+    icon: <FileTextOutlined />,
+    iconColor: C.indigo,
+    label: "Quotations",
     permissionKey: "ACCOUNTING_INVOICE_VIEW",
   },
 ];
@@ -177,6 +185,8 @@ function MainOrders() {
         return <CreditOrdersPanel canCollect={!!creditSettings?.can_collect} />;
       case "invoices":
         return <AccountingInvoicesTab />;
+      case "quotations":
+        return <QuotationsTab />;
       default:
         return null;
     }
@@ -197,7 +207,7 @@ function MainOrders() {
             }}>
               <OrderedListOutlined />
             </div>
-            <Text strong style={{ fontSize: 14, color: C.darkText }}>Orders & Invoices</Text>
+            <Text strong style={{ fontSize: 14, color: C.darkText }}>Orders, Invoices & Quotations</Text>
           </div>
           <TabNav tabs={visibleTabs} active={activeTab} onChange={setActiveTab} primaryColor={primaryColor} />
         </div>
