@@ -25,6 +25,7 @@ import ShowConfirm from "@utils/ConfirmUtil";
 import { useCategoriesQuery } from "@hooks/queries";
 import { addNewProduct, editProduct } from "@services/products";
 import { fetchShop } from "@services/shops";
+import { countStock } from "@services/production";
 import { getAllModifierAddons } from "@services/modifierAddons";
 import { useQuery } from "@tanstack/react-query";
 import { FormInstance, UploadFile, UploadProps } from "antd/lib";
@@ -222,6 +223,12 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data, onSuccess, trigger:
 
       if (edit) {
         await editProduct({ ...productData, _id: data?._id });
+        // An already-stocked service's count is changed as a stock count; the
+        // edit itself leaves it alone so a stale copy can't overwrite it
+        if (stockEnabled && values.track_stock && data?.track_stock
+          && Number(values.quantity ?? 0) !== Number(data?.quantity ?? 0)) {
+          await countStock(data._id, Number(values.quantity) || 0);
+        }
       } else {
         await addNewProduct(productData);
       }
