@@ -21,8 +21,10 @@ import {
   FileTextOutlined,
   InboxOutlined,
   CreditCardOutlined,
+  ExperimentOutlined,
 } from "@ant-design/icons";
 import InventoryControlsSettings from "./InventoryControlsSettings";
+import ProductionStockSettings from "./ProductionStockSettings";
 import PayLaterSettings from "./PayLaterSettings";
 import { Tabs } from "antd";
 import { useQuery } from "@tanstack/react-query";
@@ -230,6 +232,19 @@ const SystemSetup: React.FC = () => {
         render: () => <InventoryControlsSettings />,
       },
     );
+
+    if (hasPOS) {
+      list.push({
+        key: "production-stock",
+        label: "Production & Stock",
+        description: "Count made-ahead items (e.g. bread) and record daily production",
+        icon: <ExperimentOutlined />,
+        color: "#b45309",
+        bg: "#fef3c7",
+        group: "General",
+        render: () => <ProductionStockSettings />,
+      });
+    }
 
     if (hasPOS) {
       list.push({

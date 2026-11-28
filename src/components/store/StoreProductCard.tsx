@@ -312,6 +312,11 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
           style={{ fontWeight: 600, color: isDisabled ? "#9ca3af" : (isHovered ? "#fff" : primaryColor) }}
         >
           Ksh.{price?.toLocaleString()}
+          {product?.track_stock && (
+            <span style={{ fontWeight: 500, fontSize: 11, marginLeft: 6 }}>
+              · {(product?.quantity ?? 0) <= 0 ? "sold out" : `${product.quantity} in stock`}
+            </span>
+          )}
         </Typography.Text>
         <span
           style={{

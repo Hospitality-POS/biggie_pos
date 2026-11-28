@@ -17,6 +17,8 @@ import { useRetailQueue } from "@context/RetailQueueContext";
 import AddonSelectionModal from "../MODALS/pro/AddonSelectionModal";
 import VariantSelectionModal, { SellableVariant } from "../MODALS/pro/VariantSelectionModal";
 import { htmlToText } from "@utils/htmlToText";
+import { useQuery } from "@tanstack/react-query";
+import { fetchShop } from "@services/shops";
 
 interface menudetails {
   quantity?: number;
@@ -31,6 +33,8 @@ interface menudetails {
   supplier_price?: number;
   unit_id?: string | number | null;
   activateInventory?: boolean;
+  /** Stocked service (Production & Stock): `quantity` is what's on hand */
+  track_stock?: boolean;
   addons?: unknown[];
   category?: unknown;
   subcategory_id?: unknown;
@@ -116,14 +120,25 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu, handleCart, style, bloc
   const cartQty = existingCartItem?.quantity ?? 0;
   const currency = (cartDetails as { currency?: string } | null)?.currency || "KES";
 
-  // Selling block message for inventory items — null when the item is sellable
+  // Services made ahead (System Setup → Production & Stock) are counted like
+  // inventory items: they can't be sold past what's on hand
+  const shopId = localStorage.getItem("shopId");
+  const { data: shop } = useQuery({
+    queryKey: ["shop", shopId],
+    queryFn: () => fetchShop(shopId as string),
+    enabled: !!shopId && menu.type === "service" && !!menu.track_stock,
+    staleTime: 60_000,
+  });
+  const stockedService = menu.type === "service" && !!menu.track_stock && !!shop?.service_stock_enabled;
+
+  // Selling block message for counted items — null when the item is sellable
   const stockBlockMessage = useMemo(() => {
-    if (menu.type !== "product" || menu.quantity === undefined) return null;
+    if (!(menu.type === "product" || stockedService) || menu.quantity === undefined) return null;
     if (menu.quantity <= 0) return `"${menu.name}" is out of stock`;
     if (cartQty >= menu.quantity)
       return `Only ${menu.quantity} of "${menu.name}" left in stock`;
     return null;
-  }, [menu.type, menu.quantity, menu.name, cartQty]);
+  }, [menu.type, menu.quantity, menu.name, cartQty, stockedService]);
   const formattedPrice = useMemo(() => formatPrice(menu.price), [menu.price]);
 
   const hasValidImage = Boolean(
@@ -468,6 +483,11 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu, handleCart, style, bloc
                 </span>
               ) : null}
             </div>
+            {stockedService && (
+              <div style={{ fontSize: 11, fontWeight: 600, marginTop: 2, color: (menu.quantity ?? 0) <= 0 ? "#dc2626" : "#64748b" }}>
+                {(menu.quantity ?? 0) <= 0 ? "Sold out" : `${menu.quantity} left`}
+              </div>
+            )}
 
             {/* Touch Action Button */}
             <Button
