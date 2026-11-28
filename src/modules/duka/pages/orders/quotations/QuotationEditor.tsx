@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-    AutoComplete, Button, Card, Checkbox, DatePicker, Descriptions, Empty, Input, InputNumber, Select, Space, Spin, Typography, message,
+    Alert, AutoComplete, Button, Card, Checkbox, DatePicker, Descriptions, Empty, Input, InputNumber, Select, Space, Spin, Typography, message,
 } from "antd";
 import {
     AppstoreOutlined, CalendarOutlined, DeleteOutlined, EyeOutlined, FileSearchOutlined, FileTextOutlined,
@@ -62,6 +62,35 @@ const STEPS = [
 ];
 const LAST = STEPS.length - 1;
 
+// ── Unsaved work ─────────────────────────────────────────────────────────────
+// The form is kept in localStorage while it's being filled, so closing it (or
+// reloading the page) and opening it again picks up where it was left. One
+// draft per shop for a new quote, and one per quote being edited.
+interface QuoteDraft {
+    quote: Quotation;
+    step: number;
+    reached: number;
+    savedAt: string;
+    /** For an edited quote: its updatedAt when the draft began. A draft of an
+     *  older version is dropped, so it can't undo someone else's save. */
+    base?: string;
+}
+
+const draftKey = (quoteId: string | null) =>
+    `quote_draft_${localStorage.getItem("shopId") || "shop"}_${quoteId || "new"}`;
+
+const readDraft = (key: string): QuoteDraft | null => {
+    try {
+        const raw = localStorage.getItem(key);
+        const d = raw ? (JSON.parse(raw) as QuoteDraft) : null;
+        return d?.quote ? d : null;
+    } catch {
+        return null;
+    }
+};
+
+const clearDraft = (key: string) => localStorage.removeItem(key);
+
 /** Create or edit a quote in a stepped modal. `quoteId` null = new quote. */
 const QuotationEditor: React.FC<{
     open: boolean;
@@ -108,15 +137,71 @@ const QuotationEditor: React.FC<{
         keepPreviousData: true,
     });
 
-    // Load the quote being edited, or start a new one from the default template
+    const key = draftKey(quoteId);
+    // The form as it was opened; a draft is only kept once it differs
+    const baseline = useRef("");
+    const [restoredAt, setRestoredAt] = useState<string | null>(null);
+
+    const startFresh = (fresh: Quotation, startReached: number) => {
+        baseline.current = JSON.stringify(fresh);
+        setQuote(fresh);
+        setStep(0);
+        setReached(startReached);
+        setRestoredAt(null);
+    };
+
+    // Load the quote being edited, or start a new one from the default
+    // template — unless there's unsaved work to carry on with
     useEffect(() => {
-        if (!open) { setQuote(null); setStep(0); setReached(0); return; }
-        if (quoteId) {
-            if (loaded) { setQuote(loaded); setReached(LAST); }
-        } else if (!quote && templatesReady) {
-            setQuote(newQuote(templates.find((t) => t.is_default) || templates[0]));
-        }
+        if (!open) { setQuote(null); setStep(0); setReached(0); setRestoredAt(null); return; }
+        if (quote) return;
+        const fresh = quoteId
+            ? loaded
+            : templatesReady ? newQuote(templates.find((t) => t.is_default) || templates[0]) : null;
+        if (!fresh) return;
+        startFresh(fresh, quoteId ? LAST : 0);
+        const draft = readDraft(key);
+        if (!draft) return;
+        if (quoteId && draft.base !== loaded?.updatedAt) { clearDraft(key); return; }
+        setQuote(draft.quote);
+        setStep(Math.min(draft.step, LAST));
+        setReached(Math.max(Math.min(draft.reached, LAST), quoteId ? LAST : 0));
+        setRestoredAt(draft.savedAt);
     }, [open, quoteId, loaded, templates, templatesReady]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Writes the unsaved work, if the form differs from how it was opened
+    const writeDraft = () => {
+        if (!quote || JSON.stringify(quote) === baseline.current) return;
+        const draft: QuoteDraft = {
+            quote, step, reached, savedAt: new Date().toISOString(),
+            base: quoteId ? loaded?.updatedAt : undefined,
+        };
+        try {
+            localStorage.setItem(key, JSON.stringify(draft));
+        } catch {
+            // Storage full or blocked: the form still works, just isn't kept
+        }
+    };
+
+    // Keep unsaved work (debounced) while the form is open
+    useEffect(() => {
+        if (!open || !quote) return;
+        const timer = setTimeout(writeDraft, 400);
+        return () => clearTimeout(timer);
+    }, [open, quote, step, reached]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Closing keeps the latest keystrokes too, not just the last debounced write
+    const handleClose = () => {
+        writeDraft();
+        onClose();
+    };
+
+    const discardDraft = () => {
+        clearDraft(key);
+        const fresh = quoteId ? loaded : newQuote(templates.find((t) => t.is_default) || templates[0]);
+        if (fresh) startFresh(fresh, quoteId ? LAST : 0);
+        message.info(quoteId ? "Changes discarded" : "Started a new quote");
+    };
 
     const template: QuotationTemplate | null = useMemo(
         () => templates.find((t) => t._id === quote?.template_id) || null,
@@ -205,6 +290,9 @@ const QuotationEditor: React.FC<{
         try {
             const saved = quoteId ? await updateQuotation(quoteId, body) : await createQuotation(body);
             message.success(quoteId ? "Quote saved" : `Quote ${saved.quote_no} created`);
+            clearDraft(key);
+            // Nothing left unsaved, so closing now doesn't re-save a draft
+            baseline.current = JSON.stringify(quote);
             // Keep the items for the next quote or invoice
             rememberSavedItems(
                 body.sections.flatMap((s) => s.lines.map((l) => ({
@@ -587,7 +675,7 @@ const QuotationEditor: React.FC<{
         <>
             <StepperModal
                 open={open}
-                onCancel={onClose}
+                onCancel={handleClose}
                 icon={<FileTextOutlined />}
                 title={quoteId ? `Edit quote ${quote?.quote_no || ""}` : "Create Quote"}
                 steps={STEPS}
@@ -603,6 +691,18 @@ const QuotationEditor: React.FC<{
                     loading ? <div style={{ textAlign: "center", padding: 60 }}><Spin /></div> : <Empty />
                 ) : (
                     <>
+                        {restoredAt && !readOnly && (
+                            <Alert
+                                type="info"
+                                showIcon
+                                closable
+                                onClose={() => setRestoredAt(null)}
+                                style={{ marginBottom: 12 }}
+                                message={`Picked up where you left off (${dayjs(restoredAt).format("DD MMM, HH:mm")})`}
+                                description="Your unsaved changes were kept when the form was closed."
+                                action={<Button size="small" onClick={discardDraft}>{quoteId ? "Discard changes" : "Start over"}</Button>}
+                            />
+                        )}
                         {readOnly && (
                             <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: "8px 12px", marginBottom: 12, fontSize: 13 }}>
                                 This quote was accepted, so it can't be changed. Duplicate it from the list to make a new version.

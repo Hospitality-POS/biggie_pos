@@ -112,6 +112,7 @@ export interface Quotation {
     invoice_id?: string | null;
     invoice_no?: string;
     createdAt?: string;
+    updatedAt?: string;
     /** Returned by GET /quotations/:id */
     template?: QuotationTemplate | null;
 }
