@@ -109,7 +109,7 @@ const StartRunModal: React.FC<{
                     {anyShort && (
                         <Alert style={{ marginTop: 12 }} type="warning" showIcon
                             message="Some ingredients show less in stock than needed"
-                            description="You can still start. When you complete the run, the used amounts come off stock (not below 0). Record any deliveries in Inventory to keep counts right." />
+                            description="You can still start. When you complete the run, the quantities used come off stock (not below 0). Record any deliveries in Inventory to keep counts right." />
                     )}
                 </>
             )}

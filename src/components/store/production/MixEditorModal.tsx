@@ -41,7 +41,7 @@ const MixEditorModal: React.FC<{
             outputs: draft.outputs.filter((o) => o.product_id && o.quantity > 0),
         };
         if (!body.name) { message.warning("Name the mix, e.g. Daily bread"); return; }
-        if (!body.ingredients.length) { message.warning("Add at least one ingredient with an amount"); return; }
+        if (!body.ingredients.length) { message.warning("Add at least one ingredient with its quantity"); return; }
         if (!body.outputs.length) { message.warning("Add at least one item it makes, with how many"); return; }
         setSaving(true);
         try {
@@ -71,7 +71,7 @@ const MixEditorModal: React.FC<{
             destroyOnHidden
         >
             <Text type="secondary" style={{ display: "block", marginBottom: 12, fontSize: 13 }}>
-                Enter one batch: what goes in and how many items come out. Each day you choose how many batches you made.
+                For one batch, enter the quantity of each ingredient and how many items it makes. Each day you choose how many batches you made; when that production is completed, the ingredient quantities used come off stock.
             </Text>
             <Input
                 placeholder="Mix name, e.g. Daily bread"
@@ -80,7 +80,7 @@ const MixEditorModal: React.FC<{
                 style={{ marginBottom: 14 }}
             />
 
-            <Divider orientation="left" plain style={{ margin: "6px 0 10px" }}>Ingredients for one batch</Divider>
+            <Divider orientation="left" plain style={{ margin: "6px 0 10px" }}>Ingredients and quantities for one batch</Divider>
             {draft.ingredients.map((ing, i) => {
                 const opt = ingredients.find((o) => o._id === ing.inventory_id);
                 return (
@@ -104,7 +104,7 @@ const MixEditorModal: React.FC<{
                             min={0} style={{ width: "100%" }}
                             value={ing.quantity || null}
                             addonAfter={opt?.unit_name || undefined}
-                            placeholder="Amount"
+                            placeholder="Quantity"
                             onChange={(v) => setIng(i, { quantity: Number(v) || 0 })}
                         />
                         <Button type="text" danger icon={<DeleteOutlined />} aria-label="Remove ingredient"
