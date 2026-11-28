@@ -23,6 +23,7 @@ import PurchaseOrderSettings from "./purchaseOrders/PurchaseOrderSettings";
 import MaterialTransferSettings from "./MaterialTransferSettings";
 import TopSellersReport from "../../../components/Analytics/TopSellersReport";
 import { useSearchParams } from "react-router-dom";
+import "./inventory-mobile.css";
 import { useMemo, useState, useEffect } from "react";
 import React from "react";
 import { getPermissionChecker } from "@utils/getPermissionChecker";
@@ -144,6 +145,12 @@ const LockedTab = ({ label }: { label: string }) => (
 function InventoryMainSettings() {
   const [searchParams, setSearchParams] = useSearchParams();
   const isMobile = useIsMobile();
+
+  // Phone layout for every tab and the dialogs they open (inventory-mobile.css)
+  useEffect(() => {
+    document.body.classList.add("inv-page");
+    return () => document.body.classList.remove("inv-page");
+  }, []);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const hospital = isHospitalMode();
   const { batchTracking } = useHealthcareSettings();
@@ -334,7 +341,7 @@ function InventoryMainSettings() {
           </Button>
         </div>
 
-        <div>
+        <div className="inv-page-body" style={{ minWidth: 0 }}>
           {can(activeConfig.permissionKey)
             ? activeConfig.component
             : <LockedTab label={activeConfig.label} />}
