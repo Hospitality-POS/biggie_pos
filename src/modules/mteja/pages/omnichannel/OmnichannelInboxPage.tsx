@@ -39,10 +39,12 @@ const InstagramIcon = () => (
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
     fetchAgents,
+    fetchConversationById,
     fetchConversations,
     fetchQueue,
     fetchWhatsappChannels,
 } from "@services/whatsappService";
+import { useSearchParams } from "react-router-dom";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { THEME_C } from "@utils/getPrimaryColor";
 import ConversationList from "./ConversationList";
@@ -221,6 +223,28 @@ const OmnichannelInboxPage: React.FC = () => {
     const [activeStatus, setActiveStatus] = useState<ConversationStatus | "all" | "queue" | "needs_reply">("all");
     const [selectedAgent, setSelectedAgent] = useState<string>("");
     const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+
+    // ?conversation=<id> (a tapped chat push notification) opens that chat
+    const [searchParams, setSearchParams] = useSearchParams();
+    const linkedConversationId = searchParams.get("conversation");
+    useEffect(() => {
+        if (!linkedConversationId) return;
+        let cancelled = false;
+        fetchConversationById(linkedConversationId).then((res) => {
+            if (cancelled) return;
+            if (res?.conversation) {
+                setActiveMainTab("inbox");
+                setSelectedConversation(res.conversation);
+            }
+            const next = new URLSearchParams(searchParams);
+            next.delete("conversation");
+            setSearchParams(next, { replace: true });
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [linkedConversationId]); // eslint-disable-line react-hooks/exhaustive-deps
+
     const [connectDrawerOpen, setConnectDrawerOpen] = useState(false);
     const [newMessageOpen, setNewMessageOpen] = useState(false);
     const [search, setSearch] = useState("");

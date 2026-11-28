@@ -101,6 +101,9 @@ export default defineConfig(({ mode }) => {
         enabled: false,
       },
       workbox: {
+        // Push notification handlers (public/push-sw.js) run in this same
+        // service worker, so the PWA keeps a single one
+        importScripts: ['push-sw.js'],
         cleanupOutdatedCaches: true,
         // Activate a new SW as soon as it's installed, and take control of
         // any open tabs immediately, instead of waiting for a reload. This

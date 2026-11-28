@@ -5,6 +5,7 @@ import { queryClient } from "../main";
 import { getCache, setCache } from "@utils/cache";
 import { isPermissionOfferedForTenant, makePermissionChecker, PERMISSIONS } from "@utils/accessControl";
 import { parseTenantModules, readStoredTenant } from "@utils/parseTenantModules";
+import { disablePush } from "./pushNotifications";
 
 // Set by the API-triggered logout below, which reloads the page (resetting it)
 let isLoggingOut = false;
@@ -19,6 +20,8 @@ let logoutEpoch = 0;
 let logoutAt = 0;
 
 export const beginLogout = () => {
+    // Stop browser pushes for the user who is leaving
+    disablePush();
     logoutEpoch += 1;
     logoutAt = Date.now();
     queryClient.cancelQueries();
@@ -46,6 +49,7 @@ const handleError = (errorMessage: string) => {
 };
 
 const logoutUser = () => {
+    disablePush();
     isLoggingOut = true;
     queryClient.cancelQueries();
     queryClient.clear();
@@ -61,6 +65,7 @@ const logoutUser = () => {
 // lands on the same business.
 const restrictAccount = (status?: string) => {
     if (window.location.pathname.startsWith("/account-restricted")) return;
+    disablePush();
     isLoggingOut = true;
     queryClient.cancelQueries();
     queryClient.clear();
