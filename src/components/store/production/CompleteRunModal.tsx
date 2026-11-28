@@ -8,12 +8,14 @@ import { qty } from "./shared";
 
 const { Text } = Typography;
 
-interface OutRow { product_id: string; name: string; expected: number; good: number; damaged: number; damage_reason: DamageReason }
+// made = everything that came out; good = made − damaged goes to stock
+interface OutRow { product_id: string; name: string; expected: number; made: number; damaged: number; damage_reason: DamageReason }
 interface IngRow { inventory_id: string; variant_id?: string | null; name: string; unit_name?: string | null; planned: number; used: number }
 
 /**
  * Finishes a run: how much of each ingredient was used, and of each item how
- * many came out good (added to stock) and damaged (recorded as damages).
+ * many were made and how many of those were damaged. Made − damaged is added
+ * to stock; the damaged ones are recorded as damages.
  */
 const CompleteRunModal: React.FC<{
     run: ProductionRun | null;
@@ -26,24 +28,27 @@ const CompleteRunModal: React.FC<{
 
     useEffect(() => {
         if (!run) return;
-        setOuts(run.outputs.map((o) => ({ product_id: o.product_id, name: o.name, expected: o.expected, good: o.expected, damaged: 0, damage_reason: "spoilt" })));
+        setOuts(run.outputs.map((o) => ({ product_id: o.product_id, name: o.name, expected: o.expected, made: o.expected, damaged: 0, damage_reason: "spoilt" })));
         setIngs(run.ingredients.map((i) => ({ inventory_id: i.inventory_id, variant_id: i.variant_id, name: i.variant_name ? `${i.name} (${i.variant_name})` : i.name, unit_name: i.unit_name, planned: i.planned, used: i.planned })));
     }, [run]);
 
     const setOut = (i: number, p: Partial<OutRow>) => setOuts((rows) => rows.map((r, j) => (j === i ? { ...r, ...p } : r)));
     const setIng = (i: number, used: number) => setIngs((rows) => rows.map((r, j) => (j === i ? { ...r, used } : r)));
 
-    const totalGood = outs.reduce((n, o) => n + (o.good || 0), 0);
+    const goodOf = (o: OutRow) => Math.max(0, (o.made || 0) - (o.damaged || 0));
+    const totalGood = outs.reduce((n, o) => n + goodOf(o), 0);
     const totalDamaged = outs.reduce((n, o) => n + (o.damaged || 0), 0);
+    const overDamaged = outs.find((o) => (o.damaged || 0) > (o.made || 0));
 
     const complete = async () => {
         if (!run) return;
-        if (totalGood + totalDamaged <= 0) { message.warning("Enter how many items came out"); return; }
+        if (totalGood + totalDamaged <= 0) { message.warning("Enter how many items were made"); return; }
+        if (overDamaged) { message.warning(`More ${overDamaged.name} damaged than were made`); return; }
         setSaving(true);
         try {
             const res = await completeRun(run._id, {
                 ingredients: ings.map((i) => ({ inventory_id: i.inventory_id, variant_id: i.variant_id, used: i.used || 0 })),
-                outputs: outs.map((o) => ({ product_id: o.product_id, good: o.good || 0, damaged: o.damaged || 0, damage_reason: o.damage_reason })),
+                outputs: outs.map((o) => ({ product_id: o.product_id, made: o.made || 0, damaged: o.damaged || 0, damage_reason: o.damage_reason })),
             });
             message.success(`Production ${run.run_no} done: ${qty(totalGood)} added to stock${totalDamaged ? `, ${qty(totalDamaged)} damaged` : ""}`);
             (res.warnings || []).forEach((w) => message.warning(w, 6));
@@ -74,12 +79,20 @@ const CompleteRunModal: React.FC<{
                     { title: "Item", dataIndex: "name" },
                     { title: "Expected", dataIndex: "expected", align: "right", width: 90, render: (v) => qty(v) },
                     {
-                        title: "Good (to stock)", width: 130,
-                        render: (_, r, i) => <InputNumber min={0} precision={0} style={{ width: "100%" }} value={r.good} onChange={(v) => setOut(i, { good: Number(v) || 0 })} />,
+                        title: "Made", width: 110,
+                        render: (_, r, i) => <InputNumber min={0} precision={0} style={{ width: "100%" }} value={r.made} onChange={(v) => setOut(i, { made: Number(v) || 0 })} />,
                     },
                     {
                         title: "Damaged", width: 110,
-                        render: (_, r, i) => <InputNumber min={0} precision={0} style={{ width: "100%" }} value={r.damaged} onChange={(v) => setOut(i, { damaged: Number(v) || 0 })} />,
+                        render: (_, r, i) => (
+                            <InputNumber min={0} max={r.made} precision={0} style={{ width: "100%" }} value={r.damaged}
+                                status={r.damaged > r.made ? "error" : undefined}
+                                onChange={(v) => setOut(i, { damaged: Number(v) || 0 })} />
+                        ),
+                    },
+                    {
+                        title: "Good to stock", width: 110, align: "right",
+                        render: (_, r) => <Text strong>{qty(goodOf(r))}</Text>,
                     },
                     {
                         title: "Why damaged", width: 150,

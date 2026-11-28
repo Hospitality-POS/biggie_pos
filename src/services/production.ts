@@ -95,7 +95,8 @@ export interface StartRunBody {
 
 export interface CompleteRunBody {
     ingredients: { inventory_id: string; variant_id?: string | null; used: number }[];
-    outputs: { product_id: string; good: number; damaged: number; damage_reason?: DamageReason }[];
+    // made = everything that came out (damaged included); made − damaged goes to stock
+    outputs: { product_id: string; made: number; damaged: number; damage_reason?: DamageReason }[];
     note?: string;
 }
 
