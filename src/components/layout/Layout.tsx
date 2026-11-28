@@ -5,6 +5,7 @@ import { App } from "antd";
 import { useAppSelector } from "src/store";
 import AdminDashboard from "src/AdminDashboard/AdminDashboardLayout";
 import SubscriptionGuard from "./SubscriptionGuard";
+import PushNotifications from "@components/PushNotifications";
 
 import { ProductProvider } from "src/context/ProductContext";
 
@@ -59,6 +60,7 @@ function Layout() {
   return (
     <SubscriptionGuard>
       <ProductProvider>
+        <PushNotifications userId={user?._id ? String(user._id) : user?.id ? String(user.id) : undefined} />
         {renderLayoutForRole(user?.role || "guest")}
       </ProductProvider>
     </SubscriptionGuard>

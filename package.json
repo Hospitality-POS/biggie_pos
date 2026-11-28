@@ -31,6 +31,7 @@
     "axios": "^1.4.0",
     "dayjs": "^1.11.9",
     "dexie": "^4.3.0",
+    "firebase": "^12.19.0",
     "html2canvas": "^1.4.1",
     "jsbarcode": "^3.11.5",
     "jspdf": "^2.5.2",
