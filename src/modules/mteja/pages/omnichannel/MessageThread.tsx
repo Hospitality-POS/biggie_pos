@@ -201,12 +201,15 @@ const MessageBubble: React.FC<{
     onDelete?: (msg: Message, scope: DeleteScope) => void;
     isReplying?: boolean;
     alwaysShowMenu?: boolean;
-}> = ({ msg, channel, channelColor, onReply, onEdit, onDelete, isReplying, alwaysShowMenu }) => {
+    cloudApi?: boolean;
+}> = ({ msg, channel, channelColor, onReply, onEdit, onDelete, isReplying, alwaysShowMenu, cloudApi }) => {
     const isOut = msg.direction === "outbound";
     const [hovered, setHovered] = useState(false);
     const [menuOpen, setMenuOpen] = useState(false);
 
-    const isWhatsapp = channel === "whatsapp";
+    // Meta's Cloud API can't edit or delete-for-everyone a sent message, so on
+    // a Meta-connected number only "Delete for me" (inbox only) is offered.
+    const isWhatsapp = channel === "whatsapp" && !cloudApi;
     const ageMin = dayjs().diff(dayjs(msg.createdAt), "minute");
     // Edit / delete-for-everyone apply to text (or any) messages we sent on
     // WhatsApp. Past WhatsApp's time limits they stay in the menu, greyed out
@@ -1518,6 +1521,7 @@ const MessageThread: React.FC<Props> = ({
                                         onDelete={handleDeleteMessage}
                                         isReplying={replyingTo?._id === msg._id}
                                         alwaysShowMenu={isMobile}
+                                        cloudApi={!!data?.cloud_api}
                                     />
                                 ))}
                             </div>
