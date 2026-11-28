@@ -1,4 +1,4 @@
-import { FolderAddOutlined, HolderOutlined, SearchOutlined, ReloadOutlined, DownloadOutlined, AppstoreOutlined, BarsOutlined, EditOutlined, DeleteFilled, ExperimentOutlined, WarningOutlined } from "@ant-design/icons";
+import { FolderAddOutlined, HolderOutlined, SearchOutlined, ReloadOutlined, DownloadOutlined, AppstoreOutlined, BarsOutlined, EditOutlined, DeleteFilled, ExperimentOutlined, WarningOutlined, FireOutlined } from "@ant-design/icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Empty, Input, Skeleton, Switch, Typography, Popconfirm, notification, Tooltip, message } from "antd";
 import React, { useEffect, useRef, useState } from "react";
@@ -9,6 +9,7 @@ import StoreModal from "@components/MODALS/pro/StoreModal";
 import ImportProductsModal from "@components/store/ImportProductsModal";
 import ImportRecipesModal from "@components/store/ImportRecipesModal";
 import FormulasPanel from "@components/store/FormulasPanel";
+import ProductionPanel from "@components/store/production/ProductionPanel";
 import { exportToExcel } from "@utils/exportUtils";
 import { useAppSelector } from "src/store";
 import { usePrimaryColor } from "src/context/PrimaryColorContext";
@@ -389,7 +390,11 @@ export default function MainStore() {
   const [showDisabled, setShowDisabled] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [viewMode, setViewMode] = useState<"card" | "list">("card");
-  const [pageTab, setPageTab] = useState<"services" | "formulas">("services");
+  // ?tab=production opens Production
+  const [pageTab, setPageTab] = useState<"services" | "formulas" | "production">(() => {
+    const t = new URLSearchParams(window.location.search).get("tab");
+    return t === "production" || t === "formulas" ? t : "services";
+  });
   const [damageTarget, setDamageTarget] = useState<any>(null);
 
   // Damage tracking (System Setup → Inventory Controls) adds Record damage
@@ -401,6 +406,7 @@ export default function MainStore() {
     enabled: !!shopId,
   });
   const damagesEnabled = !!shop?.damages_enabled;
+  const productionEnabled = !!shop?.service_stock_enabled;
 
   // Get tenant primary color from global context (stays in sync with app-wide theme)
   const primaryColor = usePrimaryColor();
@@ -802,6 +808,7 @@ export default function MainStore() {
           {([
             { key: "services", label: "Services", icon: <AppstoreOutlined /> },
             { key: "formulas", label: "Formulas", icon: <ExperimentOutlined /> },
+            { key: "production", label: "Production", icon: <FireOutlined /> },
           ] as const).map((t) => (
             <button
               key={t.key}
@@ -821,7 +828,9 @@ export default function MainStore() {
           ))}
         </div>
 
-        {pageTab === "formulas" ? (
+        {pageTab === "production" ? (
+          <ProductionPanel services={allProducts} enabled={productionEnabled} canManage={isAdmin} />
+        ) : pageTab === "formulas" ? (
           <FormulasPanel
             products={allProducts}
             palette={palette}

@@ -231,6 +231,7 @@ const SystemSetup: React.FC = () => {
       },
     );
 
+
     if (hasPOS) {
       list.push({
         key: "pay-later",

@@ -7,6 +7,8 @@ import {
   ProFormSelect,
   ProFormTreeSelect,
   ProFormSwitch,
+  ProFormDigit,
+  ProFormDependency,
 } from "@ant-design/pro-form";
 import {
   CarryOutOutlined,
@@ -22,6 +24,8 @@ import { ProFormMoney } from "@ant-design/pro-components";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { useCategoriesQuery } from "@hooks/queries";
 import { addNewProduct, editProduct } from "@services/products";
+import { fetchShop } from "@services/shops";
+import { countStock } from "@services/production";
 import { getAllModifierAddons } from "@services/modifierAddons";
 import { useQuery } from "@tanstack/react-query";
 import { FormInstance, UploadFile, UploadProps } from "antd/lib";
@@ -47,6 +51,16 @@ interface modifiersAddonsType { name: string; _id: string; addons: any[]; }
 
 const StoreModal: React.FC<StoreModalProps> = ({ edit, data, onSuccess, trigger: customTrigger }) => {
   const [form] = Form.useForm();
+
+  // Production (Services → Production): services can be counted as stock
+  const shopId = localStorage.getItem("shopId");
+  const { data: shop } = useQuery({
+    queryKey: ["shop", shopId],
+    queryFn: () => fetchShop(shopId as string),
+    enabled: !!shopId,
+    staleTime: 60_000,
+  });
+  const stockEnabled = !!shop?.service_stock_enabled;
   const formRef = useRef<FormInstance>();
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -193,13 +207,28 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data, onSuccess, trigger:
         ...(thumbnailFile && { thumbnailFile }),
         name: values.name,
         price: Number(values.price) || 0,
-        quantity: Number(values.quantity) || 1,
-        min_viable_quantity: Number(values.min_viable_quantity) || 0,
         activateInventory: Boolean(values.activateInventory),
       };
+      // Stock on hand is only sent for services counted as stock, so editing
+      // any other service never changes it
+      delete productData.quantity;
+      delete productData.min_viable_quantity;
+      if (stockEnabled) {
+        productData.track_stock = Boolean(values.track_stock);
+        if (values.track_stock) {
+          productData.quantity = Number(values.quantity) || 0;
+          productData.min_viable_quantity = Number(values.min_viable_quantity) || 0;
+        }
+      }
 
       if (edit) {
         await editProduct({ ...productData, _id: data?._id });
+        // An already-stocked service's count is changed as a stock count; the
+        // edit itself leaves it alone so a stale copy can't overwrite it
+        if (stockEnabled && values.track_stock && data?.track_stock
+          && Number(values.quantity ?? 0) !== Number(data?.quantity ?? 0)) {
+          await countStock(data._id, Number(values.quantity) || 0);
+        }
       } else {
         await addNewProduct(productData);
       }
@@ -424,6 +453,31 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data, onSuccess, trigger:
                 initialValue={false}
               />
             </ProForm.Group>
+            {stockEnabled && (
+              <ProForm.Group>
+                <ProFormSwitch
+                  width="md" name="track_stock"
+                  label="Count stock (made in production)"
+                  tooltip="For items made ahead, like bread. Production adds to the stock, sales take from it, and the recipe isn't deducted on each sale."
+                  initialValue={false}
+                />
+                <ProFormDependency name={["track_stock"]}>
+                  {({ track_stock }) => track_stock ? (
+                    <ProForm.Group>
+                      <ProFormDigit
+                        width="sm" name="quantity" label="In stock now"
+                        min={0} fieldProps={{ precision: 0 }}
+                        tooltip="Normally set by production runs and sales. Change it here only to correct a count."
+                      />
+                      <ProFormDigit
+                        width="sm" name="min_viable_quantity" label="Low stock alert at"
+                        min={0} fieldProps={{ precision: 0 }}
+                      />
+                    </ProForm.Group>
+                  ) : null}
+                </ProFormDependency>
+              </ProForm.Group>
+            )}
           </div>
 
           {/* ── Step 3: Add-ons & Image ─────────────────────────────── */}
