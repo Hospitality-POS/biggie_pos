@@ -390,7 +390,7 @@ export default function MainStore() {
   const [showDisabled, setShowDisabled] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [viewMode, setViewMode] = useState<"card" | "list">("card");
-  // ?tab=production opens Production (e.g. from System Setup → Production & Stock)
+  // ?tab=production opens Production
   const [pageTab, setPageTab] = useState<"services" | "formulas" | "production">(() => {
     const t = new URLSearchParams(window.location.search).get("tab");
     return t === "production" || t === "formulas" ? t : "services";
@@ -808,7 +808,7 @@ export default function MainStore() {
           {([
             { key: "services", label: "Services", icon: <AppstoreOutlined /> },
             { key: "formulas", label: "Formulas", icon: <ExperimentOutlined /> },
-            ...(productionEnabled ? [{ key: "production", label: "Production", icon: <FireOutlined /> }] as const : []),
+            { key: "production", label: "Production", icon: <FireOutlined /> },
           ] as const).map((t) => (
             <button
               key={t.key}
@@ -828,8 +828,8 @@ export default function MainStore() {
           ))}
         </div>
 
-        {pageTab === "production" && productionEnabled ? (
-          <ProductionPanel services={allProducts} />
+        {pageTab === "production" ? (
+          <ProductionPanel services={allProducts} enabled={productionEnabled} canManage={isAdmin} />
         ) : pageTab === "formulas" ? (
           <FormulasPanel
             products={allProducts}

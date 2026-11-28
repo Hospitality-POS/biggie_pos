@@ -1,12 +1,13 @@
 import React, { useState } from "react";
-import { Button, Card, Empty, Popconfirm, Segmented, Space, Table, Tag, Typography, message } from "antd";
+import { Button, Card, Empty, InputNumber, Popconfirm, Popover, Segmented, Space, Switch, Table, Tag, Typography, message } from "antd";
 import { CheckOutlined, DeleteOutlined, EditOutlined, ExperimentOutlined, PlayCircleOutlined, PlusOutlined, StopOutlined } from "@ant-design/icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import {
-    cancelRun, deleteMix, listMixes, listRuns, listStockedServices, productionError,
-    type ProductionMix, type ProductionRun, type RunStatus,
+    cancelRun, countStock, deleteMix, listMixes, listRuns, listStockedServices, productionError,
+    type ProductionMix, type ProductionRun, type RunStatus, type StockedService,
 } from "@services/production";
+import { updateShop } from "@services/shops";
 import MixEditorModal from "./MixEditorModal";
 import StartRunModal from "./StartRunModal";
 import CompleteRunModal from "./CompleteRunModal";
@@ -20,27 +21,86 @@ const STATUS: Record<RunStatus, { label: string; color: string }> = {
     cancelled: { label: "Cancelled", color: "default" },
 };
 
+// Click a stock card to correct its count (e.g. leftovers counted in the morning)
+const CountPopover: React.FC<{ item: StockedService; onSaved: () => void; children: React.ReactNode }> = ({ item, onSaved, children }) => {
+    const [open, setOpen] = useState(false);
+    const [value, setValue] = useState<number | null>(null);
+    const [saving, setSaving] = useState(false);
+    const save = async () => {
+        if (value == null || value < 0) return;
+        setSaving(true);
+        try {
+            await countStock(item._id, value);
+            message.success(`${item.name} set to ${qty(value)}`);
+            setOpen(false);
+            onSaved();
+        } catch (err) {
+            message.error(productionError(err, "Couldn't save the count"));
+        } finally {
+            setSaving(false);
+        }
+    };
+    return (
+        <Popover
+            open={open}
+            trigger="click"
+            onOpenChange={(o) => { setOpen(o); if (o) setValue(item.quantity); }}
+            title={`Count ${item.name}`}
+            content={(
+                <Space.Compact>
+                    <InputNumber min={0} precision={0} autoFocus value={value} onChange={setValue} placeholder="Counted" onPressEnter={save} />
+                    <Button type="primary" loading={saving} onClick={save}>Save</Button>
+                </Space.Compact>
+            )}
+        >
+            {children}
+        </Popover>
+    );
+};
+
 /**
- * Services → Production (shown when Production & Stock is on): today's stock
- * and runs, the run history, and the mixes runs are made from.
+ * Services → Production: the shop's on/off switch for counting made-ahead
+ * items (shop.service_stock_enabled), today's stock and runs, the run
+ * history, and the mixes runs are made from.
  */
-const ProductionPanel: React.FC<{ services: { _id: string; name: string; is_disabled?: boolean }[] }> = ({ services }) => {
+const ProductionPanel: React.FC<{
+    services: { _id: string; name: string; is_disabled?: boolean }[];
+    enabled: boolean;
+    canManage: boolean;
+}> = ({ services, enabled, canManage }) => {
     const queryClient = useQueryClient();
+    const [switching, setSwitching] = useState(false);
+
+    const setEnabled = async (on: boolean) => {
+        const shopId = localStorage.getItem("shopId");
+        if (!shopId) { message.error("Shop not found"); return; }
+        setSwitching(true);
+        try {
+            await updateShop({ _id: shopId, service_stock_enabled: on });
+            await queryClient.invalidateQueries({ queryKey: ["shop", shopId] });
+            message.success(on ? "Production turned on" : "Production turned off");
+        } catch (err) {
+            console.error("Failed to update service_stock_enabled:", err);
+        } finally {
+            setSwitching(false);
+        }
+    };
     const [view, setView] = useState<"today" | "runs" | "mixes">("today");
     const [mixEditor, setMixEditor] = useState<{ open: boolean; mix: ProductionMix | null }>({ open: false, mix: null });
     const [startOpen, setStartOpen] = useState<{ open: boolean; mixId?: string }>({ open: false });
     const [completing, setCompleting] = useState<ProductionRun | null>(null);
 
-    const { data: mixes = [], isFetching: mixesLoading } = useQuery({ queryKey: PRODUCTION_KEYS.mixes, queryFn: listMixes });
-    const { data: stock = [], isFetching: stockLoading } = useQuery({ queryKey: PRODUCTION_KEYS.stock, queryFn: listStockedServices });
+    const { data: mixes = [], isFetching: mixesLoading } = useQuery({ queryKey: PRODUCTION_KEYS.mixes, queryFn: listMixes, enabled });
+    const { data: stock = [], isFetching: stockLoading } = useQuery({ queryKey: PRODUCTION_KEYS.stock, queryFn: listStockedServices, enabled });
     const { data: openRuns } = useQuery({
         queryKey: [...PRODUCTION_KEYS.runs, "in_progress"],
         queryFn: () => listRuns({ status: "in_progress", limit: 50 }),
+        enabled,
     });
     const { data: history, isFetching: historyLoading } = useQuery({
         queryKey: [...PRODUCTION_KEYS.runs, "history"],
         queryFn: () => listRuns({ limit: 100 }),
-        enabled: view === "runs",
+        enabled: enabled && view === "runs",
     });
 
     const refresh = () => {
@@ -132,6 +192,32 @@ const ProductionPanel: React.FC<{ services: { _id: string; name: string; is_disa
         </div>
     );
 
+    if (!enabled) {
+        return (
+            <Card style={{ maxWidth: 720, background: "#fffbeb", borderColor: "#fde68a" }}>
+                <Space direction="vertical" size={10}>
+                    <Text strong style={{ fontSize: 15 }}><ExperimentOutlined /> Production is off</Text>
+                    <Text>
+                        For shops that make items ahead, like a bakery. Turn it on to count how many of an item are in stock:
+                    </Text>
+                    <ol style={{ margin: 0, paddingLeft: 18 }}>
+                        <li>Save a <b>mix</b>: the quantity of each ingredient one batch uses (e.g. 25 kg flour) and what it makes (e.g. 200 buns).</li>
+                        <li>Each day, start a run from the mix. When it is done, enter how many came out good and how many were damaged.</li>
+                        <li>The ingredient quantities used come off inventory, good items are added to stock and sold from it, and damaged ones go to Damages.</li>
+                    </ol>
+                    {canManage ? (
+                        <Space>
+                            <Switch checked={false} loading={switching} onChange={() => setEnabled(true)} />
+                            <Text>Turn on Production</Text>
+                        </Space>
+                    ) : (
+                        <Text type="secondary">Ask an admin to turn Production on.</Text>
+                    )}
+                </Space>
+            </Card>
+        );
+    }
+
     return (
         <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
@@ -144,9 +230,24 @@ const ProductionPanel: React.FC<{ services: { _id: string; name: string; is_disa
                         { value: "mixes", label: `Mixes (${mixes.length})` },
                     ]}
                 />
-                {view === "mixes"
-                    ? <Button type="primary" icon={<PlusOutlined />} onClick={() => setMixEditor({ open: true, mix: null })}>New mix</Button>
-                    : startButton}
+                <Space wrap>
+                    {canManage && (
+                        <Popconfirm
+                            title="Turn Production off?"
+                            description="Items stop being counted and sales go back to deducting their recipes. Mixes and past runs are kept."
+                            okText="Turn off"
+                            onConfirm={() => setEnabled(false)}
+                        >
+                            <Space size={6} style={{ cursor: "pointer" }}>
+                                <Switch size="small" checked loading={switching} />
+                                <Text type="secondary" style={{ fontSize: 12 }}>Production on</Text>
+                            </Space>
+                        </Popconfirm>
+                    )}
+                    {view === "mixes"
+                        ? <Button type="primary" icon={<PlusOutlined />} onClick={() => setMixEditor({ open: true, mix: null })}>New mix</Button>
+                        : startButton}
+                </Space>
             </div>
 
             {view === "today" && (
@@ -169,11 +270,15 @@ const ProductionPanel: React.FC<{ services: { _id: string; name: string; is_disa
                         </>
                     )}
 
-                    <Text strong style={{ display: "block", marginBottom: 8 }}>In stock</Text>
+                    <Text strong style={{ display: "block", marginBottom: 2 }}>In stock</Text>
+                    <Text type="secondary" style={{ display: "block", fontSize: 12, marginBottom: 8 }}>
+                        Click an item to correct its count, e.g. leftovers counted in the morning.
+                    </Text>
                     {stock.length ? (
                         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))", gap: 10 }}>
                             {stock.map((s) => (
-                                <Card key={s._id} size="small" loading={stockLoading}
+                                <CountPopover key={s._id} item={s} onSaved={refresh}>
+                                <Card size="small" loading={stockLoading} hoverable
                                     style={{ borderColor: s.quantity <= 0 ? "#fecaca" : s.low ? "#fed7aa" : undefined }}>
                                     <Text style={{ fontSize: 12, color: "#64748b" }} ellipsis>{s.name}</Text>
                                     <div style={{ fontSize: 22, fontWeight: 700, color: s.quantity <= 0 ? "#dc2626" : s.low ? "#ea580c" : "#0f172a" }}>
@@ -183,6 +288,7 @@ const ProductionPanel: React.FC<{ services: { _id: string; name: string; is_disa
                                         {s.quantity <= 0 ? "Sold out" : s.low ? "Running low" : s.last_production ? `Last made ${dayjs(s.last_production.date).format("DD MMM")}` : "In stock"}
                                     </Text>
                                 </Card>
+                                </CountPopover>
                             ))}
                         </div>
                     ) : (

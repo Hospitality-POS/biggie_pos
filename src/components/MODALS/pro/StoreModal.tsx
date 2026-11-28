@@ -52,7 +52,7 @@ interface modifiersAddonsType { name: string; _id: string; addons: any[]; }
 const StoreModal: React.FC<StoreModalProps> = ({ edit, data, onSuccess, trigger: customTrigger }) => {
   const [form] = Form.useForm();
 
-  // Production & Stock (System Setup): services can be counted as stock
+  // Production (Services → Production): services can be counted as stock
   const shopId = localStorage.getItem("shopId");
   const { data: shop } = useQuery({
     queryKey: ["shop", shopId],

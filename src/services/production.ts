@@ -1,6 +1,6 @@
 import axiosInstance from "./request";
 
-// Production & Stock (System Setup): services made ahead in production runs
+// Production (Services → Production): services made ahead in production runs
 // and counted as stock. Backend: biggie_api /production.
 
 export type DamageReason = "dropped" | "expired" | "spoilt" | "broken_in_delivery" | "other";

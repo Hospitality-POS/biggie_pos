@@ -120,7 +120,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu, handleCart, style, bloc
   const cartQty = existingCartItem?.quantity ?? 0;
   const currency = (cartDetails as { currency?: string } | null)?.currency || "KES";
 
-  // Services made ahead (System Setup → Production & Stock) are counted like
+  // Services made ahead (Services → Production) are counted like
   // inventory items: they can't be sold past what's on hand
   const shopId = localStorage.getItem("shopId");
   const { data: shop } = useQuery({
