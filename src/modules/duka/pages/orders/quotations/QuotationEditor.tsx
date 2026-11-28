@@ -1,19 +1,25 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
-    Button, Card, Checkbox, DatePicker, Drawer, Empty, Input, InputNumber, Select, Space, Spin, Tabs, Typography, message,
+    AutoComplete, Button, Card, Checkbox, DatePicker, Descriptions, Empty, Input, InputNumber, Select, Space, Spin, Typography, message,
 } from "antd";
-import { DeleteOutlined, EyeOutlined, PlusOutlined, SaveOutlined } from "@ant-design/icons";
-import { useQuery } from "@tanstack/react-query";
+import {
+    AppstoreOutlined, CalendarOutlined, DeleteOutlined, EyeOutlined, FileSearchOutlined, FileTextOutlined,
+    PictureOutlined, PlusOutlined, ProfileOutlined, UnorderedListOutlined, UserOutlined,
+} from "@ant-design/icons";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
+import StepperModal from "@components/MODALS/StepperModal";
 import {
     apiErrorMessage, createQuotation, getQuotation, listQuotationTemplates, updateQuotation,
-    type Quotation, type QuotationTemplate, type QuoteSection,
+    type Quotation, type QuotationTemplate, type QuoteLine, type QuoteSection,
 } from "@services/quotations";
+import { SAVED_ITEMS_KEY, listSavedItems, rememberSavedItems, type SavedItem } from "@services/savedItems";
 import { fetchAllCustomers } from "@services/customers";
 import { THEME_C } from "@utils/getPrimaryColor";
 import ImageInput from "./ImageInput";
+import LayoutPicker from "./LayoutPicker";
 import QuotationPreview from "./QuotationPreview";
-import { QUOTE_LAYOUTS, computeTotals, money } from "./templates";
+import { computeTotals, getLayout, money } from "./templates";
 import { blankLine, blankSection, newQuote } from "./starter";
 
 const { Text } = Typography;
@@ -22,6 +28,10 @@ const C = THEME_C;
 
 const replaceAt = <T,>(list: T[], i: number, item: T) => list.map((x, j) => (j === i ? item : x));
 const removeAt = <T,>(list: T[], i: number) => list.filter((_, j) => j !== i);
+
+/** Customers can be people or companies; companies have company_name */
+export const customerName = (c: any) =>
+    c?.company_name || c?.customer_name || c?.name || [c?.first_name, c?.last_name].filter(Boolean).join(" ") || "";
 
 const Field: React.FC<{ label: string; children: React.ReactNode; flex?: number | string }> = ({ label, children, flex = 1 }) => (
     <div style={{ flex, minWidth: 160 }}>
@@ -34,17 +44,40 @@ const Row: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>{children}</div>
 );
 
-/** Create or edit a quote. `quoteId` null = new quote. */
+const StepTitle: React.FC<{ title: string; hint?: string }> = ({ title, hint }) => (
+    <div style={{ marginBottom: 14 }}>
+        <Text strong style={{ fontSize: 15, display: "block" }}>{title}</Text>
+        {hint && <Text type="secondary" style={{ fontSize: 12 }}>{hint}</Text>}
+    </div>
+);
+
+const STEPS = [
+    { title: "Client", description: "Who the quote is for", icon: <UserOutlined /> },
+    { title: "Details", description: "Title, dates & template", icon: <CalendarOutlined /> },
+    { title: "Items", description: "Priced sections", icon: <UnorderedListOutlined /> },
+    { title: "Notes & terms", description: "Payment, delivery, warranty", icon: <ProfileOutlined /> },
+    { title: "Specification", description: "Optional spec table", icon: <AppstoreOutlined /> },
+    { title: "Pictures", description: "Features, gallery, banners", icon: <PictureOutlined /> },
+    { title: "Review", description: "Check & save", icon: <FileSearchOutlined /> },
+];
+const LAST = STEPS.length - 1;
+
+/** Create or edit a quote in a stepped modal. `quoteId` null = new quote. */
 const QuotationEditor: React.FC<{
     open: boolean;
     quoteId: string | null;
     onClose: () => void;
     onSaved: (quote: Quotation) => void;
 }> = ({ open, quoteId, onClose, onSaved }) => {
+    const queryClient = useQueryClient();
     const [quote, setQuote] = useState<Quotation | null>(null);
+    const [step, setStep] = useState(0);
+    // Furthest step reached, so the stepper lets the user jump back and forth
+    const [reached, setReached] = useState(0);
     const [saving, setSaving] = useState(false);
     const [previewOpen, setPreviewOpen] = useState(false);
     const [customerSearch, setCustomerSearch] = useState("");
+    const [itemSearch, setItemSearch] = useState("");
 
     const { data: templates = [], isFetched: templatesReady } = useQuery({
         queryKey: ["quotation-templates"],
@@ -61,17 +94,25 @@ const QuotationEditor: React.FC<{
 
     const { data: customers = [], isFetching: customersLoading } = useQuery({
         queryKey: ["quotation-customers", customerSearch],
-        queryFn: () => fetchAllCustomers({ search: customerSearch, customer_name: customerSearch }),
+        queryFn: () => fetchAllCustomers({ search: customerSearch }),
         enabled: open,
         select: (res: any) => (Array.isArray(res) ? res : res?.customers || res?.data || []) as any[],
         staleTime: 30_000,
     });
 
+    const { data: savedItems = [] } = useQuery({
+        queryKey: [SAVED_ITEMS_KEY, itemSearch],
+        queryFn: () => listSavedItems(itemSearch),
+        enabled: open && step === 2,
+        staleTime: 30_000,
+        keepPreviousData: true,
+    });
+
     // Load the quote being edited, or start a new one from the default template
     useEffect(() => {
-        if (!open) { setQuote(null); return; }
+        if (!open) { setQuote(null); setStep(0); setReached(0); return; }
         if (quoteId) {
-            if (loaded) setQuote(loaded);
+            if (loaded) { setQuote(loaded); setReached(LAST); }
         } else if (!quote && templatesReady) {
             setQuote(newQuote(templates.find((t) => t.is_default) || templates[0]));
         }
@@ -86,12 +127,17 @@ const QuotationEditor: React.FC<{
     const patch = (p: Partial<Quotation>) => setQuote((q) => (q ? { ...q, ...p } : q));
     const setSection = (i: number, s: QuoteSection) => quote && patch({ sections: replaceAt(quote.sections, i, s) });
 
+    const goTo = (i: number) => {
+        setStep(i);
+        setReached((r) => Math.max(r, i));
+    };
+
     const pickTemplate = (id: string | null) => {
         const t = templates.find((x) => x._id === id) || null;
         patch({ template_id: id, layout: t?.layout || quote?.layout });
         // A new quote that hasn't been typed into yet takes the template's text
-        if (!quoteId && quote && !quote.title && !quote.client?.name && t) {
-            setQuote({ ...newQuote(t), issue_date: quote.issue_date });
+        if (!quoteId && quote && !quote.title && t) {
+            setQuote({ ...newQuote(t), client: quote.client, customer_id: quote.customer_id, issue_date: quote.issue_date });
         }
     };
 
@@ -102,22 +148,48 @@ const QuotationEditor: React.FC<{
             client: c
                 ? {
                     ...quote?.client,
-                    name: c.customer_name || c.name || "",
+                    name: customerName(c),
+                    contact_person: c.company_name ? c.customer_name || c.contact_person || quote?.client?.contact_person || "" : quote?.client?.contact_person,
                     phone: c.phone || c.phone_number || "",
                     email: c.email || "",
                     kra_pin: c.kra_pin || "",
-                    address: [c.address?.street, c.address?.city].filter(Boolean).join(", ") || quote?.client?.address || "",
+                    address: [c.address?.street, c.address?.building, c.address?.city].filter(Boolean).join(", ") || c.location || quote?.client?.address || "",
                 }
                 : quote?.client,
         });
     };
 
+    const lineFromSaved = (item: SavedItem): Partial<QuoteLine> => ({
+        description: item.description,
+        unit_price: item.unit_price || 0,
+        ...(item.image ? { image: item.image } : {}),
+    });
+
+    const savedOptions = savedItems.map((item) => ({
+        value: item._id,
+        label: (
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{item.description}</span>
+                <Text type="secondary" style={{ whiteSpace: "nowrap" }}>{money(item.unit_price)}</Text>
+            </div>
+        ),
+    }));
+
+    const validateStep = (i: number) => {
+        if (!quote) return false;
+        if (i === 0 && !quote.client?.name?.trim()) { message.warning("Enter the client's name or pick a customer"); return false; }
+        if (i === 1 && !quote.title.trim()) { message.warning("Give the quote a title"); return false; }
+        if (i === 2 && !quote.sections.some((s) => s.lines.some((l) => l.description.trim()))) {
+            message.warning("Add at least one priced item");
+            return false;
+        }
+        return true;
+    };
+
     const save = async () => {
         if (!quote) return;
-        if (!quote.title.trim()) { message.warning("Give the quote a title"); return; }
-        if (!quote.sections.some((s) => s.lines.some((l) => l.description.trim()))) {
-            message.warning("Add at least one priced item");
-            return;
+        for (const i of [0, 1, 2]) {
+            if (!validateStep(i)) { goTo(i); return; }
         }
         // Drop empty rows so they don't print as blank lines
         const body: Quotation = {
@@ -133,6 +205,13 @@ const QuotationEditor: React.FC<{
         try {
             const saved = quoteId ? await updateQuotation(quoteId, body) : await createQuotation(body);
             message.success(quoteId ? "Quote saved" : `Quote ${saved.quote_no} created`);
+            // Keep the items for the next quote or invoice
+            rememberSavedItems(
+                body.sections.flatMap((s) => s.lines.map((l) => ({
+                    description: l.description, unit_price: l.unit_price, vat_rate: s.vat_rate, image: l.image,
+                }))),
+                "quote"
+            ).then(() => queryClient.invalidateQueries({ queryKey: [SAVED_ITEMS_KEY] }));
             onSaved(saved);
         } catch (err) {
             message.error(apiErrorMessage(err, "Couldn't save the quote"));
@@ -143,29 +222,69 @@ const QuotationEditor: React.FC<{
 
     const readOnly = quote?.status === "accepted";
 
-    const detailsTab = quote && (
+    // ── Steps ────────────────────────────────────────────────────────────────
+    const clientStep = quote && (
         <>
+            <StepTitle title="Client" hint="Pick a saved customer to fill the details, or type them in." />
             <Row>
-                <Field label="Quote title" flex={2}>
+                <Field label="Customer (optional)">
+                    <Select
+                        style={{ width: "100%" }}
+                        showSearch allowClear
+                        filterOption={false}
+                        onSearch={setCustomerSearch}
+                        notFoundContent={customersLoading ? <Spin size="small" /> : "No customers"}
+                        value={quote.customer_id || null}
+                        onChange={(v) => pickCustomer(v ?? null)}
+                        placeholder="Search customers by name, company or phone"
+                        options={customers.map((c) => ({
+                            value: c._id,
+                            label: `${customerName(c) || "Unnamed customer"}${c.phone ? ` · ${c.phone}` : ""}`,
+                        }))}
+                    />
+                </Field>
+            </Row>
+            <Row>
+                <Field label="Client / company name *" flex={2}>
+                    <Input value={quote.client?.name} onChange={(e) => patch({ client: { ...quote.client, name: e.target.value } })} />
+                </Field>
+                <Field label="Contact person">
+                    <Input value={quote.client?.contact_person} onChange={(e) => patch({ client: { ...quote.client, contact_person: e.target.value } })} />
+                </Field>
+            </Row>
+            <Row>
+                <Field label="Phone">
+                    <Input value={quote.client?.phone} onChange={(e) => patch({ client: { ...quote.client, phone: e.target.value } })} />
+                </Field>
+                <Field label="Email">
+                    <Input value={quote.client?.email} onChange={(e) => patch({ client: { ...quote.client, email: e.target.value } })} />
+                </Field>
+                <Field label="KRA PIN">
+                    <Input value={quote.client?.kra_pin} onChange={(e) => patch({ client: { ...quote.client, kra_pin: e.target.value } })} />
+                </Field>
+            </Row>
+            <Field label="Address">
+                <Input value={quote.client?.address} onChange={(e) => patch({ client: { ...quote.client, address: e.target.value } })} />
+            </Field>
+        </>
+    );
+
+    const detailsStep = quote && (
+        <>
+            <StepTitle title="Details" />
+            <Row>
+                <Field label="Quote title *" flex={2}>
                     <Input value={quote.title} onChange={(e) => patch({ title: e.target.value })} placeholder="e.g. Kasarani Clay City lift quote" />
                 </Field>
-                <Field label="Template">
+                <Field label="Saved template (banners & default text)">
                     <Select
                         style={{ width: "100%" }}
                         value={quote.template_id || null}
                         onChange={pickTemplate}
                         options={[
-                            { value: null, label: "No saved template" },
+                            { value: null, label: "None" },
                             ...templates.map((t) => ({ value: t._id, label: `${t.name}${t.is_default ? " (default)" : ""}` })),
                         ]}
-                    />
-                </Field>
-                <Field label="Layout">
-                    <Select
-                        style={{ width: "100%" }}
-                        value={quote.layout}
-                        onChange={(layout) => patch({ layout })}
-                        options={QUOTE_LAYOUTS.map((l) => ({ value: l.key, label: l.label }))}
                     />
                 </Field>
             </Row>
@@ -184,46 +303,11 @@ const QuotationEditor: React.FC<{
                     <Input value={quote.currency} onChange={(e) => patch({ currency: e.target.value })} placeholder="KES" />
                 </Field>
             </Row>
-
-            <Text strong style={{ display: "block", margin: "8px 0" }}>Client</Text>
-            <Row>
-                <Field label="Customer (optional)" flex={2}>
-                    <Select
-                        style={{ width: "100%" }}
-                        showSearch allowClear
-                        filterOption={false}
-                        onSearch={setCustomerSearch}
-                        notFoundContent={customersLoading ? <Spin size="small" /> : "No customers"}
-                        value={quote.customer_id || null}
-                        onChange={(v) => pickCustomer(v ?? null)}
-                        placeholder="Search customers to fill the client details"
-                        options={customers.map((c) => ({ value: c._id, label: `${c.customer_name || c.name}${c.phone ? ` · ${c.phone}` : ""}` }))}
-                    />
-                </Field>
-                <Field label="Client name">
-                    <Input value={quote.client?.name} onChange={(e) => patch({ client: { ...quote.client, name: e.target.value } })} />
-                </Field>
-            </Row>
-            <Row>
-                <Field label="Contact person">
-                    <Input value={quote.client?.contact_person} onChange={(e) => patch({ client: { ...quote.client, contact_person: e.target.value } })} />
-                </Field>
-                <Field label="Phone">
-                    <Input value={quote.client?.phone} onChange={(e) => patch({ client: { ...quote.client, phone: e.target.value } })} />
-                </Field>
-                <Field label="Email">
-                    <Input value={quote.client?.email} onChange={(e) => patch({ client: { ...quote.client, email: e.target.value } })} />
-                </Field>
-            </Row>
-            <Row>
-                <Field label="Address" flex={2}>
-                    <Input value={quote.client?.address} onChange={(e) => patch({ client: { ...quote.client, address: e.target.value } })} />
-                </Field>
-                <Field label="KRA PIN">
-                    <Input value={quote.client?.kra_pin} onChange={(e) => patch({ client: { ...quote.client, kra_pin: e.target.value } })} />
-                </Field>
-            </Row>
-
+            <div style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: 12, color: C.subText, marginBottom: 6 }}>Design</div>
+                <LayoutPicker value={quote.layout} onChange={(layout) => patch({ layout })} />
+                <Text type="secondary" style={{ fontSize: 12, display: "block", marginTop: 6 }}>{getLayout(quote.layout).description}</Text>
+            </div>
             <Field label="Introduction">
                 <TextArea autoSize={{ minRows: 2 }} value={quote.intro} onChange={(e) => patch({ intro: e.target.value })} />
             </Field>
@@ -240,8 +324,10 @@ const QuotationEditor: React.FC<{
         </>
     );
 
-    const pricingTab = quote && (
+    const GRID = "1fr 80px 130px 120px 120px 32px";
+    const itemsStep = quote && (
         <>
+            <StepTitle title="Items" hint="Start typing to pick an item you've used on an earlier quote or invoice. New items are saved for next time." />
             {quote.sections.map((section, si) => (
                 <Card
                     key={section._id || si}
@@ -250,9 +336,9 @@ const QuotationEditor: React.FC<{
                     title={
                         <Space wrap>
                             <Text strong>{String.fromCharCode(65 + si)}.</Text>
-                            <Input style={{ width: 260 }} value={section.title} placeholder="Section title, e.g. Local charges"
+                            <Input style={{ width: 240 }} value={section.title} placeholder="Section title, e.g. Local charges"
                                 onChange={(e) => setSection(si, { ...section, title: e.target.value })} />
-                            <Input style={{ width: 90 }} value={section.currency} placeholder={quote.currency || "KES"}
+                            <Input style={{ width: 80 }} value={section.currency} placeholder={quote.currency || "KES"}
                                 onChange={(e) => setSection(si, { ...section, currency: e.target.value })} />
                             <Select style={{ width: 110 }} value={section.vat_rate || 0}
                                 onChange={(v) => setSection(si, { ...section, vat_rate: v })}
@@ -264,16 +350,27 @@ const QuotationEditor: React.FC<{
                             onClick={() => patch({ sections: removeAt(quote.sections, si) })} />
                     )}
                 >
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 80px 130px 120px 130px 32px", gap: 8, fontSize: 12, color: C.subText, marginBottom: 6 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: GRID, gap: 8, fontSize: 12, color: C.subText, marginBottom: 6 }}>
                         <span>Item</span><span>Qty</span><span>Unit price</span><span style={{ textAlign: "right" }}>Amount</span><span>Image</span><span />
                     </div>
                     {section.lines.map((line, li) => {
-                        const setLine = (p: Partial<typeof line>) =>
+                        const setLine = (p: Partial<QuoteLine>) =>
                             setSection(si, { ...section, lines: replaceAt(section.lines, li, { ...line, ...p }) });
                         return (
-                            <div key={line._id || li} style={{ display: "grid", gridTemplateColumns: "1fr 80px 130px 120px 130px 32px", gap: 8, alignItems: "start", marginBottom: 8 }}>
-                                <TextArea autoSize={{ minRows: 1, maxRows: 4 }} value={line.description} placeholder="Description"
-                                    onChange={(e) => setLine({ description: e.target.value })} />
+                            <div key={line._id || li} style={{ display: "grid", gridTemplateColumns: GRID, gap: 8, alignItems: "start", marginBottom: 8 }}>
+                                <AutoComplete
+                                    value={line.description}
+                                    options={line.description.trim().length >= 1 ? savedOptions : []}
+                                    onSearch={(t) => setItemSearch(t.trim())}
+                                    onChange={(v) => setLine({ description: v })}
+                                    onSelect={(id: string) => {
+                                        const item = savedItems.find((x) => x._id === id);
+                                        if (item) setLine(lineFromSaved(item));
+                                    }}
+                                    popupMatchSelectWidth={420}
+                                >
+                                    <TextArea autoSize={{ minRows: 1, maxRows: 4 }} placeholder="Description — type to find saved items" />
+                                </AutoComplete>
                                 <InputNumber min={0} style={{ width: "100%" }} value={line.quantity} onChange={(v) => setLine({ quantity: v ?? 0 })} />
                                 <InputNumber min={0} style={{ width: "100%" }} value={line.unit_price}
                                     formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
@@ -287,10 +384,34 @@ const QuotationEditor: React.FC<{
                             </div>
                         );
                     })}
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
-                        <Button size="small" icon={<PlusOutlined />} onClick={() => setSection(si, { ...section, lines: [...section.lines, blankLine()] })}>
-                            Add item
-                        </Button>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
+                        <Space wrap>
+                            <Button size="small" icon={<PlusOutlined />} onClick={() => setSection(si, { ...section, lines: [...section.lines, blankLine()] })}>
+                                Add item
+                            </Button>
+                            <Select
+                                size="small"
+                                style={{ width: 260 }}
+                                showSearch
+                                value={null}
+                                placeholder="Add a saved item…"
+                                filterOption={false}
+                                onSearch={(t) => setItemSearch(t.trim())}
+                                onChange={(id: string) => {
+                                    const item = savedItems.find((x) => x._id === id);
+                                    if (!item) return;
+                                    // Fill the empty starter row before adding a new one
+                                    const empty = section.lines.findIndex((l) => !l.description.trim() && !l.unit_price);
+                                    const line = { ...blankLine(), ...lineFromSaved(item) } as QuoteLine;
+                                    setSection(si, {
+                                        ...section,
+                                        lines: empty >= 0 ? replaceAt(section.lines, empty, line) : [...section.lines, line],
+                                    });
+                                }}
+                                notFoundContent="No saved items yet — they're kept when you save a quote or invoice"
+                                options={savedOptions}
+                            />
+                        </Space>
                         <Text strong>
                             Total {money(totals.sections[si]?.total)}
                             {!!section.vat_rate && <Text type="secondary" style={{ fontWeight: 400 }}> (incl. VAT {money(totals.sections[si]?.vat_amount)})</Text>}
@@ -306,11 +427,9 @@ const QuotationEditor: React.FC<{
     );
 
     const blocks = quote?.blocks || [];
-    const termsTab = quote && (
+    const termsStep = quote && (
         <>
-            <Text type="secondary" style={{ display: "block", marginBottom: 12, fontSize: 12 }}>
-                Notes, payment terms, delivery time, warranty — each shows as a heading with its text under the totals.
-            </Text>
+            <StepTitle title="Notes & terms" hint="Each block prints as a heading with its text under the totals. Empty blocks are left out." />
             {blocks.map((b, i) => (
                 <Card key={b._id || i} size="small" style={{ marginBottom: 10 }}
                     title={<Input value={b.heading} placeholder="Heading" variant="borderless" style={{ fontWeight: 600, padding: 0 }}
@@ -326,8 +445,9 @@ const QuotationEditor: React.FC<{
     );
 
     const groups = quote?.spec_groups || [];
-    const specTab = quote && (
+    const specStep = quote && (
         <>
+            <StepTitle title="Specification" hint="Optional. Prints in the Sectioned design as a table with a picture beside it." />
             <Row>
                 <Field label="Heading">
                     <Input value={quote.spec_heading} onChange={(e) => patch({ spec_heading: e.target.value })} />
@@ -369,8 +489,9 @@ const QuotationEditor: React.FC<{
 
     const features = quote?.features || [];
     const gallery = quote?.gallery || [];
-    const mediaTab = quote && (
+    const mediaStep = quote && (
         <>
+            <StepTitle title="Features & pictures" hint="Optional. Pictures upload to DigitalOcean Spaces and print in the Sectioned design." />
             <Row>
                 <Field label="Features heading">
                     <Input value={quote.features_heading} onChange={(e) => patch({ features_heading: e.target.value })} />
@@ -414,7 +535,7 @@ const QuotationEditor: React.FC<{
             <div style={{ height: 20 }} />
             <Text strong style={{ display: "block", marginBottom: 6 }}>Banners for this quote</Text>
             <Text type="secondary" style={{ display: "block", fontSize: 12, marginBottom: 8 }}>
-                Leave empty to use the template's header and footer{template ? ` (${template.name})` : ""}.
+                Leave empty to use the saved template's header and footer{template ? ` (${template.name})` : ""}.
             </Text>
             <Space direction="vertical">
                 <Space><span style={{ width: 60, display: "inline-block" }}>Header</span><ImageInput wide value={quote.header_image} onChange={(header_image) => patch({ header_image })} label="Header banner" /></Space>
@@ -423,42 +544,74 @@ const QuotationEditor: React.FC<{
         </>
     );
 
-    return (
-        <Drawer
-            open={open}
-            onClose={onClose}
-            width={980}
-            title={quoteId ? `Edit quote ${quote?.quote_no || ""}` : "New quote"}
-            destroyOnHidden
-            extra={
-                <Space>
-                    <Button icon={<EyeOutlined />} disabled={!quote} onClick={() => setPreviewOpen(true)}>Preview</Button>
-                    <Button type="primary" icon={<SaveOutlined />} loading={saving} disabled={!quote || readOnly} onClick={save}>
-                        Save
+    const LayoutComponent = getLayout(quote?.layout).Component;
+    const reviewStep = quote && (
+        <>
+            <StepTitle title="Review" hint="This is how the quote will look. Go back to any step to change it." />
+            <Descriptions size="small" bordered column={2} style={{ marginBottom: 14 }}>
+                <Descriptions.Item label="Client">{quote.client?.name || "—"}</Descriptions.Item>
+                <Descriptions.Item label="Total">{quote.currency || "KES"} {money(totals.grand_total)}</Descriptions.Item>
+                <Descriptions.Item label="Title">{quote.title || "—"}</Descriptions.Item>
+                <Descriptions.Item label="Design">{getLayout(quote.layout).label}</Descriptions.Item>
+            </Descriptions>
+            <div style={{ background: "#e5e7eb", padding: 12, borderRadius: 8, maxHeight: 520, overflow: "auto" }}>
+                <div style={{ background: "#fff", padding: 24, maxWidth: 794, margin: "0 auto" }}>
+                    <LayoutComponent quote={quote} template={template} />
+                </div>
+            </div>
+        </>
+    );
+
+    const stepBody = [clientStep, detailsStep, itemsStep, termsStep, specStep, mediaStep, reviewStep][step];
+
+    const footer = (
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+            <Button icon={<EyeOutlined />} disabled={!quote} onClick={() => setPreviewOpen(true)}>Preview & print</Button>
+            <Space>
+                {step > 0 && <Button onClick={() => setStep(step - 1)}>Back</Button>}
+                {step < LAST && (
+                    <Button type={quoteId ? "default" : "primary"} disabled={!quote} onClick={() => validateStep(step) && goTo(step + 1)}>
+                        Next
                     </Button>
-                </Space>
-            }
-        >
-            {!quote ? (
-                loading ? <div style={{ textAlign: "center", padding: 60 }}><Spin /></div> : <Empty />
-            ) : (
-                <>
-                    {readOnly && (
-                        <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: "8px 12px", marginBottom: 12, fontSize: 13 }}>
-                            This quote was accepted, so it can't be changed. Duplicate it from the list to make a new version.
-                        </div>
-                    )}
-                    <Tabs
-                        items={[
-                            { key: "details", label: "Client & intro", children: detailsTab },
-                            { key: "pricing", label: "Pricing", children: pricingTab },
-                            { key: "terms", label: "Notes & terms", children: termsTab },
-                            { key: "spec", label: "Specification", children: specTab },
-                            { key: "media", label: "Features & pictures", children: mediaTab },
-                        ]}
-                    />
-                </>
-            )}
+                )}
+                {(step === LAST || !!quoteId) && (
+                    <Button type="primary" icon={<FileTextOutlined />} loading={saving} disabled={!quote || readOnly} onClick={save}>
+                        {quoteId ? "Save quote" : "Create quote"}
+                    </Button>
+                )}
+            </Space>
+        </div>
+    );
+
+    return (
+        <>
+            <StepperModal
+                open={open}
+                onCancel={onClose}
+                icon={<FileTextOutlined />}
+                title={quoteId ? `Edit quote ${quote?.quote_no || ""}` : "Create Quote"}
+                steps={STEPS}
+                current={step}
+                // Any step already reached can be opened again
+                onStepClick={(i) => setStep(i)}
+                reachedStep={reached}
+                width={1200}
+                maskClosable={false}
+                footer={footer}
+            >
+                {!quote ? (
+                    loading ? <div style={{ textAlign: "center", padding: 60 }}><Spin /></div> : <Empty />
+                ) : (
+                    <>
+                        {readOnly && (
+                            <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: "8px 12px", marginBottom: 12, fontSize: 13 }}>
+                                This quote was accepted, so it can't be changed. Duplicate it from the list to make a new version.
+                            </div>
+                        )}
+                        {stepBody}
+                    </>
+                )}
+            </StepperModal>
 
             <QuotationPreview
                 open={previewOpen}
@@ -466,7 +619,7 @@ const QuotationEditor: React.FC<{
                 quote={quote}
                 template={template}
             />
-        </Drawer>
+        </>
     );
 };
 

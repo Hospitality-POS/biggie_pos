@@ -10,7 +10,8 @@ import {
 } from "@services/quotations";
 import ImageInput from "./ImageInput";
 import QuotationPreview from "./QuotationPreview";
-import { DEFAULT_LAYOUT, QUOTE_LAYOUTS } from "./templates";
+import { DEFAULT_LAYOUT, getLayout } from "./templates";
+import LayoutPicker from "./LayoutPicker";
 import { STARTER_TEMPLATE_DEFAULTS, newQuote } from "./starter";
 
 const { Text } = Typography;
@@ -144,7 +145,7 @@ const TemplatesManager: React.FC<{ open: boolean; onClose: () => void }> = ({ op
                                         ? <img src={t.header_image} alt="" style={{ width: 120, height: 32, objectFit: "contain" }} />
                                         : <div style={{ width: 120, height: 32, background: t.accent_color || "#1f5f99", borderRadius: 4 }} />}
                                     title={<Space>{t.name}{t.is_default && <Tag color="gold">Default</Tag>}</Space>}
-                                    description={QUOTE_LAYOUTS.find((l) => l.key === t.layout)?.label || t.layout}
+                                    description={getLayout(t.layout).label}
                                 />
                             </List.Item>
                         )}
@@ -158,14 +159,9 @@ const TemplatesManager: React.FC<{ open: boolean; onClose: () => void }> = ({ op
                     <Label>Name</Label>
                     <Input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="e.g. Lift quote" />
 
-                    <Label>Layout</Label>
-                    <Select
-                        style={{ width: "100%" }}
-                        value={draft.layout}
-                        onChange={(layout) => setDraft({ ...draft, layout })}
-                        options={QUOTE_LAYOUTS.map((l) => ({ value: l.key, label: l.label }))}
-                    />
-                    <Text type="secondary" style={{ fontSize: 12 }}>{QUOTE_LAYOUTS.find((l) => l.key === draft.layout)?.description}</Text>
+                    <Label>Design</Label>
+                    <LayoutPicker size="small" value={draft.layout} onChange={(layout) => setDraft({ ...draft, layout })} />
+                    <Text type="secondary" style={{ fontSize: 12 }}>{getLayout(draft.layout).description}</Text>
 
                     <Label>Header banner (logo and contacts)</Label>
                     <ImageInput wide value={draft.header_image} onChange={(header_image) => setDraft({ ...draft, header_image })} label="Upload header" />

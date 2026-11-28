@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-    Form, Input, InputNumber, Select, DatePicker,
+    AutoComplete, Form, Input, InputNumber, Select, DatePicker,
     Button, Space, Table, Divider, App, Row, Col, Tag,
     Typography, Alert, Card, Statistic, Tooltip, Checkbox, Switch, Spin, Descriptions,
 } from "antd";
@@ -24,6 +24,7 @@ import { fetchAllPaymentMethods } from "@services/paymentMethod";
 import { fetchTenantDetails, getCurrentTenantId } from "@services/tenants";
 import AddCustomerModal from "@pages/Customer/AddCustomerModal";
 import AccountFormDrawer from "@pages/ChartOfAccounts/AccountFormDrawer";
+import { SAVED_ITEMS_KEY, listSavedItems, rememberSavedItems, type SavedItem } from "@services/savedItems";
 import QuickAddItemModal, { type QuickAddKind, type QuickAddedItem } from "./QuickAddItemModal";
 import { fetchSystemSetupDetailsById } from "@services/systemsetup";
 import { useCurrency } from "@context/CurrencyContext";
@@ -148,6 +149,16 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
     // was typed in the picker's search
     const [quickAdd, setQuickAdd] = useState<{ lineKey: string; kind: QuickAddKind; name: string; price?: number } | null>(null);
     const [itemSearch, setItemSearch] = useState<Record<string, string>>({});
+
+    // Lines typed on earlier invoices and quotes, offered so they needn't be retyped
+    const [savedSearch, setSavedSearch] = useState("");
+    const { data: savedItems = [] } = useQuery({
+        queryKey: [SAVED_ITEMS_KEY, savedSearch],
+        queryFn: () => listSavedItems(savedSearch),
+        enabled: open,
+        staleTime: 30_000,
+        keepPreviousData: true,
+    });
 
     const navigate = useNavigate();
     const shopId = localStorage.getItem("shopId") || "";
@@ -544,6 +555,23 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
         queryClient.invalidateQueries({ queryKey: [item.type === "service" ? "services" : "inventory-items"] });
     };
 
+    // A saved item picked on a line: it stays a custom line with its text and price
+    const applySavedItem = (key: string, item: SavedItem) =>
+        setLines((prev) => prev.map((l) => (l.key === key ? {
+            ...l,
+            item_type: "custom" as const,
+            item_id: undefined,
+            description: item.description,
+            unit_price: item.unit_price || 0,
+            vat_rate: vatEnabled ? (item.vat_rate ?? l.vat_rate) : 0,
+        } : l)));
+
+    const savedItemOptions = savedItems.map((item) => ({
+        value: "saved:" + item._id,
+        label: item.description + " - KES" + (item.unit_price || 0),
+    }));
+    const findSaved = (value: string) => savedItems.find((x) => "saved:" + x._id === value);
+
     const addLine = () =>
         setLines((prev) => [
             ...prev,
@@ -601,6 +629,13 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
         mutationFn: createInvoice,
         onSuccess: (data) => {
             setSavedInvoice(data?.invoice);
+            // Keep typed (custom) lines so the next invoice or quote can pick them
+            rememberSavedItems(
+                lines.filter((l) => l.item_type === "custom").map((l) => ({
+                    description: l.description, unit_price: l.unit_price, vat_rate: l.vat_rate,
+                })),
+                "invoice"
+            ).then(() => queryClient.invalidateQueries({ queryKey: [SAVED_ITEMS_KEY] }));
             setDidSave(true); // mark: table needs refresh when modal closes
             localStorage.removeItem(DRAFT_KEY); // draft posted — clear it
             setHasDraft(false);
@@ -918,11 +953,22 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
             width: 300,
             render: (_: any, r: LineItem) => (
                 r.item_type === "custom" ? (
+                    <AutoComplete
+                        size="small"
+                        style={{ width: "100%" }}
+                        value={r.description}
+                        options={r.description.trim() ? savedItemOptions : []}
+                        onSearch={(t) => setSavedSearch(t.trim())}
+                        onChange={(v) => updateLine(r.key, "description", v)}
+                        onSelect={(v: string) => {
+                            const item = findSaved(v);
+                            if (item) applySavedItem(r.key, item);
+                        }}
+                        popupMatchSelectWidth={360}
+                    >
                     <Input
                         size="small"
-                        placeholder="Enter custom item description"
-                        value={r.description}
-                        onChange={(e) => updateLine(r.key, "description", e.target.value)}
+                        placeholder="Type an item, or pick one you saved before"
                         addonAfter={
                             <Space size={0}>
                                 <Tooltip title="Save as a new service or inventory item, to pick next time">
@@ -951,12 +997,18 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
                             </Space>
                         }
                     />
+                    </AutoComplete>
                 ) : (
                     <Select
                         size="small"
                         placeholder={inventoryFetching || servicesFetching ? "Loading items..." : "Select item or service"}
                         value={r.item_id}
                         onChange={(value: string) => {
+                            if (typeof value === "string" && value.startsWith("saved:")) {
+                                const item = findSaved(value);
+                                if (item) applySavedItem(r.key, item);
+                                return;
+                            }
                             if (value === "custom") {
                                 updateLine(r.key, "item_id" as keyof LineItem, null);
                                 updateLine(r.key, "item_type" as keyof LineItem, "custom");
@@ -980,7 +1032,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
                         filterOption={(input, option) =>
                             (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
                         }
-                        onSearch={(text) => setItemSearch((p) => ({ ...p, [r.key]: text }))}
+                        onSearch={(text) => { setItemSearch((p) => ({ ...p, [r.key]: text })); setSavedSearch(text.trim()); }}
                         dropdownRender={(menu) => (
                             <>
                                 {menu}
@@ -1004,6 +1056,10 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
                                     label: `${service.name} - KES${service.price}`,
                                     value: service.id,
                                 })),
+                            }] : []),
+                            ...(savedItemOptions.length > 0 ? [{
+                                label: "Saved items (from earlier invoices & quotes)",
+                                options: savedItemOptions,
                             }] : []),
                             {
                                 label: "Custom Item",

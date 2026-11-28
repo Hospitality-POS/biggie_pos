@@ -21,6 +21,9 @@ interface Props {
     current: number;
     /** Called when a step is clicked. Only steps before `current` are clickable. */
     onStepClick?: (index: number) => void;
+    /** Furthest step already reached; steps up to it are clickable, so
+     *  forms can jump forward again. Defaults to only earlier steps. */
+    reachedStep?: number;
     footer: React.ReactNode;
     width?: number;
     /** Set false so a click outside doesn't close (and lose) a long form. */
@@ -35,23 +38,25 @@ interface Props {
  */
 const StepperModal: React.FC<Props> = ({
     open, onCancel, title, icon, accent = C.primary, steps, current,
-    onStepClick, footer, width = 900, maskClosable = true, children,
+    onStepClick, reachedStep, footer, width = 900, maskClosable = true, children,
 }) => {
     const screens = Grid.useBreakpoint();
     const vertical = screens.md !== false;
 
+    // Steps that can be clicked: earlier ones, or any up to reachedStep
+    const lastClickable = reachedStep ?? current - 1;
     const stepper = (
         <Steps
             direction={vertical ? "vertical" : "horizontal"}
             size="small"
             current={current}
             responsive={false}
-            onChange={onStepClick ? (i) => { if (i < current) onStepClick(i); } : undefined}
+            onChange={onStepClick ? (i) => { if (i <= lastClickable && i !== current) onStepClick(i); } : undefined}
             items={steps.map((s, i) => ({
                 title: s.title,
                 description: vertical ? s.description : undefined,
                 icon: s.icon,
-                disabled: !onStepClick || i >= current,
+                disabled: !onStepClick || i > lastClickable || i === current,
             }))}
         />
     );

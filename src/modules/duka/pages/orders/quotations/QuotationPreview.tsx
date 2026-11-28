@@ -1,11 +1,12 @@
 import React, { useRef, useState } from "react";
-import { Button, Modal, Select, Space, message } from "antd";
+import { Button, Modal, Space, message } from "antd";
 import { DownloadOutlined, PrinterOutlined } from "@ant-design/icons";
 import { useReactToPrint } from "react-to-print";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import type { Quotation, QuotationTemplate } from "@services/quotations";
-import { QUOTE_LAYOUTS, getLayout } from "./templates";
+import { getLayout } from "./templates";
+import LayoutPicker from "./LayoutPicker";
 
 // A4 at 96 dpi
 const PAGE_WIDTH_PX = 794;
@@ -65,26 +66,18 @@ const QuotationPreview: React.FC<{
             width={PAGE_WIDTH_PX + 64}
             title={quote?.quote_no ? `Quote ${quote.quote_no}` : "Quote preview"}
             footer={
-                <Space wrap style={{ justifyContent: "space-between", width: "100%" }}>
-                    <Space>
-                        <span style={{ fontSize: 12, color: "#64748b" }}>Layout</span>
-                        <Select
-                            size="small"
-                            style={{ width: 190 }}
-                            value={getLayout(activeKey).key}
-                            onChange={setLayoutKey}
-                            options={QUOTE_LAYOUTS.map((l) => ({ value: l.key, label: l.label }))}
-                        />
-                    </Space>
-                    <Space>
-                        <Button icon={<DownloadOutlined />} loading={downloading} onClick={downloadPdf}>Download PDF</Button>
-                        <Button type="primary" icon={<PrinterOutlined />} onClick={() => print()}>Print</Button>
-                    </Space>
+                <Space>
+                    <Button icon={<DownloadOutlined />} loading={downloading} onClick={downloadPdf}>Download PDF</Button>
+                    <Button type="primary" icon={<PrinterOutlined />} onClick={() => print()}>Print</Button>
                 </Space>
             }
             styles={{ body: { background: "#e5e7eb", padding: 16, maxHeight: "75vh", overflow: "auto" } }}
             destroyOnHidden
         >
+            <div style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: 12, color: "#64748b", marginBottom: 6 }}>Template</div>
+                <LayoutPicker size="small" value={activeKey} onChange={setLayoutKey} />
+            </div>
             {quote && (
                 <div style={{ width: PAGE_WIDTH_PX, maxWidth: "100%", margin: "0 auto", background: "#fff", boxShadow: "0 1px 4px rgba(0,0,0,.15)" }}>
                     <div ref={pageRef} style={{ padding: 28, background: "#fff" }}>
