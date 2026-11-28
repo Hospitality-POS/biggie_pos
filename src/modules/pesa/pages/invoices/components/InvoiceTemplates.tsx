@@ -567,7 +567,7 @@ const PaymentDetailsBlock = ({
                         padding: "9px 12px",
                     }}
                 >
-                    <div style={{ fontSize: 10, color: "#991b1b", marginBottom: 2 }}>Balance Due</div>
+                    <div style={{ fontSize: 10, color: "#991b1b", marginBottom: 2 }}>{inv.status === "Draft" ? "Quote Total" : "Balance Due"}</div>
                     <div style={{ fontSize: 15, fontWeight: 700, color: C.red }}>
                         KES {fmt(inv.amount_due || inv.grand_total || 0)}
                     </div>
@@ -1556,7 +1556,7 @@ const Template4MinimalBase = React.forwardRef<HTMLDivElement, SharedProps>(({ in
                             marginBottom: 6,
                         }}
                     >
-                        Amount Due
+                        {inv.status === "Draft" ? "Quote Total" : "Amount Due"}
                     </div>
                     <div style={{ fontSize: 22, fontWeight: 700, color: C.red }}>
                         KES {fmt(inv.amount_due ?? inv.grand_total ?? 0)}
@@ -1771,7 +1771,7 @@ const Template6CleanBase = React.forwardRef<HTMLDivElement, SharedProps>(({ inv,
             {/* Issued to + black info box */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
                 <div style={{ flex: 1, paddingRight: 20 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>Invoice issued to:</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>{inv.status === "Draft" ? "Quote prepared for:" : "Invoice issued to:"}</div>
                     <div style={{ fontSize: 13, fontWeight: 600 }}>{party.name}</div>
                     {party.phone && <div style={{ fontSize: 11 }}>{party.phone}</div>}
                     {party.email && <div style={{ fontSize: 11 }}>{party.email}</div>}
@@ -1795,10 +1795,12 @@ const Template6CleanBase = React.forwardRef<HTMLDivElement, SharedProps>(({ inv,
                 <div style={{ width: 260, background: "#000", color: "#fff", borderRadius: 8, padding: "16px 18px" }}>
                     <table style={{ width: "100%", color: "#fff", fontSize: 12, lineHeight: 1.6 }}>
                         <tbody>
-                            <tr><td style={{ padding: "3px 0" }}>Invoice Number</td><td style={{ textAlign: "right", fontWeight: 600 }}>{inv.order_no || inv.invoice_no}</td></tr>
-                            <tr><td style={{ padding: "3px 0" }}>Invoice Date</td><td style={{ textAlign: "right", fontWeight: 600 }}>{fmtDateShort(inv.issue_date || inv.createdAt)}</td></tr>
-                            <tr><td style={{ padding: "3px 0" }}>Invoice Total</td><td style={{ textAlign: "right", fontWeight: 600 }}>KES {fmt(inv.grand_total || 0)}</td></tr>
-                            <tr><td style={{ padding: "3px 0" }}>Balance Due</td><td style={{ textAlign: "right", fontWeight: 600 }}>KES {fmt(inv.amount_due ?? inv.grand_total ?? 0)}</td></tr>
+                            <tr><td style={{ padding: "3px 0" }}>{inv.status === "Draft" ? "Quote Number" : "Invoice Number"}</td><td style={{ textAlign: "right", fontWeight: 600 }}>{inv.order_no || inv.invoice_no}</td></tr>
+                            <tr><td style={{ padding: "3px 0" }}>{inv.status === "Draft" ? "Quote Date" : "Invoice Date"}</td><td style={{ textAlign: "right", fontWeight: 600 }}>{fmtDateShort(inv.issue_date || inv.createdAt)}</td></tr>
+                            <tr><td style={{ padding: "3px 0" }}>{inv.status === "Draft" ? "Quote Total" : "Invoice Total"}</td><td style={{ textAlign: "right", fontWeight: 600 }}>KES {fmt(inv.grand_total || 0)}</td></tr>
+                            {inv.status !== "Draft" && (
+                                <tr><td style={{ padding: "3px 0" }}>Balance Due</td><td style={{ textAlign: "right", fontWeight: 600 }}>KES {fmt(inv.amount_due ?? inv.grand_total ?? 0)}</td></tr>
+                            )}
                         </tbody>
                     </table>
                 </div>
@@ -1951,10 +1953,11 @@ const Template7LetterheadBase = React.forwardRef<HTMLDivElement, SharedProps>(({
                 <table style={{ fontSize: 12, borderCollapse: "collapse", minWidth: 230 }}>
                     <tbody>
                         {[
-                            ["Invoice No.", inv.order_no || inv.invoice_no || "—"],
+                            [inv.status === "Draft" ? "Quote No." : inv.direction === "supplier" ? "Bill No." : "Invoice No.", inv.order_no || inv.invoice_no || "—"],
                             ["Date", fmtDateShort(inv.issue_date || inv.createdAt)],
                             ...(inv.due_date ? [["Due Date", fmtDateShort(inv.due_date)]] : []),
-                            ["Status", inv.status || "—"],
+                            // A quote has no payment status to show
+                            ...(inv.status === "Draft" ? [] : [["Status", inv.status || "—"]]),
                         ].map(([k, v]) => (
                             <tr key={k}>
                                 <td style={{ padding: "4px 10px", background: primary, color: "#fff", fontWeight: 600, border: "1px solid #fff" }}>{k}</td>

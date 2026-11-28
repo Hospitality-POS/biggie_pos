@@ -453,7 +453,7 @@ export const useProLayoutNav = () => {
   // ════════════════════════════════════════════════════════════════════════════
   const pesaRoutesBase = [
     { path: p("/accounting/dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/accounting/dashboard" },
-    { path: p("/orders"), name: "Invoices", icon: <FileTextOutlined />, _bare: "/orders" },
+    { path: p("/orders"), name: "Invoices & Quotes", icon: <FileTextOutlined />, _bare: "/orders" },
     { path: p("/accounting/sales-receipts"), name: "Sales Receipts", icon: <AccountBookOutlined />, _bare: "/accounting/sales-receipts" },
     { path: p("/accounting/expenses"), name: "Expenses", icon: <ArrowUpOutlined />, _bare: "/accounting/expenses" },
     { path: p("/accounting/bills"), name: "Bills", icon: <FileTextOutlined />, _bare: "/accounting/bills" },
