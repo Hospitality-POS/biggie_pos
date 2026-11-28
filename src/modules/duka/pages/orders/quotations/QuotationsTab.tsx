@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Button, Dropdown, Input, Segmented, Space, Table, Tag, Typography, message, Modal } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
-    CheckCircleOutlined, CloseCircleOutlined, CopyOutlined, DeleteOutlined, EditOutlined, EyeOutlined,
+    CheckCircleOutlined, CloseCircleOutlined, FileDoneOutlined, CopyOutlined, DeleteOutlined, EditOutlined, EyeOutlined,
     LayoutOutlined, MoreOutlined, PlusOutlined, SendOutlined,
 } from "@ant-design/icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -15,6 +15,8 @@ import { THEME_C } from "@utils/getPrimaryColor";
 import QuotationEditor from "./QuotationEditor";
 import QuotationPreview from "./QuotationPreview";
 import TemplatesManager from "./TemplatesManager";
+import ConvertToInvoiceModal from "./ConvertToInvoiceModal";
+import { useTenantModules } from "@hooks/useTenantModules";
 import { money } from "./templates";
 
 const { Text } = Typography;
@@ -43,6 +45,9 @@ const QuotationsTab: React.FC = () => {
     const [editor, setEditor] = useState<{ open: boolean; id: string | null }>({ open: false, id: null });
     const [preview, setPreview] = useState<Quotation | null>(null);
     const [templatesOpen, setTemplatesOpen] = useState(false);
+    const [converting, setConverting] = useState<Quotation | null>(null);
+    // Invoices live in Pesa (accounting); without it there is nothing to convert into
+    const { hasAccounting } = useTenantModules();
 
     const { data, isFetching } = useQuery({
         queryKey: ["quotations", status, search, page, pageSize],
@@ -78,8 +83,13 @@ const QuotationsTab: React.FC = () => {
 
     const actionsFor = (row: Quotation) => {
         const id = row._id as string;
-        const items = [
+        const converted = !!row.invoice_id;
+        const items = converted ? [
             { key: "preview", icon: <EyeOutlined />, label: "Preview / print" },
+            { key: "duplicate", icon: <CopyOutlined />, label: "Duplicate" },
+        ] : [
+            { key: "preview", icon: <EyeOutlined />, label: "Preview / print" },
+            ...(hasAccounting ? [{ key: "convert", icon: <FileDoneOutlined />, label: "Convert to invoice" }] : []),
             ...(row.status !== "accepted" ? [{ key: "edit", icon: <EditOutlined />, label: "Edit" }] : []),
             { key: "duplicate", icon: <CopyOutlined />, label: "Duplicate" },
             { type: "divider" as const },
@@ -90,6 +100,7 @@ const QuotationsTab: React.FC = () => {
         ];
         const onClick = ({ key }: { key: string }) => {
             if (key === "preview") openPreview(row);
+            else if (key === "convert") setConverting(row);
             else if (key === "edit") setEditor({ open: true, id });
             else if (key === "duplicate") run(() => duplicateQuotation(id), "Quote duplicated", "Couldn't duplicate the quote");
             else if (key === "delete") {
@@ -128,8 +139,13 @@ const QuotationsTab: React.FC = () => {
             render: (v, row) => <span style={{ fontWeight: 600 }}>{row.currency || "KES"} {money(v)}</span>,
         },
         {
-            title: "Status", dataIndex: "status", width: 100,
-            render: (v: QuotationStatus) => <Tag color={STATUS[v]?.color}>{STATUS[v]?.label || v}</Tag>,
+            title: "Status", dataIndex: "status", width: 190,
+            render: (v: QuotationStatus, row) => (
+                <Space size={4} wrap>
+                    <Tag color={STATUS[v]?.color}>{STATUS[v]?.label || v}</Tag>
+                    {row.invoice_no && <Tag color="purple">Invoice {row.invoice_no}</Tag>}
+                </Space>
+            ),
         },
         {
             key: "actions", width: 48, align: "center",
@@ -193,6 +209,16 @@ const QuotationsTab: React.FC = () => {
                 }}
             />
             <QuotationPreview open={!!preview} onClose={() => setPreview(null)} quote={preview} template={preview?.template} />
+            <ConvertToInvoiceModal
+                quote={converting}
+                onClose={() => setConverting(null)}
+                onConverted={(invoiceNo) => {
+                    setConverting(null);
+                    if (invoiceNo) message.success(`Invoice ${invoiceNo} created. Find it in the Invoices tab.`);
+                    refresh();
+                    queryClient.invalidateQueries({ queryKey: ["invoices"] });
+                }}
+            />
             <TemplatesManager open={templatesOpen} onClose={() => setTemplatesOpen(false)} />
         </div>
     );

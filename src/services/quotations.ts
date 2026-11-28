@@ -108,6 +108,9 @@ export interface Quotation {
     gallery?: QuoteGalleryItem[];
     header_image?: string;
     footer_image?: string;
+    /** Set once the quote has been converted to an invoice */
+    invoice_id?: string | null;
+    invoice_no?: string;
     createdAt?: string;
     /** Returned by GET /quotations/:id */
     template?: QuotationTemplate | null;
@@ -177,3 +180,7 @@ export const deleteQuotationTemplate = async (id: string) => {
 
 export const apiErrorMessage = (error: any, fallback: string) =>
     error?.response?.data?.message || fallback;
+
+/** Links the invoice made from a quote; the API marks the quote accepted */
+export const markQuotationConverted = async (id: string, invoiceId: string) =>
+    (await axiosInstance.post<{ data: Quotation }>(`${base}/${id}/converted`, { invoice_id: invoiceId })).data.data;

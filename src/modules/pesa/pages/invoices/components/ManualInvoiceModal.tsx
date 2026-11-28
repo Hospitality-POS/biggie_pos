@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
     Form, Input, InputNumber, Select, DatePicker,
     Button, Space, Table, Divider, App, Row, Col, Tag,
-    Typography, Alert, Segmented, Card, Statistic, Tooltip, Checkbox, Switch, Spin, Descriptions,
+    Typography, Alert, Card, Statistic, Tooltip, Checkbox, Switch, Spin, Descriptions,
 } from "antd";
 import {
     PlusOutlined, DeleteOutlined,
@@ -357,7 +357,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
                 due_date: fv.due_date ? dayjs(fv.due_date) : null,
             });
             if (draft.lines?.length)            setLines(draft.lines);
-            if (draft.docType)                   setDocType(quoteOnly ? "quote" : draft.docType);
+            if (draft.docType)                   setDocType(quoteOnly ? "quote" : "invoice");
             if (draft.discountType)              setDiscountType(draft.discountType);
             if (draft.discountAmount  != null)   setDiscountAmount(draft.discountAmount);
             if (draft.discountPercentage != null) setDiscountPercentage(draft.discountPercentage);
@@ -1257,19 +1257,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess, invoice
                 />
             )}
 
-            <Row justify="center" style={{ marginBottom: 16 }}>
-                <Segmented
-                    value={docType}
-                    onChange={(v) => setDocType(v as DocType)}
-                    size="large"
-                    disabled={isEditMode || quoteOnly}
-                    options={[
-                        { label: <Space><FileTextOutlined />Quote</Space>, value: "quote" },
-                        { label: <Space><FileDoneOutlined />Invoice</Space>, value: "invoice" },
-                    ]}
-                />
-            </Row>
-
+            {/* Quotes are made in Orders → Quotations; this form only makes invoices */}
             <Alert
                 type={docType === "quote" ? "warning" : "info"}
                 showIcon style={{ marginBottom: 16 }}
